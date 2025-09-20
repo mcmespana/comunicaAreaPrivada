@@ -1,0 +1,766 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: SinergiaCRM Private Area\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/Sinergiacrm-"
+"private-area\n"
+"POT-Creation-Date: 2020-08-24T08:39:00+00:00\n"
+"PO-Revision-Date: 2024-04-15 13:17+0000\n"
+"Last-Translator: \n"
+"Language-Team: Spanish (Spain)\n"
+"Language: es_ES\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Loco https://localise.biz/\n"
+"X-Loco-Version: 2.6.6; wp-6.5"
+
+#: pages/custom_html.php:15
+msgid ""
+"\"Neque porro quisquam est qui dolorem ipsum quia dolor sit amet, "
+"consectetur, adipisci velit...\""
+msgstr ""
+"\"Neque porro quisquam est qui dolorem ipsum quia dolor sit amet, "
+"consectetur, adipisci velit...\""
+
+#: inc/stic-listController.php:101
+msgid "(filtered from _MAX_ total entries)"
+msgstr "(sobre un total de _MAX_ registros)"
+
+#: pages/single_stic_profile.php:177 pages/single_stic_profile.php:190
+msgid "(Format: jpg, jpeg, gif, png - Maximum size: 6MB)"
+msgstr "(Formato: jpg, jpeg, gif, png - Tamaño máximo: 6MB)"
+
+#: inc/stic-listController.php:116
+msgid ": activate to sort column ascending"
+msgstr ": activar para ordenar la columna de forma ascendente"
+
+#: inc/stic-listController.php:117
+msgid ": activate to sort column descending"
+msgstr ": activar para ordenar la columna de forma descendente"
+
+#: sinergiacrm-private-area.php:290 sinergiacrm-private-area.php:443
+#: pages/single_stic_signup.php:50
+msgid "Account"
+msgstr "Organización"
+
+#: sinergiacrm-private-area.php:225 sinergiacrm-private-area.php:232
+#: sinergiacrm-private-area.php:239 sinergiacrm-private-area.php:246
+msgid "Accounts"
+msgstr "Organizaciones"
+
+#: inc/stic-listController.php:44
+msgid "Actions"
+msgstr "Acciones"
+
+#: pages/single_stic_tutor_profile.php:116 pages/single_stic_profile.php:198
+msgid "Address"
+msgstr "Dirección"
+
+#: sinergiacrm-private-area.php:183
+msgid "Also, follow the documentation at"
+msgstr "Además, siga las instrucciones disponibles en"
+
+#: pages/single_stic_payment_form.php:150
+msgid "Amount"
+msgstr "Importe"
+
+#: sinergiacrm-private-area.php:315
+msgid "Are you NOT registered? Click here."
+msgstr "¿No está registrado? Haga clic aquí."
+
+#: inc/stic-script-vars.php:9
+msgid "Are you sure you want to change this value?"
+msgstr "¿Está seguro de querer cambiar este valor?"
+
+#: inc/stic-script-vars.php:8
+msgid "Are you sure you want to delete this record?"
+msgstr "¿Está seguro de querer borrar este registro?"
+
+#: pages/single_stic_unsubscribe.php:21
+msgid "Are you sure you want to unsubscribe?"
+msgstr "¿Está seguro que quiere darse de baja?"
+
+#: pages/single_stic_attendances.php:15
+msgid "Attendance"
+msgstr "Asistencia "
+
+#: menu.php:18 pages/list_stic_attendances.php:17
+msgid "Attendances"
+msgstr "Asistencias"
+
+#: pages/single_stic_activities_calendar.php:119
+msgid "Available events appear in blue."
+msgstr "Los Eventos disponibles se muestran en azul."
+
+#: pages/single_stic_documents.php:22 pages/single_stic_documents.php:35
+#: pages/single_stic_events.php:17 pages/single_stic_relationships.php:33
+#: pages/single_stic_contacts.php:20 pages/single_stic_contacts.php:33
+#: pages/single_stic_profile.php:26 pages/single_stic_profile.php:37
+#: pages/single_stic_payment_commitments.php:28
+#: pages/single_stic_payment_commitments.php:39
+#: pages/single_stic_sessions.php:29 pages/single_stic_sessions.php:40
+#: pages/single_stic_payments.php:27 pages/single_stic_payments.php:38
+#: pages/single_stic_job_applications.php:24
+#: pages/single_stic_attendances.php:28 pages/single_stic_attendances.php:39
+#: pages/single_stic_job_offers.php:15 pages/single_stic_registrations.php:29
+#: pages/single_stic_registrations.php:40
+msgid "Back"
+msgstr "Atrás"
+
+#: pages/single_stic_payment_form.php:170
+msgid "Bank account"
+msgstr "Cuenta bancaria"
+
+#: pages/single_stic_unsubscribe.php:14
+#| msgid ""
+#| "By clicking on send you will unsubscribe your user account and you will "
+#| "no longer be able to access this private area"
+msgid ""
+"By clicking on send you will unsubscribe your user account and you will no "
+"longer be able to access this private area."
+msgstr "Al dar de baja su usuario no podrá volver a acceder al área privada."
+
+#: menu.php:25 pages/single_stic_activities_calendar.php:117
+msgid "Calendar"
+msgstr "Calendario"
+
+#: menu.php:29 pages/single_stic_password_change.php:6
+#: pages/single_stic_password_change.php:45
+msgid "Change password"
+msgstr "Cambiar la contraseña"
+
+#: pages/single_stic_profile.php:176
+msgid "Change profile picture"
+msgstr "Cambia la foto de perfil"
+
+#: pages/single_stic_documents.php:103 pages/single_stic_profile.php:189
+msgid "Choose a file"
+msgstr "Seleccione un fichero"
+
+#: pages/single_stic_password_change.php:38
+msgid "Confirm new password"
+msgstr "Confirme la nueva contraseña"
+
+#: sinergiacrm-private-area.php:204 sinergiacrm-private-area.php:211
+msgid "Connection not successful. Please check REST URL, Username and Password"
+msgstr ""
+"La conexión no tuvo éxito. Revise la URL REST, el nombre de usuario y la "
+"contraseña."
+
+#: sinergiacrm-private-area.php:289 sinergiacrm-private-area.php:442
+#: pages/single_stic_signup.php:49
+msgid "Contact"
+msgstr "Persona"
+
+#: sinergiacrm-private-area.php:224 sinergiacrm-private-area.php:231
+#: sinergiacrm-private-area.php:238 sinergiacrm-private-area.php:245
+msgid "Contacts"
+msgstr "Personas"
+
+#: sinergiacrm-private-area.php:226 sinergiacrm-private-area.php:233
+#: sinergiacrm-private-area.php:240 sinergiacrm-private-area.php:247
+msgid "Contacts or Accounts"
+msgstr "Personas u organizaciones"
+
+#: sinergiacrm-private-area.php:150
+msgid "CRM URL, ex: https://example.sinergiacrm.org"
+msgstr "Enlace del CRM. Por ejemplo: https://example.sinergiacrm.org"
+
+#: menu.php:31
+msgid "Custom HTML"
+msgstr "HTML personalizado"
+
+#: pages/custom_html.php:5 pages/delete_confirmation.php:5
+msgid "Custom html page"
+msgstr "Página con HTML personalizado"
+
+#: pages/single_stic_documents.php:39 pages/single_stic_relationships.php:20
+#: pages/single_stic_payment_commitments.php:21
+#: pages/single_stic_sessions.php:22 pages/single_stic_payments.php:20
+#: pages/single_stic_payments.php:39 pages/single_stic_job_applications.php:11
+#: pages/single_stic_attendances.php:21 pages/list_stic_job_applications.php:21
+#: pages/single_stic_registrations.php:22
+#: pages/single_stic_registrations.php:41
+msgid "Delete"
+msgstr "Eliminar"
+
+#: pages/single_stic_documents.php:15
+#| msgid "My document"
+msgid "Document"
+msgstr "Documento"
+
+#: menu.php:19 pages/list_stic_documents.php:16
+msgid "Documents"
+msgstr "Documentos"
+
+#: pages/list_stic_payments.php:17
+msgid "Donations certificate"
+msgstr "Certificado de donaciones"
+
+#: pages/single_stic_documents.php:43
+msgid "Download"
+msgstr "Descargar"
+
+#: pages/list_stic_payment_commitments.php:21
+#: pages/list_stic_member_organizations.php:17
+#: pages/list_stic_member_organizations.php:20 pages/list_stic_payments.php:25
+#: pages/list_stic_contacts.php:21 pages/list_stic_job_offers.php:19
+#: pages/list_stic_registrations.php:20 pages/list_stic_job_applications.php:19
+#: pages/list_stic_documents.php:19
+msgid "Edit"
+msgstr "Editar"
+
+#: pages/single_stic_payment_form.php:111
+msgid "Email"
+msgstr "Correo electrónico"
+
+#: pages/single_stic_signup.php:6
+msgid "Email address already exists."
+msgstr "La dirección de correo electrónico ya existe."
+
+#: pages/single_stic_password_change.php:16
+msgid "Enter the correct old password."
+msgstr "Escriba la contraseña antigua correctamente."
+
+#: sinergiacrm-private-area.php:460
+msgid "Enter your email address"
+msgstr "Escriba su dirección de correo electrónico."
+
+#: sinergiacrm-private-area.php:455
+msgid "Enter your username"
+msgstr "Escriba su nombre de usuario."
+
+#: pages/single_stic_profile.php:19
+msgid "Error loading the picture."
+msgstr "Error al cargar la fotografía."
+
+#: pages/single_stic_tutor_profile.php:16 pages/single_stic_profile.php:16
+msgid "Error saving the profile."
+msgstr "Error al guardar el perfil."
+
+#: pages/single_stic_events.php:11 pages/single_stic_payment_form.php:25
+#: pages/single_stic_registrations.php:141
+msgid "Event"
+msgstr "Evento"
+
+#: menu.php:15 pages/list_stic_events.php:17
+msgid "Events"
+msgstr "Eventos"
+
+#: menu.php:64
+msgid "Exit"
+msgstr "Salir"
+
+#: sinergiacrm-private-area.php:425
+msgid ""
+"Failed to send your password. Please, try it again later or contact the "
+"administrator."
+msgstr ""
+"Error al enviar la contraseña. Inténtelo más tarde o contacte con el "
+"administrador."
+
+#: pages/single_stic_profile.php:17
+msgid "File format is not valid."
+msgstr "El formato del fichero no es válido."
+
+#: pages/single_stic_profile.php:18
+msgid "File size is too large."
+msgstr "El tamaño del fichero es demasiado grande."
+
+#: inc/stic-listController.php:110
+msgid "First"
+msgstr "Primero"
+
+#: sinergiacrm-private-area.php:316
+msgid "Forgot your password? Click here."
+msgstr "¿Olvidó la contraseña? Haga clic aquí."
+
+#: pages/single_stic_payment_form.php:135
+msgid "Full name"
+msgstr "Nombre y apellidos"
+
+#: sinergiacrm-private-area.php:147
+msgid "Host URL"
+msgstr "Host URL"
+
+#. Author URI of the plugin
+msgid "https://www.sinergiacrm.org"
+msgstr "https://www.sinergiacrm.org"
+
+#: pages/single_stic_unsubscribe.php:12
+msgid "ID"
+msgstr "Id"
+
+#: pages/single_stic_payment_form.php:119
+msgid "Identification number"
+msgstr "Número de identificación"
+
+#: inc/stic-script-vars.php:12
+#| msgid "Identification Type"
+msgid "Identification type not validable"
+msgstr "Tipo de identificación "
+
+#: sinergiacrm-private-area.php:182
+msgid ""
+"In order to show the private area, please insert this shortcode in a page"
+msgstr "Para mostrar el área privada, añada este código corto en una página"
+
+#: pages/single_stic_job_applications.php:5
+#| msgid "My job application"
+msgid "Job application"
+msgstr "Candidatura"
+
+#: menu.php:22 pages/list_stic_job_applications.php:17
+msgid "Job applications"
+msgstr "Candidaturas"
+
+#: pages/single_stic_job_offers.php:11
+msgid "Job offer"
+msgstr "Oferta laboral"
+
+#: menu.php:21 pages/list_stic_job_offers.php:17
+#| msgid "My job offers"
+msgid "Job offers"
+msgstr "Ofertas laborales"
+
+#: sinergiacrm-private-area.php:270 sinergiacrm-private-area.php:277
+msgid "Language"
+msgstr "Idioma"
+
+#: inc/stic-listController.php:111
+msgid "Last"
+msgstr "Último"
+
+#: pages/single_stic_payment_form.php:103
+msgid "Last name"
+msgstr "Apellidos"
+
+#: inc/stic-listController.php:105
+msgid "Loading..."
+msgstr "Cargando..."
+
+#: sinergiacrm-private-area.php:287
+msgid "Login as"
+msgstr "Entrar como"
+
+#: pages/custom_html.php:14
+msgid "Lorem Ipsum"
+msgstr "Lorem Ipsum"
+
+#: menu.php:11 pages/list_stic_member_organizations.php:15
+msgid "Member organizations"
+msgstr "Organizaciones miembro"
+
+#: pages/single_stic_payment_form.php:95
+msgid "Name"
+msgstr "Nombre"
+
+#: pages/list_stic_contacts.php:25
+msgid "New contact"
+msgstr "Nueva persona de contacto"
+
+#: pages/list_stic_documents.php:24
+msgid "New document"
+msgstr "Nuevo documento"
+
+#: pages/single_stic_password_change.php:34
+msgid "New password"
+msgstr "Contraseña nueva"
+
+#: pages/list_stic_payment_commitments.php:24
+msgid "New payment commitment"
+msgstr "Nuevo compromiso de pago"
+
+#: inc/stic-listController.php:112
+msgid "Next"
+msgstr "Siguiente"
+
+#: inc/stic-listController.php:98
+msgid "No data available in table."
+msgstr "No hay datos disponibles en la tabla."
+
+#: inc/stic-listController.php:108
+msgid "No matching records found."
+msgstr "No se encontraron registros coincidentes."
+
+#: pages/single_stic_password_change.php:25
+msgid "Old password"
+msgstr "Contraseña antigua"
+
+#: pages/single_stic_contacts.php:14
+msgid "Organization contact"
+msgstr "Persona de contacto"
+
+#: menu.php:10 pages/list_stic_contacts.php:18
+#| msgid "Organization Contacts"
+msgid "Organization contacts"
+msgstr "Personas de contacto"
+
+#: sinergiacrm-private-area.php:168 sinergiacrm-private-area.php:307
+#: sinergiacrm-private-area.php:418 pages/single_stic_signup.php:71
+msgid "Password"
+msgstr "Contraseña"
+
+#: inc/stic-action.php:477
+msgid "Password recovery"
+msgstr "Recuperación de contraseña"
+
+#: pages/single_stic_payment_form.php:90
+msgid "Payer data"
+msgstr "Datos de la persona que paga"
+
+#: pages/single_stic_payments.php:14
+#| msgid "My payment"
+msgid "Payment"
+msgstr "Pago"
+
+#: menu.php:13 pages/list_stic_payment_commitments.php:18
+#: pages/single_stic_payment_commitments.php:13
+msgid "Payment commitments"
+msgstr "Compromisos de pago"
+
+#: pages/single_stic_payment_form.php:145
+msgid "Payment data"
+msgstr "Datos del pago"
+
+#: pages/single_stic_payment_error.php:9
+msgid "Payment error"
+msgstr "Error en el pago"
+
+#: menu.php:23 pages/single_stic_payment_form.php:6
+#: pages/single_stic_payment_form.php:11
+msgid "Payment form"
+msgstr "Formulario de pago"
+
+#: pages/single_stic_payment_form.php:160
+msgid "Payment method"
+msgstr "Método de pago"
+
+#: menu.php:14 pages/list_stic_payments.php:22
+msgid "Payments"
+msgstr "Pagos"
+
+#: inc/stic-script-vars.php:13
+msgid "Please, enter a valid IBAN number."
+msgstr "Introduzca un IBAN correcto."
+
+#: inc/stic-script-vars.php:14
+msgid "Please, enter a valid identification number."
+msgstr "Introduzca un número de identificación correcto."
+
+#: sinergiacrm-private-area.php:142
+msgid "Portal Name"
+msgstr "Nombre del portal"
+
+#: inc/stic-listController.php:113
+msgid "Previous"
+msgstr "Anterior"
+
+#. Description of the plugin
+msgid "Private area plugin for SinergiaCRM"
+msgstr "Plugin de área privada de SinergiaCRM"
+
+#: pages/single_stic_profile.php:14
+#| msgid "My profile"
+msgid "Profile"
+msgstr "Perfil"
+
+#: menu.php:56
+msgid "Profile selected"
+msgstr "Perfil seleccionado"
+
+#: menu.php:27 pages/single_stic_profile_selection.php:82
+msgid "Profile selection"
+msgstr "Selección de perfil"
+
+#: pages/list_stic_payments.php:53 pages/single_stic_payments.php:101
+msgid "Recipient contact"
+msgstr "Persona destinataria"
+
+#: pages/single_stic_payment_form.php:130
+msgid "Recipient contact data"
+msgstr "Datos de la persona destinataria"
+
+#: pages/list_stic_payment_commitments.php:26
+#: pages/list_stic_attendances.php:26
+#: pages/list_stic_member_organizations.php:25 pages/list_stic_payments.php:30
+#: pages/list_stic_relationships.php:27 pages/delete_confirmation.php:16
+#: pages/list_stic_contacts.php:27 pages/list_stic_job_offers.php:25
+#: pages/list_stic_sessions.php:29 pages/list_stic_events.php:23
+#: pages/list_stic_registrations.php:26 pages/list_stic_job_applications.php:24
+#: pages/list_stic_documents.php:26
+msgid "Record successfully deleted."
+msgstr "Registro eliminado correctamente."
+
+#: pages/single_stic_events.php:23 pages/single_stic_sessions.php:34
+#: pages/single_stic_attendances.php:33 pages/list_stic_job_offers.php:22
+#: pages/list_stic_events.php:20 pages/single_stic_job_offers.php:20
+#: pages/single_stic_registrations.php:34
+msgid "Register"
+msgstr "Inscribirse"
+
+#: pages/single_stic_activities_calendar.php:118
+msgid "Registered events' sessions appear in red."
+msgstr "Las sesiones de los eventos con inscripciones se muestran en rojo."
+
+#: pages/single_stic_registrations.php:15
+#| msgid "My registration"
+msgid "Registration"
+msgstr "Inscripción"
+
+#: menu.php:16 pages/list_stic_registrations.php:17
+msgid "Registrations"
+msgstr "Inscripciones"
+
+#: pages/single_stic_relationships.php:14
+#| msgid "My relationship"
+msgid "Relationship with the organization"
+msgstr "Relación con la organización"
+
+#: menu.php:8 pages/list_stic_relationships.php:18
+msgid "Relationships with the organization"
+msgstr "Relaciones con la organización"
+
+#: sinergiacrm-private-area.php:155
+msgid "REST URL"
+msgstr "REST URL"
+
+#: pages/single_stic_tutor_profile.php:17 pages/single_stic_documents.php:28
+#: pages/single_stic_relationships.php:27 pages/single_stic_contacts.php:26
+#: pages/single_stic_profile.php:31 pages/single_stic_profile.php:46
+#: pages/single_stic_payment_commitments.php:33
+#: pages/single_stic_payments.php:32 pages/single_stic_job_applications.php:18
+msgid "Save"
+msgstr "Guardar"
+
+#: inc/stic-listController.php:107
+msgid "Search"
+msgstr "Buscar"
+
+#: pages/single_stic_job_applications.php:106
+msgid "Select a Document"
+msgstr "Seleccione un documento"
+
+#: sinergiacrm-private-area.php:440 pages/single_stic_signup.php:47
+#: pages/single_stic_signup.php:55
+msgid "Select your user type"
+msgstr "Seleccione el tipo de usuario"
+
+#: pages/single_stic_sessions.php:15
+#| msgid "My session"
+msgid "Session"
+msgstr "Sesión"
+
+#: menu.php:17 pages/list_stic_sessions.php:20
+msgid "Sessions"
+msgstr "Sesiones"
+
+#: sinergiacrm-private-area.php:180
+msgid "Shortcode"
+msgstr "Código corto"
+
+#: inc/stic-listController.php:104
+msgid "Show _MENU_ entries"
+msgstr "Mostrar registros de _MENU_"
+
+#: inc/stic-listController.php:100
+msgid "Showing 0 to 0 of 0 entries"
+msgstr "Mostrando del 0 al 0 de 0 registros."
+
+#: inc/stic-listController.php:99
+msgid "Showing _START_ to _END_ of _TOTAL_ entries"
+msgstr "Mostrando del _START_ al _END_ de _TOTAL_ registros."
+
+#: sinergiacrm-private-area.php:260
+msgid "Sign in"
+msgstr "Formulario de acceso"
+
+#: pages/single_stic_signup.php:3
+msgid "Sign Up"
+msgstr "Formulario de registro"
+
+#: pages/single_stic_signup.php:9
+msgid "Signup"
+msgstr "Registro"
+
+#. Name of the plugin
+#: sinergiacrm-private-area.php:111
+msgid "SinergiaCRM Private Area"
+msgstr "Área privada de SinergiaCRM"
+
+#: sinergiacrm-private-area.php:135
+msgid "SinergiaCRM Private Area Settings"
+msgstr "Configuración del Área privada de SinergiaCRM"
+
+#. Author of the plugin
+msgid "SinergiaTIC"
+msgstr "SinergiaTIC"
+
+#: sinergiacrm-private-area.php:312
+msgid "Start session"
+msgstr "Iniciar sesión"
+
+#: sinergiacrm-private-area.php:467 pages/single_stic_documents.php:50
+#: pages/single_stic_relationships.php:36 pages/single_stic_contacts.php:41
+#: pages/single_stic_payment_commitments.php:47
+#: pages/single_stic_sessions.php:48 pages/single_stic_payments.php:45
+#: pages/single_stic_job_applications.php:27
+#: pages/single_stic_attendances.php:46 pages/single_stic_registrations.php:47
+msgid "Submit"
+msgstr "Enviar"
+
+#: pages/single_stic_payment_form.php:181
+msgid "Submit payment"
+msgstr "Realizar pago"
+
+#: sinergiacrm-private-area.php:198
+msgid "Successful connection"
+msgstr "Conexión exitosa"
+
+#: pages/single_stic_unsubscribe.php:6
+msgid "Successfully unsubscribed from private area."
+msgstr "Se ha dado de baja del área privada."
+
+#: pages/single_stic_password_change.php:12
+msgid "The confirmation password does not match."
+msgstr "La contraseña de confirmación no coincide."
+
+#: pages/single_stic_documents.php:17 pages/single_stic_events.php:12
+#: pages/single_stic_relationships.php:15 pages/single_stic_contacts.php:15
+#: pages/single_stic_payment_commitments.php:17
+#: pages/single_stic_sessions.php:17 pages/single_stic_payments.php:16
+#: pages/single_stic_job_applications.php:7
+#: pages/single_stic_attendances.php:17 pages/single_stic_job_offers.php:12
+#: pages/single_stic_registrations.php:17
+msgid "The record has been successfully saved."
+msgstr "El registro se ha guardado con éxito."
+
+#: pages/single_stic_signup.php:4 pages/single_stic_tutor_profile.php:15
+#: pages/single_stic_profile.php:15
+msgid "The record has been successfully updated."
+msgstr "El registro se ha actualizado con éxito."
+
+#: inc/stic-script-vars.php:11
+msgid ""
+"There are invalid fields in your form. Please, correct them before submit."
+msgstr "Hay campos incorrectos en el formulario. Corríjalos antes de enviarlo."
+
+#: pages/single_stic_payment_form.php:49
+#| msgid ""
+#| "There are missing fields from the user/tutor to perform the payment. "
+#| "Please, fill the required fields in the next page."
+msgid ""
+"There are missing fields to perform the payment. Please, fill the required "
+"fields in the next page."
+msgstr ""
+"Faltan datos para poder realizar el pago. Rellene los campos requeridos en "
+"la siguiente página."
+
+#: pages/single_stic_payment_form.php:16
+msgid "There is no available registration."
+msgstr "No hay ninguna inscripción disponible."
+
+#: inc/stic-listController.php:81
+msgid "There is no record."
+msgstr "No hay ningún registro."
+
+#: pages/single_stic_unsubscribe.php:7
+msgid "There was a problem unsubscribing."
+msgstr "Se ha producido un problema al darse de baja."
+
+#: pages/single_stic_payment_error.php:10
+msgid ""
+"There was an error in the payment. Please, try it again or contact the "
+"administrator."
+msgstr ""
+"Se ha producido un error al realizar el pago. Repita el proceso o contacte "
+"con el administrador."
+
+#: pages/single_stic_profile_selection.php:102
+msgid "This user has no people assigned."
+msgstr "Este usuario no tiene personas vinculadas."
+
+#: menu.php:30 pages/single_stic_unsubscribe.php:5
+#: pages/single_stic_unsubscribe.php:9
+msgid "Unsubscribe"
+msgstr "Darse de baja"
+
+#: pages/single_stic_documents.php:164
+msgid "Uploading file, please wait..."
+msgstr "Subiendo archivo, espere..."
+
+#: sinergiacrm-private-area.php:158
+msgid ""
+"URL API connection, ex: https://example.sinergiacrm."
+"org/custom/service/v4_1_SticCustom/rest.php"
+msgstr ""
+"Enlace de conexión con la API. Por ejemplo: https://example.sinergiacrm."
+"org/custom/service/v4_1_SticCustom/rest.php"
+
+#: pages/single_stic_tutor_profile.php:14
+msgid "User profile"
+msgstr "Perfil del usuario"
+
+#: sinergiacrm-private-area.php:163 sinergiacrm-private-area.php:302
+#: pages/single_stic_signup.php:66
+msgid "Username"
+msgstr "Nombre de usuario"
+
+#: pages/single_stic_signup.php:7
+msgid "Username already exists."
+msgstr "El nombre de usuario ya existe."
+
+#: pages/single_stic_signup.php:5
+msgid "Username and email address already exist."
+msgstr "El nombre de usuario y la dirección de correo electrónico ya existen."
+
+#: sinergiacrm-private-area.php:360
+msgid "Username and/or password are not correct."
+msgstr "El nombre de usuario y/o la contraseña no son correctos."
+
+#: pages/list_stic_payment_commitments.php:22
+#: pages/list_stic_attendances.php:21
+#: pages/list_stic_member_organizations.php:19 pages/list_stic_payments.php:26
+#: pages/list_stic_relationships.php:22 pages/list_stic_contacts.php:22
+#: pages/list_stic_job_offers.php:21 pages/list_stic_sessions.php:24
+#: pages/list_stic_events.php:19 pages/list_stic_registrations.php:21
+#: pages/list_stic_job_applications.php:20 pages/list_stic_documents.php:20
+msgid "View"
+msgstr "Ver"
+
+#: menu.php:55 menu.php:62
+msgid "Welcome"
+msgstr "Bienvenido/a"
+
+#: inc/stic-script-vars.php:10
+msgid "Wrong IBAN"
+msgstr "IBAN incorrecto"
+
+#: sinergiacrm-private-area.php:370
+msgid "You have successfully signed up."
+msgstr "Se ha registrado correctamente."
+
+#: sinergiacrm-private-area.php:429
+msgid "Your email address does not match."
+msgstr "Su dirección de correo electrónico no coincide."
+
+#: pages/single_stic_password_change.php:8
+msgid "Your password has been successfully changed."
+msgstr "Su contraseña ha sido correctamente modificada."
+
+#: sinergiacrm-private-area.php:421
+msgid "Your password was successfully sent."
+msgstr "Su contraseña ha sido enviada."
+
+#: inc/stic-action.php:476
+msgid "Your private area password is: "
+msgstr "Su contraseña del área privada es: "
+
+#: sinergiacrm-private-area.php:255
+msgid "Your user has been created. You can login now."
+msgstr "Su usuario ha sido creado correctamente. Ya puede acceder."
+
+#: sinergiacrm-private-area.php:433
+msgid "Your username does not exist."
+msgstr "Su nombre de usuario no existe."
