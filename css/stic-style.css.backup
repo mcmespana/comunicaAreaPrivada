@@ -1,0 +1,679 @@
+/* Style Sheet from SinergiaCRM customization */
+
+.stic-container {
+    max-width: var(--responsive--alignwide-width) !important;
+}
+.stic-form h5 {
+    background-color: #eee;
+    padding: 0;
+    border-bottom: 1px solid grey;
+    font-size: 17px;
+}
+.stic-form ul {
+    width: 100%;
+    display: inline-block;
+    margin: 0;
+    padding: 0;
+}
+.stic-form li {
+    width: 100%;
+    display: inline-block;
+    padding-bottom: 15px;
+}
+.stic-form li label {
+    width: 100%;
+    display: inline-block;
+    font-size: 15px;
+    font-weight: 300;
+    padding-bottom: 3px;
+    text-align: justify;
+}
+.stic-form li label b {
+    font-size: 17px;
+}
+.stic-form li label.stic-check-label {
+    width: 90%;
+    display: inline-block;
+    font-size: 13px;
+    font-weight: 300;
+    padding-bottom: 3px;
+    margin-bottom: 0;
+}
+.stic-form li span {
+    width: 100%;
+    display: inline-block;
+}
+.stic-form li .input-text {
+    width: 100%;
+    font-size: 13px;
+}
+.stic-form li.stic-send span {
+    display: inline-block;
+    width: auto;
+}
+.stic-form li.stic-send .forgot-pass {
+    display: inline-block;
+    margin-left: 10px;
+}
+.stic-form li.last {
+    padding-bottom: 0;
+}
+.stic-form .input-text {
+    border: 1px solid #ddd;
+    height: 40px;
+    line-height: 40px;
+    padding: 0 10px;
+    /* background: transparent; */
+}
+.stic-form input[type="file"] {
+    border: 0;
+    padding: 0;
+    line-height: normal;
+    height: auto;
+    font-size: 13px;
+}
+.stic-form textarea.input-text {
+    height: 150px;
+    line-height: normal;
+}
+.stic-form-two-col li {
+    margin-right: 3%;
+    width: 48.2%;
+}
+.stic-form-two-col li.last {
+    margin-right: 0;
+    padding-bottom: 15px;
+}
+.stic-form-one-col li {
+    margin-right: 3%;
+    width: 97%;
+}
+.stic-form-one-col li.last {
+    margin-right: 0;
+    padding-bottom: 15px;
+}
+
+.stic-form-list-view {
+    border: 1px solid #ddd;
+    display: inline-block;
+    margin-bottom: 25px;
+    padding: 10px;
+    width: 100%;
+}
+.stic-form-list-view ul {
+    width: 100%;
+    display: inline-block;
+    margin: 0;
+    padding: 0;
+}
+.stic-form-list-view li {
+    border-top: 1px solid #ddd;
+    display: inline-block;
+    font-size: 13px;
+    padding: 10px 0;
+    vertical-align: top;
+    width: 48%;
+}
+.stic-form-list-view li:first-child,
+.stic-form-list-view li:first-child + li {
+    border-top: medium none;
+}
+
+.stic-form-list-view li label {
+    width: 25%;
+    display: inline-block;
+    font-weight: 600;
+    vertical-align: top;
+}
+.stic-form-list-view li span {
+    width: 65%;
+    display: inline-block;
+}
+.stic-tab-content {
+    width: 100%;
+    border: 0;
+}
+.stic-tab-content .success,
+.entry-content .success {
+    background: #cfffc6;
+    border-left: 5px solid #6db05f;
+    color: #4c933e;
+    display: inline-block;
+    font-size: 13px;
+    padding: 5px;
+    width: 100%;
+}
+.stic-tab-content .info,
+.entry-content .info {
+    background: #0071ce;
+    border-left: 5px solid #88c0e2;
+    color: #ffffff;
+    display: inline-block;
+    font-size: 13px;
+    padding: 5px;
+    margin: 1em 0;
+    width: 100%;
+}
+.stic-tab-content .warning,
+.entry-content .warning {
+    background: #f4bd07;
+    border-left: 5px solid #f68922;
+    color: #000000;
+    display: inline-block;
+    font-size: 13px;
+    padding: 5px;
+    margin: 1em 0;
+    width: 100%;
+}
+.stic-login-form .error,
+.stic-tab-content .error,
+.entry-content .error {
+    background: #ffc6c6;
+    border-left: 5px solid #a53c3c;
+    color: #a53c3c;
+    display: inline-block;
+    font-size: 13px;
+    padding: 5px;
+    width: 100%;
+}
+
+.stic-login-form .error,
+.stic-login-form .success {
+    margin-top: 15px;
+}
+
+.stic-check-container {
+    display: flex;
+    align-items: center;
+    margin-bottom: 1em;
+}
+
+.stic-info {
+    font-style: italic;
+}
+/*stic-login-form
+===========================*/
+.stic-login-form,
+.stic-forgotpas-form {
+    width: 340px;
+    min-height: 500px;
+    margin: 0 auto;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    border: 1px solid #eee;
+    max-width: 100%;
+}
+
+.stic-login-form h3,
+.stic-forgotpas-form h3 {
+    margin: 0;
+    padding: 0 0 25px 0;
+}
+
+/*stic-login-form
+===========================*/
+.stic-tab {
+    width: 100%;
+    display: inline-block;
+    margin: 0;
+    padding: 0;
+    border-bottom: 1px solid #ddd;
+}
+.stic-tab li {
+    display: inline-block;
+    position: relative;
+}
+.stic-tab li a {
+    padding: 5px 15px;
+    display: block;
+    background: #eee;
+    color: #666;
+    border: 1px solid #ddd;
+    border-bottom: none;
+}
+.stic-tab li a:hover {
+    text-decoration: none;
+    color: #000;
+}
+
+.stic-tab li.active:after,
+.stic-tab li:hover:after {
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-top: 10px solid #777;
+    bottom: -10px;
+    content: "";
+    height: 0;
+    left: 0;
+    margin: 0 auto;
+    position: absolute;
+    right: 0;
+    width: 0;
+}
+.stic-tab-content {
+    border: 1px solid #ddd;
+    border-top: none;
+    width: calc(100% - 50px) !important;
+    display: inline-block;
+    padding: 25px;
+}
+.stic-tab-content h3 {
+    margin: 0;
+    padding: 0 0 20px 0;
+}
+.stic-tab-content table {
+    margin: 0;
+    padding: 0;
+}
+.stic-tab li.active a {
+    border-color: #777;
+}
+/* pagination
+===========================*/
+.pagination {
+    float: right;
+}
+.pagination li {
+    float: left;
+    list-style: outside none none;
+    padding: 0 0 0 20px;
+}
+.pagination .current {
+    color: #000000 !important;
+}
+
+.stic-send .right {
+    float: right;
+}
+
+.main-col a {
+    color: #000000 !important;
+    padding-right: 20px;
+}
+.main-col a:hover {
+    color: #000000 !important;
+    text-decoration: none;
+}
+
+/* Sign up form */
+#accounts_fields {
+    display: none;
+} 
+
+/* CUSTOM */
+@media only screen and (min-width: 0px) and (max-width: 768px) {
+    .stic-tab-content {
+        padding: 10px;
+    }
+    .stic-form-list-view li {
+        width: 100%;
+    }
+    .stic-form-list-view li:first-child + li {
+        border-top: 1px solid #ddd;
+    }
+    .stic-form-two-col li {
+        margin-right: 0;
+        width: 100%;
+    }
+    .stic-tab li a {
+        padding: 5px 10px;
+        font-size: 13px;
+    }
+    .stic-login-form,
+    .stic-forgotpas-form {
+        max-width: 100%;
+    }
+}
+
+@media only screen and (min-width: 768px) {
+    .content {
+        width: 100%;
+        margin: 0px;
+    }
+    .page .type-page .status-publish .hentry {
+        margin-left: 6%;
+        margin-right: 6%;
+    }
+    .entry-content {
+        /* width: 100% !important; */
+    }
+    .singular .entry-header {
+        margin: 0;
+    }
+    .stic-tab-content {
+        font-size: 14px;
+    }
+    .pagination {
+        margin-top: 24px;
+    }
+    textarea {
+        padding: 10px !important;
+    }
+}
+
+.entry-content th {
+    line-height: 1.3;
+    padding-bottom: 14px;
+}
+.stic-userinfo {
+    font-size: 14px;
+    margin-bottom: 30px;
+    font-size: 17px;
+    max-width: var(--responsive--alignwide-width) !important;
+    width: auto !important;
+    float: right;
+    margin-right: 20px !important;
+}
+.stic-tab-content {
+    width: auto;
+}
+.stic-tab-content .success,
+.entry-content .success0 {
+    margin-bottom: 10px;
+}
+.all-notes ul {
+    width: auto;
+    margin-left: 0px !important;
+    padding-top: 0px !important;
+    padding-bottom: 0px !important;
+}
+.all-notes ul li {
+    margin-top: 10px !important;
+    padding-bottom: 20px !important;
+}
+.all-notes li .name {
+    font-size: 16px !important;
+    margin-bottom: 8px;
+}
+.all-notes li .description {
+    width: 100%;
+    padding-left: 0px !important;
+    margin-bottom: 8px;
+}
+.all-notes li .name_autor {
+    font-size: 11px;
+    font-style: italic;
+    margin-bottom: 8px;
+}
+.all-notes li .asttachment {
+    width: 100%;
+    padding-left: 0px !important;
+    margin-bottom: 8px;
+}
+.all-notes li .asttachment span {
+    margin-top: 1px;
+}
+.attachmentli {
+    margin-bottom: 20px;
+}
+.input_login {
+    width: 93.6% !important;
+}
+.actions_login {
+    margin-top: 20px;
+}
+
+@media only screen and (min-width: 0px) and (max-width: 767px) {
+    html {
+        width: 158% !important;
+    }
+    #main #content {
+        margin: 0 1.6%;
+        width: auto;
+    }
+    .entry-content td,
+    .comment-content td {
+        width: 1.66% !important;
+    }
+}
+
+@media only screen and (min-width: 0px) and (max-width: 479px) {
+    .stic-tab-content .success,
+    .entry-content .success {
+        width: 95.6% !important;
+    }
+    .bigdesp {
+        width: 100% !important;
+    }
+    .textinputform {
+        width: 95.6% !important;
+    }
+    .field_signup {
+        width: 96% !important;
+    }
+}
+
+@media only screen and (min-width: 480px) and (max-width: 767px) {
+    .stic-tab-content .success,
+    .entry-content .success {
+        width: 97.6% !important;
+    }
+    .bigdesp {
+        width: 100% !important;
+    }
+    .textinputform {
+        width: 97.6% !important;
+    }
+    .field_signup {
+        width: 97% !important;
+    }
+}
+
+@media only screen and (min-width: 768px) {
+    .stic-tab-content .success,
+    .entry-content .success {
+        width: 97.6% !important;
+    }
+    .bigdesp {
+        width: 97.6% !important;
+    }
+    .textinputform {
+        width: 97.6% !important;
+    }
+}
+
+.download-link {
+    background: url(../images/download_icon.png) no-repeat scroll 2px 2px;
+    padding-left: 30px;
+    border: medium none !important;
+    color: #b93207 !important;
+}
+.download-link:hover {
+    text-decoration: underline;
+}
+
+/* SinergiaCRM customization */
+li.required label::after {
+    content: " *";
+    color: red;
+    font-weight: bold;
+}
+.info a {
+    color: #ffffff !important;
+}
+
+/*Set css flex to forms*/
+form[flex] ul {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+}
+
+.stic-form-one-col form[flex] ul li {
+    max-width: 95%;
+}
+
+form[flex] ul li {
+    max-width: 45%;
+}
+
+form[flex].col3 ul li {
+    max-width: 30%;
+}
+
+/* Custom CSS */
+.input-text[invalid] {
+    color: red;
+}
+
+/* Custom CSME classes */
+.stic-titulo-csme {
+    color: #005b50;
+    font-size: 1.1125rem;
+}
+
+/* Internal tabs with content */
+.stic-ctabs {
+    width: 100%;
+    height: auto;
+    margin: 0 auto;
+}
+
+/* tab list item */
+.stic-ctabs .stic-ctabs-list {
+    list-style: none;
+    margin: 0px;
+    padding: 0px;
+}
+.stic-ctabs .stic-ctabs-list li {
+    width: 100px;
+    float: left;
+    margin: 0px;
+    margin-right: 2px;
+    padding: 10px 5px;
+    text-align: center;
+    background-color: #eee;
+    border-radius: 3px;
+}
+
+.stic-ctabs-list li.stic-ctabs-button {
+    background-color: white;
+}
+
+.stic-ctabs-list li button {
+    width: auto;
+}
+
+.stic-ctabs .stic-ctabs-list li:hover {
+    cursor: pointer;
+}
+.stic-ctabs .stic-ctabs-list li a {
+    text-decoration: none;
+    color: black;
+    -webkit-box-shadow: none; /*inset 0 -1px 0 rgb(15 15 15);*/
+    box-shadow: none; /*inset 0 -1px 0 rgb(15 15 15);*/
+}
+/* Tab content section */
+.stic-ctabs .stic-ctab {
+    display: none;
+    width: 96%;
+    min-height: 250px;
+    height: auto;
+    border-radius: 3px;
+    padding: 20px 15px;
+    background-color: white;
+    color: darkslategray;
+    clear: both;
+}
+.stic-ctabs .stic-ctab h3 {
+    border-bottom: 3px solid white;
+    letter-spacing: 1px;
+    font-weight: normal;
+    padding: 5px;
+}
+.stic-ctabs .stic-ctab p {
+    line-height: 20px;
+    letter-spacing: 1px;
+}
+
+/* When active state */
+.stic-cactive {
+    display: block !important;
+}
+
+.stic-tab-active {
+    display: block !important;
+}
+
+.stic-ctabs .stic-ctabs-list li.stic-cactive {
+    background-color: #eee !important;
+    color: #cf3c1a !important;
+}
+.stic-cactive a {
+    color: #cf3c1a !important;
+}
+
+ul.stic-button-list {
+    display: flex;
+    direction: row;
+    flex-wrap: nowrap;
+    margin-top: 25px;
+    justify-content: flex-start;
+    align-items: center;
+}
+
+.stic-button-list .stic-button {
+    width: auto;
+    margin: 0;
+    padding-right: 15px;
+}
+
+.stic-ctab b {
+    font-weight: 900;
+    color: black;
+}
+
+/* media query */
+@media screen and (max-width: 360px) {
+    .stic-ctabs {
+        margin: 0;
+        width: 96%;
+    }
+    .stic-ctabs .stic-ctabs-list li {
+        width: 80px;
+    }
+}
+
+.stic-profile-picture {
+    border: solid 3px grey;
+    padding: 5px;
+    max-width: 200px;
+}
+
+.stic-link-menu-text {
+    font-weight: 500;
+    font-family: "Inter var", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, sans-serif;
+    font-size: 18px;
+}
+
+.stic-primary-menu{
+    padding: 25px;
+    width: calc(100% - 50px);
+    margin-bottom: 0;
+    border: 1px solid #ddd;
+    border-bottom: none;
+    float: left;
+    justify-content: center !important;
+    margin-inline-start: 0px !important;
+}
+
+.fc-daygrid-event {
+    cursor: pointer;
+}
+
+ul.stic-primary-menu li {
+    list-style: none;
+    display: inline-block;
+    padding: 10px;
+}
+
+input[disabled=disabled],
+textarea[disabled=disabled],
+select[disabled=disabled]{
+    background-color: transparent;
+    color:black !important;
+}
+.fc-daygrid-day-number {
+    text-decoration: none;
+}

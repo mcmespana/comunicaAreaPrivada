@@ -590,6 +590,7 @@ function sugar_crm_portal_style_and_script()
         wp_enqueue_style('stic-style', plugins_url('css/stic-style.css', __FILE__));
         wp_enqueue_style('stic-multiselect', plugins_url('css/selectize.css', __FILE__));
         wp_enqueue_style('custom-style', plugins_url('css/custom-style.css', __FILE__));
+        wp_enqueue_style('stic-modern-style', plugins_url('css/stic-modern-style.css', __FILE__));
         wp_enqueue_style('fullcalendar', plugins_url('js/fullcalendar/lib/main.css', __FILE__));
     }
 
