@@ -279,23 +279,30 @@ El motor (`getFieldHtml` en `inc/stic-formController.php`) entiende, entre otros
 ### 6.2 Dónde están los estilos
 
 Se cargan **solo** en las páginas que tienen el shortcode (para no ensuciar el resto de la web),
-en `sugar_crm_portal_style_and_script()`:
+en `sugar_crm_portal_style_and_script()`. **El orden importa: lo último pisa a lo anterior.**
 
 ```php
-wp_enqueue_style('stic-style',        'css/stic-style.css');        // base (657 líneas)
+wp_enqueue_style('stic-google-fonts', 'https://fonts.googleapis.com/...Inter...'); // tipografía
+wp_enqueue_style('stic-style',        'css/stic-style.css');        // base histórica (657 líneas)
 wp_enqueue_style('stic-multiselect',  'css/selectize.css');         // librería selectize
-wp_enqueue_style('custom-style',      'css/custom-style.css');      // TUYO, vacío ahora
 wp_enqueue_style('stic-modern-style', 'css/stic-modern-style.css'); // "moderno" (1355 líneas)
 wp_enqueue_style('fullcalendar',      'js/fullcalendar/lib/main.css');
+wp_enqueue_style('custom-style',      'css/custom-style.css');      // ← TUYO, carga el ÚLTIMO
 ```
 
-Orden de carga = orden de prioridad (lo último pisa a lo anterior). Tienes:
-
 - `css/stic-style.css` → estilos base históricos.
-- `css/stic-modern-style.css` → una capa de modernización ya empezada.
-- **`css/custom-style.css` → está VACÍO y es TU sitio para personalizar.** Como se carga
-  después de `stic-style`, puedes sobreescribir lo que quieras aquí sin tocar los ficheros del
-  plugin (así no pierdes los cambios al actualizar).
+- `css/stic-modern-style.css` → capa de modernización (mobile-first, con variables CSS).
+- **`css/custom-style.css` → CAPA PREMIUM y TU sitio para personalizar.** Se carga **el último
+  a propósito**, así que cualquier regla aquí gana sin necesidad de `!important` salvo donde el
+  tema moderno ya lo usa. Como el tema moderno está hecho con `var()`, basta con **redefinir las
+  variables CSS** (`:root { --primary-color: ... }`) en este archivo para recolorear todo el
+  área privada de golpe. Tocar aquí = no pierdes los cambios al actualizar el plugin.
+
+> 🎨 **Ya hay una capa premium escrita** en `custom-style.css`: glassmorphism en login y
+> cabecera, menú con gradiente animado, botones con barrido de brillo, inputs con glow de foco,
+> tablas con cabecera de marca, **modo oscuro automático** (`prefers-color-scheme`) y respeto a
+> `prefers-reduced-motion`. Para cambiar la marca, edita solo `--primary-color` y
+> `--secondary-color` en el bloque `:root` del principio.
 
 ### 6.3 Cómo modernizarlos MUCHO (recomendación práctica)
 
