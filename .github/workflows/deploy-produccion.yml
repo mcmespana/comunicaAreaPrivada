@@ -1,13 +1,16 @@
 name: Deploy a producción (comunica.movimientoconsolacion.com)
 
-# Se ejecuta cuando se hace push a la rama "produccion".
-# Mergear una Pull Request a "produccion" cuenta como push -> dispara el deploy.
+# Se ejecuta cuando se hace push a la rama de producción.
+# Mergear una Pull Request ahí cuenta como push -> dispara el deploy.
+# Acepta los dos nombres ("produccion" en español y "production" en inglés)
+# para que el trigger funcione sea cual sea el que exista en el repo.
 # También se puede lanzar a mano desde la pestaña Actions (workflow_dispatch).
 
 on:
   push:
     branches:
       - produccion
+      - production
   workflow_dispatch: {}
 
 # Evita que dos despliegues se pisen si se mergea varias veces seguidas.
