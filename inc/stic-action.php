@@ -452,40 +452,41 @@ function prefix_admin_single_stic_password_change()
 }
 
 /**
- * Action used for managing the Password recoveryy functionality.
+ * Action that manages the passwordless access request: the user enters their
+ * email and we send a signed, time-limited "magic link" (no password is ever
+ * sent or exposed). See inc/stic-magic-login.php for the link logic.
  */
-add_action('admin_post_stic_forgot_password', 'prefix_admin_stic_forgot_password'); 
-add_action('admin_post_nopriv_stic_forgot_password', 'prefix_admin_stic_forgot_password'); 
+add_action('admin_post_stic_forgot_password', 'prefix_admin_stic_forgot_password');
+add_action('admin_post_nopriv_stic_forgot_password', 'prefix_admin_stic_forgot_password');
 function prefix_admin_stic_forgot_password()
 {
     $objSCP = SugarRestApiCall::getObjSCP();
 
-    $checkUsername = stripslashes_deep($_REQUEST['forgot-password-username']);
-    $checkEmailAddress = stripslashes_deep($_REQUEST['forgot-password-email-address']);
+    $email = sanitize_email(stripslashes_deep($_REQUEST['forgot-password-email-address'] ?? ''));
+    $baseUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0];
 
-    $checkUserExists = $objSCP->getUserInformationByUsername($checkUsername);
-    $username = $checkUserExists->entry_list[0]->name_value_list->stic_pa_username_c->value;
-    $emailAddress = $checkUserExists->entry_list[0]->name_value_list->email1->value;
-    $getAdminEmail = get_option('admin_email');
-
-    if (($username == $checkUsername) && ($emailAddress == $checkEmailAddress)) {
-        $password = $checkUserExists->entry_list[0]->name_value_list->stic_pa_password_c->value;
-        $headers = "From: " . get_option('sticpa_scp_name') . " <$getAdminEmail>";
-        $body = '';
-        $body .= __('Your private area password is: ', 'sticpa') . ': ' . $password;
-        $isSendEmail = wp_mail($emailAddress, __('Password recovery', 'sticpa'), $body, $headers);
-        if ($isSendEmail == true) {
-            $redirect_url = $_REQUEST['scp_current_url'] . '&success=true';
-        } else {
-            $redirect_url = $_REQUEST['scp_current_url'] . '&error=1';
+    if (is_email($email)) {
+        foreach (sticpa_modules_to_try() as $module) {
+            $contact = $objSCP->getContactByEmail($email, $module);
+            if ($contact) {
+                $link = sticpa_generate_magic_link($baseUrl, $module, $contact->id);
+                $name = $contact->name_value_list->name->value ?? '';
+                $headers = "From: " . get_option('sticpa_scp_name') . " <" . get_option('admin_email') . ">";
+                $body = sprintf(
+                    __('Hello %1$s, click the following link to access your private area (valid for a limited time): %2$s', 'sticpa'),
+                    $name,
+                    $link
+                );
+                wp_mail($email, __('Access to your private area', 'sticpa'), $body, $headers);
+                break; // found in this module; stop
+            }
         }
-    } else if (($username == $checkUsername) && ($emailAddress != $checkEmailAddress)) {
-        $redirect_url = $_REQUEST['scp_current_url'] . '&error=2';
-    } else {
-        $redirect_url = $_REQUEST['scp_current_url'] . '&error=3';
     }
-    wp_redirect($redirect_url);
 
+    // Always redirect with a generic success message to avoid user enumeration:
+    // we never reveal whether a given email exists in the CRM.
+    $redirect_url = $_REQUEST['scp_current_url'] . '&success=true';
+    wp_redirect($redirect_url);
 }
 
 /**

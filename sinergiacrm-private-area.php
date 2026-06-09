@@ -78,6 +78,7 @@ function sticpa_load_languages()
 }
 
 include plugin_dir_path(__FILE__) . 'inc/stic-action.php';
+include plugin_dir_path(__FILE__) . 'inc/stic-magic-login.php';
 
 add_action('admin_menu', 'sugar_crm_portal_create_menu');
 
@@ -123,6 +124,7 @@ function register_sugar_crm_portal_settings()
     register_setting('sugar_crm_portal-settings-group', 'sticpa_scp_username');
     register_setting('sugar_crm_portal-settings-group', 'sticpa_scp_password');
     register_setting('sugar_crm_portal-settings-group', 'sticpa_scp_module');
+    register_setting('sugar_crm_portal-settings-group', 'sticpa_scp_area_url');
     register_setting('sugar_crm_portal-settings-group', 'sticpa_scp_case_per_page');
     register_setting('sugar_crm_portal-settings-group', 'sticpa_scp_sugar_crm_version');
 }
@@ -176,6 +178,14 @@ function sugar_crm_portal_settings_page()
                             <?php echo build_dropdown_modules(); ?>
                         </td>
                     </tr>
+                    <tr valign='top'>
+                        <th scope='row'><?=__('Private area URL', 'sticpa');?></th>
+                        <td>
+                            <input type='text' class='regular-text' value="<?php echo get_option('sticpa_scp_area_url'); ?>" name='sticpa_scp_area_url'>
+                            <p class="description"><?=__('Public page where the shortcode lives. Used to build access links, ex: https://comunica.movimientoconsolacion.com/area-privada/', 'sticpa');?></p>
+                        </td>
+                    </tr>
+
                     <tr>
                       <th scope='row'><?=__('Shortcode', 'sticpa');?></th>
                       <td>
@@ -212,6 +222,11 @@ function sugar_crm_portal_settings_page()
                 </div>
             <?php
 }
+
+    // Tools: bulk token generation, find user, view token, "log in as".
+    if (function_exists('sticpa_render_admin_tools')) {
+        sticpa_render_admin_tools();
+    }
 }
 
 function build_dropdown_modules()
@@ -310,7 +325,7 @@ function sugar_crm_portal_login_form($html = "")
                     </span>
                        <span class='left'>
                             <a href='?internalpage=single_stic_signup'>" . __('Are you NOT registered? Click here.', 'sticpa') . "</a> <br />
-                            <a href='?internalpage=stic_forgot_password'>" . __('Forgot your password? Click here.', 'sticpa') . "</a>
+                            <a href='?internalpage=stic_forgot_password'>" . __('Enter without a password: we send you an access link.', 'sticpa') . "</a>
                         </span>
                 </li>
             </ul>
@@ -407,61 +422,36 @@ function check_user_adult($userId, $relationshipTypes = array()) {
 
 function sugar_crm_portal_forgot_password($html = "")
 {
-    // forgot password
+    // Passwordless access: the user enters their email and we send a magic link.
     $current_url = explode('?', $_SERVER['REQUEST_URI'], 2);
     $current_url = $current_url[0] . '?internalpage=stic_forgot_password';
-    
+
     $html .= "<div class='stic-entry-header'>
-            <h3>" . __('Password', 'sticpa') . "</h3><br>";
+            <h3>" . __('Access by link', 'sticpa') . "</h3><br>";
 
     if (isset($_REQUEST['success']) && $_REQUEST['success'] == true) {
-        $html .= "<span class='success'>" . __('Your password was successfully sent.', 'sticpa') . "</span>";
+        // Generic message on purpose (does not reveal whether the email exists).
+        $html .= "<span class='success'>" . __('If your email address is registered, you will receive an access link shortly. Please check your inbox.', 'sticpa') . "</span>";
     }
 
     if (isset($_REQUEST['error']) && $_REQUEST['error'] == 1) {
-        $html .= "<span class='error'>" . __('Failed to send your password. Please, try it again later or contact the administrator.', 'sticpa') . "</span>";
-    }
-
-    if (isset($_REQUEST['error']) && $_REQUEST['error'] == 2) {
-        $html .= "<span class='error'>" . __('Your email address does not match.', 'sticpa') . "</span>";
-    }
-
-    if (isset($_REQUEST['error']) && $_REQUEST['error'] == 3) {
-        $html .= "<span class='error'>" . __('Your username does not exist.', 'sticpa') . "</span>";
-    }
-    
-    $moduleSelectHTML = "";
-    if(getDestinationModule() == "Any") {
-        $moduleSelectHTML = "
-        <li class='input_login'>
-            <label>" . __('Select your user type', 'sticpa') . ": </label>
-            <select name='scp_module' id='stic-module'>
-                <option value='Contacts' > " . __('Contact', 'sticpa') . " </option>
-                <option value='Accounts' > " . __('Account', 'sticpa') . " </option>
-            </select>
-        </li>
-        ";
+        $html .= "<span class='error'>" . __('Something went wrong. Please try again later or contact the administrator.', 'sticpa') . "</span>";
     }
 
     $html .= "
         <div class='stic-form stic-form-two-col'>
+            <p>" . __('Enter your email address and we will send you a link to access your private area without a password.', 'sticpa') . "</p>
             <form action='" . site_url() . "/wp-admin/admin-post.php' method='post'>
                 <ul>
-                ".$moduleSelectHTML."
-                    <li class='field_signup'>
-                                <label>" . __('Enter your username', 'sticpa') . ":</label>
-                                <span><input class='input-text' type='text' name='forgot-password-username' id='forgot-password-username' required /> </span>
-
-                    </li>
                     <li class='field_signup'>
                                 <label>" . __('Enter your email address', 'sticpa') . ":</label>
                                 <span><input class='input-text' type='email' name='forgot-password-email-address' id='forgot-password-email-address' required /> </span>
 
                     </li>
                     <li class='stic-send'>
-                    <input type='hidden' name='action' value='stic_forgot_password'><!--updated on 09-nov-2015-->
+                                <input type='hidden' name='action' value='stic_forgot_password'>
                                 <input type='hidden' name='scp_current_url' value='" . $current_url . "'>
-                                <span class='desc'><input type='submit' value='" . __('Submit', 'sticpa') . "' /></span>
+                                <span class='desc'><input type='submit' value='" . __('Send me the access link', 'sticpa') . "' /></span>
                     </li>
                 </ul>
             </form>
@@ -642,6 +632,8 @@ function sugar_crm_portal_uninstall()
     delete_option('sticpa_scp_username');
     delete_option('sticpa_scp_password');
     delete_option('sticpa_scp_module');
+    delete_option('sticpa_scp_area_url');
+    delete_option('sticpa_magic_secret');
 
     $upload_dir = wp_upload_dir();
     $upload_scp_uploads = $upload_dir['basedir'] . "/stic-uploads";
