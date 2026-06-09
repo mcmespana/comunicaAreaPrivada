@@ -587,11 +587,14 @@ function sugar_crm_portal_style_and_script()
 
     // only loads css if the shortcode is present, not polluting the rest of the site
     if (is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'sinergiacrm-private-area')) {
+        // Modern typography (Inter) loaded from Google Fonts
+        wp_enqueue_style('stic-google-fonts', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap', array(), null);
         wp_enqueue_style('stic-style', plugins_url('css/stic-style.css', __FILE__));
         wp_enqueue_style('stic-multiselect', plugins_url('css/selectize.css', __FILE__));
-        wp_enqueue_style('custom-style', plugins_url('css/custom-style.css', __FILE__));
         wp_enqueue_style('stic-modern-style', plugins_url('css/stic-modern-style.css', __FILE__));
         wp_enqueue_style('fullcalendar', plugins_url('js/fullcalendar/lib/main.css', __FILE__));
+        // custom-style.css is loaded LAST on purpose so it can override/enhance everything above
+        wp_enqueue_style('custom-style', plugins_url('css/custom-style.css', __FILE__), array('stic-modern-style'), '2.0');
     }
 
 }
