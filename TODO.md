@@ -132,6 +132,14 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
 - [x] `DOC-02` (P1 · M) Análisis Expo y Magic Links en `docs/`. ↳ hecho.
 - [ ] `DOC-03` (P3 · S) Documentar los endpoints REST del BFF cuando existan (`PLAT-01`).
 
+## ⚪ CI/CD — Despliegue
+
+- [x] `CI-01` (P1 · M) **Deploy automático a producción** por FTPS al hacer push/merge a la rama
+      `produccion`. ↳ **hecho.** Workflow + guía de secretos.
+      ↳ `.github/workflows/deploy-produccion.yml`, [`docs/despliegue.md`](docs/despliegue.md).
+- [ ] `CI-02` (P3 · S) (Opcional) Entorno de **staging** con su propia rama/secretos para probar
+      antes de producción.
+
 ---
 
 ## 🧭 Orden sugerido de ataque
