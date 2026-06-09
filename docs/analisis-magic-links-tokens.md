@@ -14,9 +14,9 @@ mejorarla con un diseño de **dos niveles** para no convertir cada email en una 
 permanente y eterna:
 
 1. **Token permanente por contacto** (campo custom `ajmcm_pa_token_c` en el CRM) → para el enlace
-   "siempre disponible" al pie de los emails y para la **impersonación** desde el admin.
-2. **Magic links firmados y caducables** (generados en WordPress con HMAC, **sin guardar nada en el
-   CRM**) → para el flujo "introduce tu email y te mando acceso".
+   "siempre disponible" al pie de los emails (`?token=xxxxx`) y para la **impersonación** desde el admin.
+2. **Acceso mágico firmado y caducable** (generados en WordPress con HMAC, **sin guardar nada en el
+   CRM**) → para el flujo "introduce tu email y te mando acceso" (`?acceso_magico=xxxxx`).
 
 Ambos desembocan en lo mismo: al validarse, se crea la **sesión PHP normal** (cookie) y se
 **limpia el token de la URL**. Así el token solo viaja una vez.
@@ -94,7 +94,7 @@ pero se mitiga fácil. Mitigaciones clave:
 ### Nivel 1 — Token permanente (`ajmcm_pa_token_c`)
 - Campo custom en Contacts/Accounts. **Lo genera WordPress** y lo guarda en el CRM vía API.
 - **Uso A — botón "Acceder a mi área privada" al pie de los emails:**
-  `https://tuweb/area-privada/?ajmcm_token=XXX`. Un clic y dentro, sin recordar nada. Por
+  `https://tuweb/area-privada/?token=XXX`. Un clic y dentro, sin recordar nada. Por
   naturaleza es de larga vida; lo asumimos, pero lo hacemos **revocable** y lo convertimos en sesión
   al primer clic.
 - **Uso B — impersonación desde el admin** (entrar como un usuario).
@@ -111,7 +111,7 @@ Para el flujo "introduce tu email y te mando acceso" (sustituto del password-res
 $payload = $contactId . '|' . (time() + HOUR_IN_SECONDS);      // id + expiración
 $sig     = hash_hmac('sha256', $payload, MAGIC_SECRET);         // secreto guardado en wp_options
 $magic   = rtrim(strtr(base64_encode($payload.'|'.$sig), '+/', '-_'), '=');
-// → enlace: .../area-privada/?ajmcm_magic={$magic}
+// → enlace: .../area-privada/?acceso_magico={$magic}
 
 // Validar (al hacer clic)
 [$contactId, $exp, $sig] = explode('|', base64_decode(...));
@@ -128,8 +128,8 @@ if (hash_equals(hash_hmac('sha256', "$contactId|$exp", MAGIC_SECRET), $sig) && t
 
 ### Flujo unificado de login (en `sugar_crm_portal_check_user_and_login` o un hook `init`)
 ```
-¿URL trae ?ajmcm_token=  → buscar contacto por ajmcm_pa_token_c
-¿URL trae ?ajmcm_magic=  → validar firma + caducidad → contacto
+¿URL trae ?token=  → buscar contacto por ajmcm_pa_token_c
+¿URL trae ?acceso_magico=  → validar firma + caducidad → contacto
         │ encontrado
         ▼
 crear $_SESSION (igual que PortalLogin hoy) → redirect a URL limpia (sin token)
@@ -152,7 +152,7 @@ Reaprovecha casi todo `PortalLogin()` cambiando solo el `WHERE` de la query.
 
 ### Pasos en el plugin
 1. **CRM (solo Studio, sin código):** crear `ajmcm_pa_token_c` (y opcionalmente los otros dos).
-2. **Plugin – login:** nuevo handler en `init` que detecte `?ajmcm_token=` / `?ajmcm_magic=`,
+2. **Plugin – login:** nuevo handler en `init` que detecte `?token=` / `?acceso_magico=`,
    valide y monte la sesión (reutilizando la lógica de `PortalLogin`). Añadir `wp_safe_redirect` a
    URL limpia.
 3. **Plugin – generación de tokens:** función que para un contacto haga `set_entry` con
@@ -173,7 +173,7 @@ Reaprovecha casi todo `PortalLogin()` cambiando solo el `WHERE` de la query.
 En el panel de ajustes existente del plugin (o una subpágina nueva), añadir:
 
 - **Buscador de usuarios** (por nombre/email) que consulte el CRM (`get_entry_list`).
-- Por cada usuario: **Ver token**, **Regenerar token**, **Entrar como** (abre `?ajmcm_token=` o, mejor,
+- Por cada usuario: **Ver token**, **Regenerar token**, **Entrar como** (abre `?token=` o, mejor,
   genera un magic link de un solo uso y corta vida).
 - **Regenerar todos** (masivo) — con aviso claro: *invalida todos los enlaces de emails ya enviados*.
 
@@ -218,7 +218,7 @@ seguros para acceso bajo demanda, todo con **un solo campo nuevo** en el CRM (`a
 
 ## 10. Plan de implementación por fases
 
-- **Fase 1 (MVP, P0):** campo `ajmcm_pa_token_c` + login por `?ajmcm_token=` + redirect a URL limpia
+- **Fase 1 (MVP, P0):** campo `ajmcm_pa_token_c` + login por `?token=` + redirect a URL limpia
   + generar token por usuario desde el admin. *(Ya se puede usar en emails.)*
 - **Fase 2 (P0/P1):** magic links firmados con caducidad para "pedir acceso por email"
   (sustituye al forgot-password que manda la contraseña en claro).

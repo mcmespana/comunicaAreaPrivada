@@ -41,7 +41,7 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
 > Contexto y diseño completo en
 > [`docs/analisis-magic-links-tokens.md`](docs/analisis-magic-links-tokens.md).
 
-- [ ] `AUTH-01` (P0 · M) **Login por token permanente** (`?ajmcm_token=`).
+- [ ] `AUTH-01` (P0 · M) **Login por token permanente** (`?token=`).
       Crear campo `ajmcm_pa_token_c` en el CRM (Studio, sin código), y un handler en `init` que
       detecte el token en la URL, busque el contacto y monte la sesión reutilizando la lógica de
       `PortalLogin`. Funciona aunque el contacto no tenga username/password. **Hecho =** un enlace
@@ -52,9 +52,9 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
 - [ ] `AUTH-03` (P0 · S) **Generar token por usuario** desde el admin (`set_entry` con
       `ajmcm_pa_token_c = bin2hex(random_bytes(16))`). **Hecho =** botón que genera/regenera el
       token de un contacto.
-- [ ] `AUTH-04` (P0 · M) **Magic links firmados y caducables** (HMAC + expiración corta, ~1h, sin
-      campo en el CRM) para el flujo "introduce tu email y te mando acceso". Se envía al `email1`
-      del contacto. Sustituye al forgot-password actual.
+- [ ] `AUTH-04` (P0 · M) **Acceso mágico** (`?acceso_magico=`) firmado y caducable (HMAC +
+      expiración corta, ~1h, sin campo en el CRM) para el flujo "introduce tu email y te mando
+      acceso". Se envía al `email1` del contacto. Sustituye al forgot-password actual.
       ↳ reemplaza a `prefix_admin_stic_forgot_password` en `inc/stic-action.php`.
 - [ ] `SEC-01` (P0 · S) **Dejar de enviar la contraseña en claro por email** en la recuperación
       (lo hace `prefix_admin_stic_forgot_password`). Sustituir por magic link (`AUTH-04`).
