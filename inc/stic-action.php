@@ -473,11 +473,11 @@ function prefix_admin_stic_forgot_password()
                 $name = $contact->name_value_list->name->value ?? '';
                 $headers = "From: " . get_option('sticpa_scp_name') . " <" . get_option('admin_email') . ">";
                 $body = sprintf(
-                    __('Hello %1$s, click the following link to access your private area (valid for a limited time): %2$s', 'sticpa'),
+                    __('Hola %1$s, haz clic en el siguiente enlace para acceder a tu área privada (válido durante un tiempo limitado): %2$s', 'sticpa'),
                     $name,
                     $link
                 );
-                wp_mail($email, __('Access to your private area', 'sticpa'), $body, $headers);
+                wp_mail($email, __('Acceso a tu área privada', 'sticpa'), $body, $headers);
                 break; // found in this module; stop
             }
         }

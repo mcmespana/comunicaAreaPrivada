@@ -179,10 +179,10 @@ function sugar_crm_portal_settings_page()
                         </td>
                     </tr>
                     <tr valign='top'>
-                        <th scope='row'><?=__('Private area URL', 'sticpa');?></th>
+                        <th scope='row'><?=__('URL del área privada', 'sticpa');?></th>
                         <td>
                             <input type='text' class='regular-text' value="<?php echo get_option('sticpa_scp_area_url'); ?>" name='sticpa_scp_area_url'>
-                            <p class="description"><?=__('Public page where the shortcode lives. Used to build access links, ex: https://comunica.movimientoconsolacion.com/area-privada/', 'sticpa');?></p>
+                            <p class="description"><?=__('Página pública donde está el shortcode. Se usa para construir los enlaces de acceso, ej: https://comunica.movimientoconsolacion.com/area-privada/', 'sticpa');?></p>
                         </td>
                     </tr>
 
@@ -325,7 +325,7 @@ function sugar_crm_portal_login_form($html = "")
                     </span>
                        <span class='left'>
                             <a href='?internalpage=single_stic_signup'>" . __('Are you NOT registered? Click here.', 'sticpa') . "</a> <br />
-                            <a href='?internalpage=stic_forgot_password'>" . __('Enter without a password: we send you an access link.', 'sticpa') . "</a>
+                            <a href='?internalpage=stic_forgot_password'>" . __('Entra sin contraseña: te enviamos un enlace de acceso.', 'sticpa') . "</a>
                         </span>
                 </li>
             </ul>
@@ -427,31 +427,31 @@ function sugar_crm_portal_forgot_password($html = "")
     $current_url = $current_url[0] . '?internalpage=stic_forgot_password';
 
     $html .= "<div class='stic-entry-header'>
-            <h3>" . __('Access by link', 'sticpa') . "</h3><br>";
+            <h3>" . __('Acceso por enlace', 'sticpa') . "</h3><br>";
 
     if (isset($_REQUEST['success']) && $_REQUEST['success'] == true) {
-        // Generic message on purpose (does not reveal whether the email exists).
-        $html .= "<span class='success'>" . __('If your email address is registered, you will receive an access link shortly. Please check your inbox.', 'sticpa') . "</span>";
+        // Mensaje genérico a propósito (no revela si el email existe o no).
+        $html .= "<span class='success'>" . __('Si tu dirección de email está registrada, recibirás un enlace de acceso en breve. Revisa tu bandeja de entrada.', 'sticpa') . "</span>";
     }
 
     if (isset($_REQUEST['error']) && $_REQUEST['error'] == 1) {
-        $html .= "<span class='error'>" . __('Something went wrong. Please try again later or contact the administrator.', 'sticpa') . "</span>";
+        $html .= "<span class='error'>" . __('Algo ha ido mal. Inténtalo de nuevo más tarde o contacta con el administrador.', 'sticpa') . "</span>";
     }
 
     $html .= "
         <div class='stic-form stic-form-two-col'>
-            <p>" . __('Enter your email address and we will send you a link to access your private area without a password.', 'sticpa') . "</p>
+            <p>" . __('Introduce tu dirección de email y te enviaremos un enlace para acceder a tu área privada sin contraseña.', 'sticpa') . "</p>
             <form action='" . site_url() . "/wp-admin/admin-post.php' method='post'>
                 <ul>
                     <li class='field_signup'>
-                                <label>" . __('Enter your email address', 'sticpa') . ":</label>
+                                <label>" . __('Introduce tu dirección de email', 'sticpa') . ":</label>
                                 <span><input class='input-text' type='email' name='forgot-password-email-address' id='forgot-password-email-address' required /> </span>
 
                     </li>
                     <li class='stic-send'>
                                 <input type='hidden' name='action' value='stic_forgot_password'>
                                 <input type='hidden' name='scp_current_url' value='" . $current_url . "'>
-                                <span class='desc'><input type='submit' value='" . __('Send me the access link', 'sticpa') . "' /></span>
+                                <span class='desc'><input type='submit' value='" . __('Envíame el enlace de acceso', 'sticpa') . "' /></span>
                     </li>
                 </ul>
             </form>

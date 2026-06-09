@@ -478,6 +478,44 @@ class SugarRestApiCall
         return (isset($result->entry_list[0]) && $result->entry_list[0] != null) ? $result->entry_list[0] : null;
     }
 
+    // Search contacts/accounts by free text: full name (first + last together),
+    // first name, last name or private-area username. Returns a list of matches
+    // (for the admin search box). $term is sanitized here.
+    public function searchContacts($term, $module, $maxResults = 25)
+    {
+        $term = str_replace(array("'", "\\"), '', trim($term));
+        if ($term === '') {
+            return array();
+        }
+        $like = '%' . $term . '%';
+
+        if ($module === 'Accounts') {
+            // Accounts only have a single "name" field.
+            $query = "(accounts.name LIKE '{$like}' OR accounts_cstm.stic_pa_username_c LIKE '{$like}')";
+        } else {
+            // Contacts: match the full name (first + last together) as well as
+            // each part on its own, plus the private-area username.
+            $query = "("
+                . "CONCAT(contacts.first_name, ' ', contacts.last_name) LIKE '{$like}' "
+                . "OR contacts.last_name LIKE '{$like}' "
+                . "OR contacts.first_name LIKE '{$like}' "
+                . "OR contacts_cstm.stic_pa_username_c LIKE '{$like}')";
+        }
+
+        $get_entry_list = array(
+            'session' => $this->session_id,
+            'module_name' => $module,
+            'query' => $query,
+            'order_by' => '',
+            'offset' => 0,
+            'select_fields' => array('id', 'name', 'stic_pa_username_c', 'ajmcm_pa_token_c', 'email1'),
+            'max_results' => (int) $maxResults,
+            'deleted' => 0,
+        );
+        $result = $this->call("get_entry_list", $get_entry_list, $this->url);
+        return $result->entry_list ?? array();
+    }
+
     // Find a contact/account by email address (used by the magic-link request flow).
     public function getContactByEmail($email, $module)
     {
