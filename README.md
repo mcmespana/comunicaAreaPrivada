@@ -9,6 +9,11 @@ Este documento está pensado para que **cualquier persona o agente de IA** entie
 minutos cómo funciona esta movida, dónde tocar las cosas, y cómo extenderla. Escrito en
 plan "explícamelo como si tuviera 5 años, pero sin mentirme".
 
+> 📋 **¿Vas a desarrollar algo?** Mira primero [`TODO.md`](TODO.md) (tareas priorizadas y
+> convenciones) y los análisis de fondo en [`docs/`](docs/):
+> [migración a Expo](docs/analisis-expo-migracion.md) ·
+> [autenticación por token / magic links](docs/analisis-magic-links-tokens.md).
+
 ---
 
 ## 1. La idea en una frase
