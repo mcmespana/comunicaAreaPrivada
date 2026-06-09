@@ -6,8 +6,9 @@ Cómo se publica el plugin en **comunica.movimientoconsolacion.com** automática
 
 ## 1. Cómo funciona
 
-- Hay una rama **`produccion`** que representa lo que está publicado en el sitio real.
-- Cuando se hace **push** a `produccion` (normalmente al **mergear una Pull Request** ahí), se
+- Hay una rama de **producción** (el repo usa **`production`**; el workflow también acepta
+  `produccion`) que representa lo que está publicado en el sitio real.
+- Cuando se hace **push** a esa rama (normalmente al **mergear una Pull Request** ahí), se
   dispara el workflow [`.github/workflows/deploy-produccion.yml`](../.github/workflows/deploy-produccion.yml).
 - El workflow **sube el plugin por FTPS** a la carpeta del plugin en el hosting, de forma
   **incremental** (solo los archivos que han cambiado).
