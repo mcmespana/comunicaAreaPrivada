@@ -41,17 +41,20 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
 > Contexto y diseño completo en
 > [`docs/analisis-magic-links-tokens.md`](docs/analisis-magic-links-tokens.md).
 
-- [ ] `AUTH-01` (P0 · M) **Login por token permanente** (`?stic_token=`).
-      Crear campo `stic_pa_token_c` en el CRM (Studio, sin código), y un handler en `init` que
+- [ ] `AUTH-01` (P0 · M) **Login por token permanente** (`?ajmcm_token=`).
+      Crear campo `ajmcm_pa_token_c` en el CRM (Studio, sin código), y un handler en `init` que
       detecte el token en la URL, busque el contacto y monte la sesión reutilizando la lógica de
-      `PortalLogin`. **Hecho =** un enlace con token válido loguea y redirige a URL limpia.
+      `PortalLogin`. Funciona aunque el contacto no tenga username/password. **Hecho =** un enlace
+      con token válido loguea y redirige a URL limpia.
       ↳ `sinergiacrm-private-area.php` (login flow), `inc/stic-class-6.php::PortalLogin`.
 - [ ] `AUTH-02` (P0 · S) **Limpiar el token de la URL tras login** (`wp_safe_redirect` a URL sin
       parámetros) para que no quede en historial/marcadores.
 - [ ] `AUTH-03` (P0 · S) **Generar token por usuario** desde el admin (`set_entry` con
-      `bin2hex(random_bytes(16))`). **Hecho =** botón que genera/regenera el token de un contacto.
-- [ ] `AUTH-04` (P0 · M) **Magic links firmados y caducables** (HMAC + expiración) para el flujo
-      "introduce tu email y te mando acceso". Sustituye al forgot-password actual.
+      `ajmcm_pa_token_c = bin2hex(random_bytes(16))`). **Hecho =** botón que genera/regenera el
+      token de un contacto.
+- [ ] `AUTH-04` (P0 · M) **Magic links firmados y caducables** (HMAC + expiración corta, ~1h, sin
+      campo en el CRM) para el flujo "introduce tu email y te mando acceso". Se envía al `email1`
+      del contacto. Sustituye al forgot-password actual.
       ↳ reemplaza a `prefix_admin_stic_forgot_password` en `inc/stic-action.php`.
 - [ ] `SEC-01` (P0 · S) **Dejar de enviar la contraseña en claro por email** en la recuperación
       (lo hace `prefix_admin_stic_forgot_password`). Sustituir por magic link (`AUTH-04`).
@@ -81,7 +84,7 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
 - [ ] `ADMIN-04` (P1 · M) **"Entrar como" (impersonación)** desde el admin: solo `manage_options`,
       con **audit log**, **banner visible** de impersonación y, preferiblemente, mediante enlace de
       un solo uso y corta vida (no exponiendo el token permanente en la tabla).
-- [ ] `ADMIN-05` (P2 · S) Campo **URL de portal precalculada** (`stic_pa_portal_url_c`) para
+- [ ] `ADMIN-05` (P2 · S) Campo **URL de portal precalculada** (`ajmcm_pa_portal_url_c`) para
       arrastrar como mail-merge en las plantillas de email del CRM.
 
 ## 🟡 P2 — Plataforma / Expo (decisión de fondo)
