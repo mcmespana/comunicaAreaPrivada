@@ -41,23 +41,20 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
 > Contexto y diseño completo en
 > [`docs/analisis-magic-links-tokens.md`](docs/analisis-magic-links-tokens.md).
 
-- [ ] `AUTH-01` (P0 · M) **Login por token permanente** (`?token=`).
-      Crear campo `ajmcm_pa_token_c` en el CRM (Studio, sin código), y un handler en `init` que
-      detecte el token en la URL, busque el contacto y monte la sesión reutilizando la lógica de
-      `PortalLogin`. Funciona aunque el contacto no tenga username/password. **Hecho =** un enlace
-      con token válido loguea y redirige a URL limpia.
-      ↳ `sinergiacrm-private-area.php` (login flow), `inc/stic-class-6.php::PortalLogin`.
-- [ ] `AUTH-02` (P0 · S) **Limpiar el token de la URL tras login** (`wp_safe_redirect` a URL sin
-      parámetros) para que no quede en historial/marcadores.
-- [ ] `AUTH-03` (P0 · S) **Generar token por usuario** desde el admin (`set_entry` con
-      `ajmcm_pa_token_c = bin2hex(random_bytes(16))`). **Hecho =** botón que genera/regenera el
-      token de un contacto.
-- [ ] `AUTH-04` (P0 · M) **Acceso mágico** (`?acceso_magico=`) firmado y caducable (HMAC +
-      expiración corta, ~1h, sin campo en el CRM) para el flujo "introduce tu email y te mando
-      acceso". Se envía al `email1` del contacto. Sustituye al forgot-password actual.
-      ↳ reemplaza a `prefix_admin_stic_forgot_password` en `inc/stic-action.php`.
-- [ ] `SEC-01` (P0 · S) **Dejar de enviar la contraseña en claro por email** en la recuperación
-      (lo hace `prefix_admin_stic_forgot_password`). Sustituir por magic link (`AUTH-04`).
+- [x] `AUTH-01` (P0 · M) **Login por token permanente** (`?token=`). ↳ **hecho.**
+      Campo `ajmcm_pa_token_c` (crear en Studio) + handler en `init` que valida el token, busca el
+      contacto y monta la sesión. Funciona sin username/password.
+      ↳ `inc/stic-magic-login.php::sticpa_process_passwordless_login`, `inc/stic-class-6.php::PortalLoginByToken`.
+- [x] `AUTH-02` (P0 · S) **Limpiar el token de la URL tras login** (`wp_safe_redirect`). ↳ **hecho.**
+- [x] `AUTH-03` (P0 · S) **Generar token por usuario** desde el admin (regenerar individual +
+      generación masiva). ↳ **hecho.**
+      ↳ `inc/stic-magic-login.php::sticpa_set_contact_token` / `sticpa_generate_tokens_bulk`.
+- [x] `AUTH-04` (P0 · M) **Acceso mágico** (`?acceso_magico=`) firmado HMAC y caducable (~1h, sin
+      campo en el CRM), enviado al `email1` del contacto. ↳ **hecho.**
+      ↳ `inc/stic-magic-login.php::sticpa_generate_magic_link` / `sticpa_validate_magic_link`,
+      `inc/stic-action.php::prefix_admin_stic_forgot_password`.
+- [x] `SEC-01` (P0 · S) **Dejar de enviar la contraseña en claro por email.** ↳ **hecho** (el flujo
+      de recuperación ahora manda un acceso mágico, nunca la contraseña).
 - [ ] `SEC-02` (P0 · M) **Escapar/parametrizar las queries al CRM.** Hoy se concatenan
       `username`/`password`/`token` sin escapar → inyección. Sanear en `PortalLogin`,
       `getUserExists`, `getUserInformationByUsername`, etc.
@@ -76,14 +73,14 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
 
 ## 🟠 P1 — Panel de administración (gestión de accesos)
 
-- [ ] `ADMIN-01` (P1 · M) **Buscador de usuarios** en el admin (por nombre/email vía
-      `get_entry_list`), como base para ver/regenerar tokens e impersonar.
-- [ ] `ADMIN-02` (P1 · S) **Ver / regenerar token** por usuario desde el buscador.
-- [ ] `ADMIN-03` (P1 · M) **Regenerar tokens masivamente** (todos o un subconjunto), con aviso de
-      que invalida los enlaces de emails ya enviados.
-- [ ] `ADMIN-04` (P1 · M) **"Entrar como" (impersonación)** desde el admin: solo `manage_options`,
-      con **audit log**, **banner visible** de impersonación y, preferiblemente, mediante enlace de
-      un solo uso y corta vida (no exponiendo el token permanente en la tabla).
+- [x] `ADMIN-01` (P1 · M) **Buscador de usuarios** en el admin (por username). ↳ **hecho** (versión
+      básica en el panel de ajustes). ↳ `inc/stic-magic-login.php::sticpa_render_admin_tools`.
+- [x] `ADMIN-02` (P1 · S) **Ver / regenerar token** por usuario desde el buscador. ↳ **hecho.**
+- [x] `ADMIN-03` (P1 · M) **Regenerar tokens masivamente** (botón, por lotes de 200). ↳ **hecho.**
+- [~] `ADMIN-04` (P1 · M) **"Entrar como" (impersonación)** desde el admin (capability
+      `manage_options`, abre el área con el `?token=`). ↳ **versión básica hecha.** Pendiente de
+      endurecer: **audit log**, **banner visible** de impersonación y usar enlace de un solo uso
+      en vez del token permanente.
 - [ ] `ADMIN-05` (P2 · S) Campo **URL de portal precalculada** (`ajmcm_pa_portal_url_c`) para
       arrastrar como mail-merge en las plantillas de email del CRM.
 
@@ -134,6 +131,14 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
 - [x] `DOC-01` (P1 · M) README técnico y funcional. ↳ hecho.
 - [x] `DOC-02` (P1 · M) Análisis Expo y Magic Links en `docs/`. ↳ hecho.
 - [ ] `DOC-03` (P3 · S) Documentar los endpoints REST del BFF cuando existan (`PLAT-01`).
+
+## ⚪ CI/CD — Despliegue
+
+- [x] `CI-01` (P1 · M) **Deploy automático a producción** por FTPS al hacer push/merge a la rama
+      `produccion`. ↳ **hecho.** Workflow + guía de secretos.
+      ↳ `.github/workflows/deploy-produccion.yml`, [`docs/despliegue.md`](docs/despliegue.md).
+- [ ] `CI-02` (P3 · S) (Opcional) Entorno de **staging** con su propia rama/secretos para probar
+      antes de producción.
 
 ---
 

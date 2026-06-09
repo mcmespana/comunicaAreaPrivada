@@ -438,6 +438,69 @@ class SugarRestApiCall
 
     }
 
+    // Portal login using the permanent access token (custom field ajmcm_pa_token_c).
+    // $token must be pre-sanitized to [a-f0-9] by the caller.
+    public function PortalLoginByToken($token, $module)
+    {
+        if ($module === 'Accounts') {
+            $selectFields = array('id', 'name', 'stic_pa_username_c', 'assigned_user_id', 'email1', 'ajmcm_pa_token_c');
+        } else {
+            $selectFields = array('id', 'name', 'stic_pa_username_c', 'account_id', 'assigned_user_id', 'email1', 'ajmcm_pa_token_c');
+        }
+        $get_entry_list = array(
+            'session' => $this->session_id,
+            'module_name' => $module,
+            'query' => "ajmcm_pa_token_c = '{$token}'",
+            'order_by' => '',
+            'offset' => 0,
+            'select_fields' => $selectFields,
+            'max_results' => 1,
+            'deleted' => 0,
+        );
+        return $this->call("get_entry_list", $get_entry_list, $this->url);
+    }
+
+    // Find a contact/account by its private-area username (for admin tools).
+    public function getContactByUsername($username, $module)
+    {
+        $username = str_replace(array("'", "\\"), '', $username);
+        $get_entry_list = array(
+            'session' => $this->session_id,
+            'module_name' => $module,
+            'query' => "stic_pa_username_c = '{$username}'",
+            'order_by' => '',
+            'offset' => 0,
+            'select_fields' => array('id', 'name', 'stic_pa_username_c', 'ajmcm_pa_token_c', 'email1'),
+            'max_results' => 1,
+            'deleted' => 0,
+        );
+        $result = $this->call("get_entry_list", $get_entry_list, $this->url);
+        return (isset($result->entry_list[0]) && $result->entry_list[0] != null) ? $result->entry_list[0] : null;
+    }
+
+    // Find a contact/account by email address (used by the magic-link request flow).
+    public function getContactByEmail($email, $module)
+    {
+        $table = strtolower($module); // contacts / accounts
+        $email = str_replace(array("'", "\\"), '', $email);
+        $query = "{$table}.id IN (SELECT eabr.bean_id FROM email_addr_bean_rel eabr "
+            . "INNER JOIN email_addresses ea ON ea.id = eabr.email_address_id "
+            . "WHERE eabr.bean_module = '{$module}' AND eabr.deleted = 0 "
+            . "AND ea.deleted = 0 AND ea.email_address = '{$email}')";
+        $get_entry_list = array(
+            'session' => $this->session_id,
+            'module_name' => $module,
+            'query' => $query,
+            'order_by' => '',
+            'offset' => 0,
+            'select_fields' => array('id', 'name', 'email1'),
+            'max_results' => 1,
+            'deleted' => 0,
+        );
+        $result = $this->call("get_entry_list", $get_entry_list, $this->url);
+        return (isset($result->entry_list[0]) && $result->entry_list[0] != null) ? $result->entry_list[0] : null;
+    }
+
     protected function parseRelationshipFields($relationshipFields = array()) {
         $link_name_to_fields_array = array();
         if (is_array($relationshipFields)) {

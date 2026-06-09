@@ -12,7 +12,8 @@ plan "explícamelo como si tuviera 5 años, pero sin mentirme".
 > 📋 **¿Vas a desarrollar algo?** Mira primero [`TODO.md`](TODO.md) (tareas priorizadas y
 > convenciones) y los análisis de fondo en [`docs/`](docs/):
 > [migración a Expo](docs/analisis-expo-migracion.md) ·
-> [autenticación por token / magic links](docs/analisis-magic-links-tokens.md).
+> [autenticación por token / magic links](docs/analisis-magic-links-tokens.md) ·
+> [despliegue a producción (CI/CD)](docs/despliegue.md).
 
 ---
 
@@ -397,14 +398,98 @@ Para hacerlos modernos de verdad sin reescribir el plugin, trabaja en `css/custo
 3. Rellena: **Host URL**, **REST URL**, **Username**, **Password** (la cuenta de servicio del
    CRM) y elige **Module** (`Contacts`, `Accounts` o `Any`). Al guardar, el panel te dirá
    *"Successful connection"* si conecta bien.
-4. Crea una página de WordPress y mete el shortcode: `[sinergiacrm-private-area]`.
-5. En SinergiaCRM, asegúrate de que los Contactos/Cuentas que deben tener acceso tienen
-   rellenos `stic_pa_username_c` y `stic_pa_password_c`.
+4. Crea una página de WordPress y mete el shortcode: `[sinergiacrm-private-area]`. Apunta su URL en
+   el ajuste **"Private area URL"** (necesario para los enlaces de acceso, ver §8).
+5. Para el acceso, tienes dos vías (no excluyentes):
+   - **Por contraseña (clásico):** rellena `stic_pa_username_c` y `stic_pa_password_c` en el CRM.
+   - **Por enlace (recomendado):** crea el campo `ajmcm_pa_token_c` en Studio y genera los tokens
+     desde el panel. Las familias entran con un clic, sin recordar nada (ver §8).
 6. Personaliza el menú en `menu.php` y los estilos en `css/custom-style.css`.
 
 ---
 
-## 8. Glosario rápido para humanos despistados (y agentes de IA)
+## 8. Acceso sin contraseña: token permanente y acceso mágico ✨
+
+Además del login clásico por usuario/contraseña, el plugin permite **entrar con un enlace**, sin
+recordar nada. Es más cómodo para las familias y más seguro (la contraseña ya **no se envía nunca**
+por email). Toda la lógica vive en [`inc/stic-magic-login.php`](inc/stic-magic-login.php); en el CRM
+**solo hay que crear un campo** (con Studio, sin programar).
+
+> 📐 El **porqué** del diseño (decisiones, alternativas, seguridad) está en
+> [`docs/analisis-magic-links-tokens.md`](docs/analisis-magic-links-tokens.md). Aquí va **cómo
+> funciona y cómo se usa**.
+
+### 8.1 Las dos formas de entrar
+
+| | **Token permanente** | **Acceso mágico** |
+|---|---|---|
+| **URL** | `…/area-privada/?token=XXXX` | `…/area-privada/?acceso_magico=XXXX` |
+| **Para qué** | Botón "Acceder" al pie de **todos los emails** de comunicación | Flujo bajo demanda: *"introduce tu email y te mando acceso"* |
+| **Dónde vive** | Campo `ajmcm_pa_token_c` en la ficha del CRM | **En ningún sitio**: va firmado con HMAC y se valida solo en WordPress |
+| **Caduca** | No (es revocable: se regenera) | Sí, **~1 hora** (configurable) |
+| **Seguridad** | Bearer permanente (asumible, revocable) | Firmado + corta vida (alta) |
+
+### 8.2 Cómo funciona por dentro
+
+1. **Generación del token permanente.** WordPress crea un valor aleatorio de 128 bits
+   (`bin2hex(random_bytes(16))`) y lo guarda en el contacto vía API (`set_entry`). Se hace desde el
+   panel de ajustes, individual o masivamente.
+2. **Login por token** (`?token=`). Un handler en `init`
+   (`sticpa_process_passwordless_login`) detecta el parámetro, busca el contacto en el CRM
+   (`PortalLoginByToken` → `WHERE ajmcm_pa_token_c = '...'`), monta la **sesión PHP normal** y
+   **redirige a una URL limpia** (el token desaparece de la barra de direcciones).
+3. **Acceso mágico** (`?acceso_magico=`). Cuando alguien pide acceso con su email, WordPress
+   construye un enlace **firmado con HMAC-SHA256**: el contenido es `módulo|idContacto|caducidad` y
+   se le adjunta una firma calculada con un **secreto que solo conoce el servidor**
+   (`sticpa_magic_secret`, en `wp_options`). Al hacer clic, el servidor **recalcula la firma**: si
+   alguien manipuló el enlace (otro id, más caducidad), la firma no cuadra y se rechaza. Si es
+   válido y no ha caducado, monta la sesión igual que arriba. Por eso **no hace falta guardar nada
+   en el CRM**: el enlace se valida a sí mismo.
+4. **Sesión.** En ambos casos se usa la misma sesión PHP de siempre (`$_SESSION['scp_*']`), así que
+   el resto del área funciona idéntico. Tras el primer clic se navega por **cookie**, no por token.
+
+### 8.3 El flujo "envíame un enlace de acceso" (sustituye al *forgot password*)
+
+El antiguo "He olvidado mi contraseña" **enviaba la contraseña en claro** — eso se ha eliminado.
+Ahora (`prefix_admin_stic_forgot_password` en `inc/stic-action.php`):
+
+- El usuario introduce **solo su email** → WordPress busca el contacto por email
+  (`getContactByEmail`) → genera un **acceso mágico** y lo envía a ese correo.
+- La respuesta es **genérica siempre** ("si tu email está registrado, recibirás un enlace"), para
+  no revelar qué emails existen (anti-enumeración).
+
+### 8.4 Panel de administración (ajustes del plugin)
+
+En el menú **"SinergiaCRM Private Area"** se ha añadido la sección **"Passwordless access"**
+(`sticpa_render_admin_tools`), solo para administradores:
+
+- **Generar tokens en masa**: crea token a todos los contactos que aún no tengan (por lotes de 200;
+  púlsalo varias veces si hay muchos).
+- **Buscar un usuario** por su username → muestra su **token**, su email y un botón **"Entrar como"**
+  (abre el área con `?token=`), además de **Regenerar token** (que invalida sus enlaces antiguos).
+- Requiere configurar el ajuste **"Private area URL"** (la página donde está el shortcode) para
+  poder construir los enlaces.
+
+### 8.5 Integración con los emails del CRM
+
+Para el botón "Acceder" al pie de los emails, inserta en la plantilla de SinergiaCRM el campo
+`ajmcm_pa_token_c` como mail-merge y construye el enlace `https://…/?token={token}`. (Opcional:
+crear un campo `ajmcm_pa_portal_url_c` con la URL completa ya montada para arrastrarlo directamente.)
+
+### 8.6 Qué hay que crear en el CRM (resumen)
+
+- **Obligatorio:** campo custom **`ajmcm_pa_token_c`** (texto) en Contacts y/o Accounts (Studio).
+- *(Opcional)* `ajmcm_pa_portal_url_c` para el mail-merge cómodo.
+- **Nada de código en el CRM.** El secreto HMAC y toda la lógica viven en WordPress.
+
+### 8.7 Pendiente (ver TODO)
+
+El núcleo está hecho. Queda endurecer: **audit log** y **banner** al impersonar, usar enlace de un
+solo uso en "Entrar como", activar verificación TLS (`SEC-04`) y escapar las queries (`SEC-02`).
+
+---
+
+## 9. Glosario rápido para humanos despistados (y agentes de IA)
 
 - **Shortcode:** etiqueta `[...]` de WordPress que inserta funcionalidad en una página.
 - **`set_entry`:** método de la API del CRM para **crear o actualizar** un registro.
@@ -417,7 +502,7 @@ Para hacerlos modernos de verdad sin reescribir el plugin, trabaja en `css/custo
 
 ---
 
-## 9. Documentación oficial
+## 10. Documentación oficial
 
 - Wiki SinergiaCRM (ES/CA):
   https://wikisuite.sinergiacrm.org/index.php?title=Plugin_Wordpress_para_gesti%C3%B3n_de_%C3%81rea_Privada

@@ -1,0 +1,70 @@
+name: Deploy a producción (comunica.movimientoconsolacion.com)
+
+# Se ejecuta cuando se hace push a la rama "produccion".
+# Mergear una Pull Request a "produccion" cuenta como push -> dispara el deploy.
+# También se puede lanzar a mano desde la pestaña Actions (workflow_dispatch).
+
+on:
+  push:
+    branches:
+      - produccion
+  workflow_dispatch: {}
+
+# Evita que dos despliegues se pisen si se mergea varias veces seguidas.
+concurrency:
+  group: deploy-produccion
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Subir plugin por FTPS
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código del repo
+        uses: actions/checkout@v4
+
+      - name: Subir el plugin por FTPS
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          # --- Conexión (se rellenan con los Secrets del repositorio) ---
+          server: ${{ secrets.FTP_SERVER }}        # ej. ftp.movimientoconsolacion.com
+          username: ${{ secrets.FTP_USERNAME }}    # usuario FTP del hosting
+          password: ${{ secrets.FTP_PASSWORD }}    # contraseña FTP
+          protocol: ftps                           # FTP cifrado con TLS (puerto 21)
+          port: 21
+
+          # --- Destino: carpeta del plugin en el servidor (DEBE acabar en "/") ---
+          # ej. /public_html/wp-content/plugins/sinergiacrm-private-area/
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+
+          # No borra el destino entero: sube solo lo que ha cambiado (incremental).
+          dangerous-clean-slate: false
+
+          # Archivos que NO se suben al servidor (solo son de desarrollo).
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/.github/**
+            **/docs/**
+            **/*.md
+            **/*.backup
+            **/.gitignore
+            **/.DS_Store
+
+# ──────────────────────────────────────────────────────────────────────────────
+# ¿Tu acceso es SFTP de verdad (puerto 22, basado en SSH) y NO FTPS (puerto 21)?
+# Entonces sustituye el paso "Subir el plugin por FTPS" por este otro y crea los
+# secretos SFTP_* en vez de FTP_* (ver docs/despliegue.md):
+#
+#       - name: Subir el plugin por SFTP
+#         uses: wlixcc/SFTP-Deploy-Action@v1.2.6
+#         with:
+#           server: ${{ secrets.SFTP_SERVER }}
+#           username: ${{ secrets.SFTP_USERNAME }}
+#           ssh_private_key: ${{ secrets.SFTP_PRIVATE_KEY }}
+#           port: 22
+#           local_path: './*'
+#           remote_path: ${{ secrets.SFTP_REMOTE_DIR }}
+#           sftp_only: true
+#           exclude_list: '.git*,.github,docs,*.md,*.backup'
+# ──────────────────────────────────────────────────────────────────────────────

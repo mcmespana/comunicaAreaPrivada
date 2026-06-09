@@ -1,0 +1,420 @@
+<?php
+
+/**
+ * ============================================================================
+ *  Acceso por enlace (passwordless) para el Área Privada
+ * ----------------------------------------------------------------------------
+ *  Dos formas de entrar sin usuario/contraseña:
+ *
+ *  1) TOKEN PERMANENTE  ->  .../area-privada/?token=XXXX
+ *     - Cada contacto del CRM tiene un campo custom `ajmcm_pa_token_c` con un
+ *       token aleatorio (128 bits). Se usa en el botón "Acceder" al pie de los
+ *       emails y para impersonar desde el admin. Es revocable (se regenera).
+ *
+ *  2) ACCESO MÁGICO     ->  .../area-privada/?acceso_magico=XXXX
+ *     - Enlace firmado con HMAC y CADUCABLE (por defecto 1h). NO se guarda nada
+ *       en el CRM: es autovalidable con un secreto que vive en WordPress.
+ *       Se usa en el flujo "introduce tu email y te mando acceso".
+ *
+ *  En ambos casos, al validar se crea la sesión PHP normal del área y se
+ *  redirige a una URL limpia (sin el token en la barra de direcciones).
+ *
+ *  Toda la lógica vive aquí (WordPress). SinergiaCRM solo almacena el campo
+ *  `ajmcm_pa_token_c` (creado con Studio, sin programar nada en el CRM).
+ * ============================================================================
+ */
+
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+/**
+ * Caducidad por defecto del acceso mágico (segundos). Configurable vía filtro.
+ */
+function sticpa_magic_link_ttl()
+{
+    return apply_filters('sticpa_magic_link_ttl', HOUR_IN_SECONDS);
+}
+
+/**
+ * Secreto HMAC para firmar los accesos mágicos. Se genera una sola vez y se
+ * guarda en wp_options. Rotarlo invalida TODOS los accesos mágicos vigentes.
+ */
+function sticpa_get_magic_secret()
+{
+    $secret = get_option('sticpa_magic_secret');
+    if (empty($secret)) {
+        $secret = bin2hex(random_bytes(32));
+        update_option('sticpa_magic_secret', $secret, false);
+    }
+    return $secret;
+}
+
+/** Token permanente aleatorio (128 bits -> 32 hex). */
+function sticpa_generate_access_token()
+{
+    return bin2hex(random_bytes(16));
+}
+
+/** Base64 URL-safe (sin +, /, =) para meter el payload en una URL. */
+function sticpa_b64url_encode($data)
+{
+    return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+}
+
+function sticpa_b64url_decode($data)
+{
+    return base64_decode(strtr($data, '-_', '+/'));
+}
+
+/**
+ * Módulos del CRM en los que buscar al usuario, según la configuración.
+ * Si está en "Any", probamos Contacts y luego Accounts.
+ */
+function sticpa_modules_to_try()
+{
+    $module = getDestinationModule();
+    if ($module === 'Any') {
+        return array('Contacts', 'Accounts');
+    }
+    if ($module === 'Accounts') {
+        return array('Accounts');
+    }
+    return array('Contacts');
+}
+
+/** Campos que necesitamos del contacto para montar la sesión. */
+function sticpa_session_select_fields($module)
+{
+    if ($module === 'Accounts') {
+        return array('id', 'name', 'stic_pa_username_c', 'assigned_user_id', 'email1', 'ajmcm_pa_token_c');
+    }
+    return array('id', 'name', 'stic_pa_username_c', 'account_id', 'assigned_user_id', 'email1', 'ajmcm_pa_token_c');
+}
+
+/**
+ * Genera un enlace de acceso mágico firmado y caducable para un contacto.
+ *
+ * @param string $baseUrl   URL de la página del área privada (sin parámetros).
+ * @param string $module    'Contacts' | 'Accounts'.
+ * @param string $contactId ID del registro en el CRM.
+ * @param int    $ttl       Validez en segundos.
+ * @return string           URL completa con ?acceso_magico=...
+ */
+function sticpa_generate_magic_link($baseUrl, $module, $contactId, $ttl = null)
+{
+    $ttl = $ttl !== null ? $ttl : sticpa_magic_link_ttl();
+    $exp = time() + (int) $ttl;
+    $payload = $module . '|' . $contactId . '|' . $exp;
+    $sig = hash_hmac('sha256', $payload, sticpa_get_magic_secret());
+    $data = sticpa_b64url_encode($payload . '|' . $sig);
+    return add_query_arg('acceso_magico', $data, $baseUrl);
+}
+
+/**
+ * Valida un acceso mágico. Devuelve array(module, contactId) si es válido y no
+ * ha caducado; false en caso contrario.
+ */
+function sticpa_validate_magic_link($data)
+{
+    $raw = sticpa_b64url_decode($data);
+    if ($raw === false || strpos($raw, '|') === false) {
+        return false;
+    }
+    $parts = explode('|', $raw);
+    if (count($parts) !== 4) {
+        return false;
+    }
+    list($module, $contactId, $exp, $sig) = $parts;
+
+    if (!in_array($module, array('Contacts', 'Accounts'), true)) {
+        return false;
+    }
+    $expected = hash_hmac('sha256', $module . '|' . $contactId . '|' . $exp, sticpa_get_magic_secret());
+    if (!hash_equals($expected, (string) $sig)) {
+        return false;
+    }
+    if (time() > (int) $exp) {
+        return false; // caducado
+    }
+    return array($module, $contactId);
+}
+
+/**
+ * Asigna (o regenera) el token permanente de un contacto vía API del CRM.
+ *
+ * @return string el token asignado.
+ */
+function sticpa_set_contact_token($module, $contactId, $token = null)
+{
+    $token = $token ? $token : sticpa_generate_access_token();
+    $objSCP = SugarRestApiCall::getObjSCP();
+    $objSCP->set_entry($module, array(
+        'id' => $contactId,
+        'ajmcm_pa_token_c' => $token,
+    ));
+    return $token;
+}
+
+/**
+ * Genera tokens para los contactos que aún no tengan uno (procesado por lotes).
+ *
+ * @return int número de tokens generados en esta pasada.
+ */
+function sticpa_generate_tokens_bulk($module, $limit = 200)
+{
+    $objSCP = SugarRestApiCall::getObjSCP();
+    $records = $objSCP->getRecordsModule($module, '', array('id', 'ajmcm_pa_token_c'));
+    $count = 0;
+    if (is_array($records)) {
+        foreach ($records as $record) {
+            $current = $record->name_value_list->ajmcm_pa_token_c->value ?? '';
+            if ($current === '' || $current === null) {
+                sticpa_set_contact_token($module, $record->id);
+                $count++;
+                if ($count >= $limit) {
+                    break;
+                }
+            }
+        }
+    }
+    return $count;
+}
+
+/**
+ * Crea la sesión del área privada a partir de un registro del CRM.
+ * Centraliza lo que antes hacía sólo el login por usuario/contraseña.
+ *
+ * @param object $entry  entry_list[0] del CRM (con ->id y ->name_value_list).
+ * @param string $module 'Contacts' | 'Accounts'.
+ */
+function sticpa_establish_session($entry, $module)
+{
+    $nvl = $entry->name_value_list;
+
+    $_SESSION['scp_module'] = $module;
+    $_SESSION['scp_user_id'] = $entry->id;
+    $_SESSION['scp_user_contact_name'] = $nvl->name->value ?? '';
+    $_SESSION['scp_account_id'] = isset($nvl->account_id) ? $nvl->account_id->value : null;
+    $_SESSION['scp_user_account_name'] = isset($nvl->stic_pa_username_c) ? $nvl->stic_pa_username_c->value : null;
+    $_SESSION['scp_user_assigned_user_id'] = isset($nvl->assigned_user_id) ? $nvl->assigned_user_id->value : null;
+
+    if (defined('RELATIONSHIP_TUTOR_TYPES')) {
+        $_SESSION['scp_user_adult'] = check_user_adult($entry->id, RELATIONSHIP_TUTOR_TYPES);
+    } else {
+        $_SESSION['scp_user_adult'] = true;
+    }
+}
+
+/**
+ * Handler principal: intercepta ?token= y ?acceso_magico= en el front, valida,
+ * crea la sesión y redirige a una URL limpia.
+ *
+ * Prioridad 2 para ejecutarse DESPUÉS de sugar_crm_portal_start_session (que
+ * arranca la sesión PHP en init con prioridad 1).
+ */
+add_action('init', 'sticpa_process_passwordless_login', 2);
+function sticpa_process_passwordless_login()
+{
+    if (is_admin()) {
+        return;
+    }
+    if (isset($_SESSION['scp_user_id'])) {
+        return; // ya hay sesión
+    }
+    $hasToken = isset($_REQUEST['token']);
+    $hasMagic = isset($_REQUEST['acceso_magico']);
+    if (!$hasToken && !$hasMagic) {
+        return;
+    }
+    if (!class_exists('SugarRestApiCall')) {
+        return;
+    }
+
+    $entry = null;
+    $foundModule = null;
+
+    if ($hasToken) {
+        // El token es hexadecimal (lo generamos nosotros); saneamos a [a-f0-9].
+        $token = preg_replace('/[^a-f0-9]/i', '', (string) $_REQUEST['token']);
+        if (strlen($token) >= 16) {
+            foreach (sticpa_modules_to_try() as $module) {
+                $result = SugarRestApiCall::getObjSCP()->PortalLoginByToken($token, $module);
+                if (isset($result->entry_list[0]) && $result->entry_list[0] != null) {
+                    $entry = $result->entry_list[0];
+                    $foundModule = $module;
+                    break;
+                }
+            }
+        }
+    } elseif ($hasMagic) {
+        $valid = sticpa_validate_magic_link((string) $_REQUEST['acceso_magico']);
+        if ($valid) {
+            list($foundModule, $contactId) = $valid;
+            $result = SugarRestApiCall::getObjSCP()->getRecordDetail($contactId, $foundModule, sticpa_session_select_fields($foundModule));
+            if (isset($result->entry_list[0]) && $result->entry_list[0] != null) {
+                $entry = $result->entry_list[0];
+            }
+        }
+    }
+
+    if ($entry) {
+        sticpa_establish_session($entry, $foundModule);
+        // Redirigir a la misma URL pero sin el token (no queda en historial/marcadores).
+        $clean = remove_query_arg(array('token', 'acceso_magico'));
+        wp_safe_redirect($clean);
+        exit;
+    }
+    // Si no valida (token erróneo o caducado), seguimos: se mostrará el login.
+}
+
+/* ============================================================================
+ *  ADMIN: generación masiva, búsqueda, ver token, "entrar como" (impersonar)
+ * ========================================================================== */
+
+/** Acción admin-post: generar tokens para todos los contactos sin token. */
+add_action('admin_post_sticpa_generate_tokens_bulk', 'sticpa_handle_generate_tokens_bulk');
+function sticpa_handle_generate_tokens_bulk()
+{
+    if (!current_user_can('manage_options')) {
+        wp_die(__('Not authorized', 'sticpa'));
+    }
+    check_admin_referer('sticpa_tokens');
+
+    $module = getDestinationModule();
+    if ($module === 'Any') {
+        $module = 'Contacts';
+    }
+    $generated = sticpa_generate_tokens_bulk($module, 200);
+
+    wp_safe_redirect(add_query_arg(array(
+        'page' => 'sugar-crm-portal',
+        'sticpa_msg' => 'bulk',
+        'sticpa_n' => $generated,
+    ), admin_url('admin.php')));
+    exit;
+}
+
+/** Acción admin-post: regenerar el token de un contacto concreto. */
+add_action('admin_post_sticpa_regenerate_token', 'sticpa_handle_regenerate_token');
+function sticpa_handle_regenerate_token()
+{
+    if (!current_user_can('manage_options')) {
+        wp_die(__('Not authorized', 'sticpa'));
+    }
+    check_admin_referer('sticpa_tokens');
+
+    $module = sanitize_text_field($_REQUEST['module'] ?? '');
+    if (!in_array($module, array('Contacts', 'Accounts'), true)) {
+        $module = 'Contacts';
+    }
+    $contactId = sanitize_text_field($_REQUEST['contact_id'] ?? '');
+    if ($contactId) {
+        sticpa_set_contact_token($module, $contactId);
+    }
+    wp_safe_redirect(add_query_arg(array(
+        'page' => 'sugar-crm-portal',
+        'sticpa_user' => rawurlencode($_REQUEST['username'] ?? ''),
+    ), admin_url('admin.php')));
+    exit;
+}
+
+/**
+ * Renderiza el panel de herramientas de acceso por enlace dentro de la página
+ * de ajustes del plugin (generar tokens, buscar usuario, ver token, entrar como).
+ */
+function sticpa_render_admin_tools()
+{
+    if (!current_user_can('manage_options')) {
+        return;
+    }
+    $areaUrl = get_option('sticpa_scp_area_url');
+    $module = getDestinationModule();
+    if ($module === 'Any') {
+        $module = 'Contacts';
+    }
+    ?>
+    <div class="wrap">
+        <hr>
+        <h2><?= __('Passwordless access (links)', 'sticpa'); ?></h2>
+
+        <?php if (isset($_GET['sticpa_msg']) && $_GET['sticpa_msg'] === 'bulk') : ?>
+            <div class="updated notice"><p>
+                <?= sprintf(__('%d access tokens were generated.', 'sticpa'), (int) ($_GET['sticpa_n'] ?? 0)); ?>
+                <?= __('Run it again if there are more contacts pending.', 'sticpa'); ?>
+            </p></div>
+        <?php endif; ?>
+
+        <?php if (empty($areaUrl)) : ?>
+            <div class="notice notice-warning"><p>
+                <?= __('Set the "Private area URL" above so the access links can be built.', 'sticpa'); ?>
+            </p></div>
+        <?php endif; ?>
+
+        <h3><?= __('Generate tokens in bulk', 'sticpa'); ?></h3>
+        <p class="description"><?= __('Creates an access token for every contact that does not have one yet (processed in batches of 200).', 'sticpa'); ?></p>
+        <form method="post" action="<?= esc_url(admin_url('admin-post.php')); ?>">
+            <?php wp_nonce_field('sticpa_tokens'); ?>
+            <input type="hidden" name="action" value="sticpa_generate_tokens_bulk">
+            <?php submit_button(__('Generate missing tokens', 'sticpa'), 'secondary'); ?>
+        </form>
+
+        <h3><?= __('Find a user / log in as', 'sticpa'); ?></h3>
+        <form method="get" action="<?= esc_url(admin_url('admin.php')); ?>">
+            <input type="hidden" name="page" value="sugar-crm-portal">
+            <input type="text" name="sticpa_user" class="regular-text"
+                   placeholder="<?= esc_attr__('Private area username', 'sticpa'); ?>"
+                   value="<?= esc_attr(stripslashes($_GET['sticpa_user'] ?? '')); ?>">
+            <?php submit_button(__('Search', 'sticpa'), 'secondary', '', false); ?>
+        </form>
+
+        <?php
+        $searchUser = isset($_GET['sticpa_user']) ? sanitize_text_field(stripslashes($_GET['sticpa_user'])) : '';
+        if ($searchUser !== '' && class_exists('SugarRestApiCall')) {
+            $contact = null;
+            $contactModule = $module;
+            foreach (sticpa_modules_to_try() as $m) {
+                $found = SugarRestApiCall::getObjSCP()->getContactByUsername($searchUser, $m);
+                if ($found) {
+                    $contact = $found;
+                    $contactModule = $m;
+                    break;
+                }
+            }
+            if (!$contact) {
+                echo '<p><em>' . __('No user found with that username.', 'sticpa') . '</em></p>';
+            } else {
+                $nvl = $contact->name_value_list;
+                $name = $nvl->name->value ?? '';
+                $email = $nvl->email1->value ?? '';
+                $token = $nvl->ajmcm_pa_token_c->value ?? '';
+                if ($token === '') {
+                    $token = sticpa_set_contact_token($contactModule, $contact->id);
+                }
+                $loginUrl = $areaUrl ? add_query_arg('token', $token, $areaUrl) : '';
+                ?>
+                <table class="form-table">
+                    <tr><th><?= __('Name', 'sticpa'); ?></th><td><?= esc_html($name); ?> <code><?= esc_html($contactModule); ?></code></td></tr>
+                    <tr><th><?= __('Email', 'sticpa'); ?></th><td><?= esc_html($email); ?></td></tr>
+                    <tr><th><?= __('Access token', 'sticpa'); ?></th><td><code><?= esc_html($token); ?></code></td></tr>
+                    <?php if ($loginUrl) : ?>
+                    <tr><th><?= __('Log in as this user', 'sticpa'); ?></th>
+                        <td><a class="button button-primary" href="<?= esc_url($loginUrl); ?>" target="_blank"><?= __('Open private area as', 'sticpa'); ?> <?= esc_html($name); ?></a></td>
+                    </tr>
+                    <?php endif; ?>
+                </table>
+                <form method="post" action="<?= esc_url(admin_url('admin-post.php')); ?>">
+                    <?php wp_nonce_field('sticpa_tokens'); ?>
+                    <input type="hidden" name="action" value="sticpa_regenerate_token">
+                    <input type="hidden" name="module" value="<?= esc_attr($contactModule); ?>">
+                    <input type="hidden" name="contact_id" value="<?= esc_attr($contact->id); ?>">
+                    <input type="hidden" name="username" value="<?= esc_attr($searchUser); ?>">
+                    <?php submit_button(__('Regenerate token (revokes old links)', 'sticpa'), 'delete'); ?>
+                </form>
+                <?php
+            }
+        }
+        ?>
+    </div>
+    <?php
+}

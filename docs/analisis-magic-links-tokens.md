@@ -1,6 +1,17 @@
 # Análisis: Autenticación por Token / Magic Links
 
-> **Estado:** propuesta para decidir e implementar
+> ## ✅ IMPLEMENTADO (documento archivado)
+> El núcleo de este análisis **ya está desarrollado** (tareas `AUTH-01..04`, `SEC-01` y
+> `ADMIN-01..03`). El funcionamiento real y cómo configurarlo está en
+> [`../README.md`](../README.md) §8. Este documento se conserva como **registro del diseño y las
+> decisiones** (el porqué). Lo que queda pendiente (endurecer impersonación, retirar el login por
+> contraseña, `SEC-02..06`) sigue en [`../TODO.md`](../TODO.md).
+>
+> Implementación principal en [`../inc/stic-magic-login.php`](../inc/stic-magic-login.php).
+
+---
+
+> **Estado:** ✅ implementado (núcleo). Mejoras de endurecimiento pendientes en el TODO.
 > **Prioridad:** 🔴 **P0 — la más alta** (resuelve a la vez seguridad y UX)
 > **Tamaño estimado:** M (núcleo funcional en ~2-4 días; panel admin completo, algo más)
 > **Relacionado:** tareas `SEC-*` y `AUTH-*` de [`../TODO.md`](../TODO.md)
