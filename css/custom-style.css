@@ -1,88 +1,481 @@
 /* ============================================================
    SinergiaCRM Private Area — CAPA PREMIUM (custom-style.css)
    ------------------------------------------------------------
-   Esta hoja se carga LA ÚLTIMA (después de stic-modern-style.css),
-   así que aquí mandas tú. Redefine los design tokens (variables CSS)
-   y añade un look "MUY moderno": glassmorphism, gradientes animados,
-   micro-interacciones, modo oscuro y tipografía Inter.
+   "La mejor área privada de la historia" · Comunica / Movimiento
+   Consolación. Esta hoja se carga LA ÚLTIMA (después de
+   stic-modern-style.css), así que aquí mandas tú.
 
-   ¿Quieres cambiar la marca? Toca solo las variables del bloque
-   :root de abajo y el resto se adapta solo.
+   Sistema de diseño basado en design tokens. Para recolorear todo
+   el área de golpe, edita SOLO el bloque :root de marca de abajo.
+
+   Marca real:  azul  #1c6fb3   ·   magenta  #9D1E74
    ============================================================ */
 
 /* ============================================================
-   1. DESIGN TOKENS — sobreescriben los del tema moderno
+   1. DESIGN TOKENS — la fuente de la verdad
    ============================================================ */
 :root {
-    /* Marca — cambia estos 2 y la mayoría del look se adapta */
-    --primary-color: #4f46e5;          /* índigo moderno   */
-    --primary-dark:  #4338ca;
-    --primary-light: #6366f1;
-    --secondary-color: #06b6d4;        /* cian eléctrico   */
-    --secondary-dark:  #0891b2;
-    --secondary-light: #22d3ee;
-    --accent-color:    #7c3aed;        /* violeta de acento */
+    /* ---- Marca (cambia estos y el resto se adapta) ---- */
+    --primary-color:  #1c6fb3;   /* azul Comunica        */
+    --primary-dark:   #155a92;
+    --primary-light:  #2a8cd1;
+    --primary-50:     #eaf4fb;
 
-    /* Degradados reutilizables */
-    --grad-brand: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 55%, var(--secondary-color) 120%);
-    --grad-brand-soft: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 50%, #ecfeff 100%);
-    --grad-sheen: linear-gradient(120deg, transparent 0%, rgba(255,255,255,.35) 50%, transparent 100%);
+    --secondary-color: #9d1e74;  /* magenta Consolación  */
+    --secondary-dark:  #82175f;
+    --secondary-light: #b92b89;
+    --secondary-50:    #fbeaf5;
 
-    /* Superficies y cristal */
+    --accent-color:    #6c4b9e;  /* violeta puente entre ambos */
+
+    /* ---- Degradados de marca reutilizables ---- */
+    --grad-brand: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 52%, var(--secondary-color) 100%);
+    --grad-brand-rev: linear-gradient(135deg, var(--secondary-color) 0%, var(--accent-color) 48%, var(--primary-color) 100%);
+    --grad-brand-soft: linear-gradient(135deg, #eaf4fb 0%, #f1edf9 50%, #fbeaf5 100%);
+    --grad-sheen: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, .45) 50%, transparent 100%);
+
+    /* ---- Superficies y cristal ---- */
     --surface: #ffffff;
-    --surface-glass: rgba(255, 255, 255, 0.72);
-    --glass-border: rgba(255, 255, 255, 0.55);
-    --glass-blur: 16px;
+    --surface-2: #f7f9fc;
+    --surface-glass: rgba(255, 255, 255, 0.74);
+    --glass-border: rgba(255, 255, 255, 0.6);
+    --glass-blur: 18px;
 
-    /* Sombras premium (más suaves y con tinte de marca) */
-    --shadow-xs: 0 1px 2px rgba(30, 27, 75, 0.06);
-    --shadow-sm: 0 2px 8px rgba(30, 27, 75, 0.08);
-    --shadow-md: 0 8px 24px rgba(30, 27, 75, 0.10);
-    --shadow-lg: 0 18px 40px rgba(30, 27, 75, 0.14);
-    --shadow-xl: 0 28px 60px rgba(30, 27, 75, 0.18);
-    --shadow-glow: 0 0 0 4px rgba(79, 70, 229, 0.15);
+    /* ---- Sombras premium (tintadas de marca) ---- */
+    --shadow-xs: 0 1px 2px rgba(21, 36, 71, 0.06);
+    --shadow-sm: 0 2px 10px rgba(21, 36, 71, 0.08);
+    --shadow-md: 0 10px 28px rgba(21, 36, 71, 0.10);
+    --shadow-lg: 0 20px 44px rgba(21, 36, 71, 0.14);
+    --shadow-xl: 0 32px 70px rgba(21, 36, 71, 0.20);
+    --shadow-glow: 0 0 0 4px rgba(28, 111, 179, 0.16);
+    --shadow-glow-pink: 0 0 0 4px rgba(157, 30, 116, 0.16);
 
-    /* Radios más generosos */
-    --radius-sm: 0.5rem;
-    --radius-md: 0.75rem;
-    --radius-lg: 1rem;
-    --radius-xl: 1.25rem;
-    --radius-2xl: 1.75rem;
+    /* ---- Radios generosos ---- */
+    --radius-sm: 0.55rem;
+    --radius-md: 0.85rem;
+    --radius-lg: 1.1rem;
+    --radius-xl: 1.4rem;
+    --radius-2xl: 1.9rem;
+    --radius-full: 9999px;
 
-    /* Tipografía moderna */
+    /* ---- Tipografía ---- */
     --font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 
-    /* Curva de animación premium */
+    /* ---- Curvas de animación ---- */
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* ============================================================
-   2. FONDO Y CONTENEDOR — atmósfera con degradado sutil
+   2. CONTENEDOR GENERAL — atmósfera sutil de marca
    ============================================================ */
 .stic-container {
     position: relative;
     font-family: var(--font-family);
     background:
-        radial-gradient(1200px 500px at 100% -10%, rgba(124, 58, 237, 0.08), transparent 60%),
-        radial-gradient(900px 500px at -10% 0%, rgba(6, 182, 212, 0.08), transparent 55%);
+        radial-gradient(1100px 460px at 100% -10%, rgba(157, 30, 116, 0.07), transparent 60%),
+        radial-gradient(900px 480px at -10% 0%, rgba(28, 111, 179, 0.08), transparent 55%);
     border-radius: var(--radius-2xl);
 }
 
-/* Animación de entrada suave para el contenido */
 .stic-tab-content {
-    animation: stic-fade-up 0.5s var(--ease-spring) both;
+    animation: stic-fade-up 0.5s var(--ease-out) both;
     border: 1px solid var(--gray-200);
     border-radius: var(--radius-xl) !important;
     box-shadow: var(--shadow-sm);
 }
 
 @keyframes stic-fade-up {
-    from { opacity: 0; transform: translateY(12px); }
+    from { opacity: 0; transform: translateY(14px); }
     to   { opacity: 1; transform: translateY(0); }
 }
 
 /* ============================================================
-   3. CABECERA DE USUARIO — barra de cristal
+   3. PANTALLA DE AUTENTICACIÓN — hero a pantalla completa
+   ============================================================ */
+.stic-auth-shell {
+    position: relative;
+    min-height: min(100vh, 760px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: clamp(1.25rem, 4vw, 3rem) 1rem;
+    font-family: var(--font-family);
+    isolation: isolate;
+    overflow: hidden;
+    border-radius: var(--radius-2xl);
+}
+
+/* Fondo con malla de degradado animada + orbes flotantes */
+.stic-auth-shell::before {
+    content: '';
+    position: absolute;
+    inset: -20%;
+    z-index: -2;
+    background:
+        radial-gradient(40% 50% at 18% 22%, rgba(28, 111, 179, 0.28), transparent 60%),
+        radial-gradient(45% 55% at 85% 18%, rgba(157, 30, 116, 0.26), transparent 60%),
+        radial-gradient(50% 60% at 70% 90%, rgba(108, 75, 158, 0.24), transparent 62%),
+        radial-gradient(45% 55% at 12% 88%, rgba(42, 140, 209, 0.20), transparent 60%),
+        linear-gradient(135deg, #eef5fc 0%, #f4eef9 50%, #fbeef5 100%);
+    background-size: 200% 200%;
+    animation: stic-mesh 18s ease-in-out infinite;
+    filter: saturate(1.05);
+}
+
+.stic-auth-shell::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-image: radial-gradient(rgba(21, 36, 71, 0.05) 1px, transparent 1px);
+    background-size: 22px 22px;
+    mask-image: radial-gradient(circle at 50% 40%, #000 30%, transparent 75%);
+    -webkit-mask-image: radial-gradient(circle at 50% 40%, #000 30%, transparent 75%);
+    opacity: 0.6;
+}
+
+@keyframes stic-mesh {
+    0%   { background-position: 0% 0%; }
+    50%  { background-position: 100% 100%; }
+    100% { background-position: 0% 0%; }
+}
+
+/* ============================================================
+   4. TARJETA DE LOGIN / RECUPERAR — glassmorphism premium
+   ============================================================ */
+.stic-login-form,
+.stic-forgotpas-form {
+    position: relative;
+    width: 100%;
+    max-width: 460px;
+    margin: 0 auto;
+    padding: clamp(1.75rem, 4vw, 2.75rem) clamp(1.5rem, 4vw, 2.5rem) clamp(1.5rem, 4vw, 2.25rem);
+    backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.4);
+    background: var(--surface-glass);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-xl), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    overflow: hidden;
+    animation: stic-pop 0.6s var(--ease-spring) both;
+}
+
+/* Halo de color que respira detrás de la tarjeta */
+.stic-login-form::before,
+.stic-forgotpas-form::before {
+    content: '';
+    position: absolute;
+    inset: -45% -30% auto -30%;
+    height: 70%;
+    background: var(--grad-brand);
+    filter: blur(64px);
+    opacity: 0.34;
+    z-index: -1;
+    animation: stic-halo 9s ease-in-out infinite;
+}
+
+@keyframes stic-halo {
+    0%, 100% { transform: translateY(0) scale(1); opacity: 0.30; }
+    50%      { transform: translateY(8px) scale(1.06); opacity: 0.42; }
+}
+
+@keyframes stic-pop {
+    from { opacity: 0; transform: translateY(20px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Marca / logo redondo sobre el título */
+.stic-auth-brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 1.4rem;
+    text-align: center;
+}
+
+.stic-auth-logo {
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    border-radius: var(--radius-lg);
+    background: var(--grad-brand);
+    color: #fff;
+    box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    animation: stic-float 5s ease-in-out infinite;
+}
+.stic-auth-logo svg { width: 32px; height: 32px; }
+
+@keyframes stic-float {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-6px); }
+}
+
+.stic-auth-kicker {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--secondary-color);
+}
+
+.stic-login-form h3,
+.stic-forgotpas-form h3 {
+    margin: 0;
+    font-size: clamp(1.5rem, 4vw, 1.9rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    background: var(--grad-brand);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.stic-auth-sub {
+    margin: 0.35rem 0 0;
+    font-size: 0.95rem;
+    color: var(--gray-500);
+    font-weight: 500;
+}
+
+/* Lista de campos del formulario de login */
+.stic-login-form form ul,
+.stic-forgotpas-form form ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.stic-login-form .input_login,
+.stic-forgotpas-form .field_signup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    text-align: left;
+}
+
+.stic-login-form .input_login > label,
+.stic-forgotpas-form .field_signup > label {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--gray-700);
+    letter-spacing: 0.01em;
+}
+
+/* Campo con icono incrustado (posicionamiento robusto, sin depender de flex) */
+.stic-login-form .stic-field,
+.stic-forgotpas-form .stic-field,
+span.stic-field {
+    position: relative !important;
+    display: block !important;
+    width: 100%;
+}
+.stic-login-form .stic-field-icon,
+.stic-forgotpas-form .stic-field-icon,
+.stic-field .stic-field-icon {
+    position: absolute;
+    left: 0.95rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 20px;
+    display: grid;
+    place-items: center;
+    color: var(--gray-400);
+    pointer-events: none;
+    z-index: 2;
+    transition: color 0.2s ease;
+}
+.stic-field .stic-field-icon svg { width: 20px; height: 20px; }
+
+.stic-login-form .input_login input.input-text,
+.stic-login-form .input_login span > input,
+.stic-forgotpas-form input.input-text,
+.stic-field input {
+    width: 100% !important;
+    padding: 0.95rem 3rem 0.95rem 2.85rem !important;
+    font-size: 1rem;
+    border: 1.5px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.85);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.stic-field input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    background: #fff;
+    box-shadow: var(--shadow-glow);
+}
+.stic-field:focus-within .stic-field-icon { color: var(--primary-color); }
+
+/* Botón de mostrar/ocultar contraseña */
+.stic-pass-toggle {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent !important;
+    color: var(--gray-400);
+    cursor: pointer;
+    transition: color 0.2s ease, background 0.2s ease;
+}
+.stic-pass-toggle:hover { color: var(--primary-color); background: var(--primary-50) !important; transform: translateY(-50%) !important; box-shadow: none !important; }
+.stic-pass-toggle:active { transform: translateY(-50%) scale(0.94) !important; }
+.stic-pass-toggle svg { width: 20px; height: 20px; }
+
+/* Botón principal de submit */
+.stic-login-form .actions_login,
+.stic-forgotpas-form .stic-send {
+    list-style: none;
+    margin-top: 0.4rem;
+}
+.stic-login-form .actions_login input[type="submit"],
+.stic-forgotpas-form .stic-send input[type="submit"],
+.stic-btn-primary {
+    width: 100%;
+    padding: 1rem 1.25rem;
+    font-size: 1.02rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: #fff;
+    border: 0;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+
+/* Separador "o" entre login clásico y acceso por enlace */
+.stic-auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    margin: 1.3rem 0 1.1rem;
+    color: var(--gray-400);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+.stic-auth-divider::before,
+.stic-auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gray-200), transparent);
+}
+
+/* Enlaces secundarios (registro, acceso por enlace) */
+.stic-login-form .actions_login .left {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    margin-top: 1.15rem;
+    text-align: center;
+}
+.stic-login-form .actions_login .left a,
+.stic-auth-links a {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: color 0.18s ease;
+}
+.stic-login-form .actions_login .left a:hover,
+.stic-auth-links a:hover { color: var(--secondary-color); }
+
+/* CTA destacada de acceso por enlace mágico */
+.stic-magic-cta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    width: 100%;
+    padding: 0.9rem 1.2rem;
+    font-size: 0.96rem;
+    font-weight: 700;
+    color: var(--secondary-color) !important;
+    background: var(--secondary-50);
+    border: 1.5px solid rgba(157, 30, 116, 0.22);
+    border-radius: var(--radius-md);
+    text-decoration: none;
+    transition: transform 0.18s var(--ease-spring), box-shadow 0.2s ease, background 0.2s ease;
+}
+.stic-magic-cta svg { width: 20px; height: 20px; }
+.stic-magic-cta:hover {
+    transform: translateY(-2px);
+    background: #fff;
+    box-shadow: var(--shadow-glow-pink);
+}
+
+.stic-auth-help {
+    margin: 0.4rem 0 1.25rem;
+    font-size: 0.95rem;
+    line-height: 1.55;
+    color: var(--gray-500);
+    text-align: left;
+}
+
+/* ============================================================
+   5. OVERLAY DE CARGA — al enviar formularios (login, enlace…)
+   ============================================================ */
+.stic-loading-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    padding: 2rem;
+    text-align: center;
+    background: rgba(244, 247, 252, 0.82);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+.stic-loading-overlay.is-active { opacity: 1; visibility: visible; }
+
+.stic-spinner {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: conic-gradient(from 0deg, var(--primary-color), var(--secondary-color), var(--primary-color));
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 0);
+    mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 0);
+    animation: stic-spin 0.9s linear infinite;
+}
+@keyframes stic-spin { to { transform: rotate(1turn); } }
+
+.stic-loading-overlay .stic-loading-text {
+    font-family: var(--font-family);
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--gray-700);
+}
+.stic-loading-overlay .stic-loading-sub {
+    font-family: var(--font-family);
+    font-size: 0.88rem;
+    color: var(--gray-500);
+    max-width: 320px;
+}
+
+/* ============================================================
+   6. CABECERA DE USUARIO — barra de cristal
    ============================================================ */
 .stic-userinfo {
     backdrop-filter: blur(var(--glass-blur));
@@ -90,27 +483,31 @@
     background: var(--surface-glass);
     border: 1px solid var(--glass-border);
     box-shadow: var(--shadow-sm);
-    border-radius: 9999px;
-    padding: 0.75rem 1.25rem;
+    border-radius: var(--radius-full);
+    padding: 0.7rem 1.25rem;
 }
+.stic-user-name a { color: var(--primary-color); font-weight: 700; text-decoration: none; }
+.stic-user-name a:hover { color: var(--secondary-color); }
 
 .stic-logout {
     transition: all 0.2s var(--ease-spring);
+    border-radius: var(--radius-full);
+    font-weight: 600;
 }
 .stic-logout:hover {
     transform: translateY(-1px) scale(1.03);
-    box-shadow: 0 6px 16px rgba(239, 68, 68, 0.35);
+    color: var(--danger-color);
 }
 
 /* ============================================================
-   4. MENÚ PRINCIPAL — gradiente animado + indicador activo
+   7. MENÚ PRINCIPAL — gradiente animado + pastilla activa
    ============================================================ */
 .stic-primary-menu {
     background: var(--grad-brand);
-    background-size: 200% 200%;
-    animation: stic-gradient-shift 12s ease infinite;
+    background-size: 220% 220%;
+    animation: stic-gradient-shift 14s ease infinite;
     border-radius: var(--radius-xl) !important;
-    box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255,255,255,0.18);
+    box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 @keyframes stic-gradient-shift {
@@ -122,6 +519,7 @@
 .stic-primary-menu-item a,
 ul.stic-primary-menu li a {
     letter-spacing: 0.01em;
+    font-weight: 600;
     transition: all 0.25s var(--ease-spring);
 }
 
@@ -131,73 +529,188 @@ ul.stic-primary-menu li a:hover {
     transform: translateY(-1px);
 }
 
-/* Pastilla luminosa para el elemento activo */
 .current-menu-item a,
 ul.stic-primary-menu li.current-menu-item a {
-    background: rgba(255, 255, 255, 0.22) !important;
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25), 0 4px 14px rgba(0,0,0,0.12);
+    background: rgba(255, 255, 255, 0.24) !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3), 0 4px 14px rgba(0, 0, 0, 0.12);
 }
 
 /* ============================================================
-   5. TARJETA DE LOGIN / RECUPERAR CONTRASEÑA — glassmorphism
+   8. PANTALLA DE BIENVENIDA / DASHBOARD
    ============================================================ */
-.stic-login-form,
-.stic-forgotpas-form {
-    position: relative;
-    backdrop-filter: blur(var(--glass-blur));
-    -webkit-backdrop-filter: blur(var(--glass-blur));
-    background: var(--surface-glass);
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius-2xl);
-    box-shadow: var(--shadow-xl);
-    overflow: hidden;
-    animation: stic-pop 0.5s var(--ease-spring) both;
+.stic-welcome {
+    font-family: var(--font-family);
+    animation: stic-fade-up 0.55s var(--ease-out) both;
 }
 
-/* Halo de color detrás de la tarjeta de login */
-.stic-login-form::before,
-.stic-forgotpas-form::before {
+.stic-welcome-hero {
+    position: relative;
+    overflow: hidden;
+    padding: clamp(1.75rem, 4vw, 2.75rem);
+    margin-bottom: 1.75rem;
+    border-radius: var(--radius-2xl);
+    background: var(--grad-brand);
+    color: #fff;
+    box-shadow: var(--shadow-lg);
+}
+.stic-welcome-hero::after {
     content: '';
     position: absolute;
-    inset: -40% -40% auto -40%;
-    height: 60%;
-    background: var(--grad-brand);
-    filter: blur(60px);
-    opacity: 0.35;
+    inset: 0;
+    background:
+        radial-gradient(60% 80% at 100% 0%, rgba(255, 255, 255, 0.22), transparent 60%),
+        radial-gradient(50% 70% at 0% 100%, rgba(0, 0, 0, 0.12), transparent 60%);
+    pointer-events: none;
+}
+.stic-welcome-hero > * { position: relative; z-index: 1; }
+
+.stic-welcome-kicker {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    opacity: 0.9;
+}
+.stic-welcome-title {
+    margin: 0.35rem 0 0.5rem;
+    font-size: clamp(1.6rem, 5vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+}
+.stic-welcome-title .stic-welcome-name { color: #fff; }
+.stic-welcome-lead {
+    margin: 0;
+    font-size: clamp(1rem, 2.5vw, 1.12rem);
+    line-height: 1.55;
+    max-width: 52ch;
+    opacity: 0.95;
+}
+
+.stic-section-label {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0 0 1rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gray-500);
+}
+.stic-section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--gray-200), transparent);
+}
+
+/* Rejilla de tarjetas grandes y funcionales */
+.stic-dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+    gap: clamp(0.9rem, 2vw, 1.25rem);
+}
+
+.stic-dash-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    padding: 1.5rem;
+    border-radius: var(--radius-xl);
+    background: var(--surface);
+    border: 1px solid var(--gray-200);
+    box-shadow: var(--shadow-sm);
+    text-decoration: none;
+    color: inherit;
+    overflow: hidden;
+    isolation: isolate;
+    transition: transform 0.28s var(--ease-spring), box-shadow 0.28s ease, border-color 0.28s ease;
+    animation: stic-fade-up 0.5s var(--ease-out) both;
+}
+.stic-dash-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
     z-index: -1;
+    opacity: 0;
+    background: var(--grad-brand-soft);
+    transition: opacity 0.3s ease;
 }
-
-@keyframes stic-pop {
-    from { opacity: 0; transform: translateY(16px) scale(0.98); }
-    to   { opacity: 1; transform: translateY(0) scale(1); }
+.stic-dash-card:hover {
+    transform: translateY(-6px);
+    box-shadow: var(--shadow-lg);
+    border-color: transparent;
 }
+.stic-dash-card:hover::before { opacity: 1; }
 
-.stic-login-form h3,
-.stic-forgotpas-form h3 {
+/* escalonado de aparición */
+.stic-dash-card:nth-child(1) { animation-delay: 0.04s; }
+.stic-dash-card:nth-child(2) { animation-delay: 0.08s; }
+.stic-dash-card:nth-child(3) { animation-delay: 0.12s; }
+.stic-dash-card:nth-child(4) { animation-delay: 0.16s; }
+.stic-dash-card:nth-child(5) { animation-delay: 0.20s; }
+.stic-dash-card:nth-child(6) { animation-delay: 0.24s; }
+.stic-dash-card:nth-child(7) { animation-delay: 0.28s; }
+.stic-dash-card:nth-child(8) { animation-delay: 0.32s; }
+
+.stic-dash-icon {
+    display: grid;
+    place-items: center;
+    width: 54px;
+    height: 54px;
+    border-radius: var(--radius-md);
     background: var(--grad-brand);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
+    color: #fff;
+    box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    transition: transform 0.28s var(--ease-spring);
 }
+.stic-dash-card:nth-child(even) .stic-dash-icon { background: var(--grad-brand-rev); }
+.stic-dash-card:hover .stic-dash-icon { transform: scale(1.08) rotate(-4deg); }
+.stic-dash-icon svg { width: 28px; height: 28px; }
+
+.stic-dash-title {
+    font-size: 1.15rem;
+    font-weight: 750;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--gray-800);
+}
+.stic-dash-desc {
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--gray-500);
+    margin: 0;
+}
+.stic-dash-go {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: auto;
+    padding-top: 0.4rem;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+.stic-dash-card:nth-child(even) .stic-dash-go { color: var(--secondary-color); }
+.stic-dash-go svg { width: 16px; height: 16px; transition: transform 0.25s var(--ease-spring); }
+.stic-dash-card:hover .stic-dash-go svg { transform: translateX(4px); }
 
 /* ============================================================
-   6. FORMULARIOS — superficie con tarjeta y respiración
+   9. FORMULARIOS — superficie con tarjeta y respiración
    ============================================================ */
-.stic-form {
+.stic-form:not(.stic-login-form):not(.stic-forgotpas-form) {
     background: var(--surface);
     border: 1px solid var(--gray-200);
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow-sm);
     padding: clamp(1.25rem, 3vw, 2rem);
 }
-
-.stic-form h3 {
-    font-weight: 800;
-    letter-spacing: -0.02em;
-}
+.stic-form h3 { font-weight: 800; letter-spacing: -0.02em; }
 
 /* ============================================================
-   7. INPUTS — foco con glow de marca + transición suave
+   10. INPUTS GLOBALES — foco con glow de marca
    ============================================================ */
 input[type="text"], input[type="email"], input[type="password"],
 input[type="number"], input[type="date"], input[type="tel"],
@@ -216,18 +729,18 @@ input:focus, textarea:focus, select:focus, .input-text:focus {
 }
 
 /* ============================================================
-   8. BOTONES — gradiente con barrido de brillo al pasar
+   11. BOTONES GLOBALES — gradiente con barrido de brillo
    ============================================================ */
 button, input[type="submit"], input[type="button"],
 .btn, .stic-button {
     position: relative;
     background: var(--grad-brand) !important;
-    background-size: 150% 150% !important;
+    background-size: 160% 160% !important;
     border-radius: var(--radius-md) !important;
-    font-weight: 600;
+    font-weight: 700;
     letter-spacing: 0.01em;
     overflow: hidden;
-    transition: transform 0.18s var(--ease-spring), box-shadow 0.25s ease, background-position 0.4s ease;
+    transition: transform 0.18s var(--ease-spring), box-shadow 0.25s ease, background-position 0.45s ease;
 }
 
 button::after, input[type="submit"]::after,
@@ -249,56 +762,65 @@ button:hover, input[type="submit"]:hover, input[type="button"]:hover,
 }
 
 button:hover::after, input[type="submit"]:hover::after,
-.btn:hover::after, .stic-button:hover::after {
-    transform: translateX(120%);
-}
+.btn:hover::after, .stic-button:hover::after { transform: translateX(120%); }
 
 button:active, input[type="submit"]:active,
-.btn:active, .stic-button:active {
-    transform: translateY(0) scale(0.99);
-}
+.btn:active, .stic-button:active { transform: translateY(0) scale(0.99); }
+
+/* el toggle de contraseña y enlaces no deben heredar el gradiente */
+.stic-pass-toggle, .stic-magic-cta, a.stic-button-ghost { background: transparent !important; }
+.stic-pass-toggle::after, .stic-magic-cta::after { display: none; }
 
 /* ============================================================
-   9. TABLAS Y DATATABLES — encabezado de marca + filas suaves
+   12. TABLAS Y DATATABLES
    ============================================================ */
 table, table.display {
     border-radius: var(--radius-lg) !important;
     box-shadow: var(--shadow-sm) !important;
     overflow: hidden;
 }
+thead { background: var(--grad-brand) !important; }
+thead th { color: #fff !important; }
 
-thead {
-    background: var(--grad-brand) !important;
-}
-
-tbody tr {
-    transition: background-color 0.18s ease, transform 0.18s ease;
-}
-tbody tr:hover {
-    background-color: #f5f3ff !important;
-}
+tbody tr { transition: background-color 0.18s ease; }
+tbody tr:hover { background-color: var(--primary-50) !important; }
 
 .dataTables_wrapper .dataTables_filter input:focus {
     border-color: var(--primary-color) !important;
     box-shadow: var(--shadow-glow) !important;
 }
-
 .dataTables_wrapper .dataTables_paginate .paginate_button.current {
     background: var(--grad-brand) !important;
     border-color: transparent !important;
+    color: #fff !important;
 }
 
 /* ============================================================
-   10. MENSAJES (éxito / error) — pastillas suaves
+   13. MENSAJES (éxito / error)
    ============================================================ */
 .success, .error, .warning, .info, .stic-msg {
     border-radius: var(--radius-md) !important;
     box-shadow: var(--shadow-xs);
     font-weight: 500;
 }
+.stic-login-form .error,
+.stic-login-form .success,
+.stic-forgotpas-form .error,
+.stic-forgotpas-form .success {
+    display: block;
+    margin-top: 1rem;
+    padding: 0.85rem 1rem;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    text-align: center;
+}
+.stic-login-form .error,
+.stic-forgotpas-form .error { background: var(--danger-light); color: #b42318; }
+.stic-login-form .success,
+.stic-forgotpas-form .success { background: var(--success-light); color: #067647; }
 
 /* ============================================================
-   11. TARJETAS — elevación al hover
+   14. TARJETAS GENÉRICAS + foto de perfil
    ============================================================ */
 .card, .stic-card {
     border-radius: var(--radius-lg);
@@ -309,7 +831,6 @@ tbody tr:hover {
     box-shadow: var(--shadow-lg);
 }
 
-/* Foto de perfil con anillo de marca */
 .stic-profile-picture {
     border: 3px solid transparent;
     background:
@@ -320,61 +841,88 @@ tbody tr:hover {
 }
 
 /* ============================================================
-   12. SCROLLBAR personalizada (WebKit)
+   15. SCROLLBAR personalizada (WebKit)
    ============================================================ */
 .stic-container ::-webkit-scrollbar { height: 10px; width: 10px; }
 .stic-container ::-webkit-scrollbar-track { background: transparent; }
-.stic-container ::-webkit-scrollbar-thumb {
-    background: var(--gray-300);
-    border-radius: 9999px;
-}
+.stic-container ::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: var(--radius-full); }
 .stic-container ::-webkit-scrollbar-thumb:hover { background: var(--primary-light); }
 
 /* ============================================================
-   13. MODO OSCURO — se activa solo según el sistema del usuario
+   16. RESPONSIVE
+   ============================================================ */
+@media (max-width: 560px) {
+    .stic-auth-shell { min-height: 100vh; padding: 1rem 0.75rem; }
+    .stic-login-form, .stic-forgotpas-form { padding: 1.75rem 1.4rem; }
+    .stic-dashboard-grid { grid-template-columns: 1fr; }
+}
+
+/* ============================================================
+   17. MODO OSCURO — se activa solo según el sistema
    ============================================================ */
 @media (prefers-color-scheme: dark) {
     :root {
-        --surface: #1e1b2e;
-        --surface-glass: rgba(30, 27, 46, 0.72);
+        --surface: #161a24;
+        --surface-2: #1b212e;
+        --surface-glass: rgba(22, 26, 36, 0.72);
         --glass-border: rgba(255, 255, 255, 0.08);
-        --gray-50:  #1a1726;
-        --gray-100: #242031;
-        --gray-200: #322c45;
-        --gray-300: #4a4361;
-        --gray-700: #cbd5e1;
-        --gray-800: #e2e8f0;
+        --primary-50: #14202c;
+        --secondary-50: #251522;
+        --gray-50:  #131722;
+        --gray-100: #1b212e;
+        --gray-200: #2a3242;
+        --gray-300: #3b465a;
+        --gray-400: #8a93a6;
+        --gray-500: #aab2c2;
+        --gray-700: #d4dae4;
+        --gray-800: #e8edf4;
         --gray-900: #f8fafc;
+    }
+
+    .stic-auth-shell::before {
+        background:
+            radial-gradient(40% 50% at 18% 22%, rgba(28, 111, 179, 0.32), transparent 60%),
+            radial-gradient(45% 55% at 85% 18%, rgba(157, 30, 116, 0.30), transparent 60%),
+            radial-gradient(50% 60% at 70% 90%, rgba(108, 75, 158, 0.28), transparent 62%),
+            linear-gradient(135deg, #0d1119 0%, #141019 50%, #190f16 100%);
+        background-size: 200% 200%;
     }
 
     .stic-tab-content,
     .stic-form,
+    .stic-dash-card,
     table, table.display {
         background: var(--surface) !important;
         color: var(--gray-800);
     }
+    .stic-dash-title { color: var(--gray-800); }
 
-    input, textarea, select, .input-text {
-        background-color: #15121f !important;
+    input, textarea, select, .input-text,
+    .stic-field input {
+        background-color: #11151d !important;
         color: var(--gray-800) !important;
         border-color: var(--gray-300) !important;
     }
 
-    tbody tr:hover { background-color: #2a2440 !important; }
+    tbody tr:hover { background-color: #1f2735 !important; }
 
     .stic-userinfo,
     .stic-login-form,
-    .stic-forgotpas-form {
-        background: var(--surface-glass);
-        color: var(--gray-800);
-    }
+    .stic-forgotpas-form { background: var(--surface-glass); color: var(--gray-800); }
+
+    .stic-loading-overlay { background: rgba(13, 17, 25, 0.86); }
+    .stic-loading-overlay .stic-loading-text { color: var(--gray-800); }
 }
 
 /* ============================================================
-   14. ACCESIBILIDAD — respeta "reducir movimiento"
+   18. ACCESIBILIDAD — respeta "reducir movimiento"
    ============================================================ */
 @media (prefers-reduced-motion: reduce) {
-    .stic-primary-menu { animation: none !important; }
+    .stic-primary-menu,
+    .stic-auth-shell::before,
+    .stic-login-form::before,
+    .stic-forgotpas-form::before,
+    .stic-auth-logo { animation: none !important; }
     *, *::before, *::after {
         animation-duration: 0.01ms !important;
         transition-duration: 0.01ms !important;

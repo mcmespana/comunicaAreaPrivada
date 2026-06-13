@@ -74,9 +74,17 @@ function menu()
     $menu .= "<br><div class='stic-container'>
             <ul class='primary-menu stic-primary-menu'>";
     
-    $page = empty($_REQUEST['internalpage']) ? defaultMenuElement() : $_REQUEST['internalpage'];
+    // Cuando no hay internalpage, la landing es la pantalla de bienvenida (Inicio).
+    $page = empty($_REQUEST['internalpage']) ? 'single_stic_home' : $_REQUEST['internalpage'];
 
     if (isset($_SESSION['scp_tutor_user_contact_name']) || (isset($_SESSION['scp_user_adult']) && $_SESSION['scp_user_adult'])) {
+        // Enlace de Inicio (pantalla de bienvenida con accesos a las secciones).
+        $isHomeActive = ($page == 'single_stic_home') ? 'current-menu-item stic-current-menu-item' : '';
+        $menu .= "<li class='stic-primary-menu-item " . $isHomeActive . "'>
+                    <a class='stic-menu-link' href='?internalpage=single_stic_home'>
+                    " . __('Inicio', 'sticpa') . "
+                    </a>
+                  </li>";
         foreach ($menuElements as $key => $value) {
             $isMenuActive = ($page == $key) ? 'current-menu-item stic-current-menu-item' : '';
             $menu .= "<li class='stic-primary-menu-item " . $isMenuActive . "'>

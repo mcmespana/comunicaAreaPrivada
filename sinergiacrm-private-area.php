@@ -97,6 +97,9 @@ function dcms_insertar_js()
     wp_enqueue_script('sugarcrm-own');
     wp_register_script('custom-utils', plugin_dir_url(__FILE__) . 'js/custom-utils.js', array('jquery'), '1', true);
     wp_enqueue_script('custom-utils');
+    // UI helpers: overlay de carga + toggle de contraseña (sin dependencias)
+    wp_register_script('stic-ui', plugin_dir_url(__FILE__) . 'js/stic-ui.js', array(), '1.0', true);
+    wp_enqueue_script('stic-ui');
     // We use only one file for plugin literals, so although theoretically we should call this function twice (one efor each js), we only call it once.
     wp_localize_script('sugarcrm-own', 'stic_script_vars', getSticScriptVars());
     wp_register_script('multiselect', plugin_dir_url(__FILE__) . 'js/selectize.min.js', array('jquery'), '1', true);
@@ -264,15 +267,46 @@ function build_dropdown_modules()
 }
 }
 
+/**
+ * Devuelve un icono SVG inline (stroke "currentColor") para usar en el área.
+ * Mantiene el markup limpio y evita dependencias de fuentes de iconos.
+ */
+function sticpa_icon($name, $class = '')
+{
+    $paths = array(
+        'user'     => "<circle cx='12' cy='8' r='4'/><path d='M4 21v-1a8 8 0 0 1 16 0v1'/>",
+        'lock'     => "<rect x='4' y='11' width='16' height='10' rx='2'/><path d='M8 11V7a4 4 0 0 1 8 0v4'/>",
+        'eye'      => "<path d='M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z'/><circle cx='12' cy='12' r='3'/>",
+        'eye-off'  => "<path d='M9.9 4.24A10.6 10.6 0 0 1 12 4c6.5 0 10 7 10 7a16.6 16.6 0 0 1-3 3.7M6.2 6.2A16.4 16.4 0 0 0 2 11s3.5 7 10 7a10.5 10.5 0 0 0 4.3-.9'/><path d='M3 3l18 18'/>",
+        'mail'     => "<rect x='3' y='5' width='18' height='14' rx='2'/><path d='m3 7 9 6 9-6'/>",
+        'sparkles' => "<path d='M12 3l1.8 4.5L18 9l-4.2 1.5L12 15l-1.8-4.5L6 9l4.2-1.5L12 3Z'/><path d='M19 14l.9 2.3L22 17l-2.1.7L19 20l-.9-2.3L16 17l2.1-.7L19 14Z'/>",
+        'shield'   => "<path d='M12 3l8 3v6c0 4.5-3.2 7.7-8 9-4.8-1.3-8-4.5-8-9V6l8-3Z'/><path d='m9 12 2 2 4-4'/>",
+        'arrow'    => "<path d='M5 12h14'/><path d='m13 6 6 6-6 6'/>",
+    );
+    $inner = $paths[$name] ?? '';
+    return "<svg class='" . esc_attr($class) . "' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>" . $inner . "</svg>";
+}
+
 function sugar_crm_portal_login_form($html = "")
 {
     // login form
     $scp_name = get_option('sticpa_scp_name');
-    if ($scp_name != null) {
-        $html .= "<h3>".__('Sign in', 'sticpa')."</h3>";
-    } else {
-        $html .= "<h3>Private Area</h3>";
-    }
+    $title = $scp_name != null ? __('Bienvenido de nuevo', 'sticpa') : __('Bienvenido de nuevo', 'sticpa');
+    $subtitle = $scp_name != null
+        ? sprintf(__('Accede a tu área privada de %s.', 'sticpa'), $scp_name)
+        : __('Accede a tu área privada.', 'sticpa');
+
+    // Cabecera de marca con logo y título.
+    $html .= "
+        <div class='stic-auth-brand'>
+            <div class='stic-auth-logo'>" . sticpa_icon('shield') . "</div>
+            <div>
+                <p class='stic-auth-kicker'>" . __('Área privada', 'sticpa') . "</p>
+                <h3>" . esc_html($title) . "</h3>
+                <p class='stic-auth-sub'>" . esc_html($subtitle) . "</p>
+            </div>
+        </div>";
+
     $languageHtml = "";
     if (function_exists('pll_the_languages')) {
         $languageSelector = pll_the_languages(array('dropdown' => 1,'show_flags'=>1,'show_names'=>0,'hide_current'=>1, 'echo' => 0));
@@ -306,30 +340,45 @@ function sugar_crm_portal_login_form($html = "")
         ";
     }
     $html .= "
-        <form name='stic-login-form' id='stic-login-form' action='' method='post'>
+        <form name='stic-login-form' id='stic-login-form' class='stic-loading-form' action='' method='post'
+              data-loading-text='" . esc_attr__('Verificando tus datos…', 'sticpa') . "'
+              data-loading-sub='" . esc_attr__('Estamos comprobando tu acceso de forma segura.', 'sticpa') . "'>
             <ul>
                 ".$languageHtml."
                 ".$moduleSelectHTML."
                 <li class='input_login'>
-                    <label>" . __('Username', 'sticpa') . ":</label>
-                    <span><input type='text' class='input-text' name='scp_username' id='stic-username' required></span>
+                    <label for='stic-username'>" . __('Username', 'sticpa') . "</label>
+                    <span class='stic-field'>
+                        <span class='stic-field-icon'>" . sticpa_icon('user') . "</span>
+                        <input type='text' class='input-text' name='scp_username' id='stic-username' autocomplete='username' required>
+                    </span>
                 </li>
 
                 <li class='input_login'>
-                    <label>" . __('Password', 'sticpa') . ":</label>
-                    <span><input type='password' class='input-text' name='scp_password' id='stic-password' required></span>
+                    <label for='stic-password'>" . __('Password', 'sticpa') . "</label>
+                    <span class='stic-field'>
+                        <span class='stic-field-icon'>" . sticpa_icon('lock') . "</span>
+                        <input type='password' class='input-text' name='scp_password' id='stic-password' autocomplete='current-password' required>
+                        <button type='button' class='stic-pass-toggle' data-pass-toggle='stic-password' aria-label='" . esc_attr__('Mostrar contraseña', 'sticpa') . "'>" . sticpa_icon('eye') . "</button>
+                    </span>
                 </li>
                 <li class='actions_login'>
                     <span>
                         <input type='submit' name='scp_login_form_submit' id='stic-login-form-submit' value='" . __('Start session', 'sticpa') . "'>
                     </span>
-                       <span class='left'>
-                            <a href='?internalpage=single_stic_signup'>" . __('Are you NOT registered? Click here.', 'sticpa') . "</a> <br />
-                            <a href='?internalpage=stic_forgot_password'>" . __('Entra sin contraseña: te enviamos un enlace de acceso.', 'sticpa') . "</a>
-                        </span>
                 </li>
             </ul>
-        </form>";
+        </form>
+
+        <div class='stic-auth-divider'>" . __('o', 'sticpa') . "</div>
+
+        <a class='stic-magic-cta' href='?internalpage=stic_forgot_password'>"
+            . sticpa_icon('sparkles') . "<span>" . __('Entra sin contraseña con un enlace mágico', 'sticpa') . "</span>
+        </a>
+
+        <p class='stic-auth-links' style='text-align:center;margin-top:1.1rem;font-size:0.92rem;color:var(--gray-500);'>"
+            . __('¿Todavía no tienes cuenta?', 'sticpa') . " <a href='?internalpage=single_stic_signup'>" . __('Regístrate aquí', 'sticpa') . "</a>
+        </p>";
     return $html;
 }
 
@@ -367,21 +416,21 @@ function sugar_crm_portal_check_user_and_login($html = "")
             }
             $html .= sugar_crm_portal_index();
         } else {
-            $html .= "<div class='stic-login-form stic-form'>";
+            $html .= "<div class='stic-auth-shell'><div class='stic-login-form stic-form'>";
             $html .= sugar_crm_portal_login_form();
             $html .= "<span class='error'>" . __('Username and/or password are not correct.', 'sticpa') . "</span>";
-            $html .= "</div>";
+            $html .= "</div></div>";
 
         }
 
     } else {
         $scp_password = $_REQUEST['scp_password'] ?? null;
-        $html .= "<div class='stic-login-form stic-form'>";
+        $html .= "<div class='stic-auth-shell'><div class='stic-login-form stic-form'>";
         $html .= sugar_crm_portal_login_form();
         if (isset($_REQUEST['signup']) && $_REQUEST['signup'] == true) {
             $html .= "<span class='success'>" . __('You have successfully signed up.', 'sticpa') . ".</span>";
         }
-        $html .= "</div>";
+        $html .= "</div></div>";
     }
     return $html;
 }
@@ -426,8 +475,17 @@ function sugar_crm_portal_forgot_password($html = "")
     $current_url = explode('?', $_SERVER['REQUEST_URI'], 2);
     $current_url = $current_url[0] . '?internalpage=stic_forgot_password';
 
-    $html .= "<div class='stic-entry-header'>
-            <h3>" . __('Acceso por enlace', 'sticpa') . "</h3><br>";
+    $html .= "<div class='stic-auth-shell'><div class='stic-forgotpas-form stic-form'>";
+
+    $html .= "
+        <div class='stic-auth-brand'>
+            <div class='stic-auth-logo'>" . sticpa_icon('sparkles') . "</div>
+            <div>
+                <p class='stic-auth-kicker'>" . __('Acceso sin contraseña', 'sticpa') . "</p>
+                <h3>" . __('Enlace mágico', 'sticpa') . "</h3>
+                <p class='stic-auth-sub'>" . __('Sin contraseñas que recordar.', 'sticpa') . "</p>
+            </div>
+        </div>";
 
     if (isset($_REQUEST['success']) && $_REQUEST['success'] == true) {
         // Mensaje genérico a propósito (no revela si el email existe o no).
@@ -439,24 +497,29 @@ function sugar_crm_portal_forgot_password($html = "")
     }
 
     $html .= "
-        <div class='stic-form stic-form-two-col'>
-            <p>" . __('Introduce tu dirección de email y te enviaremos un enlace para acceder a tu área privada sin contraseña.', 'sticpa') . "</p>
-            <form action='" . site_url() . "/wp-admin/admin-post.php' method='post'>
+            <p class='stic-auth-help'>" . __('Introduce tu dirección de email y te enviaremos un enlace para acceder a tu área privada sin contraseña.', 'sticpa') . "</p>
+            <form action='" . site_url() . "/wp-admin/admin-post.php' method='post' class='stic-loading-form'
+                  data-loading-text='" . esc_attr__('Enviando tu enlace de acceso…', 'sticpa') . "'
+                  data-loading-sub='" . esc_attr__('En unos segundos lo tendrás en tu correo.', 'sticpa') . "'>
                 <ul>
                     <li class='field_signup'>
-                                <label>" . __('Introduce tu dirección de email', 'sticpa') . ":</label>
-                                <span><input class='input-text' type='email' name='forgot-password-email-address' id='forgot-password-email-address' required /> </span>
-
+                        <label for='forgot-password-email-address'>" . __('Introduce tu dirección de email', 'sticpa') . "</label>
+                        <span class='stic-field'>
+                            <span class='stic-field-icon'>" . sticpa_icon('mail') . "</span>
+                            <input class='input-text' type='email' name='forgot-password-email-address' id='forgot-password-email-address' autocomplete='email' required />
+                        </span>
                     </li>
                     <li class='stic-send'>
-                                <input type='hidden' name='action' value='stic_forgot_password'>
-                                <input type='hidden' name='scp_current_url' value='" . $current_url . "'>
-                                <span class='desc'><input type='submit' value='" . __('Envíame el enlace de acceso', 'sticpa') . "' /></span>
+                        <input type='hidden' name='action' value='stic_forgot_password'>
+                        <input type='hidden' name='scp_current_url' value='" . $current_url . "'>
+                        <input type='submit' value='" . __('Envíame el enlace de acceso', 'sticpa') . "' />
                     </li>
                 </ul>
             </form>
-        </div>";
-        $html .= "</div>";
+            <p class='stic-auth-links' style='text-align:center;margin-top:1.25rem;font-size:0.92rem;'>
+                <a href='?'>" . __('← Volver al inicio de sesión', 'sticpa') . "</a>
+            </p>";
+    $html .= "</div></div>";
 
     return $html;
 }
@@ -473,7 +536,8 @@ function sugar_crm_portal_index($html = "")
 
     if (!isset($_SESSION['scp_tutor_user_id']) && !isset($_REQUEST['internalpage'])) {
         if (isset($_SESSION['scp_user_adult']) && $_SESSION['scp_user_adult']) {
-            $currentPage = defaultMenuElement();
+            // Landing tras el login: pantalla de bienvenida con accesos a secciones.
+            $currentPage = 'single_stic_home';
         } else {
             $currentPage = 'single_stic_profile_selection';
         }
@@ -584,7 +648,7 @@ function sugar_crm_portal_style_and_script()
         wp_enqueue_style('stic-modern-style', plugins_url('css/stic-modern-style.css', __FILE__));
         wp_enqueue_style('fullcalendar', plugins_url('js/fullcalendar/lib/main.css', __FILE__));
         // custom-style.css is loaded LAST on purpose so it can override/enhance everything above
-        wp_enqueue_style('custom-style', plugins_url('css/custom-style.css', __FILE__), array('stic-modern-style'), '2.0');
+        wp_enqueue_style('custom-style', plugins_url('css/custom-style.css', __FILE__), array('stic-modern-style'), '3.0');
     }
 
 }
