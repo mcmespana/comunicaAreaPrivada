@@ -138,10 +138,107 @@
         });
     }
 
+    /* -------- Menú en una línea + overflow "Más" (priority navigation) -------- */
+    function closeMore(wrap) {
+        wrap.classList.remove('is-open');
+        var btn = wrap.querySelector('.stic-nav-more');
+        if (btn) { btn.setAttribute('aria-expanded', 'false'); }
+    }
+    function closeAllMore() {
+        var open = document.querySelectorAll('.stic-nav-more-wrap.is-open');
+        Array.prototype.forEach.call(open, closeMore);
+    }
+    function openMore(wrap) {
+        var btn = wrap.querySelector('.stic-nav-more');
+        var menu = wrap.querySelector('.stic-nav-more-menu');
+        if (!btn || !menu) { return; }
+        wrap.classList.add('is-open');
+        btn.setAttribute('aria-expanded', 'true');
+        // Anclar el panel (position: fixed) bajo el botón, alineado a su derecha.
+        var r = btn.getBoundingClientRect();
+        menu.style.top = (r.bottom + 6) + 'px';
+        menu.style.right = Math.max(8, window.innerWidth - r.right) + 'px';
+        menu.style.left = 'auto';
+    }
+
+    // Reparte los items: los que no caben en una línea se mueven al panel "Más".
+    function layoutNav() {
+        var lists = document.querySelectorAll('.stic-nav-list');
+        Array.prototype.forEach.call(lists, function (list) {
+            var wrap = list.querySelector('.stic-nav-more-wrap');
+            var menuUl = wrap ? wrap.querySelector('.stic-nav-more-menu ul') : null;
+            if (!wrap || !menuUl) { return; }
+
+            // 1) Restaurar todos los items a la fila (en orden), cerrar y ocultar "Más".
+            while (menuUl.firstElementChild) {
+                list.insertBefore(menuUl.firstElementChild, wrap);
+            }
+            closeMore(wrap);
+            wrap.hidden = true;
+
+            // En móvil (drawer vertical) se muestran todos: nada que repartir.
+            if (!window.matchMedia('(min-width: 768px)').matches) { return; }
+
+            // 2) ¿Cabe todo en una línea?
+            if (list.scrollWidth <= list.clientWidth + 1) { return; }
+
+            // 3) Mostrar "Más" y mover los últimos items hasta que quepa.
+            wrap.hidden = false;
+            var guard = 0;
+            while (list.scrollWidth > list.clientWidth + 1 && guard < 100) {
+                guard++;
+                var candidate = wrap.previousElementSibling;
+                if (!candidate || !candidate.classList.contains('stic-nav-item') ||
+                    candidate.classList.contains('stic-nav-logout-item') ||
+                    candidate.classList.contains('stic-nav-more-wrap')) {
+                    break;
+                }
+                menuUl.insertBefore(candidate, menuUl.firstElementChild);
+            }
+            if (!menuUl.firstElementChild) { wrap.hidden = true; }
+        });
+    }
+
+    function bindNavMore() {
+        document.addEventListener('click', function (e) {
+            var btn = e.target.closest ? e.target.closest('.stic-nav-more') : null;
+            if (btn) {
+                e.preventDefault();
+                e.stopPropagation();
+                var wrap = btn.closest('.stic-nav-more-wrap');
+                var isOpen = wrap.classList.contains('is-open');
+                closeAllMore();
+                if (!isOpen) { openMore(wrap); }
+                return;
+            }
+            if (!(e.target.closest && e.target.closest('.stic-nav-more-menu'))) {
+                closeAllMore();
+            }
+        });
+        window.addEventListener('scroll', closeAllMore, true);
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' || e.keyCode === 27) { closeAllMore(); }
+        });
+
+        // Recalcular al redimensionar (con debounce).
+        var t;
+        window.addEventListener('resize', function () {
+            clearTimeout(t);
+            t = setTimeout(layoutNav, 120);
+        });
+    }
+
     ready(function () {
         bindLoadingForms();
         bindPasswordToggles();
         bindAuthToggle();
         bindNavToggle();
+        bindNavMore();
+        layoutNav();
+        // Reajuste tras cargar las fuentes (cambian anchos de los textos).
+        if (document.fonts && document.fonts.ready) {
+            document.fonts.ready.then(layoutNav);
+        }
+        setTimeout(layoutNav, 250);
     });
 })();

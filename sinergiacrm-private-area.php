@@ -285,6 +285,7 @@ function sticpa_icon($name, $class = '')
         'logout'   => "<path d='M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4'/><path d='M16 17l5-5-5-5'/><path d='M21 12H9'/>",
         'help'     => "<circle cx='12' cy='12' r='10'/><path d='M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3'/><path d='M12 17h.01'/>",
         'chevron'  => "<path d='m6 9 6 6 6-6'/>",
+        'more'     => "<path d='M5 12h.01M12 12h.01M19 12h.01'/>",
         'shield'   => "<path d='M12 3l8 3v6c0 4.5-3.2 7.7-8 9-4.8-1.3-8-4.5-8-9V6l8-3Z'/><path d='m9 12 2 2 4-4'/>",
         'arrow'    => "<path d='M5 12h14'/><path d='m13 6 6 6-6 6'/>",
     );

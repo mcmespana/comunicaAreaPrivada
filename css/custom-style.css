@@ -704,13 +704,14 @@ span.stic-field {
     font-size: 0.9rem; opacity: 0.95;
 }
 
-/* ---- Lista de items ---- */
+/* ---- Lista de items (una sola línea en escritorio) ---- */
 .stic-nav-list {
     list-style: none;
     margin: 0;
     padding: 0.4rem;
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    overflow: hidden;            /* sin desbordes: lo que no cabe va a "Más" (JS) */
     gap: 0.25rem;
     border-top: 1px solid rgba(255, 255, 255, 0.16);
 }
@@ -740,6 +741,49 @@ span.stic-field {
 /* "Salir": último item, empujado a la derecha en escritorio. */
 .stic-nav-logout .stic-nav-ico { opacity: 1; }
 .stic-nav-logout:hover { background: rgba(239, 68, 68, 0.9) !important; }
+
+/* ---- Botón "Más" (overflow) + su menú desplegable ---- */
+.stic-nav-more-wrap { position: relative; flex-shrink: 0; }
+.stic-nav-more {
+    background: rgba(255, 255, 255, 0.14) !important;
+    border: 0;
+    cursor: pointer;
+    font: inherit;
+}
+.stic-nav-more::after { display: none !important; }
+.stic-nav-more:hover { background: rgba(255, 255, 255, 0.26) !important; }
+.stic-nav-more-wrap.is-open .stic-nav-more { background: rgba(255, 255, 255, 0.3) !important; }
+.stic-nav-more .stic-nav-ico svg { stroke-width: 2.6; }
+
+/* Panel desplegable: superficie clara, anclado por JS (position: fixed) */
+.stic-nav-more-menu {
+    position: fixed;
+    z-index: 9990;
+    min-width: 220px;
+    max-width: 280px;
+    display: none;
+    padding: 0.4rem;
+    background: var(--surface);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    animation: stic-fade-up 0.2s var(--ease-out) both;
+}
+.stic-nav-more-wrap.is-open .stic-nav-more-menu { display: block; }
+.stic-nav-more-menu ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.stic-nav-more-menu .stic-nav-item { width: 100%; }
+.stic-nav-more-menu .stic-nav-link {
+    color: var(--gray-700);
+    padding: 0.6rem 0.7rem;
+    white-space: nowrap;
+}
+.stic-nav-more-menu .stic-nav-ico { color: var(--primary-color); opacity: 1; }
+.stic-nav-more-menu .stic-nav-link:hover { background: var(--primary-50); color: var(--primary-color); transform: none; }
+.stic-nav-more-menu .stic-nav-item.current-menu-item .stic-nav-link {
+    background: var(--primary-50);
+    color: var(--primary-color);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary-color) 30%, transparent);
+}
 
 /* ---- Escritorio: la hamburguesa desaparece y los items se ven siempre ---- */
 @media (min-width: 768px) {
@@ -779,6 +823,8 @@ span.stic-field {
     .stic-nav-link { padding: 0.9rem 1rem; font-size: 1.02rem; } /* targets cómodos en móvil */
     .stic-nav-link:hover { transform: none; }
     .stic-nav-item.current-menu-item .stic-nav-link { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3); }
+    /* En móvil se ven todas las secciones en el drawer: "Más" no aplica */
+    .stic-nav-more-wrap { display: none !important; }
     /* "Salir" separado al final del desplegable */
     .stic-nav-logout-item { margin-top: 0.35rem; padding-top: 0.45rem; border-top: 1px solid rgba(255, 255, 255, 0.16); }
 }

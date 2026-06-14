@@ -160,6 +160,14 @@ function menu()
                         </a>
                       </li>";
         }
+        // "Más": recoge los items que no caben en una sola línea (lo gestiona el JS).
+        $menu .= "<li class='stic-nav-item stic-nav-more-wrap' hidden>
+                    <button type='button' class='stic-nav-link stic-nav-more' aria-expanded='false' aria-haspopup='true' aria-label='" . esc_attr__('Más secciones', 'sticpa') . "'>
+                        <span class='stic-nav-ico'>" . ($iconFn ? sticpa_icon('more') : '') . "</span>
+                        <span class='stic-nav-text'>" . __('Más', 'sticpa') . "</span>
+                    </button>
+                    <div class='stic-nav-more-menu'><ul></ul></div>
+                  </li>";
         $menu .= "<li class='stic-nav-item stic-nav-logout-item'>" . $logoutItem . "</li>";
         $menu .= "</ul>";
     }
