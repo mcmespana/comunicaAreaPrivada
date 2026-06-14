@@ -107,8 +107,28 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
 - [x] `UI-01` (P1 · M) Capa de estilos premium en `css/custom-style.css` (glassmorphism, modo
       oscuro, gradientes, micro-interacciones) + reordenar `enqueue` para que cargue la última.
       ↳ hecho.
-- [ ] `UI-02` (P2 · S) Ajustar la **paleta** a la marca real (hoy índigo/cian de ejemplo): editar
-      `--primary-color` / `--secondary-color` en `css/custom-style.css`.
+- [x] `UI-02` (P2 · S) Ajustar la **paleta** a la marca real. ↳ **hecho.** Sistema de design tokens
+      con la marca Comunica (azul `#1c6fb3` + magenta `#9D1E74`) en `css/custom-style.css`.
+- [x] `UI-05` (P1 · M) **Login de primer nivel**: hero a pantalla completa con malla de degradado
+      animada, tarjeta glassmorphism, iconos en los campos, mostrar/ocultar contraseña y CTA de
+      acceso por enlace mágico destacada. ↳ **hecho.**
+      ↳ `sugar_crm_portal_login_form` / `sugar_crm_portal_forgot_password`, `js/stic-ui.js`.
+- [x] `UI-06` (P1 · M) **Pantalla de carga al consultar un enlace de acceso** (`?token=` /
+      `?acceso_magico=`): interstitial "Verificando tu acceso…" mientras el CRM tarda (~5s).
+      ↳ **hecho.** ↳ `inc/stic-magic-login.php::sticpa_render_access_loading_screen` (+ overlay de
+      carga en los envíos de formulario, `js/stic-ui.js`).
+- [x] `UI-07` (P1 · M) **Pantalla de bienvenida / dashboard** tras el login con tarjetas grandes y
+      funcionales hacia cada subsección (se autogeneran desde el menú). ↳ **hecho.**
+      ↳ `pages/single_stic_home.php`, enlace «Inicio» en `menu.php`.
+- [x] `UI-08` (P1 · M) **Menú mobile-first** con iconos: hamburguesa colapsable en móvil (targets
+      grandes, scroll si crece) y barra horizontal con icono+texto que reflowa en escritorio.
+      Iconos por sección en un mapa compartido (`sticpa_section_meta`) que usan menú y dashboard,
+      con fallback por defecto → crece sin esfuerzo. ↳ **hecho.**
+      ↳ `menu.php`, `sticpa_section_meta`/`sticpa_section_icon`, `js/stic-ui.js`, `css/custom-style.css`.
+- [x] `UI-09` (P1 · M) **Barra de usuario integrada en el menú (un solo componente)** con avatar,
+      identidad **familiar** + **participante** y botón para **cambiar de participante**; «Salir»
+      como último item. Preparado para que un familiar gestione varios participantes. ↳ **hecho.**
+      ↳ `menu.php::menu` (+ `sticpa_name_initial`), `css/custom-style.css`.
 - [ ] `UI-03` (P2 · M) **Verificar el diseño en un WordPress real** (staging) y pulir responsive en
       las pantallas de listado/detalle de cada módulo.
 - [ ] `UI-04` (P3 · S) Limpiar los CSS `*.backup` y consolidar `stic-style` / `stic-modern-style`

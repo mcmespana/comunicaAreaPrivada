@@ -231,6 +231,16 @@ function sticpa_process_passwordless_login()
         return;
     }
 
+    // Pantalla de carga: validar contra el CRM puede tardar hasta ~5s. En lugar de
+    // dejar el navegador en blanco, en la PRIMERA visita al enlace mostramos un
+    // interstitial bonito ("Verificando tu acceso…") y, vía JS, relanzamos la misma
+    // URL con ?sticpa_go=1 para hacer ahí la validación lenta. Beneficio extra: los
+    // escáneres de enlaces de email (que no ejecutan JS) no consumen el acceso.
+    if (!isset($_REQUEST['sticpa_go'])) {
+        sticpa_render_access_loading_screen();
+        exit;
+    }
+
     $entry = null;
     $foundModule = null;
 
@@ -261,11 +271,146 @@ function sticpa_process_passwordless_login()
     if ($entry) {
         sticpa_establish_session($entry, $foundModule);
         // Redirigir a la misma URL pero sin el token (no queda en historial/marcadores).
-        $clean = remove_query_arg(array('token', 'acceso_magico'));
+        $clean = remove_query_arg(array('token', 'acceso_magico', 'sticpa_go'));
         wp_safe_redirect($clean);
         exit;
     }
-    // Si no valida (token erróneo o caducado), seguimos: se mostrará el login.
+    // Si no valida (token erróneo o caducado): limpiamos los parámetros de acceso
+    // para no quedarnos en bucle en la pantalla de carga y mostramos el login.
+    if (isset($_REQUEST['sticpa_go'])) {
+        wp_safe_redirect(remove_query_arg(array('token', 'acceso_magico', 'sticpa_go')));
+        exit;
+    }
+}
+
+/**
+ * Pantalla de carga (interstitial) que se muestra mientras validamos el enlace de
+ * acceso contra el CRM. Es un documento HTML autónomo (estilos inline) porque se
+ * pinta ANTES de que cargue el tema de WordPress. Relanza la misma URL con
+ * ?sticpa_go=1 vía JS; <noscript> usa meta-refresh como salvaguarda.
+ */
+function sticpa_render_access_loading_screen()
+{
+    // Construimos el destino: misma URL + sticpa_go=1 (mantiene token/acceso_magico).
+    $scheme = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
+    $uri = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '/';
+    $currentUrl = $scheme . '://' . $host . $uri;
+    $goUrl = add_query_arg('sticpa_go', '1', $currentUrl);
+
+    $title = __('Verificando tu acceso…', 'sticpa');
+    $sub = __('Estamos preparando tu área privada de forma segura. Esto puede tardar unos segundos.', 'sticpa');
+    $goUrlAttr = esc_url($goUrl);
+    $goUrlJs = esc_js($goUrl);
+    $lang = esc_attr(substr(get_locale(), 0, 2));
+
+    if (!headers_sent()) {
+        header('Content-Type: text/html; charset=utf-8');
+        header('Cache-Control: no-store, no-cache, must-revalidate');
+    }
+    ?><!DOCTYPE html>
+<html lang="<?= $lang ?>">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex,nofollow">
+    <title><?= esc_html($title) ?></title>
+    <noscript><meta http-equiv="refresh" content="0;url=<?= $goUrlAttr ?>"></noscript>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --blue:#1c6fb3; --pink:#9d1e74; --violet:#6c4b9e; }
+        * { box-sizing:border-box; margin:0; padding:0; }
+        html,body { height:100%; }
+        body {
+            font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+            display:flex; align-items:center; justify-content:center;
+            min-height:100vh; padding:24px; color:#1f2937; overflow:hidden;
+            background:
+                radial-gradient(40% 50% at 18% 22%, rgba(28,111,179,.28), transparent 60%),
+                radial-gradient(45% 55% at 85% 18%, rgba(157,30,116,.26), transparent 60%),
+                radial-gradient(50% 60% at 70% 90%, rgba(108,75,158,.24), transparent 62%),
+                linear-gradient(135deg,#eef5fc 0%,#f4eef9 50%,#fbeef5 100%);
+            background-size:200% 200%;
+            animation:mesh 16s ease-in-out infinite;
+        }
+        @keyframes mesh { 0%{background-position:0 0;} 50%{background-position:100% 100%;} 100%{background-position:0 0;} }
+        .card {
+            position:relative; width:100%; max-width:440px; padding:48px 36px; text-align:center;
+            background:rgba(255,255,255,.74); backdrop-filter:blur(18px) saturate(1.4);
+            -webkit-backdrop-filter:blur(18px) saturate(1.4);
+            border:1px solid rgba(255,255,255,.6); border-radius:30px;
+            box-shadow:0 32px 70px rgba(21,36,71,.20), inset 0 1px 0 rgba(255,255,255,.7);
+            animation:pop .6s cubic-bezier(.34,1.56,.64,1) both;
+        }
+        @keyframes pop { from{opacity:0;transform:translateY(20px) scale(.97);} to{opacity:1;transform:none;} }
+        .logo {
+            width:72px; height:72px; margin:0 auto 22px; border-radius:20px; display:grid; place-items:center;
+            color:#fff; box-shadow:0 10px 28px rgba(21,36,71,.18);
+            background:linear-gradient(135deg,var(--blue) 0%,var(--violet) 52%,var(--pink) 100%);
+            animation:float 4.5s ease-in-out infinite;
+        }
+        @keyframes float { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-7px);} }
+        .logo svg { width:36px; height:36px; }
+        .spinner {
+            width:58px; height:58px; margin:0 auto 26px; border-radius:50%;
+            background:conic-gradient(from 0deg,var(--blue),var(--pink),var(--blue));
+            -webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 7px),#000 0);
+            mask:radial-gradient(farthest-side,transparent calc(100% - 7px),#000 0);
+            animation:spin .9s linear infinite;
+        }
+        @keyframes spin { to{transform:rotate(1turn);} }
+        h1 {
+            font-size:1.5rem; font-weight:800; letter-spacing:-.02em; margin-bottom:10px;
+            background:linear-gradient(135deg,var(--blue),var(--pink));
+            -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+        }
+        p { font-size:.98rem; line-height:1.55; color:#6b7280; }
+        .dots { margin-top:22px; display:flex; gap:8px; justify-content:center; }
+        .dots span {
+            width:9px; height:9px; border-radius:50%;
+            background:linear-gradient(135deg,var(--blue),var(--pink)); opacity:.35;
+            animation:blink 1.4s ease-in-out infinite;
+        }
+        .dots span:nth-child(2){animation-delay:.2s;}
+        .dots span:nth-child(3){animation-delay:.4s;}
+        @keyframes blink { 0%,100%{opacity:.3;transform:scale(.85);} 50%{opacity:1;transform:scale(1.1);} }
+        @media (prefers-color-scheme: dark) {
+            body { color:#e8edf4;
+                background:
+                    radial-gradient(40% 50% at 18% 22%, rgba(28,111,179,.32), transparent 60%),
+                    radial-gradient(45% 55% at 85% 18%, rgba(157,30,116,.30), transparent 60%),
+                    linear-gradient(135deg,#0d1119 0%,#141019 50%,#190f16 100%);
+                background-size:200% 200%; }
+            .card { background:rgba(22,26,36,.74); border-color:rgba(255,255,255,.08); }
+            p { color:#aab2c2; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            body,.logo,.card { animation:none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="logo">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 3l8 3v6c0 4.5-3.2 7.7-8 9-4.8-1.3-8-4.5-8-9V6l8-3Z"/><path d="m9 12 2 2 4-4"/>
+            </svg>
+        </div>
+        <div class="spinner" role="status" aria-label="<?= esc_attr($title) ?>"></div>
+        <h1><?= esc_html($title) ?></h1>
+        <p><?= esc_html($sub) ?></p>
+        <div class="dots" aria-hidden="true"><span></span><span></span><span></span></div>
+    </div>
+    <script>
+        (function () {
+            // Pequeño respiro para que la animación se vea y luego validamos contra el CRM.
+            setTimeout(function () { window.location.replace('<?= $goUrlJs ?>'); }, 350);
+        })();
+    </script>
+</body>
+</html>
+    <?php
 }
 
 /* ============================================================================
