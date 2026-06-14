@@ -72,6 +72,7 @@
 .stic-container {
     position: relative;
     font-family: var(--font-family);
+    padding: 0 !important;          /* aprovechamos todo el ancho disponible */
     background:
         radial-gradient(1100px 460px at 100% -10%, rgba(157, 30, 116, 0.07), transparent 60%),
         radial-gradient(900px 480px at -10% 0%, rgba(28, 111, 179, 0.08), transparent 55%);
@@ -79,7 +80,10 @@
 }
 
 .stic-tab-content {
+    margin-top: 0.65rem;
+    padding: clamp(0.9rem, 2.5vw, 1.5rem);
     animation: stic-fade-up 0.5s var(--ease-out) both;
+    background: var(--surface);
     border: 1px solid var(--gray-200);
     border-radius: var(--radius-xl) !important;
     box-shadow: var(--shadow-sm);
@@ -576,47 +580,23 @@ span.stic-field {
 }
 
 /* ============================================================
-   6. CABECERA DE USUARIO — barra de cristal
-   ============================================================ */
-.stic-userinfo {
-    backdrop-filter: blur(var(--glass-blur));
-    -webkit-backdrop-filter: blur(var(--glass-blur));
-    background: var(--surface-glass);
-    border: 1px solid var(--glass-border);
-    box-shadow: var(--shadow-sm);
-    border-radius: var(--radius-full);
-    padding: 0.7rem 1.25rem;
-}
-.stic-user-name a { color: var(--primary-color); font-weight: 700; text-decoration: none; }
-.stic-user-name a:hover { color: var(--secondary-color); }
-
-.stic-logout {
-    transition: all 0.2s var(--ease-spring);
-    border-radius: var(--radius-full);
-    font-weight: 600;
-}
-.stic-logout:hover {
-    transform: translateY(-1px) scale(1.03);
-    color: var(--danger-color);
-}
-
-/* ============================================================
-   7. NAVEGACIÓN PRINCIPAL — mobile-first, con iconos y colapsable
+   6-7. NAVEGACIÓN ÚNICA — identidad (familiar/participante) + menú
    ------------------------------------------------------------
-   · Móvil: barra con botón hamburguesa que despliega los items en
-     vertical (targets grandes, scroll si crecen).
-   · Escritorio (≥768px): items en horizontal con icono + texto, se
-     reparten en varias filas si hay muchos (crece sin tocar nada).
+   Un SOLO componente integra quién accede y la navegación:
+   · Barra superior (.stic-nav-bar): avatar + identidad + salir
+     (+ hamburguesa en móvil).
+   · Lista de secciones con icono: horizontal en escritorio (reflowa
+     si crece), colapsable en móvil con targets grandes.
    ============================================================ */
 .stic-nav {
     position: relative;
-    margin-bottom: 0.25rem;
     background: var(--grad-brand);
     background-size: 220% 220%;
     animation: stic-gradient-shift 14s ease infinite;
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.2);
     overflow: hidden;
+    color: #fff;
 }
 
 @keyframes stic-gradient-shift {
@@ -625,46 +605,103 @@ span.stic-field {
     100% { background-position: 0% 50%; }
 }
 
-/* ---- Botón hamburguesa (oculto en escritorio) ---- */
-.stic-nav-toggle {
-    display: none;
-    width: 100%;
+/* ---- Barra superior: identidad + acciones ---- */
+.stic-nav-bar {
+    display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.95rem 1.15rem;
-    background: transparent !important;
-    border: 0;
+    padding: 0.7rem 0.85rem;
+}
+
+.stic-account { display: flex; align-items: center; gap: 0.7rem; min-width: 0; flex: 1; }
+.stic-avatar {
+    flex-shrink: 0;
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    display: grid; place-items: center;
+    background: #fff;
+    color: var(--primary-color);
+    font-weight: 800; font-size: 1.18rem; line-height: 1;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18), inset 0 0 0 2px rgba(255, 255, 255, 0.5);
+}
+.stic-account-info { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+.stic-account-name {
+    font-weight: 700; font-size: 1rem; line-height: 1.25;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
+}
+.stic-account-name a { color: #fff; text-decoration: none; }
+.stic-account-name a:hover { text-decoration: underline; }
+.stic-account-sub {
+    display: flex; align-items: center; gap: 0.4rem; min-width: 0;
+    font-size: 0.84rem; color: rgba(255, 255, 255, 0.88);
+}
+.stic-account-sub--muted { color: rgba(255, 255, 255, 0.8); }
+.stic-account-tag {
+    flex-shrink: 0;
+    font-size: 0.62rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 0.14rem 0.45rem; border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.2); color: #fff;
+}
+.stic-account-participant {
+    color: #fff; font-weight: 600; text-decoration: none;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.stic-account-participant:hover { text-decoration: underline; }
+.stic-switch {
+    flex-shrink: 0;
+    display: inline-grid; place-items: center;
+    width: 30px; height: 30px; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2); color: #fff;
+    transition: background 0.2s ease, transform 0.4s var(--ease-spring);
+}
+.stic-switch svg { width: 16px; height: 16px; }
+.stic-switch:hover { background: rgba(255, 255, 255, 0.34); transform: rotate(180deg); }
+
+/* ---- Acciones derechas (salir + hamburguesa) ---- */
+.stic-nav-actions { display: flex; align-items: center; gap: 0.4rem; margin-left: auto; flex-shrink: 0; }
+.stic-iconbtn {
+    display: inline-flex; align-items: center; gap: 0.45rem;
+    padding: 0.55rem 0.8rem;
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.14) !important;
     color: #fff;
-    cursor: pointer;
-    font: inherit;
-    font-weight: 700;
+    text-decoration: none; font-weight: 600; font-size: 0.9rem;
+    border: 0; cursor: pointer;
+    transition: background 0.2s ease, transform 0.15s var(--ease-spring);
+}
+.stic-iconbtn::after { display: none !important; }
+.stic-iconbtn svg { width: 18px; height: 18px; flex-shrink: 0; }
+.stic-iconbtn:hover { transform: translateY(-1px); }
+.stic-logout:hover { background: rgba(239, 68, 68, 0.9) !important; }
+
+/* Botón hamburguesa (oculto en escritorio) */
+.stic-nav-toggle {
+    display: none;
+    align-items: center; gap: 0.5rem;
+    padding: 0.55rem 0.8rem;
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.14) !important;
+    border: 0; color: #fff; cursor: pointer;
+    font: inherit; font-weight: 600;
     -webkit-tap-highlight-color: transparent;
 }
-.stic-nav-toggle::after { display: none !important; } /* anula el barrido global de botones */
-.stic-nav-toggle:hover { transform: none !important; box-shadow: none !important; }
-
-.stic-nav-toggle-bars { position: relative; width: 22px; height: 16px; flex-shrink: 0; }
+.stic-nav-toggle::after { display: none !important; }
+.stic-nav-toggle:hover { transform: none !important; box-shadow: none !important; background: rgba(255, 255, 255, 0.24) !important; }
+.stic-nav-toggle-bars { position: relative; width: 20px; height: 14px; flex-shrink: 0; }
 .stic-nav-toggle-bars i {
     position: absolute; left: 0; right: 0; height: 2.5px; border-radius: 2px; background: #fff;
     transition: transform 0.3s var(--ease-spring), opacity 0.2s ease, top 0.3s ease;
 }
 .stic-nav-toggle-bars i:nth-child(1) { top: 0; }
-.stic-nav-toggle-bars i:nth-child(2) { top: 6.75px; }
-.stic-nav-toggle-bars i:nth-child(3) { top: 13.5px; }
-.stic-nav.is-open .stic-nav-toggle-bars i:nth-child(1) { top: 6.75px; transform: rotate(45deg); }
+.stic-nav-toggle-bars i:nth-child(2) { top: 5.75px; }
+.stic-nav-toggle-bars i:nth-child(3) { top: 11.5px; }
+.stic-nav.is-open .stic-nav-toggle-bars i:nth-child(1) { top: 5.75px; transform: rotate(45deg); }
 .stic-nav.is-open .stic-nav-toggle-bars i:nth-child(2) { opacity: 0; }
-.stic-nav.is-open .stic-nav-toggle-bars i:nth-child(3) { top: 6.75px; transform: rotate(-45deg); }
-
-.stic-nav-toggle-label { font-weight: 700; letter-spacing: 0.01em; }
+.stic-nav.is-open .stic-nav-toggle-bars i:nth-child(3) { top: 5.75px; transform: rotate(-45deg); }
 .stic-nav-toggle-current {
-    margin-left: auto;
-    max-width: 55%;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-weight: 600;
-    font-size: 0.92rem;
-    opacity: 0.88;
+    max-width: 9rem;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 0.9rem; opacity: 0.95;
 }
 
 /* ---- Lista de items ---- */
@@ -675,13 +712,14 @@ span.stic-field {
     display: flex;
     flex-wrap: wrap;
     gap: 0.25rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.16);
 }
 .stic-nav-item { margin: 0; }
 .stic-nav-link {
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    padding: 0.7rem 0.95rem;
+    padding: 0.65rem 0.9rem;
     color: rgba(255, 255, 255, 0.92);
     text-decoration: none;
     font-weight: 600;
@@ -699,9 +737,27 @@ span.stic-field {
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3), 0 4px 14px rgba(0, 0, 0, 0.12);
 }
 
+/* "Salir": último item, empujado a la derecha en escritorio. */
+.stic-nav-logout .stic-nav-ico { opacity: 1; }
+.stic-nav-logout:hover { background: rgba(239, 68, 68, 0.9) !important; }
+
+/* ---- Escritorio: la hamburguesa desaparece y los items se ven siempre ---- */
+@media (min-width: 768px) {
+    .stic-nav-list { padding: 0.45rem; }
+    .stic-nav-logout-item { margin-left: auto; }
+}
+
 /* ---- Móvil: colapsar en hamburguesa ---- */
 @media (max-width: 767px) {
-    .stic-nav-toggle { display: flex; }
+    .stic-nav-toggle { display: inline-flex; }
+    .stic-logout .stic-logout-text { display: none; } /* salir = solo icono en móvil */
+    .stic-iconbtn { padding: 0.55rem; }
+    .stic-nav-bar { padding: 0.6rem 0.65rem; gap: 0.5rem; }
+    .stic-avatar { width: 42px; height: 42px; font-size: 1.05rem; }
+    .stic-account { gap: 0.55rem; }
+    .stic-account-name { font-size: 0.95rem; }
+    .stic-account-tag { display: none; } /* la etiqueta sobra en móvil: prima el nombre */
+    .stic-nav-toggle-current { max-width: 6.5rem; }
     .stic-nav-list {
         flex-direction: column;
         gap: 0.2rem;
@@ -709,19 +765,22 @@ span.stic-field {
         padding: 0 0.4rem;
         opacity: 0;
         overflow: hidden;
+        border-top: 0;
         transition: max-height 0.35s var(--ease-out), opacity 0.25s ease, padding 0.25s ease;
     }
     .stic-nav.is-open .stic-nav-list {
         max-height: 75vh;
         overflow-y: auto;
         opacity: 1;
-        padding: 0.25rem 0.4rem 0.55rem;
+        padding: 0.3rem 0.4rem 0.55rem;
         border-top: 1px solid rgba(255, 255, 255, 0.18);
         -webkit-overflow-scrolling: touch;
     }
     .stic-nav-link { padding: 0.9rem 1rem; font-size: 1.02rem; } /* targets cómodos en móvil */
     .stic-nav-link:hover { transform: none; }
     .stic-nav-item.current-menu-item .stic-nav-link { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3); }
+    /* "Salir" separado al final del desplegable */
+    .stic-nav-logout-item { margin-top: 0.35rem; padding-top: 0.45rem; border-top: 1px solid rgba(255, 255, 255, 0.16); }
 }
 
 /* ============================================================
@@ -1095,7 +1154,6 @@ tbody tr:hover { background-color: var(--primary-50) !important; }
 
     tbody tr:hover { background-color: #1f2735 !important; }
 
-    .stic-userinfo,
     .stic-login-form,
     .stic-forgotpas-form { background: var(--surface-glass); color: var(--gray-800); }
 
@@ -1107,7 +1165,7 @@ tbody tr:hover { background-color: var(--primary-50) !important; }
    18. ACCESIBILIDAD — respeta "reducir movimiento"
    ============================================================ */
 @media (prefers-reduced-motion: reduce) {
-    .stic-primary-menu,
+    .stic-nav,
     .stic-auth-shell::before,
     .stic-login-form::before,
     .stic-forgotpas-form::before,

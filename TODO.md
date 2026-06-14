@@ -125,6 +125,10 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
       Iconos por sección en un mapa compartido (`sticpa_section_meta`) que usan menú y dashboard,
       con fallback por defecto → crece sin esfuerzo. ↳ **hecho.**
       ↳ `menu.php`, `sticpa_section_meta`/`sticpa_section_icon`, `js/stic-ui.js`, `css/custom-style.css`.
+- [x] `UI-09` (P1 · M) **Barra de usuario integrada en el menú (un solo componente)** con avatar,
+      identidad **familiar** + **participante** y botón para **cambiar de participante**; «Salir»
+      como último item. Preparado para que un familiar gestione varios participantes. ↳ **hecho.**
+      ↳ `menu.php::menu` (+ `sticpa_name_initial`), `css/custom-style.css`.
 - [ ] `UI-03` (P2 · M) **Verificar el diseño en un WordPress real** (staging) y pulir responsive en
       las pantallas de listado/detalle de cada módulo.
 - [ ] `UI-04` (P3 · S) Limpiar los CSS `*.backup` y consolidar `stic-style` / `stic-modern-style`
