@@ -280,6 +280,9 @@ function sticpa_icon($name, $class = '')
         'eye-off'  => "<path d='M9.9 4.24A10.6 10.6 0 0 1 12 4c6.5 0 10 7 10 7a16.6 16.6 0 0 1-3 3.7M6.2 6.2A16.4 16.4 0 0 0 2 11s3.5 7 10 7a10.5 10.5 0 0 0 4.3-.9'/><path d='M3 3l18 18'/>",
         'mail'     => "<rect x='3' y='5' width='18' height='14' rx='2'/><path d='m3 7 9 6 9-6'/>",
         'sparkles' => "<path d='M12 3l1.8 4.5L18 9l-4.2 1.5L12 15l-1.8-4.5L6 9l4.2-1.5L12 3Z'/><path d='M19 14l.9 2.3L22 17l-2.1.7L19 20l-.9-2.3L16 17l2.1-.7L19 14Z'/>",
+        'send'     => "<path d='M22 2 11 13'/><path d='M22 2 15 22l-4-9-9-4 20-7Z'/>",
+        'help'     => "<circle cx='12' cy='12' r='10'/><path d='M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3'/><path d='M12 17h.01'/>",
+        'chevron'  => "<path d='m6 9 6 6 6-6'/>",
         'shield'   => "<path d='M12 3l8 3v6c0 4.5-3.2 7.7-8 9-4.8-1.3-8-4.5-8-9V6l8-3Z'/><path d='m9 12 2 2 4-4'/>",
         'arrow'    => "<path d='M5 12h14'/><path d='m13 6 6 6-6 6'/>",
     );
@@ -358,7 +361,10 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
     $html .= "
         <div class='stic-auth-view stic-auth-magic'>
             " . $magicMsg . "
-            <p class='stic-auth-help'>" . __('Introduce tu email y te enviamos un enlace para entrar sin contraseña.', 'sticpa') . "</p>
+            <p class='stic-auth-help'>
+                <span class='stic-sparkle' aria-hidden='true'>" . sticpa_icon('sparkles') . "</span>
+                " . __('Introduce tu email y te enviamos un enlace para entrar sin contraseña.', 'sticpa') . "
+            </p>
             <form action='" . site_url() . "/wp-admin/admin-post.php' method='post' class='stic-loading-form'
                   data-loading-text='" . esc_attr__('Enviando tu enlace de acceso…', 'sticpa') . "'
                   data-loading-sub='" . esc_attr__('En unos segundos lo tendrás en tu correo.', 'sticpa') . "'>
@@ -369,11 +375,21 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
                             <span class='stic-field-icon'>" . sticpa_icon('mail') . "</span>
                             <input type='email' class='input-text' name='forgot-password-email-address' id='stic-magic-email' autocomplete='email' inputmode='email' placeholder='" . esc_attr__('nombre@correo.com', 'sticpa') . "' required>
                         </span>
+                        <details class='stic-hint'>
+                            <summary>" . sticpa_icon('help', 'stic-hint-icon') . "<span>" . __('¿Qué correo debo poner?', 'sticpa') . "</span>" . sticpa_icon('chevron', 'stic-hint-chevron') . "</summary>
+                            <div class='stic-hint-body'>
+                                <p><strong>" . __('Familias de MIC y COM', 'sticpa') . ":</strong> " . __('el correo del familiar (no el del participante).', 'sticpa') . "</p>
+                                <p><strong>" . __('Miembros del MCM', 'sticpa') . "</strong> " . __('(monitores, COM, LC): tu correo propio.', 'sticpa') . "</p>
+                            </div>
+                        </details>
                     </li>
                     <li class='stic-send'>
                         <input type='hidden' name='action' value='stic_forgot_password'>
                         <input type='hidden' name='scp_current_url' value='" . esc_attr($return_url) . "'>
-                        <input type='submit' value='" . esc_attr__('Enviar enlace de acceso', 'sticpa') . "'>
+                        <button type='submit' class='stic-btn-magic'>
+                            <span class='stic-btn-magic-icon'>" . sticpa_icon('send') . "</span>
+                            <span>" . __('Enviar enlace de acceso', 'sticpa') . "</span>
+                        </button>
                     </li>
                 </ul>
             </form>
@@ -421,7 +437,7 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
     // Registro (común a ambas vistas).
     $html .= "
         <p class='stic-auth-links' style='text-align:center;margin-top:1.1rem;font-size:0.92rem;color:var(--gray-500);'>"
-        . __('¿Todavía no tienes cuenta?', 'sticpa') . " <a href='?internalpage=single_stic_signup'>" . __('Regístrate aquí', 'sticpa') . "</a>
+        . __('¿Todavía no tienes cuenta?', 'sticpa') . " <a href='?internalpage=single_stic_signup'>" . __('Consulta cómo conseguirlo', 'sticpa') . "</a>
         </p>";
 
     return $html;

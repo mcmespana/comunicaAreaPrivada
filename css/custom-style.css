@@ -424,6 +424,78 @@ span.stic-field {
 /* Los <select> dentro de un campo no llevan icono: padding normal a la izquierda. */
 .stic-field select { padding-left: 1rem !important; }
 
+/* ---- Botón de enlace mágico: icono de avión que despega ---- */
+.stic-btn-magic {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    padding: 1rem 1.25rem;
+    font-size: 1.02rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    color: #fff;
+    border: 0;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+}
+.stic-btn-magic-icon { display: inline-grid; place-items: center; }
+.stic-btn-magic-icon svg { width: 20px; height: 20px; animation: stic-bob 2.6s ease-in-out infinite; }
+@keyframes stic-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+.stic-btn-magic:hover .stic-btn-magic-icon { animation: stic-fly 0.75s var(--ease-spring); }
+@keyframes stic-fly {
+    0%   { transform: translate(0, 0) rotate(0); }
+    35%  { transform: translate(4px, -4px) rotate(10deg); }
+    60%  { transform: translate(-2px, 1px) rotate(-5deg); }
+    100% { transform: translate(0, 0) rotate(0); }
+}
+
+/* ---- Destello junto al texto de ayuda del enlace mágico ---- */
+.stic-sparkle { display: inline-grid; place-items: center; vertical-align: -4px; color: var(--secondary-color); margin-right: 0.15rem; }
+.stic-sparkle svg { width: 18px; height: 18px; animation: stic-twinkle 2.4s ease-in-out infinite; }
+@keyframes stic-twinkle {
+    0%, 100% { opacity: 0.55; transform: scale(0.9) rotate(0); }
+    50%      { opacity: 1; transform: scale(1.12) rotate(12deg); }
+}
+
+/* ---- Indicador sutil "¿Qué correo debo poner?" (details/summary) ---- */
+.stic-hint { margin-top: 0.5rem; }
+.stic-hint summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    width: fit-content;
+    list-style: none;
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--gray-500);
+    padding: 0.25rem 0.1rem;
+    transition: color 0.18s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+.stic-hint summary::-webkit-details-marker { display: none; }
+.stic-hint summary:hover { color: var(--primary-color); }
+.stic-hint-icon { width: 15px; height: 15px; flex-shrink: 0; }
+.stic-hint-chevron { width: 14px; height: 14px; flex-shrink: 0; transition: transform 0.25s var(--ease-spring); }
+.stic-hint[open] summary .stic-hint-chevron { transform: rotate(180deg); }
+.stic-hint-body {
+    margin-top: 0.5rem;
+    padding: 0.8rem 0.95rem;
+    background: var(--surface-2);
+    border: 1px solid var(--gray-200);
+    border-left: 3px solid var(--secondary-color);
+    border-radius: var(--radius-md);
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: var(--gray-600);
+    animation: stic-fade-up 0.3s var(--ease-out) both;
+}
+.stic-hint-body p { margin: 0 0 0.45rem; }
+.stic-hint-body p:last-child { margin-bottom: 0; }
+.stic-hint-body strong { color: var(--gray-800); }
+
 /* CTA destacada de acceso por enlace mágico */
 .stic-magic-cta {
     display: flex;
