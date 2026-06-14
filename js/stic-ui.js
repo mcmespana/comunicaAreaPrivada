@@ -79,8 +79,32 @@
         });
     }
 
+    /* -------- Conmutador login: enlace mágico <-> contraseña -------- */
+    function bindAuthToggle() {
+        var links = document.querySelectorAll('[data-auth-toggle]');
+        Array.prototype.forEach.call(links, function (link) {
+            link.addEventListener('click', function (e) {
+                var container = link.closest ? link.closest('.stic-auth') : null;
+                if (!container) { return; } // sin JS-closest: dejamos que el enlace navegue
+                e.preventDefault();
+                var mode = link.getAttribute('data-auth-toggle') === 'password' ? 'password' : 'magic';
+                container.setAttribute('data-mode', mode);
+                var view = container.querySelector(mode === 'password' ? '.stic-auth-login' : '.stic-auth-magic');
+                if (view) {
+                    var first = view.querySelector('input:not([type=hidden])');
+                    if (first) {
+                        // Al pasar a contraseña, el campo es "usuario": empieza limpio.
+                        if (mode === 'password' && first.id === 'stic-username') { first.value = ''; }
+                        try { first.focus({ preventScroll: false }); } catch (err) { first.focus(); }
+                    }
+                }
+            });
+        });
+    }
+
     ready(function () {
         bindLoadingForms();
         bindPasswordToggles();
+        bindAuthToggle();
     });
 })();

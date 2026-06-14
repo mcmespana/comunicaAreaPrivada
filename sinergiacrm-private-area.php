@@ -287,16 +287,20 @@ function sticpa_icon($name, $class = '')
     return "<svg class='" . esc_attr($class) . "' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>" . $inner . "</svg>";
 }
 
-function sugar_crm_portal_login_form($html = "")
+function sugar_crm_portal_login_form($html = "", $mode = 'magic')
 {
-    // login form
     $scp_name = get_option('sticpa_scp_name');
-    $title = $scp_name != null ? __('Bienvenido de nuevo', 'sticpa') : __('Bienvenido de nuevo', 'sticpa');
+    $title = __('Hola de nuevo', 'sticpa');
     $subtitle = $scp_name != null
         ? sprintf(__('Accede a tu área privada de %s.', 'sticpa'), $scp_name)
         : __('Accede a tu área privada.', 'sticpa');
 
-    // Cabecera de marca con logo y título.
+    // URL de retorno para el enlace mágico (debe llevar un '?' para que el handler
+    // pueda añadir '&success=true' al redirigir de vuelta a esta misma pantalla).
+    $base_url = strtok($_SERVER['REQUEST_URI'], '?');
+    $return_url = $base_url . '?stic_auth=1';
+
+    // Cabecera de marca.
     $html .= "
         <div class='stic-auth-brand'>
             <div class='stic-auth-logo'>" . sticpa_icon('shield') . "</div>
@@ -307,78 +311,119 @@ function sugar_crm_portal_login_form($html = "")
             </div>
         </div>";
 
+    // Mensaje genérico tras pedir un enlace mágico (no revela si el email existe).
+    $magicMsg = "";
+    if (isset($_REQUEST['success']) && $_REQUEST['success'] == true) {
+        $magicMsg = "<span class='success'>" . __('Si tu email está registrado, te hemos enviado un enlace de acceso. Revisa tu bandeja de entrada. 📩', 'sticpa') . "</span>";
+    }
+
+    // Selector de idioma (opcional, según plugin de traducción activo).
     $languageHtml = "";
     if (function_exists('pll_the_languages')) {
         $languageSelector = pll_the_languages(array('dropdown' => 1,'show_flags'=>1,'show_names'=>0,'hide_current'=>1, 'echo' => 0));
-
         $languageHtml = "
         <li class='input_login'>
             <label>" . __('Language', 'sticpa') . ": </label>
             <span>".$languageSelector."</span>
-        </li>
-        ";
+        </li>";
     } elseif (shortcode_exists('wpml_language_selector_widget')) {
         $languageHtml = "
         <li class='input_login'>
             <label>" . __('Language', 'sticpa') . ": </label>
-            <div class='wpml-switcher'>".do_shortcode('[wpml_language_selector_widget]')."
-            </div>
-        </li>
-        ";
+            <div class='wpml-switcher'>".do_shortcode('[wpml_language_selector_widget]')."</div>
+        </li>";
     }
+
+    // Selector de módulo (solo cuando la config permite Contacts o Accounts).
     $moduleSelectHTML = "";
-    if(get_option('sticpa_scp_module') == "Any") {
+    if (get_option('sticpa_scp_module') == "Any") {
         $moduleSelectHTML = "
         <li class='input_login'>
             <label>" . __('Login as', 'sticpa') . ": </label>
-            <select name='scp_module' id='stic-module'>
-                <option value='Contacts'>" . __('Contact', 'sticpa') . "</option>
-                <option value='Accounts'>" . __('Account', 'sticpa') . "</option>
-            </select>
-        </li>
-
-        ";
+            <span class='stic-field'>
+                <select name='scp_module' id='stic-module'>
+                    <option value='Contacts'>" . __('Contact', 'sticpa') . "</option>
+                    <option value='Accounts'>" . __('Account', 'sticpa') . "</option>
+                </select>
+            </span>
+        </li>";
     }
+
+    // data-mode controla qué vista se muestra primero (CSS); el JS la alterna.
+    $mode = ($mode === 'password') ? 'password' : 'magic';
+
+    $html .= "<div class='stic-auth' data-mode='" . esc_attr($mode) . "'>";
+
+    /* ---------- VISTA 1: ENLACE MÁGICO (por defecto) ---------- */
     $html .= "
-        <form name='stic-login-form' id='stic-login-form' class='stic-loading-form' action='' method='post'
-              data-loading-text='" . esc_attr__('Verificando tus datos…', 'sticpa') . "'
-              data-loading-sub='" . esc_attr__('Estamos comprobando tu acceso de forma segura.', 'sticpa') . "'>
-            <ul>
-                ".$languageHtml."
-                ".$moduleSelectHTML."
-                <li class='input_login'>
-                    <label for='stic-username'>" . __('Username', 'sticpa') . "</label>
-                    <span class='stic-field'>
-                        <span class='stic-field-icon'>" . sticpa_icon('user') . "</span>
-                        <input type='text' class='input-text' name='scp_username' id='stic-username' autocomplete='username' required>
-                    </span>
-                </li>
+        <div class='stic-auth-view stic-auth-magic'>
+            " . $magicMsg . "
+            <p class='stic-auth-help'>" . __('Introduce tu email y te enviamos un enlace para entrar sin contraseña.', 'sticpa') . "</p>
+            <form action='" . site_url() . "/wp-admin/admin-post.php' method='post' class='stic-loading-form'
+                  data-loading-text='" . esc_attr__('Enviando tu enlace de acceso…', 'sticpa') . "'
+                  data-loading-sub='" . esc_attr__('En unos segundos lo tendrás en tu correo.', 'sticpa') . "'>
+                <ul>
+                    <li class='input_login'>
+                        <label for='stic-magic-email'>" . __('Tu correo electrónico', 'sticpa') . "</label>
+                        <span class='stic-field'>
+                            <span class='stic-field-icon'>" . sticpa_icon('mail') . "</span>
+                            <input type='email' class='input-text' name='forgot-password-email-address' id='stic-magic-email' autocomplete='email' inputmode='email' placeholder='" . esc_attr__('nombre@correo.com', 'sticpa') . "' required>
+                        </span>
+                    </li>
+                    <li class='stic-send'>
+                        <input type='hidden' name='action' value='stic_forgot_password'>
+                        <input type='hidden' name='scp_current_url' value='" . esc_attr($return_url) . "'>
+                        <input type='submit' value='" . esc_attr__('Enviar enlace de acceso', 'sticpa') . "'>
+                    </li>
+                </ul>
+            </form>
+            <p class='stic-auth-switch'>
+                <a href='?mode=password' data-auth-toggle='password'>" . __('¿Tienes una contraseña? Inicia sesión', 'sticpa') . "</a>
+            </p>
+        </div>";
 
-                <li class='input_login'>
-                    <label for='stic-password'>" . __('Password', 'sticpa') . "</label>
-                    <span class='stic-field'>
-                        <span class='stic-field-icon'>" . sticpa_icon('lock') . "</span>
-                        <input type='password' class='input-text' name='scp_password' id='stic-password' autocomplete='current-password' required>
-                        <button type='button' class='stic-pass-toggle' data-pass-toggle='stic-password' aria-label='" . esc_attr__('Mostrar contraseña', 'sticpa') . "'>" . sticpa_icon('eye') . "</button>
-                    </span>
-                </li>
-                <li class='actions_login'>
-                    <span>
-                        <input type='submit' name='scp_login_form_submit' id='stic-login-form-submit' value='" . __('Start session', 'sticpa') . "'>
-                    </span>
-                </li>
-            </ul>
-        </form>
+    /* ---------- VISTA 2: USUARIO + CONTRASEÑA ---------- */
+    $html .= "
+        <div class='stic-auth-view stic-auth-login'>
+            <form name='stic-login-form' id='stic-login-form' class='stic-loading-form' action='' method='post'
+                  data-loading-text='" . esc_attr__('Verificando tus datos…', 'sticpa') . "'
+                  data-loading-sub='" . esc_attr__('Estamos comprobando tu acceso de forma segura.', 'sticpa') . "'>
+                <ul>
+                    " . $languageHtml . "
+                    " . $moduleSelectHTML . "
+                    <li class='input_login'>
+                        <label for='stic-username'>" . __('Usuario', 'sticpa') . "</label>
+                        <span class='stic-field'>
+                            <span class='stic-field-icon'>" . sticpa_icon('user') . "</span>
+                            <input type='text' class='input-text' name='scp_username' id='stic-username' autocomplete='username' required>
+                        </span>
+                    </li>
+                    <li class='input_login'>
+                        <label for='stic-password'>" . __('Contraseña', 'sticpa') . "</label>
+                        <span class='stic-field'>
+                            <span class='stic-field-icon'>" . sticpa_icon('lock') . "</span>
+                            <input type='password' class='input-text' name='scp_password' id='stic-password' autocomplete='current-password' required>
+                            <button type='button' class='stic-pass-toggle' data-pass-toggle='stic-password' aria-label='" . esc_attr__('Mostrar contraseña', 'sticpa') . "'>" . sticpa_icon('eye') . "</button>
+                        </span>
+                    </li>
+                    <li class='actions_login'>
+                        <span><input type='submit' name='scp_login_form_submit' id='stic-login-form-submit' value='" . esc_attr__('Iniciar sesión', 'sticpa') . "'></span>
+                    </li>
+                </ul>
+            </form>
+            <p class='stic-auth-switch'>
+                <a href='?mode=magic' data-auth-toggle='magic'>" . sticpa_icon('sparkles', 'stic-inline-icon') . " " . __('Prefiero entrar con un enlace mágico', 'sticpa') . "</a>
+            </p>
+        </div>";
 
-        <div class='stic-auth-divider'>" . __('o', 'sticpa') . "</div>
+    $html .= "</div>"; // .stic-auth
 
-        <a class='stic-magic-cta' href='?internalpage=stic_forgot_password'>"
-            . sticpa_icon('sparkles') . "<span>" . __('Entra sin contraseña con un enlace mágico', 'sticpa') . "</span>
-        </a>
-
+    // Registro (común a ambas vistas).
+    $html .= "
         <p class='stic-auth-links' style='text-align:center;margin-top:1.1rem;font-size:0.92rem;color:var(--gray-500);'>"
-            . __('¿Todavía no tienes cuenta?', 'sticpa') . " <a href='?internalpage=single_stic_signup'>" . __('Regístrate aquí', 'sticpa') . "</a>
+        . __('¿Todavía no tienes cuenta?', 'sticpa') . " <a href='?internalpage=single_stic_signup'>" . __('Regístrate aquí', 'sticpa') . "</a>
         </p>";
+
     return $html;
 }
 
@@ -416,17 +461,19 @@ function sugar_crm_portal_check_user_and_login($html = "")
             }
             $html .= sugar_crm_portal_index();
         } else {
+            // Login fallido: reabrimos directamente en la vista de usuario/contraseña.
             $html .= "<div class='stic-auth-shell'><div class='stic-login-form stic-form'>";
-            $html .= sugar_crm_portal_login_form();
+            $html .= sugar_crm_portal_login_form("", 'password');
             $html .= "<span class='error'>" . __('Username and/or password are not correct.', 'sticpa') . "</span>";
             $html .= "</div></div>";
 
         }
 
     } else {
-        $scp_password = $_REQUEST['scp_password'] ?? null;
+        // Vista inicial: por defecto enlace mágico; 'password' si se pide con ?mode=password.
+        $mode = (isset($_REQUEST['mode']) && $_REQUEST['mode'] === 'password') ? 'password' : 'magic';
         $html .= "<div class='stic-auth-shell'><div class='stic-login-form stic-form'>";
-        $html .= sugar_crm_portal_login_form();
+        $html .= sugar_crm_portal_login_form("", $mode);
         if (isset($_REQUEST['signup']) && $_REQUEST['signup'] == true) {
             $html .= "<span class='success'>" . __('You have successfully signed up.', 'sticpa') . ".</span>";
         }

@@ -395,6 +395,35 @@ span.stic-field {
 .stic-login-form .actions_login .left a:hover,
 .stic-auth-links a:hover { color: var(--secondary-color); }
 
+/* ---- Conmutador entre vista de enlace mágico y vista de contraseña ---- */
+.stic-auth-view {
+    animation: stic-fade-up 0.35s var(--ease-out) both;
+}
+.stic-auth[data-mode="magic"] .stic-auth-login { display: none; }
+.stic-auth[data-mode="password"] .stic-auth-magic { display: none; }
+
+.stic-auth-switch {
+    margin: 1.2rem 0 0;
+    text-align: center;
+}
+.stic-auth-switch a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    text-decoration: none;
+    padding: 0.55rem 0.9rem;
+    border-radius: var(--radius-full);
+    transition: color 0.18s ease, background 0.18s ease;
+}
+.stic-auth-switch a:hover { color: var(--secondary-color); background: var(--secondary-50); }
+.stic-inline-icon { width: 16px; height: 16px; flex-shrink: 0; }
+
+/* Los <select> dentro de un campo no llevan icono: padding normal a la izquierda. */
+.stic-field select { padding-left: 1rem !important; }
+
 /* CTA destacada de acceso por enlace mágico */
 .stic-magic-cta {
     display: flex;
