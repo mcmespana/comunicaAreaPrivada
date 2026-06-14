@@ -102,9 +102,46 @@
         });
     }
 
+    /* -------- Menú principal: hamburguesa colapsable (móvil) -------- */
+    function closeAllNavs(except) {
+        var open = document.querySelectorAll('.stic-nav.is-open');
+        Array.prototype.forEach.call(open, function (nav) {
+            if (nav === except) { return; }
+            nav.classList.remove('is-open');
+            var btn = nav.querySelector('.stic-nav-toggle');
+            if (btn) { btn.setAttribute('aria-expanded', 'false'); }
+        });
+    }
+
+    function bindNavToggle() {
+        var toggles = document.querySelectorAll('.stic-nav-toggle');
+        Array.prototype.forEach.call(toggles, function (btn) {
+            btn.addEventListener('click', function (e) {
+                e.stopPropagation();
+                var nav = btn.closest ? btn.closest('.stic-nav') : null;
+                if (!nav) { return; }
+                var willOpen = !nav.classList.contains('is-open');
+                closeAllNavs(nav);
+                nav.classList.toggle('is-open', willOpen);
+                btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+            });
+        });
+
+        // Cerrar al tocar fuera del menú.
+        document.addEventListener('click', function (e) {
+            if (e.target.closest && e.target.closest('.stic-nav')) { return; }
+            closeAllNavs(null);
+        });
+        // Cerrar con la tecla Escape.
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' || e.keyCode === 27) { closeAllNavs(null); }
+        });
+    }
+
     ready(function () {
         bindLoadingForms();
         bindPasswordToggles();
         bindAuthToggle();
+        bindNavToggle();
     });
 })();

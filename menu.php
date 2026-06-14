@@ -55,7 +55,7 @@ function menu()
     list($menuElements, $defaultMenuElement) = getSticMenuElements();
     $menu = '';
     $tutorIsUser = $_SESSION['scp_tutor_is_user'] ?? false;
-    
+
     // Información del usuario
     if (isset($_SESSION['scp_tutor_user_contact_name']) && !$tutorIsUser) {
         $menu .= "<div class='stic-userinfo'>" . __('Welcome', 'sticpa') . ", <span class='stic-user-name'><a href='?internalpage=single_stic_tutor_profile'>" . $_SESSION['scp_tutor_user_contact_name'] . "</a></span>";
@@ -69,33 +69,52 @@ function menu()
     }
     $menu .= "<a class='stic-logout' href='?logout=true'> ( " . __('Exit', 'sticpa') . " )</a>";
     $menu .= "</div>";
-    
-    // Contenedor del menú principal
-    $menu .= "<br><div class='stic-container'>
-            <ul class='primary-menu stic-primary-menu'>";
-    
-    // Cuando no hay internalpage, la landing es la pantalla de bienvenida (Inicio).
+
+    // Página actual (para resaltar el item activo). Sin internalpage => Inicio.
     $page = empty($_REQUEST['internalpage']) ? 'single_stic_home' : $_REQUEST['internalpage'];
 
-    if (isset($_SESSION['scp_tutor_user_contact_name']) || (isset($_SESSION['scp_user_adult']) && $_SESSION['scp_user_adult'])) {
-        // Enlace de Inicio (pantalla de bienvenida con accesos a las secciones).
-        $isHomeActive = ($page == 'single_stic_home') ? 'current-menu-item stic-current-menu-item' : '';
-        $menu .= "<li class='stic-primary-menu-item " . $isHomeActive . "'>
-                    <a class='stic-menu-link' href='?internalpage=single_stic_home'>
-                    " . __('Inicio', 'sticpa') . "
-                    </a>
-                  </li>";
-        foreach ($menuElements as $key => $value) {
-            $isMenuActive = ($page == $key) ? 'current-menu-item stic-current-menu-item' : '';
-            $menu .= "<li class='stic-primary-menu-item " . $isMenuActive . "'>
-                        <a class='stic-menu-link' href='?internalpage=" . $key . "'>
-                        " . __($value, 'sticpa') . "
+    // ¿Mostramos los items? (usuario adulto o tutor con perfil elegido).
+    $showItems = (isset($_SESSION['scp_tutor_user_contact_name']) || (isset($_SESSION['scp_user_adult']) && $_SESSION['scp_user_adult']));
+
+    // Construimos la lista de items: Inicio + las secciones configuradas.
+    $items = array('single_stic_home' => __('Inicio', 'sticpa'));
+    foreach ($menuElements as $key => $value) {
+        $items[$key] = __($value, 'sticpa');
+    }
+
+    // Etiqueta de la sección activa (se muestra en el botón hamburguesa en móvil).
+    $currentLabel = isset($items[$page]) ? $items[$page] : __('Inicio', 'sticpa');
+
+    // Contenedor general del área.
+    $menu .= "<br><div class='stic-container'>";
+
+    if ($showItems) {
+        $iconFn = function_exists('sticpa_section_icon');
+        $menu .= "<nav class='stic-nav' aria-label='" . esc_attr__('Navegación principal', 'sticpa') . "'>";
+
+        // Botón hamburguesa (solo visible en móvil vía CSS).
+        $menu .= "<button type='button' class='stic-nav-toggle' aria-expanded='false' aria-controls='stic-nav-list'>
+                    <span class='stic-nav-toggle-bars' aria-hidden='true'><i></i><i></i><i></i></span>
+                    <span class='stic-nav-toggle-label'>" . __('Menú', 'sticpa') . "</span>
+                    <span class='stic-nav-toggle-current'>" . esc_html($currentLabel) . "</span>
+                  </button>";
+
+        // Lista de items con icono + texto.
+        $menu .= "<ul class='stic-nav-list' id='stic-nav-list'>";
+        foreach ($items as $key => $label) {
+            $isActive = ($page == $key) ? 'current-menu-item stic-current-menu-item' : '';
+            $icon = $iconFn ? sticpa_section_icon($key) : '';
+            $menu .= "<li class='stic-nav-item " . $isActive . "'>
+                        <a class='stic-nav-link' href='?internalpage=" . $key . "'>
+                            <span class='stic-nav-ico'>" . $icon . "</span>
+                            <span class='stic-nav-text'>" . esc_html($label) . "</span>
                         </a>
                       </li>";
         }
+        $menu .= "</ul>";
+        $menu .= "</nav>";
     }
 
-    $menu .= "</ul>";
     $menu .= "<div class='stic-tab-content' style='width:100%;'>";
     return $menu;
 }

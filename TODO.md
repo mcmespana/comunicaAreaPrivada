@@ -120,6 +120,11 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
 - [x] `UI-07` (P1 · M) **Pantalla de bienvenida / dashboard** tras el login con tarjetas grandes y
       funcionales hacia cada subsección (se autogeneran desde el menú). ↳ **hecho.**
       ↳ `pages/single_stic_home.php`, enlace «Inicio» en `menu.php`.
+- [x] `UI-08` (P1 · M) **Menú mobile-first** con iconos: hamburguesa colapsable en móvil (targets
+      grandes, scroll si crece) y barra horizontal con icono+texto que reflowa en escritorio.
+      Iconos por sección en un mapa compartido (`sticpa_section_meta`) que usan menú y dashboard,
+      con fallback por defecto → crece sin esfuerzo. ↳ **hecho.**
+      ↳ `menu.php`, `sticpa_section_meta`/`sticpa_section_icon`, `js/stic-ui.js`, `css/custom-style.css`.
 - [ ] `UI-03` (P2 · M) **Verificar el diseño en un WordPress real** (staging) y pulir responsive en
       las pantallas de listado/detalle de cada módulo.
 - [ ] `UI-04` (P3 · S) Limpiar los CSS `*.backup` y consolidar `stic-style` / `stic-modern-style`

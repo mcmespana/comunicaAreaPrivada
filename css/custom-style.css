@@ -601,14 +601,22 @@ span.stic-field {
 }
 
 /* ============================================================
-   7. MENÚ PRINCIPAL — gradiente animado + pastilla activa
+   7. NAVEGACIÓN PRINCIPAL — mobile-first, con iconos y colapsable
+   ------------------------------------------------------------
+   · Móvil: barra con botón hamburguesa que despliega los items en
+     vertical (targets grandes, scroll si crecen).
+   · Escritorio (≥768px): items en horizontal con icono + texto, se
+     reparten en varias filas si hay muchos (crece sin tocar nada).
    ============================================================ */
-.stic-primary-menu {
+.stic-nav {
+    position: relative;
+    margin-bottom: 0.25rem;
     background: var(--grad-brand);
     background-size: 220% 220%;
     animation: stic-gradient-shift 14s ease infinite;
-    border-radius: var(--radius-xl) !important;
+    border-radius: var(--radius-xl);
     box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    overflow: hidden;
 }
 
 @keyframes stic-gradient-shift {
@@ -617,23 +625,103 @@ span.stic-field {
     100% { background-position: 0% 50%; }
 }
 
-.stic-primary-menu-item a,
-ul.stic-primary-menu li a {
-    letter-spacing: 0.01em;
+/* ---- Botón hamburguesa (oculto en escritorio) ---- */
+.stic-nav-toggle {
+    display: none;
+    width: 100%;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.95rem 1.15rem;
+    background: transparent !important;
+    border: 0;
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 700;
+    -webkit-tap-highlight-color: transparent;
+}
+.stic-nav-toggle::after { display: none !important; } /* anula el barrido global de botones */
+.stic-nav-toggle:hover { transform: none !important; box-shadow: none !important; }
+
+.stic-nav-toggle-bars { position: relative; width: 22px; height: 16px; flex-shrink: 0; }
+.stic-nav-toggle-bars i {
+    position: absolute; left: 0; right: 0; height: 2.5px; border-radius: 2px; background: #fff;
+    transition: transform 0.3s var(--ease-spring), opacity 0.2s ease, top 0.3s ease;
+}
+.stic-nav-toggle-bars i:nth-child(1) { top: 0; }
+.stic-nav-toggle-bars i:nth-child(2) { top: 6.75px; }
+.stic-nav-toggle-bars i:nth-child(3) { top: 13.5px; }
+.stic-nav.is-open .stic-nav-toggle-bars i:nth-child(1) { top: 6.75px; transform: rotate(45deg); }
+.stic-nav.is-open .stic-nav-toggle-bars i:nth-child(2) { opacity: 0; }
+.stic-nav.is-open .stic-nav-toggle-bars i:nth-child(3) { top: 6.75px; transform: rotate(-45deg); }
+
+.stic-nav-toggle-label { font-weight: 700; letter-spacing: 0.01em; }
+.stic-nav-toggle-current {
+    margin-left: auto;
+    max-width: 55%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-weight: 600;
-    transition: all 0.25s var(--ease-spring);
+    font-size: 0.92rem;
+    opacity: 0.88;
 }
 
-.stic-primary-menu-item a:hover,
-ul.stic-primary-menu li a:hover {
-    background-color: rgba(255, 255, 255, 0.18) !important;
-    transform: translateY(-1px);
+/* ---- Lista de items ---- */
+.stic-nav-list {
+    list-style: none;
+    margin: 0;
+    padding: 0.4rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
 }
-
-.current-menu-item a,
-ul.stic-primary-menu li.current-menu-item a {
-    background: rgba(255, 255, 255, 0.24) !important;
+.stic-nav-item { margin: 0; }
+.stic-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.7rem 0.95rem;
+    color: rgba(255, 255, 255, 0.92);
+    text-decoration: none;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    border-radius: var(--radius-md);
+    white-space: nowrap;
+    transition: background 0.2s var(--ease-spring), transform 0.2s var(--ease-spring), color 0.2s ease;
+}
+.stic-nav-ico { display: inline-grid; place-items: center; width: 20px; height: 20px; flex-shrink: 0; opacity: 0.95; }
+.stic-nav-ico svg { width: 20px; height: 20px; }
+.stic-nav-link:hover { background: rgba(255, 255, 255, 0.16); transform: translateY(-1px); color: #fff; }
+.stic-nav-item.current-menu-item .stic-nav-link {
+    background: rgba(255, 255, 255, 0.24);
+    color: #fff;
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3), 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+
+/* ---- Móvil: colapsar en hamburguesa ---- */
+@media (max-width: 767px) {
+    .stic-nav-toggle { display: flex; }
+    .stic-nav-list {
+        flex-direction: column;
+        gap: 0.2rem;
+        max-height: 0;
+        padding: 0 0.4rem;
+        opacity: 0;
+        overflow: hidden;
+        transition: max-height 0.35s var(--ease-out), opacity 0.25s ease, padding 0.25s ease;
+    }
+    .stic-nav.is-open .stic-nav-list {
+        max-height: 75vh;
+        overflow-y: auto;
+        opacity: 1;
+        padding: 0.25rem 0.4rem 0.55rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.18);
+        -webkit-overflow-scrolling: touch;
+    }
+    .stic-nav-link { padding: 0.9rem 1rem; font-size: 1.02rem; } /* targets cómodos en móvil */
+    .stic-nav-link:hover { transform: none; }
+    .stic-nav-item.current-menu-item .stic-nav-link { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3); }
 }
 
 /* ============================================================
