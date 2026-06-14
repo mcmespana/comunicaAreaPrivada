@@ -47,6 +47,21 @@ function defaultMenuElement()
 }
 
 /**
+ * ¿El perfil que ha accedido es de tipo "familia"? Solo en ese caso tiene sentido
+ * el botón de "cambiar de participante" (un familiar que gestiona a varios).
+ *
+ * TODO: ahora mismo NO tenemos forma fiable de saberlo desde el CRM, así que
+ * devolvemos false y la identidad se muestra de forma fija (sin cambiar de
+ * participante). Cuando exista el dato (campo del CRM, tipo de relación, etc.),
+ * conéctalo aquí o engánchalo con el filtro 'sticpa_is_familia'.
+ */
+function sticpa_is_familia()
+{
+    $isFamilia = false; // TODO: detectar perfil de familia
+    return (bool) apply_filters('sticpa_is_familia', $isFamilia);
+}
+
+/**
  * Primera inicial (en mayúscula) de un nombre para el avatar. Soporta el formato
  * "Apellidos, Nombre" (usa el nombre de pila) y nombres simples.
  */
@@ -112,7 +127,10 @@ function menu()
         if ($participantName) {
             $account .= "<a class='stic-account-participant' href='?internalpage=single_stic_profile'>" . esc_html($participantName) . "</a>";
         }
-        $account .= "<a class='stic-switch' href='?internalpage=single_stic_profile_selection' title='" . esc_attr__('Cambiar de participante', 'sticpa') . "' aria-label='" . esc_attr__('Cambiar de participante', 'sticpa') . "'>" . ($iconFn ? sticpa_icon('switch') : '') . "</a>";
+        // El botón de "cambiar de participante" SOLO para perfiles de familia.
+        if (sticpa_is_familia()) {
+            $account .= "<a class='stic-switch' href='?internalpage=single_stic_profile_selection' title='" . esc_attr__('Cambiar de participante', 'sticpa') . "' aria-label='" . esc_attr__('Cambiar de participante', 'sticpa') . "'>" . ($iconFn ? sticpa_icon('switch') : '') . "</a>";
+        }
         $account .= "</span>";
     } else {
         // Usuario individual.

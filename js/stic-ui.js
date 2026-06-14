@@ -196,6 +196,11 @@
                 menuUl.insertBefore(candidate, menuUl.firstElementChild);
             }
             if (!menuUl.firstElementChild) { wrap.hidden = true; }
+
+            // Si la sección ACTIVA ha quedado escondida dentro de "Más", lo marcamos
+            // con un puntito para que el usuario sepa dónde está.
+            var activeHidden = !!menuUl.querySelector('.current-menu-item');
+            wrap.classList.toggle('stic-nav-more--active', activeHidden);
         });
     }
 

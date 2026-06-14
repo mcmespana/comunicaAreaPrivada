@@ -745,6 +745,7 @@ span.stic-field {
 /* ---- Botón "Más" (overflow) + su menú desplegable ---- */
 .stic-nav-more-wrap { position: relative; flex-shrink: 0; }
 .stic-nav-more {
+    position: relative;
     background: rgba(255, 255, 255, 0.14) !important;
     border: 0;
     cursor: pointer;
@@ -754,6 +755,24 @@ span.stic-field {
 .stic-nav-more:hover { background: rgba(255, 255, 255, 0.26) !important; }
 .stic-nav-more-wrap.is-open .stic-nav-more { background: rgba(255, 255, 255, 0.3) !important; }
 .stic-nav-more .stic-nav-ico svg { stroke-width: 2.6; }
+
+/* Puntito indicador: la sección activa está dentro de "Más" */
+.stic-nav-more-wrap.stic-nav-more--active .stic-nav-more::before {
+    content: '';
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 0 0 2px var(--secondary-light), 0 0 7px rgba(255, 255, 255, 0.7);
+    animation: stic-dot-pulse 1.8s ease-in-out infinite;
+}
+@keyframes stic-dot-pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50%      { transform: scale(0.78); opacity: 0.85; }
+}
 
 /* Panel desplegable: superficie clara, anclado por JS (position: fixed) */
 .stic-nav-more-menu {
