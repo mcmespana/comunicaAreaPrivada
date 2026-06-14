@@ -300,8 +300,7 @@ function sticpa_render_access_loading_screen()
 
     $title = __('Verificando tu acceso…', 'sticpa');
     $sub = __('Estamos preparando tu área privada de forma segura. Esto puede tardar unos segundos.', 'sticpa');
-    $goUrlAttr = esc_url($goUrl);
-    $goUrlJs = esc_js($goUrl);
+    $goUrlAttr = esc_url($goUrl); // para el <meta refresh> del <noscript> (codifica & como &#038;, correcto en HTML)
     $lang = esc_attr(substr(get_locale(), 0, 2));
 
     if (!headers_sent()) {
@@ -404,8 +403,14 @@ function sticpa_render_access_loading_screen()
     </div>
     <script>
         (function () {
+            // IMPORTANTE: usamos wp_json_encode (no esc_js) para la URL. esc_js convierte
+            // '&' en '&#038;', y el '#' se interpretaría como fragmento → 'sticpa_go' no
+            // llegaría al servidor y se entraría en un BUCLE de la pantalla de carga.
+            var go = <?php echo wp_json_encode($goUrl); ?>;
+            // Salvaguarda anti-bucle: si por lo que sea ya íbamos con sticpa_go, no insistas.
+            if (window.location.search.indexOf('sticpa_go=') !== -1) { return; }
             // Pequeño respiro para que la animación se vea y luego validamos contra el CRM.
-            setTimeout(function () { window.location.replace('<?= $goUrlJs ?>'); }, 350);
+            setTimeout(function () { window.location.replace(go); }, 350);
         })();
     </script>
 </body>
