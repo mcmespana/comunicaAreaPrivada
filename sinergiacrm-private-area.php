@@ -99,7 +99,7 @@ function dcms_insertar_js()
     wp_register_script('custom-utils', plugin_dir_url(__FILE__) . 'js/custom-utils.js', array('jquery'), '1', true);
     wp_enqueue_script('custom-utils');
     // UI helpers: overlay de carga + toggle de contraseña (sin dependencias)
-    wp_register_script('stic-ui', plugin_dir_url(__FILE__) . 'js/stic-ui.js', array(), '1.0', true);
+    wp_register_script('stic-ui', plugin_dir_url(__FILE__) . 'js/stic-ui.js', array(), '1.3', true);
     wp_enqueue_script('stic-ui');
     // We use only one file for plugin literals, so although theoretically we should call this function twice (one efor each js), we only call it once.
     wp_localize_script('sugarcrm-own', 'stic_script_vars', getSticScriptVars());
@@ -843,7 +843,7 @@ function sugar_crm_portal_style_and_script()
         wp_enqueue_style('stic-modern-style', plugins_url('css/stic-modern-style.css', __FILE__));
         wp_enqueue_style('fullcalendar', plugins_url('js/fullcalendar/lib/main.css', __FILE__));
         // custom-style.css is loaded LAST on purpose so it can override/enhance everything above
-        wp_enqueue_style('custom-style', plugins_url('css/custom-style.css', __FILE__), array('stic-modern-style'), '3.0');
+        wp_enqueue_style('custom-style', plugins_url('css/custom-style.css', __FILE__), array('stic-modern-style'), '3.8');
     }
 
 }
