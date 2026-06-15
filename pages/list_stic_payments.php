@@ -11,7 +11,10 @@ switch (getDestinationModule()) {
     case 'Contacts':
         $relationship = 'stic_payments_contacts';
         $parentModule = 'Contacts';
-        $templateId = '98ef1880-7cce-28c6-f824-636232379dbd';
+        // Certificado de donaciones: el templateID es específico de cada CRM. En Comunica
+        // no existe ese template (daba "invalid template"), así que el botón solo aparece si
+        // se configura la opción `sticpa_donations_template_id` con un templateID válido.
+        $templateId = get_option('sticpa_donations_template_id');
         if ($templateId) {
             $hostUrl = get_option('sticpa_scp_host_url');
             $listSettings['additionalButtons'][] = array('label' => __('Donations certificate', 'sticpa'), 'link' => $hostUrl.'/index.php?entryPoint=sticGeneratePdf&task=pdf&module=Contacts&uid='.(isset($_SESSION['scp_tutor_user_id']) ? $_SESSION['scp_tutor_user_id'] : $_SESSION['scp_user_id']).'&templateID='.$templateId);

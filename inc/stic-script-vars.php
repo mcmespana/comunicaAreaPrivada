@@ -6,6 +6,9 @@
 function getSticScriptVars() {
     return array(
         'deleteConfirmation' => __('Are you sure you want to delete this record?', 'sticpa'),
+        'deleteTitle' => __('Delete record', 'sticpa'),
+        'deleteCancel' => __('Cancel', 'sticpa'),
+        'deleteConfirmBtn' => __('Delete', 'sticpa'),
         'changeConfirmation' => __('Are you sure you want to change this value?', 'sticpa'),
         'wrongIban' => __('Wrong IBAN', 'sticpa'),
         'invalidElements' => __('There are invalid fields in your form. Please, correct them before submit.', 'sticpa'),

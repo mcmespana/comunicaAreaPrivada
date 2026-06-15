@@ -107,10 +107,10 @@ $html .="
 $html.= "
 <script>
 function handleProfileSelection(elem) {
-    var id = $(elem).attr('id');
-    var name = $(elem).val();
-    $('#profile_selected_id').val(id);
-    $('#profile_selected_name').val(name);
-    $('#profile_selection_form').submit();
+    var id = elem.id;
+    var name = elem.value;
+    document.getElementById('profile_selected_id').value = id;
+    document.getElementById('profile_selected_name').value = name;
+    document.getElementById('profile_selection_form').submit();
 }
 </script>";

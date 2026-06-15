@@ -129,8 +129,10 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
       identidad **familiar** + **participante** y botón para **cambiar de participante**; «Salir»
       como último item. Preparado para que un familiar gestione varios participantes. ↳ **hecho.**
       ↳ `menu.php::menu` (+ `sticpa_name_initial`), `css/custom-style.css`.
-- [ ] `UI-03` (P2 · M) **Verificar el diseño en un WordPress real** (staging) y pulir responsive en
-      las pantallas de listado/detalle de cada módulo.
+- [x] `UI-03` (P2 · M) **Verificar el diseño en un WordPress real** (staging) y pulir responsive en
+      las pantallas de listado/detalle de cada módulo. ↳ **hecho.** Pulido responsive en Eventos, Documentos, Inscripciones, Pagos, etc.
+- [x] `UI-10` (P1 · S) **Controles de subida tipo Dropzone**: Rediseñar inputs de archivos para un look premium con área dashed interactiva y píldoras degradadas de marca. ↳ **hecho.**
+- [x] `UI-11` (P1 · S) **Modal de confirmación de borrado**: Reemplazar confirmaciones de borrado nativas por popups premium HTML/CSS personalizados con fondo esmerilado. ↳ **hecho.**
 - [ ] `UI-04` (P3 · S) Limpiar los CSS `*.backup` y consolidar `stic-style` / `stic-modern-style`
       si dejan de ser necesarios.
 

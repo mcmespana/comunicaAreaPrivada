@@ -79,6 +79,7 @@ function sticpa_load_languages()
 
 include plugin_dir_path(__FILE__) . 'inc/stic-action.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-magic-login.php';
+include plugin_dir_path(__FILE__) . 'inc/stic-comunica-roles.php';
 
 add_action('admin_menu', 'sugar_crm_portal_create_menu');
 
@@ -388,6 +389,18 @@ function sticpa_section_meta($key)
             'desc' => __('Información adicional.', 'sticpa'),
             'icon' => "<circle cx='12' cy='12' r='10'/><path d='M12 16v-4M12 8h.01'/>",
         ),
+        'single_stic_comunica_perfil' => array(
+            'desc' => __('Consulta y edita tus datos personales y de contacto.', 'sticpa'),
+            'icon' => "<circle cx='12' cy='8' r='4'/><path d='M4 21v-1a8 8 0 0 1 16 0v1'/>",
+        ),
+        'single_stic_comunica_monitor' => array(
+            'desc' => __('Tu formación, certificados y datos de monitor/a.', 'sticpa'),
+            'icon' => "<path d='M22 10 12 5 2 10l10 5 10-5Z'/><path d='M6 12v5c0 1 2 3 6 3s6-2 6-3v-5'/>",
+        ),
+        'single_stic_comunica_laico' => array(
+            'desc' => __('Tu etapa, grupo y datos como laico/a.', 'sticpa'),
+            'icon' => "<path d='M12 2v20M5 8h14M5 8l7-4 7 4'/>",
+        ),
     );
 
     if (isset($map[$key])) {
@@ -590,6 +603,9 @@ function sugar_crm_portal_check_user_and_login($html = "")
                 $_SESSION['scp_user_adult'] = check_user_adult($_SESSION['scp_user_id'], $relationshipTypes);
             } else {
                 $_SESSION['scp_user_adult'] = true;
+            }
+            if (function_exists('sticpa_store_comunica_role')) {
+                sticpa_store_comunica_role($isLogin->entry_list[0], $scp_module);
             }
             $html .= sugar_crm_portal_index();
         } else {

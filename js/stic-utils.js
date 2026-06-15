@@ -1,22 +1,22 @@
 /*
 * Place in this file any custom js you want to use in your plugin
 */
-$ = jQuery;
-
-$(document).ready(function(){
+jQuery(document).ready(function($){
     // Run selectize
     $('select[multiple]').selectize();
     //hide the success messagges
     $('body').on('click keyup paste', function () {
         if (document.getElementById('successMsg')) { document.getElementById('successMsg').style.opacity = '0'; }
-
-    })
+    });
 });
 
 function alerta(obj) {
     var lastName = '';
     obj.style.color = "red";
-    result = window.confirm(stic_script_vars.changeConfirmation);
+    var confirmMsg = (typeof stic_script_vars !== 'undefined' && stic_script_vars.changeConfirmation)
+        ? stic_script_vars.changeConfirmation
+        : '¿Está seguro de que desea cambiar este valor?';
+    result = window.confirm(confirmMsg);
     if (result) {
         lastName = obj.value;
     }
@@ -26,24 +26,92 @@ function alerta(obj) {
 }
 
 function formatDateTimeLocal() {
-    $("input[type=datetime-local]").each(function(){
-        if (this.value){
-            datetime = this.value;
-            datetime = datetime.replace("T", " ");
-            $(this).clone().appendTo('#stic-wp-pa').removeAttr('required').attr('type', 'text').val(datetime+':00').hide();
-            $(this).attr('name', this+'_clone').attr('id', this+'_clone');
-        }
-    });
-    
+    if (typeof jQuery !== 'undefined') {
+        jQuery("input[type=datetime-local]").each(function(){
+            if (this.value){
+                datetime = this.value;
+                datetime = datetime.replace("T", " ");
+                jQuery(this).clone().appendTo('#stic-wp-pa').removeAttr('required').attr('type', 'text').val(datetime+':00').hide();
+                jQuery(this).attr('name', this+'_clone').attr('id', this+'_clone');
+            }
+        });
+    }
 }
 
 function confirmDelete(obj) {
-    if (window.confirm(stic_script_vars.deleteConfirmation)) {
-        $('#stic-action').val('delete');
-        return true;
-    } else {
-        return false;
+    var v = (typeof stic_script_vars !== 'undefined') ? stic_script_vars : {};
+    var msg    = v.deleteConfirmation || '¿Está seguro de que desea eliminar este registro?';
+    var title  = v.deleteTitle        || 'Eliminar registro';
+    var cancel = v.deleteCancel       || 'Cancelar';
+    var confirm = v.deleteConfirmBtn  || 'Eliminar';
+
+    var form = (obj && obj.form) ? obj.form : document.getElementById('stic-wp-pa');
+
+    _sticDeleteModal(title, msg, cancel, confirm, function () {
+        var actionInput = document.getElementById('stic-action');
+        if (actionInput) actionInput.value = 'delete';
+        if (form) form.submit();
+    });
+
+    return false; // always prevent default — the modal handles submission
+}
+
+/**
+ * Render and manage the custom delete-confirmation modal.
+ */
+function _sticDeleteModal(title, message, cancelLabel, confirmLabel, onConfirm) {
+    // Remove any existing modal
+    var old = document.getElementById('stic-delete-modal');
+    if (old) old.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'stic-delete-modal';
+    overlay.className = 'stic-modal-overlay';
+    overlay.innerHTML =
+        '<div class="stic-modal-card">' +
+            '<div class="stic-modal-icon">' +
+                '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+                    '<path d="M3 6h18"/>' +
+                    '<path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>' +
+                    '<path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>' +
+                    '<line x1="10" y1="11" x2="10" y2="17"/>' +
+                    '<line x1="14" y1="11" x2="14" y2="17"/>' +
+                '</svg>' +
+            '</div>' +
+            '<h4 class="stic-modal-title">' + title + '</h4>' +
+            '<p class="stic-modal-msg">' + message + '</p>' +
+            '<div class="stic-modal-actions">' +
+                '<button type="button" class="stic-modal-btn stic-modal-btn--cancel">' + cancelLabel + '</button>' +
+                '<button type="button" class="stic-modal-btn stic-modal-btn--delete">' +
+                    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>' +
+                    confirmLabel +
+                '</button>' +
+            '</div>' +
+        '</div>';
+
+    document.body.appendChild(overlay);
+
+    // Force reflow, then activate (triggers CSS transition)
+    overlay.offsetHeight; // eslint-disable-line no-unused-expressions
+    overlay.classList.add('is-active');
+
+    // --- helpers ---
+    function close() {
+        overlay.classList.remove('is-active');
+        setTimeout(function () { overlay.remove(); }, 280);
+        document.removeEventListener('keydown', escHandler);
     }
+    function escHandler(e) { if (e.key === 'Escape') close(); }
+
+    // --- events ---
+    overlay.querySelector('.stic-modal-btn--cancel').addEventListener('click', close);
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
+    document.addEventListener('keydown', escHandler);
+
+    overlay.querySelector('.stic-modal-btn--delete').addEventListener('click', function () {
+        close();
+        if (onConfirm) onConfirm();
+    });
 }
 
 function verifyIban(obj) {

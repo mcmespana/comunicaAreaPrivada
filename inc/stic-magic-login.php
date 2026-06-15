@@ -87,9 +87,9 @@ function sticpa_modules_to_try()
 function sticpa_session_select_fields($module)
 {
     if ($module === 'Accounts') {
-        return array('id', 'name', 'stic_pa_username_c', 'assigned_user_id', 'email1', 'ajmcm_pa_token_c');
+        return array('id', 'name', 'stic_pa_username_c', 'assigned_user_id', 'email1', 'ajmcm_pa_token_c', 'stic_relationship_type_c');
     }
-    return array('id', 'name', 'stic_pa_username_c', 'account_id', 'assigned_user_id', 'email1', 'ajmcm_pa_token_c');
+    return array('id', 'name', 'stic_pa_username_c', 'account_id', 'assigned_user_id', 'email1', 'ajmcm_pa_token_c', 'stic_relationship_type_c');
 }
 
 /**
@@ -203,6 +203,10 @@ function sticpa_establish_session($entry, $module)
         $_SESSION['scp_user_adult'] = check_user_adult($entry->id, RELATIONSHIP_TUTOR_TYPES);
     } else {
         $_SESSION['scp_user_adult'] = true;
+    }
+
+    if (function_exists('sticpa_store_comunica_role')) {
+        sticpa_store_comunica_role($entry, $module);
     }
 }
 

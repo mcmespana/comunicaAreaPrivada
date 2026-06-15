@@ -707,35 +707,62 @@ span.stic-field {
 /* ---- Lista de items (una sola línea en escritorio) ---- */
 .stic-nav-list {
     list-style: none;
-    margin: 0;
-    padding: 0.4rem;
+    margin: 0 !important;
+    padding: 0.3rem 0.55rem 0.6rem !important;   /* alineado con la barra de identidad */
     display: flex;
     flex-wrap: nowrap;
     overflow: hidden;            /* sin desbordes: lo que no cabe va a "Más" (JS) */
     gap: 0.25rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.16);
 }
+/* El tema mete subrayado en los enlaces; lo quitamos en toda la barra. */
+.stic-nav-link,
+.stic-nav-link:hover,
+.stic-account-name a,
+.stic-account-name a:hover,
+.stic-account-participant,
+.stic-iconbtn { text-decoration: none !important; }
 .stic-nav-item { margin: 0; }
 .stic-nav-link {
     display: flex;
     align-items: center;
     gap: 0.6rem;
     padding: 0.65rem 0.9rem;
-    color: rgba(255, 255, 255, 0.92);
-    text-decoration: none;
+    color: rgba(255, 255, 255, 0.92) !important;
+    text-decoration: none !important;
     font-weight: 600;
     letter-spacing: 0.01em;
     border-radius: var(--radius-md);
     white-space: nowrap;
     transition: background 0.2s var(--ease-spring), transform 0.2s var(--ease-spring), color 0.2s ease;
+    outline: none !important;
+    box-shadow: none !important;
 }
 .stic-nav-ico { display: inline-grid; place-items: center; width: 20px; height: 20px; flex-shrink: 0; opacity: 0.95; }
 .stic-nav-ico svg { width: 20px; height: 20px; }
-.stic-nav-link:hover { background: rgba(255, 255, 255, 0.16); transform: translateY(-1px); color: #fff; }
-.stic-nav-item.current-menu-item .stic-nav-link {
-    background: rgba(255, 255, 255, 0.24);
-    color: #fff;
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3), 0 4px 14px rgba(0, 0, 0, 0.12);
+.stic-nav-link:hover,
+.stic-nav-link:focus,
+.stic-nav-link:active {
+    background: rgba(255, 255, 255, 0.16) !important;
+    transform: translateY(-1px) !important;
+    color: #fff !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+.stic-nav-link:visited {
+    color: rgba(255, 255, 255, 0.92) !important;
+    text-decoration: none !important;
+}
+.stic-nav-item.current-menu-item .stic-nav-link,
+.stic-nav-item.current-menu-item .stic-nav-link:visited,
+.stic-nav-item.current-menu-item .stic-nav-link:focus,
+.stic-nav-item.current-menu-item .stic-nav-link:active {
+    background: rgba(255, 255, 255, 0.24) !important;
+    color: #fff !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3), 0 4px 14px rgba(0, 0, 0, 0.12) !important;
+    outline: none !important;
+}
+.stic-nav-item.current-menu-item .stic-nav-link::before {
+    display: none !important;
 }
 
 /* "Salir": último item, empujado a la derecha en escritorio. */
@@ -791,23 +818,36 @@ span.stic-field {
 .stic-nav-more-wrap.is-open .stic-nav-more-menu { display: block; }
 .stic-nav-more-menu ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .stic-nav-more-menu .stic-nav-item { width: 100%; }
-.stic-nav-more-menu .stic-nav-link {
-    color: var(--gray-700);
-    padding: 0.6rem 0.7rem;
-    white-space: nowrap;
+.stic-nav-more-menu .stic-nav-link,
+.stic-nav-more-menu .stic-nav-link:visited,
+.stic-nav-more-menu .stic-nav-link:focus,
+.stic-nav-more-menu .stic-nav-link:active {
+    color: var(--gray-700) !important;
+    padding: 0.6rem 0.7rem !important;
+    white-space: nowrap !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    outline: none !important;
 }
-.stic-nav-more-menu .stic-nav-ico { color: var(--primary-color); opacity: 1; }
-.stic-nav-more-menu .stic-nav-link:hover { background: var(--primary-50); color: var(--primary-color); transform: none; }
-.stic-nav-more-menu .stic-nav-item.current-menu-item .stic-nav-link {
-    background: var(--primary-50);
-    color: var(--primary-color);
-    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary-color) 30%, transparent);
+.stic-nav-more-menu .stic-nav-ico { color: var(--primary-color) !important; opacity: 1 !important; }
+.stic-nav-more-menu .stic-nav-link:hover { background: var(--primary-50) !important; color: var(--primary-color) !important; transform: none !important; }
+.stic-nav-more-menu .stic-nav-item.current-menu-item .stic-nav-link,
+.stic-nav-more-menu .stic-nav-item.current-menu-item .stic-nav-link:visited,
+.stic-nav-more-menu .stic-nav-item.current-menu-item .stic-nav-link:focus,
+.stic-nav-more-menu .stic-nav-item.current-menu-item .stic-nav-link:active {
+    background: var(--primary-50) !important;
+    color: var(--primary-color) !important;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary-color) 30%, transparent) !important;
 }
 
 /* ---- Escritorio: la hamburguesa desaparece y los items se ven siempre ---- */
 @media (min-width: 768px) {
-    .stic-nav-list { padding: 0.45rem; }
-    .stic-nav-logout-item { margin-left: auto; }
+    /* Menú estirado de inicio a fin: "Más" acaba al final, alineado con "Salir". */
+    .stic-nav-list {
+        justify-content: space-between;
+        padding: 0.35rem 1.1rem 0.7rem !important;
+        gap: 0.4rem;
+    }
 }
 
 /* ---- Móvil: colapsar en hamburguesa ---- */
@@ -839,6 +879,12 @@ span.stic-field {
         border-top: 1px solid rgba(255, 255, 255, 0.18);
         -webkit-overflow-scrolling: touch;
     }
+    .stic-nav.is-open .stic-nav-toggle-current {
+        display: none !important;
+    }
+    .stic-nav.is-open .stic-nav-toggle {
+        padding: 0.55rem !important;
+    }
     .stic-nav-link { padding: 0.9rem 1rem; font-size: 1.02rem; } /* targets cómodos en móvil */
     .stic-nav-link:hover { transform: none; }
     .stic-nav-item.current-menu-item .stic-nav-link { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3); }
@@ -863,6 +909,8 @@ span.stic-field {
     margin-bottom: 1.75rem;
     border-radius: var(--radius-2xl);
     background: var(--grad-brand);
+    background-size: 220% 220%;
+    animation: stic-gradient-shift 14s ease infinite;
     color: #fff;
     box-shadow: var(--shadow-lg);
 }
@@ -890,6 +938,7 @@ span.stic-field {
     font-weight: 800;
     letter-spacing: -0.02em;
     line-height: 1.1;
+    color: #fff;
 }
 .stic-welcome-title .stic-welcome-name { color: #fff; }
 .stic-welcome-lead {
@@ -1025,30 +1074,37 @@ span.stic-field {
 /* ============================================================
    10. INPUTS GLOBALES — foco con glow de marca
    ============================================================ */
-input[type="text"], input[type="email"], input[type="password"],
-input[type="number"], input[type="date"], input[type="tel"],
-input[type="url"], input[type="search"],
-input[type="datetime-local"],
-textarea, select, .input-text {
+/* IMPORTANTE: todo va ACOTADO al área privada (.stic-container / .stic-auth-shell)
+   para no filtrar estilos al tema de WordPress (menú base, etc.). */
+:is(.stic-container, .stic-auth-shell) :is(
+    input[type="text"], input[type="email"], input[type="password"],
+    input[type="number"], input[type="date"], input[type="tel"],
+    input[type="url"], input[type="search"], input[type="datetime-local"],
+    textarea, select, .input-text) {
     border-width: 1.5px !important;
     border-color: var(--gray-200);
     border-radius: var(--radius-md) !important;
     transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
 }
 
-input:focus, textarea:focus, select:focus, .input-text:focus {
+:is(.stic-container, .stic-auth-shell) :is(input, textarea, select, .input-text):focus {
     border-color: var(--primary-color) !important;
     box-shadow: var(--shadow-glow) !important;
 }
 
 /* ============================================================
-   11. BOTONES GLOBALES — gradiente con barrido de brillo
+   11. BOTONES DEL ÁREA PRIVADA — gradiente con barrido de brillo
+   ------------------------------------------------------------
+   Solo botones de acción del plugin (.stic-button / submit), NUNCA el
+   <button> genérico (rompería el menú del tema y FullCalendar).
    ============================================================ */
-button, input[type="submit"], input[type="button"],
-.btn, .stic-button {
+:is(.stic-container, .stic-auth-shell) :is(input[type="submit"], .stic-button),
+.stic-btn-primary, .stic-btn-magic {
     position: relative;
     background: var(--grad-brand) !important;
     background-size: 160% 160% !important;
+    color: #fff !important;
+    border: 0 !important;
     border-radius: var(--radius-md) !important;
     font-weight: 700;
     letter-spacing: 0.01em;
@@ -1056,8 +1112,8 @@ button, input[type="submit"], input[type="button"],
     transition: transform 0.18s var(--ease-spring), box-shadow 0.25s ease, background-position 0.45s ease;
 }
 
-button::after, input[type="submit"]::after,
-.btn::after, .stic-button::after {
+:is(.stic-container, .stic-auth-shell) :is(input[type="submit"], .stic-button)::after,
+.stic-btn-primary::after, .stic-btn-magic::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -1067,36 +1123,37 @@ button::after, input[type="submit"]::after,
     pointer-events: none;
 }
 
-button:hover, input[type="submit"]:hover, input[type="button"]:hover,
-.btn:hover, .stic-button:hover {
+:is(.stic-container, .stic-auth-shell) :is(input[type="submit"], .stic-button):hover,
+.stic-btn-primary:hover, .stic-btn-magic:hover {
     background-position: 100% 50% !important;
     transform: translateY(-2px);
     box-shadow: var(--shadow-lg) !important;
 }
 
-button:hover::after, input[type="submit"]:hover::after,
-.btn:hover::after, .stic-button:hover::after { transform: translateX(120%); }
+:is(.stic-container, .stic-auth-shell) :is(input[type="submit"], .stic-button):hover::after,
+.stic-btn-primary:hover::after, .stic-btn-magic:hover::after { transform: translateX(120%); }
 
-button:active, input[type="submit"]:active,
-.btn:active, .stic-button:active { transform: translateY(0) scale(0.99); }
+:is(.stic-container, .stic-auth-shell) :is(input[type="submit"], .stic-button):active,
+.stic-btn-primary:active, .stic-btn-magic:active { transform: translateY(0) scale(0.99); }
 
 /* el toggle de contraseña y enlaces no deben heredar el gradiente */
 .stic-pass-toggle, .stic-magic-cta, a.stic-button-ghost { background: transparent !important; }
 .stic-pass-toggle::after, .stic-magic-cta::after { display: none; }
 
 /* ============================================================
-   12. TABLAS Y DATATABLES
+   12. TABLAS Y DATATABLES (acotadas al área privada)
    ============================================================ */
-table, table.display {
+.stic-container table,
+.stic-container table.display {
     border-radius: var(--radius-lg) !important;
     box-shadow: var(--shadow-sm) !important;
     overflow: hidden;
 }
-thead { background: var(--grad-brand) !important; }
-thead th { color: #fff !important; }
+.stic-container thead { background: var(--grad-brand) !important; }
+.stic-container thead th { color: #fff !important; }
 
-tbody tr { transition: background-color 0.18s ease; }
-tbody tr:hover { background-color: var(--primary-50) !important; }
+.stic-container tbody tr { transition: background-color 0.18s ease; }
+.stic-container tbody tr:hover { background-color: var(--primary-50) !important; }
 
 .dataTables_wrapper .dataTables_filter input:focus {
     border-color: var(--primary-color) !important;
@@ -1111,7 +1168,7 @@ tbody tr:hover { background-color: var(--primary-50) !important; }
 /* ============================================================
    13. MENSAJES (éxito / error)
    ============================================================ */
-.success, .error, .warning, .info, .stic-msg {
+:is(.stic-container, .stic-auth-shell) :is(.success, .error, .warning, .info, .stic-msg) {
     border-radius: var(--radius-md) !important;
     box-shadow: var(--shadow-xs);
     font-weight: 500;
@@ -1135,11 +1192,13 @@ tbody tr:hover { background-color: var(--primary-50) !important; }
 /* ============================================================
    14. TARJETAS GENÉRICAS + foto de perfil
    ============================================================ */
-.card, .stic-card {
+.stic-container :is(.card, .stic-card),
+.stic-auth-shell :is(.card, .stic-card) {
     border-radius: var(--radius-lg);
     transition: transform 0.25s var(--ease-spring), box-shadow 0.25s ease;
 }
-.card:hover, .stic-card:hover {
+.stic-container :is(.card, .stic-card):hover,
+.stic-auth-shell :is(.card, .stic-card):hover {
     transform: translateY(-4px);
     box-shadow: var(--shadow-lg);
 }
@@ -1171,60 +1230,8 @@ tbody tr:hover { background-color: var(--primary-50) !important; }
 }
 
 /* ============================================================
-   17. MODO OSCURO — se activa solo según el sistema
+   17. MODO OSCURO (Desactivado a petición)
    ============================================================ */
-@media (prefers-color-scheme: dark) {
-    :root {
-        --surface: #161a24;
-        --surface-2: #1b212e;
-        --surface-glass: rgba(22, 26, 36, 0.72);
-        --glass-border: rgba(255, 255, 255, 0.08);
-        --primary-50: #14202c;
-        --secondary-50: #251522;
-        --gray-50:  #131722;
-        --gray-100: #1b212e;
-        --gray-200: #2a3242;
-        --gray-300: #3b465a;
-        --gray-400: #8a93a6;
-        --gray-500: #aab2c2;
-        --gray-700: #d4dae4;
-        --gray-800: #e8edf4;
-        --gray-900: #f8fafc;
-    }
-
-    .stic-auth-shell::before {
-        background:
-            radial-gradient(40% 50% at 18% 22%, rgba(28, 111, 179, 0.32), transparent 60%),
-            radial-gradient(45% 55% at 85% 18%, rgba(157, 30, 116, 0.30), transparent 60%),
-            radial-gradient(50% 60% at 70% 90%, rgba(108, 75, 158, 0.28), transparent 62%),
-            linear-gradient(135deg, #0d1119 0%, #141019 50%, #190f16 100%);
-        background-size: 200% 200%;
-    }
-
-    .stic-tab-content,
-    .stic-form,
-    .stic-dash-card,
-    table, table.display {
-        background: var(--surface) !important;
-        color: var(--gray-800);
-    }
-    .stic-dash-title { color: var(--gray-800); }
-
-    input, textarea, select, .input-text,
-    .stic-field input {
-        background-color: #11151d !important;
-        color: var(--gray-800) !important;
-        border-color: var(--gray-300) !important;
-    }
-
-    tbody tr:hover { background-color: #1f2735 !important; }
-
-    .stic-login-form,
-    .stic-forgotpas-form { background: var(--surface-glass); color: var(--gray-800); }
-
-    .stic-loading-overlay { background: rgba(13, 17, 25, 0.86); }
-    .stic-loading-overlay .stic-loading-text { color: var(--gray-800); }
-}
 
 /* ============================================================
    18. ACCESIBILIDAD — respeta "reducir movimiento"
@@ -1240,3 +1247,1142 @@ tbody tr:hover { background-color: var(--primary-50) !important; }
         transition-duration: 0.01ms !important;
     }
 }
+
+/* ============================================================
+   19. CORRECCIONES — tarjetas del dashboard (legibilidad + tema)
+   ------------------------------------------------------------
+   El tema de WordPress mete subrayados y colores de enlace en los
+   <a>. Y en modo oscuro el degradado claro del hover dejaba el
+   texto ilegible. Aquí lo normalizamos (carga la última, gana).
+   ============================================================ */
+.stic-dash-card,
+.stic-dash-card:hover,
+.stic-dash-card:focus,
+.stic-dash-card:visited,
+.stic-dash-card .stic-dash-title,
+.stic-dash-card .stic-dash-desc,
+.stic-dash-card .stic-dash-go {
+    text-decoration: none !important;
+    box-shadow: none;
+}
+.stic-dash-card { box-shadow: var(--shadow-sm); }
+.stic-dash-card:hover { box-shadow: var(--shadow-lg); }
+
+.stic-dash-card .stic-dash-title { color: var(--gray-800); }
+.stic-dash-card .stic-dash-desc  { color: var(--gray-500); }
+.stic-dash-card:hover .stic-dash-title { color: var(--gray-900); }
+
+/* Más aire entre tarjeta e icono, y dentro de la tarjeta. */
+.stic-dash-card { padding: 1.6rem 1.5rem; gap: 0.7rem; }
+.stic-dash-desc { margin-top: 0.1rem; }
+
+@media (prefers-color-scheme: dark) {
+    /* El degradado de hover por defecto es claro -> sobre tarjeta oscura el texto
+       claro desaparecía. Lo sustituimos por un tinte de marca oscuro. */
+    .stic-dash-card::before {
+        background: linear-gradient(135deg, rgba(28, 111, 179, 0.22), rgba(157, 30, 116, 0.22));
+    }
+    .stic-dash-card:hover .stic-dash-title { color: #ffffff; }
+    .stic-dash-card:hover .stic-dash-desc  { color: var(--gray-700); }
+    .stic-dash-card:hover .stic-dash-go    { color: var(--primary-light); }
+}
+
+/* Indicador de rol detectado (Comunica) en la pantalla de bienvenida. */
+.stic-role-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-top: 0.9rem;
+    padding: 0.35rem 0.85rem;
+    border-radius: var(--radius-full);
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #fff;
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    backdrop-filter: blur(6px);
+}
+.stic-role-chip code { background: transparent; color: #fff; font-weight: 700; }
+
+/* ---- Inputs / selects: evitar que el texto se recorte ---- */
+.stic-form input[type="text"],
+.stic-form input[type="email"],
+.stic-form input[type="tel"],
+.stic-form input[type="number"],
+.stic-form input[type="date"],
+.stic-form input[type="password"],
+.stic-form .input-text,
+.stic-form select,
+.stic-form textarea {
+    min-height: 52px;
+    line-height: 1.5 !important;
+    padding: 0.8rem 1rem !important;
+}
+.stic-form textarea { min-height: 110px; }
+/* El <select> con appearance:none necesita sitio para la flecha y altura holgada. */
+.stic-form select {
+    height: auto !important;
+    padding-right: 2.6rem !important;
+    background-position: right 1rem center;
+}
+/* Las opciones del desplegable, legibles también en modo oscuro. */
+.stic-form select option { color: #1f2937; background: #fff; }
+
+/* ---- Título de cada formulario (renderFormTitle -> <h3>) ---- */
+.stic-tab-content > h3,
+.stic-form > h3 {
+    color: var(--gray-900);
+    margin: 0 0 0.4rem;
+}
+
+@media (prefers-color-scheme: dark) {
+    .stic-tab-content > h3,
+    .stic-form > h3 { color: var(--gray-900); }
+}
+
+/* ============================================================
+   20. REDISEÑO — claro siempre + aplanar cajas + 2 columnas
+   ============================================================ */
+
+/* ---- 20.a Aplanar: fuera contenedores/cajas anidados ---- */
+.stic-tab-content {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: clamp(0.5rem, 2vw, 1rem) 0 !important;
+}
+.stic-form:not(.stic-login-form):not(.stic-forgotpas-form) {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
+
+/* Título de la página: grande, con aire y barra de acento de marca a la izquierda. */
+.stic-tab-content > h3,
+.stic-entry-header h3 {
+    position: relative;
+    padding: 0.15rem 0 0.15rem 0.95rem;
+    margin: 0.2rem 0 1.3rem;
+    font-size: clamp(1.4rem, 3vw, 1.85rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--gray-900);
+}
+.stic-tab-content > h3::before,
+.stic-entry-header h3::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 5px;
+    height: 1.4em;
+    border-radius: 4px;
+    background: var(--grad-brand);
+}
+
+/* ---- 20.b Cabecera de sección: sin barra, solo título + acento ---- */
+.stic-form h5 {
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding: 0 0 0.55rem !important;
+    margin: 1.9rem 0 1.1rem !important;
+    font-size: 1.18rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.01em;
+    color: var(--gray-900) !important;
+    position: relative;
+}
+.stic-form h5::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 44px;
+    height: 3px;
+    border-radius: 3px;
+    background: var(--grad-brand);
+}
+
+/* ---- 20.c Dos columnas en escritorio (campos cortos emparejados) ---- */
+/* RESPONSIVE: 1 columna en móvil, 2 columnas en escritorio.
+   El base usaba flex-wrap que envolvía mal; aquí controlamos el layout. */
+.stic-form > form > ul {
+    display: flex !important;
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    gap: 0.2rem;
+}
+.stic-form > form > ul > li {
+    width: 100% !important;
+    max-width: 100% !important;
+    flex: 0 0 auto !important;
+}
+@media (min-width: 768px) {
+    .stic-form > form > ul {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        column-gap: 1.5rem;
+        row-gap: 0.1rem;
+    }
+    .stic-form > form > ul > li {
+        width: auto !important;
+        max-width: none !important;
+    }
+    /* A ancho completo solo los campos grandes (no parten bien en mitad). */
+    .stic-form > form > ul > li:has(textarea),
+    .stic-form > form > ul > li:has(.stic-profile-picture) {
+        grid-column: 1 / -1 !important;
+    }
+}
+
+/* ---- 20.d FORZAR TEMA CLARO (ignora el modo oscuro del SO) ----
+   El resto del WordPress es claro; el área privada debe acompañar.
+   Este bloque va el último, así que gana sobre el dark de la sección 17. */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --surface: #ffffff;
+        --surface-2: #f7f9fc;
+        --surface-glass: rgba(255, 255, 255, 0.74);
+        --glass-border: rgba(255, 255, 255, 0.6);
+        --primary-50: #eaf4fb;
+        --secondary-50: #fbeaf5;
+        --gray-50: #f9fafb;
+        --gray-100: #f3f4f6;
+        --gray-200: #e5e7eb;
+        --gray-300: #d1d5db;
+        --gray-400: #9ca3af;
+        --gray-500: #6b7280;
+        --gray-700: #374151;
+        --gray-800: #1f2937;
+        --gray-900: #111827;
+    }
+    .stic-tab-content,
+    .stic-form,
+    .stic-dash-card,
+    table, table.display {
+        color: #1f2937;
+    }
+    .stic-dash-card { background: #ffffff !important; }
+    input, textarea, select, .input-text,
+    .stic-field input {
+        background-color: #ffffff !important;
+        color: #1f2937 !important;
+        border-color: #e5e7eb !important;
+    }
+    .stic-form select option { color: #1f2937; background: #ffffff; }
+    .stic-dash-card::before { background: var(--grad-brand-soft); }
+    .stic-dash-card:hover .stic-dash-title { color: var(--gray-900); }
+    .stic-dash-card:hover .stic-dash-desc { color: var(--gray-500); }
+    tbody tr:hover { background-color: #f3f4f6 !important; }
+}
+
+/* ============================================================
+   21. ANIMACIONES SUTILES — entrada escalonada de campos
+   ------------------------------------------------------------
+   Los campos del formulario aparecen en cascada al cargar la
+   sección. Respeta prefers-reduced-motion (sección 18 lo anula).
+   ============================================================ */
+@media (prefers-reduced-motion: no-preference) {
+    .stic-form > form > ul > li,
+    .stic-form > form > h5 {
+        animation: stic-fade-up 0.42s var(--ease-out) both;
+    }
+    .stic-form > form > ul > li:nth-child(1) { animation-delay: 0.02s; }
+    .stic-form > form > ul > li:nth-child(2) { animation-delay: 0.05s; }
+    .stic-form > form > ul > li:nth-child(3) { animation-delay: 0.08s; }
+    .stic-form > form > ul > li:nth-child(4) { animation-delay: 0.11s; }
+    .stic-form > form > ul > li:nth-child(5) { animation-delay: 0.14s; }
+    .stic-form > form > ul > li:nth-child(6) { animation-delay: 0.17s; }
+    .stic-form > form > ul > li:nth-child(n+7) { animation-delay: 0.2s; }
+}
+
+/* Acento de foco coherente en todos los campos del formulario. */
+.stic-form .input-text:focus,
+.stic-form select:focus,
+.stic-form textarea:focus {
+    outline: none;
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 3px rgba(28, 111, 179, 0.16) !important;
+}
+
+/* Botón Guardar: feedback de pulsación sutil (no desplaza layout). */
+.stic-form .stic-button { transition: transform 0.12s var(--ease-spring), box-shadow 0.2s ease, filter 0.2s ease; }
+.stic-form .stic-button:active { transform: scale(0.98); }
+
+/* ============================================================
+   22. AGRUPACIÓN EN TARJETAS — datos por sección + listados
+   ============================================================ */
+
+/* --- 22.a Cada sección del formulario = tarjeta cómoda --- */
+.stic-form > form > ul:has(li):not(.stic-ctabs-list) {
+    background: var(--surface);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xs);
+    padding: clamp(1.1rem, 2.5vw, 1.6rem);
+    margin: 0 0 1.5rem;
+}
+/* La ul que solo lleva el id oculto y la de botones no son tarjetas. */
+.stic-form > form > ul:not(:has(li)),
+.stic-form > form > ul.stic-ctabs-list {
+    background: none; border: 0; box-shadow: none; padding: 0; margin: 0;
+}
+/* Los campos OCULTOS se renderizan como <span> sueltos dentro de la ul y
+   ocupaban una celda vacía en la cuadrícula de 2 columnas. Fuera. */
+.stic-form > form > ul > span { display: none !important; }
+/* Cabecera pegada a su tarjeta. */
+.stic-form h5 { margin: 1.6rem 0 0.85rem !important; }
+.stic-form > form > h5:first-of-type { margin-top: 0.4rem !important; }
+
+@media (min-width: 768px) {
+    .stic-form > form > ul.stic-ctabs-list,
+    .stic-form > form > ul:not(:has(li)) { display: block; }
+}
+
+/* --- 22.b Listados como TARJETAS (sin aspecto de tabla) --- */
+.stic-table-responsive table.display,
+.stic-table-responsive table.display thead,
+.stic-table-responsive table.display tbody,
+.stic-table-responsive table.display tr,
+.stic-table-responsive table.display td {
+    display: block !important;
+    width: auto !important;
+}
+/* Sin scroll horizontal: las tarjetas no son tabla, sobra el overflow-x:auto
+   del base (dejaba una barra/línea gris fantasma debajo del listado). */
+.stic-table-responsive { overflow: visible !important; }
+.stic-table-responsive table.display { border: 0 !important; box-shadow: none !important; }
+/* Ocultamos la fila de cabeceras (cada celda lleva su etiqueta vía data-label). */
+.stic-table-responsive table.display thead { position: absolute !important; left: -9999px; top: -9999px; }
+.stic-table-responsive table.display tbody tr {
+    background: var(--surface) !important;
+    border: 1px solid var(--gray-200) !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: var(--shadow-xs);
+    margin: 0 0 0.9rem;
+    padding: 0 !important;
+    overflow: hidden;            /* la banda de cabecera respeta las esquinas */
+    transition: box-shadow 0.2s ease, transform 0.15s var(--ease-spring);
+}
+
+/* Primera columna (nombre) = CABECERA de la tarjeta, no fila etiqueta/valor */
+.stic-table-responsive td.stic-cell-title {
+    display: block !important;
+    text-align: left;
+    font-size: 1.12rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--gray-900);
+    padding: 0.9rem 1.05rem 0.8rem !important;
+    border-bottom: 1px solid var(--gray-200) !important;
+    background: linear-gradient(135deg, rgba(28, 111, 179, 0.08), rgba(157, 30, 116, 0.08));
+}
+.stic-table-responsive td.stic-cell-title::before { display: none !important; }
+.stic-table-responsive table.display tbody tr:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+    background: var(--surface) !important;
+}
+.stic-table-responsive table.display td {
+    display: flex !important;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 0.6rem 0.9rem !important;
+    border: 0 !important;
+    text-align: right;
+    font-size: 0.95rem;
+    color: var(--gray-800);
+}
+.stic-table-responsive table.display td:not(:last-child) {
+    border-bottom: 1px solid var(--gray-100) !important;
+}
+.stic-table-responsive table.display td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    font-size: 0.72rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--gray-500);
+    text-align: left;
+    flex-shrink: 0;
+}
+/* Celda de acciones: enlaces como botones de marca. */
+.stic-table-responsive table.display td.stic-cell-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end !important;
+    gap: 0.5rem !important;
+}
+.stic-table-responsive table.display td.stic-cell-actions::before {
+    display: none !important;
+}
+.stic-table-responsive td.stic-cell-actions a {
+    color: var(--primary-color);
+    font-weight: 600;
+    text-decoration: none;
+    padding: 0.35rem 0.7rem;
+    border-radius: var(--radius-sm);
+    background: var(--primary-50);
+    transition: background 0.18s ease, color 0.18s ease;
+}
+.stic-table-responsive td.stic-cell-actions a:hover { background: var(--primary-color); color: #fff; }
+
+/* En escritorio: 2 tarjetas de listado por fila. */
+@media (min-width: 768px) {
+    .stic-table-responsive table.display tbody {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+    .stic-table-responsive table.display tbody tr { margin: 0; }
+}
+
+/* --- 22.c Chip "Perfil detectado" arriba a la derecha del hero --- */
+@media (min-width: 768px) {
+    .stic-welcome-hero { padding-right: 14rem; }
+    .stic-welcome-hero .stic-role-chip {
+        position: absolute;
+        top: clamp(1.5rem, 4vw, 2.75rem);
+        right: clamp(1.5rem, 4vw, 2.75rem);
+        margin-top: 0;
+        z-index: 2;
+    }
+}
+
+/* ============================================================
+   23. BOTONES DE ACCIÓN, ESTADO VACÍO Y CALENDARIO
+   ============================================================ */
+
+/* --- 23.a Botonera de formulario (Atrás / Guardar) en fila --- */
+.stic-ctabs-list { list-style: none; margin: 0.6rem 0 0; padding: 0; }
+.stic-form li.stic-send {
+    width: 100% !important;
+}
+.stic-send {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+    align-items: center;
+}
+.stic-send .stic-button { flex: 1 1 160px; max-width: 260px; }
+/* "Atrás" / botones secundarios: aspecto sutil, no gradiente. */
+.stic-send input.stic-button[type="button"],
+.stic-back-button {
+    background: var(--surface) !important;
+    color: var(--primary-color) !important;
+    border: 1.5px solid var(--gray-200) !important;
+    box-shadow: none !important;
+}
+.stic-send input.stic-button[type="button"]:hover,
+.stic-back-button:hover {
+    background: var(--primary-50) !important;
+    border-color: var(--primary-color) !important;
+}
+
+/* --- 23.b Botón suelto (crear / certificado) sobre su propia línea --- */
+.stic-tab-content a:has(> .stic-button) {
+    display: inline-block;
+    margin-top: 1.1rem;
+}
+/* Mensaje de "no hay registros": estado vacío con aire. */
+.stic-table-responsive + a:has(> .stic-button),
+.stic-entry-header ~ a:has(> .stic-button) { margin-top: 1.25rem; }
+
+/* --- 23.c FullCalendar: botones limpios (sin heredar el gradiente global) --- */
+.fc .fc-button,
+.fc .fc-button-primary {
+    background: var(--surface) !important;
+    color: var(--gray-700) !important;
+    border: 1.5px solid var(--gray-200) !important;
+    border-radius: var(--radius-md) !important;
+    box-shadow: none !important;
+    font-weight: 600 !important;
+    text-transform: none !important;
+    letter-spacing: 0 !important;
+    padding: 0.45rem 0.85rem !important;
+    transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease !important;
+}
+.fc .fc-button::after { display: none !important; }
+.fc .fc-button:hover {
+    background: var(--primary-50) !important;
+    color: var(--primary-color) !important;
+    border-color: var(--primary-color) !important;
+    transform: none !important;
+}
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+    background: var(--primary-color) !important;
+    color: #fff !important;
+    border-color: var(--primary-color) !important;
+}
+.fc .fc-button-primary:disabled { opacity: 0.45 !important; }
+.fc .fc-button .fc-icon { color: inherit; }
+
+/* ============================================================
+   24. PULIDO — chip destacado, dropzones, botón suave
+   ============================================================ */
+
+/* Tarjeta de evento (cabecera de la pantalla de inscripción = "Ver" integrado) */
+.stic-event-card {
+    grid-column: 1 / -1 !important;
+    list-style: none;
+    background: var(--grad-brand);
+    color: #fff;
+    border-radius: var(--radius-lg);
+    padding: 1.25rem 1.4rem !important;
+    margin-bottom: 0.6rem;
+    box-shadow: var(--shadow-md);
+}
+.stic-event-card-kicker {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    opacity: 0.85;
+}
+.stic-event-card-title {
+    font-size: clamp(1.2rem, 3vw, 1.45rem);
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    margin: 0.25rem 0 0.6rem;
+    line-height: 1.2;
+}
+.stic-event-card-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.9rem;
+    background: rgba(255, 255, 255, 0.18);
+    padding: 0.32rem 0.75rem;
+    border-radius: var(--radius-full);
+}
+.stic-event-card-desc { margin: 0.75rem 0 0; font-size: 0.92rem; line-height: 1.5; opacity: 0.95; }
+
+/* Botón suave (descargar, acciones secundarias) */
+.stic-soft-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.05rem;
+    border-radius: var(--radius-md);
+    background: var(--primary-50);
+    color: var(--primary-color) !important;
+    font-weight: 600;
+    text-decoration: none !important;
+    border: 1.5px solid color-mix(in srgb, var(--primary-color) 22%, transparent);
+    transition: background 0.18s ease, color 0.18s ease, transform 0.12s var(--ease-spring);
+}
+.stic-soft-btn:hover { background: var(--primary-color); color: #fff !important; transform: translateY(-1px); }
+.stic-soft-btn svg { width: 18px; height: 18px; }
+
+/* Chip "Perfil detectado" — pastilla blanca, marca dentro (más destacado) */
+.stic-welcome-hero .stic-role-chip {
+    background: rgba(255, 255, 255, 0.96);
+    border: 0;
+    color: var(--primary-color);
+    box-shadow: 0 8px 22px rgba(21, 36, 71, 0.16);
+    padding: 0.5rem 1rem;
+    gap: 0.5rem;
+}
+.stic-welcome-hero .stic-role-chip strong { color: var(--secondary-color); }
+.stic-welcome-hero .stic-role-chip svg { color: var(--secondary-color); }
+
+/* Subida de archivos como "dropzone" (foto, certificados, documentos) */
+.stic-form input[type="file"] {
+    width: 100%;
+    padding: 0.75rem 0.85rem;
+    border: 1.5px dashed var(--gray-300);
+    border-radius: var(--radius-md);
+    background: var(--surface-2);
+    color: var(--gray-600);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: border-color 0.18s ease, background 0.18s ease;
+}
+.stic-form input[type="file"]:hover { border-color: var(--primary-color); background: var(--primary-50); }
+.stic-form input[type="file"]::file-selector-button {
+    margin-right: 0.85rem;
+    padding: 0.5rem 0.95rem;
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--grad-brand);
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* Cada certificado / bloque de archivo = subtarjeta dentro de su sección */
+.stic-form > form > ul > li:has(input[type="file"]),
+.stic-form > form > ul > li:has(.stic-profile-picture) {
+    background: var(--surface-2);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    padding: 1rem 1.1rem;
+}
+
+/* --- 23.d FullCalendar: rejilla legible y de marca --- */
+.fc {
+    background: var(--surface);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-xl);
+    padding: clamp(0.85rem, 2.5vw, 1.4rem);
+    box-shadow: var(--shadow-xs);
+}
+.fc .fc-toolbar-title {
+    font-size: clamp(1.05rem, 3vw, 1.3rem) !important;
+    font-weight: 800;
+    color: var(--gray-900);
+    text-transform: capitalize;
+}
+/* La cabecera de los días deja de heredar el gradiente de las tablas. */
+.fc thead,
+.fc .fc-col-header,
+.fc .fc-scrollgrid-section-header > * { background: transparent !important; }
+.fc .fc-col-header-cell {
+    background: var(--surface-2) !important;
+    padding: 0.5rem 0 !important;
+}
+.fc .fc-col-header-cell-cushion {
+    color: var(--gray-500) !important;
+    text-decoration: none !important;
+    font-weight: 700;
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.fc .fc-daygrid-day-number {
+    color: var(--gray-700) !important;
+    text-decoration: none !important;
+    padding: 0.35rem 0.5rem;
+    font-weight: 600;
+}
+.fc-theme-standard td,
+.fc-theme-standard th,
+.fc-theme-standard .fc-scrollgrid { border-color: var(--gray-200) !important; }
+.fc .fc-daygrid-day.fc-day-today { background: var(--primary-50) !important; }
+.fc .fc-daygrid-day:hover { background: var(--surface-2); }
+.fc a { text-decoration: none !important; }
+.fc .fc-toolbar.fc-header-toolbar { margin-bottom: 1rem !important; flex-wrap: wrap; gap: 0.5rem; }
+
+/* ============================================================
+   24. OPTIMIZACIÓN PANTALLA LOGIN PARA ORDENADOR (PC)
+   ============================================================ */
+@media (min-width: 561px) {
+    /* Convertir el contenedor exterior en la tarjeta lila principal en PC */
+    .stic-auth-shell {
+        max-width: 580px !important;
+        margin: 2.5rem auto !important;
+        min-height: auto !important;
+        border-radius: var(--radius-2xl) !important;
+        box-shadow: var(--shadow-xl) !important;
+        border: 1px solid var(--glass-border) !important;
+        overflow: hidden !important;
+        padding: clamp(2.5rem, 5vw, 3.5rem) clamp(1.5rem, 5vw, 2.5rem) !important;
+    }
+    
+    /* Asegurar que el fondo lila animado y la rejilla se muestren en el contenedor principal */
+    .stic-auth-shell::before,
+    .stic-auth-shell::after {
+        display: block !important;
+    }
+    
+    /* Eliminar el fondo, borde y sombra de la tarjeta interior para evitar el doble recuadro */
+    .stic-login-form,
+    .stic-forgotpas-form {
+        background: transparent !important;
+        box-shadow: none !important;
+        border: none !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        padding: 0 !important;
+        padding-top: 1rem !important; /* Espacio de seguridad para el icono flotante */
+        max-width: 100% !important;
+        overflow: visible !important; /* Evita que el icono se corte al subir */
+    }
+
+    /* Quitar el halo de color morado de la tarjeta pequeña (evita el rectángulo cortado en PC) */
+    .stic-login-form::before,
+    .stic-forgotpas-form::before {
+        display: none !important;
+    }
+}
+
+/* ============================================================
+   25. CUSTOM PREMIUM CHECKBOXES & SELECTIZE STYLING
+   ============================================================ */
+
+/* Checkbox container row */
+.stic-form li:has(input[type="checkbox"]) {
+    display: block !important;
+    padding: 0.5rem 0 !important;
+}
+
+.stic-form li span:has(input[type="checkbox"]) {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+    width: auto !important;
+    cursor: pointer;
+}
+
+/* Reorder so checkbox is on the left and label is on the right */
+.stic-form li span:has(input[type="checkbox"]) label {
+    order: 2 !important;
+    margin: 0 !important;
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    color: var(--gray-700) !important;
+    cursor: pointer !important;
+}
+
+.stic-form li span:has(input[type="checkbox"]) input[type="checkbox"] {
+    order: 1 !important;
+}
+
+/* Custom Checkbox (Switch toggle) Design */
+.stic-form input[type="checkbox"] {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    background-color: var(--surface-2) !important;
+    border: 2px solid #ccd6e0 !important;
+    width: 44px !important;
+    height: 24px !important;
+    border-radius: var(--radius-full) !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    vertical-align: middle !important;
+    cursor: pointer !important;
+    position: relative !important;
+    transition: background-color 0.2s var(--ease-out), border-color 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out) !important;
+    margin: 0 !important;
+    outline: none !important;
+}
+
+.stic-form input[type="checkbox"]:hover {
+    border-color: var(--primary-color) !important;
+    background-color: #f0f6fa !important;
+}
+
+.stic-form input[type="checkbox"]:focus-visible {
+    box-shadow: var(--shadow-glow) !important;
+}
+
+.stic-form input[type="checkbox"]:checked {
+    background: var(--grad-brand) !important;
+    border-color: transparent !important;
+}
+
+.stic-form input[type="checkbox"]::after {
+    content: '' !important;
+    position: absolute !important;
+    width: 16px !important;
+    height: 16px !important;
+    border-radius: 50% !important;
+    background: white !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+    transition: transform 0.2s var(--ease-out) !important;
+    top: 2px !important;
+    left: 2px !important;
+}
+
+.stic-form input[type="checkbox"]:checked::after {
+    transform: translateX(20px) !important;
+}
+
+/* Selectize Multiselector Custom Styling */
+.selectize-control {
+    font-family: var(--font-family) !important;
+    margin-top: 0.35rem !important;
+}
+
+.selectize-input {
+    border: 1.5px solid var(--gray-200) !important;
+    border-radius: var(--radius-md) !important;
+    padding: 0.65rem 0.85rem !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    transition: border-color 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out) !important;
+    min-height: 52px !important;
+    display: flex !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 0.35rem !important;
+    box-sizing: border-box !important;
+}
+
+.selectize-input.focus {
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 3px rgba(28, 111, 179, 0.16) !important;
+}
+
+/* Individual tags / chips selected */
+.selectize-input > .item {
+    background-color: var(--primary-50) !important;
+    background-image: none !important;
+    color: var(--primary-dark) !important;
+    border: 1px solid color-mix(in srgb, var(--primary-color) 20%, transparent) !important;
+    border-radius: 6px !important;
+    padding: 0.25rem 0.65rem !important;
+    font-weight: 600 !important;
+    font-size: 0.88rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+}
+
+.selectize-input > .item .remove {
+    border-left: 1px solid color-mix(in srgb, var(--primary-color) 20%, transparent) !important;
+    margin-left: 6px !important;
+    padding-left: 6px !important;
+    color: var(--secondary-color) !important;
+    font-weight: bold !important;
+    transition: color 0.15s ease !important;
+}
+
+.selectize-input > .item .remove:hover {
+    background: transparent !important;
+    color: var(--secondary-dark) !important;
+}
+
+/* Selectize dropdown menu */
+.selectize-dropdown {
+    border: 1px solid var(--gray-200) !important;
+    border-radius: var(--radius-md) !important;
+    box-shadow: var(--shadow-md) !important;
+    margin-top: 4px !important;
+    background: #ffffff !important;
+    z-index: 1000 !important;
+    overflow: hidden !important;
+}
+
+.selectize-dropdown-content {
+    padding: 0.35rem 0 !important;
+}
+
+.selectize-dropdown .option {
+    padding: 0.6rem 0.85rem !important;
+    font-size: 0.95rem !important;
+    color: var(--gray-800) !important;
+    cursor: pointer !important;
+    transition: background-color 0.15s ease, color 0.15s ease !important;
+}
+
+.selectize-dropdown .active {
+    background-color: var(--primary-50) !important;
+    color: var(--primary-color) !important;
+}
+
+.selectize-input > input {
+    font-family: var(--font-family) !important;
+    font-size: 0.95rem !important;
+    color: var(--gray-800) !important;
+}
+
+/* ============================================================
+   26. PREMIUM FILE UPLOAD — DROPZONE MODERNO
+   ============================================================ */
+
+/* --- 26.a Subtarjeta contenedora de cada bloque de archivo --- */
+.stic-form > form > ul > li:has(input[type="file"]),
+.stic-form > form > ul > li:has(.stic-profile-picture) {
+    background: var(--surface) !important;
+    border: 1px solid var(--gray-200) !important;
+    border-radius: var(--radius-lg) !important;
+    padding: 1.35rem 1.5rem !important;
+    box-shadow: var(--shadow-sm) !important;
+    transition: all 0.25s var(--ease-out) !important;
+}
+.stic-form > form > ul > li:has(input[type="file"]):hover,
+.stic-form > form > ul > li:has(.stic-profile-picture):hover {
+    box-shadow: var(--shadow-md) !important;
+}
+
+/* --- 26.b El input[type="file"] como dropzone completo --- */
+.stic-form input[type="file"] {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 100% !important;
+    min-height: 100px !important;
+    padding: 1.4rem 1rem 1rem !important;
+    border: 2px dashed var(--gray-300) !important;
+    border-radius: var(--radius-md) !important;
+    background: var(--surface-2) !important;
+    color: var(--gray-500) !important;
+    font-size: 0.88rem !important;
+    cursor: pointer !important;
+    transition: border-color 0.25s ease, background-color 0.25s ease, box-shadow 0.25s ease !important;
+    position: relative !important;
+    text-align: center !important;
+}
+.stic-form input[type="file"]:hover {
+    border-color: var(--primary-color) !important;
+    background-color: var(--primary-50) !important;
+    box-shadow: 0 0 0 3px rgba(28, 111, 179, 0.08) !important;
+}
+.stic-form input[type="file"]:focus {
+    outline: none !important;
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 3px rgba(28, 111, 179, 0.12) !important;
+}
+
+/* --- 26.c Botón nativo "Seleccionar archivo" como pill premium --- */
+.stic-form input[type="file"]::file-selector-button {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.4rem !important;
+    margin-right: 0.75rem !important;
+    margin-bottom: 0.15rem !important;
+    padding: 0.55rem 1.15rem !important;
+    border: 0 !important;
+    border-radius: var(--radius-full) !important;
+    background: var(--grad-brand) !important;
+    color: #fff !important;
+    font-weight: 700 !important;
+    font-size: 0.82rem !important;
+    letter-spacing: 0.01em !important;
+    cursor: pointer !important;
+    transition: filter 0.18s ease, transform 0.18s ease !important;
+    box-shadow: 0 2px 8px rgba(28, 111, 179, 0.22) !important;
+}
+.stic-form input[type="file"]::file-selector-button:hover {
+    filter: brightness(1.1) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 14px rgba(28, 111, 179, 0.3) !important;
+}
+.stic-form input[type="file"]::file-selector-button:active {
+    transform: translateY(0) !important;
+}
+
+/* --- 26.d Badge "Ya subido" (certificados del monitor) --- */
+.stic-file-uploaded-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.4rem !important;
+    padding: 0.3rem 0.75rem !important;
+    background: linear-gradient(135deg, #e6fcf5 0%, #d3f9d8 100%) !important;
+    color: #087f5b !important;
+    border: 1px solid #b2f2bb !important;
+    border-radius: var(--radius-full) !important;
+    font-size: 0.78rem !important;
+    font-weight: 700 !important;
+    line-height: 1 !important;
+    margin-bottom: 0.6rem !important;
+    margin-top: 0.25rem !important;
+    animation: stic-badge-in 0.4s var(--ease-spring) both !important;
+}
+@keyframes stic-badge-in {
+    from { opacity: 0; transform: scale(0.85) translateY(4px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.stic-file-uploaded-badge svg {
+    flex-shrink: 0 !important;
+    stroke: #087f5b !important;
+}
+
+/* Tarjeta con badge = archivo subido: borde verde suave */
+.stic-form > form > ul > li:has(.stic-file-uploaded-badge) {
+    background-color: #f4fbf7 !important;
+    border-color: #40c057 !important;
+}
+.stic-form > form > ul > li:has(.stic-file-uploaded-badge):hover {
+    border-color: #2f9e44 !important;
+}
+
+/* --- 26.e Botón de descarga de archivo (vista editar documento) --- */
+.stic-soft-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.45rem !important;
+    padding: 0.5rem 1rem !important;
+    border-radius: var(--radius-full) !important;
+    border: 1.5px solid var(--primary-color) !important;
+    background: var(--primary-50) !important;
+    color: var(--primary-color) !important;
+    font-weight: 700 !important;
+    font-size: 0.85rem !important;
+    text-decoration: none !important;
+    transition: all 0.2s ease !important;
+    cursor: pointer !important;
+}
+.stic-soft-btn:hover {
+    background: var(--primary-color) !important;
+    color: #fff !important;
+    box-shadow: 0 4px 14px rgba(28, 111, 179, 0.25) !important;
+    transform: translateY(-1px) !important;
+}
+.stic-soft-btn:hover svg { stroke: #fff !important; }
+.stic-soft-btn:active { transform: translateY(0) !important; }
+
+/* --- 26.f Mensaje de "Subiendo archivo..." (inyectado por JS) --- */
+.stic-send div,
+.stic-send + div {
+    font-size: 0.85rem;
+    color: var(--primary-color);
+    font-weight: 600;
+    padding: 0.5rem 0.2rem;
+    animation: stic-upload-pulse 1.5s ease-in-out infinite;
+}
+@keyframes stic-upload-pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.5; }
+}
+
+/* --- 26.g Hint de formato/tamaño debajo de la etiqueta --- */
+.stic-form > form > ul > li:has(input[type="file"]) div[style*="font-size:10px"],
+.stic-form > form > ul > li:has(input[type="file"]) div[style*="font-size: 10px"] {
+    color: var(--gray-400) !important;
+    font-size: 0.75rem !important;
+    font-weight: 500 !important;
+    opacity: 1 !important;
+    margin-bottom: 0.65rem !important;
+}
+
+/* ============================================================
+   27. MODAL DE CONFIRMACIÓN DE BORRADO (custom, sin confirm nativo)
+   ============================================================ */
+
+/* --- 27.a Overlay con fondo helado (backdrop-blur) --- */
+.stic-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem;
+    background: rgba(17, 24, 39, 0);
+    backdrop-filter: blur(0);
+    -webkit-backdrop-filter: blur(0);
+    transition: background 0.28s ease, backdrop-filter 0.28s ease, -webkit-backdrop-filter 0.28s ease;
+}
+.stic-modal-overlay.is-active {
+    background: rgba(17, 24, 39, 0.45);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+
+/* --- 27.b Tarjeta central --- */
+.stic-modal-card {
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+    background: var(--surface, #fff);
+    border-radius: 1.1rem;
+    padding: 2.2rem 2rem 1.8rem;
+    box-shadow:
+        0 25px 60px -12px rgba(0, 0, 0, 0.25),
+        0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+    text-align: center;
+    transform: scale(0.88) translateY(20px);
+    opacity: 0;
+    transition: transform 0.32s cubic-bezier(0.34, 1.56, 0.64, 1),
+                opacity 0.22s ease;
+}
+.stic-modal-overlay.is-active .stic-modal-card {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+}
+
+/* --- 27.c Icono circular de advertencia --- */
+.stic-modal-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    margin: 0 auto 1rem;
+}
+.stic-modal-icon svg {
+    stroke: #dc2626;
+}
+
+/* --- 27.d Tipografía --- */
+.stic-modal-title {
+    margin: 0 0 0.45rem;
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--gray-900, #111827);
+    letter-spacing: -0.01em;
+}
+.stic-modal-msg {
+    margin: 0 0 1.6rem;
+    font-size: 0.92rem;
+    line-height: 1.55;
+    color: var(--gray-500, #6b7280);
+}
+
+/* --- 27.e Fila de botones --- */
+.stic-modal-actions {
+    display: flex;
+    gap: 0.7rem;
+    justify-content: center;
+}
+.stic-modal-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.65rem 1.4rem;
+    border-radius: var(--radius-full, 999px);
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: none;
+    line-height: 1;
+    font-family: inherit;
+}
+
+/* Cancelar = outline */
+.stic-modal-btn--cancel {
+    background: var(--surface, #fff);
+    color: var(--gray-600, #4b5563);
+    border: 1.5px solid var(--gray-200, #e5e7eb);
+}
+.stic-modal-btn--cancel:hover {
+    background: var(--gray-100, #f3f4f6);
+    border-color: var(--gray-300, #d1d5db);
+}
+
+/* Eliminar = rojo degradado */
+.stic-modal-btn--delete {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
+}
+.stic-modal-btn--delete:hover {
+    filter: brightness(1.08);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.45);
+}
+.stic-modal-btn--delete:active {
+    transform: translateY(0);
+}
+.stic-modal-btn--delete svg {
+    stroke: #fff;
+    flex-shrink: 0;
+}
+
+/* --- 27.f Responsivo --- */
+@media (max-width: 480px) {
+    .stic-modal-card {
+        padding: 1.8rem 1.4rem 1.5rem;
+    }
+    .stic-modal-actions {
+        flex-direction: column-reverse;
+    }
+    .stic-modal-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+

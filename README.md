@@ -384,9 +384,16 @@ Para hacerlos modernos de verdad sin reescribir el plugin, trabaja en `css/custo
    con `@media (prefers-color-scheme: dark)` reusando las variables, iconos SVG, y estados de
    foco accesibles.
 
+8. **Subida de Archivos Estilo "Dropzone" Premium:**
+   Los inputs de archivos nativos se han transformado estéticamente mediante reglas en `custom-style.css` (Sección 26) para comportarse como contenedores tipo "drag-and-drop" centrados, con bordes dashed interactivos, botones de selección de píldora estilizados con el degradado MCM, y badges animados de "Ya subido" para el módulo de monitor.
+
+9. **Diálogos de Confirmación Personalizados (Modal Custom):**
+   Para evitar el diálogo tosco nativo de `window.confirm(confirmMsg)` al borrar registros, la función global `confirmDelete(obj)` de `js/stic-utils.js` intercepta el evento asíncronamente y muestra un modal premium inyectado en el DOM con difuminado de fondo (`backdrop-filter: blur`), icono de peligro y botones estilizados. Como los modal son asíncronos en JS, `confirmDelete` devuelve `false` para frenar el envío inicial del formulario y es el botón "Eliminar" del propio modal el que ejecuta el submit tras la interacción del usuario.
+
 > Clases/ganchos útiles que ya genera el HTML y puedes estilar: `.stic-form`,
 > `.stic-form-two-col`, `.stic-login-form`, `.input-text`, `.stic-button`, `.stic-send`,
 > `.stic-msg`, `.error`, `.success`, `.input_login`, `.actions_login`, `.stic-check-group`,
+> `.stic-modal-overlay`, `.stic-modal-card`,
 > y el contenedor del menú generado en `menu.php`.
 
 ---

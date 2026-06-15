@@ -121,6 +121,7 @@ function prefix_admin_single_stic_documents()
         if ($_REQUEST['stic-action'] == 'detail') {
             $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=list_stic_documents";
             wp_redirect($redirectUrl);
+            exit;
         } else {
             $objSCP = SugarRestApiCall::getObjSCP();
 
@@ -129,8 +130,17 @@ function prefix_admin_single_stic_documents()
             }
             $action = $moduleData['stic-action'];
             unset($moduleData['stic-action']); 
+            unset($moduleData['filename']); // Prevent request artifacts like 'admin-post.php' from being saved as filename
             if ($action === 'delete') {
                 $moduleData['deleted'] = 1;
+                // Fetch the existing document name to satisfy CRM required fields validation
+                $existing = $objSCP->getRecordDetail($moduleData['id'], 'Documents');
+                if (!empty($existing->entry_list)) {
+                    $doc_name = $existing->entry_list[0]->name_value_list->document_name->value ?? '';
+                    if ($doc_name) {
+                        $moduleData['document_name'] = $doc_name;
+                    }
+                }
             }
 
             // Creating a Document Record
@@ -141,6 +151,7 @@ function prefix_admin_single_stic_documents()
                 if ($action === 'delete') {
                     $redirect_url = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=list_stic_documents&msgDelete=true";
                     wp_redirect($redirect_url);
+                    exit;
                 } else {
                     // If no file has been uploaded, we return to the detailview
                     
@@ -160,6 +171,7 @@ function prefix_admin_single_stic_documents()
                         if ($_FILES['filename']['error'] == 4) {
                             $redirect_url = $_REQUEST['scp_current_url'] . '&msg=true' . '&id=' . $documentEntryId . ($action ? '&action=detail' : '');
                             wp_redirect($redirect_url);
+                            exit;
                         } else{
                             $fileName = $_FILES['filename']['name'];
                             $tmpName  = $_FILES['filename']['tmp_name'];
@@ -176,6 +188,7 @@ function prefix_admin_single_stic_documents()
                             if ($documentRevisionResult != null) {
                                 $redirect_url = $_REQUEST['scp_current_url'] . '&msg=true' . '&id=' . $documentEntryId . ($action ? '&action=detail' : '');
                                 wp_redirect($redirect_url);
+                                exit;
                             }
                         }
                     }
@@ -195,6 +208,7 @@ function prefix_admin_single_stic_relationships()
     if ($_REQUEST['stic-action'] == 'detail') {
         $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=list_stic_relationships";
         wp_redirect($redirectUrl);
+        exit;
     } else {
         switch (getDestinationModule()) {
             case 'Accounts':
@@ -225,6 +239,7 @@ function prefix_admin_single_stic_relationships()
                 $redirect_url = $_REQUEST['scp_current_url'] . '&msg=true' . '&id=' . $isUpdate . ($action ? '&action=detail' : '');
             }
             wp_redirect($redirect_url);
+            exit;
         }
     }
 }
@@ -239,6 +254,7 @@ function prefix_admin_single_stic_payment_commitments()
     if ($_REQUEST['stic-action'] == 'detail') {
         $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=list_stic_payment_commitments";
         wp_redirect($redirectUrl);
+        exit;
     } else {
         $moduleName = 'stic_Payment_Commitments'; 
 
@@ -261,6 +277,7 @@ function prefix_admin_single_stic_payment_commitments()
                 $redirectUrl = $_REQUEST['scp_current_url'] . '&msg=true' . '&id=' . $isUpdate . ($action ? '&action=detail' : '');
             }
             wp_redirect($redirectUrl);
+            exit;
         }
     }
 }
@@ -275,6 +292,7 @@ function prefix_admin_single_stic_payments()
     if ($_REQUEST['stic-action'] == 'detail') {
         $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=list_stic_payments";
         wp_redirect($redirectUrl);
+        exit;
     } else {
         $moduleName = 'stic_Payments'; 
 
@@ -297,6 +315,7 @@ function prefix_admin_single_stic_payments()
                 $redirectUrl = $_REQUEST['scp_current_url'] . '&msg=true' . '&id=' . $isUpdate . ($action ? '&action=detail' : '');
             }
             wp_redirect($redirectUrl);
+            exit;
         }
     }
 }
@@ -311,6 +330,7 @@ function prefix_admin_single_stic_registrations()
     if ($_REQUEST['stic-action'] == 'detail') {
         $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=list_stic_registrations";
         wp_redirect($redirectUrl);
+        exit;
     } else {
         $moduleName = 'stic_Registrations'; 
 
@@ -335,6 +355,7 @@ function prefix_admin_single_stic_registrations()
                 $redirectUrl = $_REQUEST['scp_current_url'] . '&msg=true' . '&id=' . $isUpdate . ($action ? '&action=detail' : '');
             }
             wp_redirect($redirectUrl);
+            exit;
         }
     }
 }
@@ -352,6 +373,7 @@ function prefix_admin_single_stic_job_applications()
     if ($_REQUEST['stic-action'] == 'detail') {
         $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=list_stic_job_applications";
         wp_redirect($redirectUrl);
+        exit;
     } else {
         $moduleName = 'stic_Job_Applications'; 
 
@@ -378,6 +400,7 @@ function prefix_admin_single_stic_job_applications()
                 $redirectUrl = $_REQUEST['scp_current_url'] . '&msg=true' . '&id=' . $isUpdate .  '&action=detail';
             }
             wp_redirect($redirectUrl);
+            exit;
         }
     }
 }
@@ -456,6 +479,51 @@ function prefix_admin_single_stic_password_change()
  * email and we send a signed, time-limited "magic link" (no password is ever
  * sent or exposed). See inc/stic-magic-login.php for the link logic.
  */
+/**
+ * Email HTML (branded, mobile-first) para el enlace de acceso mágico.
+ * Colores de marca MCM: azul #1c6fb3, magenta #9d1e74. Estilos inline porque
+ * los clientes de correo no respetan <style> ni CSS externo.
+ */
+function sticpa_magic_email_html($name, $link, $portalName)
+{
+    $name = esc_html($name);
+    $portalName = esc_html($portalName);
+    $linkAttr = esc_url($link);
+    $saludo = $name !== '' ? sprintf(__('Hola %s,', 'sticpa'), $name) : __('Hola,', 'sticpa');
+    $intro = __('Pulsa el botón para entrar a tu área privada. No necesitas recordar ninguna contraseña.', 'sticpa');
+    $btn = __('Acceder a mi área privada', 'sticpa');
+    $expira = __('Por seguridad, este enlace caduca en aproximadamente 1 hora. Si caduca, pídelo de nuevo desde la web.', 'sticpa');
+    $fallback = __('¿El botón no funciona? Copia y pega esta dirección en tu navegador:', 'sticpa');
+    $ignore = __('Si no has solicitado este acceso, puedes ignorar este correo.', 'sticpa');
+
+    return '
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f4f6fb;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6fb;padding:24px 12px;">
+    <tr><td align="center">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 6px 24px rgba(21,36,71,.08);font-family:Arial,Helvetica,sans-serif;">
+        <tr><td style="background:linear-gradient(135deg,#1c6fb3 0%,#6c4b9e 52%,#9d1e74 100%);padding:28px 28px;color:#ffffff;">
+          <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;opacity:.9;">' . $portalName . '</div>
+          <div style="font-size:22px;font-weight:bold;margin-top:6px;">' . __('Tu enlace de acceso', 'sticpa') . '</div>
+        </td></tr>
+        <tr><td style="padding:28px 28px 8px;color:#1f2937;font-size:16px;line-height:1.55;">
+          <p style="margin:0 0 14px;">' . $saludo . '</p>
+          <p style="margin:0 0 22px;color:#4b5563;">' . esc_html($intro) . '</p>
+          <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 22px;"><tr><td align="center" style="border-radius:12px;background:linear-gradient(135deg,#1c6fb3,#9d1e74);">
+            <a href="' . $linkAttr . '" style="display:inline-block;padding:14px 28px;color:#ffffff;text-decoration:none;font-weight:bold;font-size:16px;border-radius:12px;">' . esc_html($btn) . '</a>
+          </td></tr></table>
+          <p style="margin:0 0 18px;color:#6b7280;font-size:13px;line-height:1.5;">' . esc_html($expira) . '</p>
+          <p style="margin:0 0 6px;color:#6b7280;font-size:13px;">' . esc_html($fallback) . '</p>
+          <p style="margin:0 0 22px;word-break:break-all;"><a href="' . $linkAttr . '" style="color:#1c6fb3;font-size:13px;">' . $linkAttr . '</a></p>
+        </td></tr>
+        <tr><td style="padding:18px 28px 26px;border-top:1px solid #eef0f5;color:#9ca3af;font-size:12px;line-height:1.5;">' . esc_html($ignore) . '</td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body></html>';
+}
+
 add_action('admin_post_stic_forgot_password', 'prefix_admin_stic_forgot_password');
 add_action('admin_post_nopriv_stic_forgot_password', 'prefix_admin_stic_forgot_password');
 function prefix_admin_stic_forgot_password()
@@ -465,19 +533,31 @@ function prefix_admin_stic_forgot_password()
     $email = sanitize_email(stripslashes_deep($_REQUEST['forgot-password-email-address'] ?? ''));
     $baseUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0];
 
+    // Base ABSOLUTA para el enlace (REQUEST_URI es solo la ruta, sin dominio:
+    // daría un enlace relativo que el cliente de correo no puede abrir).
+    $areaUrl = get_option('sticpa_scp_area_url');
+    if (empty($areaUrl)) {
+        $areaUrl = home_url($baseUrl);
+    }
+
     if (is_email($email)) {
         foreach (sticpa_modules_to_try() as $module) {
             $contact = $objSCP->getContactByEmail($email, $module);
             if ($contact) {
-                $link = sticpa_generate_magic_link($baseUrl, $module, $contact->id);
+                $link = sticpa_generate_magic_link($areaUrl, $module, $contact->id);
                 $name = $contact->name_value_list->name->value ?? '';
-                $headers = "From: " . get_option('sticpa_scp_name') . " <" . get_option('admin_email') . ">";
-                $body = sprintf(
-                    __('Hola %1$s, haz clic en el siguiente enlace para acceder a tu área privada (válido durante un tiempo limitado): %2$s', 'sticpa'),
-                    $name,
-                    $link
+
+                $portalName = get_option('sticpa_scp_name') ?: __('Tu área privada', 'sticpa');
+                $fromEmail = get_option('admin_email');
+                $headers = array(
+                    'Content-Type: text/html; charset=UTF-8',
+                    'From: ' . $portalName . ' <' . $fromEmail . '>',
+                    'Reply-To: ' . $portalName . ' <' . $fromEmail . '>',
                 );
-                wp_mail($email, __('Acceso a tu área privada', 'sticpa'), $body, $headers);
+                $subject = sprintf(__('Tu acceso a %s', 'sticpa'), $portalName);
+                $body = sticpa_magic_email_html($name, $link, $portalName);
+
+                wp_mail($email, $subject, $body, $headers);
                 break; // found in this module; stop
             }
         }
@@ -631,10 +711,122 @@ function upload_file_to_record($fieldName, $moduleName, $id) {
     }
 }
 
+/* ============================================================================
+ *  COMUNICA — Guardado de las páginas de edición por rol (perfil/laico/monitor)
+ * ----------------------------------------------------------------------------
+ *  Las tres páginas escriben campos del Contacto logueado. La de monitor además
+ *  sube certificados (MAT/DAT/Delitos Sexuales/otros) como Documentos del CRM.
+ *  Un único handler sirve a las tres: la foto y los certificados solo se
+ *  procesan si vienen en la petición.
+ * ========================================================================== */
+add_action('admin_post_single_stic_comunica_perfil', 'prefix_comunica_save_contact');
+add_action('admin_post_nopriv_single_stic_comunica_perfil', 'prefix_comunica_save_contact');
+add_action('admin_post_single_stic_comunica_laico', 'prefix_comunica_save_contact');
+add_action('admin_post_nopriv_single_stic_comunica_laico', 'prefix_comunica_save_contact');
+add_action('admin_post_single_stic_comunica_monitor', 'prefix_comunica_save_contact');
+add_action('admin_post_nopriv_single_stic_comunica_monitor', 'prefix_comunica_save_contact');
+
+function prefix_comunica_save_contact()
+{
+    $objSCP = SugarRestApiCall::getObjSCP();
+
+    // El usuario solo puede editar SU propia ficha: id desde la sesión, nunca del request.
+    $id = $_SESSION['scp_user_id'] ?? '';
+    if (!$id) {
+        wp_redirect(home_url());
+        exit;
+    }
+
+    // Claves que no son campos del CRM (no enviar a set_entry).
+    $skip = array('action', 'scp_current_url', 'stic-action', 'save', 'back', 'id');
+    $moduleData = array();
+    foreach ($_REQUEST as $key => $value) {
+        if (in_array($key, $skip, true)) {
+            continue;
+        }
+        $moduleData[$key] = is_array($value)
+            ? '^' . implode('^,^', stripslashes_deep($value)) . '^'
+            : stripslashes_deep($value);
+    }
+    $moduleData['id'] = $id;
+
+    $isUpdate = $objSCP->set_entry('Contacts', $moduleData);
+    $msg = $isUpdate ? 'true' : 'error';
+
+    if ($isUpdate) {
+        // Foto de perfil (si se ha subido).
+        if (isset($_FILES['photo']) && !empty($_FILES['photo']['name'])) {
+            upload_file_to_record('photo', 'Contacts', $id);
+        }
+        // Certificados de monitor (cada uno opcional).
+        $certs = array(
+            'mat_file'  => array('label' => 'Título MAT',                  'category' => 'formacion_titulo_mat',   'flag' => 'ajmcm_mat_file_c'),
+            'dat_file'  => array('label' => 'Título DAT',                  'category' => 'formacion_titulo_fa',    'flag' => 'ajmcm_dat_file_c'),
+            'ds_file'   => array('label' => 'Certificado Delitos Sexuales', 'category' => 'legal_cert_delitos',     'flag' => 'ajmcm_cert_del_sex_c'),
+            'form_file' => array('label' => 'Otros certificados',          'category' => 'formacion_titulo_otros', 'flag' => 'ajmcm_cert_files_c'),
+        );
+        foreach ($certs as $field => $meta) {
+            if (isset($_FILES[$field]) && !empty($_FILES[$field]['name'])) {
+                comunica_upload_certificate($objSCP, $id, $field, $meta);
+            }
+        }
+    }
+
+    $current = $_REQUEST['scp_current_url'] ?? home_url();
+    wp_redirect($current . '&msg=' . $msg);
+    exit;
+}
+
+/**
+ * Sube un certificado como Documento del CRM, lo vincula al contacto y marca el
+ * flag correspondiente. Modela el patrón de prefix_admin_single_stic_documents.
+ */
+function comunica_upload_certificate($objSCP, $contactId, $field, $meta)
+{
+    if (!isset($_FILES[$field]) || $_FILES[$field]['error'] !== UPLOAD_ERR_OK) {
+        return false;
+    }
+    if ($_FILES[$field]['size'] > 6 * 1048576) {
+        return false;
+    }
+    $contents = file_get_contents($_FILES[$field]['tmp_name']);
+    if ($contents === false) {
+        return false;
+    }
+    $fileName = $_FILES[$field]['name'];
+
+    // 1) Crear el Documento.
+    $docId = $objSCP->set_entry('Documents', array(
+        'document_name' => $meta['label'] . ' · ' . $fileName,
+        'revision'      => '1',
+        'status_id'     => 'Active',
+        'date_input'    => date('Y-m-d'),
+        'category_id'   => $meta['category'],
+    ));
+    if (!$docId) {
+        return false;
+    }
+
+    // 2) Vincularlo al contacto.
+    $objSCP->set_relationship('Documents', $docId, 'contacts', array($contactId));
+
+    // 3) Subir el contenido como revisión.
+    $objSCP->set_document_revision(array(
+        'id'       => $docId,
+        'file'     => base64_encode($contents),
+        'filename' => $fileName,
+    ));
+
+    // 4) Marcar el flag del contacto (archivo subido = 1).
+    $objSCP->set_entry('Contacts', array('id' => $contactId, $meta['flag'] => '1'));
+
+    return $docId;
+}
+
 /**
  * Action that manages creating and modificating Contacts records.
  */
-add_action('admin_post_single_stic_contacts', 'prefix_admin_single_stic_contacts'); 
+add_action('admin_post_single_stic_contacts', 'prefix_admin_single_stic_contacts');
 add_action('admin_post_nopriv_single_stic_contacts', 'prefix_admin_single_stic_contacts'); 
 function prefix_admin_single_stic_contacts() 
 {

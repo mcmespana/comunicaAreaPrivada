@@ -32,6 +32,7 @@ function makeList($columnsList, $listSettings, $data, $extraActions = array())
             <table id='this-list' class='display' cellspacing='0' width='100%'>
                 <thead>
                     <tr class='main-col'>";
+        $labelMap = array();
         foreach ($columnsList as $key => $value) {
             if ($value['name'] == 'id') {continue;}
             if (isset($value['label'])) {
@@ -39,6 +40,7 @@ function makeList($columnsList, $listSettings, $data, $extraActions = array())
             } else {
                 $label = $fieldsDefinition[$value['name']]['label'];
             }
+            $labelMap[$value['name']] = $label;
             $html .= "<th class='{$value['name']}'>{$label}</th>";
         }
         $html .= "<th>" . __('Actions', 'sticpa') . "</th>";
@@ -50,6 +52,7 @@ function makeList($columnsList, $listSettings, $data, $extraActions = array())
         foreach ($data as $key => $row) {
             $html .= '<tr>';
             $rowObj = $row->name_value_list ?? null;
+            $isFirstCol = true; // la primera columna (nombre) se pinta como cabecera de la tarjeta
             foreach ($columnsList as $column) {
                 $colName = $column['name'];
                 if ($colName == 'id') {continue;}
@@ -70,7 +73,10 @@ function makeList($columnsList, $listSettings, $data, $extraActions = array())
                 if (isset($column['attributes'])) {
                     $attributes = $column['attributes'];
                 }
-                $html .= "<td {$attributes}>" . $columnValue . "</td>";
+                $dataLabel = esc_attr($labelMap[$colName] ?? '');
+                $cellClass = $isFirstCol ? 'stic-cell-title' : '';
+                $isFirstCol = false;
+                $html .= "<td data-label='{$dataLabel}' class='{$cellClass}' {$attributes}>" . $columnValue . "</td>";
             }
             $html .= buildActionsColumn($current_url, $row->id ?? null, $listSettings['actions'], $listSettings['linkDestination'] ?? null, isset($listSettings['linkDestinationLabel']) ? $listSettings['linkDestinationLabel'] : null, $extraActions[$key] ?? null);
             $html .= '</tr>';
@@ -120,7 +126,7 @@ function makeList($columnsList, $listSettings, $data, $extraActions = array())
         $html .= "<script type='text/javascript'>";
         // $html .= "$(document).ready( function () {";
         $html .= "document.addEventListener('DOMContentLoaded', function(event) { ";
-        $html .= "$('#this-list').DataTable(" . json_encode($listSettings['datatables']['jsonSettings']) . ");";
+        $html .= "jQuery('#this-list').DataTable(" . json_encode($listSettings['datatables']['jsonSettings']) . ");";
         $html .= "});";
         $html .= "</script>";
     }
@@ -130,10 +136,11 @@ function makeList($columnsList, $listSettings, $data, $extraActions = array())
 // build buttons that appear in the last column of the table list
 function buildActionsColumn($current_url, $id, $actions, $linkDestination, $linkDestinationLabel, $extraAction = '')
 {
+    $actionsLabel = esc_attr__('Actions', 'sticpa');
     if ($actions === null) {
-        $html = "<td><a href='{$current_url}{$linkDestination}{$extraAction}&id={$id}'>{$linkDestinationLabel}</a></td>";
+        $html = "<td data-label='{$actionsLabel}' class='stic-cell-actions'><a href='{$current_url}{$linkDestination}{$extraAction}&id={$id}'>{$linkDestinationLabel}</a></td>";
     } else {
-        $html = '<td>';
+        $html = "<td data-label='{$actionsLabel}' class='stic-cell-actions'>";
         foreach ($actions as $action) {
             $html .= "<a href='{$current_url}{$action['link']}{$extraAction}&id={$id}'>{$action['label']}</a> ";
         }
