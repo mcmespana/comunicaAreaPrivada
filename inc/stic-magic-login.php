@@ -231,16 +231,11 @@ function sticpa_process_passwordless_login()
         return;
     }
 
-    // Pantalla de carga: validar contra el CRM puede tardar hasta ~5s. En lugar de
-    // dejar el navegador en blanco, en la PRIMERA visita al enlace mostramos un
-    // interstitial bonito ("Verificando tu acceso…") y, vía JS, relanzamos la misma
-    // URL con ?sticpa_go=1 para hacer ahí la validación lenta. Beneficio extra: los
-    // escáneres de enlaces de email (que no ejecutan JS) no consumen el acceso.
-    if (!isset($_REQUEST['sticpa_go'])) {
-        sticpa_render_access_loading_screen();
-        exit;
-    }
-
+    // Validación directa contra el CRM (puede tardar unos segundos). NO usamos
+    // pantalla de carga intermedia: el interstitial de dos pasos con ?sticpa_go
+    // provocaba bucles de recarga, así que se ha retirado. La función
+    // sticpa_render_access_loading_screen() queda definida pero sin uso por si en
+    // el futuro se implementa de forma segura (con flush en una sola petición).
     $entry = null;
     $foundModule = null;
 
@@ -275,12 +270,7 @@ function sticpa_process_passwordless_login()
         wp_safe_redirect($clean);
         exit;
     }
-    // Si no valida (token erróneo o caducado): limpiamos los parámetros de acceso
-    // para no quedarnos en bucle en la pantalla de carga y mostramos el login.
-    if (isset($_REQUEST['sticpa_go'])) {
-        wp_safe_redirect(remove_query_arg(array('token', 'acceso_magico', 'sticpa_go')));
-        exit;
-    }
+    // Si no valida (token erróneo o caducado), seguimos: se mostrará el login.
 }
 
 /**
