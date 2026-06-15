@@ -15,10 +15,9 @@ $relationship = 'documents';
 $listSettings['moduleName'] = 'Documents'; // list title
 $listSettings['title'] = __('Documents', 'sticpa'); // list title
 $listSettings['linkDestination'] = '?internalpage=single_stic_documents&action=create'; //page must be the basename of the file to proccess (without extension)
+// Una sola entrada: "Abrir" lleva a la pantalla única (editar datos + descargar archivo).
 $listSettings['actions'] = array(
-    array('label' => __('Edit', 'sticpa'), 'link' => '?internalpage=single_stic_documents&action=edit'),
-    array('label' => __('View', 'sticpa'), 'link' => '?internalpage=single_stic_documents&action=detail'),
-    // array('label' => __('Download', 'sticpa'), 'link' => '?internalpage=single_stic_documents&action=detail&download=true'),     
+    array('label' => __('Abrir', 'sticpa'), 'link' => '?internalpage=single_stic_documents&action=edit'),
 );
 // $listSettings['action'] = 'download';
 $listSettings['createButton'] = array('value' => true, 'label' => __('New document', 'sticpa')); // show create button and its label. If not defined, there will be no create button

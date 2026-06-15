@@ -142,10 +142,10 @@ $html .= makeForm($fieldList, $formSettings, $data, $formSettings['action']);
 $html.= '
 <script>
 document.addEventListener("DOMContentLoaded", function(event) { 
-    $("#start_date").val(getCurrentDate());
+    (function($) {
+        $("#start_date").val(getCurrentDate());
+    })(jQuery);
 });
-
-
 </script>';
 
 function getRelatedRecord($objSCP, $relatedModule) {

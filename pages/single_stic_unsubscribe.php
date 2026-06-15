@@ -17,13 +17,15 @@ $html .= makeForm($fieldList, $formSettings, null);
 $html.= '
 <script>
 document.addEventListener("DOMContentLoaded", function(event) { 
-    $("form").on("submit", function(){
-        var msg = "'.__('Are you sure you want to unsubscribe?', 'sticpa').'"
-        if (confirm(msg) === true) {
-            return true;
-        } else {
-            return false;
-        }
-    })
+    (function($) {
+        $("form").on("submit", function(){
+            var msg = "'.__('Are you sure you want to unsubscribe?', 'sticpa').'"
+            if (confirm(msg) === true) {
+                return true;
+            } else {
+                return false;
+            }
+        });
+    })(jQuery);
 });
 </script>';

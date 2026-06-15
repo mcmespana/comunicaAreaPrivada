@@ -25,6 +25,14 @@ switch ($_REQUEST['action']) {
             'onclick' => "location.href='?internalpage=list_stic_documents';",
             'class' => "stic-back-button",
         );
+        if ($_REQUEST['action'] === 'edit' && !empty($_REQUEST['id'])) {
+            $formSettings['submitButton']['delete'] = __('Delete', 'sticpa');
+            $formSettings['submitButtonType']['delete'] = 'button';
+            $formSettings['submitButtonActions']['delete'] = array(
+                'onclick' => 'if (confirmDelete(this)) { this.form.submit(); }',
+                'class' => 'stic-back-button',
+            );
+        }
         $formSettings['submitButton']['save'] = __('Save', 'sticpa'); // submit button title. If not defined, it will be a read-only view
         $formSettings['submitButtonActions']['save'] = array(
             'onclick' => 'return verifyFormIsValid(this)',
@@ -32,15 +40,20 @@ switch ($_REQUEST['action']) {
         $formSettings['attributes'] = 'enctype="multipart/form-data"';
         break;
     case 'detail':
-        $formSettings['submitButton']['back'] = __('Back', 'sticpa'); // submit button title. If not defined, it will be a read-only view
+        $formSettings['submitButton']['back'] = __('Back', 'sticpa');
+        $formSettings['submitButtonType']['back'] = 'button';
         $formSettings['submitButtonActions']['back'] = array(
-            'onclick' => 'disableDownload(this)',
+            'onclick' => "location.href='?internalpage=list_stic_documents';",
+            'class' => 'stic-back-button',
         );
-        $formSettings['submitButton']['delete'] = __('Delete', 'sticpa'); // submit button title. If not defined, it will be a read-only view
+        $formSettings['submitButton']['delete'] = __('Delete', 'sticpa');
+        $formSettings['submitButtonType']['delete'] = 'button';
         $formSettings['submitButtonActions']['delete'] = array(
-            'onclick' => 'confirmDelete(this)',
+            'onclick' => 'if (confirmDelete(this)) { this.form.submit(); }',
+            'class' => 'stic-back-button',
         );
-        $formSettings['submitButton']['download'] = __('Download', 'sticpa'); // submit button title
+        $formSettings['submitButton']['download'] = __('Download', 'sticpa');
+        $formSettings['submitButtonType']['download'] = 'submit';
         $formSettings['submitButtonActions']['download'] = array(
             'onclick' => 'enableDownload(this)',
         );
@@ -112,6 +125,25 @@ if (isset($_REQUEST['action']) && ($_REQUEST['action'] == 'create'  || $_REQUEST
 } else {
     $fieldList[] = array('name' => 'filename', 'type' => 'text');
 }
+
+// Al EDITAR: botón de DESCARGA DIRECTA del archivo subido (sin pasar por "Ver").
+if (isset($_REQUEST['action']) && $_REQUEST['action'] == 'edit' && !empty($_REQUEST['id'])) {
+    $stic_dl_url = admin_url('admin-post.php')
+        . '?action=single_stic_documents&download=true&id=' . urlencode($_REQUEST['id']);
+    $stic_current_file = $data->filename->value ?? '';
+    $fieldList[] = array(
+        'name' => 'archivo_actual',
+        'type' => 'html',
+        'html' => '
+            <li>
+                <label>' . __('Archivo subido', 'sticpa') . '</label>
+                ' . ($stic_current_file ? '<div style="font-size:12px;color:#6b7280;margin-bottom:6px">' . esc_html($stic_current_file) . '</div>' : '') . '
+                <span><a class="stic-soft-btn" href="' . esc_url($stic_dl_url) . '">'
+                    . '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg> '
+                    . __('Descargar archivo', 'sticpa') . '</a></span>
+            </li>',
+    );
+}
 $fieldList[] = array(
     'name' => 'status_id',
 );
@@ -138,7 +170,7 @@ if ($_REQUEST['action'] == 'detail') {
 }
 
 $html .= makeForm($fieldList, $formSettings, $data, $formSettings['action']);
-if (isset($_REQUEST['action']) && ($_REQUEST['action'] == 'create')) {
+if (isset($_REQUEST['action']) && ($_REQUEST['action'] == 'create' || $_REQUEST['action'] == 'edit')) {
     $html .= '
        <script>
             var formHasAlreadyBeenSent = false;
@@ -149,29 +181,35 @@ if (isset($_REQUEST['action']) && ($_REQUEST['action'] == 'create')) {
             *
             * @return void
             */
-            function lockMultipleSubmissions() {
-               var fileInput = document.getElementById("filename");
-               if ("files" in fileInput) { 
+            function lockMultipleSubmissions(event) {
+                var fileInput = document.getElementById("filename");
+                // Only show "Uploading file..." and block duplicate submissions if there is actually a file selected
+                if (fileInput && fileInput.files && fileInput.files.length > 0) { 
                     if (formHasAlreadyBeenSent) {
                         console.log("Form is locked because it has already been sent.");
                         event.preventDefault();
+                        return;
                     }
                     formHasAlreadyBeenSent = true;
 
-                    if(!showMessage) {
+                    if (!showMessage) {
                         // Create a div element for upload message
                         const uploadMessage = document.createElement("div");
                         uploadMessage.textContent = "'.__('Uploading file, please wait...', 'sticpa').'";
 
-                        submitButton = document.querySelectorAll("[id=\'add-sign-up\']")[1];
-                        // Add upload message just below submit button
-                        submitButton.parentNode.insertBefore(uploadMessage, submitButton.nextSibling);
+                        var sendContainer = document.querySelector(".stic-send");
+                        if (sendContainer) {
+                            sendContainer.appendChild(uploadMessage);
+                        }
                     }
                     showMessage = true;
                 }
            }
            // Attach function to event
-           document.getElementById("stic-wp-pa").addEventListener("submit", lockMultipleSubmissions);
+           var formEl = document.getElementById("stic-wp-pa");
+           if (formEl) {
+               formEl.addEventListener("submit", lockMultipleSubmissions);
+           }
        </script>';
 }
 

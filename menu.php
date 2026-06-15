@@ -5,35 +5,30 @@
 #########################################################
 function getSticMenuElements()
 {
+    $menuElements = array();
 
-    $menuElements['list_stic_events'] = __('Events', 'sticpa');
-    $menuElements['list_stic_registrations'] = __('Registrations', 'sticpa');
-    $menuElements['list_stic_documents'] = __('Documents', 'sticpa');
-    $menuElements['list_stic_payments'] = __('Payments', 'sticpa');
-    // $menuElements['single_stic_unsubscribe'] = __('Unsubscribe', 'sticpa');
-    $menuElements['single_stic_password_change'] = __('Change password', 'sticpa');
-    $menuElements['single_stic_activities_calendar'] = __('Calendar', 'sticpa');
+    // --- Edición de datos (Comunica) — según el ROL del contacto ---
+    // "Mis datos" es común a todos; la sección específica se añade según el rol.
+    $role = function_exists('sticpa_get_comunica_role') ? sticpa_get_comunica_role() : '';
+    $menuElements['single_stic_comunica_perfil'] = __('Mis datos', 'sticpa');
+    if ($role === 'monitor') {
+        $menuElements['single_stic_comunica_monitor'] = __('Monitor/a', 'sticpa');
+    } elseif ($role === 'laico') {
+        $menuElements['single_stic_comunica_laico'] = __('Laico/a', 'sticpa');
+    }
 
-    // $menuElements['list_stic_relationships'] = __('Relationships with the organization', 'sticpa');
-    // if (getDestinationModule() == 'Accounts') {
-    //     $menuElements['list_stic_contacts'] = __('Organization contacts', 'sticpa');
-    //     $menuElements['list_stic_member_organizations'] = __('Member organizations', 'sticpa');
-    // }
+    // --- Secciones del área privada (las que ya había) ---
+    $menuElements['list_stic_events'] = __('Eventos', 'sticpa');
+    $menuElements['list_stic_registrations'] = __('Inscripciones', 'sticpa');
+    $menuElements['list_stic_documents'] = __('Documentos', 'sticpa');
+    $menuElements['list_stic_payments'] = __('Pagos', 'sticpa');
+    $menuElements['single_stic_activities_calendar'] = __('Calendario', 'sticpa');
+    $menuElements['single_stic_password_change'] = __('Cambiar contraseña', 'sticpa');
 
-    // $menuElements['list_stic_payment_commitments'] = __('Payment commitments', 'sticpa');
-    // $menuElements['list_stic_sessions'] = __('Sessions', 'sticpa');
-    // $menuElements['list_stic_attendances'] = __('Attendances', 'sticpa');
-
-    // if (getDestinationModule() == 'Contacts') {
-    //     $menuElements['list_stic_job_offers'] = __('Job offers', 'sticpa');
-    //     $menuElements['list_stic_job_applications'] = __('Job applications', 'sticpa');
-    //     $menuElements['single_stic_payment_form'] = __('Payment form', 'sticpa');
-    // }
-
-    // if (isset($_SESSION['scp_user_adult']) && !$_SESSION['scp_user_adult']) {
-    //     $menuElements['single_stic_profile_selection'] = __('Profile selection', 'sticpa');
-    // }
-    // $menuElements['custom_html'] = __('Custom HTML', 'sticpa');
+    // Opcionales (descomentar si se usan):
+    // $menuElements['list_stic_relationships'] = __('Relaciones con la organización', 'sticpa');
+    // $menuElements['list_stic_payment_commitments'] = __('Compromisos de pago', 'sticpa');
+    // $menuElements['single_stic_unsubscribe'] = __('Darse de baja', 'sticpa');
 
     $defaultMenuElement = 'list_stic_events';
     return array($menuElements, $defaultMenuElement);
@@ -149,15 +144,15 @@ function menu()
     // ---- Acciones de la barra superior ----
     // Con menú: solo la hamburguesa (en móvil). El "Salir" va como último item.
     // Sin menú (p. ej. selección de perfil): dejamos "Salir" accesible aquí.
+    // "Salir" SIEMPRE arriba a la derecha (icono + texto en escritorio, solo icono en móvil).
     $actions = "<div class='stic-nav-actions'>";
+    $actions .= "<a class='stic-iconbtn stic-logout' href='?logout=true' title='" . esc_attr__('Cerrar sesión', 'sticpa') . "' aria-label='" . esc_attr__('Cerrar sesión', 'sticpa') . "'>"
+        . ($iconFn ? sticpa_icon('logout') : '') . "<span class='stic-logout-text'>" . __('Salir', 'sticpa') . "</span></a>";
     if ($showItems) {
         $actions .= "<button type='button' class='stic-nav-toggle' aria-expanded='false' aria-controls='stic-nav-list' aria-label='" . esc_attr__('Abrir menú', 'sticpa') . "'>
                         <span class='stic-nav-toggle-bars' aria-hidden='true'><i></i><i></i><i></i></span>
                         <span class='stic-nav-toggle-current'>" . esc_html($currentLabel) . "</span>
                      </button>";
-    } else {
-        $actions .= "<a class='stic-iconbtn stic-logout' href='?logout=true' title='" . esc_attr__('Cerrar sesión', 'sticpa') . "' aria-label='" . esc_attr__('Cerrar sesión', 'sticpa') . "'>"
-            . ($iconFn ? sticpa_icon('logout') : '') . "</a>";
     }
     $actions .= "</div>";
 
@@ -186,7 +181,6 @@ function menu()
                     </button>
                     <div class='stic-nav-more-menu'><ul></ul></div>
                   </li>";
-        $menu .= "<li class='stic-nav-item stic-nav-logout-item'>" . $logoutItem . "</li>";
         $menu .= "</ul>";
     }
     $menu .= "</nav>";

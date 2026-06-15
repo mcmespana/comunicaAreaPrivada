@@ -15,9 +15,9 @@ switch (getDestinationModule()) {
 }
 $listSettings['moduleName'] = "stic_Events"; // list title
 $listSettings['title'] = __('Events', 'sticpa'); // list title
+// "Inscribirse" lleva a una pantalla única: info del evento + formulario de inscripción.
 $listSettings['actions'] = array(
-    array('label' => __('View', 'sticpa'), 'link' => '?internalpage=single_stic_events&action=detail'),
-    array('label' => __('Register', 'sticpa'), 'link' => '?internalpage=single_stic_registrations&action=create&from=stic_events'),
+    array('label' => __('Inscribirse', 'sticpa'), 'link' => '?internalpage=single_stic_registrations&action=create&from=stic_events'),
 );
 $listSettings['datatables'] = array('value' => true, 'jsonSettings' => array( 'paging' =>false, 'searching' => true)); // if columns are sortable or filterable (this use jquery plugin datatables) /json Settings in json format from https://datatables.net/manual/options
 $listSettings['msgDelete'][] = array('value' => 'true', 'type' => 'success', 'msg' => __('Record successfully deleted.', 'sticpa')); //messages that will be shown on the screen after processing the data
@@ -38,7 +38,6 @@ $listSettings['msgDelete'][] = array('value' => 'true', 'type' => 'success', 'ms
 #########################################################
 $columnsList[] = array('name' => 'id');
 $columnsList[] = array('name' => 'name');
-$columnsList[] = array('name' => 'type', 'format' => 'enum');
 $columnsList[] = array('name' => 'status', 'format' => 'enum');
 $columnsList[] = array('name' => 'start_date', 'format' => 'date');
 $columnsList[] = array('name' => 'end_date', 'format' => 'date');

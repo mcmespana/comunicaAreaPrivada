@@ -35,10 +35,17 @@ switch ($_REQUEST['action']) {
         );
         break;
     case 'detail':
-        $formSettings['submitButton']['back'] = __('Back', 'sticpa'); // submit button title. If not defined, it will be a read-only view
-        $formSettings['submitButton']['delete'] = __('Delete', 'sticpa'); // submit button title. If not defined, it will be a read-only view
+        $formSettings['submitButton']['back'] = __('Back', 'sticpa');
+        $formSettings['submitButtonType']['back'] = 'button';
+        $formSettings['submitButtonActions']['back'] = array(
+            'onclick' => "location.href='?internalpage=list_stic_payments';",
+            'class' => 'stic-back-button',
+        );
+        $formSettings['submitButton']['delete'] = __('Delete', 'sticpa');
+        $formSettings['submitButtonType']['delete'] = 'button';
         $formSettings['submitButtonActions']['delete'] = array(
-            'onclick' => 'confirmDelete(this)',
+            'onclick' => 'if (confirmDelete(this)) { this.form.submit(); }',
+            'class' => 'stic-back-button',
         );
         break;
     default:

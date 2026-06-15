@@ -38,12 +38,9 @@ $listSettings['msgDelete'][] = array('value' => 'true', 'type' => 'success', 'ms
 #
 #########################################################
 $columnsList[] = array('name' => 'id');
-$columnsList[] = array('name' => 'name');
 $columnsList[] = array('name' => 'stic_registrations_stic_events_name');
 $columnsList[] = array('name' => 'registration_date', 'format' => 'datetime');
-$columnsList[] = array('name' => 'participation_type', 'format' => 'enum');
 $columnsList[] = array('name' => 'status', 'format' => 'enum');
-$columnsList[] = array('name' => 'attendees');
 #########################################################
 
 $fieldsToRetrieve = array_column($columnsList, 'name');

@@ -52,7 +52,6 @@ $portalName = get_option('sticpa_scp_name');
 ?>
 <div class="stic-welcome">
     <div class="stic-welcome-hero">
-        <p class="stic-welcome-kicker"><?= esc_html($portalName ? $portalName : __('Área privada', 'sticpa')); ?></p>
         <h2 class="stic-welcome-title">
             <?php if ($firstName !== '') : ?>
                 <?= esc_html__('Hola', 'sticpa'); ?>, <span class="stic-welcome-name"><?= esc_html($firstName); ?></span> 👋
@@ -63,6 +62,12 @@ $portalName = get_option('sticpa_scp_name');
         <p class="stic-welcome-lead">
             <?= esc_html__('Este es tu espacio personal. Desde aquí puedes consultar y gestionar toda tu información. Elige una sección para empezar.', 'sticpa'); ?>
         </p>
+        <?php if (isset($_GET['rol_debug'])) : ?>
+            <span class="stic-role-chip" title="Valor del campo stic_relationship_type_c en el CRM">
+                <?= esc_html__('Rol:', 'sticpa'); ?> <strong><?= esc_html(sticpa_get_comunica_role() ?: '(vacío)'); ?></strong>
+                · <code><?= esc_html($_SESSION['scp_relationship_raw'] ?? '(vacío)'); ?></code>
+            </span>
+        <?php endif; ?>
     </div>
 
     <p class="stic-section-label"><?= esc_html__('Tus secciones', 'sticpa'); ?></p>
