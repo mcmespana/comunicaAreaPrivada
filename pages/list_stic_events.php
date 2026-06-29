@@ -57,4 +57,19 @@ $filterParam = '';
 $listSettings['fileName'] = basename(__FILE__, ".php"); //The list name, from the filename. Don't touch.
 $getElements = $objSCP->getRecordsModule($listSettings['moduleName'], $filterParam, $fields);
 
+// Ocultamos de "Eventos disponibles" los que el usuario YA tiene inscritos
+// (siguen visibles en "Inscripciones"). Evita ofrecer "Inscribirse" a algo ya hecho.
+if (is_array($getElements) && function_exists('prefix_user_active_event_ids')) {
+    $registeredIds = prefix_user_active_event_ids($objSCP);
+    if (!empty($registeredIds)) {
+        $getElements = array_values(array_filter($getElements, function ($ev) use ($registeredIds) {
+            $evId = $ev->name_value_list->id->value ?? null;
+            return $evId === null || !in_array($evId, $registeredIds, true);
+        }));
+    }
+}
+if (empty($getElements)) {
+    $getElements = null; // fuerza el estado vacío con estilo
+}
+
 $html .= makeList($columnsList, $listSettings, $getElements);

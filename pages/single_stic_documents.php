@@ -148,9 +148,9 @@ $fieldList[] = array(
     'name' => 'status_id',
 );
 $fieldList[] = array(
-    'name' => 'stic_shared_document_link_c', 
+    'name' => 'stic_shared_document_link_c',
     'type' => 'text',
-    'defaultValue' => 'https://',
+    'attributes' => array('placeholder' => 'https://...'),
 );
 $fieldList[] = array('name' => 'category_id');
 
