@@ -145,45 +145,11 @@ if (!empty($_REQUEST['id']) && $_REQUEST['action'] !== 'create') {
     }
 }
 
+// Mismo guard que el guardado server-side (inc/stic-action.php): evita ofrecer
+// el formulario si ya hay una inscripción activa para este evento.
 $alreadyRegistered = false;
-if ($_REQUEST['action'] == 'create' && !empty($eventId)) {
-    $relationship = (getDestinationModule() === 'Accounts') ? 'stic_registrations_accounts' : 'stic_registrations_contacts';
-
-    // Traemos las inscripciones del usuario y, por cada una, su evento vinculado
-    // (mismo método fiable que usa la vista de detalle; el filtro SQL directo no
-    // funciona de forma consistente en esta API).
-    $myRegs = $objSCP->getRelatedElementsForLoggedUser(array(
-        'module_name' => getDestinationModule(),
-        'module_id' => $_SESSION['scp_user_id'],
-        'link_field_name' => $relationship,
-        'related_fields' => array('id', 'status'),
-        'related_module_link_name_to_fields_array' => array(),
-        'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
-    ));
-    if (is_array($myRegs)) {
-        foreach ($myRegs as $reg) {
-            $regStatus = $reg->name_value_list->status->value ?? null;
-            if ($regStatus === 'cancelled') {
-                continue;
-            }
-            $regEvents = $objSCP->getRelatedElementsForLoggedUser(array(
-                'module_name' => 'stic_Registrations',
-                'module_id' => $reg->id,
-                'link_field_name' => 'stic_registrations_stic_events',
-                'related_fields' => array('id'),
-                'related_module_link_name_to_fields_array' => array(),
-                'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 1,
-            ));
-            if (is_array($regEvents)) {
-                foreach ($regEvents as $re) {
-                    if (($re->id ?? null) === $eventId) {
-                        $alreadyRegistered = true;
-                        break 2;
-                    }
-                }
-            }
-        }
-    }
+if ($_REQUEST['action'] == 'create' && !empty($eventId) && function_exists('prefix_user_has_active_registration')) {
+    $alreadyRegistered = prefix_user_has_active_registration($objSCP, $eventId);
 }
 
 if ($eventId && $_REQUEST['action'] !== 'edit' && $_REQUEST['action'] !== 'detail') {
