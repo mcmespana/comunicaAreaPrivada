@@ -323,16 +323,66 @@ function prefix_admin_single_stic_payments()
 /**
  * Action that manages creating and modificating Registrations records
  */
-add_action('admin_post_single_stic_registrations', 'prefix_admin_single_stic_registrations'); 
-add_action('admin_post_nopriv_single_stic_registrations', 'prefix_admin_single_stic_registrations'); 
-function prefix_admin_single_stic_registrations() 
+add_action('admin_post_single_stic_registrations', 'prefix_admin_single_stic_registrations');
+add_action('admin_post_nopriv_single_stic_registrations', 'prefix_admin_single_stic_registrations');
+
+/**
+ * ¿El usuario logueado ya tiene una inscripción ACTIVA (no cancelada) para el
+ * evento indicado? Se usa tanto en la vista (deshabilitar el formulario) como en
+ * el guardado (rechazar duplicados aunque la vista se salte: doble submit, POST
+ * directo o consulta de la vista fallida).
+ */
+function prefix_user_has_active_registration($objSCP, $eventId)
+{
+    if (empty($eventId)) {
+        return false;
+    }
+    $module = getDestinationModule();
+    $relationship = ($module === 'Accounts') ? 'stic_registrations_accounts' : 'stic_registrations_contacts';
+
+    $myRegs = $objSCP->getRelatedElementsForLoggedUser(array(
+        'module_name' => $module,
+        'module_id' => $_SESSION['scp_user_id'],
+        'link_field_name' => $relationship,
+        'related_fields' => array('id', 'status'),
+        'related_module_link_name_to_fields_array' => array(),
+        'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
+    ));
+    if (!is_array($myRegs)) {
+        return false;
+    }
+    foreach ($myRegs as $reg) {
+        $regStatus = $reg->name_value_list->status->value ?? null;
+        if ($regStatus === 'cancelled') {
+            continue;
+        }
+        $regEvents = $objSCP->getRelatedElementsForLoggedUser(array(
+            'module_name' => 'stic_Registrations',
+            'module_id' => $reg->id,
+            'link_field_name' => 'stic_registrations_stic_events',
+            'related_fields' => array('id'),
+            'related_module_link_name_to_fields_array' => array(),
+            'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 1,
+        ));
+        if (is_array($regEvents)) {
+            foreach ($regEvents as $re) {
+                if (($re->id ?? null) === $eventId) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+function prefix_admin_single_stic_registrations()
 {
     if ($_REQUEST['stic-action'] == 'detail') {
         $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=list_stic_registrations";
         wp_redirect($redirectUrl);
         exit;
     } else {
-        $moduleName = 'stic_Registrations'; 
+        $moduleName = 'stic_Registrations';
 
         $objSCP = SugarRestApiCall::getObjSCP();
 
@@ -341,10 +391,25 @@ function prefix_admin_single_stic_registrations()
         }
         $action = $moduleData['stic-action'];
 
-        unset($moduleData['stic-action']); 
+        unset($moduleData['stic-action']);
         if ($action === 'delete') {
             $moduleData['deleted'] = 1;
         }
+
+        // GUARD anti-duplicado: al CREAR una inscripción (sin id) a un evento, si
+        // ya existe una inscripción activa del usuario para ese evento, NO se crea
+        // otra; se redirige a la pantalla de inscripción que mostrará el aviso
+        // "Ya estás inscrito".
+        if ($action !== 'delete' && empty($moduleData['id'])) {
+            $eventId = $moduleData['stic_registrations_stic_eventsstic_events_ida'] ?? '';
+            if (prefix_user_has_active_registration($objSCP, $eventId)) {
+                $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0]
+                    . "?internalpage=single_stic_registrations&action=create&from=stic_events&id=" . urlencode($eventId);
+                wp_redirect($redirectUrl);
+                exit;
+            }
+        }
+
         $isUpdate = $objSCP->set_entry($moduleName, $moduleData);
         if ($isUpdate != null) {
             if ($action === 'delete') {
