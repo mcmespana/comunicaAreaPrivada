@@ -57,14 +57,19 @@ $fieldList[] = array(
 // --- Certificados (subida de archivos) ---
 $fieldList[] = array('name' => 'certificados', 'type' => 'header', 'label' => __('Certificados', 'sticpa'));
 $uploadField = function ($name, $label, $current) {
-    $state = $current ? '<span class="stic-file-uploaded-badge"><svg class="stic-icon-checkmark" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' . __('Ya subido', 'sticpa') . '</span>' : '';
+    $uploaded = !empty($current);
+    $state = $uploaded ? '<span class="stic-file-uploaded-badge"><svg class="stic-icon-checkmark" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' . __('Ya subido', 'sticpa') . '</span>' : '';
+    // Si ya hay archivo, el mensaje invita a SUSTITUIRLO; si no, a subirlo.
+    $hint = $uploaded
+        ? __('Ya tienes un archivo guardado. Sube uno nuevo para sustituirlo.', 'sticpa')
+        : __('(Formato: pdf, jpg, png — Tamaño máximo: 6MB)', 'sticpa');
     return array(
         'name' => $name, 'type' => 'html',
         'html' => '
-            <li>
+            <li class="' . ($uploaded ? 'stic-has-file' : '') . '">
                 <label>' . esc_html($label) . '</label>
                 ' . $state . '
-                <div style="font-size:10px; margin-bottom: 0.5rem; opacity: 0.7;">' . __('(Formato: pdf, jpg, png — Tamaño máximo: 6MB)', 'sticpa') . '</div>
+                <div style="font-size:11px; margin-bottom: 0.5rem; opacity: 0.75;">' . esc_html($hint) . '</div>
                 <span><input type="file" name="' . esc_attr($name) . '" id="' . esc_attr($name) . '"></span>
             </li>',
     );

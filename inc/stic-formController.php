@@ -370,9 +370,17 @@ function renderSubmitButton($formSettings)
 
         foreach($formSettings['submitButton'] as $key => $submitButton) {
 
-            $formActions = processFormActions(isset($formSettings['submitButtonActions'][$key]) ? $formSettings['submitButtonActions'][$key] : array(), 'add-sign-up');
+            $actions = isset($formSettings['submitButtonActions'][$key]) ? $formSettings['submitButtonActions'][$key] : array();
+            // Una 'class' en las acciones se FUSIONA con stic-button (antes generaba
+            // un segundo atributo class duplicado que el navegador ignoraba).
+            $extraClass = '';
+            if (isset($actions['class'])) {
+                $extraClass = ' ' . $actions['class'];
+                unset($actions['class']);
+            }
+            $formActions = processFormActions($actions, 'add-sign-up');
             $label = htmlentities($submitButton, ENT_QUOTES);
-            $html .= "<input class='stic-button' type='".($formSettings['submitButtonType'][$key] ?? 'submit')."' id = 'add-sign-up' name='add-sign-up' {$formActions} value='{$label}' />         ";
+            $html .= "<input class='stic-button{$extraClass}' type='".($formSettings['submitButtonType'][$key] ?? 'submit')."' id = 'add-sign-up' name='add-sign-up' {$formActions} value='{$label}' />         ";
         }
         $html .= "</li></ul>";
 
