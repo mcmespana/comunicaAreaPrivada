@@ -332,14 +332,16 @@ add_action('admin_post_nopriv_single_stic_registrations', 'prefix_admin_single_s
  * el guardado (rechazar duplicados aunque la vista se salte: doble submit, POST
  * directo o consulta de la vista fallida).
  */
-function prefix_user_has_active_registration($objSCP, $eventId)
+/**
+ * IDs de los eventos en los que el usuario logueado tiene una inscripción ACTIVA
+ * (no cancelada). Devuelve un array de strings (puede estar vacío).
+ */
+function prefix_user_active_event_ids($objSCP)
 {
-    if (empty($eventId)) {
-        return false;
-    }
     $module = getDestinationModule();
     $relationship = ($module === 'Accounts') ? 'stic_registrations_accounts' : 'stic_registrations_contacts';
 
+    $ids = array();
     $myRegs = $objSCP->getRelatedElementsForLoggedUser(array(
         'module_name' => $module,
         'module_id' => $_SESSION['scp_user_id'],
@@ -349,7 +351,7 @@ function prefix_user_has_active_registration($objSCP, $eventId)
         'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
     ));
     if (!is_array($myRegs)) {
-        return false;
+        return $ids;
     }
     foreach ($myRegs as $reg) {
         $regStatus = $reg->name_value_list->status->value ?? null;
@@ -366,13 +368,21 @@ function prefix_user_has_active_registration($objSCP, $eventId)
         ));
         if (is_array($regEvents)) {
             foreach ($regEvents as $re) {
-                if (($re->id ?? null) === $eventId) {
-                    return true;
+                if (!empty($re->id)) {
+                    $ids[] = $re->id;
                 }
             }
         }
     }
-    return false;
+    return array_values(array_unique($ids));
+}
+
+function prefix_user_has_active_registration($objSCP, $eventId)
+{
+    if (empty($eventId)) {
+        return false;
+    }
+    return in_array($eventId, prefix_user_active_event_ids($objSCP), true);
 }
 
 function prefix_admin_single_stic_registrations()

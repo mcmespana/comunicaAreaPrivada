@@ -2299,6 +2299,8 @@ span.stic-field {
     content: " ✱";
     color: var(--secondary-color);
     font-weight: 800;
+    font-size: 1.1em;
+    vertical-align: 0.04em;
 }
 
 /* Campo deshabilitado: aspecto claramente de solo lectura (no "roto"). */
@@ -2535,5 +2537,62 @@ span.stic-field {
         width: 100%;
         justify-content: center;
     }
+}
+
+/* ============================================================
+   28. LISTADOS: CELDAS VACÍAS, ESTADO VACÍO + GUARDAR STICKY
+   ============================================================ */
+
+/* Celdas de tarjeta sin valor: fuera (no más filas "Etiqueta:" vacías). */
+.stic-table-responsive td.stic-cell-empty { display: none !important; }
+
+/* Estado vacío con estilo de marca (sustituye al texto pelado). */
+.stic-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.35rem;
+    padding: clamp(2rem, 6vw, 3rem) 1.5rem;
+    margin: 0.4rem 0 1.1rem;
+    background: var(--surface);
+    border: 1px dashed var(--gray-300);
+    border-radius: var(--radius-lg);
+}
+.stic-empty-ico {
+    display: grid;
+    place-items: center;
+    width: 64px;
+    height: 64px;
+    margin-bottom: 0.5rem;
+    border-radius: var(--radius-full);
+    background: var(--primary-50);
+    color: var(--primary-color);
+}
+.stic-empty-title {
+    margin: 0;
+    font-weight: 700;
+    font-size: 1.08rem;
+    color: var(--gray-800);
+}
+.stic-empty-sub {
+    margin: 0;
+    font-size: 0.92rem;
+    color: var(--gray-500);
+}
+
+/* Barra de acciones (Guardar / Atrás / Eliminar) PEGAJOSA al pie: en formularios
+   largos el botón Guardar queda siempre accesible sin scrollear hasta el final. */
+.stic-form > form > ul.stic-ctabs-list {
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+    margin-top: 0.8rem !important;
+    padding: 0.85rem 0 0.65rem !important;
+    background: linear-gradient(to top, var(--surface-2) 70%, color-mix(in srgb, var(--surface-2) 40%, transparent));
+    backdrop-filter: blur(4px);
+}
+@media (prefers-reduced-motion: reduce) {
+    .stic-form > form > ul.stic-ctabs-list { backdrop-filter: none; }
 }
 

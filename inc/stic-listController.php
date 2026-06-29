@@ -75,6 +75,11 @@ function makeList($columnsList, $listSettings, $data, $extraActions = array())
                 }
                 $dataLabel = esc_attr($labelMap[$colName] ?? '');
                 $cellClass = $isFirstCol ? 'stic-cell-title' : '';
+                // Celdas sin valor (no la cabecera): se marcan para ocultarlas en la
+                // tarjeta y no dejar filas "Etiqueta:" vacías. '0' SÍ es un valor.
+                if (!$isFirstCol && trim((string) $columnValue) === '') {
+                    $cellClass = trim($cellClass . ' stic-cell-empty');
+                }
                 $isFirstCol = false;
                 $html .= "<td data-label='{$dataLabel}' class='{$cellClass}' {$attributes}>" . $columnValue . "</td>";
             }
@@ -84,7 +89,15 @@ function makeList($columnsList, $listSettings, $data, $extraActions = array())
         $html .= '</table>';
 
     } else {
-        $html .= __('There is no record.', 'sticpa');
+        // Estado vacío con estilo de marca (antes era texto pelado).
+        $html .= "
+        <div class='stic-empty-state'>
+            <span class='stic-empty-ico'>
+                <svg viewBox='0 0 24 24' width='30' height='30' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><path d='M14 2v6h6'/><line x1='9' y1='13' x2='15' y2='13'/><line x1='9' y1='17' x2='13' y2='17'/></svg>
+            </span>
+            <p class='stic-empty-title'>" . __('Aquí no hay nada todavía', 'sticpa') . "</p>
+            <p class='stic-empty-sub'>" . __('Cuando haya registros, aparecerán en esta sección.', 'sticpa') . "</p>
+        </div>";
     }
 
     if (isset($listSettings['createButton']) && $listSettings['createButton']['value'] == true) {
