@@ -1590,7 +1590,7 @@ span.stic-field {
 
 @media (min-width: 768px) {
     .stic-form > form > ul.stic-ctabs-list,
-    .stic-form > form > ul:not(:has(li)) { display: block; }
+    .stic-form > form > ul:not(:has(li)) { display: block !important; }
 }
 
 /* --- 22.b Listados como TARJETAS (sin aspecto de tabla) --- */
