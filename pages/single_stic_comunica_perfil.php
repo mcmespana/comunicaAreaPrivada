@@ -19,6 +19,10 @@ $formSettings['attributes'] = 'enctype="multipart/form-data"';
 $id = $_SESSION['scp_user_id'];
 $data = $objSCP->getRecordDetail($id, $formSettings['moduleName'])->entry_list[0]->name_value_list;
 
+// Correo de la persona de referencia para solicitar cambios en los datos
+// no editables. Ajustable por local mediante el filtro 'sticpa_mail_referencia'.
+$mailReferencia = apply_filters('sticpa_mail_referencia', 'comunica@movimientoconsolacion.com');
+
 $fieldList[] = array('name' => 'id', 'type' => 'hidden');
 
 // --- Identidad (solo lectura) ---
@@ -29,7 +33,23 @@ $fieldList[] = array('name' => 'stic_identification_type_c', 'required' => false
 $fieldList[] = array('name' => 'stic_identification_number_c', 'required' => false, 'attributes' => array('disabled' => 'disabled'));
 $fieldList[] = array('name' => 'birthdate', 'required' => false, 'attributes' => array('disabled' => 'disabled'));
 
+// Aviso: los campos con asterisco morado no se pueden editar desde aquí.
+$fieldList[] = array(
+    'name' => 'datos_personales_nota',
+    'type' => 'html',
+    'html' => '
+        <li class="stic-readonly-note">
+            <span>' . sprintf(
+                /* translators: %s = correo de la persona de referencia */
+                __('Los campos marcados con %1$s no se pueden editar desde el área privada. Si necesitas modificarlos, escribe a tu referente en %2$s.', 'sticpa'),
+                '<strong class="stic-readonly-note-mark">✱</strong>',
+                '<a href="mailto:' . esc_attr($mailReferencia) . '">' . esc_html($mailReferencia) . '</a>'
+            ) . '</span>
+        </li>',
+);
+
 // --- Contacto (editable) ---
+$fieldList[] = array('name' => 'contacto', 'type' => 'header', 'label' => __('Contacto', 'sticpa'));
 $fieldList[] = array('name' => 'stic_gender_c', 'required' => false);
 $fieldList[] = array(
     'name' => 'email1',

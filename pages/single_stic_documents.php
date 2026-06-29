@@ -30,7 +30,7 @@ switch ($_REQUEST['action']) {
             $formSettings['submitButtonType']['delete'] = 'button';
             $formSettings['submitButtonActions']['delete'] = array(
                 'onclick' => 'if (confirmDelete(this)) { this.form.submit(); }',
-                'class' => 'stic-back-button',
+                'class' => 'stic-danger-button',
             );
         }
         $formSettings['submitButton']['save'] = __('Save', 'sticpa'); // submit button title. If not defined, it will be a read-only view
@@ -50,7 +50,7 @@ switch ($_REQUEST['action']) {
         $formSettings['submitButtonType']['delete'] = 'button';
         $formSettings['submitButtonActions']['delete'] = array(
             'onclick' => 'if (confirmDelete(this)) { this.form.submit(); }',
-            'class' => 'stic-back-button',
+            'class' => 'stic-danger-button',
         );
         $formSettings['submitButton']['download'] = __('Download', 'sticpa');
         $formSettings['submitButtonType']['download'] = 'submit';

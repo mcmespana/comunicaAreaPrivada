@@ -2,8 +2,9 @@
 * Place in this file any custom js you want to use in your plugin
 */
 jQuery(document).ready(function($){
-    // Run selectize
-    $('select[multiple]').selectize();
+    // Run selectize. dropdownParent: 'body' evita que el desplegable quede
+    // por debajo de las tarjetas siguientes del formulario.
+    $('select[multiple]').selectize({ dropdownParent: 'body' });
     //hide the success messagges
     $('body').on('click keyup paste', function () {
         if (document.getElementById('successMsg')) { document.getElementById('successMsg').style.opacity = '0'; }
