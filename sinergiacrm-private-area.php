@@ -94,12 +94,17 @@ function dcms_insertar_js()
     wp_enqueue_script('fullcalendar');
     wp_register_script('fullcalendar-locale', plugin_dir_url(__FILE__) . 'js/fullcalendar/lib/locales-all.min.js', array('jquery'), '1', true);
     wp_enqueue_script('fullcalendar-locale');
-    wp_register_script('sugarcrm-own', plugin_dir_url(__FILE__) . 'js/stic-utils.js', array('jquery'), '1', true);
+    // Versión por filemtime en los JS propios: cada deploy rompe la caché.
+    $jsver = function ($rel) {
+        $path = plugin_dir_path(__FILE__) . $rel;
+        return file_exists($path) ? filemtime($path) : '1';
+    };
+    wp_register_script('sugarcrm-own', plugin_dir_url(__FILE__) . 'js/stic-utils.js', array('jquery'), $jsver('js/stic-utils.js'), true);
     wp_enqueue_script('sugarcrm-own');
-    wp_register_script('custom-utils', plugin_dir_url(__FILE__) . 'js/custom-utils.js', array('jquery'), '1', true);
+    wp_register_script('custom-utils', plugin_dir_url(__FILE__) . 'js/custom-utils.js', array('jquery'), $jsver('js/custom-utils.js'), true);
     wp_enqueue_script('custom-utils');
     // UI helpers: overlay de carga + toggle de contraseña (sin dependencias)
-    wp_register_script('stic-ui', plugin_dir_url(__FILE__) . 'js/stic-ui.js', array(), '1.3', true);
+    wp_register_script('stic-ui', plugin_dir_url(__FILE__) . 'js/stic-ui.js', array(), $jsver('js/stic-ui.js'), true);
     wp_enqueue_script('stic-ui');
     // We use only one file for plugin literals, so although theoretically we should call this function twice (one efor each js), we only call it once.
     wp_localize_script('sugarcrm-own', 'stic_script_vars', getSticScriptVars());
@@ -836,14 +841,20 @@ function sugar_crm_portal_style_and_script()
 
     // only loads css if the shortcode is present, not polluting the rest of the site
     if (is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'sinergiacrm-private-area')) {
+        // Versión = fecha de modificación del archivo: cada deploy rompe la caché
+        // del navegador automáticamente (antes '3.8' fijo dejaba CSS antiguo cacheado).
+        $ver = function ($rel) {
+            $path = plugin_dir_path(__FILE__) . $rel;
+            return file_exists($path) ? filemtime($path) : null;
+        };
         // Modern typography (Inter) loaded from Google Fonts
         wp_enqueue_style('stic-google-fonts', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap', array(), null);
-        wp_enqueue_style('stic-style', plugins_url('css/stic-style.css', __FILE__));
-        wp_enqueue_style('stic-multiselect', plugins_url('css/selectize.css', __FILE__));
-        wp_enqueue_style('stic-modern-style', plugins_url('css/stic-modern-style.css', __FILE__));
+        wp_enqueue_style('stic-style', plugins_url('css/stic-style.css', __FILE__), array(), $ver('css/stic-style.css'));
+        wp_enqueue_style('stic-multiselect', plugins_url('css/selectize.css', __FILE__), array(), $ver('css/selectize.css'));
+        wp_enqueue_style('stic-modern-style', plugins_url('css/stic-modern-style.css', __FILE__), array(), $ver('css/stic-modern-style.css'));
         wp_enqueue_style('fullcalendar', plugins_url('js/fullcalendar/lib/main.css', __FILE__));
         // custom-style.css is loaded LAST on purpose so it can override/enhance everything above
-        wp_enqueue_style('custom-style', plugins_url('css/custom-style.css', __FILE__), array('stic-modern-style'), '3.8');
+        wp_enqueue_style('custom-style', plugins_url('css/custom-style.css', __FILE__), array('stic-modern-style'), $ver('css/custom-style.css'));
     }
 
 }
