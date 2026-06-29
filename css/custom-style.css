@@ -2543,8 +2543,9 @@ span.stic-field {
    28. LISTADOS: CELDAS VACÍAS, ESTADO VACÍO + GUARDAR STICKY
    ============================================================ */
 
-/* Celdas de tarjeta sin valor: fuera (no más filas "Etiqueta:" vacías). */
-.stic-table-responsive td.stic-cell-empty { display: none !important; }
+/* Celdas de tarjeta sin valor: fuera (no más filas "Etiqueta:" vacías).
+   Especificidad alta para ganar a `.stic-table-responsive table.display td`. */
+.stic-table-responsive table.display td.stic-cell-empty { display: none !important; }
 
 /* Estado vacío con estilo de marca (sustituye al texto pelado). */
 .stic-empty-state {
