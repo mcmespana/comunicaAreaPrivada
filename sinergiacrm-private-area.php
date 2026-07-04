@@ -351,11 +351,11 @@ function sticpa_section_meta($key)
             'icon' => "<circle cx='12' cy='8' r='4'/><path d='M4 21v-1a8 8 0 0 1 16 0v1'/>",
         ),
         'single_stic_tutor_profile' => array(
-            'desc' => __('Tus datos como tutor/a.', 'sticpa'),
+            'desc' => __('Tus datos como familiar: contacto, dirección y medio de pago.', 'sticpa'),
             'icon' => "<circle cx='12' cy='8' r='4'/><path d='M4 21v-1a8 8 0 0 1 16 0v1'/>",
         ),
         'single_stic_profile_selection' => array(
-            'desc' => __('Cambia de perfil.', 'sticpa'),
+            'desc' => __('Elige a qué participante quieres ver.', 'sticpa'),
             'icon' => "<path d='M16 21v-2a4 4 0 0 0-8 0v2'/><circle cx='12' cy='7' r='4'/><path d='M22 21v-2a4 4 0 0 0-3-3.87'/>",
         ),
         'list_stic_relationships' => array(
@@ -395,7 +395,7 @@ function sticpa_section_meta($key)
             'icon' => "<circle cx='12' cy='12' r='10'/><path d='M12 16v-4M12 8h.01'/>",
         ),
         'single_stic_comunica_perfil' => array(
-            'desc' => __('Consulta y edita tus datos personales y de contacto.', 'sticpa'),
+            'desc' => __('Tus datos personales, de contacto, MCM, salud y RGPD.', 'sticpa'),
             'icon' => "<circle cx='12' cy='8' r='4'/><path d='M4 21v-1a8 8 0 0 1 16 0v1'/>",
         ),
         'single_stic_comunica_monitor' => array(
@@ -491,13 +491,24 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
 
     $html .= "<div class='stic-auth' data-mode='" . esc_attr($mode) . "'>";
 
+    /* ---------- TABS: elegir cómo entrar (enlace mágico / contraseña) ---------- */
+    $html .= "
+        <div class='stic-auth-tabs' role='tablist' aria-label='" . esc_attr__('Forma de acceso', 'sticpa') . "'>
+            <button type='button' class='stic-auth-tab' data-auth-toggle='magic' role='tab'>"
+                . sticpa_icon('sparkles') . "<span>" . __('Enlace mágico', 'sticpa') . "</span>
+            </button>
+            <button type='button' class='stic-auth-tab' data-auth-toggle='password' role='tab'>"
+                . sticpa_icon('lock') . "<span>" . __('Contraseña', 'sticpa') . "</span>
+            </button>
+        </div>";
+
     /* ---------- VISTA 1: ENLACE MÁGICO (por defecto) ---------- */
     $html .= "
         <div class='stic-auth-view stic-auth-magic'>
             " . $magicMsg . "
             <p class='stic-auth-help'>
                 <span class='stic-sparkle' aria-hidden='true'>" . sticpa_icon('sparkles') . "</span>
-                " . __('Introduce tu email y te enviamos un enlace para entrar sin contraseña.', 'sticpa') . "
+                " . __('Sin contraseñas que recordar: escribe tu email y te enviamos un enlace para entrar con un clic.', 'sticpa') . "
             </p>
             <form action='" . site_url() . "/wp-admin/admin-post.php' method='post' class='stic-loading-form'
                   data-loading-text='" . esc_attr__('Enviando tu enlace de acceso…', 'sticpa') . "'
@@ -527,9 +538,6 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
                     </li>
                 </ul>
             </form>
-            <p class='stic-auth-switch'>
-                <a href='?mode=password' data-auth-toggle='password'>" . __('¿Tienes una contraseña? Inicia sesión', 'sticpa') . "</a>
-            </p>
         </div>";
 
     /* ---------- VISTA 2: USUARIO + CONTRASEÑA ---------- */
@@ -561,18 +569,16 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
                     </li>
                 </ul>
             </form>
-            <p class='stic-auth-switch'>
-                <a href='?mode=magic' data-auth-toggle='magic'>" . sticpa_icon('sparkles', 'stic-inline-icon') . " " . __('Prefiero entrar con un enlace mágico', 'sticpa') . "</a>
-            </p>
         </div>";
 
     $html .= "</div>"; // .stic-auth
 
-    // Registro (común a ambas vistas).
+    // Registro + sello de confianza (común a ambas vistas).
     $html .= "
         <p class='stic-auth-links' style='text-align:center;margin-top:1.1rem;font-size:0.92rem;color:var(--gray-500);'>"
         . __('¿Todavía no tienes cuenta?', 'sticpa') . " <a href='?internalpage=single_stic_signup'>" . __('Consulta cómo conseguirlo', 'sticpa') . "</a>
-        </p>";
+        </p>
+        <p class='stic-auth-trust'>" . sticpa_icon('shield') . "<span>" . __('Conexión segura · Tus datos viven en SinergiaCRM', 'sticpa') . "</span></p>";
 
     return $html;
 }
@@ -724,6 +730,23 @@ function sugar_crm_portal_forgot_password($html = "")
     return $html;
 }
 
+/**
+ * Sanea el parámetro ?internalpage y devuelve la ruta del archivo de pages/ a
+ * incluir, o '' si no es válido. IMPRESCINDIBLE: internalpage viene del
+ * navegador y sin esta comprobación permitiría incluir archivos arbitrarios
+ * del servidor (path traversal, p. ej. ../../wp-config).
+ */
+function sticpa_resolve_page_file($page)
+{
+    $page = (string) $page;
+    // Solo minúsculas, números y guion bajo: es el formato de todos los archivos de pages/.
+    if ($page === '' || !preg_match('/^[a-z0-9_]+$/', $page)) {
+        return '';
+    }
+    $file = plugin_dir_path(__FILE__) . 'pages/' . $page . '.php';
+    return file_exists($file) ? $file : '';
+}
+
 function sugar_crm_portal_index($html = "")
 {
     // index
@@ -742,11 +765,13 @@ function sugar_crm_portal_index($html = "")
             $currentPage = 'single_stic_profile_selection';
         }
     } else {
-        $currentPage = $_REQUEST['internalpage'];
+        // Con sesión de tutor pero sin página pedida (URL "pelada"): a la home.
+        $currentPage = $_REQUEST['internalpage'] ?? 'single_stic_home';
     }
-    if (!$currentPage == '') {
+    $pageFile = sticpa_resolve_page_file($currentPage);
+    if ($pageFile !== '') {
         ob_start();
-        include plugin_dir_path(__FILE__) . 'pages/' . $currentPage . '.php';
+        include $pageFile;
         $returned = ob_get_contents();
         $html .= $returned;
         ob_end_clean();
@@ -766,9 +791,10 @@ function sugar_crm_portal_signup($html = "")
 
     $html .='<div>';
     //We include the corresponding form based on the content of $_REQUEST
-    if (!$_REQUEST['internalpage'] == '') {
+    $pageFile = sticpa_resolve_page_file($_REQUEST['internalpage'] ?? '');
+    if ($pageFile !== '') {
         ob_start();
-        require_once plugin_dir_path(__FILE__) . 'pages/' . $_REQUEST['internalpage'] . '.php';
+        require_once $pageFile;
         $returned = ob_get_contents();
         ob_end_clean();
         $html .= $returned;
@@ -809,7 +835,7 @@ function sugar_crm_portal_start_session()
     }
 }
 
-if (isset($_REQUEST['logout']) == 'true') // logout
+if (isset($_REQUEST['logout'])) // logout
 {
     add_action('init', 'sugar_crm_portal_louout', 1);
     function sugar_crm_portal_louout()

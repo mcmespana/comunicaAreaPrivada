@@ -67,7 +67,18 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
       ↳ `inc/stic-class-6.php::call`.
 - [ ] `SEC-05` (P1 · M) **Añadir nonces/CSRF** a todas las acciones `admin_post_*`
       (`wp_nonce_field` + `check_admin_referer`). Hoy los formularios no tienen protección CSRF.
+      Incluir también los enlaces GET del selector de participante (`menu.php`,
+      `single_stic_profile_selection.php`).
       ↳ `inc/stic-action.php`, formularios en `pages/*` y `inc/stic-formController.php`.
+- [x] `SEC-07` (P0 · S) **Sanear `?internalpage`** antes del `include` (era un path
+      traversal potencial: permitía intentar incluir archivos arbitrarios). Ahora
+      whitelist `[a-z0-9_]+` + `file_exists` en `pages/`. ↳ **hecho** (2026-07).
+      ↳ `sinergiacrm-private-area.php::sticpa_resolve_page_file`.
+- [x] `SEC-08` (P1 · S) **`exit` tras todos los `wp_redirect`** de `inc/stic-action.php`
+      (varios handlers seguían ejecutando código tras redirigir). ↳ **hecho** (2026-07).
+- [x] `SEC-09` (P1 · S) **Escapar valores del CRM en el motor de formularios**
+      (`esc_attr`/`esc_textarea`): un valor con apóstrofe ("C/ L'Horta") rompía el HTML
+      del input. ↳ **hecho** (2026-07). ↳ `inc/stic-formController.php`.
 - [ ] `SEC-06` (P1 · S) **Cookies de sesión seguras**: forzar `Secure`, `HttpOnly`, `SameSite=Lax`
       y exigir HTTPS en el área privada.
 
@@ -133,8 +144,34 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
       las pantallas de listado/detalle de cada módulo. ↳ **hecho.** Pulido responsive en Eventos, Documentos, Inscripciones, Pagos, etc.
 - [x] `UI-10` (P1 · S) **Controles de subida tipo Dropzone**: Rediseñar inputs de archivos para un look premium con área dashed interactiva y píldoras degradadas de marca. ↳ **hecho.**
 - [x] `UI-11` (P1 · S) **Modal de confirmación de borrado**: Reemplazar confirmaciones de borrado nativas por popups premium HTML/CSS personalizados con fondo esmerilado. ↳ **hecho.**
-- [ ] `UI-04` (P3 · S) Limpiar los CSS `*.backup` y consolidar `stic-style` / `stic-modern-style`
-      si dejan de ser necesarios.
+- [x] `UI-04` (P3 · S) Limpiar los CSS `*.backup`. ↳ **hecho** (2026-07). Consolidar
+      `stic-style` / `stic-modern-style` sigue pendiente como `UI-15`.
+- [x] `UI-12` (P1 · M) **Sistema de diseño documentado** en
+      [`docs/design-system.md`](docs/design-system.md): tokens, componentes, motor de
+      formularios, checklist y anti-patrones. ↳ **hecho** (2026-07).
+- [x] `UI-13` (P1 · L) **Formularios Comunica replicados funcionalmente** desde
+      `comunicaFormularios` (monitores.html / laicos.html): tooltips ⓘ por campo
+      (clave `help`), hints, notas de sección, consentimientos RGPD con enlaces
+      legales, tarjetas Automático/Manual de delitos sexuales, campos condicionales
+      (`data-visible-when`), inputmode/autocomplete. Laico/a se fusionó en «Mis datos»
+      (todo era general). Excluida a propósito la Asamblea de mayo 2026 (ya pasó).
+      ↳ **hecho** (2026-07). ↳ `pages/single_stic_comunica_perfil.php`,
+      `pages/single_stic_comunica_monitor.php`, `inc/stic-formController.php`.
+- [x] `UI-14` (P1 · L) **Perfiles de familia**: pantalla de selección de participante
+      con tarjetas + selector rápido en la barra (siempre se sabe a quién ves) +
+      pantalla de datos del familiar con medio de pago (front adelantado, campos
+      `ajmcm_pago_*_c` provisionales). Demo sin CRM: `?familia_demo=1`, filtros
+      `sticpa_familia_participants` / `sticpa_is_familia`. ↳ **hecho** (2026-07).
+      ↳ `pages/single_stic_profile_selection.php`, `pages/single_stic_tutor_profile.php`,
+      `menu.php`, `js/stic-ui.js`.
+- [ ] `UI-15` (P3 · M) Consolidar `stic-style.css` / `stic-modern-style.css` en una sola
+      capa base (hoy custom-style pisa mucho de ambas).
+- [ ] `FAM-01` (P1 · M) **Conectar los perfiles de familia con Sinergia** cuando existan
+      las relaciones `stic_Personal_Environment` en el CRM de Comunica: verificar la
+      carga real de participantes y decidir el campo definitivo del rol "familiar".
+- [ ] `FAM-02` (P2 · S) **Medio de pago del familiar**: crear en Studio (o mapear a
+      `stic_Payment_Commitments`) los campos reales y renombrar `ajmcm_pago_*_c` en
+      `pages/single_stic_tutor_profile.php` (buscar el aviso ⚙️).
 
 ## ⚪ P2/P3 — Mantenimiento y calidad
 

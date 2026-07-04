@@ -2609,3 +2609,538 @@ span.stic-field {
     .stic-form > form > ul.stic-ctabs-list { backdrop-filter: none; }
 }
 
+
+/* ============================================================
+   29. TOOLTIPS DE AYUDA ⓘ + HINTS + NOTAS DE FORMULARIO
+   ------------------------------------------------------------
+   Replican los patrones de los formularios públicos de Comunica:
+   · .stic-info      → botón ? junto a la etiqueta con tooltip
+   · .stic-field-hint→ línea pequeña bajo el campo (formatos, tamaños)
+   · .stic-form-note → párrafo explicativo a ancho completo
+   Los genera el motor de formularios (claves 'help', 'hint', tipo 'note').
+   ============================================================ */
+.stic-info {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    margin-left: 0.3rem;
+    vertical-align: -0.18em;
+    border-radius: 50%;
+    background: var(--primary-50);
+    color: var(--primary-color);
+    font-size: 0.72rem;
+    font-weight: 800;
+    line-height: 1;
+    cursor: help;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.18s var(--ease-spring);
+}
+.stic-info:hover,
+.stic-info:focus-visible,
+.stic-info.is-open {
+    background: var(--primary-color);
+    color: #fff;
+    transform: scale(1.08);
+    outline: none;
+}
+.stic-info-tip {
+    position: absolute;
+    bottom: calc(100% + 9px);
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    z-index: 60;
+    width: max-content;
+    max-width: min(300px, 78vw);
+    padding: 0.7rem 0.85rem;
+    border-radius: var(--radius-md);
+    background: var(--gray-900, #111827);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 500;
+    line-height: 1.5;
+    text-align: left;
+    letter-spacing: 0;
+    text-transform: none;
+    box-shadow: var(--shadow-lg);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s var(--ease-out), visibility 0.18s;
+}
+.stic-info-tip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: var(--gray-900, #111827);
+}
+.stic-info:hover .stic-info-tip,
+.stic-info:focus-visible .stic-info-tip,
+.stic-info.is-open .stic-info-tip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(0);
+}
+/* Cerca del borde izquierdo el tooltip se alinea al inicio para no cortarse. */
+li:first-child .stic-info-tip { left: 0; transform: translateX(-10px) translateY(4px); }
+li:first-child .stic-info:hover .stic-info-tip,
+li:first-child .stic-info:focus-visible .stic-info-tip,
+li:first-child .stic-info.is-open .stic-info-tip { transform: translateX(-10px) translateY(0); }
+li:first-child .stic-info-tip::after { left: 16px; }
+
+.stic-field-hint {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 0.78rem;
+    font-weight: 500;
+    line-height: 1.45;
+    color: var(--gray-400);
+}
+
+.stic-form li.stic-form-note {
+    grid-column: 1 / -1 !important;
+    margin: 0.15rem 0 0.55rem !important;
+    padding: 0.85rem 1.05rem !important;
+    background: var(--primary-50) !important;
+    border: 1px solid color-mix(in srgb, var(--primary-color) 18%, transparent) !important;
+    border-radius: var(--radius-md) !important;
+    font-size: 0.88rem !important;
+    line-height: 1.55 !important;
+    color: var(--gray-700) !important;
+}
+.stic-form li.stic-form-note a { color: var(--primary-color); font-weight: 700; }
+.stic-form li.stic-form-note ul { margin: 0.5rem 0 0 1.1rem; padding: 0; }
+.stic-form li.stic-form-note li { margin-bottom: 0.4rem; }
+/* Variante neutra (aclaraciones suaves, p. ej. sanitarias). */
+.stic-form li.stic-form-note.stic-note-soft {
+    background: var(--surface-2) !important;
+    border-color: var(--gray-200) !important;
+    color: var(--gray-600) !important;
+}
+
+/* ============================================================
+   30. CONSENTIMIENTOS LEGALES — enlace "ver condiciones" + select
+   ------------------------------------------------------------
+   Cada consentimiento = fila con botón-enlace al texto legal y su
+   desplegable Sí/No. Lo monta sticpa_legal_consent_fields() (pages).
+   ============================================================ */
+.stic-form li.stic-legal-row {
+    grid-column: 1 / -1 !important;
+    display: flex !important;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.8rem 1.2rem;
+    padding: 1rem 1.1rem !important;
+    background: var(--surface-2);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    margin-bottom: 0.55rem !important;
+}
+.stic-legal-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.5rem 0.9rem;
+    border-radius: var(--radius-full);
+    border: 1.5px solid color-mix(in srgb, var(--primary-color) 25%, transparent);
+    background: var(--surface);
+    color: var(--primary-color) !important;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-decoration: none !important;
+    white-space: nowrap;
+    transition: background 0.18s ease, color 0.18s ease;
+}
+.stic-legal-link:hover { background: var(--primary-color); color: #fff !important; }
+.stic-legal-link svg { width: 14px; height: 14px; flex-shrink: 0; }
+.stic-legal-row .stic-legal-q {
+    flex: 1 1 260px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.9rem;
+}
+.stic-legal-row .stic-legal-q label {
+    margin: 0 !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    color: var(--gray-700) !important;
+    line-height: 1.4;
+}
+.stic-legal-row .stic-legal-q select {
+    flex: 0 0 auto;
+    width: auto !important;
+    min-width: 96px;
+    min-height: 44px !important;
+    padding: 0.5rem 2.4rem 0.5rem 0.9rem !important;
+}
+@media (max-width: 600px) {
+    .stic-form li.stic-legal-row { align-items: stretch; flex-direction: column; }
+    .stic-legal-link { align-self: flex-start; }
+}
+
+/* ============================================================
+   31. TARJETAS DE OPCIÓN (radio) — p. ej. Delitos Sexuales auto/manual
+   ============================================================ */
+.stic-form li.stic-option-row { grid-column: 1 / -1 !important; }
+.stic-option-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+    gap: 0.8rem;
+    margin-top: 0.5rem;
+}
+.stic-option-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding: 1.05rem 1.1rem;
+    border: 2px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    cursor: pointer;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.15s var(--ease-spring);
+}
+.stic-option-card:hover { border-color: var(--primary-light); transform: translateY(-2px); }
+.stic-option-card input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+.stic-option-card .stic-option-title {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-weight: 800;
+    font-size: 0.98rem;
+    color: var(--gray-800);
+}
+.stic-option-card .stic-option-desc {
+    font-size: 0.84rem;
+    line-height: 1.5;
+    color: var(--gray-500);
+}
+.stic-option-card:has(input:checked) {
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-glow);
+    background: var(--primary-50);
+}
+.stic-option-card:has(input:checked)::after {
+    content: '✓';
+    position: absolute;
+    top: 0.7rem;
+    right: 0.8rem;
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--grad-brand);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 800;
+}
+.stic-option-card:has(input:focus-visible) { box-shadow: var(--shadow-glow); }
+
+/* ============================================================
+   32. SELECCIÓN DE PARTICIPANTE (familias) — tarjetas grandes
+   ============================================================ */
+.stic-profiles { font-family: var(--font-family); animation: stic-fade-up 0.5s var(--ease-out) both; }
+.stic-profiles-lead {
+    margin: 0 0 1.4rem;
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--gray-600);
+    max-width: 62ch;
+}
+.stic-profiles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
+    gap: clamp(0.9rem, 2vw, 1.2rem);
+}
+.stic-profile-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 0.55rem;
+    width: 100%;
+    padding: 1.7rem 1.3rem 1.4rem;
+    border: 2px solid var(--gray-200);
+    border-radius: var(--radius-xl);
+    background: var(--surface) !important;   /* gana al gradiente de .stic-button */
+    color: var(--gray-800) !important;
+    box-shadow: var(--shadow-xs);
+    cursor: pointer;
+    text-decoration: none !important;
+    overflow: hidden;
+    transition: transform 0.22s var(--ease-spring), box-shadow 0.22s ease, border-color 0.22s ease;
+    animation: stic-fade-up 0.45s var(--ease-out) both;
+}
+.stic-profile-card::after { display: none !important; }
+.stic-profile-card:nth-child(2) { animation-delay: 0.05s; }
+.stic-profile-card:nth-child(3) { animation-delay: 0.10s; }
+.stic-profile-card:nth-child(4) { animation-delay: 0.15s; }
+.stic-profile-card:nth-child(5) { animation-delay: 0.20s; }
+.stic-profile-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-lg);
+}
+.stic-profile-avatar {
+    display: grid;
+    place-items: center;
+    width: 74px;
+    height: 74px;
+    border-radius: 50%;
+    background: var(--grad-brand);
+    color: #fff;
+    font-size: 1.9rem;
+    font-weight: 800;
+    box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    transition: transform 0.25s var(--ease-spring);
+}
+.stic-profile-card:nth-child(even) .stic-profile-avatar { background: var(--grad-brand-rev); }
+.stic-profile-card:hover .stic-profile-avatar { transform: scale(1.07); }
+.stic-profile-name {
+    font-size: 1.08rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+    color: var(--gray-900);
+}
+.stic-profile-tag {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--gray-400);
+}
+.stic-profile-go {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.3rem;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+.stic-profile-go svg { width: 15px; height: 15px; transition: transform 0.22s var(--ease-spring); }
+.stic-profile-card:hover .stic-profile-go svg { transform: translateX(4px); }
+/* Tarjeta del propio familiar ("mis datos"): diferenciada en magenta suave. */
+.stic-profile-card--self { border-style: dashed; }
+.stic-profile-card--self .stic-profile-avatar { background: var(--grad-brand-rev); }
+.stic-profile-card--self .stic-profile-go { color: var(--secondary-color); }
+/* Participante actualmente activo. */
+.stic-profile-card.is-active {
+    border-color: var(--primary-color);
+    background: var(--primary-50) !important;
+}
+.stic-profile-card.is-active .stic-profile-tag { color: var(--primary-color); }
+/* Aviso de datos de demostración. */
+.stic-profiles-demo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0 0 1.1rem;
+    padding: 0.5rem 0.95rem;
+    border-radius: var(--radius-full);
+    background: #fff7e6;
+    border: 1px solid #ffd591;
+    color: #ad6800;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+/* ============================================================
+   33. SWITCHER RÁPIDO DE PARTICIPANTE — en la barra de navegación
+   ------------------------------------------------------------
+   El familiar ve SIEMPRE de quién es el modo actual y puede cambiar
+   en 2 toques sin salir de la página. Renderizado en menu.php.
+   ============================================================ */
+.stic-part-switch { position: relative; min-width: 0; }
+.stic-part-switch-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    max-width: 100%;
+    padding: 0.28rem 0.6rem 0.28rem 0.35rem;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.16) !important;
+    color: #fff !important;
+    font: inherit;
+    font-size: 0.84rem;
+    font-weight: 700;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.18s ease;
+}
+.stic-part-switch-btn::after { display: none !important; }
+.stic-part-switch-btn:hover { background: rgba(255, 255, 255, 0.28) !important; }
+.stic-part-switch-btn .stic-part-avatar {
+    display: grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #fff;
+    color: var(--secondary-color);
+    font-size: 0.72rem;
+    font-weight: 800;
+    flex-shrink: 0;
+}
+.stic-part-switch-btn .stic-part-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.stic-part-switch-btn svg { width: 13px; height: 13px; flex-shrink: 0; opacity: 0.9; transition: transform 0.2s var(--ease-spring); }
+.stic-part-switch.is-open .stic-part-switch-btn svg { transform: rotate(180deg); }
+
+.stic-part-switch-menu {
+    /* Anclado con position:fixed desde JS (bindPartSwitch): .stic-nav tiene
+       overflow:hidden y un menú absolute quedaría cortado. */
+    position: fixed;
+    z-index: 9991;
+    min-width: 240px;
+    max-width: min(320px, 88vw);
+    display: none;
+    padding: 0.45rem;
+    background: var(--surface);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    animation: stic-fade-up 0.18s var(--ease-out) both;
+}
+.stic-part-switch.is-open .stic-part-switch-menu { display: block; }
+.stic-part-switch-title {
+    padding: 0.4rem 0.65rem 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--gray-400);
+}
+.stic-part-switch-menu ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.stic-part-option {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0.65rem;
+    border-radius: var(--radius-md);
+    color: var(--gray-700) !important;
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-decoration: none !important;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.stic-part-option:hover { background: var(--primary-50); color: var(--primary-color) !important; }
+.stic-part-option .stic-part-avatar {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--grad-brand);
+    color: #fff;
+    font-size: 0.82rem;
+    font-weight: 800;
+    flex-shrink: 0;
+}
+.stic-part-option.is-active {
+    background: var(--primary-50);
+    color: var(--primary-color) !important;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--primary-color) 30%, transparent);
+}
+.stic-part-option.is-active::after {
+    content: '✓';
+    margin-left: auto;
+    font-weight: 800;
+    color: var(--primary-color);
+}
+.stic-part-option--all {
+    border-top: 1px solid var(--gray-100);
+    margin-top: 0.25rem;
+    padding-top: 0.6rem;
+    color: var(--gray-500) !important;
+    font-size: 0.85rem;
+}
+
+/* ============================================================
+   34. LOGIN — tabs segmentadas (enlace mágico / contraseña) + confianza
+   ============================================================ */
+.stic-auth-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    margin: 0 0 1.25rem;
+    padding: 4px;
+    border-radius: var(--radius-full);
+    background: color-mix(in srgb, var(--gray-200) 55%, transparent);
+}
+.stic-auth-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    padding: 0.62rem 0.6rem;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--gray-500);
+    font: inherit;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+.stic-auth-tab svg { width: 15px; height: 15px; flex-shrink: 0; }
+.stic-auth[data-mode="magic"] .stic-auth-tab[data-auth-toggle="magic"],
+.stic-auth[data-mode="password"] .stic-auth-tab[data-auth-toggle="password"] {
+    background: var(--surface);
+    color: var(--primary-color);
+    box-shadow: var(--shadow-sm);
+}
+.stic-auth-trust {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    margin: 1.3rem 0 0;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--gray-400);
+}
+.stic-auth-trust svg { width: 14px; height: 14px; color: var(--primary-color); }
+
+/* ============================================================
+   35. BLOQUE DE FOTO DE PERFIL — avatar + dropzone alineados
+   ============================================================ */
+.stic-photo-block {
+    display: flex !important;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1.1rem 1.4rem;
+}
+.stic-photo-block .stic-profile-picture {
+    width: 96px;
+    height: 96px;
+    object-fit: cover;
+    border-radius: 50% !important;
+    flex-shrink: 0;
+}
+.stic-photo-block .stic-photo-main { flex: 1 1 240px; min-width: 0; }
+.stic-photo-block .stic-photo-main > label {
+    display: block;
+    margin-bottom: 0.25rem !important;
+    font-weight: 700 !important;
+}
