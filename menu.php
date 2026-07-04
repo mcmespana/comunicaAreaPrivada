@@ -8,13 +8,14 @@ function getSticMenuElements()
     $menuElements = array();
 
     // --- Edición de datos (Comunica) — según el ROL del contacto ---
-    // "Mis datos" es común a todos; la sección específica se añade según el rol.
+    // "Mis datos" es común a todos (incluye TODOS los datos generales: contacto,
+    // dirección, MCM, salud, RGPD). Solo monitor/a tiene sección propia: el
+    // formulario de laicos no pide nada que no sea general (ver
+    // pages/single_stic_comunica_laico.php para el histórico de esa decisión).
     $role = function_exists('sticpa_get_comunica_role') ? sticpa_get_comunica_role() : '';
     $menuElements['single_stic_comunica_perfil'] = __('Mis datos', 'sticpa');
     if ($role === 'monitor') {
         $menuElements['single_stic_comunica_monitor'] = __('Monitor/a', 'sticpa');
-    } elseif ($role === 'laico') {
-        $menuElements['single_stic_comunica_laico'] = __('Laico/a', 'sticpa');
     }
 
     // --- Secciones del área privada (las que ya había) ---
@@ -42,18 +43,89 @@ function defaultMenuElement()
 }
 
 /**
- * ¿El perfil que ha accedido es de tipo "familia"? Solo en ese caso tiene sentido
- * el botón de "cambiar de participante" (un familiar que gestiona a varios).
+ * ¿El perfil que ha accedido es de tipo "familia"? Solo en ese caso se muestran
+ * el selector rápido de participante y la pantalla de selección.
  *
- * TODO: ahora mismo NO tenemos forma fiable de saberlo desde el CRM, así que
- * devolvemos false y la identidad se muestra de forma fija (sin cambiar de
- * participante). Cuando exista el dato (campo del CRM, tipo de relación, etc.),
- * conéctalo aquí o engánchalo con el filtro 'sticpa_is_familia'.
+ * Se considera familia cuando hay participantes disponibles en sesión
+ * (los carga pages/single_stic_profile_selection.php desde el CRM — relaciones
+ * stic_Personal_Environment — o vía el filtro 'sticpa_familia_participants').
+ * Mientras la parte de Sinergia no esté montada, puedes forzarlo con el filtro
+ * 'sticpa_is_familia' o previsualizar con ?familia_demo=1 en la selección.
  */
 function sticpa_is_familia()
 {
-    $isFamilia = false; // TODO: detectar perfil de familia
+    $isFamilia = !empty($_SESSION['scp_is_familia'])
+        || (isset($_SESSION['scp_available_profiles']) && count((array) $_SESSION['scp_available_profiles']) > 0)
+        || isset($_SESSION['scp_tutor_user_id']);
     return (bool) apply_filters('sticpa_is_familia', $isFamilia);
+}
+
+/**
+ * Participantes disponibles para el selector rápido (id + name), cacheados en
+ * sesión por la pantalla de selección. Devuelve array vacío si aún no se cargó.
+ */
+function sticpa_available_profiles()
+{
+    $profiles = isset($_SESSION['scp_available_profiles']) ? (array) $_SESSION['scp_available_profiles'] : array();
+    return apply_filters('sticpa_available_profiles', $profiles);
+}
+
+/**
+ * SELECTOR RÁPIDO DE PARTICIPANTE para la barra de navegación.
+ * Botón con el participante activo + desplegable con todos los perfiles
+ * (participantes + el propio familiar + enlace a la pantalla completa).
+ * El cambio real lo hace el handler admin-post single_stic_profile_selection.
+ */
+function sticpa_participant_switcher_html()
+{
+    $profiles = sticpa_available_profiles();
+    $familiarId = $_SESSION['scp_tutor_user_id'] ?? ($_SESSION['scp_user_id'] ?? '');
+    $familiarName = $_SESSION['scp_tutor_user_contact_name'] ?? ($_SESSION['scp_user_contact_name'] ?? '');
+    $activeId = $_SESSION['scp_user_id'] ?? '';
+    $activeName = $_SESSION['scp_user_contact_name'] ?? '';
+
+    $current_url = explode('?', $_SERVER['REQUEST_URI'], 2)[0];
+    $defaultPage = defaultMenuElement();
+    $selectUrl = function ($id, $name) use ($current_url, $familiarId, $familiarName, $defaultPage) {
+        return esc_url(add_query_arg(array(
+            'action' => 'single_stic_profile_selection',
+            'profile_selected_id' => $id,
+            'profile_selected_name' => rawurlencode($name),
+            'scp_user_id' => $familiarId,
+            'scp_user_contact_name' => rawurlencode($familiarName),
+            'default_page' => $defaultPage,
+            'scp_current_url' => $current_url,
+        ), admin_url('admin-post.php')));
+    };
+
+    $chevron = "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><path d='m6 9 6 6 6-6'/></svg>";
+    $switching = esc_attr__('Cambiando de participante…', 'sticpa');
+
+    $html = "<span class='stic-part-switch'>";
+    $html .= "<button type='button' class='stic-part-switch-btn' aria-haspopup='true' aria-expanded='false' title='" . esc_attr__('Cambiar de participante', 'sticpa') . "'>";
+    $html .= "<span class='stic-part-avatar' aria-hidden='true'>" . esc_html(sticpa_name_initial($activeName)) . "</span>";
+    $html .= "<span class='stic-part-name'>" . esc_html($activeName) . "</span>" . $chevron;
+    $html .= "</button>";
+
+    $html .= "<span class='stic-part-switch-menu'>";
+    $html .= "<span class='stic-part-switch-title'>" . esc_html__('Ver como…', 'sticpa') . "</span><ul>";
+    foreach ($profiles as $profile) {
+        $isActive = ($profile['id'] === $activeId) ? ' is-active' : '';
+        $html .= "<li><a class='stic-part-option{$isActive}' href='" . $selectUrl($profile['id'], $profile['name']) . "' data-part-switch-to='{$switching}'>"
+            . "<span class='stic-part-avatar' aria-hidden='true'>" . esc_html(sticpa_name_initial($profile['name'])) . "</span>"
+            . "<span>" . esc_html($profile['name']) . "</span></a></li>";
+    }
+    // El propio familiar como opción ("mis propios datos").
+    $selfActive = (!empty($_SESSION['scp_tutor_is_user'])) ? ' is-active' : '';
+    $html .= "<li><a class='stic-part-option{$selfActive}' href='" . $selectUrl($familiarId, $familiarName) . "' data-part-switch-to='{$switching}'>"
+        . "<span class='stic-part-avatar' aria-hidden='true'>" . esc_html(sticpa_name_initial($familiarName)) . "</span>"
+        . "<span>" . esc_html($familiarName) . " <small>(" . esc_html__('yo', 'sticpa') . ")</small></span></a></li>";
+    // Acceso a la pantalla completa de selección.
+    $html .= "<li><a class='stic-part-option stic-part-option--all' href='?internalpage=single_stic_profile_selection'>"
+        . esc_html__('Ver todos los perfiles…', 'sticpa') . "</a></li>";
+    $html .= "</ul></span></span>";
+
+    return $html;
 }
 
 /**
@@ -114,17 +186,23 @@ function menu()
     $account .= "<span class='stic-avatar' aria-hidden='true'>" . esc_html($initial) . "</span>";
     $account .= "<span class='stic-account-info'>";
 
-    if ($familiarName !== null) {
-        // Familiar viendo a un participante.
+    $hasTutorSession = isset($_SESSION['scp_tutor_user_contact_name']);
+    if (($familiarName !== null || $hasTutorSession) && sticpa_is_familia()) {
+        // FAMILIA: nombre del familiar arriba y, debajo, el SELECTOR RÁPIDO con
+        // el participante activo (siempre visible: nunca hay duda de a quién ves).
+        $topName = $familiarName !== null ? $familiarName : ($_SESSION['scp_tutor_user_contact_name'] ?? $participantName);
+        $account .= "<span class='stic-account-name'><a href='?internalpage=single_stic_tutor_profile'>" . esc_html($topName) . "</a></span>";
+        $account .= "<span class='stic-account-sub'>";
+        $account .= "<span class='stic-account-tag'>" . __('Viendo a', 'sticpa') . "</span>";
+        $account .= sticpa_participant_switcher_html();
+        $account .= "</span>";
+    } elseif ($familiarName !== null) {
+        // Tutor sin selector (sin perfiles cargados): identidad fija como antes.
         $account .= "<span class='stic-account-name'><a href='?internalpage=single_stic_tutor_profile'>" . esc_html($familiarName) . "</a></span>";
         $account .= "<span class='stic-account-sub'>";
         $account .= "<span class='stic-account-tag'>" . __('Participante', 'sticpa') . "</span>";
         if ($participantName) {
             $account .= "<a class='stic-account-participant' href='?internalpage=single_stic_profile'>" . esc_html($participantName) . "</a>";
-        }
-        // El botón de "cambiar de participante" SOLO para perfiles de familia.
-        if (sticpa_is_familia()) {
-            $account .= "<a class='stic-switch' href='?internalpage=single_stic_profile_selection' title='" . esc_attr__('Cambiar de participante', 'sticpa') . "' aria-label='" . esc_attr__('Cambiar de participante', 'sticpa') . "'>" . ($iconFn ? sticpa_icon('switch') : '') . "</a>";
         }
         $account .= "</span>";
     } else {

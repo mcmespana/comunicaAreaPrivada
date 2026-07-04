@@ -11,6 +11,7 @@ plan "explícamelo como si tuviera 5 años, pero sin mentirme".
 
 > 📋 **¿Vas a desarrollar algo?** Mira primero [`TODO.md`](TODO.md) (tareas priorizadas y
 > convenciones) y los análisis de fondo en [`docs/`](docs/):
+> [**sistema de diseño (léelo antes de tocar UI)**](docs/design-system.md) ·
 > [migración a Expo](docs/analisis-expo-migracion.md) ·
 > [autenticación por token / magic links](docs/analisis-magic-links-tokens.md) ·
 > [despliegue a producción (CI/CD)](docs/despliegue.md).
@@ -271,6 +272,12 @@ El motor (`getFieldHtml` en `inc/stic-formController.php`) entiende, entre otros
 ---
 
 ## 6. ¿Qué lenguaje se usa y cómo hacer los estilos MUY modernos?
+
+> 🎨 **El sistema de diseño completo está documentado en
+> [`docs/design-system.md`](docs/design-system.md)**: tokens, componentes,
+> motor de formularios (tooltips `help`, hints, campos condicionales), perfiles
+> de familia (selector de participante) y el checklist para pantallas nuevas.
+> Lo de abajo es el contexto general; ese documento es la referencia operativa.
 
 ### 6.1 Stack tecnológico
 

@@ -1,8 +1,21 @@
 <?php
 /**
- * Comunica — Mis datos (común a todos los roles).
- * Datos personales + dirección + RGPD. Campos de identidad en solo lectura.
- * Guardado: prefix_comunica_save_contact (inc/stic-action.php).
+ * Comunica — MIS DATOS (común a todos los roles: monitor, laico, familiar…).
+ * ----------------------------------------------------------------------------
+ * Replica FUNCIONALMENTE los datos generales de los formularios públicos de
+ * Comunica (comunicaFormularios/monitores/monitores.html y com-lc/laicos.html):
+ * mismos campos, mismo orden, mismos tooltips de ayuda (clave 'help') y textos
+ * explicativos (tipo 'note'). Los campos del formulario de laicos son TODOS
+ * generales, por eso viven aquí y no hay página específica de laico.
+ *
+ * Secciones: identidad (solo lectura) · contacto · dirección · foto ·
+ *            MCM (solo roles monitor/laico) · información sanitaria · RGPD.
+ *
+ * NOTA deliberada: las preguntas de la Asamblea de mayo de 2026 de los
+ * formularios originales NO se replican (el evento ya ha pasado).
+ *
+ * Guardado: prefix_comunica_save_contact (inc/stic-action.php) — envía todo
+ * el $_REQUEST a set_entry; los campos desconocidos los ignora el CRM.
  */
 
 $formSettings['moduleName'] = 'Contacts';
@@ -18,20 +31,25 @@ $formSettings['attributes'] = 'enctype="multipart/form-data"';
 
 $id = $_SESSION['scp_user_id'];
 $data = $objSCP->getRecordDetail($id, $formSettings['moduleName'])->entry_list[0]->name_value_list;
+$role = function_exists('sticpa_get_comunica_role') ? sticpa_get_comunica_role() : '';
 
 // Correo de la persona de referencia para solicitar cambios en los datos
 // no editables. Ajustable por local mediante el filtro 'sticpa_mail_referencia'.
 $mailReferencia = apply_filters('sticpa_mail_referencia', 'comunica@movimientoconsolacion.com');
 
+// Icono de "enlace externo" para los botones legales (mismo de los forms públicos).
+$extIcon = "<svg aria-hidden='true' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6'/><polyline points='15 3 21 3 21 9'/><line x1='10' y1='14' x2='21' y2='3'/></svg>";
+
 $fieldList[] = array('name' => 'id', 'type' => 'hidden');
 
-// --- Identidad (solo lectura) ---
+// ===== Identidad (solo lectura, como en los formularios públicos) =====
 $fieldList[] = array('name' => 'datos_personales', 'type' => 'header', 'label' => __('Datos personales', 'sticpa'));
-$fieldList[] = array('name' => 'first_name', 'required' => false, 'attributes' => array('disabled' => 'disabled'));
-$fieldList[] = array('name' => 'last_name', 'required' => false, 'attributes' => array('disabled' => 'disabled'));
+$fieldList[] = array('name' => 'first_name', 'required' => false, 'attributes' => array('disabled' => 'disabled', 'autocomplete' => 'given-name'));
+$fieldList[] = array('name' => 'last_name', 'required' => false, 'attributes' => array('disabled' => 'disabled', 'autocomplete' => 'family-name'));
 $fieldList[] = array('name' => 'stic_identification_type_c', 'required' => false, 'attributes' => array('disabled' => 'disabled'));
 $fieldList[] = array('name' => 'stic_identification_number_c', 'required' => false, 'attributes' => array('disabled' => 'disabled'));
-$fieldList[] = array('name' => 'birthdate', 'required' => false, 'attributes' => array('disabled' => 'disabled'));
+$fieldList[] = array('name' => 'birthdate', 'required' => false, 'attributes' => array('disabled' => 'disabled', 'autocomplete' => 'bday'));
+$fieldList[] = array('name' => 'stic_gender_c', 'required' => false, 'label' => __('Género', 'sticpa'));
 
 // Aviso: los campos con asterisco morado no se pueden editar desde aquí.
 $fieldList[] = array(
@@ -40,7 +58,7 @@ $fieldList[] = array(
     'html' => '
         <li class="stic-readonly-note">
             <span>' . sprintf(
-                /* translators: %s = correo de la persona de referencia */
+                /* translators: 1: marca visual del campo bloqueado, 2: correo de referencia */
                 __('Los campos marcados con %1$s no se pueden editar desde el área privada. Si necesitas modificarlos, escribe a tu referente en %2$s.', 'sticpa'),
                 '<strong class="stic-readonly-note-mark">✱</strong>',
                 '<a href="mailto:' . esc_attr($mailReferencia) . '">' . esc_html($mailReferencia) . '</a>'
@@ -48,58 +66,179 @@ $fieldList[] = array(
         </li>',
 );
 
-// --- Contacto (editable) ---
-$fieldList[] = array('name' => 'contacto', 'type' => 'header', 'label' => __('Contacto', 'sticpa'));
-$fieldList[] = array('name' => 'stic_gender_c', 'required' => false);
+// ===== Contacto =====
+$fieldList[] = array('name' => 'contacto', 'type' => 'header', 'label' => __('Datos de contacto', 'sticpa'));
+$fieldList[] = array(
+    'name' => 'contacto_nota', 'type' => 'note', 'classes' => 'stic-note-soft',
+    'html' => __('Revisa si tienes puesto el correo del MCM.', 'sticpa'),
+);
 $fieldList[] = array(
     'name' => 'email1',
-    'attributes' => array('pattern' => "^[a-zA-Z0-9.!#$%&’*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+$"),
+    'label' => __('Correo electrónico', 'sticpa'),
+    'attributes' => array(
+        'pattern' => "^[a-zA-Z0-9.!#$%&’*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)+$",
+        'autocomplete' => 'email',
+        'inputmode' => 'email',
+    ),
 );
-$fieldList[] = array('name' => 'phone_mobile');
-$fieldList[] = array('name' => 'phone_other', 'label' => __('Contacto de emergencia', 'sticpa'));
+$fieldList[] = array(
+    'name' => 'phone_mobile',
+    'label' => __('Móvil', 'sticpa'),
+    'attributes' => array('autocomplete' => 'tel', 'inputmode' => 'tel'),
+);
+$fieldList[] = array(
+    'name' => 'phone_other',
+    'label' => __('Contacto de emergencia', 'sticpa'),
+    'help' => __('Guardaremos el teléfono de un familiar con el que contactar en el (poco probable) caso de que pase algo grave.', 'sticpa'),
+    'attributes' => array('inputmode' => 'tel'),
+);
 
-// --- Foto ---
-if ($filename = $data->photo->value) {
+// ===== Dirección =====
+$fieldList[] = array('name' => 'direccion', 'type' => 'header', 'label' => __('Dirección', 'sticpa'));
+$fieldList[] = array('name' => 'primary_address_street', 'label' => __('Calle y número', 'sticpa'), 'attributes' => array('autocomplete' => 'street-address'));
+$fieldList[] = array('name' => 'primary_address_city', 'label' => __('Población', 'sticpa'), 'attributes' => array('autocomplete' => 'address-level2'));
+$fieldList[] = array('name' => 'primary_address_state', 'label' => __('Provincia', 'sticpa'));
+$fieldList[] = array(
+    'name' => 'primary_address_postalcode',
+    'label' => __('Código postal', 'sticpa'),
+    'attributes' => array('inputmode' => 'numeric', 'maxlength' => '5', 'autocomplete' => 'postal-code'),
+);
+$fieldList[] = array('name' => 'stic_primary_address_region_c', 'required' => false, 'label' => __('Comunidad Autónoma', 'sticpa'));
+
+// ===== Foto de perfil =====
+$fieldList[] = array('name' => 'foto', 'type' => 'header', 'label' => __('Foto', 'sticpa'));
+$photoHint = __('Formatos: jpg, jpeg, gif, png · Tamaño máximo: 6MB', 'sticpa');
+if (!empty($data->photo->value)) {
     $image = $objSCP->get_image(array('id' => $id, 'field' => 'photo'));
-    $content = $image->image_data->data;
-    $mime_type = $image->image_data->mime_type;
-    $fieldList[] = array(
-        'name' => 'photo', 'type' => 'html',
-        'html' => '
-            <li>
-                <img class="stic-profile-picture" src="data:' . $mime_type . '/png;base64, ' . $content . '"/>
-                <label style="padding-botton: 0px">' . __('Cambiar foto de perfil', 'sticpa') . ':</label>
-                <div style="font-size: 10px">' . __('(Formato: jpg, jpeg, gif, png — Tamaño máximo: 6MB)', 'sticpa') . '</div>
-                <span><input type="file" name="photo" id="photo" value="' . $filename . '"></span>
-            </li>',
-    );
+    $photoSrc = 'data:' . $image->image_data->mime_type . ';base64, ' . $image->image_data->data;
+    $photoLabel = __('Cambiar foto de perfil', 'sticpa');
 } else {
+    $photoSrc = plugins_url('../images/profile_picture.jpg', __FILE__);
+    $photoLabel = __('Sube una foto para conocernos mejor ✨', 'sticpa');
+}
+$fieldList[] = array(
+    'name' => 'photo', 'type' => 'html',
+    'html' => '
+        <li class="stic-photo-block">
+            <img class="stic-profile-picture" src="' . $photoSrc . '" alt="' . esc_attr__('Tu foto de perfil actual', 'sticpa') . '"/>
+            <span class="stic-photo-main">
+                <label for="photo">' . esc_html($photoLabel) . '</label>
+                <small class="stic-field-hint">' . esc_html($photoHint) . '</small>
+                <span><input type="file" name="photo" id="photo" accept="image/*"></span>
+            </span>
+        </li>',
+);
+
+// ===== MCM (solo miembros: monitor / laico; los campos son comunes a ambos) =====
+if (in_array($role, array('monitor', 'laico'), true)) {
+    $fieldList[] = array('name' => 'mcm', 'type' => 'header', 'label' => __('MCM', 'sticpa'));
+    $fieldList[] = array('name' => 'ajmcm_etapa_c', 'required' => false, 'label' => __('Etapa', 'sticpa'));
+    $fieldList[] = array('name' => 'ajmcm_panuelo_c', 'required' => false, 'label' => __('Pañuelo', 'sticpa'));
+    // Solo visible cuando Etapa = COM (lo gestiona bindConditionalFields en stic-ui.js).
     $fieldList[] = array(
-        'name' => 'photo', 'type' => 'html',
-        'html' => '
-            <li>
-                <img class="stic-profile-picture" src="' . plugins_url('../images/profile_picture.jpg', __FILE__) . '"/>
-                <label style="padding-botton: 0px">' . __('Elige un archivo', 'sticpa') . ':</label>
-                <div style="font-size: 10px">' . __('(Formato: jpg, jpeg, gif, png — Tamaño máximo: 6MB)', 'sticpa') . '</div>
-                <span><input type="file" name="photo" id="photo" value=></span>
-            </li>',
+        'name' => 'ajmcm_nivel_com_c', 'required' => false, 'label' => __('Nivel COM', 'sticpa'),
+        'attributes' => array('data-visible-when' => 'ajmcm_etapa_c:COM'),
+    );
+    // Solo visible cuando Etapa = LC Incorporado.
+    $fieldList[] = array(
+        'name' => 'ajmcm_ano_incorporacion_lc_c', 'required' => false,
+        'label' => __('Año incorporación LC', 'sticpa'),
+        'help' => __('Indica el año en el que hiciste la incorporación / compromiso como Laico/a Consolación Incorporado. Si no lo sabes, aproxímalo.', 'sticpa'),
+        'placeholder' => 'AAAA',
+        'attributes' => array('data-visible-when' => 'ajmcm_etapa_c:lcincorporado', 'inputmode' => 'numeric', 'maxlength' => '4'),
+    );
+    $fieldList[] = array('name' => 'ajmcm_tallas_c', 'required' => false, 'label' => __('Talla de camiseta', 'sticpa'));
+    $fieldList[] = array(
+        'name' => 'ajmcm_grupotemp_c', 'required' => false,
+        'label' => __('Grupo MCM', 'sticpa'),
+        'help' => __("Indica el nombre de tu grupo del COM o de Laicos Consolación.<br>Si no tiene nombre, indica algunos datos que nos permitan identificarlo, por ejemplo 'Grupo de Laicos creado recientemente'.<br><br>Si no tienes grupo indica 'Sin grupo'.<br><strong>NO es el nombre del grupo del que eres monitor/a, es el de tu grupo de referencia.</strong>", 'sticpa'),
+    );
+    $fieldList[] = array('name' => 'ajmcm_procendencia_c', 'required' => false, 'label' => __('MCM Local', 'sticpa'));
+    $fieldList[] = array(
+        'name' => 'ajmcm_mcm_desde_c', 'required' => false,
+        'label' => __('Pertenezco al MCM desde…', 'sticpa'),
+        'help' => __('¡Más o menos! 😄 Escribe el año en el que comenzaste a participar en los grupos, tanto del MIC, como del COM como LC.<br><br>Si no lo recuerdas porque hace muuucho tiempo, una fecha aproximada 😉', 'sticpa'),
+        'placeholder' => 'AAAA',
+        'attributes' => array('inputmode' => 'numeric', 'maxlength' => '4'),
     );
 }
 
-// --- Dirección ---
-$fieldList[] = array('name' => 'direccion', 'type' => 'header', 'label' => __('Dirección', 'sticpa'));
-$fieldList[] = array('name' => 'primary_address_street');
-$fieldList[] = array('name' => 'primary_address_city');
-$fieldList[] = array('name' => 'primary_address_postalcode');
-$fieldList[] = array('name' => 'primary_address_state');
-$fieldList[] = array('name' => 'stic_primary_address_region_c', 'required' => false);
+// ===== Información sanitaria (mismos campos y ayudas que los forms públicos) =====
+$fieldList[] = array('name' => 'salud', 'type' => 'header', 'label' => __('Información sanitaria', 'sticpa'));
+$fieldList[] = array(
+    'name' => 'salud_nota', 'type' => 'note', 'classes' => 'stic-note-soft',
+    'html' => __('Te solicitamos algunos datos de salud que nos pueden ser útiles en las actividades presenciales. Trataremos estos datos con especial cuidado.', 'sticpa'),
+);
+$fieldList[] = array(
+    'name' => 'ajmcm_descripcion_intoler_c', 'type' => 'textarea', 'required' => false,
+    'label' => __('Intolerancias alimentarias', 'sticpa'),
+    'help' => __('Alergias, intolerancias alimentarias u otros datos relacionados con la alimentación, para poder transmitirlos, por ejemplo, a un albergue que gestione las comidas de una actividad.<br>Si no tienes, déjalo en blanco.', 'sticpa'),
+);
+$fieldList[] = array(
+    'name' => 'ajmcm_descripcion_allergies__c', 'type' => 'textarea', 'required' => false,
+    'label' => __('Alergias', 'sticpa'),
+    'help' => __('Alergias conocidas que no sean alimentarias.<br>Si no tienes, déjalo en blanco.', 'sticpa'),
+);
+$fieldList[] = array(
+    'name' => 'ajmcm_descripcion_enfermed_c', 'type' => 'textarea', 'required' => false,
+    'label' => __('Enfermedades', 'sticpa'),
+    'help' => __('Si existen enfermedades crónicas o relevantes que pueda ser importante conocer en el desarrollo de las actividades.<br>Si no tienes, déjalo en blanco.', 'sticpa'),
+);
+$fieldList[] = array(
+    'name' => 'ajmcm_descripcion_tratam_c', 'type' => 'textarea', 'required' => false,
+    'label' => __('Tratamientos habituales', 'sticpa'),
+    'help' => __('Si habitualmente tomas algún tipo de medicación, puedes indicarlo aquí.<br>Si no tienes nada concreto o crónico, déjalo en blanco.', 'sticpa'),
+);
+$fieldList[] = array(
+    'name' => 'ajmcm_descripcion_otros_c', 'type' => 'textarea', 'required' => false,
+    'label' => __('Otros datos de salud', 'sticpa'),
+    'help' => __('Cualquier otro dato de salud que no hayas reflejado anteriormente y consideres necesario compartir.<br>Si no tienes, déjalo en blanco.', 'sticpa'),
+);
 
-// --- RGPD ---
+// ===== Protección de datos (RGPD) — con enlaces a los textos legales =====
 $siNo = array('' => ' ', '1' => __('Sí', 'sticpa'), '0' => __('No', 'sticpa'));
-$fieldList[] = array('name' => 'rgpd', 'type' => 'header', 'label' => __('Protección de datos (RGPD)', 'sticpa'));
-$fieldList[] = array('name' => 'ajmcm_acepta_lopd_c', 'type' => 'select', 'required' => false, 'selectValues' => $siNo);
-$fieldList[] = array('name' => 'ajmcm_datossalud_c', 'type' => 'select', 'required' => false, 'selectValues' => $siNo);
-$fieldList[] = array('name' => 'ajmcm_cesionimagenes_interne_c', 'type' => 'select', 'required' => false, 'selectValues' => $siNo);
+$legalConsents = array(
+    array(
+        'name'  => 'ajmcm_acepta_lopd_c',
+        'url'   => 'https://comunica.movimientoconsolacion.com/legal-rgpd',
+        'link'  => __('Ver información sobre protección de datos', 'sticpa'),
+        'label' => __('¿Aceptas las condiciones indicadas sobre protección de datos?', 'sticpa'),
+    ),
+    array(
+        'name'  => 'ajmcm_datossalud_c',
+        'url'   => 'https://comunica.movimientoconsolacion.com/legal-salud',
+        'link'  => __('Ver información sobre uso de datos de salud', 'sticpa'),
+        'label' => __('¿Aceptas las condiciones indicadas sobre uso de datos de salud?', 'sticpa'),
+    ),
+    array(
+        'name'  => 'ajmcm_cesionimagenes_interne_c',
+        'url'   => 'https://comunica.movimientoconsolacion.com/legal-imagenes',
+        'link'  => __('Ver información sobre cesión de imágenes', 'sticpa'),
+        'label' => __('¿Aceptas las condiciones indicadas sobre cesión de imágenes?', 'sticpa'),
+    ),
+);
+$fieldList[] = array('name' => 'rgpd', 'type' => 'header', 'label' => __('Autorizaciones legales', 'sticpa'));
+foreach ($legalConsents as $consent) {
+    $current = isset($data->{$consent['name']}->value) ? (string) $data->{$consent['name']}->value : '';
+    $options = '';
+    foreach ($siNo as $optValue => $optLabel) {
+        $selected = ((string) $optValue === $current) ? ' selected' : '';
+        $options .= "<option value='" . esc_attr($optValue) . "'{$selected}>" . esc_html($optLabel) . "</option>";
+    }
+    $fieldList[] = array(
+        'name' => $consent['name'] . '_row', 'type' => 'html',
+        'html' => '
+            <li class="stic-legal-row">
+                <a class="stic-legal-link" href="' . esc_url($consent['url']) . '" target="_blank" rel="noopener">'
+                    . esc_html($consent['link']) . ' ' . $extIcon . '
+                </a>
+                <span class="stic-legal-q">
+                    <label for="' . esc_attr($consent['name']) . '">' . esc_html($consent['label']) . '</label>
+                    <select class="input-text" name="' . esc_attr($consent['name']) . '" id="' . esc_attr($consent['name']) . '">' . $options . '</select>
+                </span>
+            </li>',
+    );
+}
 
 $formSettings['fileName'] = basename(__FILE__, ".php");
 $html .= makeForm($fieldList, $formSettings, $data);

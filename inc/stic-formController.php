@@ -1,5 +1,48 @@
 <?php
 //debug($_REQUEST, 'REQUEST');
+
+/**
+ * ============================================================================
+ *  MOTOR DE FORMULARIOS (makeForm / renderField)
+ * ----------------------------------------------------------------------------
+ *  Convierte un array $fieldList declarativo en HTML. Además de las claves
+ *  clásicas (name, label, type, required, defaultValue, attributes,
+ *  selectValues, actions, classes), cada campo admite:
+ *
+ *    'help'        => 'Texto…'   Botón ⓘ junto a la etiqueta con un tooltip
+ *                                accesible (hover/focus/click). Úsalo para
+ *                                explicar QUÉ se pide en el campo.
+ *    'hint'        => 'Texto…'   Línea pequeña y gris DEBAJO del campo.
+ *                                Úsalo para formatos ("AAAA", "máx. 6MB").
+ *    'placeholder' => 'Texto…'   Atajo del attribute placeholder.
+ *
+ *  Tipos extra además de los básicos:
+ *    'note'  => párrafo explicativo a ancho completo dentro de la sección
+ *               (equivale al "helper-text" de los formularios Comunica).
+ *               Usa 'html' => '…' para el contenido (admite HTML seguro).
+ *    'html'  => HTML libre (tú controlas el <li>).
+ *
+ *  Campos condicionales (mostrar según el valor de otro campo): añade en
+ *  'attributes' => array('data-visible-when' => 'otro_campo:valor1|valor2').
+ *  El JS de js/stic-ui.js (bindConditionalFields) hace el resto.
+ * ============================================================================
+ */
+
+/**
+ * Botón de información ⓘ con tooltip accesible, para usar junto a etiquetas.
+ * Replica el patrón "info-icon" de los formularios públicos de Comunica.
+ */
+function sticpa_field_help_html($text)
+{
+    if (trim((string) $text) === '') {
+        return '';
+    }
+    return " <span class='stic-info' role='button' tabindex='0' aria-label='" . esc_attr__('Más información', 'sticpa') . "'>"
+        . "<span class='stic-info-mark' aria-hidden='true'>?</span>"
+        . "<span class='stic-info-tip' role='tooltip'>" . wp_kses_post($text) . "</span>"
+        . "</span>";
+}
+
 // Prepare HTML form
 function makeForm($fieldList, $formSettings, $data, $action = null)
 {
@@ -137,6 +180,12 @@ function renderField($field, $data, $action, $crmDefinition)
         if ($type === 'html') {
             return $field['html'];
         }
+
+        // Nota/explicación a ancho completo dentro de la sección (helper-text).
+        if ($type === 'note') {
+            $classes = isset($field['classes']) ? esc_attr($field['classes']) : '';
+            return "<li class='stic-form-note {$classes}'>" . wp_kses_post($field['html'] ?? $field['label'] ?? '') . "</li>";
+        }
     } else {
         $type = $crmDefinition['type'] ?? null;
     }
@@ -147,8 +196,21 @@ function renderField($field, $data, $action, $crmDefinition)
         $required = ($crmDefinition['required'] ?? null) == '1' ? 'required' : '';
     }
     $defaultValue = getFieldDefaultValue($field, $field['name'] ?? null, $data, $type);
+
+    // 'placeholder' como atajo (equivale a attributes => [placeholder => …]).
+    if (isset($field['placeholder'])) {
+        $field['attributes'] = ($field['attributes'] ?? array()) + array('placeholder' => $field['placeholder']);
+    }
     $attributes = processFieldAttributes($field['attributes'] ?? null, $action);
     $fieldActions = processFieldActions(isset($field['actions']) ? $field['actions'] : array(), $field['name'] ?? null);
+
+    // Botón ⓘ de ayuda pegado a la etiqueta + hint bajo el campo.
+    if (!empty($field['help'])) {
+        $label .= sticpa_field_help_html($field['help']);
+    }
+    if (!empty($field['hint'])) {
+        $field['hintHtml'] = "<small class='stic-field-hint'>" . wp_kses_post($field['hint']) . "</small>";
+    }
 
     return getFieldHtml($label, $type, $required, $attributes, isset($field['classes']) ? $field['classes'] : null, $field['name'] ?? null, $defaultValue, $field, $fieldActions, $crmDefinition);
 }
@@ -166,11 +228,17 @@ function processDiv($field, $elem = 'div')
 
 // transform the field in to html to be displayed in the form
 function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $name, $defaultValue, $value, $fieldActions, $crmDefinition)
-{   
+{
+    // Hint (línea de ayuda bajo el campo) y escapes seguros: los valores del CRM
+    // pueden llevar comillas/apóstrofes ("C/ L'Horta") que rompían el atributo value.
+    $hint = $value['hintHtml'] ?? '';
+    $escValue = esc_attr((string) ($defaultValue ?? ''));
+    $forAttr = $name ? " for='" . esc_attr($name) . "'" : '';
+
     // TODO Use classes and polymorphism to avoid switch
     switch ($type) {
         case 'hidden':
-            $html = "<span><input  class='input-text {$additionClasses}' maxlength='255' type='" . $type . "' name='" . $name . "' id='" . $name . "' value='" . $defaultValue . "'  /> </span>";
+            $html = "<span><input  class='input-text {$additionClasses}' maxlength='255' type='" . $type . "' name='" . $name . "' id='" . $name . "' value='" . $escValue . "'  /> </span>";
             break;
         case 'header':
             $html = "
@@ -198,8 +266,9 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
         case 'phone':
             $html = "
             <li class='" . $required . "' " . ">
-                <label>" . $label . "</label>
-                <span><input " . $required . " " . $attributes . " class='input-text {$additionClasses}' maxlength='255' type='" . $type . "' name='" . $name . "' id='" . $name . "' value='" . $defaultValue . "'" . $fieldActions . "  /> </span>
+                <label{$forAttr}>" . $label . "</label>
+                <span><input " . $required . " " . $attributes . " class='input-text {$additionClasses}' maxlength='255' type='" . $type . "' name='" . $name . "' id='" . $name . "' value='" . $escValue . "'" . $fieldActions . "  /> </span>
+                {$hint}
             </li>";
             break;
         case 'datetimecombo':
@@ -208,8 +277,9 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
                 $defaultValue = get_date_from_gmt($defaultValue);
                 $html = "
                 <li class='" . $required . "' " . ">
-                    <label>" . $label . ":</label>
-                    <span><input " . $required . " " . $attributes . " class='input-text {$additionClasses}' maxlength='255' type='datetime-local' name='" . $name . "' id='" . $name . "' value='" . $defaultValue . "'" . $fieldActions . "  /> </span>
+                    <label{$forAttr}>" . $label . ":</label>
+                    <span><input " . $required . " " . $attributes . " class='input-text {$additionClasses}' maxlength='255' type='datetime-local' name='" . $name . "' id='" . $name . "' value='" . esc_attr($defaultValue) . "'" . $fieldActions . "  /> </span>
+                    {$hint}
                 </li>";
             }
             
@@ -217,16 +287,17 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
         case 'textarea':
             $html = "
             <li class='" . $required . "' " . ">
-                <label>" . $label . ":</label>
-                <span><textarea " . $required . " " . $attributes . " class='input-text {$additionClasses}' type='" . $type . "' name='" . $name . "' id='" . $name . "' " . $fieldActions . ">" . $defaultValue . "</textarea></span>
+                <label{$forAttr}>" . $label . ":</label>
+                <span><textarea " . $required . " " . $attributes . " class='input-text {$additionClasses}' type='" . $type . "' name='" . $name . "' id='" . $name . "' " . $fieldActions . ">" . esc_textarea((string) ($defaultValue ?? '')) . "</textarea></span>
+                {$hint}
             </li>";
             break;
         case 'enum':
         case 'dynamicenum':
         case 'select':
             $html = "<li class='" . $required . "' " . ">
-            <label>" . $label . ":</label>
-            <span><select " . $required . " " . $attributes . " class='input-text {$additionClasses}' name='" . $name . "' id='" . $name . "' value='" . $defaultValue . "' " . $fieldActions . "/>";
+            <label{$forAttr}>" . $label . ":</label>
+            <span><select " . $required . " " . $attributes . " class='input-text {$additionClasses}' name='" . $name . "' id='" . $name . "' value='" . $escValue . "' " . $fieldActions . "/>";
             if (!isset($value['selectValues'])) {
                 $list = array();
                 foreach ($crmDefinition['options'] as $item) {
@@ -256,6 +327,7 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
             $sel = "";
             $html .= "
                 </select></span>
+                {$hint}
             </li>";
             break;
         case 'bool';
@@ -282,7 +354,7 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
         case 'multienum';
         case 'selectMultiple':
             $html = "<li class='{$type} " . $required . "' " . ">
-            <label>" . $label . ":</label>
+            <label{$forAttr}>" . $label . ":</label>
             <span><select multiple " . $required . " " . $attributes . " class='{$additionClasses}' name='" . $name . "[]' id='" . $name . "' value='" . $defaultValue . "' " . $fieldActions . "/>";
             $arrayValues = explode("^,^", $defaultValue);
             $arrayValues = str_replace("^", "", $arrayValues);
@@ -301,6 +373,7 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
             $sel = "";
             $html .= "
                 </select></span>
+                {$hint}
             </li>";
             break;
         case 'readOnly':
@@ -348,7 +421,7 @@ function renderHiddenData($fieldList, $data)
         }
 
         $defaultValue = getFieldDefaultValue($value, $name, $data, $type);
-        $html .= "<input type='hidden'" . "' name='" . $name . "' id='" . $name . "' value='" . $defaultValue . "'  />";
+        $html .= "<input type='hidden' name='" . esc_attr($name) . "' id='" . esc_attr($name) . "' value='" . esc_attr((string) ($defaultValue ?? '')) . "'  />";
     }
     return $html;
 }

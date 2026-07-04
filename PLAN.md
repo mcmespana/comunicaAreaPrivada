@@ -183,6 +183,30 @@ Conectado al navegador del usuario para inspeccionar/previsualizar la web desple
 
 ## Registro de avances
 
+- **2026-07-04** — Gran iteración "la mejor área privada de la historia":
+  - **Sistema de diseño documentado** en [`docs/design-system.md`](docs/design-system.md)
+    (tokens, componentes, motor de formularios, checklist, anti-patrones). README enlaza.
+  - **Motor de formularios ampliado** (`inc/stic-formController.php`): claves `help`
+    (tooltip ⓘ accesible), `hint`, `placeholder`, tipo `note`, campos condicionales
+    `data-visible-when` (JS genérico en `stic-ui.js`), `label[for]`, y escapado de
+    valores del CRM (los apóstrofes rompían inputs).
+  - **Formularios Comunica replicados** desde `comunicaFormularios`: «Mis datos» ahora
+    incluye TODO lo general (contacto+emergencia, dirección completa con provincia/CCAA,
+    foto, MCM común, salud con 5 campos y tooltips, RGPD con enlaces legales);
+    «Monitor/a» con formación completa (tooltips MAT/DAT/FA/premonitores), congresos,
+    voluntariado, delitos sexuales con tarjetas Automático/Manual y archivos. La sección
+    «Laico/a» se retiró (todo era general; la página antigua redirige). Lo de la
+    Asamblea de mayo 2026 NO se replicó (ya pasó).
+  - **Perfiles de familia**: selección de participante con tarjetas premium
+    (`single_stic_profile_selection.php`), selector rápido SIEMPRE visible en la barra
+    (menu.php, `.stic-part-switch`), pantalla de datos del familiar con medio de pago
+    front-only (`ajmcm_pago_*_c` provisionales). Sin conexión Sinergia todavía:
+    `?familia_demo=1` + filtros para previsualizar.
+  - **Login**: tabs segmentadas Enlace mágico / Contraseña + sello de confianza.
+  - **Seguridad**: whitelist de `?internalpage` (path traversal), `exit` tras cada
+    `wp_redirect`, saneado del handler de selección de perfil.
+  - CSS: secciones 29–35 nuevas; borrados los `*.backup`.
+
 - **2026-06-14** — Creado el plan. Copiadas `CAMPOS.md` y `AGENTS-comunica.md` a `docs/comunica/`.
   Auth (magic link) y rediseño UI ya estaban hechos en `main`.
 - **2026-06-14** — Fase 1 implementada: helper de rol `inc/stic-comunica-roles.php` enganchado
