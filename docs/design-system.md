@@ -128,6 +128,22 @@ $fieldList[] = array(
 );
 ```
 
+Claves adicionales:
+- `'yearOnly' => true` — para campos DATE del CRM que en realidad son "un año":
+  el usuario ve/edita solo `AAAA`; al guardar se convierte en `AAAA-01-01`
+  (convenio interno, nunca se muestra). Motor emite un hidden
+  `stic_year_only_fields[]` y `sticpa_apply_year_only_fields()` (stic-action.php)
+  hace la conversión. Usados hoy: `ajmcm_mcm_desde_c`, `ajmcm_monitor_desde_c`.
+
+Comportamientos automáticos del formulario:
+- **Secciones colapsables**: cada `h5` pliega su tarjeta y el estado se guarda
+  en localStorage por página+sección (`bindCollapsibleSections`, stic-ui.js).
+  Los `required` de una sección plegada se desactivan mientras no se ve.
+- **Alertas accionables** (`.stic-alert stic-alert--warning`): p. ej. el aviso
+  de Certificado de Delitos Sexuales pendiente (modo manual sin archivo), que
+  sale en la home y en Monitor/a — `sticpa_monitor_ds_pending()` +
+  `sticpa_ds_pending_alert_html()` en inc/stic-comunica-roles.php.
+
 Reglas de UX de formularios:
 - **Secciones** con `type => 'header'` (cada una se pinta como tarjeta).
 - **Texto introductorio** de sección con `type => 'note'` (variante
@@ -172,6 +188,19 @@ montadas en el CRM de Comunica. Mientras tanto:
 - el filtro `sticpa_familia_participants` permite inyectarlos desde código;
 - el filtro `sticpa_is_familia` fuerza el modo familia.
 Cuando el CRM tenga las relaciones, todo funcionará sin tocar código.
+
+**Audiencias de la pantalla de datos** (`sticpa_profile_audience()`):
+`single_stic_comunica_perfil.php` sirve a tres audiencias y decide título y
+secciones con `$sectionsByAudience` (+ filtro `sticpa_perfil_sections`):
+- `miembro` → "Mis datos" (con sección MCM). Incluye al adulto que es familiar
+  Y miembro a la vez (si tiene rol, manda el rol).
+- `participante` → "Sus datos" (familiar viendo a un menor; el menú también
+  cambia a "Sus datos" y se oculta "Monitor/a"). Futuro: añadir aquí las
+  autorizaciones de menores (ajmcm_actividadesout_c…, ver CAMPOS.md).
+- `familiar` → "Mis datos" del familiar sin rol (sin MCM); su parte
+  administrativa (pago) vive en single_stic_tutor_profile.php.
+Para divergir contenidos NO se crean páginas nuevas: se ajusta la lista de
+secciones y/o se añaden bloques `in_array('xxx', $sections)`.
 
 **Medio de pago (front adelantado):** los campos `ajmcm_pago_metodo_c`,
 `ajmcm_pago_iban_c` y `ajmcm_pago_titular_c` de la pantalla del familiar son

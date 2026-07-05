@@ -33,12 +33,12 @@ $fieldList[] = array('name' => 'id', 'type' => 'hidden');
 
 // ===== Trayectoria =====
 $fieldList[] = array('name' => 'trayectoria', 'type' => 'header', 'label' => __('Trayectoria', 'sticpa'));
+// En el CRM es una fecha, pero al usuario SOLO se le pide/enseña el año
+// (yearOnly guarda internamente AAAA-01-01, nunca se muestra el 1 de enero).
 $fieldList[] = array(
-    'name' => 'ajmcm_monitor_desde_c', 'required' => false,
+    'name' => 'ajmcm_monitor_desde_c', 'required' => false, 'yearOnly' => true,
     'label' => __('Monitor/a desde…', 'sticpa'),
     'help' => __('Año (aproximado) en el que empezaste como monitor/a Consolación.', 'sticpa'),
-    'placeholder' => 'AAAA',
-    'attributes' => array('inputmode' => 'numeric', 'maxlength' => '4'),
 );
 $fieldList[] = array(
     'name' => 'ajmcm_monitor_de_c', 'required' => false,
@@ -143,6 +143,7 @@ $fieldList[] = array(
                     <span class="stic-option-desc">' . esc_html__('Envío aquí el certificado y lo renovaré cada septiembre.', 'sticpa') . '</span>
                 </label>
             </div>
+            <small class="stic-field-hint" id="ds-choice-hint">' . esc_html__('Debes elegir Automático o Manual.', 'sticpa') . '</small>
             <input type="hidden" name="ajmcm_aut_del_sex_c" id="ajmcm_aut_del_sex_c" value="' . esc_attr($autDelSex) . '" />
         </li>',
 );
@@ -198,6 +199,12 @@ $fieldList[] = array(
 );
 
 $formSettings['fileName'] = basename(__FILE__, ".php");
+
+// Aviso arriba del todo si eligió modo manual y aún no ha subido el certificado.
+if (function_exists('sticpa_monitor_ds_pending') && sticpa_monitor_ds_pending($data)) {
+    $html .= sticpa_ds_pending_alert_html(false);
+}
+
 $html .= makeForm($fieldList, $formSettings, $data);
 
 // Sincroniza las tarjetas Automático/Manual con el campo ajmcm_aut_del_sex_c y
@@ -211,9 +218,11 @@ $html .= "
         var manualBlock = document.getElementById('ds-manual-block');
         var autoBlock = document.getElementById('ds-auto-block');
         var mode = checked ? checked.value : '';
+        var hint = document.getElementById('ds-choice-hint');
         if (hidden) { hidden.value = mode === 'automatico' ? '1' : (mode === 'manual' ? '0' : ''); }
         if (manualBlock) { manualBlock.style.display = mode === 'manual' ? '' : 'none'; }
         if (autoBlock) { autoBlock.style.display = mode === 'automatico' ? '' : 'none'; }
+        if (hint) { hint.style.display = mode === '' ? '' : 'none'; }
     }
     var radios = document.querySelectorAll(\"input[name='ds_option']\");
     for (var i = 0; i < radios.length; i++) { radios[i].addEventListener('change', sync); }

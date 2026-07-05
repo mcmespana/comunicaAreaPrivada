@@ -13,8 +13,13 @@ function getSticMenuElements()
     // formulario de laicos no pide nada que no sea general (ver
     // pages/single_stic_comunica_laico.php para el histórico de esa decisión).
     $role = function_exists('sticpa_get_comunica_role') ? sticpa_get_comunica_role() : '';
-    $menuElements['single_stic_comunica_perfil'] = __('Mis datos', 'sticpa');
-    if ($role === 'monitor') {
+    // La etiqueta depende de la AUDIENCIA (ver sticpa_profile_audience):
+    // un familiar viendo a un participante ve "Sus datos" (no son los suyos).
+    $audience = function_exists('sticpa_profile_audience') ? sticpa_profile_audience() : 'miembro';
+    $menuElements['single_stic_comunica_perfil'] = ($audience === 'participante')
+        ? __('Sus datos', 'sticpa')
+        : __('Mis datos', 'sticpa');
+    if ($role === 'monitor' && $audience !== 'participante') {
         $menuElements['single_stic_comunica_monitor'] = __('Monitor/a', 'sticpa');
     }
 

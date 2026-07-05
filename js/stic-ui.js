@@ -372,6 +372,80 @@
         });
     }
 
+    /* -------- Secciones de formulario colapsables (con memoria) --------
+       Cada <h5> de sección pliega/despliega su tarjeta <ul>. El estado se
+       guarda en localStorage por página+sección, así el usuario se encuentra
+       el formulario como lo dejó. Sin JS todo queda abierto (enhancement). */
+    function bindCollapsibleSections() {
+        var page = 'home';
+        try {
+            page = new URLSearchParams(window.location.search).get('internalpage') || 'home';
+        } catch (err) { /* URLSearchParams no disponible: clave genérica */ }
+        var chevron = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+
+        var forms = document.querySelectorAll('.stic-form > form');
+        Array.prototype.forEach.call(forms, function (form) {
+            var headers = form.querySelectorAll('h5');
+            Array.prototype.forEach.call(headers, function (h5) {
+                // La tarjeta de la sección es la siguiente <ul> (sin pasarse a
+                // otra cabecera ni tocar la botonera sticky).
+                var ul = h5.nextElementSibling;
+                while (ul) {
+                    if (ul.tagName === 'H5') { ul = null; break; }
+                    if (ul.tagName === 'UL' && !ul.classList.contains('stic-ctabs-list')) { break; }
+                    ul = ul.nextElementSibling;
+                }
+                if (!ul) { return; }
+
+                var key = 'sticpa-sec:' + page + ':' + (h5.id || h5.textContent.trim());
+                h5.classList.add('stic-sec-toggle');
+                h5.setAttribute('role', 'button');
+                h5.setAttribute('tabindex', '0');
+                var badge = document.createElement('span');
+                badge.className = 'stic-sec-chevron';
+                badge.setAttribute('aria-hidden', 'true');
+                badge.innerHTML = chevron;
+                h5.appendChild(badge);
+
+                function setCollapsed(collapsed, persist) {
+                    h5.classList.toggle('is-collapsed', collapsed);
+                    ul.classList.toggle('stic-sec-hidden', collapsed);
+                    h5.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+                    // Un campo required oculto bloquearía el submit sin que el
+                    // usuario vea dónde: se desactiva mientras está plegado.
+                    var inputs = ul.querySelectorAll('input, select, textarea');
+                    Array.prototype.forEach.call(inputs, function (input) {
+                        if (collapsed) {
+                            if (input.hasAttribute('required')) {
+                                input.setAttribute('data-sec-required', '1');
+                                input.removeAttribute('required');
+                            }
+                        } else if (input.hasAttribute('data-sec-required')) {
+                            input.setAttribute('required', '');
+                            input.removeAttribute('data-sec-required');
+                        }
+                    });
+                    if (persist) {
+                        try { localStorage.setItem(key, collapsed ? 'closed' : 'open'); } catch (err) { /* modo privado */ }
+                    }
+                }
+
+                var saved = null;
+                try { saved = localStorage.getItem(key); } catch (err) { /* modo privado */ }
+                setCollapsed(saved === 'closed', false);
+
+                function toggle() { setCollapsed(!h5.classList.contains('is-collapsed'), true); }
+                h5.addEventListener('click', toggle);
+                h5.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggle();
+                    }
+                });
+            });
+        });
+    }
+
     ready(function () {
         bindLoadingForms();
         bindPasswordToggles();
@@ -381,6 +455,7 @@
         bindInfoTips();
         bindConditionalFields();
         bindPartSwitch();
+        bindCollapsibleSections();
         layoutNav();
         // Reajuste tras cargar las fuentes (cambian anchos de los textos).
         if (document.fonts && document.fonts.ready) {

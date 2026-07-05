@@ -183,6 +183,24 @@ Conectado al navegador del usuario para inspeccionar/previsualizar la web desple
 
 ## Registro de avances
 
+- **2026-07-05** — Iteración 2 (feedback de pruebas en móvil):
+  - **Tooltips ⓘ arreglados**: la capa base (`.stic-form li span{width:100%;display:block}`)
+    los estiraba como una elipse azul y soltaba los ':' a otra línea → override con
+    !important en la sección 29 del CSS.
+  - **Campos "solo año"** (`yearOnly` en el motor): "Pertenezco al MCM desde…" y
+    "Monitor/a desde…" muestran/editan solo AAAA; internamente se guarda AAAA-01-01
+    (conversión en `sticpa_apply_year_only_fields`, stic-action.php).
+  - **Alerta de Certificado de Delitos Sexuales** pendiente (modo manual sin archivo):
+    tarjeta ámbar accionable en la home y en Monitor/a (`sticpa_monitor_ds_pending`).
+    + hint "Debes elegir Automático o Manual" cuando no hay opción elegida.
+  - **Audiencias en "Mis datos"** (`sticpa_profile_audience`): participante → "Sus datos"
+    (menú incluido, sin sección Monitor/a), familiar sin rol → sin MCM, miembro → todo.
+    Estructura preparada (`$sectionsByAudience` + filtro) para divergir contenidos sin
+    crear páginas nuevas. Soportado el caso adulto familiar+miembro.
+  - **Secciones colapsables** con memoria en localStorage (por página+sección),
+    accesibles por teclado y con desactivación de required mientras están plegadas.
+  - Texto de bienvenida "Hola X, estos son los datos que tenemos" en la ficha.
+
 - **2026-07-04** — Gran iteración "la mejor área privada de la historia":
   - **Sistema de diseño documentado** en [`docs/design-system.md`](docs/design-system.md)
     (tokens, componentes, motor de formularios, checklist, anti-patrones). README enlaza.

@@ -101,13 +101,16 @@ function prefix_admin_single_stic_tutor_profile()
     }
 
     // Claves que no son campos del CRM (no enviar a set_entry).
-    $skip = array('action', 'scp_current_url', 'stic-action', 'save', 'back', 'id');
+    $skip = array('action', 'scp_current_url', 'stic-action', 'save', 'back', 'id', 'stic_year_only_fields');
     $moduleData = array();
     foreach ($_REQUEST as $key => $value) {
         if (in_array($key, $skip, true)) {
             continue;
         }
         $moduleData[$key] = is_array($value) ? '^' . implode('^,^', stripslashes_deep($value)) . '^' : stripslashes_deep($value);
+    }
+    if (function_exists('sticpa_apply_year_only_fields')) {
+        sticpa_apply_year_only_fields($moduleData);
     }
     $moduleData['id'] = $tutorId;
 
@@ -832,6 +835,28 @@ add_action('admin_post_nopriv_single_stic_comunica_laico', 'prefix_comunica_save
 add_action('admin_post_single_stic_comunica_monitor', 'prefix_comunica_save_contact');
 add_action('admin_post_nopriv_single_stic_comunica_monitor', 'prefix_comunica_save_contact');
 
+/**
+ * Convierte los campos "solo año" (marcados por el motor de formularios con el
+ * hidden stic_year_only_fields[]) de 'AAAA' a la fecha interna 'AAAA-01-01'
+ * que espera el CRM. El 1 de enero es un convenio interno: al usuario nunca
+ * se le muestra (el motor le enseña solo el año — clave 'yearOnly').
+ */
+function sticpa_apply_year_only_fields(&$moduleData)
+{
+    $yearFields = isset($_REQUEST['stic_year_only_fields']) ? (array) $_REQUEST['stic_year_only_fields'] : array();
+    foreach ($yearFields as $fieldName) {
+        $fieldName = sanitize_key($fieldName);
+        if (!isset($moduleData[$fieldName])) {
+            continue;
+        }
+        $year = trim((string) $moduleData[$fieldName]);
+        if (preg_match('/^\d{4}$/', $year)) {
+            $moduleData[$fieldName] = $year . '-01-01';
+        }
+    }
+    unset($moduleData['stic_year_only_fields']);
+}
+
 function prefix_comunica_save_contact()
 {
     $objSCP = SugarRestApiCall::getObjSCP();
@@ -844,7 +869,7 @@ function prefix_comunica_save_contact()
     }
 
     // Claves que no son campos del CRM (no enviar a set_entry).
-    $skip = array('action', 'scp_current_url', 'stic-action', 'save', 'back', 'id');
+    $skip = array('action', 'scp_current_url', 'stic-action', 'save', 'back', 'id', 'stic_year_only_fields', 'ds_option');
     $moduleData = array();
     foreach ($_REQUEST as $key => $value) {
         if (in_array($key, $skip, true)) {
@@ -854,6 +879,7 @@ function prefix_comunica_save_contact()
             ? '^' . implode('^,^', stripslashes_deep($value)) . '^'
             : stripslashes_deep($value);
     }
+    sticpa_apply_year_only_fields($moduleData);
     $moduleData['id'] = $id;
 
     $isUpdate = $objSCP->set_entry('Contacts', $moduleData);

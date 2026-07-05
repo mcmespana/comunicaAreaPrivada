@@ -15,6 +15,13 @@
  *    'hint'        => 'Texto…'   Línea pequeña y gris DEBAJO del campo.
  *                                Úsalo para formatos ("AAAA", "máx. 6MB").
  *    'placeholder' => 'Texto…'   Atajo del attribute placeholder.
+ *    'yearOnly'    => true       Para campos DATE del CRM que en realidad son
+ *                                "un año": se muestra/edita SOLO el año (AAAA)
+ *                                y al guardar se convierte en AAAA-01-01 (el
+ *                                1 de enero es interno, nunca se enseña).
+ *                                La conversión la hace sticpa_apply_year_only_fields()
+ *                                en el handler (inc/stic-action.php) gracias a un
+ *                                hidden stic_year_only_fields[] que emite el motor.
  *
  *  Tipos extra además de los básicos:
  *    'note'  => párrafo explicativo a ancho completo dentro de la sección
@@ -210,6 +217,19 @@ function renderField($field, $data, $action, $crmDefinition)
     }
     if (!empty($field['hint'])) {
         $field['hintHtml'] = "<small class='stic-field-hint'>" . wp_kses_post($field['hint']) . "</small>";
+    }
+
+    // Campo "solo año": el CRM guarda una fecha (AAAA-01-01) pero al usuario
+    // solo se le enseña y se le pide el AÑO. El hidden marca el campo para que
+    // el handler lo reconvierta a fecha completa al guardar.
+    if (!empty($field['yearOnly'])) {
+        $type = 'text';
+        if (is_string($defaultValue) && preg_match('/^(\d{4})/', $defaultValue, $m)) {
+            $defaultValue = $m[1];
+        }
+        $attributes .= " inputmode='numeric' maxlength='4' pattern='[0-9]{4}' placeholder='AAAA' ";
+        $field['hintHtml'] = ($field['hintHtml'] ?? '')
+            . "<input type='hidden' name='stic_year_only_fields[]' value='" . esc_attr($field['name']) . "'>";
     }
 
     return getFieldHtml($label, $type, $required, $attributes, isset($field['classes']) ? $field['classes'] : null, $field['name'] ?? null, $defaultValue, $field, $fieldActions, $crmDefinition);
