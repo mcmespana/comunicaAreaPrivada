@@ -108,10 +108,22 @@ if (in_array('identidad', $sections, true)) {
 // ===== Contacto =====
 if (in_array('contacto', $sections, true)) {
     $fieldList[] = array('name' => 'contacto', 'type' => 'header', 'label' => __('Datos de contacto', 'sticpa'));
-    if ($audience === 'miembro') {
+    // Aviso del correo institucional según el caso:
+    //  · monitor SIN correo @movimientoconsolacion.com → alerta (debería usarlo);
+    //  · resto de miembros → recordatorio suave;
+    //  · si el monitor ya lo tiene puesto → nada.
+    $emailActual = strtolower(trim((string) ($data->email1->value ?? '')));
+    $tieneCorreoMcm = strpos($emailActual, '@movimientoconsolacion.com') !== false;
+    if ($role === 'monitor' && !$tieneCorreoMcm) {
+        $fieldList[] = array(
+            'name' => 'contacto_nota', 'type' => 'note', 'classes' => 'stic-note-warning',
+            'html' => __('📣 Mejor utiliza tu correo <strong>@movimientoconsolacion.com</strong>: es el que usamos para todas las comunicaciones de monitores.', 'sticpa'),
+        );
+    } elseif ($audience === 'miembro' && $role !== 'monitor') {
+        // El monitor con su correo MCM ya puesto no necesita recordatorio.
         $fieldList[] = array(
             'name' => 'contacto_nota', 'type' => 'note', 'classes' => 'stic-note-soft',
-            'html' => __('Revisa si tienes puesto el correo del MCM.', 'sticpa'),
+            'html' => __('Si tienes, usa el correo <strong>@movimientoconsolacion.com</strong>.', 'sticpa'),
         );
     }
     $fieldList[] = array(
@@ -244,48 +256,44 @@ if (in_array('salud', $sections, true)) {
     );
 }
 
-// ===== Protección de datos (RGPD) — con enlaces a los textos legales =====
+// ===== Protección de datos (RGPD) — frase + SWITCH + enlace a las condiciones =====
+// (El patrón antiguo botón-enlace + select Sí/No era horrible en móvil.)
+// Switch encendido = acepta ('1'). El hidden garantiza que al guardar sin
+// marcar se envía '0' (el checkbox, al ir después, gana cuando está marcado).
 if (in_array('rgpd', $sections, true)) {
-    $siNo = array('' => ' ', '1' => __('Sí', 'sticpa'), '0' => __('No', 'sticpa'));
     $legalConsents = array(
         array(
-            'name'  => 'ajmcm_acepta_lopd_c',
-            'url'   => 'https://comunica.movimientoconsolacion.com/legal-rgpd',
-            'link'  => __('Ver información sobre protección de datos', 'sticpa'),
-            'label' => __('¿Aceptas las condiciones indicadas sobre protección de datos?', 'sticpa'),
+            'name'      => 'ajmcm_acepta_lopd_c',
+            'url'       => 'https://comunica.movimientoconsolacion.com/legal-rgpd',
+            'statement' => __('Acepto las condiciones sobre protección de datos', 'sticpa'),
         ),
         array(
-            'name'  => 'ajmcm_datossalud_c',
-            'url'   => 'https://comunica.movimientoconsolacion.com/legal-salud',
-            'link'  => __('Ver información sobre uso de datos de salud', 'sticpa'),
-            'label' => __('¿Aceptas las condiciones indicadas sobre uso de datos de salud?', 'sticpa'),
+            'name'      => 'ajmcm_datossalud_c',
+            'url'       => 'https://comunica.movimientoconsolacion.com/legal-salud',
+            'statement' => __('Acepto las condiciones sobre el uso de mis datos de salud', 'sticpa'),
         ),
         array(
-            'name'  => 'ajmcm_cesionimagenes_interne_c',
-            'url'   => 'https://comunica.movimientoconsolacion.com/legal-imagenes',
-            'link'  => __('Ver información sobre cesión de imágenes', 'sticpa'),
-            'label' => __('¿Aceptas las condiciones indicadas sobre cesión de imágenes?', 'sticpa'),
+            'name'      => 'ajmcm_cesionimagenes_interne_c',
+            'url'       => 'https://comunica.movimientoconsolacion.com/legal-imagenes',
+            'statement' => __('Acepto las condiciones sobre la cesión de imágenes', 'sticpa'),
         ),
     );
     $fieldList[] = array('name' => 'rgpd', 'type' => 'header', 'label' => __('Autorizaciones legales', 'sticpa'));
     foreach ($legalConsents as $consent) {
         $current = isset($data->{$consent['name']}->value) ? (string) $data->{$consent['name']}->value : '';
-        $options = '';
-        foreach ($siNo as $optValue => $optLabel) {
-            $selected = ((string) $optValue === $current) ? ' selected' : '';
-            $options .= "<option value='" . esc_attr($optValue) . "'{$selected}>" . esc_html($optLabel) . "</option>";
-        }
+        $checked = ($current === '1') ? 'checked' : '';
         $fieldList[] = array(
             'name' => $consent['name'] . '_row', 'type' => 'html',
             'html' => '
-                <li class="stic-legal-row">
-                    <a class="stic-legal-link" href="' . esc_url($consent['url']) . '" target="_blank" rel="noopener">'
-                        . esc_html($consent['link']) . ' ' . $extIcon . '
-                    </a>
-                    <span class="stic-legal-q">
-                        <label for="' . esc_attr($consent['name']) . '">' . esc_html($consent['label']) . '</label>
-                        <select class="input-text" name="' . esc_attr($consent['name']) . '" id="' . esc_attr($consent['name']) . '">' . $options . '</select>
+                <li class="stic-consent">
+                    <span class="stic-consent-row">
+                        <label for="' . esc_attr($consent['name']) . '">' . esc_html($consent['statement']) . '</label>
+                        <input type="hidden" name="' . esc_attr($consent['name']) . '" value="0">
+                        <input type="checkbox" id="' . esc_attr($consent['name']) . '" name="' . esc_attr($consent['name']) . '" value="1" ' . $checked . '>
                     </span>
+                    <a class="stic-consent-link" href="' . esc_url($consent['url']) . '" target="_blank" rel="noopener">'
+                        . esc_html__('Ver condiciones', 'sticpa') . ' ' . $extIcon . '
+                    </a>
                 </li>',
         );
     }

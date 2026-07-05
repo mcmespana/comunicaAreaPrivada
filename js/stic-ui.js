@@ -237,16 +237,65 @@
     }
 
     /* -------- Tooltips de ayuda ⓘ (.stic-info) --------
-       Hover/focus los muestra por CSS; el click (móvil) los fija con .is-open.
-       Solo un tooltip fijado a la vez; Escape o tocar fuera lo cierra. */
+       El tooltip va con position:fixed y se posiciona AQUÍ, anclado al
+       viewport (nunca se corta en los bordes). Hover/focus lo muestran
+       (clase is-hover); el click/tap lo fija (is-open). Escape, scroll o
+       tocar fuera lo cierran. Solo uno fijado a la vez. */
+    function positionInfoTip(info) {
+        var tip = info.querySelector('.stic-info-tip');
+        if (!tip) { return; }
+        // Medir sin que se vea (visibility ya la controla la clase; forzamos
+        // una medición previa con visibility hidden explícito).
+        var prevVis = tip.style.visibility;
+        tip.style.visibility = 'hidden';
+        tip.style.left = '0px';
+        tip.style.top = '0px';
+        var w = tip.offsetWidth;
+        var h = tip.offsetHeight;
+        var r = info.getBoundingClientRect();
+        var left = Math.round(r.left + r.width / 2 - w / 2);
+        left = Math.max(12, Math.min(left, window.innerWidth - w - 12));
+        var top = Math.round(r.top - h - 9);          // preferencia: encima
+        if (top < 12) { top = Math.round(r.bottom + 9); } // sin sitio: debajo
+        tip.style.left = left + 'px';
+        tip.style.top = top + 'px';
+        tip.style.visibility = prevVis;
+    }
+
     function closeAllInfoTips(except) {
-        var open = document.querySelectorAll('.stic-info.is-open');
+        var open = document.querySelectorAll('.stic-info.is-open, .stic-info.is-hover');
         Array.prototype.forEach.call(open, function (tip) {
-            if (tip !== except) { tip.classList.remove('is-open'); }
+            if (tip !== except) { tip.classList.remove('is-open', 'is-hover'); }
         });
     }
 
     function bindInfoTips() {
+        // Hover de escritorio (delegado): posicionar y mostrar.
+        document.addEventListener('mouseover', function (e) {
+            var info = e.target.closest ? e.target.closest('.stic-info') : null;
+            if (!info || info.classList.contains('is-hover')) { return; }
+            positionInfoTip(info);
+            info.classList.add('is-hover');
+        });
+        document.addEventListener('mouseout', function (e) {
+            var info = e.target.closest ? e.target.closest('.stic-info') : null;
+            if (info && !(e.relatedTarget && info.contains(e.relatedTarget))) {
+                info.classList.remove('is-hover');
+            }
+        });
+        // Foco por teclado.
+        document.addEventListener('focusin', function (e) {
+            if (e.target.classList && e.target.classList.contains('stic-info')) {
+                positionInfoTip(e.target);
+                e.target.classList.add('is-hover');
+            }
+        });
+        document.addEventListener('focusout', function (e) {
+            if (e.target.classList && e.target.classList.contains('stic-info')) {
+                e.target.classList.remove('is-hover');
+            }
+        });
+        // Tap/click: fijar (móvil).
         document.addEventListener('click', function (e) {
             var info = e.target.closest ? e.target.closest('.stic-info') : null;
             if (info) {
@@ -255,6 +304,7 @@
                 e.stopPropagation();
                 var willOpen = !info.classList.contains('is-open');
                 closeAllInfoTips(info);
+                if (willOpen) { positionInfoTip(info); }
                 info.classList.toggle('is-open', willOpen);
                 return;
             }
@@ -266,9 +316,12 @@
             if ((e.key === 'Enter' || e.key === ' ') && e.target.classList &&
                 e.target.classList.contains('stic-info')) {
                 e.preventDefault();
+                positionInfoTip(e.target);
                 e.target.classList.toggle('is-open');
             }
         });
+        // El tooltip es fixed: al hacer scroll se cierra (no queda flotando).
+        window.addEventListener('scroll', function () { closeAllInfoTips(null); }, true);
     }
 
     /* -------- Campos condicionales --------

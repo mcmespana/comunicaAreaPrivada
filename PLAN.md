@@ -183,6 +183,26 @@ Conectado al navegador del usuario para inspeccionar/previsualizar la web desple
 
 ## Registro de avances
 
+- **2026-07-05 (b)** — Iteración 3 (feedback con capturas):
+  - **Cropper de fotos móvil-first** (`js/stic-cropper.js`, sin dependencias): al elegir
+    imagen se abre modal con lienzo, arrastre 1 dedo, pinch 2 dedos, slider de zoom;
+    devuelve JPEG 800×800 al propio input vía DataTransfer (el form no cambia). Botón
+    "Usar sin recortar" conserva el original. Se engancha a cualquier input de imagen.
+  - **Tooltips ⓘ nunca cortados**: ahora `position:fixed` posicionados por JS con
+    clamping al viewport (encima si hay sitio, debajo si no). Se cierran al hacer scroll.
+  - **Hero/identidad**: el tema pisaba colores ("Hola," azul, nombre azul en la barra) →
+    forzados a blanco con !important. Gradientes de nav/hero ahora ESTÁTICOS (perf).
+  - **Botones-enlace largos** ("Ver tutorial…"): envuelven en varias líneas (adiós cortes).
+  - **Autorizaciones legales rediseñadas**: frase + SWITCH (checkbox estilizado) + enlace
+    pequeño "Ver condiciones". Hidden con '0' para que desmarcado guarde No.
+  - **Aviso correo institucional**: monitor sin @movimientoconsolacion.com → nota ámbar
+    "Mejor utiliza…"; resto de miembros → nota suave "Si tienes, usa…"; monitor con el
+    correo puesto → nada.
+  - **"Ya subido" + enlace** "Revisarlo en Documentos →" en los certificados del monitor.
+  - **Rendimiento**: PERF-01 (transient 6h para get_module_fields, bypass
+    ?refresh_fields=1) y PERF-02 (fuera animaciones infinitas de gradiente). Análisis
+    completo y plan en TODO.md §Rendimiento (PERF-03…PERF-08).
+
 - **2026-07-05** — Iteración 2 (feedback de pruebas en móvil):
   - **Tooltips ⓘ arreglados**: la capa base (`.stic-form li span{width:100%;display:block}`)
     los estiraba como una elipse azul y soltaba los ':' a otra línea → override con

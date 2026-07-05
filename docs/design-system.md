@@ -84,7 +84,10 @@ editan `--primary-*` y `--secondary-*`.**
 | Menú overflow "Más" | `.stic-nav-more*` | §6-7 CSS · `js/stic-ui.js::layoutNav` |
 | Dashboard de tarjetas | `.stic-dashboard-grid`, `.stic-dash-card` | §8 CSS · `pages/single_stic_home.php` |
 | Formularios (tarjetas por sección, 2 col escritorio) | `.stic-form`, headers `h5` | §9, 20, 22 CSS · `inc/stic-formController.php` |
-| Tooltips de ayuda ⓘ | `.stic-info`, `.stic-info-tip` | §29 CSS · clave `'help'` del motor |
+| Tooltips de ayuda ⓘ | `.stic-info`, `.stic-info-tip` (fixed, posicionado por JS con clamping al viewport — nunca se cortan) | §29 CSS · clave `'help'` del motor · `stic-ui.js::positionInfoTip` |
+| Consentimiento con switch | `.stic-consent` (frase + checkbox-toggle + enlace "Ver condiciones"; hidden con '0' para guardar No al desmarcar) | §38 CSS · ver sección RGPD de `single_stic_comunica_perfil.php` |
+| Cropper de fotos | modal `.stic-crop-card` (arrastrar/pinch/zoom, JPEG 800×800 de vuelta al input) | §39 CSS · `js/stic-cropper.js` (se engancha solo a inputs de imagen) |
+| Nota de alerta ámbar | `.stic-form-note.stic-note-warning` | §29 CSS |
 | Hint bajo el campo | `.stic-field-hint` | §29 CSS · clave `'hint'` |
 | Nota de sección | `.stic-form-note` (+ `.stic-note-soft`) | §29 CSS · tipo `'note'` |
 | Consentimiento legal (enlace + Sí/No) | `.stic-legal-row`, `.stic-legal-link` | §30 CSS · ver `single_stic_comunica_perfil.php` |
