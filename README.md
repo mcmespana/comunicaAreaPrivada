@@ -296,15 +296,13 @@ en `sugar_crm_portal_style_and_script()`. **El orden importa: lo último pisa a 
 
 ```php
 wp_enqueue_style('stic-google-fonts', 'https://fonts.googleapis.com/...Inter...'); // tipografía
-wp_enqueue_style('stic-style',        'css/stic-style.css');        // base histórica (657 líneas)
+wp_enqueue_style('stic-base',         'css/stic-base.css');         // capa base consolidada
 wp_enqueue_style('stic-multiselect',  'css/selectize.css');         // librería selectize
-wp_enqueue_style('stic-modern-style', 'css/stic-modern-style.css'); // "moderno" (1355 líneas)
 wp_enqueue_style('fullcalendar',      'js/fullcalendar/lib/main.css');
 wp_enqueue_style('custom-style',      'css/custom-style.css');      // ← TUYO, carga el ÚLTIMO
 ```
 
-- `css/stic-style.css` → estilos base históricos.
-- `css/stic-modern-style.css` → capa de modernización (mobile-first, con variables CSS).
+- `css/stic-base.css` → capa base consolidada (ex `stic-style.css` + `stic-modern-style.css`, en ese orden).
 - **`css/custom-style.css` → CAPA PREMIUM y TU sitio para personalizar.** Se carga **el último
   a propósito**, así que cualquier regla aquí gana sin necesidad de `!important` salvo donde el
   tema moderno ya lo usa. Como el tema moderno está hecho con `var()`, basta con **redefinir las

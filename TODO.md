@@ -164,8 +164,13 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
       `sticpa_familia_participants` / `sticpa_is_familia`. ↳ **hecho** (2026-07).
       ↳ `pages/single_stic_profile_selection.php`, `pages/single_stic_tutor_profile.php`,
       `menu.php`, `js/stic-ui.js`.
-- [ ] `UI-15` (P3 · M) Consolidar `stic-style.css` / `stic-modern-style.css` en una sola
-      capa base (hoy custom-style pisa mucho de ambas).
+- [x] `UI-15` (P3 · M) Consolidar `stic-style.css` / `stic-modern-style.css` en una sola
+      capa base → `css/stic-base.css` (mismo contenido, mismo orden, 1 petición menos).
+      ↳ **hecho** (2026-07).
+- [x] `UI-16` (P1 · S) **Modo app** (`?app=1` + cookie 30 días): oculta header/footer del
+      tema para la WebView de la app; `?app=0` lo apaga. Arranque recomendado:
+      `…/?token=XXX&app=1`. ↳ **hecho** (2026-07). ↳ `sticpa_app_mode_boot` /
+      `sticpa_is_app_mode` / `sticpa_app_mode_css` en `sinergiacrm-private-area.php`.
 - [ ] `FAM-01` (P1 · M) **Conectar los perfiles de familia con Sinergia** cuando existan
       las relaciones `stic_Personal_Environment` en el CRM de Comunica: verificar la
       carga real de participantes y decidir el campo definitivo del rol "familiar".

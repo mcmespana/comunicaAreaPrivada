@@ -237,75 +237,90 @@
     }
 
     /* -------- Tooltips de ayuda ⓘ (.stic-info) --------
-       El tooltip va con position:fixed y se posiciona AQUÍ, anclado al
-       viewport (nunca se corta en los bordes). Hover/focus lo muestran
-       (clase is-hover); el click/tap lo fija (is-open). Escape, scroll o
-       tocar fuera lo cierran. Solo uno fijado a la vez. */
-    function positionInfoTip(info) {
+       El tooltip se saca a <body> (PORTAL) la primera vez que se usa:
+       los <li> del formulario pueden tener transform (animaciones) y un
+       ancestro con transform rompe position:fixed (lo ancla al li, no al
+       viewport — así salían descolocados). Desde body, el fixed es real y
+       el clamping al viewport funciona siempre. Hover/focus lo muestran;
+       el tap lo fija (is-sticky). Escape, scroll o tocar fuera lo cierran. */
+    function infoTipFor(info) {
+        if (info._sticTip) { return info._sticTip; }
         var tip = info.querySelector('.stic-info-tip');
+        if (!tip) { return null; }
+        document.body.appendChild(tip);   // portal
+        tip._sticInfo = info;
+        info._sticTip = tip;
+        return tip;
+    }
+
+    function showInfoTip(info, sticky) {
+        var tip = infoTipFor(info);
         if (!tip) { return; }
-        // Medir sin que se vea (visibility ya la controla la clase; forzamos
-        // una medición previa con visibility hidden explícito).
-        var prevVis = tip.style.visibility;
-        tip.style.visibility = 'hidden';
-        tip.style.left = '0px';
-        tip.style.top = '0px';
+        // Posicionar antes de mostrar (medible: display block, visibility hidden).
         var w = tip.offsetWidth;
         var h = tip.offsetHeight;
         var r = info.getBoundingClientRect();
         var left = Math.round(r.left + r.width / 2 - w / 2);
         left = Math.max(12, Math.min(left, window.innerWidth - w - 12));
-        var top = Math.round(r.top - h - 9);          // preferencia: encima
+        var top = Math.round(r.top - h - 9);              // preferencia: encima
         if (top < 12) { top = Math.round(r.bottom + 9); } // sin sitio: debajo
         tip.style.left = left + 'px';
         tip.style.top = top + 'px';
-        tip.style.visibility = prevVis;
+        tip.classList.add('is-visible');
+        tip.classList.toggle('is-sticky', !!sticky);
+        info.classList.toggle('is-open', !!sticky);
     }
 
-    function closeAllInfoTips(except) {
-        var open = document.querySelectorAll('.stic-info.is-open, .stic-info.is-hover');
-        Array.prototype.forEach.call(open, function (tip) {
-            if (tip !== except) { tip.classList.remove('is-open', 'is-hover'); }
+    function hideInfoTip(tip, force) {
+        if (!tip || (!force && tip.classList.contains('is-sticky'))) { return; }
+        tip.classList.remove('is-visible', 'is-sticky');
+        if (tip._sticInfo) { tip._sticInfo.classList.remove('is-open'); }
+    }
+
+    function closeAllInfoTips(exceptInfo) {
+        var tips = document.querySelectorAll('.stic-info-tip.is-visible');
+        Array.prototype.forEach.call(tips, function (tip) {
+            if (!exceptInfo || tip._sticInfo !== exceptInfo) { hideInfoTip(tip, true); }
         });
     }
 
     function bindInfoTips() {
-        // Hover de escritorio (delegado): posicionar y mostrar.
+        // Hover de escritorio (delegado).
         document.addEventListener('mouseover', function (e) {
             var info = e.target.closest ? e.target.closest('.stic-info') : null;
-            if (!info || info.classList.contains('is-hover')) { return; }
-            positionInfoTip(info);
-            info.classList.add('is-hover');
+            if (info && !(info._sticTip && info._sticTip.classList.contains('is-visible'))) {
+                showInfoTip(info, false);
+            }
         });
         document.addEventListener('mouseout', function (e) {
             var info = e.target.closest ? e.target.closest('.stic-info') : null;
             if (info && !(e.relatedTarget && info.contains(e.relatedTarget))) {
-                info.classList.remove('is-hover');
+                hideInfoTip(info._sticTip, false);
             }
         });
         // Foco por teclado.
         document.addEventListener('focusin', function (e) {
             if (e.target.classList && e.target.classList.contains('stic-info')) {
-                positionInfoTip(e.target);
-                e.target.classList.add('is-hover');
+                showInfoTip(e.target, false);
             }
         });
         document.addEventListener('focusout', function (e) {
             if (e.target.classList && e.target.classList.contains('stic-info')) {
-                e.target.classList.remove('is-hover');
+                hideInfoTip(e.target._sticTip, false);
             }
         });
-        // Tap/click: fijar (móvil).
+        // Tap/click: fijar (móvil). Solo un tooltip fijado a la vez.
         document.addEventListener('click', function (e) {
             var info = e.target.closest ? e.target.closest('.stic-info') : null;
             if (info) {
                 // Dentro de un <label>, el click reenviaría el foco al input: no.
                 e.preventDefault();
                 e.stopPropagation();
-                var willOpen = !info.classList.contains('is-open');
+                var tip = infoTipFor(info);
+                var isSticky = tip && tip.classList.contains('is-sticky');
                 closeAllInfoTips(info);
-                if (willOpen) { positionInfoTip(info); }
-                info.classList.toggle('is-open', willOpen);
+                if (isSticky) { hideInfoTip(tip, true); }
+                else { showInfoTip(info, true); }
                 return;
             }
             closeAllInfoTips(null);
@@ -316,8 +331,9 @@
             if ((e.key === 'Enter' || e.key === ' ') && e.target.classList &&
                 e.target.classList.contains('stic-info')) {
                 e.preventDefault();
-                positionInfoTip(e.target);
-                e.target.classList.toggle('is-open');
+                var tip = e.target._sticTip;
+                if (tip && tip.classList.contains('is-sticky')) { hideInfoTip(tip, true); }
+                else { showInfoTip(e.target, true); }
             }
         });
         // El tooltip es fixed: al hacer scroll se cierra (no queda flotando).

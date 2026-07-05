@@ -109,7 +109,7 @@ function sticpa_participant_switcher_html()
     $html = "<span class='stic-part-switch'>";
     $html .= "<button type='button' class='stic-part-switch-btn' aria-haspopup='true' aria-expanded='false' title='" . esc_attr__('Cambiar de participante', 'sticpa') . "'>";
     $html .= "<span class='stic-part-avatar' aria-hidden='true'>" . esc_html(sticpa_name_initial($activeName)) . "</span>";
-    $html .= "<span class='stic-part-name'>" . esc_html($activeName) . "</span>" . $chevron;
+    $html .= "<span class='stic-part-name' title='" . esc_attr($activeName) . "'>" . esc_html(sticpa_short_name($activeName)) . "</span>" . $chevron;
     $html .= "</button>";
 
     $html .= "<span class='stic-part-switch-menu'>";
@@ -131,6 +131,28 @@ function sticpa_participant_switcher_html()
     $html .= "</ul></span></span>";
 
     return $html;
+}
+
+/**
+ * Nombre CORTO para espacios estrechos (barra de identidad, switcher):
+ * "Nombre + primer apellido". Antes se cortaba con puntos suspensivos a media
+ * palabra ("David Soler Bal…"); mejor omitir el segundo apellido entero.
+ * Soporta "Apellidos, Nombre" y "Nombre Apellidos". El nombre completo debe
+ * ir siempre en el atributo title del elemento que lo muestre.
+ */
+function sticpa_short_name($name, $maxWords = 2)
+{
+    $name = trim((string) $name);
+    if ($name === '') {
+        return $name;
+    }
+    if (strpos($name, ',') !== false) {
+        list($surnames, $given) = array_map('trim', explode(',', $name, 2));
+        $firstSurname = preg_split('/\s+/', $surnames)[0];
+        $name = trim($given . ' ' . $firstSurname);
+    }
+    $parts = preg_split('/\s+/', $name);
+    return implode(' ', array_slice($parts, 0, $maxWords));
 }
 
 /**
@@ -196,14 +218,14 @@ function menu()
         // FAMILIA: nombre del familiar arriba y, debajo, el SELECTOR RÁPIDO con
         // el participante activo (siempre visible: nunca hay duda de a quién ves).
         $topName = $familiarName !== null ? $familiarName : ($_SESSION['scp_tutor_user_contact_name'] ?? $participantName);
-        $account .= "<span class='stic-account-name'><a href='?internalpage=single_stic_tutor_profile'>" . esc_html($topName) . "</a></span>";
+        $account .= "<span class='stic-account-name'><a href='?internalpage=single_stic_tutor_profile' title='" . esc_attr($topName) . "'>" . esc_html(sticpa_short_name($topName)) . "</a></span>";
         $account .= "<span class='stic-account-sub'>";
         $account .= "<span class='stic-account-tag'>" . __('Viendo a', 'sticpa') . "</span>";
         $account .= sticpa_participant_switcher_html();
         $account .= "</span>";
     } elseif ($familiarName !== null) {
         // Tutor sin selector (sin perfiles cargados): identidad fija como antes.
-        $account .= "<span class='stic-account-name'><a href='?internalpage=single_stic_tutor_profile'>" . esc_html($familiarName) . "</a></span>";
+        $account .= "<span class='stic-account-name'><a href='?internalpage=single_stic_tutor_profile' title='" . esc_attr($familiarName) . "'>" . esc_html(sticpa_short_name($familiarName)) . "</a></span>";
         $account .= "<span class='stic-account-sub'>";
         $account .= "<span class='stic-account-tag'>" . __('Participante', 'sticpa') . "</span>";
         if ($participantName) {
@@ -213,7 +235,7 @@ function menu()
     } else {
         // Usuario individual.
         $name = $participantName ? $participantName : __('Mi cuenta', 'sticpa');
-        $account .= "<span class='stic-account-name'><a href='?internalpage=single_stic_profile'>" . esc_html($name) . "</a></span>";
+        $account .= "<span class='stic-account-name'><a href='?internalpage=single_stic_profile' title='" . esc_attr($name) . "'>" . esc_html(sticpa_short_name($name)) . "</a></span>";
         $account .= "<span class='stic-account-sub stic-account-sub--muted'>" . __('Tu área privada', 'sticpa') . "</span>";
     }
     $account .= "</span></div>";

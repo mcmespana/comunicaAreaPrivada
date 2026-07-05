@@ -183,6 +183,22 @@ Conectado al navegador del usuario para inspeccionar/previsualizar la web desple
 
 ## Registro de avances
 
+- **2026-07-05 (c)** — Iteración 4:
+  - **Tooltips (fix definitivo)**: los li conservaban un `transform` de la animación de
+    entrada (fill-mode both) → un ancestro con transform ancla el `position:fixed` al li,
+    no al viewport (por eso salían descolocados). Doble arreglo: el keyframe acaba en
+    `transform:none` y el tooltip se saca a `<body>` (portal) al usarse (`infoTipFor`).
+  - **Etiquetas sin ':'** (el motor ya no los añade) y el icono ⓘ alineado en vertical.
+  - **Botón Salir** siempre blanco (el tema lo teñía) y **nombre corto** en la barra
+    ("David Soler" en vez de "David Soler Bal…"), completo en el title
+    (`sticpa_short_name`, menu.php).
+  - **Foto**: tras elegir/recortar se previsualiza en el avatar con badge de reloj
+    "Foto lista: pulsa Guardar para subirla" (stic-cropper.js::markPending).
+  - **Modo app** `?app=1` (cookie 30 días, `?app=0` apaga): oculta header/footer/admin-bar
+    del tema para la WebView. Arranque: `…/?token=XXX&app=1`.
+  - **UI-15**: `stic-style.css` + `stic-modern-style.css` consolidados en
+    `css/stic-base.css` (mismo contenido y orden; 1 request menos).
+
 - **2026-07-05 (b)** — Iteración 3 (feedback con capturas):
   - **Cropper de fotos móvil-first** (`js/stic-cropper.js`, sin dependencias): al elegir
     imagen se abre modal con lienzo, arrastre 1 dedo, pinch 2 dedos, slider de zoom;
