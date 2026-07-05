@@ -830,6 +830,58 @@ function sinergiacrm_private_area_shortcode()
     return $content;
 }
 
+/**
+ * ============================================================================
+ *  MODO APP (?app=1) — para la WebView de la app (React Native, etc.)
+ * ----------------------------------------------------------------------------
+ * Oculta el header/footer/admin-bar del tema de WordPress para que la WebView
+ * muestre SOLO el área privada. Se activa con ?app=1 en cualquier URL del área
+ * y se recuerda en una cookie (los enlaces internos no llevan el parámetro);
+ * se desactiva con ?app=0. Ejemplo de URL de arranque de la app:
+ *   https://…/area-privada/?token=XXXX&app=1
+ */
+add_action('init', 'sticpa_app_mode_boot', 2);
+function sticpa_app_mode_boot()
+{
+    if (!isset($_GET['app'])) {
+        return;
+    }
+    $on = $_GET['app'] !== '0';
+    setcookie('sticpa_app', $on ? '1' : '', $on ? time() + 30 * DAY_IN_SECONDS : time() - 3600, '/');
+    $_COOKIE['sticpa_app'] = $on ? '1' : ''; // efectivo ya en esta petición
+}
+
+/** ¿Estamos dentro de la app (WebView)? */
+function sticpa_is_app_mode()
+{
+    return !empty($_COOKIE['sticpa_app']);
+}
+
+// Clase en el body + CSS que esconde el "chrome" del tema alrededor del área.
+add_filter('body_class', function ($classes) {
+    if (sticpa_is_app_mode()) {
+        $classes[] = 'sticpa-app-mode';
+    }
+    return $classes;
+});
+
+function sticpa_app_mode_css()
+{
+    // Selectores genéricos de headers/footers de los temas habituales
+    // (clásicos, Elementor, bloques). Si el tema usa otro wrapper, añádelo aquí.
+    return '
+    body.sticpa-app-mode :is(
+        header, .site-header, #masthead, #site-header,
+        .elementor-location-header, header.wp-block-template-part,
+        footer, .site-footer, #colophon,
+        .elementor-location-footer, footer.wp-block-template-part,
+        #wpadminbar
+    ) { display: none !important; }
+    body.sticpa-app-mode { padding-top: 0 !important; margin-top: 0 !important; }
+    body.sticpa-app-mode.admin-bar { margin-top: 0 !important; } /* hueco del admin bar */
+    ';
+}
+
 add_action('init', 'sugar_crm_portal_start_session', 1); // start session
 function sugar_crm_portal_start_session()
 {
@@ -878,12 +930,17 @@ function sugar_crm_portal_style_and_script()
         };
         // Modern typography (Inter) loaded from Google Fonts
         wp_enqueue_style('stic-google-fonts', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap', array(), null);
-        wp_enqueue_style('stic-style', plugins_url('css/stic-style.css', __FILE__), array(), $ver('css/stic-style.css'));
-        wp_enqueue_style('stic-multiselect', plugins_url('css/selectize.css', __FILE__), array(), $ver('css/selectize.css'));
-        wp_enqueue_style('stic-modern-style', plugins_url('css/stic-modern-style.css', __FILE__), array(), $ver('css/stic-modern-style.css'));
+        // Capa BASE consolidada (UI-15: ex stic-style + stic-modern-style, en ese orden).
+        wp_enqueue_style('stic-base', plugins_url('css/stic-base.css', __FILE__), array(), $ver('css/stic-base.css'));
+        wp_enqueue_style('stic-multiselect', plugins_url('css/selectize.css', __FILE__), array('stic-base'), $ver('css/selectize.css'));
         wp_enqueue_style('fullcalendar', plugins_url('js/fullcalendar/lib/main.css', __FILE__));
         // custom-style.css is loaded LAST on purpose so it can override/enhance everything above
-        wp_enqueue_style('custom-style', plugins_url('css/custom-style.css', __FILE__), array('stic-modern-style'), $ver('css/custom-style.css'));
+        wp_enqueue_style('custom-style', plugins_url('css/custom-style.css', __FILE__), array('stic-base'), $ver('css/custom-style.css'));
+
+        // Modo app (?app=1): esconder el header/footer del tema en la WebView.
+        if (function_exists('sticpa_is_app_mode') && sticpa_is_app_mode()) {
+            wp_add_inline_style('custom-style', sticpa_app_mode_css());
+        }
     }
 
 }

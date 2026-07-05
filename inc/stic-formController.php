@@ -309,7 +309,7 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
                 $defaultValue = get_date_from_gmt($defaultValue);
                 $html = "
                 <li class='" . $required . "' " . ">
-                    <label{$forAttr}>" . $label . ":</label>
+                    <label{$forAttr}>" . $label . "</label>
                     <span><input " . $required . " " . $attributes . " class='input-text {$additionClasses}' maxlength='255' type='datetime-local' name='" . $name . "' id='" . $name . "' value='" . esc_attr($defaultValue) . "'" . $fieldActions . "  /> </span>
                     {$hint}
                 </li>";
@@ -319,7 +319,7 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
         case 'textarea':
             $html = "
             <li class='" . $required . "' " . ">
-                <label{$forAttr}>" . $label . ":</label>
+                <label{$forAttr}>" . $label . "</label>
                 <span><textarea " . $required . " " . $attributes . " class='input-text {$additionClasses}' type='" . $type . "' name='" . $name . "' id='" . $name . "' " . $fieldActions . ">" . esc_textarea((string) ($defaultValue ?? '')) . "</textarea></span>
                 {$hint}
             </li>";
@@ -328,7 +328,7 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
         case 'dynamicenum':
         case 'select':
             $html = "<li class='" . $required . "' " . ">
-            <label{$forAttr}>" . $label . ":</label>
+            <label{$forAttr}>" . $label . "</label>
             <span><select " . $required . " " . $attributes . " class='input-text {$additionClasses}' name='" . $name . "' id='" . $name . "' value='" . $escValue . "' " . $fieldActions . "/>";
             if (!isset($value['selectValues'])) {
                 $list = array();
@@ -371,7 +371,7 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
             break;
         case 'radio':
             $html = "<li class='" . $required . "' " . ">
-            <label>" . $label . ":</label>
+            <label>" . $label . "</label>
             <div class='stic-check-group' id='{$name}'>";
             $defaultValue = $defaultValue === null ? '' : $defaultValue;
             foreach ($value['selectValues'] as $skey => $svalue) {
@@ -386,7 +386,7 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
         case 'multienum';
         case 'selectMultiple':
             $html = "<li class='{$type} " . $required . "' " . ">
-            <label{$forAttr}>" . $label . ":</label>
+            <label{$forAttr}>" . $label . "</label>
             <span><select multiple " . $required . " " . $attributes . " class='{$additionClasses}' name='" . $name . "[]' id='" . $name . "' value='" . $defaultValue . "' " . $fieldActions . "/>";
             $arrayValues = explode("^,^", $defaultValue);
             $arrayValues = str_replace("^", "", $arrayValues);
@@ -411,7 +411,7 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
         case 'readOnly':
             $html = "
             <li class=''>
-                <label>" . $label . ":</label>
+                <label>" . $label . "</label>
                 <span class='{$additionClasses}' id='{$name}' {$fieldActions} > {$defaultValue} </span>
             </li>";
             break;

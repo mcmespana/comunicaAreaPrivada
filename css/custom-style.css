@@ -91,7 +91,10 @@
 
 @keyframes stic-fade-up {
     from { opacity: 0; transform: translateY(14px); }
-    to   { opacity: 1; transform: translateY(0); }
+    /* 'none' (y no translateY(0)): un transform aplicado permanentemente
+       convierte al elemento en containing block y descoloca cualquier
+       position:fixed interior (tooltips, menús anclados). */
+    to   { opacity: 1; transform: none; }
 }
 
 /* ============================================================
@@ -687,7 +690,9 @@ span.stic-field {
     transition: background 0.2s ease, transform 0.15s var(--ease-spring);
 }
 .stic-iconbtn::after { display: none !important; }
-.stic-iconbtn svg { width: 18px; height: 18px; flex-shrink: 0; }
+.stic-iconbtn,
+.stic-iconbtn:visited { color: #fff !important; }
+.stic-iconbtn svg { width: 18px; height: 18px; flex-shrink: 0; stroke: #fff !important; }
 .stic-iconbtn:hover { transform: translateY(-1px); }
 .stic-logout:hover { background: rgba(239, 68, 68, 0.9) !important; }
 
@@ -2634,8 +2639,10 @@ span.stic-field {
     place-items: center;
     width: 18px !important;
     height: 18px !important;
-    margin-left: 0.3rem;
-    vertical-align: -0.18em;
+    margin-left: 0.35rem;
+    vertical-align: middle;
+    position: relative;
+    top: -1px;
     border-radius: 50%;
     background: var(--primary-50);
     color: var(--primary-color);
@@ -2693,8 +2700,7 @@ span.stic-field {
 /* El estado abierto lo controla el JS (clases is-open / is-hover) para
    posicionar antes de mostrar. Sin flecha: tras el clamping al viewport ya
    no quedaría centrada sobre el icono. */
-.stic-info.is-open .stic-info-tip,
-.stic-info.is-hover .stic-info-tip {
+.stic-info-tip.is-visible {
     opacity: 1;
     visibility: visible;
     transform: translateY(0);
@@ -3433,3 +3439,30 @@ span.stic-field {
 @media (max-width: 480px) {
     .stic-crop-card { padding: 1.1rem 0.9rem 1rem; }
 }
+
+/* ============================================================
+   40. FOTO PENDIENTE DE GUARDAR — preview tras el recorte
+   ------------------------------------------------------------
+   Al elegir/recortar una foto, el cropper (stic-cropper.js) pinta la
+   previsualización en el avatar y añade este badge con reloj: recuerda
+   que hasta pulsar Guardar no se sube nada.
+   ============================================================ */
+.stic-profile-picture.is-pending {
+    outline: 3px dashed #f59e0b;
+    outline-offset: 3px;
+}
+.stic-pending-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 0.55rem;
+    padding: 0.35rem 0.8rem;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border: 1px solid #fcd34d;
+    color: #92400e;
+    font-size: 0.8rem;
+    font-weight: 700;
+    animation: stic-badge-in 0.35s var(--ease-spring) both;
+}
+.stic-pending-badge svg { width: 14px; height: 14px; flex-shrink: 0; }

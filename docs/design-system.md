@@ -32,11 +32,15 @@
 
 | Archivo | Papel | ¿Se toca? |
 |---|---|---|
-| `css/stic-style.css` | Base histórica del plugin original | ❌ casi nunca |
+| `css/stic-base.css` | Capa base consolidada (UI-15: ex `stic-style` + `stic-modern-style`, en ese orden) | ⚠️ solo arreglos |
 | `css/selectize.css` | Librería multiselect | ❌ |
-| `css/stic-modern-style.css` | Capa de modernización intermedia | ⚠️ solo arreglos |
 | `js/fullcalendar/lib/main.css` | Calendario | ❌ |
 | `css/custom-style.css` | **LA capa premium. Carga la última: aquí mandas tú.** | ✅ SIEMPRE aquí |
+
+**Modo app (`?app=1`)**: cualquier URL del área con `?app=1` activa una cookie
+(30 días) que oculta el header/footer/admin-bar del tema (clase
+`body.sticpa-app-mode`, CSS en `sticpa_app_mode_css()`); `?app=0` lo desactiva.
+Pensado para la WebView de la app: arranca con `…/?token=XXX&app=1`.
 
 El versionado de caché es automático (`filemtime`): al desplegar, el navegador
 recarga el CSS/JS solo. No hace falta tocar versiones.

@@ -51,6 +51,28 @@
         return overlay;
     }
 
+    /* Preview "pendiente de guardar": pinta la imagen elegida/recortada en el
+       avatar del bloque de foto y añade un badge con reloj recordando que hay
+       que pulsar Guardar (nada se sube hasta enviar el formulario). */
+    function markPending(input, previewUrl) {
+        var li = input.closest ? input.closest('li') : null;
+        if (!li) { return; }
+        var img = li.querySelector('img.stic-profile-picture');
+        if (img && previewUrl) {
+            img.src = previewUrl;
+            img.classList.add('is-pending');
+        }
+        if (!li.querySelector('.stic-pending-badge')) {
+            var badge = document.createElement('span');
+            badge.className = 'stic-pending-badge';
+            badge.innerHTML =
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>' +
+                'Foto lista: pulsa Guardar para subirla';
+            var host = li.querySelector('.stic-photo-main') || li;
+            host.appendChild(badge);
+        }
+    }
+
     function openCropper(input, file) {
         var url = URL.createObjectURL(file);
         var img = new Image();
@@ -157,8 +179,12 @@
             function escHandler(e) { if (e.key === 'Escape') { close(); } }
             document.addEventListener('keydown', escHandler);
 
-            // "Usar sin recortar": se queda el archivo original del input.
-            overlay.querySelector('.stic-modal-btn--cancel').addEventListener('click', close);
+            // "Usar sin recortar": se queda el archivo original del input,
+            // pero también se previsualiza y se recuerda que hay que Guardar.
+            overlay.querySelector('.stic-modal-btn--cancel').addEventListener('click', function () {
+                markPending(input, URL.createObjectURL(file));
+                close();
+            });
 
             overlay.querySelector('.stic-crop-btn-apply').addEventListener('click', function () {
                 try {
@@ -180,6 +206,8 @@
                             input.files = dt.files;
                             // Notificar por si alguien escucha el change (sin re-abrir el cropper).
                             input.setAttribute('data-cropped', '1');
+                            // Preview inmediata + recordatorio de Guardar.
+                            markPending(input, out.toDataURL('image/jpeg', 0.8));
                         }
                         close();
                     }, 'image/jpeg', 0.85);
