@@ -57,9 +57,21 @@ function makeForm($fieldList, $formSettings, $data, $action = null)
     $objSCP = SugarRestApiCall::getObjSCP();
 
     $fields = array_column($fieldList, 'name');
-    $fieldsDefinitionResults = $objSCP->getFieldDefinition($formSettings['moduleName'], $fields);
-    $fieldsDefinitionResultsArray = json_decode(json_encode($fieldsDefinitionResults), true);
-    $fieldsDefinition = $fieldsDefinitionResultsArray['module_fields'];
+
+    // RENDIMIENTO: get_module_fields es una llamada extra al CRM en CADA carga
+    // de formulario y sus definiciones (tipos, etiquetas, opciones) cambian
+    // rarísimo. Se cachean 6h por módulo+campos. Para forzar recarga tras
+    // tocar Studio: añade ?refresh_fields=1 a la URL (o espera al TTL).
+    $cacheKey = 'sticpa_fdef_' . md5($formSettings['moduleName'] . '|' . implode(',', $fields));
+    $fieldsDefinition = isset($_GET['refresh_fields']) ? false : get_transient($cacheKey);
+    if ($fieldsDefinition === false || !is_array($fieldsDefinition)) {
+        $fieldsDefinitionResults = $objSCP->getFieldDefinition($formSettings['moduleName'], $fields);
+        $fieldsDefinitionResultsArray = json_decode(json_encode($fieldsDefinitionResults), true);
+        $fieldsDefinition = $fieldsDefinitionResultsArray['module_fields'] ?? array();
+        if (!empty($fieldsDefinition)) {
+            set_transient($cacheKey, $fieldsDefinition, 6 * HOUR_IN_SECONDS);
+        }
+    }
 
     $html = '';
     $html .= renderMessage($formSettings['msg']);

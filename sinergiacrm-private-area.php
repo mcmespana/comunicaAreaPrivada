@@ -106,6 +106,9 @@ function dcms_insertar_js()
     // UI helpers: overlay de carga + toggle de contraseña (sin dependencias)
     wp_register_script('stic-ui', plugin_dir_url(__FILE__) . 'js/stic-ui.js', array(), $jsver('js/stic-ui.js'), true);
     wp_enqueue_script('stic-ui');
+    // Cropper de fotos móvil-first (se engancha solo a los input de imagen)
+    wp_register_script('stic-cropper', plugin_dir_url(__FILE__) . 'js/stic-cropper.js', array(), $jsver('js/stic-cropper.js'), true);
+    wp_enqueue_script('stic-cropper');
     // We use only one file for plugin literals, so although theoretically we should call this function twice (one efor each js), we only call it once.
     wp_localize_script('sugarcrm-own', 'stic_script_vars', getSticScriptVars());
     wp_register_script('multiselect', plugin_dir_url(__FILE__) . 'js/selectize.min.js', array('jquery'), '1', true);

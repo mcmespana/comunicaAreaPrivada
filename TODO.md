@@ -173,6 +173,41 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
       `stic_Payment_Commitments`) los campos reales y renombrar `ajmcm_pago_*_c` en
       `pages/single_stic_tutor_profile.php` (buscar el aviso ⚙️).
 
+## 🟠 P1 — Rendimiento (análisis 2026-07, hacer en este orden)
+
+> Diagnóstico: cada carga de página hace 3-6 llamadas SÍNCRONAS al CRM
+> (~0,5-2s cada una): login técnico si caducó, get_module_fields, el detalle
+> del registro, la foto en base64, y en listados N+1 (relaciones → detalle por
+> registro). El front pesa poco; el cuello es SIEMPRE la API del CRM.
+
+- [x] `PERF-01` (P1 · S) **Cachear get_module_fields** (transient 6h por módulo+campos,
+      bypass `?refresh_fields=1`). Ahorra ~1 llamada al CRM por formulario. ↳ **hecho**
+      (2026-07). ↳ `inc/stic-formController.php::makeForm`.
+- [x] `PERF-02` (P1 · S) **Quitar las animaciones infinitas de gradiente** (nav y hero):
+      repintaban constantemente (jank + batería en móvil). ↳ **hecho** (2026-07).
+- [ ] `PERF-03` (P1 · S) **Cachear la sesión técnica del CRM** entre peticiones PHP:
+      hoy `login()` del usuario de servicio se rehace cuando caduca por sesión PHP;
+      guardar `api_session_id` en transient compartido (no por sesión) ahorra el
+      round-trip de login en frío. ↳ `inc/stic-class-6.php`.
+- [ ] `PERF-04` (P1 · M) **Foto de perfil**: `get_image` trae el base64 completo en cada
+      carga de "Mis datos". Cachear por contacto (transient, invalidar al subir foto) o
+      servirla vía endpoint con `Cache-Control`. ↳ `pages/single_stic_comunica_perfil.php`.
+- [ ] `PERF-05` (P1 · M) **Matar los N+1 de listados y selección de participante**:
+      `single_stic_profile_selection.php` hace 1 llamada por relación + 1 por contacto;
+      los listados similar. Usar `related_module_link_name_to_fields_array` para traer
+      el contacto vinculado EN la misma llamada. Cachear `scp_available_profiles` ya
+      mitiga el switcher.
+- [ ] `PERF-06` (P2 · S) **cURL keep-alive / HTTP2** en `SugarRestApiCall`: reutilizar el
+      handler de cURL entre llamadas de la misma petición (hoy se abre conexión TLS
+      nueva cada vez). ↳ `inc/stic-class-6.php::call`.
+- [ ] `PERF-07` (P2 · S) **Front**: `defer` en los JS (hoy van a footer, ok), quitar
+      DataTables/FullCalendar/Selectize de páginas que no los usan (enqueue condicional
+      por `internalpage`), `font-display: swap` ya viene del `display=swap`.
+- [ ] `PERF-08` (P2 · M) **Cache de lectura por página** (transient 1-5 min por
+      usuario+página para los `get_entry_list` de listados) con invalidación al guardar.
+      Es el salto grande para que "todo vaya rapidini"; requiere cuidado con datos
+      recién editados.
+
 ## ⚪ P2/P3 — Mantenimiento y calidad
 
 - [ ] `MNT-01` (P2 · S) Quitar/condicionar las funciones de **debug** (`debug()`, `my_log_file()`)

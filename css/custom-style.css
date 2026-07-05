@@ -607,8 +607,8 @@ span.stic-field {
 .stic-nav {
     position: relative;
     background: var(--grad-brand);
-    background-size: 220% 220%;
-    animation: stic-gradient-shift 14s ease infinite;
+    /* Gradiente ESTÁTICO: la animación continua repintaba sin parar (jank y
+       batería en móvil) y competía con el contenido. */
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.2);
     overflow: hidden;
@@ -645,7 +645,8 @@ span.stic-field {
     font-weight: 700; font-size: 1rem; line-height: 1.25;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
 }
-.stic-account-name a { color: #fff; text-decoration: none; }
+.stic-account-name a,
+.stic-account-name a:visited { color: #fff !important; text-decoration: none; }
 .stic-account-name a:hover { text-decoration: underline; }
 .stic-account-sub {
     display: flex; align-items: center; gap: 0.4rem; min-width: 0;
@@ -937,8 +938,6 @@ span.stic-field {
     margin-bottom: 1.75rem;
     border-radius: var(--radius-2xl);
     background: var(--grad-brand);
-    background-size: 220% 220%;
-    animation: stic-gradient-shift 14s ease infinite;
     color: #fff;
     box-shadow: var(--shadow-lg);
 }
@@ -960,15 +959,20 @@ span.stic-field {
     text-transform: uppercase;
     opacity: 0.9;
 }
+.stic-container .stic-welcome-title,
 .stic-welcome-title {
     margin: 0.35rem 0 0.5rem;
     font-size: clamp(1.6rem, 5vw, 2.4rem);
     font-weight: 800;
     letter-spacing: -0.02em;
     line-height: 1.1;
-    color: #fff;
+    /* !important: el tema estila los h2 con más especificidad y dejaba
+       la palabra 'Hola,' en azul sobre el gradiente (ilegible). */
+    color: #fff !important;
+    background: none !important;
+    -webkit-text-fill-color: #fff !important;
 }
-.stic-welcome-title .stic-welcome-name { color: #fff; }
+.stic-welcome-title .stic-welcome-name { color: #fff !important; }
 .stic-welcome-lead {
     margin: 0;
     font-size: clamp(1rem, 2.5vw, 1.12rem);
@@ -2659,14 +2663,17 @@ span.stic-field {
 }
 .stic-info-tip,
 .stic-form li .stic-info-tip {
-    position: absolute !important;
-    bottom: calc(100% + 9px);
-    left: 50%;
-    transform: translateX(-50%) translateY(4px);
-    z-index: 60;
+    /* FIXED + posicionado por JS (bindInfoTips): así el tooltip se ancla al
+       viewport y NUNCA se corta en los bordes de la pantalla (antes el
+       translateX(-50%) lo sacaba fuera en campos pegados al margen). */
+    position: fixed !important;
+    left: 0;
+    top: 0;
+    transform: translateY(4px);
+    z-index: 99998;
     display: block !important;
     width: max-content !important;
-    max-width: min(300px, 78vw);
+    max-width: min(320px, calc(100vw - 24px));
     padding: 0.7rem 0.85rem;
     border-radius: var(--radius-md);
     background: var(--gray-900, #111827);
@@ -2683,28 +2690,15 @@ span.stic-field {
     pointer-events: none;
     transition: opacity 0.18s ease, transform 0.18s var(--ease-out), visibility 0.18s;
 }
-.stic-info-tip::after {
-    content: '';
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    border: 6px solid transparent;
-    border-top-color: var(--gray-900, #111827);
-}
-.stic-info:hover .stic-info-tip,
-.stic-info:focus-visible .stic-info-tip,
-.stic-info.is-open .stic-info-tip {
+/* El estado abierto lo controla el JS (clases is-open / is-hover) para
+   posicionar antes de mostrar. Sin flecha: tras el clamping al viewport ya
+   no quedaría centrada sobre el icono. */
+.stic-info.is-open .stic-info-tip,
+.stic-info.is-hover .stic-info-tip {
     opacity: 1;
     visibility: visible;
-    transform: translateX(-50%) translateY(0);
+    transform: translateY(0);
 }
-/* Cerca del borde izquierdo el tooltip se alinea al inicio para no cortarse. */
-li:first-child .stic-info-tip { left: 0; transform: translateX(-10px) translateY(4px); }
-li:first-child .stic-info:hover .stic-info-tip,
-li:first-child .stic-info:focus-visible .stic-info-tip,
-li:first-child .stic-info.is-open .stic-info-tip { transform: translateX(-10px) translateY(0); }
-li:first-child .stic-info-tip::after { left: 16px; }
 
 .stic-field-hint {
     display: block;
@@ -2735,6 +2729,14 @@ li:first-child .stic-info-tip::after { left: 16px; }
     border-color: var(--gray-200) !important;
     color: var(--gray-600) !important;
 }
+/* Variante de ALERTA (ámbar): algo que conviene corregir, p. ej. el monitor
+   sin su correo @movimientoconsolacion.com. */
+.stic-form li.stic-form-note.stic-note-warning {
+    background: linear-gradient(135deg, #fffbeb 0%, #fff7e6 100%) !important;
+    border-color: #fcd34d !important;
+    color: #92400e !important;
+}
+.stic-form li.stic-form-note.stic-note-warning strong { color: #78350f; }
 
 /* ============================================================
    30. CONSENTIMIENTOS LEGALES — enlace "ver condiciones" + select
@@ -2766,9 +2768,15 @@ li:first-child .stic-info-tip::after { left: 16px; }
     font-size: 0.82rem;
     font-weight: 700;
     text-decoration: none !important;
-    white-space: nowrap;
+    /* Los textos largos ("Ver tutorial para autorizarnos en…") se cortaban
+       con nowrap: mejor envolver en varias líneas. */
+    white-space: normal;
+    text-align: left;
+    line-height: 1.35;
+    max-width: 100%;
     transition: background 0.18s ease, color 0.18s ease;
 }
+.stic-legal-link svg { flex-shrink: 0; }
 .stic-legal-link:hover { background: var(--primary-color); color: #fff !important; }
 .stic-legal-link svg { width: 14px; height: 14px; flex-shrink: 0; }
 .stic-legal-row .stic-legal-q {
@@ -3279,3 +3287,149 @@ li:first-child .stic-info-tip::after { left: 16px; }
 /* La tarjeta plegada desaparece del flujo (los campos required dentro los
    desactiva el JS mientras están ocultos, como en los condicionales). */
 .stic-form > form > ul.stic-sec-hidden { display: none !important; }
+
+/* ============================================================
+   38. CONSENTIMIENTOS COMO SWITCH — Autorizaciones legales
+   ------------------------------------------------------------
+   Sustituye al patrón antiguo botón-enlace + select Sí/No (era un
+   desastre en móvil). Cada consentimiento = una frase + switch a la
+   derecha (el checkbox hereda el estilo toggle de la sección 25) y
+   un enlace pequeño "Ver condiciones" debajo.
+   ============================================================ */
+.stic-form li.stic-consent {
+    grid-column: 1 / -1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.45rem !important;
+    padding: 0.95rem 1.05rem !important;
+    background: var(--surface-2) !important;
+    border: 1px solid var(--gray-200) !important;
+    border-radius: var(--radius-md) !important;
+    margin-bottom: 0.55rem !important;
+}
+.stic-consent .stic-consent-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 1rem !important;
+    width: 100% !important;
+    margin: 0 !important;
+    cursor: pointer;
+}
+.stic-consent .stic-consent-row label {
+    flex: 1 1 auto;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 0.92rem !important;
+    font-weight: 600 !important;
+    line-height: 1.45 !important;
+    color: var(--gray-700) !important;
+    cursor: pointer;
+}
+.stic-consent .stic-consent-row input[type="checkbox"] { flex-shrink: 0 !important; }
+.stic-consent .stic-consent-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    width: fit-content;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--primary-color) !important;
+    text-decoration: none !important;
+}
+.stic-consent .stic-consent-link:hover { text-decoration: underline !important; }
+.stic-consent .stic-consent-link svg { width: 12px; height: 12px; flex-shrink: 0; }
+
+/* Enlace pequeñito junto al badge "Ya subido" → revisar en Documentos. */
+.stic-mini-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-left: 0.4rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--primary-color) !important;
+    text-decoration: none !important;
+    vertical-align: middle;
+}
+.stic-mini-link:hover { text-decoration: underline !important; }
+
+/* ============================================================
+   39. CROPPER DE FOTOS — recorte pensado para móvil
+   ------------------------------------------------------------
+   Modal con lienzo cuadrado: arrastrar con 1 dedo, pellizcar con 2,
+   slider de zoom. Lo monta js/stic-cropper.js sobre cualquier
+   input[type=file] de imagen. Sin JS, el input funciona normal.
+   ============================================================ */
+.stic-crop-card {
+    position: relative;
+    width: 100%;
+    max-width: 420px;
+    background: var(--surface, #fff);
+    border-radius: 1.1rem;
+    padding: 1.3rem 1.2rem 1.15rem;
+    box-shadow: 0 25px 60px -12px rgba(0, 0, 0, 0.3);
+    text-align: center;
+    font-family: var(--font-family);
+}
+.stic-crop-title {
+    margin: 0 0 0.2rem;
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--gray-900, #111827);
+}
+.stic-crop-sub {
+    margin: 0 0 0.9rem;
+    font-size: 0.82rem;
+    color: var(--gray-500, #6b7280);
+}
+.stic-crop-canvas-wrap {
+    position: relative;
+    width: min(320px, calc(100vw - 5.5rem));
+    margin: 0 auto;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    background: var(--gray-100, #f3f4f6);
+    touch-action: none;              /* el gesto es nuestro: sin scroll del fondo */
+}
+.stic-crop-canvas-wrap canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    cursor: grab;
+}
+.stic-crop-canvas-wrap canvas:active { cursor: grabbing; }
+/* Máscara circular de previsualización (la foto se guarda cuadrada). */
+.stic-crop-canvas-wrap::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: 50%;
+    box-shadow: 0 0 0 999px rgba(17, 24, 39, 0.42);
+}
+.stic-crop-zoom {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin: 1rem 0.2rem 1.1rem;
+}
+.stic-crop-zoom svg { width: 18px; height: 18px; color: var(--gray-400); flex-shrink: 0; }
+.stic-crop-zoom input[type="range"] {
+    flex: 1;
+    accent-color: var(--primary-color);
+    min-height: 28px;               /* target táctil cómodo */
+}
+.stic-crop-actions { display: flex; gap: 0.7rem; }
+.stic-crop-actions .stic-modal-btn { flex: 1; justify-content: center; padding: 0.75rem 1rem; }
+.stic-crop-btn-apply {
+    background: var(--grad-brand);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(28, 111, 179, 0.35);
+}
+.stic-crop-btn-apply:hover { filter: brightness(1.08); transform: translateY(-1px); }
+@media (max-width: 480px) {
+    .stic-crop-card { padding: 1.1rem 0.9rem 1rem; }
+}

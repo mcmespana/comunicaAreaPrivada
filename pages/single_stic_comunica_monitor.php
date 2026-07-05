@@ -161,7 +161,12 @@ $fieldList[] = array(
 // Bloque MANUAL: subida del certificado + enlace al trámite oficial.
 $uploadField = function ($name, $label, $current, $extraHtml = '') {
     $uploaded = !empty($current);
-    $state = $uploaded ? '<span class="stic-file-uploaded-badge"><svg class="stic-icon-checkmark" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' . __('Ya subido', 'sticpa') . '</span>' : '';
+    // Con archivo ya subido: badge verde + enlace pequeño para revisarlo en
+    // la sección Documentos (donde se puede ver/descargar el archivo real).
+    $state = $uploaded
+        ? '<span class="stic-file-uploaded-badge"><svg class="stic-icon-checkmark" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>' . __('Ya subido', 'sticpa') . '</span>'
+            . '<a class="stic-mini-link" href="?internalpage=list_stic_documents">' . __('Revisarlo en Documentos →', 'sticpa') . '</a>'
+        : '';
     // Si ya hay archivo, el mensaje invita a SUSTITUIRLO; si no, a subirlo.
     $hint = $uploaded
         ? __('Ya tienes un archivo guardado. Sube uno nuevo para sustituirlo.', 'sticpa')
