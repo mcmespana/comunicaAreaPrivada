@@ -2619,12 +2619,17 @@ span.stic-field {
    · .stic-form-note → párrafo explicativo a ancho completo
    Los genera el motor de formularios (claves 'help', 'hint', tipo 'note').
    ============================================================ */
-.stic-info {
+/* OJO: la capa base trae `.stic-form li span { width:100%; display:block }`,
+   que convertía el icono en una elipse a todo el ancho y empujaba los ':' a
+   otra línea. Por eso display/width/height van con !important. */
+.stic-info,
+.stic-form li .stic-info,
+.stic-form li label .stic-info {
     position: relative;
-    display: inline-grid;
+    display: inline-grid !important;
     place-items: center;
-    width: 18px;
-    height: 18px;
+    width: 18px !important;
+    height: 18px !important;
     margin-left: 0.3rem;
     vertical-align: -0.18em;
     border-radius: 50%;
@@ -2646,13 +2651,21 @@ span.stic-field {
     transform: scale(1.08);
     outline: none;
 }
-.stic-info-tip {
-    position: absolute;
+.stic-info-mark,
+.stic-form li .stic-info-mark {
+    display: inline !important;
+    width: auto !important;
+    line-height: 1;
+}
+.stic-info-tip,
+.stic-form li .stic-info-tip {
+    position: absolute !important;
     bottom: calc(100% + 9px);
     left: 50%;
     transform: translateX(-50%) translateY(4px);
     z-index: 60;
-    width: max-content;
+    display: block !important;
+    width: max-content !important;
     max-width: min(300px, 78vw);
     padding: 0.7rem 0.85rem;
     border-radius: var(--radius-md);
@@ -3144,3 +3157,125 @@ li:first-child .stic-info-tip::after { left: 16px; }
     margin-bottom: 0.25rem !important;
     font-weight: 700 !important;
 }
+
+/* ============================================================
+   36. ALERTAS DESTACADAS — avisos accionables (p. ej. certificado DS)
+   ------------------------------------------------------------
+   Tarjeta de aviso con icono, texto y CTA. Variante .stic-alert--warning
+   (ámbar) para "te falta algo". Se usa en la home y en Monitor/a cuando
+   el certificado de delitos sexuales está en modo manual sin archivo.
+   ============================================================ */
+.stic-alert {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.9rem 1.1rem;
+    margin: 0 0 1.4rem;
+    padding: 1.05rem 1.2rem;
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    border: 1px solid var(--gray-200);
+    box-shadow: var(--shadow-sm);
+    font-family: var(--font-family);
+    animation: stic-fade-up 0.45s var(--ease-out) both;
+}
+.stic-alert-ico {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-md);
+    flex-shrink: 0;
+}
+.stic-alert-ico svg { width: 24px; height: 24px; }
+.stic-alert-body { flex: 1 1 240px; min-width: 0; }
+.stic-alert-title {
+    margin: 0 0 0.15rem;
+    font-size: 0.98rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    color: var(--gray-900);
+}
+.stic-alert-text {
+    margin: 0;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: var(--gray-600);
+}
+.stic-alert-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.65rem 1.15rem;
+    border-radius: var(--radius-md);
+    background: var(--grad-brand);
+    color: #fff !important;
+    font-size: 0.88rem;
+    font-weight: 700;
+    text-decoration: none !important;
+    white-space: nowrap;
+    transition: transform 0.15s var(--ease-spring), box-shadow 0.2s ease;
+}
+.stic-alert-cta:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.stic-alert-cta svg { width: 15px; height: 15px; }
+
+.stic-alert--warning {
+    background: linear-gradient(135deg, #fffbeb 0%, #fff7e6 100%);
+    border-color: #fcd34d;
+}
+.stic-alert--warning .stic-alert-ico {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    color: #b45309;
+}
+.stic-alert--warning .stic-alert-title { color: #92400e; }
+.stic-alert--warning .stic-alert-text { color: #a16207; }
+
+@media (max-width: 600px) {
+    .stic-alert { align-items: flex-start; }
+    .stic-alert-cta { width: 100%; justify-content: center; }
+}
+
+/* ============================================================
+   37. SECCIONES DE FORMULARIO COLAPSABLES (con memoria local)
+   ------------------------------------------------------------
+   Cada cabecera h5 pliega/despliega su tarjeta; el estado se guarda
+   en localStorage por página+sección (js/stic-ui.js::bindCollapsibleSections).
+   Progressive enhancement: sin JS, todo queda abierto.
+   ============================================================ */
+.stic-form h5.stic-sec-toggle {
+    cursor: pointer;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    padding-right: 2.2rem !important;   /* hueco para el chevron */
+    position: relative;
+}
+.stic-form h5.stic-sec-toggle .stic-sec-chevron {
+    position: absolute;
+    right: 0.15rem;
+    top: 50%;
+    transform: translateY(-65%);
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    color: var(--gray-400);
+    background: var(--surface-2);
+    transition: transform 0.25s var(--ease-spring), background 0.18s ease, color 0.18s ease;
+}
+.stic-form h5.stic-sec-toggle .stic-sec-chevron svg { width: 15px; height: 15px; }
+.stic-form h5.stic-sec-toggle:hover .stic-sec-chevron {
+    background: var(--primary-50);
+    color: var(--primary-color);
+}
+.stic-form h5.stic-sec-toggle.is-collapsed .stic-sec-chevron {
+    transform: translateY(-65%) rotate(-90deg);
+}
+.stic-form h5.stic-sec-toggle:focus-visible {
+    outline: none;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-glow);
+}
+/* La tarjeta plegada desaparece del flujo (los campos required dentro los
+   desactiva el JS mientras están ocultos, como en los condicionales). */
+.stic-form > form > ul.stic-sec-hidden { display: none !important; }

@@ -70,6 +70,14 @@ $portalName = get_option('sticpa_scp_name');
         <?php endif; ?>
     </div>
 
+    <?php
+    // Aviso accionable: monitor/a en modo manual sin el certificado de delitos
+    // sexuales subido (sticpa_monitor_ds_pending consulta solo 2 campos al CRM).
+    if (function_exists('sticpa_monitor_ds_pending') && sticpa_monitor_ds_pending()) {
+        echo sticpa_ds_pending_alert_html(true);
+    }
+    ?>
+
     <p class="stic-section-label"><?= esc_html__('Tus secciones', 'sticpa'); ?></p>
 
     <div class="stic-dashboard-grid">
