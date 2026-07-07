@@ -3,18 +3,18 @@
 > ## ✅ IMPLEMENTADO (documento archivado)
 > El núcleo de este análisis **ya está desarrollado** (tareas `AUTH-01..04`, `SEC-01` y
 > `ADMIN-01..03`). El funcionamiento real y cómo configurarlo está en
-> [`../README.md`](../README.md) §8. Este documento se conserva como **registro del diseño y las
+> [`../README.md`](../../README.md) §8. Este documento se conserva como **registro del diseño y las
 > decisiones** (el porqué). Lo que queda pendiente (endurecer impersonación, retirar el login por
-> contraseña, `SEC-02..06`) sigue en [`../TODO.md`](../TODO.md).
+> contraseña, `SEC-02..06`) sigue en [`../TODO.md`](../../TODO.md).
 >
-> Implementación principal en [`../inc/stic-magic-login.php`](../inc/stic-magic-login.php).
+> Implementación principal en [`../inc/stic-magic-login.php`](../../inc/stic-magic-login.php).
 
 ---
 
 > **Estado:** ✅ implementado (núcleo). Mejoras de endurecimiento pendientes en el TODO.
 > **Prioridad:** 🔴 **P0 — la más alta** (resuelve a la vez seguridad y UX)
 > **Tamaño estimado:** M (núcleo funcional en ~2-4 días; panel admin completo, algo más)
-> **Relacionado:** tareas `SEC-*` y `AUTH-*` de [`../TODO.md`](../TODO.md)
+> **Relacionado:** tareas `SEC-*` y `AUTH-*` de [`../TODO.md`](../../TODO.md)
 
 ---
 
@@ -52,7 +52,7 @@ SinergiaCRM**: crear campos con Studio es **configuración, no código**.
 
 ## 2. El problema actual
 
-Hoy (ver [`../README.md`](../README.md) §2.4):
+Hoy (ver [`../README.md`](../../README.md) §2.4):
 
 - Login con usuario + contraseña en **texto plano** (`stic_pa_username_c` / `stic_pa_password_c`).
 - "He olvidado mi contraseña" **envía la contraseña en claro por email**.
@@ -238,4 +238,4 @@ seguros para acceso bajo demanda, todo con **un solo campo nuevo** en el CRM (`a
 - **Fase 4 (P1/P2):** retirar (o dejar opcional) el login por contraseña en claro y endurecer
   seguridad transversal (`SEC-*`).
 
-Ver tareas desglosadas en [`../TODO.md`](../TODO.md).
+Ver tareas desglosadas en [`../TODO.md`](../../TODO.md).

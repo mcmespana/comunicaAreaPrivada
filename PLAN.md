@@ -82,14 +82,6 @@
 
 ---
 
-## Bloqueante actual
-
-**Fase 1.** Necesito una de estas dos para avanzar:
-1. **DNI de 1 monitor y 1 laico** de ejemplo → lanzo `get_module_fields` / `get_relationships`
-   (read-only) y confirmo el campo de rol, o
-2. me indicáis **el campo/relación** donde marcáis monitor vs laico y voy directo a
-   `sticpa_get_comunica_role()`.
-
 ## Email del enlace mágico
 
 - [x] **URL absoluta**: usaba `REQUEST_URI` (relativa) → enlace inservible. Ahora base =

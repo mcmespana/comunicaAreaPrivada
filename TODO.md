@@ -95,23 +95,15 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
 - [ ] `ADMIN-05` (P2 · S) Campo **URL de portal precalculada** (`ajmcm_pa_portal_url_c`) para
       arrastrar como mail-merge en las plantillas de email del CRM.
 
-## 🟡 P2 — Plataforma / Expo (decisión de fondo)
+## 🟡 P2 — Plataforma / app
 
-> Contexto y estrategia en
-> [`docs/analisis-expo-migracion.md`](docs/analisis-expo-migracion.md). **Decidir antes de
-> implementar.**
-
-- [!] `PLAT-00` (P2 · —) **Decisión:** Opción 1 (mantener PHP web + app nativa aparte) vs.
-      Opción 2/3 (monorepo Expo con `core` compartido + web "lite"). Requiere medir el peso del
-      bundle web con un MVP antes de comprometerse.
-- [ ] `PLAT-01` (P2 · M) **Convertir el plugin en BFF**: exponer endpoints REST
-      (`register_rest_route`) reutilizando el cliente PHP (`/login-token`, `/me`,
-      `/mis-inscripciones`…). Permite probar Expo contra datos reales sin reescribir backend.
-- [ ] `PLAT-02` (P2 · L) **Paquete `core` en TypeScript**: portar `inc/stic-class-6.php` (cliente
-      CRM + tipos + reglas tutor/menor) para compartir entre app nativa y web.
-- [ ] `PLAT-03` (P2 · L) **MVP Expo** (login por token + eventos + inscripciones + documentos) y
-      **medir el bundle web** para alimentar la decisión `PLAT-00`.
-- [ ] `PLAT-04` (P2 · M) **Motor de formularios declarativo en React** (port de `makeForm`).
+- [x] `PLAT-00` (P2 · —) **Decisión tomada:** la app será una **WebView de Expo** cargando esta
+      misma web PHP (modo `?app=1`, ver `README.md` §8 y `UI-16`). No hace falta BFF, endpoints
+      REST ni un paquete `core` compartido para esto. Reconstruir en nativo de verdad queda como
+      posibilidad **futura, sin fecha**; el análisis completo que se barajó (opciones, estimación
+      de esfuerzo, riesgos) está archivado en
+      [`docs/archivo/decision-plataforma-app.md`](docs/archivo/decision-plataforma-app.md) por si
+      se retoma algún día.
 
 ## ⚪ P2/P3 — Frontend / estilos
 
@@ -228,8 +220,9 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
 ## ⚪ Documentación
 
 - [x] `DOC-01` (P1 · M) README técnico y funcional. ↳ hecho.
-- [x] `DOC-02` (P1 · M) Análisis Expo y Magic Links en `docs/`. ↳ hecho.
-- [ ] `DOC-03` (P3 · S) Documentar los endpoints REST del BFF cuando existan (`PLAT-01`).
+- [x] `DOC-02` (P1 · M) Análisis Expo y Magic Links en `docs/`. ↳ hecho. Decisión de
+      plataforma ya tomada (webview, ver `PLAT-00`) y ambos análisis archivados en
+      [`docs/archivo/`](docs/archivo/) para no marear en el día a día.
 
 ## ⚪ CI/CD — Despliegue
 
@@ -247,7 +240,6 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
 2. **`AUTH-04` + `SEC-01`/`SEC-02`** (magic links seguros, fin del password en claro).
 3. **`ADMIN-01` → `ADMIN-04`** (gestión e impersonación desde el admin).
 4. **`SEC-03`/`SEC-05`/`SEC-06`** (endurecer lo que quede).
-5. **`PLAT-00`** decisión, luego `PLAT-01` → `PLAT-03` si se va a Expo.
 
 > Mantén esta tabla actualizada: al terminar una tarea, márcala `[x]` y, si surge trabajo nuevo,
 > añádelo con su `ID`, prioridad y tamaño.
