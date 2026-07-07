@@ -882,11 +882,74 @@ function sticpa_app_mode_css()
     ';
 }
 
+/**
+ * Duración de la sesión (cookie + recolección en servidor).
+ *
+ * Por defecto 1 año. Es una ventana DESLIZANTE: se renueva en cada visita
+ * (ver más abajo), así que mientras el usuario entre al menos una vez al año
+ * su sesión no caduca nunca. Ideal para el área embebida en la app (Expo) y
+ * también para quien entra por web de forma esporádica.
+ *
+ * Se puede ajustar sin tocar código con el filtro `sticpa_session_ttl`.
+ */
+function sticpa_session_ttl()
+{
+    return (int) apply_filters('sticpa_session_ttl', YEAR_IN_SECONDS);
+}
+
 add_action('init', 'sugar_crm_portal_start_session', 1); // start session
 function sugar_crm_portal_start_session()
 {
-    if (!session_id()) {
-        session_start();
+    if (session_id()) {
+        return; // sesión ya iniciada en esta petición
+    }
+
+    $ttl = sticpa_session_ttl();
+
+    // La sesión debe sobrevivir en servidor al menos tanto como la cookie; si no,
+    // el recolector de basura de PHP borraría los datos aunque la cookie siga viva.
+    // (Nota: algunos hostings gestionan la limpieza de sesiones por su cuenta y
+    //  pueden ignorar este ajuste; si ocurre, habría que usar un save_path propio.)
+    if ((int) ini_get('session.gc_maxlifetime') < $ttl) {
+        @ini_set('session.gc_maxlifetime', (string) $ttl);
+    }
+
+    // Cookie de sesión de larga duración (en vez de "hasta cerrar el navegador").
+    $secure = is_ssl();
+    if (PHP_VERSION_ID >= 70300) {
+        session_set_cookie_params(array(
+            'lifetime' => $ttl,
+            'path'     => defined('COOKIEPATH') && COOKIEPATH ? COOKIEPATH : '/',
+            'domain'   => defined('COOKIE_DOMAIN') ? COOKIE_DOMAIN : '',
+            'secure'   => $secure,
+            'httponly' => true,
+            'samesite' => 'Lax', // permite volver al área desde enlaces externos
+        ));
+    } else {
+        session_set_cookie_params($ttl, '/', '', $secure, true);
+    }
+
+    session_start();
+
+    // Ventana DESLIZANTE: PHP no reenvía la cookie de sesión si el navegador ya
+    // trae una válida, así que la caducidad no se movería. La reenviamos nosotros
+    // en cada visita para que el año cuente desde la última vez que entró.
+    if (!headers_sent()) {
+        $params  = session_get_cookie_params();
+        $expires = time() + $ttl;
+        $path    = !empty($params['path']) ? $params['path'] : '/';
+        if (PHP_VERSION_ID >= 70300) {
+            setcookie(session_name(), session_id(), array(
+                'expires'  => $expires,
+                'path'     => $path,
+                'domain'   => $params['domain'],
+                'secure'   => $secure,
+                'httponly' => true,
+                'samesite' => !empty($params['samesite']) ? $params['samesite'] : 'Lax',
+            ));
+        } else {
+            setcookie(session_name(), session_id(), $expires, $path, $params['domain'], $secure, true);
+        }
     }
 }
 
