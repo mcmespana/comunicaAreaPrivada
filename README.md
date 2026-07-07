@@ -12,9 +12,12 @@ plan "explícamelo como si tuviera 5 años, pero sin mentirme".
 > 📋 **¿Vas a desarrollar algo?** Mira primero [`TODO.md`](TODO.md) (tareas priorizadas y
 > convenciones) y los análisis de fondo en [`docs/`](docs/):
 > [**sistema de diseño (léelo antes de tocar UI)**](docs/design-system.md) ·
-> [migración a Expo](docs/analisis-expo-migracion.md) ·
-> [autenticación por token / magic links](docs/analisis-magic-links-tokens.md) ·
 > [despliegue a producción (CI/CD)](docs/despliegue.md).
+>
+> La app futura será una **WebView de Expo cargando esta misma web** (ver §8 y "modo app" en
+> [`docs/design-system.md`](docs/design-system.md)); no hay BFF ni endpoints REST que mantener.
+> Análisis de decisiones ya cerradas (Expo/plataforma, diseño de magic links) archivados en
+> [`docs/archivo/`](docs/archivo/) — no hace falta leerlos para el día a día.
 
 ---
 
