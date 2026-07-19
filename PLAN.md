@@ -120,8 +120,9 @@
   `table`, `thead`…) que se aplicaban a TODA la página, no solo al área privada.
 - **Arreglo:** acotados a `.stic-container` / `.stic-tab-content` / `.stic-auth-shell` en
   [`css/custom-style.css`](css/custom-style.css) (secciones 10-13) y en
-  [`css/stic-modern-style.css`](css/stic-modern-style.css) (reset, body, botones, inputs,
-  tablas). El `<button>` genérico ya NO recibe gradiente (rompía menú del tema y FullCalendar).
+  [`css/stic-base.css`](css/stic-base.css) (capa base consolidada por UI-15: ex `stic-style` +
+  `stic-modern-style`; reset, body, botones, inputs, tablas). El `<button>` genérico ya NO recibe
+  gradiente (rompía menú del tema y FullCalendar).
 
 ## Pulido iterativo (UI + arreglos)
 

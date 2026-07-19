@@ -24,12 +24,12 @@ antes de empezar, respeta sus "STOP conditions" y actualiza su fila de estado al
 | 006 | Escapar los valores del CRM al pintarlos (XSS almacenado) | P1 | M | — | TODO |
 | 007 | Regenerar el ID de sesión al autenticar (session fixation) | P1 | S | — | TODO |
 | 008 | Endurecer el transporte al CRM: TLS + queries de login | P0 | M | — | TODO |
-| 009 | Cachear `get_module_fields` también en `makeList` | P1 | S | — | TODO |
+| 009 | Cachear `get_module_fields` también en `makeList` | P1 | S | — | **DONE** (Fable, 2026-07-19) |
 | 010 | Servir el CSS de DataTables local + enqueue condicional | P1 | M | — | TODO |
 | 011 | Eliminar los N+1 de listados, calendario y selector | P1 | L | 013 | TODO |
 | 012 | Sustituir `getAllEmail()` por una consulta puntual | P1 | S | — | TODO |
 | 013 | Establecer una base de verificación (PHPUnit + mocks) | P1 | M | — | TODO |
-| 014 | Retirar assets muertos y arreglar docs desfasadas | P2 | S | — | TODO |
+| 014 | Retirar assets muertos y arreglar docs desfasadas | P2 | S | — | **DONE** (Fable, 2026-07-19) |
 | 015 | Conectar o bloquear el formulario de pago del familiar | P1 | M | 013 | TODO |
 
 Estados: TODO · IN PROGRESS · DONE · BLOCKED (motivo) · REJECTED (motivo).

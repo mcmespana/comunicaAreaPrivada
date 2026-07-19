@@ -207,9 +207,10 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
 
 ## ⚪ P2/P3 — Mantenimiento y calidad
 
-- [ ] `MNT-01` (P2 · S) Quitar/condicionar las funciones de **debug** (`debug()`, `my_log_file()`)
-      para que no escriban logs ni pinten en producción.
-      ↳ `sinergiacrm-private-area.php`.
+- [x] `MNT-01` (P2 · S) Quitar/condicionar las funciones de **debug** (`debug()`, `my_log_file()`)
+      para que no escriban logs ni pinten en producción. ↳ **hecho** (2026-07). Eliminadas ambas
+      funciones y sus referencias comentadas; también se borró `prueba.html` y el `custom-utils.js`
+      vacío (plan `plans/014`). ↳ `sinergiacrm-private-area.php`.
 - [ ] `MNT-02` (P2 · S) Revisar `getDestinationModule()` y el uso de `$_REQUEST` directo (evitar
       *warnings* de índices indefinidos y posibles manipulaciones).
 - [ ] `MNT-03` (P3 · M) Tests/healthcheck básico de la conexión al CRM y de los flujos críticos

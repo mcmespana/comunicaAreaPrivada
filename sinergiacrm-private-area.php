@@ -43,33 +43,6 @@ function getDestinationModule()
     return $scp_module;
 }
 
-/* Log to File
- * Description: Log into system php error log, usefull for Ajax and stuff that FirePHP doesn't catch
- */
-function my_log_file($msg, $name = '')
-{
-    // Print the name of the calling function if $name is left empty
-    $trace = debug_backtrace();
-    $name = ('' == $name) ? $trace[1]['function'] : $name;
-
-    $error_dir = './wordpress.log';
-    $msg = print_r($msg, true);
-    date_default_timezone_set('Europe/Andorra');
-    $now = date('d/m/Y H:i:s', time());
-    $log = $now . " | " . $name . "  |  " . $msg . "\n";
-    error_log($log, 3, $error_dir);
-}
-
-//function to easy debug
-function debug($v, $n)
-{
-    echo '<pre style="font-size:10px;border:1px solid red;">';
-
-    echo '<b>___' . $n . '________________________</b><br>';
-    print_r($v);
-    echo '</pre>';
-}
-
 function sticpa_load_languages()
 {
     $text_domain = 'sticpa';
@@ -101,8 +74,6 @@ function dcms_insertar_js()
     };
     wp_register_script('sugarcrm-own', plugin_dir_url(__FILE__) . 'js/stic-utils.js', array('jquery'), $jsver('js/stic-utils.js'), true);
     wp_enqueue_script('sugarcrm-own');
-    wp_register_script('custom-utils', plugin_dir_url(__FILE__) . 'js/custom-utils.js', array('jquery'), $jsver('js/custom-utils.js'), true);
-    wp_enqueue_script('custom-utils');
     // UI helpers: overlay de carga + toggle de contraseña (sin dependencias)
     wp_register_script('stic-ui', plugin_dir_url(__FILE__) . 'js/stic-ui.js', array(), $jsver('js/stic-ui.js'), true);
     wp_enqueue_script('stic-ui');

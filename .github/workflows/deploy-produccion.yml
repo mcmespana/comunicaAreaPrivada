@@ -51,8 +51,11 @@ jobs:
             **/docs/**
             **/*.md
             **/*.backup
+            **/*.html
             **/.gitignore
             **/.DS_Store
+            **/.agents/**
+            **/plans/**
 
 # ──────────────────────────────────────────────────────────────────────────────
 # ¿Tu acceso es SFTP de verdad (puerto 22, basado en SSH) y NO FTPS (puerto 21)?
