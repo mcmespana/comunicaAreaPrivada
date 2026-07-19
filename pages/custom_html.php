@@ -18,7 +18,7 @@ $html .= "<div class='stic-entry-header'>";
 <table>
     <tr>
         <td>
-            <img src="<?php echo plugins_url('../images/sinergiacrm.jpg', __FILE__);?>" >
+            <img src="<?php echo plugins_url('../images/sinergiacrm.jpg', __FILE__);?>" alt="SinergiaCRM">
         </td>
         <td>
 

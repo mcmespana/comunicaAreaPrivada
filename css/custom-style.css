@@ -106,7 +106,8 @@
     width: auto;
     margin-left: calc(50% - 50vw);
     margin-right: calc(50% - 50vw);
-    min-height: 100vh;
+    min-height: 100vh;      /* fallback navegadores sin dvh */
+    min-height: 100dvh;     /* viewport dinámico: evita el recorte por la barra de URL en móvil */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -130,7 +131,7 @@
         radial-gradient(45% 55% at 12% 88%, rgba(42, 140, 209, 0.20), transparent 60%),
         linear-gradient(135deg, #eef5fc 0%, #f4eef9 50%, #fbeef5 100%);
     background-size: 200% 200%;
-    animation: stic-mesh 18s ease-in-out infinite;
+    background-position: center;
     filter: saturate(1.05);
 }
 
@@ -183,7 +184,6 @@
     filter: blur(64px);
     opacity: 0.34;
     z-index: -1;
-    animation: stic-halo 9s ease-in-out infinite;
 }
 
 @keyframes stic-halo {
@@ -770,6 +770,11 @@ span.stic-field {
     outline: none !important;
     box-shadow: none !important;
 }
+/* Foco de teclado: anillo visible propio (WCAG 2.4.7); el hover no basta como indicador. */
+.stic-nav-link:focus-visible {
+    outline: 2px solid #fff !important;
+    outline-offset: 2px;
+}
 .stic-nav-link:visited {
     color: rgba(255, 255, 255, 0.92) !important;
     text-decoration: none !important;
@@ -900,7 +905,7 @@ span.stic-field {
         opacity: 0;
         overflow: hidden;
         border-top: 0;
-        transition: max-height 0.35s var(--ease-out), opacity 0.25s ease, padding 0.25s ease;
+        transition: max-height 0.35s var(--ease-out), opacity 0.25s ease;
     }
     .stic-nav.is-open .stic-nav-list {
         max-height: 75vh;
@@ -1261,7 +1266,7 @@ span.stic-field {
    16. RESPONSIVE
    ============================================================ */
 @media (max-width: 560px) {
-    .stic-auth-shell { min-height: 100vh; padding: 1rem 0.75rem; }
+    .stic-auth-shell { min-height: 100vh; min-height: 100dvh; padding: 1rem 0.75rem; }
     .stic-login-form, .stic-forgotpas-form { padding: 1.75rem 1.4rem; }
     .stic-dashboard-grid { grid-template-columns: 1fr; }
 }
@@ -2431,15 +2436,18 @@ span.stic-field {
     align-items: center;
     justify-content: center;
     padding: 1.25rem;
-    background: rgba(17, 24, 39, 0);
-    backdrop-filter: blur(0);
-    -webkit-backdrop-filter: blur(0);
-    transition: background 0.28s ease, backdrop-filter 0.28s ease, -webkit-backdrop-filter 0.28s ease;
-}
-.stic-modal-overlay.is-active {
+    /* El blur es estático: animar backdrop-filter a pantalla completa reblurea
+       toda la página cada frame. Solo animamos opacidad (compositor). */
     background: rgba(17, 24, 39, 0.45);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.28s ease, visibility 0.28s ease;
+}
+.stic-modal-overlay.is-active {
+    opacity: 1;
+    visibility: visible;
 }
 
 /* --- 27.b Tarjeta central --- */

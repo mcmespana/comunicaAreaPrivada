@@ -365,14 +365,15 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
         case 'bool';
             $html = "
             <li class='" . $required . "' " . ">
-            <span><label>" . $label . "</label>
+            <span><label{$forAttr}>" . $label . "</label>
                 <input " . $required . " " . $attributes . " class='{$additionClasses}' maxlength='255' type='checkbox' name='" . $name . "' id='" . $name . "' ". ($defaultValue ? " checked " : " ") . $fieldActions . "  /> </span>
             </li>";
             break;
         case 'radio':
+            $groupLabelId = esc_attr($name) . '_label';
             $html = "<li class='" . $required . "' " . ">
-            <label>" . $label . "</label>
-            <div class='stic-check-group' id='{$name}'>";
+            <label id='{$groupLabelId}'>" . $label . "</label>
+            <div class='stic-check-group' role='radiogroup' aria-labelledby='{$groupLabelId}' id='{$name}'>";
             $defaultValue = $defaultValue === null ? '' : $defaultValue;
             foreach ($value['selectValues'] as $skey => $svalue) {
                 $checked = $defaultValue == $skey ? 'checked' : '';
