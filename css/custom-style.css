@@ -106,7 +106,8 @@
     width: auto;
     margin-left: calc(50% - 50vw);
     margin-right: calc(50% - 50vw);
-    min-height: 100vh;
+    min-height: 100vh;      /* fallback navegadores sin dvh */
+    min-height: 100dvh;     /* viewport dinámico: evita el recorte por la barra de URL en móvil */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -130,7 +131,7 @@
         radial-gradient(45% 55% at 12% 88%, rgba(42, 140, 209, 0.20), transparent 60%),
         linear-gradient(135deg, #eef5fc 0%, #f4eef9 50%, #fbeef5 100%);
     background-size: 200% 200%;
-    animation: stic-mesh 18s ease-in-out infinite;
+    background-position: center;
     filter: saturate(1.05);
 }
 
@@ -183,7 +184,6 @@
     filter: blur(64px);
     opacity: 0.34;
     z-index: -1;
-    animation: stic-halo 9s ease-in-out infinite;
 }
 
 @keyframes stic-halo {
@@ -712,14 +712,15 @@ span.stic-field {
 .stic-nav-toggle-bars { position: relative; width: 20px; height: 14px; flex-shrink: 0; }
 .stic-nav-toggle-bars i {
     position: absolute; left: 0; right: 0; height: 2.5px; border-radius: 2px; background: #fff;
-    transition: transform 0.3s var(--ease-spring), opacity 0.2s ease, top 0.3s ease;
+    /* Morph hamburguesa→X solo con compositor (transform/opacity), sin animar 'top' (layout). */
+    transition: transform 0.3s var(--ease-spring), opacity 0.2s ease;
 }
 .stic-nav-toggle-bars i:nth-child(1) { top: 0; }
 .stic-nav-toggle-bars i:nth-child(2) { top: 5.75px; }
 .stic-nav-toggle-bars i:nth-child(3) { top: 11.5px; }
-.stic-nav.is-open .stic-nav-toggle-bars i:nth-child(1) { top: 5.75px; transform: rotate(45deg); }
+.stic-nav.is-open .stic-nav-toggle-bars i:nth-child(1) { transform: translateY(5.75px) rotate(45deg); }
 .stic-nav.is-open .stic-nav-toggle-bars i:nth-child(2) { opacity: 0; }
-.stic-nav.is-open .stic-nav-toggle-bars i:nth-child(3) { top: 5.75px; transform: rotate(-45deg); }
+.stic-nav.is-open .stic-nav-toggle-bars i:nth-child(3) { transform: translateY(-5.75px) rotate(-45deg); }
 .stic-nav-toggle-current {
     max-width: 9rem;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -769,6 +770,11 @@ span.stic-field {
     color: #fff !important;
     outline: none !important;
     box-shadow: none !important;
+}
+/* Foco de teclado: anillo visible propio (WCAG 2.4.7); el hover no basta como indicador. */
+.stic-nav-link:focus-visible {
+    outline: 2px solid #fff !important;
+    outline-offset: 2px;
 }
 .stic-nav-link:visited {
     color: rgba(255, 255, 255, 0.92) !important;
@@ -900,7 +906,7 @@ span.stic-field {
         opacity: 0;
         overflow: hidden;
         border-top: 0;
-        transition: max-height 0.35s var(--ease-out), opacity 0.25s ease, padding 0.25s ease;
+        transition: max-height 0.35s var(--ease-out), opacity 0.25s ease;
     }
     .stic-nav.is-open .stic-nav-list {
         max-height: 75vh;
@@ -1261,7 +1267,7 @@ span.stic-field {
    16. RESPONSIVE
    ============================================================ */
 @media (max-width: 560px) {
-    .stic-auth-shell { min-height: 100vh; padding: 1rem 0.75rem; }
+    .stic-auth-shell { min-height: 100vh; min-height: 100dvh; padding: 1rem 0.75rem; }
     .stic-login-form, .stic-forgotpas-form { padding: 1.75rem 1.4rem; }
     .stic-dashboard-grid { grid-template-columns: 1fr; }
 }
@@ -2431,15 +2437,18 @@ span.stic-field {
     align-items: center;
     justify-content: center;
     padding: 1.25rem;
-    background: rgba(17, 24, 39, 0);
-    backdrop-filter: blur(0);
-    -webkit-backdrop-filter: blur(0);
-    transition: background 0.28s ease, backdrop-filter 0.28s ease, -webkit-backdrop-filter 0.28s ease;
-}
-.stic-modal-overlay.is-active {
+    /* El blur es estático: animar backdrop-filter a pantalla completa reblurea
+       toda la página cada frame. Solo animamos opacidad (compositor). */
     background: rgba(17, 24, 39, 0.45);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.28s ease, visibility 0.28s ease;
+}
+.stic-modal-overlay.is-active {
+    opacity: 1;
+    visibility: visible;
 }
 
 /* --- 27.b Tarjeta central --- */
@@ -3466,3 +3475,37 @@ span.stic-field {
     animation: stic-badge-in 0.35s var(--ease-spring) both;
 }
 .stic-pending-badge svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* ============================================================
+   41. MICRO-ANIMACIONES DE ENTRADA (mensajes + filas de listado)
+   ------------------------------------------------------------
+   Solo compositor (transform/opacity), one-shot y con ease-out.
+   El bloque global de prefers-reduced-motion (§18) las anula.
+   ============================================================ */
+
+/* Mensajes de éxito/error/aviso: aparecen con un leve deslizamiento
+   para que el feedback tras guardar/enviar se sienta vivo. */
+:is(.stic-container, .stic-auth-shell) :is(.success, .error, .warning, .info, .stic-msg) {
+    animation: stic-msg-in 0.32s var(--ease-out) both;
+}
+@keyframes stic-msg-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Filas de listado (tarjetas en móvil): entrada escalonada, igual
+   patrón que el dashboard y las tarjetas de participante. Las filas
+   son display:block (llevan margin/border-radius), así que translateY
+   es seguro y barato. El escalonado se corta pronto para no retrasar
+   listados largos. */
+.stic-table-responsive table.display tbody tr {
+    animation: stic-fade-up 0.4s var(--ease-out) both;
+}
+.stic-table-responsive table.display tbody tr:nth-child(1) { animation-delay: 0.03s; }
+.stic-table-responsive table.display tbody tr:nth-child(2) { animation-delay: 0.06s; }
+.stic-table-responsive table.display tbody tr:nth-child(3) { animation-delay: 0.09s; }
+.stic-table-responsive table.display tbody tr:nth-child(4) { animation-delay: 0.12s; }
+.stic-table-responsive table.display tbody tr:nth-child(5) { animation-delay: 0.15s; }
+.stic-table-responsive table.display tbody tr:nth-child(6) { animation-delay: 0.18s; }
+.stic-table-responsive table.display tbody tr:nth-child(7) { animation-delay: 0.21s; }
+.stic-table-responsive table.display tbody tr:nth-child(n+8) { animation-delay: 0.24s; }

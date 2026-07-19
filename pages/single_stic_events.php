@@ -56,7 +56,6 @@ $fieldList[] = array('name' => 'end_date', 'type' => 'date');
 $fieldList[] = array('name' => 'description', 'type' => 'textarea');
 
 #########################################################
-// debug($fieldList, 'objSCP');
 #########################################################
 # $data must have the data to populate the form
 # You must write the function to retrieve $data in stic-action.php and then call it from here

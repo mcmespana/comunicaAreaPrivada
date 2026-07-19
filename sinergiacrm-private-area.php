@@ -43,33 +43,6 @@ function getDestinationModule()
     return $scp_module;
 }
 
-/* Log to File
- * Description: Log into system php error log, usefull for Ajax and stuff that FirePHP doesn't catch
- */
-function my_log_file($msg, $name = '')
-{
-    // Print the name of the calling function if $name is left empty
-    $trace = debug_backtrace();
-    $name = ('' == $name) ? $trace[1]['function'] : $name;
-
-    $error_dir = './wordpress.log';
-    $msg = print_r($msg, true);
-    date_default_timezone_set('Europe/Andorra');
-    $now = date('d/m/Y H:i:s', time());
-    $log = $now . " | " . $name . "  |  " . $msg . "\n";
-    error_log($log, 3, $error_dir);
-}
-
-//function to easy debug
-function debug($v, $n)
-{
-    echo '<pre style="font-size:10px;border:1px solid red;">';
-
-    echo '<b>___' . $n . '________________________</b><br>';
-    print_r($v);
-    echo '</pre>';
-}
-
 function sticpa_load_languages()
 {
     $text_domain = 'sticpa';
@@ -101,8 +74,6 @@ function dcms_insertar_js()
     };
     wp_register_script('sugarcrm-own', plugin_dir_url(__FILE__) . 'js/stic-utils.js', array('jquery'), $jsver('js/stic-utils.js'), true);
     wp_enqueue_script('sugarcrm-own');
-    wp_register_script('custom-utils', plugin_dir_url(__FILE__) . 'js/custom-utils.js', array('jquery'), $jsver('js/custom-utils.js'), true);
-    wp_enqueue_script('custom-utils');
     // UI helpers: overlay de carga + toggle de contraseña (sin dependencias)
     wp_register_script('stic-ui', plugin_dir_url(__FILE__) . 'js/stic-ui.js', array(), $jsver('js/stic-ui.js'), true);
     wp_enqueue_script('stic-ui');
@@ -495,19 +466,21 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
     $html .= "<div class='stic-auth' data-mode='" . esc_attr($mode) . "'>";
 
     /* ---------- TABS: elegir cómo entrar (enlace mágico / contraseña) ---------- */
+    $magicSelected = ($mode === 'password') ? 'false' : 'true';
+    $passwordSelected = ($mode === 'password') ? 'true' : 'false';
     $html .= "
         <div class='stic-auth-tabs' role='tablist' aria-label='" . esc_attr__('Forma de acceso', 'sticpa') . "'>
-            <button type='button' class='stic-auth-tab' data-auth-toggle='magic' role='tab'>"
+            <button type='button' class='stic-auth-tab' data-auth-toggle='magic' role='tab' id='stic-auth-tab-magic' aria-controls='stic-auth-panel-magic' aria-selected='{$magicSelected}'>"
                 . sticpa_icon('sparkles') . "<span>" . __('Enlace mágico', 'sticpa') . "</span>
             </button>
-            <button type='button' class='stic-auth-tab' data-auth-toggle='password' role='tab'>"
+            <button type='button' class='stic-auth-tab' data-auth-toggle='password' role='tab' id='stic-auth-tab-password' aria-controls='stic-auth-panel-password' aria-selected='{$passwordSelected}'>"
                 . sticpa_icon('lock') . "<span>" . __('Contraseña', 'sticpa') . "</span>
             </button>
         </div>";
 
     /* ---------- VISTA 1: ENLACE MÁGICO (por defecto) ---------- */
     $html .= "
-        <div class='stic-auth-view stic-auth-magic'>
+        <div class='stic-auth-view stic-auth-magic' id='stic-auth-panel-magic' role='tabpanel' aria-labelledby='stic-auth-tab-magic'>
             " . $magicMsg . "
             <p class='stic-auth-help'>
                 <span class='stic-sparkle' aria-hidden='true'>" . sticpa_icon('sparkles') . "</span>
@@ -545,7 +518,7 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
 
     /* ---------- VISTA 2: USUARIO + CONTRASEÑA ---------- */
     $html .= "
-        <div class='stic-auth-view stic-auth-login'>
+        <div class='stic-auth-view stic-auth-login' id='stic-auth-panel-password' role='tabpanel' aria-labelledby='stic-auth-tab-password'>
             <form name='stic-login-form' id='stic-login-form' class='stic-loading-form' action='' method='post'
                   data-loading-text='" . esc_attr__('Verificando tus datos…', 'sticpa') . "'
                   data-loading-sub='" . esc_attr__('Estamos comprobando tu acceso de forma segura.', 'sticpa') . "'>
@@ -810,6 +783,24 @@ function sugar_crm_portal_signup($html = "")
 }
 
 add_shortcode('sinergiacrm-private-area', 'sinergiacrm_private_area_shortcode'); // add shortcode [sinergiacrm-private-area]
+
+/**
+ * El área privada está detrás de login: no debe indexarse en buscadores.
+ * Marca noindex/nofollow en cualquier página que contenga el shortcode.
+ */
+add_filter('wp_robots', 'sticpa_private_area_robots');
+function sticpa_private_area_robots($robots)
+{
+    if (is_singular()) {
+        $post = get_post();
+        if ($post && has_shortcode($post->post_content, 'sinergiacrm-private-area')) {
+            $robots['noindex'] = true;
+            $robots['nofollow'] = true;
+            unset($robots['max-image-preview']);
+        }
+    }
+    return $robots;
+}
 function sinergiacrm_private_area_shortcode()
 {
     // Load js only when shortcode is present

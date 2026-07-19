@@ -1,5 +1,4 @@
 <?php
-//debug($_REQUEST, 'REQUEST');
 
 /**
  * ============================================================================
@@ -50,6 +49,29 @@ function sticpa_field_help_html($text)
         . "</span>";
 }
 
+/**
+ * RENDIMIENTO: get_module_fields es una llamada extra al CRM en cada carga de
+ * formulario Y de listado, y sus definiciones (tipos, etiquetas, opciones)
+ * cambian rarísimo (solo al tocar Studio). Se cachean 6h por módulo+campos.
+ * Para forzar recarga tras tocar Studio: añade ?refresh_fields=1 a la URL.
+ * La clave de transient es la misma que usaba makeForm, así que las cachés
+ * existentes en producción siguen siendo válidas.
+ */
+function sticpa_cached_field_definition($objSCP, $moduleName, $fields)
+{
+    $cacheKey = 'sticpa_fdef_' . md5($moduleName . '|' . implode(',', $fields));
+    $def = isset($_GET['refresh_fields']) ? false : get_transient($cacheKey);
+    if ($def === false || !is_array($def)) {
+        $res = $objSCP->getFieldDefinition($moduleName, $fields);
+        $arr = json_decode(json_encode($res), true);
+        $def = $arr['module_fields'] ?? array();
+        if (!empty($def)) {
+            set_transient($cacheKey, $def, 6 * HOUR_IN_SECONDS);
+        }
+    }
+    return $def;
+}
+
 // Prepare HTML form
 function makeForm($fieldList, $formSettings, $data, $action = null)
 {
@@ -58,20 +80,8 @@ function makeForm($fieldList, $formSettings, $data, $action = null)
 
     $fields = array_column($fieldList, 'name');
 
-    // RENDIMIENTO: get_module_fields es una llamada extra al CRM en CADA carga
-    // de formulario y sus definiciones (tipos, etiquetas, opciones) cambian
-    // rarísimo. Se cachean 6h por módulo+campos. Para forzar recarga tras
-    // tocar Studio: añade ?refresh_fields=1 a la URL (o espera al TTL).
-    $cacheKey = 'sticpa_fdef_' . md5($formSettings['moduleName'] . '|' . implode(',', $fields));
-    $fieldsDefinition = isset($_GET['refresh_fields']) ? false : get_transient($cacheKey);
-    if ($fieldsDefinition === false || !is_array($fieldsDefinition)) {
-        $fieldsDefinitionResults = $objSCP->getFieldDefinition($formSettings['moduleName'], $fields);
-        $fieldsDefinitionResultsArray = json_decode(json_encode($fieldsDefinitionResults), true);
-        $fieldsDefinition = $fieldsDefinitionResultsArray['module_fields'] ?? array();
-        if (!empty($fieldsDefinition)) {
-            set_transient($cacheKey, $fieldsDefinition, 6 * HOUR_IN_SECONDS);
-        }
-    }
+    // Definición de campos cacheada 6h (ver sticpa_cached_field_definition).
+    $fieldsDefinition = sticpa_cached_field_definition($objSCP, $formSettings['moduleName'], $fields);
 
     $html = '';
     $html .= renderMessage($formSettings['msg']);
@@ -365,14 +375,15 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
         case 'bool';
             $html = "
             <li class='" . $required . "' " . ">
-            <span><label>" . $label . "</label>
+            <span><label{$forAttr}>" . $label . "</label>
                 <input " . $required . " " . $attributes . " class='{$additionClasses}' maxlength='255' type='checkbox' name='" . $name . "' id='" . $name . "' ". ($defaultValue ? " checked " : " ") . $fieldActions . "  /> </span>
             </li>";
             break;
         case 'radio':
+            $groupLabelId = esc_attr($name) . '_label';
             $html = "<li class='" . $required . "' " . ">
-            <label>" . $label . "</label>
-            <div class='stic-check-group' id='{$name}'>";
+            <label id='{$groupLabelId}'>" . $label . "</label>
+            <div class='stic-check-group' role='radiogroup' aria-labelledby='{$groupLabelId}' id='{$name}'>";
             $defaultValue = $defaultValue === null ? '' : $defaultValue;
             foreach ($value['selectValues'] as $skey => $svalue) {
                 $checked = $defaultValue == $skey ? 'checked' : '';

@@ -5,10 +5,9 @@ function makeList($columnsList, $listSettings, $data, $extraActions = array())
     $objSCP = SugarRestApiCall::getObjSCP();
 
     $fields = array_column($columnsList, 'name');
-    $fieldsDefinitionResults = $objSCP->getFieldDefinition($listSettings['moduleName'], $fields);
-    $fieldsDefinitionResultsArray = json_decode(json_encode($fieldsDefinitionResults), true);
-
-    $fieldsDefinition = $fieldsDefinitionResultsArray['module_fields'] ?? null;
+    // Definición de campos cacheada 6h — misma estrategia que makeForm
+    // (ver sticpa_cached_field_definition en inc/stic-formController.php).
+    $fieldsDefinition = sticpa_cached_field_definition($objSCP, $listSettings['moduleName'], $fields);
 
     $html = "<link href='https://cdn.datatables.net/1.12.1/css/jquery.dataTables.min.css' rel='stylesheet'>";
 

@@ -92,6 +92,11 @@
                 e.preventDefault();
                 var mode = link.getAttribute('data-auth-toggle') === 'password' ? 'password' : 'magic';
                 container.setAttribute('data-mode', mode);
+                // Sincroniza el estado ARIA de las pestañas con la vista activa.
+                var tabs = container.querySelectorAll('[data-auth-toggle]');
+                Array.prototype.forEach.call(tabs, function (t) {
+                    t.setAttribute('aria-selected', t.getAttribute('data-auth-toggle') === mode ? 'true' : 'false');
+                });
                 var view = container.querySelector(mode === 'password' ? '.stic-auth-login' : '.stic-auth-magic');
                 if (view) {
                     var first = view.querySelector('input:not([type=hidden])');

@@ -56,5 +56,4 @@ $fields = array_map(function ($elem) {
 
 $listSettings['fileName'] = basename(__FILE__, ".php"); //The list name, from the filename. Don't touch.
 $getElements = $objSCP->getRecordsModule($listSettings['moduleName'], $filterParam, $fields);
-// debug($getElements, 'List');
 $html .= makeList($columnsList, $listSettings, $getElements);
