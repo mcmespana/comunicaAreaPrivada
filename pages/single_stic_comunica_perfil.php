@@ -167,18 +167,24 @@ if (in_array('foto', $sections, true)) {
     $fieldList[] = array('name' => 'foto', 'type' => 'header', 'label' => __('Foto', 'sticpa'));
     $photoHint = __('Formatos: jpg, jpeg, gif, png · Tamaño máximo: 6MB', 'sticpa');
     if (!empty($data->photo->value)) {
-        $image = $objSCP->get_image(array('id' => $id, 'field' => 'photo'));
-        $photoSrc = 'data:' . $image->image_data->mime_type . ';base64, ' . $image->image_data->data;
+        // La foto se sirve por el endpoint stic_profile_photo (miniatura
+        // cacheada en disco) en vez de incrustarla en base64 en el HTML.
+        // El parámetro v (md5 del nombre de archivo) rompe la caché del
+        // navegador cuando cambia la foto; si el endpoint devuelve error,
+        // onerror pinta el placeholder.
+        $photoSrc = admin_url('admin-post.php?action=stic_profile_photo&v=' . rawurlencode(substr(md5((string) $data->photo->value), 0, 8)));
         $photoLabel = __('Cambiar foto de perfil', 'sticpa');
+        $photoOnError = ' onerror="this.onerror=null;this.src=\'' . esc_js(plugins_url('../images/profile_picture.jpg', __FILE__)) . '\'"';
     } else {
         $photoSrc = plugins_url('../images/profile_picture.jpg', __FILE__);
         $photoLabel = __('Sube una foto para conocernos mejor ✨', 'sticpa');
+        $photoOnError = '';
     }
     $fieldList[] = array(
         'name' => 'photo', 'type' => 'html',
         'html' => '
             <li class="stic-photo-block">
-                <img class="stic-profile-picture" src="' . $photoSrc . '" alt="' . esc_attr__('Foto de perfil actual', 'sticpa') . '" width="150" height="150" decoding="async"/>
+                <img class="stic-profile-picture" src="' . esc_url($photoSrc) . '" alt="' . esc_attr__('Foto de perfil actual', 'sticpa') . '" width="150" height="150" decoding="async"' . $photoOnError . '/>
                 <span class="stic-photo-main">
                     <label for="photo">' . esc_html($photoLabel) . '</label>
                     <small class="stic-field-hint">' . esc_html($photoHint) . '</small>
