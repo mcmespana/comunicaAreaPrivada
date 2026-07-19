@@ -43,9 +43,14 @@ function sticpa_field_help_html($text)
     if (trim((string) $text) === '') {
         return '';
     }
-    return " <span class='stic-info' role='button' tabindex='0' aria-label='" . esc_attr__('Más información', 'sticpa') . "'>"
+    // id único por tooltip + aria-describedby: sin él, el lector de pantalla solo
+    // anunciaba "Más información, botón" y el contenido de ayuda era inaccesible.
+    // El id sobrevive al portal a <body> que hace stic-ui.js.
+    static $tipCount = 0;
+    $tipId = 'stic-info-tip-' . (++$tipCount);
+    return " <span class='stic-info' role='button' tabindex='0' aria-label='" . esc_attr__('Más información', 'sticpa') . "' aria-describedby='" . esc_attr($tipId) . "'>"
         . "<span class='stic-info-mark' aria-hidden='true'>?</span>"
-        . "<span class='stic-info-tip' role='tooltip'>" . wp_kses_post($text) . "</span>"
+        . "<span class='stic-info-tip' role='tooltip' id='" . esc_attr($tipId) . "'>" . wp_kses_post($text) . "</span>"
         . "</span>";
 }
 
@@ -147,7 +152,9 @@ function renderMessage($messages)
             if (isset($value['msg'])) {
                 $msg = $value['msg'];
             }
-            $html .= "<span style='transition: all 2s ease-in-out;' id='successMsg' class='{$value['type']} stic-msg'>{$msg}</span>";
+            // role=status/alert: el lector de pantalla anuncia el resultado del guardado.
+            $role = ($value['type'] === 'error') ? 'alert' : 'status';
+            $html .= "<span id='successMsg' role='{$role}' class='{$value['type']} stic-msg'>{$msg}</span>";
         }
     }
     return $html;
@@ -162,9 +169,13 @@ function renderFormTitle($title)
 function renderFormHeader($colClass, $attributes)
 {
     $colClass = $colClass ? $colClass : "stic-form-two-col";
+    // stic-loading-form: overlay de espera al guardar (stic-ui.js). El CRM puede
+    // tardar segundos y sin feedback la gente re-pulsaba Guardar.
     return "
     <div class='stic-form " . $colClass . "'>
-        <form  " . $attributes . " flex id='stic-wp-pa' method='post' action='" . home_url() . "/wp-admin/admin-post.php'>
+        <form  " . $attributes . " flex id='stic-wp-pa' class='stic-loading-form' method='post' action='" . home_url() . "/wp-admin/admin-post.php'
+               data-loading-text='" . esc_attr__('Guardando tus cambios…', 'sticpa') . "'
+               data-loading-sub='" . esc_attr__('Un momento, estamos actualizando tus datos.', 'sticpa') . "'>
             <ul>";
 }
 
@@ -315,16 +326,15 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
             break;
         case 'datetimecombo':
         case 'datetime-local':
-            if (!empty($defaultValue)) {
-                $defaultValue = get_date_from_gmt($defaultValue);
-                $html = "
-                <li class='" . $required . "' " . ">
-                    <label{$forAttr}>" . $label . "</label>
-                    <span><input " . $required . " " . $attributes . " class='input-text {$additionClasses}' maxlength='255' type='datetime-local' name='" . $name . "' id='" . $name . "' value='" . esc_attr($defaultValue) . "'" . $fieldActions . "  /> </span>
-                    {$hint}
-                </li>";
-            }
-            
+            // El input se pinta SIEMPRE: antes, un valor vacío hacía desaparecer
+            // el campo entero y era imposible rellenar una fecha nueva.
+            $defaultValue = !empty($defaultValue) ? get_date_from_gmt($defaultValue) : '';
+            $html = "
+            <li class='" . $required . "' " . ">
+                <label{$forAttr}>" . $label . "</label>
+                <span><input " . $required . " " . $attributes . " class='input-text {$additionClasses}' maxlength='255' type='datetime-local' name='" . $name . "' id='" . $name . "' value='" . esc_attr($defaultValue) . "'" . $fieldActions . "  /> </span>
+                {$hint}
+            </li>";
             break;
         case 'textarea':
             $html = "

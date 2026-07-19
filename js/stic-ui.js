@@ -50,7 +50,10 @@
     function bindLoadingForms() {
         var forms = document.querySelectorAll('form.stic-loading-form');
         Array.prototype.forEach.call(forms, function (form) {
-            form.addEventListener('submit', function () {
+            form.addEventListener('submit', function (e) {
+                // Si otro handler canceló el envío (p. ej. onsubmit de validación
+                // que devuelve false), el overlay no debe quedarse bloqueando.
+                if (e.defaultPrevented) { return; }
                 // Solo si el formulario es válido (no atrapar errores de required).
                 if (typeof form.checkValidity === 'function' && !form.checkValidity()) {
                     return;
@@ -147,14 +150,19 @@
     }
 
     /* -------- Menú en una línea + overflow "Más" (priority navigation) -------- */
+    // Flag barato para que el listener de scroll no consulte el DOM si no hay
+    // ningún panel abierto (el caso del 99% de los scrolls).
+    var moreIsOpen = false;
     function closeMore(wrap) {
         wrap.classList.remove('is-open');
         var btn = wrap.querySelector('.stic-nav-more');
         if (btn) { btn.setAttribute('aria-expanded', 'false'); }
     }
     function closeAllMore() {
+        if (!moreIsOpen) { return; }
         var open = document.querySelectorAll('.stic-nav-more-wrap.is-open');
         Array.prototype.forEach.call(open, closeMore);
+        moreIsOpen = false;
     }
     function openMore(wrap) {
         var btn = wrap.querySelector('.stic-nav-more');
@@ -162,14 +170,22 @@
         if (!btn || !menu) { return; }
         wrap.classList.add('is-open');
         btn.setAttribute('aria-expanded', 'true');
+        moreIsOpen = true;
         // Anclar el panel (position: fixed) bajo el botón, alineado a su derecha.
         var r = btn.getBoundingClientRect();
         menu.style.top = (r.bottom + 6) + 'px';
         menu.style.right = Math.max(8, window.innerWidth - r.right) + 'px';
         menu.style.left = 'auto';
+        // El foco entra en el panel: sin esto, un usuario de teclado tenía que
+        // "tabular a ciegas" por el resto de la página hasta llegar al menú.
+        var first = menu.querySelector('a, button');
+        if (first) { first.focus(); }
     }
 
     // Reparte los items: los que no caben en una línea se mueven al panel "Más".
+    // Lecturas y escrituras de layout van por LOTES: antes el bucle leía
+    // scrollWidth después de cada insertBefore y forzaba un reflow por item
+    // (layout thrashing); ahora se mide todo una vez y se mueve todo de golpe.
     function layoutNav() {
         var lists = document.querySelectorAll('.stic-nav-list');
         Array.prototype.forEach.call(lists, function (list) {
@@ -187,21 +203,34 @@
             // En móvil (drawer vertical) se muestran todos: nada que repartir.
             if (!window.matchMedia('(min-width: 768px)').matches) { return; }
 
-            // 2) ¿Cabe todo en una línea?
+            // 2) MEDIR (una sola pasada): ancho disponible, ancho de cada item
+            //    y ancho del botón "Más" (visible solo para medirlo).
             if (list.scrollWidth <= list.clientWidth + 1) { return; }
-
-            // 3) Mostrar "Más" y mover los últimos items hasta que quepa.
             wrap.hidden = false;
-            var guard = 0;
-            while (list.scrollWidth > list.clientWidth + 1 && guard < 100) {
-                guard++;
-                var candidate = wrap.previousElementSibling;
-                if (!candidate || !candidate.classList.contains('stic-nav-item') ||
-                    candidate.classList.contains('stic-nav-logout-item') ||
-                    candidate.classList.contains('stic-nav-more-wrap')) {
-                    break;
+            var available = list.clientWidth;
+            var moreWidth = wrap.offsetWidth;
+            var items = [];
+            var child = list.firstElementChild;
+            while (child) {
+                if (child !== wrap && child.classList.contains('stic-nav-item') &&
+                    !child.classList.contains('stic-nav-logout-item')) {
+                    items.push({ el: child, width: child.offsetWidth });
                 }
-                menuUl.insertBefore(candidate, menuUl.firstElementChild);
+                child = child.nextElementSibling;
+            }
+            var gap = parseFloat(getComputedStyle(list).columnGap || getComputedStyle(list).gap) || 0;
+
+            // 3) CALCULAR cuántos items caben dejando sitio al botón "Más".
+            var used = moreWidth;
+            var fit = items.length;
+            for (var i = 0; i < items.length; i++) {
+                used += items[i].width + gap;
+                if (used > available) { fit = i; break; }
+            }
+
+            // 4) ESCRIBIR: mover el resto al panel en un solo lote.
+            for (var j = items.length - 1; j >= fit; j--) {
+                menuUl.insertBefore(items[j].el, menuUl.firstElementChild);
             }
             if (!menuUl.firstElementChild) { wrap.hidden = true; }
 
@@ -228,7 +257,7 @@
                 closeAllMore();
             }
         });
-        window.addEventListener('scroll', closeAllMore, true);
+        window.addEventListener('scroll', closeAllMore, { capture: true, passive: true });
         document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape' || e.keyCode === 27) { closeAllMore(); }
         });
@@ -258,9 +287,12 @@
         return tip;
     }
 
+    var anyTipVisible = false; // early-return barato en el listener de scroll
+
     function showInfoTip(info, sticky) {
         var tip = infoTipFor(info);
         if (!tip) { return; }
+        anyTipVisible = true;
         // Posicionar antes de mostrar (medible: display block, visibility hidden).
         var w = tip.offsetWidth;
         var h = tip.offsetHeight;
@@ -283,10 +315,12 @@
     }
 
     function closeAllInfoTips(exceptInfo) {
+        if (!anyTipVisible) { return; }
         var tips = document.querySelectorAll('.stic-info-tip.is-visible');
         Array.prototype.forEach.call(tips, function (tip) {
             if (!exceptInfo || tip._sticInfo !== exceptInfo) { hideInfoTip(tip, true); }
         });
+        if (!exceptInfo) { anyTipVisible = false; }
     }
 
     function bindInfoTips() {
@@ -342,7 +376,7 @@
             }
         });
         // El tooltip es fixed: al hacer scroll se cierra (no queda flotando).
-        window.addEventListener('scroll', function () { closeAllInfoTips(null); }, true);
+        window.addEventListener('scroll', function () { closeAllInfoTips(null); }, { capture: true, passive: true });
     }
 
     /* -------- Campos condicionales --------
@@ -396,13 +430,16 @@
     /* -------- Selector rápido de participante (familias) --------
        Desplegable en la barra de navegación (.stic-part-switch). El cambio
        real lo hace el enlace (admin-post): aquí solo abrimos/cerramos. */
+    var partSwitchOpen = false; // early-return barato en el listener de scroll
     function closePartSwitch() {
+        if (!partSwitchOpen) { return; }
         var open = document.querySelectorAll('.stic-part-switch.is-open');
         Array.prototype.forEach.call(open, function (el) {
             el.classList.remove('is-open');
             var btn = el.querySelector('.stic-part-switch-btn');
             if (btn) { btn.setAttribute('aria-expanded', 'false'); }
         });
+        partSwitchOpen = false;
     }
 
     function bindPartSwitch() {
@@ -417,6 +454,7 @@
                 wrap.classList.toggle('is-open', willOpen);
                 btn.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
                 if (willOpen) {
+                    partSwitchOpen = true;
                     // Anclar el panel (position: fixed) bajo el botón: la barra
                     // tiene overflow hidden y un menú absolute quedaría cortado.
                     var menu = wrap.querySelector('.stic-part-switch-menu');
@@ -424,6 +462,9 @@
                         var r = btn.getBoundingClientRect();
                         menu.style.top = (r.bottom + 8) + 'px';
                         menu.style.left = Math.max(8, Math.min(r.left, window.innerWidth - 256)) + 'px';
+                        // Foco al primer perfil del panel (patrón menu-button).
+                        var first = menu.querySelector('a');
+                        if (first) { first.focus(); }
                     }
                 }
                 return;
@@ -436,7 +477,7 @@
             if (e.key === 'Escape' || e.keyCode === 27) { closePartSwitch(); }
         });
         // El panel va con position:fixed: al hacer scroll se cierra (como "Más").
-        window.addEventListener('scroll', closePartSwitch, true);
+        window.addEventListener('scroll', closePartSwitch, { capture: true, passive: true });
         // Al elegir participante, overlay de carga (la redirección tarda ~2s).
         document.addEventListener('click', function (e) {
             var link = e.target.closest ? e.target.closest('[data-part-switch-to]') : null;
@@ -460,7 +501,7 @@
         var forms = document.querySelectorAll('.stic-form > form');
         Array.prototype.forEach.call(forms, function (form) {
             var headers = form.querySelectorAll('h5');
-            Array.prototype.forEach.call(headers, function (h5) {
+            Array.prototype.forEach.call(headers, function (h5, idx) {
                 // La tarjeta de la sección es la siguiente <ul> (sin pasarse a
                 // otra cabecera ni tocar la botonera sticky).
                 var ul = h5.nextElementSibling;
@@ -473,18 +514,28 @@
 
                 var key = 'sticpa-sec:' + page + ':' + (h5.id || h5.textContent.trim());
                 h5.classList.add('stic-sec-toggle');
-                h5.setAttribute('role', 'button');
-                h5.setAttribute('tabindex', '0');
+
+                // El interruptor es un <button> DENTRO del h5, no un role=button
+                // sobre el propio h5: así la cabecera sigue siendo un heading para
+                // el lector de pantalla (navegación por encabezados intacta).
+                if (!ul.id) { ul.id = 'stic-sec-panel-' + idx + '-' + (h5.id || 'x'); }
+                var toggleBtn = document.createElement('button');
+                toggleBtn.type = 'button';
+                toggleBtn.className = 'stic-sec-btn';
+                toggleBtn.setAttribute('aria-controls', ul.id);
+                while (h5.firstChild) { toggleBtn.appendChild(h5.firstChild); }
+                h5.appendChild(toggleBtn);
+
                 var badge = document.createElement('span');
                 badge.className = 'stic-sec-chevron';
                 badge.setAttribute('aria-hidden', 'true');
                 badge.innerHTML = chevron;
-                h5.appendChild(badge);
+                toggleBtn.appendChild(badge);
 
                 function setCollapsed(collapsed, persist) {
                     h5.classList.toggle('is-collapsed', collapsed);
                     ul.classList.toggle('stic-sec-hidden', collapsed);
-                    h5.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+                    toggleBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
                     // Un campo required oculto bloquearía el submit sin que el
                     // usuario vea dónde: se desactiva mientras está plegado.
                     var inputs = ul.querySelectorAll('input, select, textarea');
@@ -509,13 +560,8 @@
                 setCollapsed(saved === 'closed', false);
 
                 function toggle() { setCollapsed(!h5.classList.contains('is-collapsed'), true); }
-                h5.addEventListener('click', toggle);
-                h5.addEventListener('keydown', function (e) {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        toggle();
-                    }
-                });
+                // Un <button> real ya gestiona Enter/Espacio y el foco por sí solo.
+                toggleBtn.addEventListener('click', toggle);
             });
         });
     }

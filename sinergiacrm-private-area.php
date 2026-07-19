@@ -63,10 +63,27 @@ function dcms_insertar_js()
 {
     wp_register_script('sugarcrm', plugin_dir_url(__FILE__) . 'js/iban.js', array('jquery'), '1', true);
     wp_enqueue_script('sugarcrm');
-    wp_register_script('fullcalendar', plugin_dir_url(__FILE__) . 'js/fullcalendar/lib/main.js', array('jquery'), '1', true);
+    // Build minificado (269 KB vs 718 KB del sin minificar que se cargaba antes).
+    wp_register_script('fullcalendar', plugin_dir_url(__FILE__) . 'js/fullcalendar/lib/main.min.js', array('jquery'), '1', true);
     wp_enqueue_script('fullcalendar');
-    wp_register_script('fullcalendar-locale', plugin_dir_url(__FILE__) . 'js/fullcalendar/lib/locales-all.min.js', array('jquery'), '1', true);
-    wp_enqueue_script('fullcalendar-locale');
+    // Solo el locale del idioma activo; el paquete con TODOS los idiomas (24 KB)
+    // queda como fallback si no existe el archivo del locale.
+    $fcLocale = strtolower(str_replace('_', '-', get_locale()));
+    $fcLocaleShort = explode('-', $fcLocale)[0];
+    $fcLocaleRel = null;
+    foreach (array($fcLocale, $fcLocaleShort) as $candidate) {
+        if ($candidate && $candidate !== 'en' && file_exists(plugin_dir_path(__FILE__) . 'js/fullcalendar/lib/locales/' . $candidate . '.js')) {
+            $fcLocaleRel = 'js/fullcalendar/lib/locales/' . $candidate . '.js';
+            break;
+        }
+    }
+    if ($fcLocaleRel === null && $fcLocaleShort !== 'en') {
+        $fcLocaleRel = 'js/fullcalendar/lib/locales-all.min.js';
+    }
+    if ($fcLocaleRel !== null) {
+        wp_register_script('fullcalendar-locale', plugin_dir_url(__FILE__) . $fcLocaleRel, array('fullcalendar'), '1', true);
+        wp_enqueue_script('fullcalendar-locale');
+    }
     // Versión por filemtime en los JS propios: cada deploy rompe la caché.
     $jsver = function ($rel) {
         $path = plugin_dir_path(__FILE__) . $rel;
@@ -425,7 +442,7 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
     // Mensaje genérico tras pedir un enlace mágico (no revela si el email existe).
     $magicMsg = "";
     if (isset($_REQUEST['success']) && $_REQUEST['success'] == true) {
-        $magicMsg = "<span class='success'>" . __('Si tu email está registrado, te hemos enviado un enlace de acceso. Revisa tu bandeja de entrada. 📩', 'sticpa') . "</span>";
+        $magicMsg = "<span class='success' role='status'>" . __('Si tu email está registrado, te hemos enviado un enlace de acceso. Revisa tu bandeja de entrada. 📩', 'sticpa') . "</span>";
     }
 
     // Selector de idioma (opcional, según plugin de traducción activo).
@@ -599,7 +616,7 @@ function sugar_crm_portal_check_user_and_login($html = "")
             // Login fallido: reabrimos directamente en la vista de usuario/contraseña.
             $html .= "<div class='stic-auth-shell'><div class='stic-login-form stic-form'>";
             $html .= sugar_crm_portal_login_form("", 'password');
-            $html .= "<span class='error'>" . __('Username and/or password are not correct.', 'sticpa') . "</span>";
+            $html .= "<span class='error' role='alert'>" . __('Username and/or password are not correct.', 'sticpa') . "</span>";
             $html .= "</div></div>";
 
         }
@@ -969,6 +986,25 @@ if (isset($_REQUEST['logout'])) // logout
     }
 }
 
+/**
+ * Preconnect a los orígenes de Google Fonts: el CSS viene de fonts.googleapis.com
+ * y los .woff2 de fonts.gstatic.com (este último necesita crossorigin). Ahorra un
+ * viaje DNS+TLS completo en el camino crítico del primer render en móvil.
+ */
+add_filter('wp_resource_hints', 'sticpa_font_resource_hints', 10, 2);
+function sticpa_font_resource_hints($urls, $relation_type)
+{
+    if ($relation_type !== 'preconnect') {
+        return $urls;
+    }
+    global $post;
+    if (is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'sinergiacrm-private-area')) {
+        $urls[] = 'https://fonts.googleapis.com';
+        $urls[] = array('href' => 'https://fonts.gstatic.com', 'crossorigin' => 'anonymous');
+    }
+    return $urls;
+}
+
 add_action('wp_enqueue_scripts', 'sugar_crm_portal_style_and_script'); // add custom style and script
 function sugar_crm_portal_style_and_script()
 {
@@ -987,7 +1023,7 @@ function sugar_crm_portal_style_and_script()
         // Capa BASE consolidada (UI-15: ex stic-style + stic-modern-style, en ese orden).
         wp_enqueue_style('stic-base', plugins_url('css/stic-base.css', __FILE__), array(), $ver('css/stic-base.css'));
         wp_enqueue_style('stic-multiselect', plugins_url('css/selectize.css', __FILE__), array('stic-base'), $ver('css/selectize.css'));
-        wp_enqueue_style('fullcalendar', plugins_url('js/fullcalendar/lib/main.css', __FILE__));
+        wp_enqueue_style('fullcalendar', plugins_url('js/fullcalendar/lib/main.min.css', __FILE__), array(), $ver('js/fullcalendar/lib/main.min.css'));
         // custom-style.css is loaded LAST on purpose so it can override/enhance everything above
         wp_enqueue_style('custom-style', plugins_url('css/custom-style.css', __FILE__), array('stic-base'), $ver('css/custom-style.css'));
 

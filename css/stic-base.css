@@ -90,7 +90,7 @@
     border-radius: var(--radius-lg, 0.75rem);
     background-color: var(--gray-50, #f9fafb);
     cursor: pointer;
-    transition: all var(--transition-fast, 150ms);
+    transition: var(--transition-fast, 150ms); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
     width: 100%;
 }
 
@@ -342,7 +342,7 @@
     font-weight: 500;
     padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
     border-radius: var(--radius-md, 0.5rem);
-    transition: all var(--transition-fast, 150ms);
+    transition: var(--transition-fast, 150ms); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
     border: none !important;
     background: var(--gray-50, #f9fafb);
 }
@@ -442,7 +442,7 @@ form[flex].col3 ul li {
     background-color: var(--gray-100, #f3f4f6);
     border-radius: var(--radius-md, 0.5rem);
     cursor: pointer;
-    transition: all var(--transition-fast, 150ms);
+    transition: var(--transition-fast, 150ms); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
 }
 
 .stic-ctabs-list li.stic-ctabs-button {
@@ -849,7 +849,7 @@ select[disabled=disabled] {
     font-size: var(--font-size-sm);
     font-weight: 500;
     text-decoration: none;
-    transition: all var(--transition-fast);
+    transition: var(--transition-fast); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
 }
 
 .stic-logout:hover {
@@ -892,7 +892,7 @@ ul.stic-primary-menu li a {
     text-decoration: none !important;
     text-align: center;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    transition: all var(--transition-fast);
+    transition: var(--transition-fast); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
     position: relative;
 }
 
@@ -998,7 +998,7 @@ ul.stic-primary-menu li.current-menu-item a {
     font-size: var(--font-size-base);
     color: var(--gray-800);
     background-color: var(--white);
-    transition: all var(--transition-fast);
+    transition: var(--transition-fast); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
     -webkit-appearance: none;
     appearance: none;
 }
@@ -1082,7 +1082,7 @@ ul.stic-primary-menu li.current-menu-item a {
     font-weight: 600;
     text-decoration: none;
     cursor: pointer;
-    transition: all var(--transition-base);
+    transition: var(--transition-base); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
     text-align: center;
     min-height: 48px; /* Touch-friendly */
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
@@ -1223,7 +1223,7 @@ ul.stic-primary-menu li.current-menu-item a {
     font-weight: 500;
     padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-sm);
-    transition: all var(--transition-fast);
+    transition: var(--transition-fast); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
     white-space: nowrap;
 }
 
@@ -1277,7 +1277,7 @@ ul.stic-primary-menu li.current-menu-item a {
     background-repeat: no-repeat !important;
     background-position: var(--space-3) center !important;
     background-size: 1.25rem !important;
-    transition: all var(--transition-fast) !important;
+    transition: var(--transition-fast) !important; transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter !important;
     min-height: 48px;
     margin: 0 !important;
 }
@@ -1319,7 +1319,7 @@ ul.stic-primary-menu li.current-menu-item a {
     color: var(--gray-700) !important;
     font-weight: 500;
     cursor: pointer;
-    transition: all var(--transition-fast);
+    transition: var(--transition-fast); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
 }
 
 .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
@@ -1436,7 +1436,7 @@ table.dataTable thead .sorting_desc {
     padding: var(--space-4);
     margin-bottom: var(--space-4);
     box-shadow: var(--shadow-sm);
-    transition: all var(--transition-base);
+    transition: var(--transition-base); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
 }
 
 .card:hover,
@@ -1505,7 +1505,7 @@ table.dataTable thead .sorting_desc {
     font-weight: 500;
     text-decoration: none;
     border-radius: var(--radius-md) var(--radius-md) 0 0;
-    transition: all var(--transition-fast);
+    transition: var(--transition-fast); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
     border: 2px solid transparent;
     border-bottom: none;
     margin-bottom: -2px;
@@ -1563,7 +1563,7 @@ table.dataTable thead .sorting_desc {
     border-radius: var(--radius-md) !important;
     background: var(--primary-color) !important;
     border: none !important;
-    transition: all var(--transition-fast) !important;
+    transition: var(--transition-fast) !important; transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter !important;
 }
 
 .fc .fc-button:hover {

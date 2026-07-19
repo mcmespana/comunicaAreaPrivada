@@ -5,11 +5,44 @@ jQuery(document).ready(function($){
     // Run selectize. dropdownParent: 'body' evita que el desplegable quede
     // por debajo de las tarjetas siguientes del formulario.
     $('select[multiple]').selectize({ dropdownParent: 'body' });
-    //hide the success messagges
-    $('body').on('click keyup paste', function () {
-        if (document.getElementById('successMsg')) { document.getElementById('successMsg').style.opacity = '0'; }
-    });
+    // El mensaje de éxito/error se despide solo tras unos segundos (antes se
+    // esfumaba al primer clic o tecla, y era fácil no llegar a leerlo).
+    var msg = document.getElementById('successMsg');
+    if (msg) {
+        setTimeout(function () { msg.classList.add('stic-msg-hide'); }, 7000);
+        msg.addEventListener('transitionend', function () {
+            if (msg.classList.contains('stic-msg-hide')) { msg.style.display = 'none'; }
+        });
+    }
 });
+
+/* ---- Errores de validación inline (sustituyen a los alert() nativos) ---- */
+function sticSetFieldError(el, message) {
+    if (!el) { window.alert(message); return; }
+    el.setAttribute('invalid', '');
+    el.setAttribute('aria-invalid', 'true');
+    var holder = el.closest ? (el.closest('li') || el.parentElement) : el.parentElement;
+    var note = holder ? holder.querySelector('.stic-field-error') : null;
+    if (!note) {
+        note = document.createElement('small');
+        note.className = 'stic-field-error';
+        note.setAttribute('role', 'alert');
+        note.id = (el.id || 'campo') + '-error';
+        el.setAttribute('aria-describedby', note.id);
+        if (holder) { holder.appendChild(note); }
+    }
+    note.textContent = message;
+    try { el.focus(); el.scrollIntoView({ block: 'center' }); } catch (err) { el.focus(); }
+}
+
+function sticClearFieldError(el) {
+    if (!el) { return; }
+    el.removeAttribute('invalid');
+    el.removeAttribute('aria-invalid');
+    var holder = el.closest ? (el.closest('li') || el.parentElement) : el.parentElement;
+    var note = holder ? holder.querySelector('.stic-field-error') : null;
+    if (note) { note.remove(); }
+}
 
 function alerta(obj) {
     var lastName = '';
@@ -152,11 +185,10 @@ function verifyIban(obj) {
 
         result = IBAN.isValid(obj.value);
         if (!result) {
-            alert(stic_script_vars.wrongIban);
-            obj.setAttribute("invalid", '');
+            sticSetFieldError(obj, stic_script_vars.wrongIban);
         }
         else {
-            obj.removeAttribute("invalid");
+            sticClearFieldError(obj);
         }
     }
 }
@@ -165,7 +197,8 @@ function verifyFormIsValid() {
     let elements = document.querySelectorAll("[invalid]");
     if (typeof elements != "undefined" && elements != null && elements.length != null
     && elements.length > 0) {
-        alert(stic_script_vars.invalidElements);
+        // Llevar al usuario al primer campo con error (su mensaje inline ya está pintado).
+        sticSetFieldError(elements[0], stic_script_vars.invalidElements);
         return false;
     }
     formatDateTimeLocal();
@@ -237,12 +270,11 @@ function validateId (obj) {
         validDocument = true;
     }
     if (!validDocument) {
-        alert(stic_script_vars.invalidDocumentNumber);
-        idEl.setAttribute("invalid", '');
+        sticSetFieldError(idEl, stic_script_vars.invalidDocumentNumber);
         return false;
     }
     else {
-        idEl.removeAttribute("invalid");
+        sticClearFieldError(idEl);
         return true;
     }
 }

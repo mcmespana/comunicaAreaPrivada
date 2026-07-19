@@ -172,7 +172,7 @@ switch (getDestinationModule()) {
                 'required' => true,
                 'html' => '
                     <li>
-                        <img class="stic-profile-picture" src="data:'.$mime_type.'/png;base64, '.$content.'" alt="'.esc_attr__('Foto de perfil', 'sticpa').'"/>
+                        <img class="stic-profile-picture" src="data:'.$mime_type.'/png;base64, '.$content.'" alt="'.esc_attr__('Foto de perfil', 'sticpa').'" width="150" height="150" decoding="async"/>
                         <label style="padding-botton: 0px">'.__('Change profile picture', 'sticpa').':</label>
                         <div style="font-size: 10px">'.__('(Format: jpg, jpeg, gif, png - Maximum size: 6MB)', 'sticpa').'</div>
                         <span><input type="file" name="photo" id="photo" value="'.$filename.'"></span>
@@ -185,7 +185,7 @@ switch (getDestinationModule()) {
                 'required' => true,
                 'html' => '
                     <li>
-                        <img class="stic-profile-picture" src="'.plugins_url('../images/profile_picture.jpg', __FILE__).'" alt="'.esc_attr__('Foto de perfil por defecto', 'sticpa').'"/>
+                        <img class="stic-profile-picture" src="'.plugins_url('../images/profile_picture.jpg', __FILE__).'" alt="'.esc_attr__('Foto de perfil por defecto', 'sticpa').'" width="150" height="150" loading="lazy" decoding="async"/>
                         <label style="padding-botton: 0px">'.__('Choose a file', 'sticpa').':</label>
                         <div style="font-size: 10px">'.__('(Format: jpg, jpeg, gif, png - Maximum size: 6MB)', 'sticpa').'</div>
                         <span><input type="file" name="photo" id="photo" value=></span>

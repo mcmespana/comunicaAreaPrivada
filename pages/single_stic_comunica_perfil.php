@@ -178,7 +178,7 @@ if (in_array('foto', $sections, true)) {
         'name' => 'photo', 'type' => 'html',
         'html' => '
             <li class="stic-photo-block">
-                <img class="stic-profile-picture" src="' . $photoSrc . '" alt="' . esc_attr__('Foto de perfil actual', 'sticpa') . '"/>
+                <img class="stic-profile-picture" src="' . $photoSrc . '" alt="' . esc_attr__('Foto de perfil actual', 'sticpa') . '" width="150" height="150" decoding="async"/>
                 <span class="stic-photo-main">
                     <label for="photo">' . esc_html($photoLabel) . '</label>
                     <small class="stic-field-hint">' . esc_html($photoHint) . '</small>

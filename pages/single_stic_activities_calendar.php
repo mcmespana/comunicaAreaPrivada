@@ -114,13 +114,13 @@ $lang = explode('_', get_locale())[0];
 
 // Loading FullCalendar
 $html .= "<div class='stic-entry-header'>
-<h4>".__('Calendar', 'sticpa')."</h4>
-<label>".__("Registered events' sessions appear in red.", 'sticpa')."</label>
-<label>".__('Available events appear in blue.', 'sticpa')."</label>
-<body>
-    <div id='calendar'></div>
-  </body>
-  <script>
+<h3>".__('Calendar', 'sticpa')."</h3>
+<p class='stic-calendar-legend'>
+    <span class='stic-legend-item stic-legend-item--sessions'><span class='stic-legend-dot' aria-hidden='true'></span>".__("Registered events' sessions appear in red.", 'sticpa')."</span>
+    <span class='stic-legend-item stic-legend-item--events'><span class='stic-legend-dot' aria-hidden='true'></span>".__('Available events appear in blue.', 'sticpa')."</span>
+</p>
+<div id='calendar'></div>
+<script>
 
     document.addEventListener('DOMContentLoaded', function() {
         var calendarEl = document.getElementById('calendar');

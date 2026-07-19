@@ -169,12 +169,35 @@
                 setScale(next, VIEW / 2, VIEW / 2);
             });
 
+            /* ---- Foco: mismo patrón que el modal de borrado (stic-utils.js).
+               Sin esto, el foco se quedaba en el input tapado por el overlay y
+               Tab recorría la página de debajo del diálogo. ---- */
+            var trigger = document.activeElement;
+            var applyBtn = overlay.querySelector('.stic-crop-btn-apply');
+            if (applyBtn) { applyBtn.focus(); }
+            overlay.addEventListener('keydown', function (e) {
+                if (e.key !== 'Tab') { return; }
+                var focusables = overlay.querySelectorAll('button, input[type="range"]');
+                if (!focusables.length) { return; }
+                var first = focusables[0];
+                var last = focusables[focusables.length - 1];
+                if (e.shiftKey && document.activeElement === first) {
+                    e.preventDefault();
+                    last.focus();
+                } else if (!e.shiftKey && document.activeElement === last) {
+                    e.preventDefault();
+                    first.focus();
+                }
+            });
+
             /* ---- Cerrar / aplicar ---- */
             function close() {
                 overlay.classList.remove('is-active');
                 setTimeout(function () { overlay.remove(); }, 280);
                 URL.revokeObjectURL(url);
                 document.removeEventListener('keydown', escHandler);
+                // Devolver el foco a quien abrió el modal.
+                if (trigger && typeof trigger.focus === 'function') { trigger.focus(); }
             }
             function escHandler(e) { if (e.key === 'Escape') { close(); } }
             document.addEventListener('keydown', escHandler);

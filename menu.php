@@ -107,12 +107,12 @@ function sticpa_participant_switcher_html()
     $switching = esc_attr__('Cambiando de participante…', 'sticpa');
 
     $html = "<span class='stic-part-switch'>";
-    $html .= "<button type='button' class='stic-part-switch-btn' aria-haspopup='true' aria-expanded='false' title='" . esc_attr__('Cambiar de participante', 'sticpa') . "'>";
+    $html .= "<button type='button' class='stic-part-switch-btn' aria-haspopup='true' aria-expanded='false' aria-controls='stic-part-switch-menu' title='" . esc_attr__('Cambiar de participante', 'sticpa') . "'>";
     $html .= "<span class='stic-part-avatar' aria-hidden='true'>" . esc_html(sticpa_name_initial($activeName)) . "</span>";
     $html .= "<span class='stic-part-name' title='" . esc_attr($activeName) . "'>" . esc_html(sticpa_short_name($activeName)) . "</span>" . $chevron;
     $html .= "</button>";
 
-    $html .= "<span class='stic-part-switch-menu'>";
+    $html .= "<span class='stic-part-switch-menu' id='stic-part-switch-menu'>";
     $html .= "<span class='stic-part-switch-title'>" . esc_html__('Ver como…', 'sticpa') . "</span><ul>";
     foreach ($profiles as $profile) {
         $isActive = ($profile['id'] === $activeId) ? ' is-active' : '';
@@ -270,9 +270,11 @@ function menu()
         $menu .= "<ul class='stic-nav-list' id='stic-nav-list'>";
         foreach ($items as $key => $label) {
             $isActive = ($page == $key) ? 'current-menu-item stic-current-menu-item' : '';
+            // aria-current: señal programática de "estás aquí" (la clase es solo visual).
+            $ariaCurrent = ($page == $key) ? " aria-current='page'" : '';
             $icon = function_exists('sticpa_section_icon') ? sticpa_section_icon($key) : '';
             $menu .= "<li class='stic-nav-item " . $isActive . "'>
-                        <a class='stic-nav-link' href='?internalpage=" . $key . "'>
+                        <a class='stic-nav-link' href='?internalpage=" . $key . "'{$ariaCurrent}>
                             <span class='stic-nav-ico'>" . $icon . "</span>
                             <span class='stic-nav-text'>" . esc_html($label) . "</span>
                         </a>
@@ -280,11 +282,11 @@ function menu()
         }
         // "Más": recoge los items que no caben en una sola línea (lo gestiona el JS).
         $menu .= "<li class='stic-nav-item stic-nav-more-wrap' hidden>
-                    <button type='button' class='stic-nav-link stic-nav-more' aria-expanded='false' aria-haspopup='true' aria-label='" . esc_attr__('Más secciones', 'sticpa') . "'>
+                    <button type='button' class='stic-nav-link stic-nav-more' aria-expanded='false' aria-haspopup='true' aria-controls='stic-nav-more-menu' aria-label='" . esc_attr__('Más secciones', 'sticpa') . "'>
                         <span class='stic-nav-ico'>" . ($iconFn ? sticpa_icon('more') : '') . "</span>
                         <span class='stic-nav-text'>" . __('Más', 'sticpa') . "</span>
                     </button>
-                    <div class='stic-nav-more-menu'><ul></ul></div>
+                    <div class='stic-nav-more-menu' id='stic-nav-more-menu'><ul></ul></div>
                   </li>";
         $menu .= "</ul>";
     }

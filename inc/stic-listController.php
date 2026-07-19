@@ -40,9 +40,9 @@ function makeList($columnsList, $listSettings, $data, $extraActions = array())
                 $label = $fieldsDefinition[$value['name']]['label'];
             }
             $labelMap[$value['name']] = $label;
-            $html .= "<th class='{$value['name']}'>{$label}</th>";
+            $html .= "<th scope='col' class='{$value['name']}'>{$label}</th>";
         }
-        $html .= "<th>" . __('Actions', 'sticpa') . "</th>";
+        $html .= "<th scope='col'>" . __('Actions', 'sticpa') . "</th>";
         $html .= "
     </tr>
     </thead>";
@@ -111,6 +111,12 @@ function makeList($columnsList, $listSettings, $data, $extraActions = array())
     }
 
     if ($listSettings['datatables']['value'] == true) {
+        // El listado se pinta como TARJETAS (thead fuera de pantalla, §22.b del CSS):
+        // la ordenación por cabecera es inalcanzable y sus <th tabindex=0> ocultos
+        // atrapaban el foco del teclado en -9999px. Se desactiva salvo petición explícita.
+        if (!isset($listSettings['datatables']['jsonSettings']['ordering'])) {
+            $listSettings['datatables']['jsonSettings']['ordering'] = false;
+        }
         $listSettings['datatables']['jsonSettings']['language'] = array(
             "decimal" =>        "",
             "emptyTable" =>     __("No data available in table.", 'sticpa'),
@@ -167,7 +173,8 @@ function renderDeleteMessage($messages)
     $html = '';
     foreach ($messages as $key => $value) {
         if (isset($_REQUEST['msgDelete']) && $_REQUEST['msgDelete'] == $value['value']) {
-            $html .= "<span  style='transition: all 2s ease-in-out;' id='successMsg' class='{$value['type']} stic-msg'>{$value['msg']}</span>";
+            $role = ($value['type'] === 'error') ? 'alert' : 'status';
+            $html .= "<span id='successMsg' role='{$role}' class='{$value['type']} stic-msg'>{$value['msg']}</span>";
         }
     }
     return $html;
