@@ -105,12 +105,33 @@ if (is_array($getElements)) {
 
 // Merging both records that the Calendar will display: Sessions and Events
 $availableItems = array_merge($availableSessions,$availableEvents);
-$availableSessionsJson = json_encode($availableItems);
 
 $current_url = explode('?', $_SERVER['REQUEST_URI'], 2);
 $current_url = $current_url[0];
 
 $lang = explode('_', get_locale())[0];
+
+// Configuración de FullCalendar como datos (plan 021): viaja en el atributo
+// data-fc-settings y la arranca js/stic-init.js — sin <script> inline. El
+// handler eventClick (no serializable) lo añade stic-init.js.
+$fcSettings = array(
+    'initialView' => 'dayGridMonth',
+    'locale' => $lang,
+    'contentHeight' => 'auto',
+    'handleWindowResize' => true,
+    'eventTimeFormat' => array(
+        // like '14:30'
+        'hour' => '2-digit',
+        'minute' => '2-digit',
+        'meridiem' => false,
+    ),
+    'headerToolbar' => array(
+        'left' => 'prev,next today',
+        'center' => 'title',
+        'right' => 'dayGridMonth,listMonth',
+    ),
+    'events' => $availableItems,
+);
 
 // Loading FullCalendar
 $html .= "<div class='stic-entry-header'>
@@ -119,36 +140,4 @@ $html .= "<div class='stic-entry-header'>
     <span class='stic-legend-item stic-legend-item--sessions'><span class='stic-legend-dot' aria-hidden='true'></span>".__("Registered events' sessions appear in red.", 'sticpa')."</span>
     <span class='stic-legend-item stic-legend-item--events'><span class='stic-legend-dot' aria-hidden='true'></span>".__('Available events appear in blue.', 'sticpa')."</span>
 </p>
-<div id='calendar'></div>
-<script>
-
-    document.addEventListener('DOMContentLoaded', function() {
-        var calendarEl = document.getElementById('calendar');
-        var calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'dayGridMonth',
-            locale: '$lang',
-            contentHeight:'auto',
-            handleWindowResize:true,
-            eventTimeFormat: {
-                // like '14:30:00'
-                hour: '2-digit',
-                minute: '2-digit',
-                meridiem: false
-            },
-            headerToolbar: {
-                left: 'prev,next today',
-                center: 'title',
-                right: 'dayGridMonth,listMonth'
-            },
-            events: $availableSessionsJson,
-            eventClick: function(arg) {
-                window.location.assign(
-                    '?internalpage='+arg.event.extendedProps.module+'&action=detail&id=' + arg.event.id
-                );
-            },
-        });
-        calendar.render();
-    
-    });
-
-</script>";
+<div id='calendar' data-fc-settings='" . esc_attr(json_encode($fcSettings)) . "'></div>";

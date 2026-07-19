@@ -3683,3 +3683,110 @@ span.stic-field {
     gap: 0.7rem;
     margin: 0.9rem 0 0;
 }
+
+/* ============================================================
+   43. CHROME DE DATATABLES — buscador, contador y "sin resultados"
+   ------------------------------------------------------------
+   (plan 019) El CSS vendorizado de DataTables (css/vendor/, plan 010)
+   pinta su chrome con el look por defecto; aquí se integra con el
+   sistema: input de búsqueda como .stic-field, contador discreto,
+   paginación como .stic-soft-btn (por si algún listado la activa) y
+   el "sin resultados" de la búsqueda como estado vacío compacto.
+   Todo acotado a .stic-container; los !important puntuales ganan a
+   los estilos de §22.b (tarjetas) o al CSS vendorizado, y van
+   comentados uno a uno.
+   ============================================================ */
+
+/* --- 43.a Buscador: input como .stic-field --- */
+.stic-container .dataTables_wrapper .dataTables_filter {
+    float: none;                 /* el vendorizado lo flota a la derecha */
+    text-align: left;
+    margin: 0 0 1.1rem;
+}
+.stic-container .dataTables_wrapper .dataTables_filter label {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    max-width: 26rem;
+    /* El texto "Buscar:" del label es un nodo suelto (no admite clase sr-only
+       propia): se oculta visualmente con font-size 0 — el placeholder ya dice
+       lo mismo y los lectores de pantalla siguen leyendo el label. */
+    font-size: 0;
+}
+.stic-container .dataTables_wrapper .dataTables_filter input {
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 44px;            /* target táctil del sistema */
+    margin-left: 0;              /* el vendorizado añade .5em de hueco del label */
+    padding: 0.55rem 0.95rem;
+    font-family: var(--font-family);
+    font-size: 0.95rem;
+    color: var(--gray-800);
+    background: var(--surface);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-xs);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+/* El estado :focus (borde primario + --shadow-glow) ya lo aporta §12. */
+
+/* --- 43.b Contador "Mostrando X de Y": discreto bajo las tarjetas --- */
+.stic-container .dataTables_wrapper .dataTables_info {
+    float: none;                 /* el vendorizado lo flota a la izquierda */
+    clear: both;
+    padding-top: 0.35rem;
+    font-size: 0.85rem;
+    color: var(--gray-500);
+}
+
+/* --- 43.c Paginación (ningún listado la activa hoy; look .stic-soft-btn) --- */
+.stic-container .dataTables_wrapper .dataTables_paginate {
+    float: none;
+    text-align: left;
+    margin-top: 0.7rem;
+}
+.stic-container .dataTables_wrapper .dataTables_paginate .paginate_button {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0.45rem 0.95rem;
+    margin-left: 0.35rem;
+    border: 1.5px solid color-mix(in srgb, var(--primary-color) 22%, transparent);
+    border-radius: var(--radius-md);
+    background: var(--primary-50);
+    color: var(--primary-color) !important; /* el vendorizado fuerza su color con !important */
+    font-weight: 600;
+    transition: background 0.18s ease, color 0.18s ease;
+}
+.stic-container .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    background: var(--primary-color);
+    border-color: transparent;
+    color: #fff !important;      /* ídem: gana al hover !important del vendorizado */
+}
+/* El .current (fondo de marca) ya lo aporta §12. */
+
+/* --- 43.d "Sin resultados" de búsqueda como estado vacío compacto ---
+   DataTables pinta zeroRecords como una fila <tr><td class="dataTables_empty">;
+   dentro del layout de tarjetas (§22.b) parecía una tarjeta rota. Se re-viste
+   como .stic-empty-state compacto (borde discontinuo, texto centrado). */
+.stic-container .stic-table-responsive table.display tbody tr:has(> td.dataTables_empty) {
+    grid-column: 1 / -1;                            /* ocupa todo el grid de 2 col en escritorio */
+    border: 1px dashed var(--gray-300) !important;  /* gana al borde sólido de tarjeta de §22.b */
+    box-shadow: none;
+    background: var(--surface) !important;          /* gana al hover de fila de §12 */
+}
+.stic-container .stic-table-responsive table.display tbody tr:has(> td.dataTables_empty):hover {
+    transform: none;
+    box-shadow: none;
+}
+.stic-container .stic-table-responsive table.display td.dataTables_empty {
+    display: block !important;                      /* gana al display:flex de celda de §22.b */
+    padding: 1.8rem 1.2rem !important;              /* gana al padding de celda de §22.b */
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--gray-500);
+}
+.stic-container .stic-table-responsive table.display td.dataTables_empty::before {
+    display: none;               /* sin pseudo-etiqueta data-label en el estado vacío */
+}

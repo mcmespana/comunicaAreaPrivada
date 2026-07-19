@@ -56,33 +56,74 @@ include plugin_dir_path(__FILE__) . 'inc/stic-comunica-roles.php';
 
 add_action('admin_menu', 'sugar_crm_portal_create_menu');
 
+/**
+ * Página interna pedida (?internalpage), saneada con la misma whitelist que
+ * sticpa_resolve_page_file. '' si no se pide ninguna (home/login).
+ * Se usa para decidir qué librerías pesadas encolar (plan 010).
+ */
+function sticpa_current_internal_page()
+{
+    $page = isset($_REQUEST['internalpage']) ? (string) $_REQUEST['internalpage'] : '';
+    return preg_match('/^[a-z0-9_]+$/', $page) ? $page : '';
+}
+
 // Add JS script for form management
 // Don't add the action to avoid including the js in all the pages of the site. Instead it is loaded when the shortcode is applied
 // add_action("wp_enqueue_scripts", "dcms_insertar_js");
+/**
+ * MAPA DE LIBRERÍAS POR PÁGINA (plan 010) — al añadir una página que use una
+ * lib pesada hay que añadirla aquí:
+ *   · FullCalendar (+locale)  → solo single_stic_activities_calendar.
+ *   · DataTables (JS; el CSS vendorizado se encola en
+ *     sugar_crm_portal_style_and_script) → solo páginas list_*.
+ *   · Selectize (multiselect) → páginas de formulario single_* (los multienum
+ *     pueden venir de la definición del CRM sin declararse en la página, así
+ *     que se es conservador: TODAS las single_* menos el calendario).
+ *   · iban.js → páginas con validación de IBAN (payment_form, tutor_profile,
+ *     profile, payments, payment_commitments).
+ *   · stic-utils / stic-ui / stic-cropper / stic-init → SIEMPRE (propios, ligeros).
+ * Sin ?internalpage (home/login/selección de perfil) no se carga ninguna pesada.
+ */
 function dcms_insertar_js()
 {
-    wp_register_script('sugarcrm', plugin_dir_url(__FILE__) . 'js/iban.js', array('jquery'), '1', true);
-    wp_enqueue_script('sugarcrm');
-    // Build minificado (269 KB vs 718 KB del sin minificar que se cargaba antes).
-    wp_register_script('fullcalendar', plugin_dir_url(__FILE__) . 'js/fullcalendar/lib/main.min.js', array('jquery'), '1', true);
-    wp_enqueue_script('fullcalendar');
-    // Solo el locale del idioma activo; el paquete con TODOS los idiomas (24 KB)
-    // queda como fallback si no existe el archivo del locale.
-    $fcLocale = strtolower(str_replace('_', '-', get_locale()));
-    $fcLocaleShort = explode('-', $fcLocale)[0];
-    $fcLocaleRel = null;
-    foreach (array($fcLocale, $fcLocaleShort) as $candidate) {
-        if ($candidate && $candidate !== 'en' && file_exists(plugin_dir_path(__FILE__) . 'js/fullcalendar/lib/locales/' . $candidate . '.js')) {
-            $fcLocaleRel = 'js/fullcalendar/lib/locales/' . $candidate . '.js';
-            break;
+    $page = sticpa_current_internal_page();
+    $isList = strpos($page, 'list_') === 0;
+    $isCalendar = ($page === 'single_stic_activities_calendar');
+    $isSingleForm = (strpos($page, 'single_') === 0) && !$isCalendar;
+    $ibanPages = array(
+        'single_stic_payment_form',
+        'single_stic_tutor_profile',
+        'single_stic_profile',
+        'single_stic_payments',
+        'single_stic_payment_commitments',
+    );
+
+    if (in_array($page, $ibanPages, true)) {
+        wp_register_script('sugarcrm', plugin_dir_url(__FILE__) . 'js/iban.js', array('jquery'), '1', true);
+        wp_enqueue_script('sugarcrm');
+    }
+    if ($isCalendar) {
+        // Build minificado (269 KB vs 718 KB del sin minificar que se cargaba antes).
+        wp_register_script('fullcalendar', plugin_dir_url(__FILE__) . 'js/fullcalendar/lib/main.min.js', array('jquery'), '1', true);
+        wp_enqueue_script('fullcalendar');
+        // Solo el locale del idioma activo; el paquete con TODOS los idiomas (24 KB)
+        // queda como fallback si no existe el archivo del locale.
+        $fcLocale = strtolower(str_replace('_', '-', get_locale()));
+        $fcLocaleShort = explode('-', $fcLocale)[0];
+        $fcLocaleRel = null;
+        foreach (array($fcLocale, $fcLocaleShort) as $candidate) {
+            if ($candidate && $candidate !== 'en' && file_exists(plugin_dir_path(__FILE__) . 'js/fullcalendar/lib/locales/' . $candidate . '.js')) {
+                $fcLocaleRel = 'js/fullcalendar/lib/locales/' . $candidate . '.js';
+                break;
+            }
         }
-    }
-    if ($fcLocaleRel === null && $fcLocaleShort !== 'en') {
-        $fcLocaleRel = 'js/fullcalendar/lib/locales-all.min.js';
-    }
-    if ($fcLocaleRel !== null) {
-        wp_register_script('fullcalendar-locale', plugin_dir_url(__FILE__) . $fcLocaleRel, array('fullcalendar'), '1', true);
-        wp_enqueue_script('fullcalendar-locale');
+        if ($fcLocaleRel === null && $fcLocaleShort !== 'en') {
+            $fcLocaleRel = 'js/fullcalendar/lib/locales-all.min.js';
+        }
+        if ($fcLocaleRel !== null) {
+            wp_register_script('fullcalendar-locale', plugin_dir_url(__FILE__) . $fcLocaleRel, array('fullcalendar'), '1', true);
+            wp_enqueue_script('fullcalendar-locale');
+        }
     }
     // Versión por filemtime en los JS propios: cada deploy rompe la caché.
     $jsver = function ($rel) {
@@ -99,10 +140,27 @@ function dcms_insertar_js()
     wp_enqueue_script('stic-cropper');
     // We use only one file for plugin literals, so although theoretically we should call this function twice (one efor each js), we only call it once.
     wp_localize_script('sugarcrm-own', 'stic_script_vars', getSticScriptVars());
-    wp_register_script('multiselect', plugin_dir_url(__FILE__) . 'js/selectize.min.js', array('jquery'), '1', true);
-    wp_enqueue_script('multiselect');
-    wp_register_script('datatables', plugin_dir_url(__FILE__) . 'js/jquery.dataTables.min.js', array('jquery'), '1', true);
-    wp_enqueue_script('datatables');
+    if ($isSingleForm) {
+        wp_register_script('multiselect', plugin_dir_url(__FILE__) . 'js/selectize.min.js', array('jquery'), '1', true);
+        wp_enqueue_script('multiselect');
+    }
+    if ($isList) {
+        wp_register_script('datatables', plugin_dir_url(__FILE__) . 'js/jquery.dataTables.min.js', array('jquery'), '1', true);
+        wp_enqueue_script('datatables');
+    }
+    // Init dirigida por data-* (plan 021): lee data-dt-settings / data-fc-settings
+    // y arranca DataTables/FullCalendar sin <script> inline en el body.
+    if ($isList || $isCalendar) {
+        $initDeps = array('jquery', 'sugarcrm-own');
+        if ($isList) {
+            $initDeps[] = 'datatables';
+        }
+        if ($isCalendar) {
+            $initDeps[] = 'fullcalendar';
+        }
+        wp_register_script('stic-init', plugin_dir_url(__FILE__) . 'js/stic-init.js', $initDeps, $jsver('js/stic-init.js'), true);
+        wp_enqueue_script('stic-init');
+    }
 }
 
 function sugar_crm_portal_create_menu()
@@ -1018,12 +1076,29 @@ function sugar_crm_portal_style_and_script()
             $path = plugin_dir_path(__FILE__) . $rel;
             return file_exists($path) ? filemtime($path) : null;
         };
+        // CSS de librerías CONDICIONAL por página (plan 010): en este hook
+        // $_REQUEST['internalpage'] ya está disponible, y las páginas que usan
+        // cada lib solo se alcanzan pidiéndolas explícitamente por URL (sin
+        // internalpage se sirve home/login/selección, que no usan ninguna).
+        // Se mantienen aquí (y no en dcms_insertar_js) para conservar el orden
+        // de cascada: SIEMPRE antes de custom-style.css, que las tematiza.
+        $page = function_exists('sticpa_current_internal_page') ? sticpa_current_internal_page() : '';
+
         // Modern typography (Inter) loaded from Google Fonts
         wp_enqueue_style('stic-google-fonts', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap', array(), null);
         // Capa BASE consolidada (UI-15: ex stic-style + stic-modern-style, en ese orden).
         wp_enqueue_style('stic-base', plugins_url('css/stic-base.css', __FILE__), array(), $ver('css/stic-base.css'));
-        wp_enqueue_style('stic-multiselect', plugins_url('css/selectize.css', __FILE__), array('stic-base'), $ver('css/selectize.css'));
-        wp_enqueue_style('fullcalendar', plugins_url('js/fullcalendar/lib/main.min.css', __FILE__), array(), $ver('js/fullcalendar/lib/main.min.css'));
+        if (strpos($page, 'single_') === 0 && $page !== 'single_stic_activities_calendar') {
+            wp_enqueue_style('stic-multiselect', plugins_url('css/selectize.css', __FILE__), array('stic-base'), $ver('css/selectize.css'));
+        }
+        if ($page === 'single_stic_activities_calendar') {
+            wp_enqueue_style('fullcalendar', plugins_url('js/fullcalendar/lib/main.min.css', __FILE__), array(), $ver('js/fullcalendar/lib/main.min.css'));
+        }
+        if (strpos($page, 'list_') === 0) {
+            // CSS de DataTables vendorizado (plan 010): misma versión 1.12.1 que
+            // js/jquery.dataTables.min.js; antes venía del CDN en mitad del body.
+            wp_enqueue_style('stic-datatables', plugins_url('css/vendor/jquery.dataTables.min.css', __FILE__), array('stic-base'), $ver('css/vendor/jquery.dataTables.min.css'));
+        }
         // custom-style.css is loaded LAST on purpose so it can override/enhance everything above
         wp_enqueue_style('custom-style', plugins_url('css/custom-style.css', __FILE__), array('stic-base'), $ver('css/custom-style.css'));
 

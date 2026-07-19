@@ -4,7 +4,11 @@
 jQuery(document).ready(function($){
     // Run selectize. dropdownParent: 'body' evita que el desplegable quede
     // por debajo de las tarjetas siguientes del formulario.
-    $('select[multiple]').selectize({ dropdownParent: 'body' });
+    // Guardado: desde el plan 010 selectize solo se encola en las páginas de
+    // formulario single_*; sin el guard, este ready() reventaría en el resto.
+    if ($.fn.selectize) {
+        $('select[multiple]').selectize({ dropdownParent: 'body' });
+    }
     // El mensaje de éxito/error se despide solo tras unos segundos (antes se
     // esfumaba al primer clic o tecla, y era fácil no llegar a leerlo).
     var msg = document.getElementById('successMsg');
