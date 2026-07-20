@@ -566,8 +566,59 @@
         });
     }
 
+    /* -------- Conmutador de tema claro/oscuro (opt-in, plan 016) --------
+       El servidor ya pinta data-stic-theme desde la cookie (sin flash). Aquí
+       solo alternamos en vivo y persistimos: cookie (la lee PHP en la próxima
+       carga) + localStorage (respaldo). Sin JS, el tema queda como estaba. */
+    function applyTheme(theme) {
+        var dark = theme === 'dark';
+        var nodes = document.querySelectorAll('.stic-container, .stic-auth-shell');
+        Array.prototype.forEach.call(nodes, function (el) {
+            if (dark) { el.setAttribute('data-stic-theme', 'dark'); }
+            else { el.removeAttribute('data-stic-theme'); }
+        });
+        // Los overlays/tooltips/modales se anclan a <body> (fuera de .stic-container):
+        // estampamos también <html> para poder tematizarlos por descendencia.
+        if (dark) { document.documentElement.setAttribute('data-stic-theme', 'dark'); }
+        else { document.documentElement.removeAttribute('data-stic-theme'); }
+        var btns = document.querySelectorAll('.stic-theme-toggle');
+        Array.prototype.forEach.call(btns, function (b) {
+            b.setAttribute('aria-pressed', dark ? 'true' : 'false');
+        });
+    }
+
+    function bindThemeToggle() {
+        var toggles = document.querySelectorAll('.stic-theme-toggle');
+        if (!toggles.length) { return; }
+        Array.prototype.forEach.call(toggles, function (btn) {
+            btn.addEventListener('click', function () {
+                var isDark = btn.getAttribute('aria-pressed') === 'true';
+                var next = isDark ? 'light' : 'dark';
+                applyTheme(next);
+                // Cookie 1 año para que el render del servidor no parpadee.
+                try {
+                    document.cookie = 'sticpa_theme=' + (next === 'dark' ? 'dark' : '') +
+                        ';path=/;max-age=' + (next === 'dark' ? 31536000 : 0) + ';samesite=lax';
+                } catch (err) { /* nada */ }
+                try { localStorage.setItem('sticpa-theme', next); } catch (err) { /* modo privado */ }
+            });
+        });
+    }
+
+    function initTheme() {
+        // El servidor ya marcó los contenedores desde la cookie; sincronizamos
+        // <html> (para overlays/tooltips) y, como respaldo, respetamos lo que
+        // diga localStorage si por lo que sea la cookie no llegó.
+        var serverDark = !!document.querySelector('.stic-container[data-stic-theme="dark"], .stic-auth-shell[data-stic-theme="dark"]');
+        var stored = null;
+        try { stored = localStorage.getItem('sticpa-theme'); } catch (err) { /* privado */ }
+        applyTheme((serverDark || stored === 'dark') ? 'dark' : 'light');
+    }
+
     ready(function () {
+        initTheme();
         bindLoadingForms();
+        bindThemeToggle();
         bindPasswordToggles();
         bindAuthToggle();
         bindNavToggle();

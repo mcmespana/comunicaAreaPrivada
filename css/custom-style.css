@@ -3845,3 +3845,91 @@ span.stic-field {
 .stic-container .stic-table-responsive table.display td.dataTables_empty::before {
     display: none;               /* sin pseudo-etiqueta data-label en el estado vacío */
 }
+
+/* ============================================================
+   44. TEMA OSCURO OPT-IN — [data-stic-theme="dark"] (plan 016)
+   ------------------------------------------------------------
+   NO se activa por el modo oscuro del SO: el área es clara por
+   defecto (decisión de producto). El usuario lo enciende con el
+   botón de la barra; el estado se recuerda en cookie (lo pinta el
+   servidor sin flash) + localStorage (js/stic-ui.js).
+   Todo se consigue REDEFINIENDO TOKENS: como el resto del CSS usa
+   var(--…), no hay que reescribir reglas. Cero cambio en claro.
+   ============================================================ */
+.stic-container[data-stic-theme="dark"],
+.stic-auth-shell[data-stic-theme="dark"],
+:root[data-stic-theme="dark"] {
+    color-scheme: dark;
+    --surface: #111827;
+    --surface-2: #1f2937;
+    --surface-glass: rgba(17, 24, 39, 0.74);
+    --glass-border: rgba(255, 255, 255, 0.14);
+    --primary-50:   color-mix(in srgb, var(--primary-color) 20%, #111827);
+    --secondary-50: color-mix(in srgb, var(--secondary-color) 20%, #111827);
+    /* Escala de grises INVERTIDA: el texto (gray-700..900) sale claro y los
+       fondos (gray-50..200) oscuros — sin tocar ninguna regla que use var(). */
+    --gray-50:  #1f2937;  --gray-100: #273449;  --gray-200: #374151;
+    --gray-300: #4b5563;  --gray-400: #6b7280;  --gray-500: #9ca3af;
+    --gray-600: #cbd5e1;  --gray-700: #d1d5db;  --gray-800: #e5e7eb;  --gray-900: #f9fafb;
+    --white: #0b1220;     /* "blanco" invertido para los pocos usos directos */
+    /* Estados: fondos suaves oscurecidos + texto legible sobre ellos */
+    --success-soft: color-mix(in srgb, var(--success-color) 16%, #111827);
+    --success-50:   color-mix(in srgb, var(--success-color) 20%, #111827);
+    --success-100:  color-mix(in srgb, var(--success-color) 26%, #111827);
+    --success-dark: #34d399;
+    --danger-soft:  color-mix(in srgb, var(--danger-color) 16%, #111827);
+    --danger-100:   color-mix(in srgb, var(--danger-color) 24%, #111827);
+    --warning-soft: color-mix(in srgb, var(--warning-color) 14%, #111827);
+    --warning-100:  color-mix(in srgb, var(--warning-color) 20%, #111827);
+    --warning-200:  color-mix(in srgb, var(--warning-color) 28%, #111827);
+    --warning-light: color-mix(in srgb, var(--warning-color) 18%, #111827);
+    --warning-dark: #fbbf24;
+    --warning-darker: #fcd34d;
+    --warning-text: #f59e0b;
+    scrollbar-color: var(--gray-300) transparent;
+}
+
+/* Inputs: §20.d fuerza fondos claros con !important dentro de prefers-color-scheme:dark;
+   aquí (mayor especificidad por el atributo) devolvemos el oscuro. */
+.stic-container[data-stic-theme="dark"] :is(input, textarea, select, .input-text),
+.stic-auth-shell[data-stic-theme="dark"] :is(input, textarea, select, .input-text),
+[data-stic-theme="dark"] .stic-field input {
+    background-color: var(--surface-2) !important;
+    color: var(--gray-800) !important;
+    border-color: var(--gray-200) !important;
+}
+[data-stic-theme="dark"] .stic-form select option { color: #e5e7eb; background: #1f2937; }
+
+/* Banda de cabecera de las tarjetas de listado: el tinte claro sobre oscuro se
+   ve raro; tinte de marca oscuro coherente. */
+.stic-container[data-stic-theme="dark"] .stic-table-responsive td.stic-cell-title {
+    background: linear-gradient(135deg,
+        color-mix(in srgb, var(--primary-color) 26%, #111827),
+        color-mix(in srgb, var(--secondary-color) 26%, #111827));
+}
+
+/* Elementos anclados a <body> (portales): overlay de carga, tooltips y modales.
+   Se tematizan por el atributo en <html> (lo estampa js/stic-ui.js::applyTheme). */
+:root[data-stic-theme="dark"] .stic-loading-overlay { background: rgba(11, 18, 32, 0.85); }
+:root[data-stic-theme="dark"] .stic-info-tip { background: #0b1220; }
+:root[data-stic-theme="dark"] .stic-modal-card,
+:root[data-stic-theme="dark"] .stic-crop-card { background: #1f2937; color: #e5e7eb; }
+:root[data-stic-theme="dark"] .stic-modal-msg { color: #cbd5e1; }
+
+/* FullCalendar 5 expone variables CSS: se redefinen para el calendario oscuro. */
+:root[data-stic-theme="dark"] #calendar,
+.stic-container[data-stic-theme="dark"] #calendar {
+    --fc-page-bg-color: var(--surface);
+    --fc-neutral-bg-color: var(--surface-2);
+    --fc-border-color: var(--gray-200);
+    --fc-list-event-hover-bg-color: var(--gray-100);
+    --fc-today-bg-color: color-mix(in srgb, var(--primary-color) 22%, #111827);
+    color: var(--gray-800);
+}
+
+/* Iconos del botón de tema: luna en claro (→ ir a oscuro), sol en oscuro. */
+.stic-theme-sun { display: none; }
+.stic-theme-moon { display: block; }
+[data-stic-theme="dark"] .stic-theme-sun { display: block; }
+[data-stic-theme="dark"] .stic-theme-moon { display: none; }
+.stic-theme-toggle svg { width: 20px; height: 20px; }

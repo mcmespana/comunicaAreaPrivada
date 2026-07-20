@@ -672,7 +672,7 @@ function sugar_crm_portal_check_user_and_login($html = "")
             $html .= sugar_crm_portal_index();
         } else {
             // Login fallido: reabrimos directamente en la vista de usuario/contraseña.
-            $html .= "<div class='stic-auth-shell'><div class='stic-login-form stic-form'>";
+            $html .= "<div class='stic-auth-shell'" . sticpa_theme_attr() . "><div class='stic-login-form stic-form'>";
             $html .= sugar_crm_portal_login_form("", 'password');
             $html .= "<span class='error' role='alert'>" . __('Username and/or password are not correct.', 'sticpa') . "</span>";
             $html .= "</div></div>";
@@ -682,7 +682,7 @@ function sugar_crm_portal_check_user_and_login($html = "")
     } else {
         // Vista inicial: por defecto enlace mágico; 'password' si se pide con ?mode=password.
         $mode = (isset($_REQUEST['mode']) && $_REQUEST['mode'] === 'password') ? 'password' : 'magic';
-        $html .= "<div class='stic-auth-shell'><div class='stic-login-form stic-form'>";
+        $html .= "<div class='stic-auth-shell'" . sticpa_theme_attr() . "><div class='stic-login-form stic-form'>";
         $html .= sugar_crm_portal_login_form("", $mode);
         if (isset($_REQUEST['signup']) && $_REQUEST['signup'] == true) {
             $html .= "<span class='success'>" . __('You have successfully signed up.', 'sticpa') . ".</span>";
@@ -732,7 +732,7 @@ function sugar_crm_portal_forgot_password($html = "")
     $current_url = explode('?', $_SERVER['REQUEST_URI'], 2);
     $current_url = $current_url[0] . '?internalpage=stic_forgot_password';
 
-    $html .= "<div class='stic-auth-shell'><div class='stic-forgotpas-form stic-form'>";
+    $html .= "<div class='stic-auth-shell'" . sticpa_theme_attr() . "><div class='stic-forgotpas-form stic-form'>";
 
     $html .= "
         <div class='stic-auth-brand'>
@@ -921,6 +921,19 @@ function sticpa_app_mode_boot()
 function sticpa_is_app_mode()
 {
     return !empty($_COOKIE['sticpa_app']);
+}
+
+/**
+ * Atributo data-stic-theme para los contenedores del área (plan 016).
+ * El tema oscuro es OPT-IN: solo se activa si el usuario lo eligió (cookie
+ * escrita por el toggle en js/stic-ui.js). Por defecto, claro. Se pinta en
+ * servidor — como el modo app — para que NO haya flash de tema al cargar.
+ */
+function sticpa_theme_attr()
+{
+    return (!empty($_COOKIE['sticpa_theme']) && $_COOKIE['sticpa_theme'] === 'dark')
+        ? " data-stic-theme='dark'"
+        : '';
 }
 
 // Clase en el body + CSS que esconde el "chrome" del tema alrededor del área.

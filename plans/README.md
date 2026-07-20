@@ -37,12 +37,21 @@ antes de empezar, respeta sus "STOP conditions" y actualiza su fila de estado al
 | 013 | Establecer una base de verificación (PHPUnit + mocks) | P1 | M | — | TODO |
 | 014 | Retirar assets muertos y arreglar docs desfasadas | P2 | S | — | **DONE** (Fable, 2026-07-19) |
 | 015 | Conectar o bloquear el formulario de pago del familiar | P1 | M | 013 | TODO |
-| 016 | Tema oscuro OPT-IN real (conmutable, basado en tokens) | P2 | L | 018 (recom.) | TODO |
-| 017 | Foto de perfil por endpoint con miniatura (fuera base64) | P1 | M | — | TODO |
-| 018 | Consolidar CSS: un solo :root, menos duplicados/!important | P2 | L | — | TODO |
-| 019 | Integrar (o retirar) el chrome de DataTables en listados | P2 | M | 010 | TODO |
-| 020 | Aligerar el coste de pintura del login (blur/glass) | P2 | S-M | — | TODO |
-| 021 | Externalizar los script inline de init (DT/FullCalendar) | P3 | S-M | 019 (coord.) | TODO |
+| 016 | Tema oscuro OPT-IN real (conmutable, basado en tokens) | P2 | L | 018 (recom.) | **DONE** (Opus, 2026-07-20) |
+| 017 | Foto de perfil por endpoint con miniatura (fuera base64) | P1 | M | — | **DONE** (Fable, 2026-07-20) |
+| 018 | Consolidar CSS: un solo :root, menos duplicados/!important | P2 | L | — | **PARTIAL** (Opus, 2026-07-20) |
+| 019 | Integrar (o retirar) el chrome de DataTables en listados | P2 | M | 010 | **DONE** (Fable, 2026-07-20) |
+| 020 | Aligerar el coste de pintura del login (blur/glass) | P2 | S-M | — | **DONE** (Opus, 2026-07-20) |
+| 021 | Externalizar los script inline de init (DT/FullCalendar) | P3 | S-M | 019 (coord.) | **DONE** (Fable, 2026-07-20) |
+
+> **Ejecución 2026-07-20 (a producción).** Se ejecutaron 010, 016, 017, 019, 020, 021 completos y 018
+> parcial. **010** también quedó hecho (enqueue condicional + CSS de DataTables vendorizado en
+> `css/vendor/`). **018 PARCIAL**: se hizo la Fase 1 (un solo `:root`; `stic-base.css` ya no define
+> tokens, todo consolidado en `custom-style.css §1`, verificado sin `var()` huérfanos) y el plan 020
+> completo; **queda pendiente** la Fase 2/3 (borrar reglas base muertas y de-escalar los ~567+87
+> `!important`) porque exige verificación visual en navegador, que no hay en este entorno. Retomar 018
+> en staging. Todo lo demás verificado con `php -l` / `node --check` y análisis estático (llaves,
+> tokens, greps). Verificación visual pendiente de staging para todos.
 
 Estados: TODO · IN PROGRESS · DONE · BLOCKED (motivo) · REJECTED (motivo).
 
