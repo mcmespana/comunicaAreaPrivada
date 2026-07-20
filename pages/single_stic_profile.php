@@ -163,16 +163,19 @@ switch (getDestinationModule()) {
         );
        
         if ($filename = $data->photo->value) {
-            $image = $objSCP->get_image(array('id' => $_SESSION['scp_user_id'],'field' => 'photo'));
-            $content = $image->image_data->data;
-            $mime_type = $image->image_data->mime_type;
+            // La foto se sirve por el endpoint stic_profile_photo (miniatura
+            // cacheada en disco) en vez de incrustarla en base64 en el HTML.
+            // El parámetro v (md5 del nombre de archivo) rompe la caché del
+            // navegador cuando cambia la foto; si el endpoint devuelve error,
+            // onerror pinta el placeholder.
+            $photoSrc = admin_url('admin-post.php?action=stic_profile_photo&v=' . rawurlencode(substr(md5((string) $filename), 0, 8)));
             $fieldList[] = array(
-                'name' => 'photo', 
-                'type' => 'html', 
+                'name' => 'photo',
+                'type' => 'html',
                 'required' => true,
                 'html' => '
                     <li>
-                        <img class="stic-profile-picture" src="data:'.$mime_type.'/png;base64, '.$content.'" alt="'.esc_attr__('Foto de perfil', 'sticpa').'"/>
+                        <img class="stic-profile-picture" src="'.esc_url($photoSrc).'" alt="'.esc_attr__('Foto de perfil', 'sticpa').'" width="150" height="150" decoding="async" onerror="this.onerror=null;this.src=\''.esc_js(plugins_url('../images/profile_picture.jpg', __FILE__)).'\'"/>
                         <label style="padding-botton: 0px">'.__('Change profile picture', 'sticpa').':</label>
                         <div style="font-size: 10px">'.__('(Format: jpg, jpeg, gif, png - Maximum size: 6MB)', 'sticpa').'</div>
                         <span><input type="file" name="photo" id="photo" value="'.$filename.'"></span>
@@ -185,7 +188,7 @@ switch (getDestinationModule()) {
                 'required' => true,
                 'html' => '
                     <li>
-                        <img class="stic-profile-picture" src="'.plugins_url('../images/profile_picture.jpg', __FILE__).'" alt="'.esc_attr__('Foto de perfil por defecto', 'sticpa').'"/>
+                        <img class="stic-profile-picture" src="'.plugins_url('../images/profile_picture.jpg', __FILE__).'" alt="'.esc_attr__('Foto de perfil por defecto', 'sticpa').'" width="150" height="150" loading="lazy" decoding="async"/>
                         <label style="padding-botton: 0px">'.__('Choose a file', 'sticpa').':</label>
                         <div style="font-size: 10px">'.__('(Format: jpg, jpeg, gif, png - Maximum size: 6MB)', 'sticpa').'</div>
                         <span><input type="file" name="photo" id="photo" value=></span>

@@ -4,6 +4,12 @@ Generado por la skill **improve** (shadcn/improve) el **2026-07-19**, contra el 
 `bc3c436`. Auditoría en paralelo (4 subagentes read-only) sobre el código del plugin
 (NO las librerías vendorizadas: fullcalendar, jQuery, DataTables, Selectize, iban.js).
 
+> **Segunda pasada (2026-07-19, commit `c2d7cff`)**: auditoría específica de **UI/UX,
+> accesibilidad, dark mode, animaciones y rendimiento frontend** (3 subagentes; la seguridad quedó
+> EXCLUIDA a petición del mantenedor — sigue cubierta por los planes 001-008). Los ~25 hallazgos de
+> valor S/M de esa pasada se **implementaron directamente** en `c2d7cff` (ver tabla al final);
+> los de calado M/L son los planes **016-021**.
+
 Cada plan es **autocontenido**: quien lo ejecute no ha visto esta auditoría. Léelo entero
 antes de empezar, respeta sus "STOP conditions" y actualiza su fila de estado al terminar.
 
@@ -31,6 +37,21 @@ antes de empezar, respeta sus "STOP conditions" y actualiza su fila de estado al
 | 013 | Establecer una base de verificación (PHPUnit + mocks) | P1 | M | — | TODO |
 | 014 | Retirar assets muertos y arreglar docs desfasadas | P2 | S | — | **DONE** (Fable, 2026-07-19) |
 | 015 | Conectar o bloquear el formulario de pago del familiar | P1 | M | 013 | TODO |
+| 016 | Tema oscuro OPT-IN real (conmutable, basado en tokens) | P2 | L | 018 (recom.) | **DONE** (Opus, 2026-07-20) |
+| 017 | Foto de perfil por endpoint con miniatura (fuera base64) | P1 | M | — | **DONE** (Fable, 2026-07-20) |
+| 018 | Consolidar CSS: un solo :root, menos duplicados/!important | P2 | L | — | **PARTIAL** (Opus, 2026-07-20) |
+| 019 | Integrar (o retirar) el chrome de DataTables en listados | P2 | M | 010 | **DONE** (Fable, 2026-07-20) |
+| 020 | Aligerar el coste de pintura del login (blur/glass) | P2 | S-M | — | **DONE** (Opus, 2026-07-20) |
+| 021 | Externalizar los script inline de init (DT/FullCalendar) | P3 | S-M | 019 (coord.) | **DONE** (Fable, 2026-07-20) |
+
+> **Ejecución 2026-07-20 (a producción).** Se ejecutaron 010, 016, 017, 019, 020, 021 completos y 018
+> parcial. **010** también quedó hecho (enqueue condicional + CSS de DataTables vendorizado en
+> `css/vendor/`). **018 PARCIAL**: se hizo la Fase 1 (un solo `:root`; `stic-base.css` ya no define
+> tokens, todo consolidado en `custom-style.css §1`, verificado sin `var()` huérfanos) y el plan 020
+> completo; **queda pendiente** la Fase 2/3 (borrar reglas base muertas y de-escalar los ~567+87
+> `!important`) porque exige verificación visual en navegador, que no hay en este entorno. Retomar 018
+> en staging. Todo lo demás verificado con `php -l` / `node --check` y análisis estático (llaves,
+> tokens, greps). Verificación visual pendiente de staging para todos.
 
 Estados: TODO · IN PROGRESS · DONE · BLOCKED (motivo) · REJECTED (motivo).
 
@@ -98,6 +119,17 @@ SEC-06 cookies seguras — ya aplicado.)*
   superficie que reporte alcanzabilidad/latencia/estado de auth. Encaja en `sticpa_render_admin_tools`.
   (No planificado; candidato de valor operativo.)
 
+## Segunda pasada (UI/UX + a11y + perf frontend) — implementado en `c2d7cff`
+
+Hallazgos verificados y aplicados directamente (no necesitan plan):
+
+| Área | Qué se arregló |
+|---|---|
+| Perf assets | FullCalendar `.min` (269 KB vs 718 KB) + solo el locale activo; CSS `.min` con filemtime; `preconnect` a los dos orígenes de Google Fonts; fuera `jquery-3.6.0.min.js` (89 KB) y `Sorting icons.psd`; keyframes muertos eliminados; `loading=lazy` en iframe/imágenes; fotos con `width/height` (sin CLS) |
+| Perf JS/CSS | `layoutNav` sin layout-thrashing (medir 1 vez, mover en lote); listeners de scroll pasivos con early-return; 16× `transition:all` → lista explícita de propiedades compositor |
+| A11y | Focus trap + restauración en el cropper; tooltips con `aria-describedby`; mensajes con `role=status/alert` y despedida por temporizador; secciones colapsables con `<button>` real dentro del `h5` (headings intactos); `aria-current` en menú; `aria-controls` + foco al abrir en "Más" y selector de participante; anillos de foco en item activo, paneles y todos los botones; `th scope=col`; `ordering:false` por defecto en DataTables (cabeceras ocultas atrapaban foco); targets táctiles ≥44px; `safe-area-inset-bottom` en botonera sticky; spinner visible bajo reduced-motion |
+| UI/UX | Tokens semánticos `--success/--danger/--warning-*` (39 hex unificados); `--grad-brand-soft`/`--shadow-glow` derivados con `color-mix`; forzado de claro completo (`color-scheme:light` + `scrollbar-color`) y override oscuro acotado al área (ya no pisa al tema WP); `datetime-local` vacío ya se renderiza; overlay "Guardando…" en todos los formularios del motor; validación inline con `aria-invalid` (fuera `alert()`); error de pago con marca y CTAs; leyenda del calendario + HTML válido; contraste (gray-400→500, placeholders); `-webkit-backdrop-filter` en sticky bar/chip |
+
 ## Findings considered and rejected
 
 - **Migración FullCalendar 5→6 / reemplazar Selectize**: sin CVE crítico en los pins actuales;
@@ -107,3 +139,9 @@ SEC-06 cookies seguras — ya aplicado.)*
   deliberada con prueba visual, no en esta tanda. (El resto de la UI — a11y, motion, metadata — ya
   se aplicó directamente en `bc3c436`.)
 - **`case 'bool';` con `;` en vez de `:`**: es PHP válido (etiqueta), funciona; no tocar por churn.
+- **Recortar pesos de Inter (400-800)**: los 5 pesos están en uso real en el CSS; no hay ganancia.
+- **Navegación por flechas/Home/End en los desplegables** (patrón menu-button completo): el foco ya
+  entra al panel al abrir (`c2d7cff`) y Tab/Escape funcionan; la mejora restante es de baja palanca.
+  Retomar solo si llega feedback real de usuarios de teclado.
+- **Modo oscuro automático por SO**: decisión de producto vigente = claro por defecto. El oscuro
+  será OPT-IN (plan 016), nunca automático.

@@ -107,12 +107,12 @@ function sticpa_participant_switcher_html()
     $switching = esc_attr__('Cambiando de participante…', 'sticpa');
 
     $html = "<span class='stic-part-switch'>";
-    $html .= "<button type='button' class='stic-part-switch-btn' aria-haspopup='true' aria-expanded='false' title='" . esc_attr__('Cambiar de participante', 'sticpa') . "'>";
+    $html .= "<button type='button' class='stic-part-switch-btn' aria-haspopup='true' aria-expanded='false' aria-controls='stic-part-switch-menu' title='" . esc_attr__('Cambiar de participante', 'sticpa') . "'>";
     $html .= "<span class='stic-part-avatar' aria-hidden='true'>" . esc_html(sticpa_name_initial($activeName)) . "</span>";
     $html .= "<span class='stic-part-name' title='" . esc_attr($activeName) . "'>" . esc_html(sticpa_short_name($activeName)) . "</span>" . $chevron;
     $html .= "</button>";
 
-    $html .= "<span class='stic-part-switch-menu'>";
+    $html .= "<span class='stic-part-switch-menu' id='stic-part-switch-menu'>";
     $html .= "<span class='stic-part-switch-title'>" . esc_html__('Ver como…', 'sticpa') . "</span><ul>";
     foreach ($profiles as $profile) {
         $isActive = ($profile['id'] === $activeId) ? ' is-active' : '';
@@ -250,7 +250,14 @@ function menu()
     // Con menú: solo la hamburguesa (en móvil). El "Salir" va como último item.
     // Sin menú (p. ej. selección de perfil): dejamos "Salir" accesible aquí.
     // "Salir" SIEMPRE arriba a la derecha (icono + texto en escritorio, solo icono en móvil).
+    // Conmutador de tema (claro/oscuro). Opt-in: el estado real lo aplica y
+    // recuerda js/stic-ui.js (cookie + localStorage); aquí solo el botón.
+    $themeIsDark = (!empty($_COOKIE['sticpa_theme']) && $_COOKIE['sticpa_theme'] === 'dark');
+    $sun = "<svg class='stic-theme-sun' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><circle cx='12' cy='12' r='4'/><path d='M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4'/></svg>";
+    $moon = "<svg class='stic-theme-moon' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><path d='M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z'/></svg>";
+
     $actions = "<div class='stic-nav-actions'>";
+    $actions .= "<button type='button' class='stic-iconbtn stic-theme-toggle' aria-pressed='" . ($themeIsDark ? 'true' : 'false') . "' title='" . esc_attr__('Cambiar tema claro/oscuro', 'sticpa') . "' aria-label='" . esc_attr__('Cambiar tema claro/oscuro', 'sticpa') . "'>" . $sun . $moon . "</button>";
     $actions .= "<a class='stic-iconbtn stic-logout' href='?logout=true' title='" . esc_attr__('Cerrar sesión', 'sticpa') . "' aria-label='" . esc_attr__('Cerrar sesión', 'sticpa') . "'>"
         . ($iconFn ? sticpa_icon('logout') : '') . "<span class='stic-logout-text'>" . __('Salir', 'sticpa') . "</span></a>";
     if ($showItems) {
@@ -262,7 +269,7 @@ function menu()
     $actions .= "</div>";
 
     // ---- Componente único: barra de identidad + navegación ----
-    $menu .= "<div class='stic-container'>";
+    $menu .= "<div class='stic-container'" . (function_exists('sticpa_theme_attr') ? sticpa_theme_attr() : '') . ">";
     $menu .= "<nav class='stic-nav' aria-label='" . esc_attr__('Navegación principal', 'sticpa') . "'>";
     $menu .= "<div class='stic-nav-bar'>" . $account . $actions . "</div>";
 
@@ -270,9 +277,11 @@ function menu()
         $menu .= "<ul class='stic-nav-list' id='stic-nav-list'>";
         foreach ($items as $key => $label) {
             $isActive = ($page == $key) ? 'current-menu-item stic-current-menu-item' : '';
+            // aria-current: señal programática de "estás aquí" (la clase es solo visual).
+            $ariaCurrent = ($page == $key) ? " aria-current='page'" : '';
             $icon = function_exists('sticpa_section_icon') ? sticpa_section_icon($key) : '';
             $menu .= "<li class='stic-nav-item " . $isActive . "'>
-                        <a class='stic-nav-link' href='?internalpage=" . $key . "'>
+                        <a class='stic-nav-link' href='?internalpage=" . $key . "'{$ariaCurrent}>
                             <span class='stic-nav-ico'>" . $icon . "</span>
                             <span class='stic-nav-text'>" . esc_html($label) . "</span>
                         </a>
@@ -280,11 +289,11 @@ function menu()
         }
         // "Más": recoge los items que no caben en una sola línea (lo gestiona el JS).
         $menu .= "<li class='stic-nav-item stic-nav-more-wrap' hidden>
-                    <button type='button' class='stic-nav-link stic-nav-more' aria-expanded='false' aria-haspopup='true' aria-label='" . esc_attr__('Más secciones', 'sticpa') . "'>
+                    <button type='button' class='stic-nav-link stic-nav-more' aria-expanded='false' aria-haspopup='true' aria-controls='stic-nav-more-menu' aria-label='" . esc_attr__('Más secciones', 'sticpa') . "'>
                         <span class='stic-nav-ico'>" . ($iconFn ? sticpa_icon('more') : '') . "</span>
                         <span class='stic-nav-text'>" . __('Más', 'sticpa') . "</span>
                     </button>
-                    <div class='stic-nav-more-menu'><ul></ul></div>
+                    <div class='stic-nav-more-menu' id='stic-nav-more-menu'><ul></ul></div>
                   </li>";
         $menu .= "</ul>";
     }

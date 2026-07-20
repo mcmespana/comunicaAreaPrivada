@@ -775,6 +775,98 @@ function download_document($documentId) {
 }
 
 /**
+ * Ruta en disco de la miniatura cacheada de la foto de perfil de un contacto.
+ * La clave es md5(id) para no exponer el id del CRM en el nombre del archivo.
+ * El directorio photo-cache/ puede vaciarse sin riesgo: se regenera solo.
+ *
+ * @param String $userId
+ * @return String
+ */
+function sticpa_profile_photo_cache_path($userId)
+{
+    $upload = wp_upload_dir();
+    return $upload['basedir'] . '/stic-uploads/photo-cache/' . md5((string) $userId) . '.jpg';
+}
+
+/**
+ * Endpoint que sirve la foto de perfil como miniatura JPEG cacheada en disco,
+ * en lugar de incrustarla como data URI base64 en el HTML de las páginas.
+ *
+ * Sirve SIEMPRE la foto del usuario EN SESIÓN ($_SESSION['scp_user_id']):
+ * el id nunca viene del request.
+ */
+add_action('admin_post_stic_profile_photo', 'prefix_admin_stic_profile_photo');
+add_action('admin_post_nopriv_stic_profile_photo', 'prefix_admin_stic_profile_photo');
+function prefix_admin_stic_profile_photo()
+{
+    if (empty($_SESSION['scp_user_id'])) {
+        status_header(403);
+        exit;
+    }
+    $userId = $_SESSION['scp_user_id'];
+    $cachePath = sticpa_profile_photo_cache_path($userId);
+
+    // Miniatura cacheada y fresca (< 24h) → se sirve directamente, sin CRM.
+    if (!is_file($cachePath) || (time() - (int) filemtime($cachePath)) >= DAY_IN_SECONDS) {
+        $objSCP = SugarRestApiCall::getObjSCP();
+        $image = $objSCP->get_image(array('id' => $userId, 'field' => 'photo'));
+        $binary = !empty($image->image_data->data) ? base64_decode($image->image_data->data) : false;
+        if (empty($binary)) {
+            // Sin foto en el CRM: el <img> mostrará el placeholder vía onerror.
+            status_header(404);
+            exit;
+        }
+
+        $cacheDir = dirname($cachePath);
+        if (!is_dir($cacheDir)) {
+            wp_mkdir_p($cacheDir);
+        }
+
+        // wp_get_image_editor() necesita un archivo de origen en disco.
+        $tmpPath = $cachePath . '.tmp';
+        if (file_put_contents($tmpPath, $binary) === false) {
+            status_header(500);
+            exit;
+        }
+
+        $resized = false;
+        $editor = wp_get_image_editor($tmpPath);
+        if (!is_wp_error($editor)) {
+            $editor->resize(400, 400, true);
+            $editor->set_quality(82);
+            $saved = $editor->save($cachePath, 'image/jpeg');
+            $resized = !is_wp_error($saved);
+        }
+        if ($resized) {
+            @unlink($tmpPath);
+        } else {
+            // Fallback integrado (STOP del plan resuelto por diseño): si el
+            // hosting no tiene GD/Imagick (WP_Error) o el guardado falla, se
+            // cachea y sirve el binario ORIGINAL sin redimensionar. Se pierde
+            // la reducción a 400×400, pero la página deja igualmente de
+            // incrustar base64 y las siguientes peticiones salen de disco.
+            if (!@rename($tmpPath, $cachePath)) {
+                @copy($tmpPath, $cachePath);
+                @unlink($tmpPath);
+            }
+        }
+        if (!is_file($cachePath)) {
+            status_header(500);
+            exit;
+        }
+    }
+
+    if (ob_get_level()) {
+        ob_end_clean();
+    }
+    header('Content-Type: image/jpeg');
+    header('Cache-Control: private, max-age=86400');
+    header('Content-Length: ' . filesize($cachePath));
+    readfile($cachePath);
+    exit;
+}
+
+/**
  * This helper function is used to upload files to a file field of a record
  *
  * @param String $fieldName
@@ -810,6 +902,20 @@ function upload_file_to_record($fieldName, $moduleName, $id) {
                 if (!$objSCP->set_image($contactData)) {
                     return $_REQUEST['scp_current_url'] . '&msg=error_upload';
                 } else {
+                    // Foto nueva subida: invalidar la miniatura cacheada del
+                    // endpoint stic_profile_photo para que la próxima petición
+                    // la regenere. Se invalida la del registro modificado y la
+                    // del usuario en sesión (coinciden salvo al editar la ficha
+                    // de otro miembro de la organización).
+                    if ($fieldName === 'photo') {
+                        $staleIds = array_unique(array_filter(array(
+                            (string) $id,
+                            (string) ($_SESSION['scp_user_id'] ?? ''),
+                        )));
+                        foreach ($staleIds as $staleId) {
+                            @unlink(sticpa_profile_photo_cache_path($staleId));
+                        }
+                    }
                     return  $_REQUEST['scp_current_url'] . '&msg=true';
                 }
             }

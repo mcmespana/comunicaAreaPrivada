@@ -31,7 +31,12 @@
     /* ---- Degradados de marca reutilizables ---- */
     --grad-brand: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 52%, var(--secondary-color) 100%);
     --grad-brand-rev: linear-gradient(135deg, var(--secondary-color) 0%, var(--accent-color) 48%, var(--primary-color) 100%);
-    --grad-brand-soft: linear-gradient(135deg, #eaf4fb 0%, #f1edf9 50%, #fbeaf5 100%);
+    /* Derivado de los tokens de marca (color-mix): recolorear --primary/--secondary
+       recolorea también los fondos suaves, como promete el design system §3. */
+    --grad-brand-soft: linear-gradient(135deg,
+        color-mix(in srgb, var(--primary-color) 9%, #fff) 0%,
+        color-mix(in srgb, var(--accent-color) 9%, #fff) 50%,
+        color-mix(in srgb, var(--secondary-color) 9%, #fff) 100%);
     --grad-sheen: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, .45) 50%, transparent 100%);
 
     /* ---- Superficies y cristal ---- */
@@ -47,8 +52,8 @@
     --shadow-md: 0 10px 28px rgba(21, 36, 71, 0.10);
     --shadow-lg: 0 20px 44px rgba(21, 36, 71, 0.14);
     --shadow-xl: 0 32px 70px rgba(21, 36, 71, 0.20);
-    --shadow-glow: 0 0 0 4px rgba(28, 111, 179, 0.16);
-    --shadow-glow-pink: 0 0 0 4px rgba(157, 30, 116, 0.16);
+    --shadow-glow: 0 0 0 4px color-mix(in srgb, var(--primary-color) 16%, transparent);
+    --shadow-glow-pink: 0 0 0 4px color-mix(in srgb, var(--secondary-color) 16%, transparent);
 
     /* ---- Radios generosos ---- */
     --radius-sm: 0.55rem;
@@ -64,6 +69,70 @@
     /* ---- Curvas de animación ---- */
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+    /* ---- Colores de estado (semánticos) — ÚNICA fuente para éxito/peligro/aviso.
+       Antes convivían dos rojos y dos verdes distintos para el mismo concepto. ---- */
+    --success-color:  #2f9e44;   /* acento/borde */
+    --success-dark:   #087f5b;   /* texto sobre fondo suave */
+    --success-light:  #40c057;
+    --success-soft:   #f4fbf7;
+    --success-50:     #e6fcf5;
+    --success-100:    #d3f9d8;
+    --success-border: #b2f2bb;
+
+    --danger-color:   #dc2626;   /* acciones destructivas */
+    --danger-dark:    #b91c1c;
+    --danger-light:   #ef4444;
+    --danger-soft:    #fef2f2;
+    --danger-100:     #fee2e2;
+    --danger-border:  #fecaca;
+
+    --warning-color:  #f59e0b;   /* avisos accionables */
+    --warning-dark:   #92400e;   /* texto principal ámbar */
+    --warning-darker: #78350f;
+    --warning-text:   #a16207;   /* texto secundario ámbar */
+    --warning-soft:   #fffbeb;
+    --warning-100:    #fef3c7;
+    --warning-200:    #fde68a;
+    --warning-border: #fcd34d;
+
+    /* ---- Herencia base (plan 018) — tokens que ANTES vivían en el :root de
+       stic-base.css. Se consolidan aquí para que haya UNA sola fuente. Los que
+       stic-base ya duplicaba con otro valor (marca, sombras, radios, estados,
+       font-family) los pisaba esta capa por orden de carga, así que se
+       eliminaron de allí sin efecto visual; estos otros solo existían en base
+       y se conservan con su valor exacto. ---- */
+    --white: #ffffff;
+    --gray-50:  #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    --gray-900: #111827;
+
+    --info-color: #3b82f6;
+    --info-light: #dbeafe;
+    --warning-light: #fef3c7;   /* pálido de fondo; distinto de --warning-* de arriba */
+
+    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+
+    --space-1: 0.25rem;  --space-2: 0.5rem;  --space-3: 0.75rem;
+    --space-4: 1rem;     --space-5: 1.25rem; --space-6: 1.5rem;
+    --space-8: 2rem;     --space-10: 2.5rem; --space-12: 3rem;
+
+    --font-size-xs: 0.75rem;  --font-size-sm: 0.875rem; --font-size-base: 1rem;
+    --font-size-lg: 1.125rem; --font-size-xl: 1.25rem;  --font-size-2xl: 1.5rem;
+    --font-size-3xl: 1.875rem;
+
+    --line-height-tight: 1.25;
+    --line-height-normal: 1.5;
+    --line-height-relaxed: 1.75;
 }
 
 /* ============================================================
@@ -77,7 +146,14 @@
         radial-gradient(1100px 460px at 100% -10%, rgba(157, 30, 116, 0.07), transparent 60%),
         radial-gradient(900px 480px at -10% 0%, rgba(28, 111, 179, 0.08), transparent 55%);
     border-radius: var(--radius-2xl);
+    /* Tema claro también para lo que pinta el NAVEGADOR (desplegables nativos
+       de <select>, autofill, spinners, scrollbars): §20.d fuerza superficies,
+       pero sin esta señal los controles nativos seguían el oscuro del SO. */
+    color-scheme: light;
+    scrollbar-color: var(--gray-300) transparent;
 }
+
+.stic-auth-shell { color-scheme: light; }
 
 .stic-tab-content {
     margin-top: 0.65rem;
@@ -147,12 +223,6 @@
     opacity: 0.6;
 }
 
-@keyframes stic-mesh {
-    0%   { background-position: 0% 0%; }
-    50%  { background-position: 100% 100%; }
-    100% { background-position: 0% 0%; }
-}
-
 /* ============================================================
    4. TARJETA DE LOGIN / RECUPERAR — glassmorphism premium
    ============================================================ */
@@ -173,22 +243,21 @@
     animation: stic-pop 0.6s var(--ease-spring) both;
 }
 
-/* Halo de color que respira detrás de la tarjeta */
+/* Halo de color detrás de la tarjeta. (Plan 020) Antes era var(--grad-brand)
+   con filter: blur(64px): difuminar un elemento grande en cada composición es
+   de lo más caro en GPU móvil. Un radial-gradient ya "nace" difuminado y no
+   cuesta filtro — mismo efecto, coste de pintura mucho menor. */
 .stic-login-form::before,
 .stic-forgotpas-form::before {
     content: '';
     position: absolute;
     inset: -45% -30% auto -30%;
     height: 70%;
-    background: var(--grad-brand);
-    filter: blur(64px);
-    opacity: 0.34;
+    background:
+        radial-gradient(60% 80% at 30% 20%, color-mix(in srgb, var(--primary-color) 32%, transparent), transparent 70%),
+        radial-gradient(60% 80% at 75% 30%, color-mix(in srgb, var(--secondary-color) 28%, transparent), transparent 70%);
+    opacity: 0.5;
     z-index: -1;
-}
-
-@keyframes stic-halo {
-    0%, 100% { transform: translateY(0) scale(1); opacity: 0.30; }
-    50%      { transform: translateY(8px) scale(1.06); opacity: 0.42; }
 }
 
 @keyframes stic-pop {
@@ -385,7 +454,7 @@ span.stic-field {
     align-items: center;
     gap: 0.85rem;
     margin: 1.3rem 0 1.1rem;
-    color: var(--gray-400);
+    color: var(--gray-500); /* gray-400 daba ~2.5:1 sobre blanco: ilegible */
     font-size: 0.78rem;
     font-weight: 600;
     letter-spacing: 0.08em;
@@ -618,12 +687,6 @@ span.stic-field {
     color: #fff;
 }
 
-@keyframes stic-gradient-shift {
-    0%   { background-position: 0% 50%; }
-    50%  { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-}
-
 /* ---- Barra superior: identidad + acciones ---- */
 .stic-nav-bar {
     display: flex;
@@ -792,6 +855,12 @@ span.stic-field {
 .stic-nav-item.current-menu-item .stic-nav-link::before {
     display: none !important;
 }
+/* El item activo también necesita su anillo de foco: la regla de arriba
+   (outline:none en :focus) lo dejaba invisible para el teclado. */
+.stic-nav-item.current-menu-item .stic-nav-link:focus-visible {
+    outline: 2px solid #fff !important;
+    outline-offset: 2px;
+}
 
 /* "Salir": último item, empujado a la derecha en escritorio. */
 .stic-nav-logout .stic-nav-ico { opacity: 1; }
@@ -859,6 +928,12 @@ span.stic-field {
 }
 .stic-nav-more-menu .stic-nav-ico { color: var(--primary-color) !important; opacity: 1 !important; }
 .stic-nav-more-menu .stic-nav-link:hover { background: var(--primary-50) !important; color: var(--primary-color) !important; transform: none !important; }
+/* Foco visible dentro del panel claro (el outline:none de arriba lo borraba). */
+.stic-nav-more-menu .stic-nav-link:focus-visible {
+    outline: none !important;
+    box-shadow: var(--shadow-glow) !important;
+    background: var(--primary-50) !important;
+}
 .stic-nav-more-menu .stic-nav-item.current-menu-item .stic-nav-link,
 .stic-nav-more-menu .stic-nav-item.current-menu-item .stic-nav-link:visited,
 .stic-nav-more-menu .stic-nav-item.current-menu-item .stic-nav-link:focus,
@@ -1253,6 +1328,11 @@ span.stic-field {
         var(--grad-brand) border-box;
     border-radius: var(--radius-xl);
     box-shadow: var(--shadow-md);
+    /* Los width/height del HTML reservan sitio (sin CLS); aquí garantizamos
+       que una foto no cuadrada no se deforme dentro de esa reserva. */
+    aspect-ratio: 1 / 1;
+    height: auto;
+    object-fit: cover;
 }
 
 /* ============================================================
@@ -1272,6 +1352,19 @@ span.stic-field {
     .stic-dashboard-grid { grid-template-columns: 1fr; }
 }
 
+/* (Plan 020) Cristal más barato en móvil: un fondo más opaco permite bajar el
+   radio de blur sin perder legibilidad, y el blur es la operación cara. */
+@media (max-width: 600px) {
+    :root { --glass-blur: 8px; }
+    .stic-login-form, .stic-forgotpas-form { background: rgba(255, 255, 255, 0.88); }
+}
+
+/* (Plan 020) Fallback sin backdrop-filter: sin soporte, el fondo translúcido
+   dejaba el texto sobre casi nada. Fondo sólido salvo que el blur exista. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .stic-login-form, .stic-forgotpas-form { background: rgba(255, 255, 255, 0.92); }
+}
+
 /* ============================================================
    17. MODO OSCURO (Desactivado a petición)
    ============================================================ */
@@ -1288,6 +1381,12 @@ span.stic-field {
     *, *::before, *::after {
         animation-duration: 0.01ms !important;
         transition-duration: 0.01ms !important;
+    }
+    /* El spinner de carga es información (algo está en marcha), no decoración:
+       congelado parecía que la página se había colgado. Gira más lento. */
+    .stic-spinner {
+        animation: stic-spin 2s linear infinite !important;
+        animation-duration: 2s !important;
     }
 }
 
@@ -1344,6 +1443,7 @@ span.stic-field {
     background: rgba(255, 255, 255, 0.18);
     border: 1px solid rgba(255, 255, 255, 0.35);
     backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
 }
 .stic-role-chip code { background: transparent; color: #fff; font-weight: 700; }
 
@@ -1540,21 +1640,24 @@ span.stic-field {
     .stic-tab-content,
     .stic-form,
     .stic-dash-card,
-    table, table.display {
-        color: #1f2937;
+    .stic-container table, .stic-container table.display {
+        color: var(--gray-800);
     }
-    .stic-dash-card { background: #ffffff !important; }
-    input, textarea, select, .input-text,
+    .stic-dash-card { background: var(--surface) !important; }
+    /* ACOTADO al área: el selector global `input, textarea…` de antes forzaba
+       fondos blancos en los formularios del TEMA de WordPress en modo oscuro
+       (el anti-patrón que prohíbe el design system §1.4). */
+    :is(.stic-container, .stic-auth-shell) :is(input, textarea, select, .input-text),
     .stic-field input {
-        background-color: #ffffff !important;
-        color: #1f2937 !important;
-        border-color: #e5e7eb !important;
+        background-color: var(--surface) !important;
+        color: var(--gray-800) !important;
+        border-color: var(--gray-200) !important;
     }
-    .stic-form select option { color: #1f2937; background: #ffffff; }
+    .stic-form select option { color: var(--gray-800); background: var(--surface); }
     .stic-dash-card::before { background: var(--grad-brand-soft); }
     .stic-dash-card:hover .stic-dash-title { color: var(--gray-900); }
     .stic-dash-card:hover .stic-dash-desc { color: var(--gray-500); }
-    tbody tr:hover { background-color: #f3f4f6 !important; }
+    .stic-container tbody tr:hover { background-color: var(--gray-100) !important; }
 }
 
 /* ============================================================
@@ -1698,10 +1801,13 @@ span.stic-field {
     display: none !important;
 }
 .stic-table-responsive td.stic-cell-actions a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;               /* target táctil AAA: antes ~30px */
     color: var(--primary-color);
     font-weight: 600;
     text-decoration: none;
-    padding: 0.35rem 0.7rem;
+    padding: 0.35rem 0.85rem;
     border-radius: var(--radius-sm);
     background: var(--primary-50);
     transition: background 0.18s ease, color 0.18s ease;
@@ -1775,15 +1881,15 @@ span.stic-field {
 .stic-send input.stic-button.stic-danger-button,
 .stic-danger-button {
     background: var(--surface) !important;
-    color: #e03131 !important;
-    border: 1.5px solid #ffc9c9 !important;
+    color: var(--danger-color) !important;
+    border: 1.5px solid var(--danger-border) !important;
     box-shadow: none !important;
 }
 .stic-send input.stic-button.stic-danger-button:hover,
 .stic-danger-button:hover {
-    background: #fff5f5 !important;
-    border-color: #e03131 !important;
-    color: #c92a2a !important;
+    background: var(--danger-soft) !important;
+    border-color: var(--danger-color) !important;
+    color: var(--danger-dark) !important;
 }
 .stic-danger-button::after { display: none !important; }
 
@@ -2215,7 +2321,7 @@ span.stic-field {
     border-radius: var(--radius-lg) !important;
     padding: 1.35rem 1.5rem !important;
     box-shadow: var(--shadow-sm) !important;
-    transition: all 0.25s var(--ease-out) !important;
+    transition: 0.25s var(--ease-out) !important; transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter !important;
 }
 .stic-form > form > ul > li:has(input[type="file"]):hover,
 .stic-form > form > ul > li:has(.stic-profile-picture):hover {
@@ -2286,9 +2392,9 @@ span.stic-field {
     align-items: center !important;
     gap: 0.4rem !important;
     padding: 0.3rem 0.75rem !important;
-    background: linear-gradient(135deg, #e6fcf5 0%, #d3f9d8 100%) !important;
-    color: #087f5b !important;
-    border: 1px solid #b2f2bb !important;
+    background: linear-gradient(135deg, var(--success-50) 0%, var(--success-100) 100%) !important;
+    color: var(--success-dark) !important;
+    border: 1px solid var(--success-border) !important;
     border-radius: var(--radius-full) !important;
     font-size: 0.78rem !important;
     font-weight: 700 !important;
@@ -2303,16 +2409,16 @@ span.stic-field {
 }
 .stic-file-uploaded-badge svg {
     flex-shrink: 0 !important;
-    stroke: #087f5b !important;
+    stroke: var(--success-dark) !important;
 }
 
 /* Tarjeta con badge = archivo subido: borde verde suave */
 .stic-form > form > ul > li:has(.stic-file-uploaded-badge) {
-    background-color: #f4fbf7 !important;
-    border-color: #40c057 !important;
+    background-color: var(--success-soft) !important;
+    border-color: var(--success-light) !important;
 }
 .stic-form > form > ul > li:has(.stic-file-uploaded-badge):hover {
-    border-color: #2f9e44 !important;
+    border-color: var(--success-color) !important;
 }
 
 /* ============================================================
@@ -2370,7 +2476,7 @@ span.stic-field {
 
 /* Bloque de archivo YA subido: el mensaje invita a sustituirlo. */
 .stic-form > form > ul > li.stic-has-file div {
-    color: #2f9e44 !important;
+    color: var(--success-color) !important;
     font-weight: 600 !important;
     opacity: 1 !important;
 }
@@ -2388,7 +2494,7 @@ span.stic-field {
     font-weight: 700 !important;
     font-size: 0.85rem !important;
     text-decoration: none !important;
-    transition: all 0.2s ease !important;
+    transition: 0.2s ease !important; transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter !important;
     cursor: pointer !important;
 }
 .stic-soft-btn:hover {
@@ -2481,11 +2587,11 @@ span.stic-field {
     width: 56px;
     height: 56px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+    background: linear-gradient(135deg, var(--danger-100) 0%, var(--danger-border) 100%);
     margin: 0 auto 1rem;
 }
 .stic-modal-icon svg {
-    stroke: #dc2626;
+    stroke: var(--danger-color);
 }
 
 /* --- 27.d Tipografía --- */
@@ -2519,7 +2625,7 @@ span.stic-field {
     font-size: 0.88rem;
     font-weight: 700;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: 0.2s ease; transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
     border: none;
     line-height: 1;
     font-family: inherit;
@@ -2538,7 +2644,7 @@ span.stic-field {
 
 /* Eliminar = rojo degradado */
 .stic-modal-btn--delete {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    background: linear-gradient(135deg, var(--danger-light) 0%, var(--danger-color) 100%);
     color: #fff;
     box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
 }
@@ -2619,9 +2725,12 @@ span.stic-field {
     bottom: 0;
     z-index: 20;
     margin-top: 0.8rem !important;
-    padding: 0.85rem 0 0.65rem !important;
+    /* safe-area: en la WebView de la app (?app=1) el botón Guardar quedaba
+       bajo el indicador de inicio de los iPhone con notch. */
+    padding: 0.85rem 0 calc(0.65rem + env(safe-area-inset-bottom, 0px)) !important;
     background: linear-gradient(to top, var(--surface-2) 70%, color-mix(in srgb, var(--surface-2) 40%, transparent));
     backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
 }
 @media (prefers-reduced-motion: reduce) {
     .stic-form > form > ul.stic-ctabs-list { backdrop-filter: none; }
@@ -2670,6 +2779,13 @@ span.stic-field {
     color: #fff;
     transform: scale(1.08);
     outline: none;
+}
+/* Área táctil ampliada a ~44px sin agrandar el icono (WCAG 2.5.8): el glifo
+   sigue siendo de 18px, pero el dedo tiene margen alrededor. */
+.stic-info::before {
+    content: '';
+    position: absolute;
+    inset: -13px;
 }
 .stic-info-mark,
 .stic-form li .stic-info-mark {
@@ -2747,11 +2863,11 @@ span.stic-field {
 /* Variante de ALERTA (ámbar): algo que conviene corregir, p. ej. el monitor
    sin su correo @movimientoconsolacion.com. */
 .stic-form li.stic-form-note.stic-note-warning {
-    background: linear-gradient(135deg, #fffbeb 0%, #fff7e6 100%) !important;
-    border-color: #fcd34d !important;
-    color: #92400e !important;
+    background: linear-gradient(135deg, var(--warning-soft) 0%, var(--warning-100) 100%) !important;
+    border-color: var(--warning-border) !important;
+    color: var(--warning-dark) !important;
 }
-.stic-form li.stic-form-note.stic-note-warning strong { color: #78350f; }
+.stic-form li.stic-form-note.stic-note-warning strong { color: var(--warning-darker); }
 
 /* ============================================================
    30. CONSENTIMIENTOS LEGALES — enlace "ver condiciones" + select
@@ -2987,9 +3103,9 @@ span.stic-field {
     margin: 0 0 1.1rem;
     padding: 0.5rem 0.95rem;
     border-radius: var(--radius-full);
-    background: #fff7e6;
-    border: 1px solid #ffd591;
-    color: #ad6800;
+    background: var(--warning-100);
+    border: 1px solid var(--warning-border);
+    color: var(--warning-text);
     font-size: 0.82rem;
     font-weight: 700;
 }
@@ -3063,13 +3179,14 @@ span.stic-field {
     font-weight: 800;
     letter-spacing: 0.09em;
     text-transform: uppercase;
-    color: var(--gray-400);
+    color: var(--gray-500); /* gray-400 no llegaba a AA en texto tan pequeño */
 }
 .stic-part-switch-menu ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .stic-part-option {
     display: flex;
     align-items: center;
     gap: 0.6rem;
+    min-height: 44px;               /* target táctil cómodo en móvil */
     padding: 0.55rem 0.65rem;
     border-radius: var(--radius-md);
     color: var(--gray-700) !important;
@@ -3079,6 +3196,11 @@ span.stic-field {
     transition: background 0.15s ease, color 0.15s ease;
 }
 .stic-part-option:hover { background: var(--primary-50); color: var(--primary-color) !important; }
+.stic-part-option:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-glow);
+    background: var(--primary-50);
+}
 .stic-part-option .stic-part-avatar {
     display: grid;
     place-items: center;
@@ -3243,15 +3365,15 @@ span.stic-field {
 .stic-alert-cta svg { width: 15px; height: 15px; }
 
 .stic-alert--warning {
-    background: linear-gradient(135deg, #fffbeb 0%, #fff7e6 100%);
-    border-color: #fcd34d;
+    background: linear-gradient(135deg, var(--warning-soft) 0%, var(--warning-100) 100%);
+    border-color: var(--warning-border);
 }
 .stic-alert--warning .stic-alert-ico {
-    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    background: linear-gradient(135deg, var(--warning-100), var(--warning-200));
     color: #b45309;
 }
-.stic-alert--warning .stic-alert-title { color: #92400e; }
-.stic-alert--warning .stic-alert-text { color: #a16207; }
+.stic-alert--warning .stic-alert-title { color: var(--warning-dark); }
+.stic-alert--warning .stic-alert-text { color: var(--warning-text); }
 
 @media (max-width: 600px) {
     .stic-alert { align-items: flex-start; }
@@ -3272,6 +3394,26 @@ span.stic-field {
     padding-right: 2.2rem !important;   /* hueco para el chevron */
     position: relative;
 }
+/* El interruptor real es un <button> dentro del h5 (el heading conserva su rol
+   para lectores de pantalla). Se camufla: hereda la tipografía de la cabecera.
+   !important: los temas WP suelen estilar `.entry-content button`. */
+.stic-form h5.stic-sec-toggle .stic-sec-btn {
+    display: block !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    font: inherit !important;
+    letter-spacing: inherit !important;
+    color: inherit !important;
+    text-align: left !important;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+.stic-form h5.stic-sec-toggle .stic-sec-btn::after,
+.stic-form h5.stic-sec-toggle .stic-sec-btn::before { display: none !important; }
 .stic-form h5.stic-sec-toggle .stic-sec-chevron {
     position: absolute;
     right: 0.15rem;
@@ -3294,10 +3436,10 @@ span.stic-field {
 .stic-form h5.stic-sec-toggle.is-collapsed .stic-sec-chevron {
     transform: translateY(-65%) rotate(-90deg);
 }
-.stic-form h5.stic-sec-toggle:focus-visible {
-    outline: none;
+.stic-form h5.stic-sec-toggle .stic-sec-btn:focus-visible {
+    outline: none !important;
     border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-glow);
+    box-shadow: var(--shadow-glow) !important;
 }
 /* La tarjeta plegada desaparece del flujo (los campos required dentro los
    desactiva el JS mientras están ocultos, como en los condicionales). */
@@ -3457,7 +3599,7 @@ span.stic-field {
    que hasta pulsar Guardar no se sube nada.
    ============================================================ */
 .stic-profile-picture.is-pending {
-    outline: 3px dashed #f59e0b;
+    outline: 3px dashed var(--warning-color);
     outline-offset: 3px;
 }
 .stic-pending-badge {
@@ -3467,9 +3609,9 @@ span.stic-field {
     margin-top: 0.55rem;
     padding: 0.35rem 0.8rem;
     border-radius: var(--radius-full);
-    background: linear-gradient(135deg, #fef3c7, #fde68a);
-    border: 1px solid #fcd34d;
-    color: #92400e;
+    background: linear-gradient(135deg, var(--warning-100), var(--warning-200));
+    border: 1px solid var(--warning-border);
+    color: var(--warning-dark);
     font-size: 0.8rem;
     font-weight: 700;
     animation: stic-badge-in 0.35s var(--ease-spring) both;
@@ -3509,3 +3651,285 @@ span.stic-field {
 .stic-table-responsive table.display tbody tr:nth-child(6) { animation-delay: 0.18s; }
 .stic-table-responsive table.display tbody tr:nth-child(7) { animation-delay: 0.21s; }
 .stic-table-responsive table.display tbody tr:nth-child(n+8) { animation-delay: 0.24s; }
+
+/* ============================================================
+   42. VALIDACIÓN INLINE, FOCO DE BOTONES Y PULIDO A11Y
+   ------------------------------------------------------------
+   · Campos inválidos ([invalid]/aria-invalid): borde + mensaje rojo
+     (stic-utils.js::sticSetFieldError sustituye a los alert() nativos).
+   · Anillo de foco de teclado en TODOS los botones de acción (WCAG 2.4.7).
+   · Placeholders legibles (el gris por defecto del navegador no llega a AA).
+   · Mensajes de éxito/error: salida suave por temporizador (stic-msg-hide).
+   · Leyenda del calendario y variante de error del estado vacío.
+   ============================================================ */
+
+/* --- 42.a Campos inválidos --- */
+.stic-form .input-text[invalid],
+.stic-form .input-text[aria-invalid="true"],
+.stic-form :is(input, select, textarea)[invalid],
+.stic-form :is(input, select, textarea)[aria-invalid="true"] {
+    border-color: var(--danger-color) !important;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger-color) 14%, transparent) !important;
+}
+.stic-field-error {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--danger-color);
+    animation: stic-msg-in 0.25s var(--ease-out) both;
+}
+
+/* --- 42.b Foco visible en botones de acción y modales --- */
+.stic-container .stic-button:focus-visible,
+.stic-container .stic-back-button:focus-visible,
+.stic-container .stic-soft-btn:focus-visible,
+.stic-auth-shell .stic-btn-magic:focus-visible,
+.stic-auth-shell input[type="submit"]:focus-visible,
+.stic-modal-btn:focus-visible {
+    outline: none !important;
+    box-shadow: var(--shadow-glow) !important;
+}
+.stic-container .stic-danger-button:focus-visible,
+.stic-modal-btn--delete:focus-visible {
+    outline: none !important;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger-color) 22%, transparent) !important;
+}
+
+/* --- 42.c Placeholders con contraste suficiente --- */
+:is(.stic-container, .stic-auth-shell) :is(input, textarea)::placeholder {
+    color: var(--gray-500);
+    opacity: 1;
+}
+
+/* --- 42.d Mensajes: transición de despedida (el JS añade .stic-msg-hide) --- */
+:is(.stic-container, .stic-auth-shell) .stic-msg,
+:is(.stic-container, .stic-auth-shell) :is(.success, .error) {
+    transition: opacity 0.6s ease;
+}
+.stic-msg-hide { opacity: 0; }
+
+/* --- 42.e Leyenda del calendario (antes eran <label> sueltos) --- */
+.stic-calendar-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.4rem;
+    margin: 0 0 1rem;
+    font-size: 0.88rem;
+    color: var(--gray-600);
+}
+.stic-legend-item { display: inline-flex; align-items: center; gap: 0.45rem; }
+.stic-legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.stic-legend-item--sessions .stic-legend-dot { background: #dc001b; } /* color fijado en el JS del calendario */
+.stic-legend-item--events .stic-legend-dot { background: #3788d8; }  /* azul por defecto de FullCalendar */
+
+/* --- 42.f Estado vacío: variante de error (p. ej. pago fallido) --- */
+.stic-empty-state--error { border-color: var(--danger-border); }
+.stic-empty-ico--error { background: var(--danger-100); color: var(--danger-color); }
+.stic-empty-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.7rem;
+    margin: 0.9rem 0 0;
+}
+
+/* ============================================================
+   43. CHROME DE DATATABLES — buscador, contador y "sin resultados"
+   ------------------------------------------------------------
+   (plan 019) El CSS vendorizado de DataTables (css/vendor/, plan 010)
+   pinta su chrome con el look por defecto; aquí se integra con el
+   sistema: input de búsqueda como .stic-field, contador discreto,
+   paginación como .stic-soft-btn (por si algún listado la activa) y
+   el "sin resultados" de la búsqueda como estado vacío compacto.
+   Todo acotado a .stic-container; los !important puntuales ganan a
+   los estilos de §22.b (tarjetas) o al CSS vendorizado, y van
+   comentados uno a uno.
+   ============================================================ */
+
+/* --- 43.a Buscador: input como .stic-field --- */
+.stic-container .dataTables_wrapper .dataTables_filter {
+    float: none;                 /* el vendorizado lo flota a la derecha */
+    text-align: left;
+    margin: 0 0 1.1rem;
+}
+.stic-container .dataTables_wrapper .dataTables_filter label {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    max-width: 26rem;
+    /* El texto "Buscar:" del label es un nodo suelto (no admite clase sr-only
+       propia): se oculta visualmente con font-size 0 — el placeholder ya dice
+       lo mismo y los lectores de pantalla siguen leyendo el label. */
+    font-size: 0;
+}
+.stic-container .dataTables_wrapper .dataTables_filter input {
+    flex: 1 1 auto;
+    width: 100%;
+    min-height: 44px;            /* target táctil del sistema */
+    margin-left: 0;              /* el vendorizado añade .5em de hueco del label */
+    padding: 0.55rem 0.95rem;
+    font-family: var(--font-family);
+    font-size: 0.95rem;
+    color: var(--gray-800);
+    background: var(--surface);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-xs);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+/* El estado :focus (borde primario + --shadow-glow) ya lo aporta §12. */
+
+/* --- 43.b Contador "Mostrando X de Y": discreto bajo las tarjetas --- */
+.stic-container .dataTables_wrapper .dataTables_info {
+    float: none;                 /* el vendorizado lo flota a la izquierda */
+    clear: both;
+    padding-top: 0.35rem;
+    font-size: 0.85rem;
+    color: var(--gray-500);
+}
+
+/* --- 43.c Paginación (ningún listado la activa hoy; look .stic-soft-btn) --- */
+.stic-container .dataTables_wrapper .dataTables_paginate {
+    float: none;
+    text-align: left;
+    margin-top: 0.7rem;
+}
+.stic-container .dataTables_wrapper .dataTables_paginate .paginate_button {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0.45rem 0.95rem;
+    margin-left: 0.35rem;
+    border: 1.5px solid color-mix(in srgb, var(--primary-color) 22%, transparent);
+    border-radius: var(--radius-md);
+    background: var(--primary-50);
+    color: var(--primary-color) !important; /* el vendorizado fuerza su color con !important */
+    font-weight: 600;
+    transition: background 0.18s ease, color 0.18s ease;
+}
+.stic-container .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+    background: var(--primary-color);
+    border-color: transparent;
+    color: #fff !important;      /* ídem: gana al hover !important del vendorizado */
+}
+/* El .current (fondo de marca) ya lo aporta §12. */
+
+/* --- 43.d "Sin resultados" de búsqueda como estado vacío compacto ---
+   DataTables pinta zeroRecords como una fila <tr><td class="dataTables_empty">;
+   dentro del layout de tarjetas (§22.b) parecía una tarjeta rota. Se re-viste
+   como .stic-empty-state compacto (borde discontinuo, texto centrado). */
+.stic-container .stic-table-responsive table.display tbody tr:has(> td.dataTables_empty) {
+    grid-column: 1 / -1;                            /* ocupa todo el grid de 2 col en escritorio */
+    border: 1px dashed var(--gray-300) !important;  /* gana al borde sólido de tarjeta de §22.b */
+    box-shadow: none;
+    background: var(--surface) !important;          /* gana al hover de fila de §12 */
+}
+.stic-container .stic-table-responsive table.display tbody tr:has(> td.dataTables_empty):hover {
+    transform: none;
+    box-shadow: none;
+}
+.stic-container .stic-table-responsive table.display td.dataTables_empty {
+    display: block !important;                      /* gana al display:flex de celda de §22.b */
+    padding: 1.8rem 1.2rem !important;              /* gana al padding de celda de §22.b */
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--gray-500);
+}
+.stic-container .stic-table-responsive table.display td.dataTables_empty::before {
+    display: none;               /* sin pseudo-etiqueta data-label en el estado vacío */
+}
+
+/* ============================================================
+   44. TEMA OSCURO OPT-IN — [data-stic-theme="dark"] (plan 016)
+   ------------------------------------------------------------
+   NO se activa por el modo oscuro del SO: el área es clara por
+   defecto (decisión de producto). El usuario lo enciende con el
+   botón de la barra; el estado se recuerda en cookie (lo pinta el
+   servidor sin flash) + localStorage (js/stic-ui.js).
+   Todo se consigue REDEFINIENDO TOKENS: como el resto del CSS usa
+   var(--…), no hay que reescribir reglas. Cero cambio en claro.
+   ============================================================ */
+.stic-container[data-stic-theme="dark"],
+.stic-auth-shell[data-stic-theme="dark"],
+:root[data-stic-theme="dark"] {
+    color-scheme: dark;
+    --surface: #111827;
+    --surface-2: #1f2937;
+    --surface-glass: rgba(17, 24, 39, 0.74);
+    --glass-border: rgba(255, 255, 255, 0.14);
+    --primary-50:   color-mix(in srgb, var(--primary-color) 20%, #111827);
+    --secondary-50: color-mix(in srgb, var(--secondary-color) 20%, #111827);
+    /* Escala de grises INVERTIDA: el texto (gray-700..900) sale claro y los
+       fondos (gray-50..200) oscuros — sin tocar ninguna regla que use var(). */
+    --gray-50:  #1f2937;  --gray-100: #273449;  --gray-200: #374151;
+    --gray-300: #4b5563;  --gray-400: #6b7280;  --gray-500: #9ca3af;
+    --gray-600: #cbd5e1;  --gray-700: #d1d5db;  --gray-800: #e5e7eb;  --gray-900: #f9fafb;
+    --white: #0b1220;     /* "blanco" invertido para los pocos usos directos */
+    /* Estados: fondos suaves oscurecidos + texto legible sobre ellos */
+    --success-soft: color-mix(in srgb, var(--success-color) 16%, #111827);
+    --success-50:   color-mix(in srgb, var(--success-color) 20%, #111827);
+    --success-100:  color-mix(in srgb, var(--success-color) 26%, #111827);
+    --success-dark: #34d399;
+    --danger-soft:  color-mix(in srgb, var(--danger-color) 16%, #111827);
+    --danger-100:   color-mix(in srgb, var(--danger-color) 24%, #111827);
+    --warning-soft: color-mix(in srgb, var(--warning-color) 14%, #111827);
+    --warning-100:  color-mix(in srgb, var(--warning-color) 20%, #111827);
+    --warning-200:  color-mix(in srgb, var(--warning-color) 28%, #111827);
+    --warning-light: color-mix(in srgb, var(--warning-color) 18%, #111827);
+    --warning-dark: #fbbf24;
+    --warning-darker: #fcd34d;
+    --warning-text: #f59e0b;
+    scrollbar-color: var(--gray-300) transparent;
+}
+
+/* Inputs: §20.d fuerza fondos claros con !important dentro de prefers-color-scheme:dark;
+   aquí (mayor especificidad por el atributo) devolvemos el oscuro. */
+.stic-container[data-stic-theme="dark"] :is(input, textarea, select, .input-text),
+.stic-auth-shell[data-stic-theme="dark"] :is(input, textarea, select, .input-text),
+[data-stic-theme="dark"] .stic-field input {
+    background-color: var(--surface-2) !important;
+    color: var(--gray-800) !important;
+    border-color: var(--gray-200) !important;
+}
+[data-stic-theme="dark"] .stic-form select option { color: #e5e7eb; background: #1f2937; }
+
+/* Banda de cabecera de las tarjetas de listado: el tinte claro sobre oscuro se
+   ve raro; tinte de marca oscuro coherente. */
+.stic-container[data-stic-theme="dark"] .stic-table-responsive td.stic-cell-title {
+    background: linear-gradient(135deg,
+        color-mix(in srgb, var(--primary-color) 26%, #111827),
+        color-mix(in srgb, var(--secondary-color) 26%, #111827));
+}
+
+/* Elementos anclados a <body> (portales): overlay de carga, tooltips y modales.
+   Se tematizan por el atributo en <html> (lo estampa js/stic-ui.js::applyTheme). */
+:root[data-stic-theme="dark"] .stic-loading-overlay { background: rgba(11, 18, 32, 0.85); }
+:root[data-stic-theme="dark"] .stic-info-tip { background: #0b1220; }
+:root[data-stic-theme="dark"] .stic-modal-card,
+:root[data-stic-theme="dark"] .stic-crop-card { background: #1f2937; color: #e5e7eb; }
+:root[data-stic-theme="dark"] .stic-modal-msg { color: #cbd5e1; }
+
+/* FullCalendar 5 expone variables CSS: se redefinen para el calendario oscuro. */
+:root[data-stic-theme="dark"] #calendar,
+.stic-container[data-stic-theme="dark"] #calendar {
+    --fc-page-bg-color: var(--surface);
+    --fc-neutral-bg-color: var(--surface-2);
+    --fc-border-color: var(--gray-200);
+    --fc-list-event-hover-bg-color: var(--gray-100);
+    --fc-today-bg-color: color-mix(in srgb, var(--primary-color) 22%, #111827);
+    color: var(--gray-800);
+}
+
+/* Iconos del botón de tema: luna en claro (→ ir a oscuro), sol en oscuro. */
+.stic-theme-sun { display: none; }
+.stic-theme-moon { display: block; }
+[data-stic-theme="dark"] .stic-theme-sun { display: block; }
+[data-stic-theme="dark"] .stic-theme-moon { display: none; }
+.stic-theme-toggle svg { width: 20px; height: 20px; }
