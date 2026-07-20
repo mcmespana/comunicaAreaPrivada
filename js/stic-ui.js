@@ -605,20 +605,14 @@
         });
     }
 
-    function initTheme() {
-        // El servidor ya marcó los contenedores desde la cookie; sincronizamos
-        // <html> (para overlays/tooltips) y, como respaldo, respetamos lo que
-        // diga localStorage si por lo que sea la cookie no llegó.
-        var serverDark = !!document.querySelector('.stic-container[data-stic-theme="dark"], .stic-auth-shell[data-stic-theme="dark"]');
-        var stored = null;
-        try { stored = localStorage.getItem('sticpa-theme'); } catch (err) { /* privado */ }
-        applyTheme((serverDark || stored === 'dark') ? 'dark' : 'light');
-    }
-
     ready(function () {
-        initTheme();
+        // Tema oscuro aparcado: forzamos claro y limpiamos cualquier rastro
+        // (cookie/localStorage/atributo de pruebas anteriores) para que nadie
+        // quede en oscuro tras la retirada del conmutador.
+        applyTheme('light');
+        try { localStorage.removeItem('sticpa-theme'); } catch (err) { /* nada */ }
+        try { document.cookie = 'sticpa_theme=;path=/;max-age=0;samesite=lax'; } catch (err) { /* nada */ }
         bindLoadingForms();
-        bindThemeToggle();
         bindPasswordToggles();
         bindAuthToggle();
         bindNavToggle();

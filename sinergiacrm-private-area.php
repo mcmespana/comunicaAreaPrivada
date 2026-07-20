@@ -557,10 +557,7 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
     $html .= "
         <div class='stic-auth-view stic-auth-magic' id='stic-auth-panel-magic' role='tabpanel' aria-labelledby='stic-auth-tab-magic'>
             " . $magicMsg . "
-            <p class='stic-auth-help'>
-                <span class='stic-sparkle' aria-hidden='true'>" . sticpa_icon('sparkles') . "</span>
-                " . __('Sin contraseñas que recordar: escribe tu email y te enviamos un enlace para entrar con un clic.', 'sticpa') . "
-            </p>
+            <p class='stic-auth-help'>" . __('Escribe tu correo y te enviamos un enlace para entrar. Sin contraseñas.', 'sticpa') . "</p>
             <form action='" . site_url() . "/wp-admin/admin-post.php' method='post' class='stic-loading-form'
                   data-loading-text='" . esc_attr__('Enviando tu enlace de acceso…', 'sticpa') . "'
                   data-loading-sub='" . esc_attr__('En unos segundos lo tendrás en tu correo.', 'sticpa') . "'>
@@ -594,6 +591,7 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
     /* ---------- VISTA 2: USUARIO + CONTRASEÑA ---------- */
     $html .= "
         <div class='stic-auth-view stic-auth-login' id='stic-auth-panel-password' role='tabpanel' aria-labelledby='stic-auth-tab-password'>
+            <p class='stic-auth-help'>" . __('Solo si ya creaste una contraseña. Tu usuario es tu DNI.', 'sticpa') . "</p>
             <form name='stic-login-form' id='stic-login-form' class='stic-loading-form' action='' method='post'
                   data-loading-text='" . esc_attr__('Verificando tus datos…', 'sticpa') . "'
                   data-loading-sub='" . esc_attr__('Estamos comprobando tu acceso de forma segura.', 'sticpa') . "'>
@@ -628,8 +626,7 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
     $html .= "
         <p class='stic-auth-links' style='text-align:center;margin-top:1.1rem;font-size:0.92rem;color:var(--gray-500);'>"
         . __('¿Todavía no tienes cuenta?', 'sticpa') . " <a href='?internalpage=single_stic_signup'>" . __('Consulta cómo conseguirlo', 'sticpa') . "</a>
-        </p>
-        <p class='stic-auth-trust'>" . sticpa_icon('shield') . "<span>" . __('Conexión segura · Tus datos viven en SinergiaCRM', 'sticpa') . "</span></p>";
+        </p>";
 
     return $html;
 }
@@ -924,16 +921,14 @@ function sticpa_is_app_mode()
 }
 
 /**
- * Atributo data-stic-theme para los contenedores del área (plan 016).
- * El tema oscuro es OPT-IN: solo se activa si el usuario lo eligió (cookie
- * escrita por el toggle en js/stic-ui.js). Por defecto, claro. Se pinta en
- * servidor — como el modo app — para que NO haya flash de tema al cargar.
+ * Atributo data-stic-theme para los contenedores del área.
+ * DESACTIVADO a propósito: el tema oscuro (plan 016) queda aparcado hasta
+ * rediseñarlo bien. De momento TODO claro; esta función siempre devuelve ''.
+ * (El CSS §44 y el JS del tema quedan latentes pero nunca se activan.)
  */
 function sticpa_theme_attr()
 {
-    return (!empty($_COOKIE['sticpa_theme']) && $_COOKIE['sticpa_theme'] === 'dark')
-        ? " data-stic-theme='dark'"
-        : '';
+    return '';
 }
 
 // Clase en el body + CSS que esconde el "chrome" del tema alrededor del área.

@@ -250,14 +250,9 @@ function menu()
     // Con menú: solo la hamburguesa (en móvil). El "Salir" va como último item.
     // Sin menú (p. ej. selección de perfil): dejamos "Salir" accesible aquí.
     // "Salir" SIEMPRE arriba a la derecha (icono + texto en escritorio, solo icono en móvil).
-    // Conmutador de tema (claro/oscuro). Opt-in: el estado real lo aplica y
-    // recuerda js/stic-ui.js (cookie + localStorage); aquí solo el botón.
-    $themeIsDark = (!empty($_COOKIE['sticpa_theme']) && $_COOKIE['sticpa_theme'] === 'dark');
-    $sun = "<svg class='stic-theme-sun' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><circle cx='12' cy='12' r='4'/><path d='M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4'/></svg>";
-    $moon = "<svg class='stic-theme-moon' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><path d='M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z'/></svg>";
-
+    // (El conmutador de tema claro/oscuro se retiró: el modo oscuro queda
+    // aparcado hasta rediseñarlo. De momento todo claro.)
     $actions = "<div class='stic-nav-actions'>";
-    $actions .= "<button type='button' class='stic-iconbtn stic-theme-toggle' aria-pressed='" . ($themeIsDark ? 'true' : 'false') . "' title='" . esc_attr__('Cambiar tema claro/oscuro', 'sticpa') . "' aria-label='" . esc_attr__('Cambiar tema claro/oscuro', 'sticpa') . "'>" . $sun . $moon . "</button>";
     $actions .= "<a class='stic-iconbtn stic-logout' href='?logout=true' title='" . esc_attr__('Cerrar sesión', 'sticpa') . "' aria-label='" . esc_attr__('Cerrar sesión', 'sticpa') . "'>"
         . ($iconFn ? sticpa_icon('logout') : '') . "<span class='stic-logout-text'>" . __('Salir', 'sticpa') . "</span></a>";
     if ($showItems) {
