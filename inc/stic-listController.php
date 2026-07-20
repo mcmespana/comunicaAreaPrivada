@@ -5,12 +5,13 @@ function makeList($columnsList, $listSettings, $data, $extraActions = array())
     $objSCP = SugarRestApiCall::getObjSCP();
 
     $fields = array_column($columnsList, 'name');
-    $fieldsDefinitionResults = $objSCP->getFieldDefinition($listSettings['moduleName'], $fields);
-    $fieldsDefinitionResultsArray = json_decode(json_encode($fieldsDefinitionResults), true);
+    // Definición de campos cacheada 6h — misma estrategia que makeForm
+    // (ver sticpa_cached_field_definition en inc/stic-formController.php).
+    $fieldsDefinition = sticpa_cached_field_definition($objSCP, $listSettings['moduleName'], $fields);
 
-    $fieldsDefinition = $fieldsDefinitionResultsArray['module_fields'] ?? null;
-
-    $html = "<link href='https://cdn.datatables.net/1.12.1/css/jquery.dataTables.min.css' rel='stylesheet'>";
+    // El CSS de DataTables ya no se inyecta aquí desde el CDN: está vendorizado
+    // en css/vendor/ y se encola en sugar_crm_portal_style_and_script (plan 010).
+    $html = '';
 
     $current_url = explode('?', $_SERVER['REQUEST_URI'], 2);
     $current_url = $current_url[0];
@@ -24,12 +25,27 @@ function makeList($columnsList, $listSettings, $data, $extraActions = array())
         $params['order_by'] = $_REQUEST['order_by'] . " " . $_REQUEST['order'];
     }
 
+    // Init de DataTables dirigida por datos (plan 021): en vez de un <script>
+    // inline por listado, la configuración viaja en data-dt-settings y la lee
+    // js/stic-init.js. El objeto `language` (localizado) NO va aquí: se define
+    // UNA sola vez en getSticScriptVars() (inc/stic-script-vars.php).
+    $dtAttr = '';
+    if (!empty($listSettings['datatables']['value'])) {
+        // El listado se pinta como TARJETAS (thead fuera de pantalla, §22.b del CSS):
+        // la ordenación por cabecera es inalcanzable y sus <th tabindex=0> ocultos
+        // atrapaban el foco del teclado en -9999px. Se desactiva salvo petición explícita.
+        if (!isset($listSettings['datatables']['jsonSettings']['ordering'])) {
+            $listSettings['datatables']['jsonSettings']['ordering'] = false;
+        }
+        $dtAttr = " data-dt-settings='" . esc_attr(json_encode((object) $listSettings['datatables']['jsonSettings'])) . "'";
+    }
+
     if ($data != null) {
 
         //buid column headers
         $html .= "
         <div class='stic-table-responsive {$listSettings['fileName']}'>
-            <table id='this-list' class='display' cellspacing='0' width='100%'>
+            <table id='this-list' class='display' cellspacing='0' width='100%'{$dtAttr}>
                 <thead>
                     <tr class='main-col'>";
         $labelMap = array();
@@ -41,9 +57,9 @@ function makeList($columnsList, $listSettings, $data, $extraActions = array())
                 $label = $fieldsDefinition[$value['name']]['label'];
             }
             $labelMap[$value['name']] = $label;
-            $html .= "<th class='{$value['name']}'>{$label}</th>";
+            $html .= "<th scope='col' class='{$value['name']}'>{$label}</th>";
         }
-        $html .= "<th>" . __('Actions', 'sticpa') . "</th>";
+        $html .= "<th scope='col'>" . __('Actions', 'sticpa') . "</th>";
         $html .= "
     </tr>
     </thead>";
@@ -111,39 +127,6 @@ function makeList($columnsList, $listSettings, $data, $extraActions = array())
         }
     }
 
-    if ($listSettings['datatables']['value'] == true) {
-        $listSettings['datatables']['jsonSettings']['language'] = array(
-            "decimal" =>        "",
-            "emptyTable" =>     __("No data available in table.", 'sticpa'),
-            "info" =>           __("Showing _START_ to _END_ of _TOTAL_ entries", 'sticpa'),
-            "infoEmpty" =>      __("Showing 0 to 0 of 0 entries", 'sticpa'),
-            "infoFiltered" =>   __("(filtered from _MAX_ total entries)", 'sticpa'),
-            "infoPostFix" =>    "",
-            "thousands" =>      ",",
-            "lengthMenu" =>    __("Show _MENU_ entries", 'sticpa'),
-            "loadingRecords" => __("Loading...", 'sticpa'),
-            "processing" =>     "",
-            "search" =>         __("Search", 'sticpa'),
-            "zeroRecords" =>    __("No matching records found.", 'sticpa'),
-            "paginate" => array(
-                "first" =>      __("First", 'sticpa'),
-                "last" =>       __("Last", 'sticpa'),
-                "next" =>       __("Next", 'sticpa'),
-                "previous" =>   __("Previous", 'sticpa')
-            ),
-            "aria" => array(
-                "sortAscending" =>  __(": activate to sort column ascending", 'sticpa'),
-                "sortDescending" => __(": activate to sort column descending", 'sticpa'),
-            )
-        );
-        $html .= "<script type='text/javascript'>";
-        // $html .= "$(document).ready( function () {";
-        $html .= "document.addEventListener('DOMContentLoaded', function(event) { ";
-        $html .= "jQuery('#this-list').DataTable(" . json_encode($listSettings['datatables']['jsonSettings']) . ");";
-        $html .= "});";
-        $html .= "</script>";
-    }
-
     return $html;
 }
 // build buttons that appear in the last column of the table list
@@ -168,7 +151,8 @@ function renderDeleteMessage($messages)
     $html = '';
     foreach ($messages as $key => $value) {
         if (isset($_REQUEST['msgDelete']) && $_REQUEST['msgDelete'] == $value['value']) {
-            $html .= "<span  style='transition: all 2s ease-in-out;' id='successMsg' class='{$value['type']} stic-msg'>{$value['msg']}</span>";
+            $role = ($value['type'] === 'error') ? 'alert' : 'status';
+            $html .= "<span id='successMsg' role='{$role}' class='{$value['type']} stic-msg'>{$value['msg']}</span>";
         }
     }
     return $html;

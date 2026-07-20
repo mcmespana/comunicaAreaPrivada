@@ -87,7 +87,6 @@ foreach($getRelatedRegistrations as $element) {
         "limit" => 0,
     );
     $getAttendances = $objSCP->getRelatedElementsForLoggedUser($params);
-    // debug($getAttendances, 'wek');
     if (is_array($getAttendances)) {
         foreach($getAttendances as $attendance) {
             $availableAttendances[] = $attendance;

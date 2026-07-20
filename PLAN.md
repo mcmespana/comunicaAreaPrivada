@@ -82,14 +82,6 @@
 
 ---
 
-## Bloqueante actual
-
-**Fase 1.** Necesito una de estas dos para avanzar:
-1. **DNI de 1 monitor y 1 laico** de ejemplo → lanzo `get_module_fields` / `get_relationships`
-   (read-only) y confirmo el campo de rol, o
-2. me indicáis **el campo/relación** donde marcáis monitor vs laico y voy directo a
-   `sticpa_get_comunica_role()`.
-
 ## Email del enlace mágico
 
 - [x] **URL absoluta**: usaba `REQUEST_URI` (relativa) → enlace inservible. Ahora base =
@@ -128,8 +120,9 @@
   `table`, `thead`…) que se aplicaban a TODA la página, no solo al área privada.
 - **Arreglo:** acotados a `.stic-container` / `.stic-tab-content` / `.stic-auth-shell` en
   [`css/custom-style.css`](css/custom-style.css) (secciones 10-13) y en
-  [`css/stic-modern-style.css`](css/stic-modern-style.css) (reset, body, botones, inputs,
-  tablas). El `<button>` genérico ya NO recibe gradiente (rompía menú del tema y FullCalendar).
+  [`css/stic-base.css`](css/stic-base.css) (capa base consolidada por UI-15: ex `stic-style` +
+  `stic-modern-style`; reset, body, botones, inputs, tablas). El `<button>` genérico ya NO recibe
+  gradiente (rompía menú del tema y FullCalendar).
 
 ## Pulido iterativo (UI + arreglos)
 
@@ -182,6 +175,84 @@ Conectado al navegador del usuario para inspeccionar/previsualizar la web desple
       [`single_stic_registrations.php`](pages/single_stic_registrations.php).
 
 ## Registro de avances
+
+- **2026-07-05 (c)** — Iteración 4:
+  - **Tooltips (fix definitivo)**: los li conservaban un `transform` de la animación de
+    entrada (fill-mode both) → un ancestro con transform ancla el `position:fixed` al li,
+    no al viewport (por eso salían descolocados). Doble arreglo: el keyframe acaba en
+    `transform:none` y el tooltip se saca a `<body>` (portal) al usarse (`infoTipFor`).
+  - **Etiquetas sin ':'** (el motor ya no los añade) y el icono ⓘ alineado en vertical.
+  - **Botón Salir** siempre blanco (el tema lo teñía) y **nombre corto** en la barra
+    ("David Soler" en vez de "David Soler Bal…"), completo en el title
+    (`sticpa_short_name`, menu.php).
+  - **Foto**: tras elegir/recortar se previsualiza en el avatar con badge de reloj
+    "Foto lista: pulsa Guardar para subirla" (stic-cropper.js::markPending).
+  - **Modo app** `?app=1` (cookie 30 días, `?app=0` apaga): oculta header/footer/admin-bar
+    del tema para la WebView. Arranque: `…/?token=XXX&app=1`.
+  - **UI-15**: `stic-style.css` + `stic-modern-style.css` consolidados en
+    `css/stic-base.css` (mismo contenido y orden; 1 request menos).
+
+- **2026-07-05 (b)** — Iteración 3 (feedback con capturas):
+  - **Cropper de fotos móvil-first** (`js/stic-cropper.js`, sin dependencias): al elegir
+    imagen se abre modal con lienzo, arrastre 1 dedo, pinch 2 dedos, slider de zoom;
+    devuelve JPEG 800×800 al propio input vía DataTransfer (el form no cambia). Botón
+    "Usar sin recortar" conserva el original. Se engancha a cualquier input de imagen.
+  - **Tooltips ⓘ nunca cortados**: ahora `position:fixed` posicionados por JS con
+    clamping al viewport (encima si hay sitio, debajo si no). Se cierran al hacer scroll.
+  - **Hero/identidad**: el tema pisaba colores ("Hola," azul, nombre azul en la barra) →
+    forzados a blanco con !important. Gradientes de nav/hero ahora ESTÁTICOS (perf).
+  - **Botones-enlace largos** ("Ver tutorial…"): envuelven en varias líneas (adiós cortes).
+  - **Autorizaciones legales rediseñadas**: frase + SWITCH (checkbox estilizado) + enlace
+    pequeño "Ver condiciones". Hidden con '0' para que desmarcado guarde No.
+  - **Aviso correo institucional**: monitor sin @movimientoconsolacion.com → nota ámbar
+    "Mejor utiliza…"; resto de miembros → nota suave "Si tienes, usa…"; monitor con el
+    correo puesto → nada.
+  - **"Ya subido" + enlace** "Revisarlo en Documentos →" en los certificados del monitor.
+  - **Rendimiento**: PERF-01 (transient 6h para get_module_fields, bypass
+    ?refresh_fields=1) y PERF-02 (fuera animaciones infinitas de gradiente). Análisis
+    completo y plan en TODO.md §Rendimiento (PERF-03…PERF-08).
+
+- **2026-07-05** — Iteración 2 (feedback de pruebas en móvil):
+  - **Tooltips ⓘ arreglados**: la capa base (`.stic-form li span{width:100%;display:block}`)
+    los estiraba como una elipse azul y soltaba los ':' a otra línea → override con
+    !important en la sección 29 del CSS.
+  - **Campos "solo año"** (`yearOnly` en el motor): "Pertenezco al MCM desde…" y
+    "Monitor/a desde…" muestran/editan solo AAAA; internamente se guarda AAAA-01-01
+    (conversión en `sticpa_apply_year_only_fields`, stic-action.php).
+  - **Alerta de Certificado de Delitos Sexuales** pendiente (modo manual sin archivo):
+    tarjeta ámbar accionable en la home y en Monitor/a (`sticpa_monitor_ds_pending`).
+    + hint "Debes elegir Automático o Manual" cuando no hay opción elegida.
+  - **Audiencias en "Mis datos"** (`sticpa_profile_audience`): participante → "Sus datos"
+    (menú incluido, sin sección Monitor/a), familiar sin rol → sin MCM, miembro → todo.
+    Estructura preparada (`$sectionsByAudience` + filtro) para divergir contenidos sin
+    crear páginas nuevas. Soportado el caso adulto familiar+miembro.
+  - **Secciones colapsables** con memoria en localStorage (por página+sección),
+    accesibles por teclado y con desactivación de required mientras están plegadas.
+  - Texto de bienvenida "Hola X, estos son los datos que tenemos" en la ficha.
+
+- **2026-07-04** — Gran iteración "la mejor área privada de la historia":
+  - **Sistema de diseño documentado** en [`docs/design-system.md`](docs/design-system.md)
+    (tokens, componentes, motor de formularios, checklist, anti-patrones). README enlaza.
+  - **Motor de formularios ampliado** (`inc/stic-formController.php`): claves `help`
+    (tooltip ⓘ accesible), `hint`, `placeholder`, tipo `note`, campos condicionales
+    `data-visible-when` (JS genérico en `stic-ui.js`), `label[for]`, y escapado de
+    valores del CRM (los apóstrofes rompían inputs).
+  - **Formularios Comunica replicados** desde `comunicaFormularios`: «Mis datos» ahora
+    incluye TODO lo general (contacto+emergencia, dirección completa con provincia/CCAA,
+    foto, MCM común, salud con 5 campos y tooltips, RGPD con enlaces legales);
+    «Monitor/a» con formación completa (tooltips MAT/DAT/FA/premonitores), congresos,
+    voluntariado, delitos sexuales con tarjetas Automático/Manual y archivos. La sección
+    «Laico/a» se retiró (todo era general; la página antigua redirige). Lo de la
+    Asamblea de mayo 2026 NO se replicó (ya pasó).
+  - **Perfiles de familia**: selección de participante con tarjetas premium
+    (`single_stic_profile_selection.php`), selector rápido SIEMPRE visible en la barra
+    (menu.php, `.stic-part-switch`), pantalla de datos del familiar con medio de pago
+    front-only (`ajmcm_pago_*_c` provisionales). Sin conexión Sinergia todavía:
+    `?familia_demo=1` + filtros para previsualizar.
+  - **Login**: tabs segmentadas Enlace mágico / Contraseña + sello de confianza.
+  - **Seguridad**: whitelist de `?internalpage` (path traversal), `exit` tras cada
+    `wp_redirect`, saneado del handler de selección de perfil.
+  - CSS: secciones 29–35 nuevas; borrados los `*.backup`.
 
 - **2026-06-14** — Creado el plan. Copiadas `CAMPOS.md` y `AGENTS-comunica.md` a `docs/comunica/`.
   Auth (magic link) y rediseño UI ya estaban hechos en `main`.

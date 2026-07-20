@@ -67,7 +67,18 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
       ↳ `inc/stic-class-6.php::call`.
 - [ ] `SEC-05` (P1 · M) **Añadir nonces/CSRF** a todas las acciones `admin_post_*`
       (`wp_nonce_field` + `check_admin_referer`). Hoy los formularios no tienen protección CSRF.
+      Incluir también los enlaces GET del selector de participante (`menu.php`,
+      `single_stic_profile_selection.php`).
       ↳ `inc/stic-action.php`, formularios en `pages/*` y `inc/stic-formController.php`.
+- [x] `SEC-07` (P0 · S) **Sanear `?internalpage`** antes del `include` (era un path
+      traversal potencial: permitía intentar incluir archivos arbitrarios). Ahora
+      whitelist `[a-z0-9_]+` + `file_exists` en `pages/`. ↳ **hecho** (2026-07).
+      ↳ `sinergiacrm-private-area.php::sticpa_resolve_page_file`.
+- [x] `SEC-08` (P1 · S) **`exit` tras todos los `wp_redirect`** de `inc/stic-action.php`
+      (varios handlers seguían ejecutando código tras redirigir). ↳ **hecho** (2026-07).
+- [x] `SEC-09` (P1 · S) **Escapar valores del CRM en el motor de formularios**
+      (`esc_attr`/`esc_textarea`): un valor con apóstrofe ("C/ L'Horta") rompía el HTML
+      del input. ↳ **hecho** (2026-07). ↳ `inc/stic-formController.php`.
 - [ ] `SEC-06` (P1 · S) **Cookies de sesión seguras**: forzar `Secure`, `HttpOnly`, `SameSite=Lax`
       y exigir HTTPS en el área privada.
 
@@ -84,23 +95,15 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
 - [ ] `ADMIN-05` (P2 · S) Campo **URL de portal precalculada** (`ajmcm_pa_portal_url_c`) para
       arrastrar como mail-merge en las plantillas de email del CRM.
 
-## 🟡 P2 — Plataforma / Expo (decisión de fondo)
+## 🟡 P2 — Plataforma / app
 
-> Contexto y estrategia en
-> [`docs/analisis-expo-migracion.md`](docs/analisis-expo-migracion.md). **Decidir antes de
-> implementar.**
-
-- [!] `PLAT-00` (P2 · —) **Decisión:** Opción 1 (mantener PHP web + app nativa aparte) vs.
-      Opción 2/3 (monorepo Expo con `core` compartido + web "lite"). Requiere medir el peso del
-      bundle web con un MVP antes de comprometerse.
-- [ ] `PLAT-01` (P2 · M) **Convertir el plugin en BFF**: exponer endpoints REST
-      (`register_rest_route`) reutilizando el cliente PHP (`/login-token`, `/me`,
-      `/mis-inscripciones`…). Permite probar Expo contra datos reales sin reescribir backend.
-- [ ] `PLAT-02` (P2 · L) **Paquete `core` en TypeScript**: portar `inc/stic-class-6.php` (cliente
-      CRM + tipos + reglas tutor/menor) para compartir entre app nativa y web.
-- [ ] `PLAT-03` (P2 · L) **MVP Expo** (login por token + eventos + inscripciones + documentos) y
-      **medir el bundle web** para alimentar la decisión `PLAT-00`.
-- [ ] `PLAT-04` (P2 · M) **Motor de formularios declarativo en React** (port de `makeForm`).
+- [x] `PLAT-00` (P2 · —) **Decisión tomada:** la app será una **WebView de Expo** cargando esta
+      misma web PHP (modo `?app=1`, ver `README.md` §8 y `UI-16`). No hace falta BFF, endpoints
+      REST ni un paquete `core` compartido para esto. Reconstruir en nativo de verdad queda como
+      posibilidad **futura, sin fecha**; el análisis completo que se barajó (opciones, estimación
+      de esfuerzo, riesgos) está archivado en
+      [`docs/archivo/decision-plataforma-app.md`](docs/archivo/decision-plataforma-app.md) por si
+      se retoma algún día.
 
 ## ⚪ P2/P3 — Frontend / estilos
 
@@ -133,14 +136,81 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
       las pantallas de listado/detalle de cada módulo. ↳ **hecho.** Pulido responsive en Eventos, Documentos, Inscripciones, Pagos, etc.
 - [x] `UI-10` (P1 · S) **Controles de subida tipo Dropzone**: Rediseñar inputs de archivos para un look premium con área dashed interactiva y píldoras degradadas de marca. ↳ **hecho.**
 - [x] `UI-11` (P1 · S) **Modal de confirmación de borrado**: Reemplazar confirmaciones de borrado nativas por popups premium HTML/CSS personalizados con fondo esmerilado. ↳ **hecho.**
-- [ ] `UI-04` (P3 · S) Limpiar los CSS `*.backup` y consolidar `stic-style` / `stic-modern-style`
-      si dejan de ser necesarios.
+- [x] `UI-04` (P3 · S) Limpiar los CSS `*.backup`. ↳ **hecho** (2026-07). Consolidar
+      `stic-style` / `stic-modern-style` sigue pendiente como `UI-15`.
+- [x] `UI-12` (P1 · M) **Sistema de diseño documentado** en
+      [`docs/design-system.md`](docs/design-system.md): tokens, componentes, motor de
+      formularios, checklist y anti-patrones. ↳ **hecho** (2026-07).
+- [x] `UI-13` (P1 · L) **Formularios Comunica replicados funcionalmente** desde
+      `comunicaFormularios` (monitores.html / laicos.html): tooltips ⓘ por campo
+      (clave `help`), hints, notas de sección, consentimientos RGPD con enlaces
+      legales, tarjetas Automático/Manual de delitos sexuales, campos condicionales
+      (`data-visible-when`), inputmode/autocomplete. Laico/a se fusionó en «Mis datos»
+      (todo era general). Excluida a propósito la Asamblea de mayo 2026 (ya pasó).
+      ↳ **hecho** (2026-07). ↳ `pages/single_stic_comunica_perfil.php`,
+      `pages/single_stic_comunica_monitor.php`, `inc/stic-formController.php`.
+- [x] `UI-14` (P1 · L) **Perfiles de familia**: pantalla de selección de participante
+      con tarjetas + selector rápido en la barra (siempre se sabe a quién ves) +
+      pantalla de datos del familiar con medio de pago (front adelantado, campos
+      `ajmcm_pago_*_c` provisionales). Demo sin CRM: `?familia_demo=1`, filtros
+      `sticpa_familia_participants` / `sticpa_is_familia`. ↳ **hecho** (2026-07).
+      ↳ `pages/single_stic_profile_selection.php`, `pages/single_stic_tutor_profile.php`,
+      `menu.php`, `js/stic-ui.js`.
+- [x] `UI-15` (P3 · M) Consolidar `stic-style.css` / `stic-modern-style.css` en una sola
+      capa base → `css/stic-base.css` (mismo contenido, mismo orden, 1 petición menos).
+      ↳ **hecho** (2026-07).
+- [x] `UI-16` (P1 · S) **Modo app** (`?app=1` + cookie 30 días): oculta header/footer del
+      tema para la WebView de la app; `?app=0` lo apaga. Arranque recomendado:
+      `…/?token=XXX&app=1`. ↳ **hecho** (2026-07). ↳ `sticpa_app_mode_boot` /
+      `sticpa_is_app_mode` / `sticpa_app_mode_css` en `sinergiacrm-private-area.php`.
+- [ ] `FAM-01` (P1 · M) **Conectar los perfiles de familia con Sinergia** cuando existan
+      las relaciones `stic_Personal_Environment` en el CRM de Comunica: verificar la
+      carga real de participantes y decidir el campo definitivo del rol "familiar".
+- [ ] `FAM-02` (P2 · S) **Medio de pago del familiar**: crear en Studio (o mapear a
+      `stic_Payment_Commitments`) los campos reales y renombrar `ajmcm_pago_*_c` en
+      `pages/single_stic_tutor_profile.php` (buscar el aviso ⚙️).
+
+## 🟠 P1 — Rendimiento (análisis 2026-07, hacer en este orden)
+
+> Diagnóstico: cada carga de página hace 3-6 llamadas SÍNCRONAS al CRM
+> (~0,5-2s cada una): login técnico si caducó, get_module_fields, el detalle
+> del registro, la foto en base64, y en listados N+1 (relaciones → detalle por
+> registro). El front pesa poco; el cuello es SIEMPRE la API del CRM.
+
+- [x] `PERF-01` (P1 · S) **Cachear get_module_fields** (transient 6h por módulo+campos,
+      bypass `?refresh_fields=1`). Ahorra ~1 llamada al CRM por formulario. ↳ **hecho**
+      (2026-07). ↳ `inc/stic-formController.php::makeForm`.
+- [x] `PERF-02` (P1 · S) **Quitar las animaciones infinitas de gradiente** (nav y hero):
+      repintaban constantemente (jank + batería en móvil). ↳ **hecho** (2026-07).
+- [ ] `PERF-03` (P1 · S) **Cachear la sesión técnica del CRM** entre peticiones PHP:
+      hoy `login()` del usuario de servicio se rehace cuando caduca por sesión PHP;
+      guardar `api_session_id` en transient compartido (no por sesión) ahorra el
+      round-trip de login en frío. ↳ `inc/stic-class-6.php`.
+- [ ] `PERF-04` (P1 · M) **Foto de perfil**: `get_image` trae el base64 completo en cada
+      carga de "Mis datos". Cachear por contacto (transient, invalidar al subir foto) o
+      servirla vía endpoint con `Cache-Control`. ↳ `pages/single_stic_comunica_perfil.php`.
+- [ ] `PERF-05` (P1 · M) **Matar los N+1 de listados y selección de participante**:
+      `single_stic_profile_selection.php` hace 1 llamada por relación + 1 por contacto;
+      los listados similar. Usar `related_module_link_name_to_fields_array` para traer
+      el contacto vinculado EN la misma llamada. Cachear `scp_available_profiles` ya
+      mitiga el switcher.
+- [ ] `PERF-06` (P2 · S) **cURL keep-alive / HTTP2** en `SugarRestApiCall`: reutilizar el
+      handler de cURL entre llamadas de la misma petición (hoy se abre conexión TLS
+      nueva cada vez). ↳ `inc/stic-class-6.php::call`.
+- [ ] `PERF-07` (P2 · S) **Front**: `defer` en los JS (hoy van a footer, ok), quitar
+      DataTables/FullCalendar/Selectize de páginas que no los usan (enqueue condicional
+      por `internalpage`), `font-display: swap` ya viene del `display=swap`.
+- [ ] `PERF-08` (P2 · M) **Cache de lectura por página** (transient 1-5 min por
+      usuario+página para los `get_entry_list` de listados) con invalidación al guardar.
+      Es el salto grande para que "todo vaya rapidini"; requiere cuidado con datos
+      recién editados.
 
 ## ⚪ P2/P3 — Mantenimiento y calidad
 
-- [ ] `MNT-01` (P2 · S) Quitar/condicionar las funciones de **debug** (`debug()`, `my_log_file()`)
-      para que no escriban logs ni pinten en producción.
-      ↳ `sinergiacrm-private-area.php`.
+- [x] `MNT-01` (P2 · S) Quitar/condicionar las funciones de **debug** (`debug()`, `my_log_file()`)
+      para que no escriban logs ni pinten en producción. ↳ **hecho** (2026-07). Eliminadas ambas
+      funciones y sus referencias comentadas; también se borró `prueba.html` y el `custom-utils.js`
+      vacío (plan `plans/014`). ↳ `sinergiacrm-private-area.php`.
 - [ ] `MNT-02` (P2 · S) Revisar `getDestinationModule()` y el uso de `$_REQUEST` directo (evitar
       *warnings* de índices indefinidos y posibles manipulaciones).
 - [ ] `MNT-03` (P3 · M) Tests/healthcheck básico de la conexión al CRM y de los flujos críticos
@@ -151,8 +221,9 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
 ## ⚪ Documentación
 
 - [x] `DOC-01` (P1 · M) README técnico y funcional. ↳ hecho.
-- [x] `DOC-02` (P1 · M) Análisis Expo y Magic Links en `docs/`. ↳ hecho.
-- [ ] `DOC-03` (P3 · S) Documentar los endpoints REST del BFF cuando existan (`PLAT-01`).
+- [x] `DOC-02` (P1 · M) Análisis Expo y Magic Links en `docs/`. ↳ hecho. Decisión de
+      plataforma ya tomada (webview, ver `PLAT-00`) y ambos análisis archivados en
+      [`docs/archivo/`](docs/archivo/) para no marear en el día a día.
 
 ## ⚪ CI/CD — Despliegue
 
@@ -170,7 +241,6 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
 2. **`AUTH-04` + `SEC-01`/`SEC-02`** (magic links seguros, fin del password en claro).
 3. **`ADMIN-01` → `ADMIN-04`** (gestión e impersonación desde el admin).
 4. **`SEC-03`/`SEC-05`/`SEC-06`** (endurecer lo que quede).
-5. **`PLAT-00`** decisión, luego `PLAT-01` → `PLAT-03` si se va a Expo.
 
 > Mantén esta tabla actualizada: al terminar una tarea, márcala `[x]` y, si surge trabajo nuevo,
 > añádelo con su `ID`, prioridad y tamaño.

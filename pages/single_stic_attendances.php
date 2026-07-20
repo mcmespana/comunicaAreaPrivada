@@ -104,7 +104,6 @@ $fieldList[] = array(
 #########################################################
 $data = $objSCP->getRecordDetail($_REQUEST['id'], $formSettings['moduleName'])->entry_list[0]->name_value_list;
 #########################################################
-// debug($data, 'data');
 $formSettings['fileName'] = basename(__FILE__, ".php"); //The page name, from the filename. Don't touch.
 
 // If it's only detailview, disable fields

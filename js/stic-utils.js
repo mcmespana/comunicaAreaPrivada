@@ -4,12 +4,49 @@
 jQuery(document).ready(function($){
     // Run selectize. dropdownParent: 'body' evita que el desplegable quede
     // por debajo de las tarjetas siguientes del formulario.
-    $('select[multiple]').selectize({ dropdownParent: 'body' });
-    //hide the success messagges
-    $('body').on('click keyup paste', function () {
-        if (document.getElementById('successMsg')) { document.getElementById('successMsg').style.opacity = '0'; }
-    });
+    // Guardado: desde el plan 010 selectize solo se encola en las páginas de
+    // formulario single_*; sin el guard, este ready() reventaría en el resto.
+    if ($.fn.selectize) {
+        $('select[multiple]').selectize({ dropdownParent: 'body' });
+    }
+    // El mensaje de éxito/error se despide solo tras unos segundos (antes se
+    // esfumaba al primer clic o tecla, y era fácil no llegar a leerlo).
+    var msg = document.getElementById('successMsg');
+    if (msg) {
+        setTimeout(function () { msg.classList.add('stic-msg-hide'); }, 7000);
+        msg.addEventListener('transitionend', function () {
+            if (msg.classList.contains('stic-msg-hide')) { msg.style.display = 'none'; }
+        });
+    }
 });
+
+/* ---- Errores de validación inline (sustituyen a los alert() nativos) ---- */
+function sticSetFieldError(el, message) {
+    if (!el) { window.alert(message); return; }
+    el.setAttribute('invalid', '');
+    el.setAttribute('aria-invalid', 'true');
+    var holder = el.closest ? (el.closest('li') || el.parentElement) : el.parentElement;
+    var note = holder ? holder.querySelector('.stic-field-error') : null;
+    if (!note) {
+        note = document.createElement('small');
+        note.className = 'stic-field-error';
+        note.setAttribute('role', 'alert');
+        note.id = (el.id || 'campo') + '-error';
+        el.setAttribute('aria-describedby', note.id);
+        if (holder) { holder.appendChild(note); }
+    }
+    note.textContent = message;
+    try { el.focus(); el.scrollIntoView({ block: 'center' }); } catch (err) { el.focus(); }
+}
+
+function sticClearFieldError(el) {
+    if (!el) { return; }
+    el.removeAttribute('invalid');
+    el.removeAttribute('aria-invalid');
+    var holder = el.closest ? (el.closest('li') || el.parentElement) : el.parentElement;
+    var note = holder ? holder.querySelector('.stic-field-error') : null;
+    if (note) { note.remove(); }
+}
 
 function alerta(obj) {
     var lastName = '';
@@ -65,13 +102,20 @@ function _sticDeleteModal(title, message, cancelLabel, confirmLabel, onConfirm) 
     var old = document.getElementById('stic-delete-modal');
     if (old) old.remove();
 
+    // Remember the element that opened the modal so focus can be restored on close.
+    var trigger = document.activeElement;
+
     var overlay = document.createElement('div');
     overlay.id = 'stic-delete-modal';
     overlay.className = 'stic-modal-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-labelledby', 'stic-modal-title');
+    overlay.setAttribute('aria-describedby', 'stic-modal-msg');
     overlay.innerHTML =
         '<div class="stic-modal-card">' +
             '<div class="stic-modal-icon">' +
-                '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+                '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' +
                     '<path d="M3 6h18"/>' +
                     '<path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>' +
                     '<path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>' +
@@ -79,12 +123,12 @@ function _sticDeleteModal(title, message, cancelLabel, confirmLabel, onConfirm) 
                     '<line x1="14" y1="11" x2="14" y2="17"/>' +
                 '</svg>' +
             '</div>' +
-            '<h4 class="stic-modal-title">' + title + '</h4>' +
-            '<p class="stic-modal-msg">' + message + '</p>' +
+            '<h4 id="stic-modal-title" class="stic-modal-title">' + title + '</h4>' +
+            '<p id="stic-modal-msg" class="stic-modal-msg">' + message + '</p>' +
             '<div class="stic-modal-actions">' +
                 '<button type="button" class="stic-modal-btn stic-modal-btn--cancel">' + cancelLabel + '</button>' +
                 '<button type="button" class="stic-modal-btn stic-modal-btn--delete">' +
-                    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>' +
+                    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>' +
                     confirmLabel +
                 '</button>' +
             '</div>' +
@@ -96,13 +140,35 @@ function _sticDeleteModal(title, message, cancelLabel, confirmLabel, onConfirm) 
     overlay.offsetHeight; // eslint-disable-line no-unused-expressions
     overlay.classList.add('is-active');
 
+    // Move focus into the dialog (the non-destructive action gets it first).
+    var cancelBtn = overlay.querySelector('.stic-modal-btn--cancel');
+    if (cancelBtn) cancelBtn.focus();
+
     // --- helpers ---
     function close() {
         overlay.classList.remove('is-active');
         setTimeout(function () { overlay.remove(); }, 280);
         document.removeEventListener('keydown', escHandler);
+        // Return focus to whatever opened the modal.
+        if (trigger && typeof trigger.focus === 'function') trigger.focus();
     }
     function escHandler(e) { if (e.key === 'Escape') close(); }
+
+    // Trap Tab focus inside the dialog.
+    overlay.addEventListener('keydown', function (e) {
+        if (e.key !== 'Tab') return;
+        var focusables = overlay.querySelectorAll('button');
+        if (!focusables.length) return;
+        var first = focusables[0];
+        var last = focusables[focusables.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+        }
+    });
 
     // --- events ---
     overlay.querySelector('.stic-modal-btn--cancel').addEventListener('click', close);
@@ -123,11 +189,10 @@ function verifyIban(obj) {
 
         result = IBAN.isValid(obj.value);
         if (!result) {
-            alert(stic_script_vars.wrongIban);
-            obj.setAttribute("invalid", '');
+            sticSetFieldError(obj, stic_script_vars.wrongIban);
         }
         else {
-            obj.removeAttribute("invalid");
+            sticClearFieldError(obj);
         }
     }
 }
@@ -136,7 +201,8 @@ function verifyFormIsValid() {
     let elements = document.querySelectorAll("[invalid]");
     if (typeof elements != "undefined" && elements != null && elements.length != null
     && elements.length > 0) {
-        alert(stic_script_vars.invalidElements);
+        // Llevar al usuario al primer campo con error (su mensaje inline ya está pintado).
+        sticSetFieldError(elements[0], stic_script_vars.invalidElements);
         return false;
     }
     formatDateTimeLocal();
@@ -208,12 +274,11 @@ function validateId (obj) {
         validDocument = true;
     }
     if (!validDocument) {
-        alert(stic_script_vars.invalidDocumentNumber);
-        idEl.setAttribute("invalid", '');
+        sticSetFieldError(idEl, stic_script_vars.invalidDocumentNumber);
         return false;
     }
     else {
-        idEl.removeAttribute("invalid");
+        sticClearFieldError(idEl);
         return true;
     }
 }

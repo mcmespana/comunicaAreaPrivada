@@ -11,9 +11,13 @@ plan "explícamelo como si tuviera 5 años, pero sin mentirme".
 
 > 📋 **¿Vas a desarrollar algo?** Mira primero [`TODO.md`](TODO.md) (tareas priorizadas y
 > convenciones) y los análisis de fondo en [`docs/`](docs/):
-> [migración a Expo](docs/analisis-expo-migracion.md) ·
-> [autenticación por token / magic links](docs/analisis-magic-links-tokens.md) ·
+> [**sistema de diseño (léelo antes de tocar UI)**](docs/design-system.md) ·
 > [despliegue a producción (CI/CD)](docs/despliegue.md).
+>
+> La app futura será una **WebView de Expo cargando esta misma web** (ver §8 y "modo app" en
+> [`docs/design-system.md`](docs/design-system.md)); no hay BFF ni endpoints REST que mantener.
+> Análisis de decisiones ya cerradas (Expo/plataforma, diseño de magic links) archivados en
+> [`docs/archivo/`](docs/archivo/) — no hace falta leerlos para el día a día.
 
 ---
 
@@ -272,6 +276,12 @@ El motor (`getFieldHtml` en `inc/stic-formController.php`) entiende, entre otros
 
 ## 6. ¿Qué lenguaje se usa y cómo hacer los estilos MUY modernos?
 
+> 🎨 **El sistema de diseño completo está documentado en
+> [`docs/design-system.md`](docs/design-system.md)**: tokens, componentes,
+> motor de formularios (tooltips `help`, hints, campos condicionales), perfiles
+> de familia (selector de participante) y el checklist para pantallas nuevas.
+> Lo de abajo es el contexto general; ese documento es la referencia operativa.
+
 ### 6.1 Stack tecnológico
 
 - **Backend / plantillas:** **PHP** (estilo procedural, mezclando lógica y HTML; es un plugin
@@ -289,15 +299,13 @@ en `sugar_crm_portal_style_and_script()`. **El orden importa: lo último pisa a 
 
 ```php
 wp_enqueue_style('stic-google-fonts', 'https://fonts.googleapis.com/...Inter...'); // tipografía
-wp_enqueue_style('stic-style',        'css/stic-style.css');        // base histórica (657 líneas)
+wp_enqueue_style('stic-base',         'css/stic-base.css');         // capa base consolidada
 wp_enqueue_style('stic-multiselect',  'css/selectize.css');         // librería selectize
-wp_enqueue_style('stic-modern-style', 'css/stic-modern-style.css'); // "moderno" (1355 líneas)
 wp_enqueue_style('fullcalendar',      'js/fullcalendar/lib/main.css');
 wp_enqueue_style('custom-style',      'css/custom-style.css');      // ← TUYO, carga el ÚLTIMO
 ```
 
-- `css/stic-style.css` → estilos base históricos.
-- `css/stic-modern-style.css` → capa de modernización (mobile-first, con variables CSS).
+- `css/stic-base.css` → capa base consolidada (ex `stic-style.css` + `stic-modern-style.css`, en ese orden).
 - **`css/custom-style.css` → CAPA PREMIUM y TU sitio para personalizar.** Se carga **el último
   a propósito**, así que cualquier regla aquí gana sin necesidad de `!important` salvo donde el
   tema moderno ya lo usa. Como el tema moderno está hecho con `var()`, basta con **redefinir las

@@ -1,5 +1,82 @@
 <?php
-//debug($_REQUEST, 'REQUEST');
+
+/**
+ * ============================================================================
+ *  MOTOR DE FORMULARIOS (makeForm / renderField)
+ * ----------------------------------------------------------------------------
+ *  Convierte un array $fieldList declarativo en HTML. Además de las claves
+ *  clásicas (name, label, type, required, defaultValue, attributes,
+ *  selectValues, actions, classes), cada campo admite:
+ *
+ *    'help'        => 'Texto…'   Botón ⓘ junto a la etiqueta con un tooltip
+ *                                accesible (hover/focus/click). Úsalo para
+ *                                explicar QUÉ se pide en el campo.
+ *    'hint'        => 'Texto…'   Línea pequeña y gris DEBAJO del campo.
+ *                                Úsalo para formatos ("AAAA", "máx. 6MB").
+ *    'placeholder' => 'Texto…'   Atajo del attribute placeholder.
+ *    'yearOnly'    => true       Para campos DATE del CRM que en realidad son
+ *                                "un año": se muestra/edita SOLO el año (AAAA)
+ *                                y al guardar se convierte en AAAA-01-01 (el
+ *                                1 de enero es interno, nunca se enseña).
+ *                                La conversión la hace sticpa_apply_year_only_fields()
+ *                                en el handler (inc/stic-action.php) gracias a un
+ *                                hidden stic_year_only_fields[] que emite el motor.
+ *
+ *  Tipos extra además de los básicos:
+ *    'note'  => párrafo explicativo a ancho completo dentro de la sección
+ *               (equivale al "helper-text" de los formularios Comunica).
+ *               Usa 'html' => '…' para el contenido (admite HTML seguro).
+ *    'html'  => HTML libre (tú controlas el <li>).
+ *
+ *  Campos condicionales (mostrar según el valor de otro campo): añade en
+ *  'attributes' => array('data-visible-when' => 'otro_campo:valor1|valor2').
+ *  El JS de js/stic-ui.js (bindConditionalFields) hace el resto.
+ * ============================================================================
+ */
+
+/**
+ * Botón de información ⓘ con tooltip accesible, para usar junto a etiquetas.
+ * Replica el patrón "info-icon" de los formularios públicos de Comunica.
+ */
+function sticpa_field_help_html($text)
+{
+    if (trim((string) $text) === '') {
+        return '';
+    }
+    // id único por tooltip + aria-describedby: sin él, el lector de pantalla solo
+    // anunciaba "Más información, botón" y el contenido de ayuda era inaccesible.
+    // El id sobrevive al portal a <body> que hace stic-ui.js.
+    static $tipCount = 0;
+    $tipId = 'stic-info-tip-' . (++$tipCount);
+    return " <span class='stic-info' role='button' tabindex='0' aria-label='" . esc_attr__('Más información', 'sticpa') . "' aria-describedby='" . esc_attr($tipId) . "'>"
+        . "<span class='stic-info-mark' aria-hidden='true'>?</span>"
+        . "<span class='stic-info-tip' role='tooltip' id='" . esc_attr($tipId) . "'>" . wp_kses_post($text) . "</span>"
+        . "</span>";
+}
+
+/**
+ * RENDIMIENTO: get_module_fields es una llamada extra al CRM en cada carga de
+ * formulario Y de listado, y sus definiciones (tipos, etiquetas, opciones)
+ * cambian rarísimo (solo al tocar Studio). Se cachean 6h por módulo+campos.
+ * Para forzar recarga tras tocar Studio: añade ?refresh_fields=1 a la URL.
+ * La clave de transient es la misma que usaba makeForm, así que las cachés
+ * existentes en producción siguen siendo válidas.
+ */
+function sticpa_cached_field_definition($objSCP, $moduleName, $fields)
+{
+    $cacheKey = 'sticpa_fdef_' . md5($moduleName . '|' . implode(',', $fields));
+    $def = isset($_GET['refresh_fields']) ? false : get_transient($cacheKey);
+    if ($def === false || !is_array($def)) {
+        $res = $objSCP->getFieldDefinition($moduleName, $fields);
+        $arr = json_decode(json_encode($res), true);
+        $def = $arr['module_fields'] ?? array();
+        if (!empty($def)) {
+            set_transient($cacheKey, $def, 6 * HOUR_IN_SECONDS);
+        }
+    }
+    return $def;
+}
+
 // Prepare HTML form
 function makeForm($fieldList, $formSettings, $data, $action = null)
 {
@@ -7,9 +84,9 @@ function makeForm($fieldList, $formSettings, $data, $action = null)
     $objSCP = SugarRestApiCall::getObjSCP();
 
     $fields = array_column($fieldList, 'name');
-    $fieldsDefinitionResults = $objSCP->getFieldDefinition($formSettings['moduleName'], $fields);
-    $fieldsDefinitionResultsArray = json_decode(json_encode($fieldsDefinitionResults), true);
-    $fieldsDefinition = $fieldsDefinitionResultsArray['module_fields'];
+
+    // Definición de campos cacheada 6h (ver sticpa_cached_field_definition).
+    $fieldsDefinition = sticpa_cached_field_definition($objSCP, $formSettings['moduleName'], $fields);
 
     $html = '';
     $html .= renderMessage($formSettings['msg']);
@@ -75,7 +152,9 @@ function renderMessage($messages)
             if (isset($value['msg'])) {
                 $msg = $value['msg'];
             }
-            $html .= "<span style='transition: all 2s ease-in-out;' id='successMsg' class='{$value['type']} stic-msg'>{$msg}</span>";
+            // role=status/alert: el lector de pantalla anuncia el resultado del guardado.
+            $role = ($value['type'] === 'error') ? 'alert' : 'status';
+            $html .= "<span id='successMsg' role='{$role}' class='{$value['type']} stic-msg'>{$msg}</span>";
         }
     }
     return $html;
@@ -90,9 +169,13 @@ function renderFormTitle($title)
 function renderFormHeader($colClass, $attributes)
 {
     $colClass = $colClass ? $colClass : "stic-form-two-col";
+    // stic-loading-form: overlay de espera al guardar (stic-ui.js). El CRM puede
+    // tardar segundos y sin feedback la gente re-pulsaba Guardar.
     return "
     <div class='stic-form " . $colClass . "'>
-        <form  " . $attributes . " flex id='stic-wp-pa' method='post' action='" . home_url() . "/wp-admin/admin-post.php'>
+        <form  " . $attributes . " flex id='stic-wp-pa' class='stic-loading-form' method='post' action='" . home_url() . "/wp-admin/admin-post.php'
+               data-loading-text='" . esc_attr__('Guardando tus cambios…', 'sticpa') . "'
+               data-loading-sub='" . esc_attr__('Un momento, estamos actualizando tus datos.', 'sticpa') . "'>
             <ul>";
 }
 
@@ -137,6 +220,12 @@ function renderField($field, $data, $action, $crmDefinition)
         if ($type === 'html') {
             return $field['html'];
         }
+
+        // Nota/explicación a ancho completo dentro de la sección (helper-text).
+        if ($type === 'note') {
+            $classes = isset($field['classes']) ? esc_attr($field['classes']) : '';
+            return "<li class='stic-form-note {$classes}'>" . wp_kses_post($field['html'] ?? $field['label'] ?? '') . "</li>";
+        }
     } else {
         $type = $crmDefinition['type'] ?? null;
     }
@@ -147,8 +236,34 @@ function renderField($field, $data, $action, $crmDefinition)
         $required = ($crmDefinition['required'] ?? null) == '1' ? 'required' : '';
     }
     $defaultValue = getFieldDefaultValue($field, $field['name'] ?? null, $data, $type);
+
+    // 'placeholder' como atajo (equivale a attributes => [placeholder => …]).
+    if (isset($field['placeholder'])) {
+        $field['attributes'] = ($field['attributes'] ?? array()) + array('placeholder' => $field['placeholder']);
+    }
     $attributes = processFieldAttributes($field['attributes'] ?? null, $action);
     $fieldActions = processFieldActions(isset($field['actions']) ? $field['actions'] : array(), $field['name'] ?? null);
+
+    // Botón ⓘ de ayuda pegado a la etiqueta + hint bajo el campo.
+    if (!empty($field['help'])) {
+        $label .= sticpa_field_help_html($field['help']);
+    }
+    if (!empty($field['hint'])) {
+        $field['hintHtml'] = "<small class='stic-field-hint'>" . wp_kses_post($field['hint']) . "</small>";
+    }
+
+    // Campo "solo año": el CRM guarda una fecha (AAAA-01-01) pero al usuario
+    // solo se le enseña y se le pide el AÑO. El hidden marca el campo para que
+    // el handler lo reconvierta a fecha completa al guardar.
+    if (!empty($field['yearOnly'])) {
+        $type = 'text';
+        if (is_string($defaultValue) && preg_match('/^(\d{4})/', $defaultValue, $m)) {
+            $defaultValue = $m[1];
+        }
+        $attributes .= " inputmode='numeric' maxlength='4' pattern='[0-9]{4}' placeholder='AAAA' ";
+        $field['hintHtml'] = ($field['hintHtml'] ?? '')
+            . "<input type='hidden' name='stic_year_only_fields[]' value='" . esc_attr($field['name']) . "'>";
+    }
 
     return getFieldHtml($label, $type, $required, $attributes, isset($field['classes']) ? $field['classes'] : null, $field['name'] ?? null, $defaultValue, $field, $fieldActions, $crmDefinition);
 }
@@ -166,11 +281,17 @@ function processDiv($field, $elem = 'div')
 
 // transform the field in to html to be displayed in the form
 function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $name, $defaultValue, $value, $fieldActions, $crmDefinition)
-{   
+{
+    // Hint (línea de ayuda bajo el campo) y escapes seguros: los valores del CRM
+    // pueden llevar comillas/apóstrofes ("C/ L'Horta") que rompían el atributo value.
+    $hint = $value['hintHtml'] ?? '';
+    $escValue = esc_attr((string) ($defaultValue ?? ''));
+    $forAttr = $name ? " for='" . esc_attr($name) . "'" : '';
+
     // TODO Use classes and polymorphism to avoid switch
     switch ($type) {
         case 'hidden':
-            $html = "<span><input  class='input-text {$additionClasses}' maxlength='255' type='" . $type . "' name='" . $name . "' id='" . $name . "' value='" . $defaultValue . "'  /> </span>";
+            $html = "<span><input  class='input-text {$additionClasses}' maxlength='255' type='" . $type . "' name='" . $name . "' id='" . $name . "' value='" . $escValue . "'  /> </span>";
             break;
         case 'header':
             $html = "
@@ -198,35 +319,37 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
         case 'phone':
             $html = "
             <li class='" . $required . "' " . ">
-                <label>" . $label . "</label>
-                <span><input " . $required . " " . $attributes . " class='input-text {$additionClasses}' maxlength='255' type='" . $type . "' name='" . $name . "' id='" . $name . "' value='" . $defaultValue . "'" . $fieldActions . "  /> </span>
+                <label{$forAttr}>" . $label . "</label>
+                <span><input " . $required . " " . $attributes . " class='input-text {$additionClasses}' maxlength='255' type='" . $type . "' name='" . $name . "' id='" . $name . "' value='" . $escValue . "'" . $fieldActions . "  /> </span>
+                {$hint}
             </li>";
             break;
         case 'datetimecombo':
         case 'datetime-local':
-            if (!empty($defaultValue)) {
-                $defaultValue = get_date_from_gmt($defaultValue);
-                $html = "
-                <li class='" . $required . "' " . ">
-                    <label>" . $label . ":</label>
-                    <span><input " . $required . " " . $attributes . " class='input-text {$additionClasses}' maxlength='255' type='datetime-local' name='" . $name . "' id='" . $name . "' value='" . $defaultValue . "'" . $fieldActions . "  /> </span>
-                </li>";
-            }
-            
+            // El input se pinta SIEMPRE: antes, un valor vacío hacía desaparecer
+            // el campo entero y era imposible rellenar una fecha nueva.
+            $defaultValue = !empty($defaultValue) ? get_date_from_gmt($defaultValue) : '';
+            $html = "
+            <li class='" . $required . "' " . ">
+                <label{$forAttr}>" . $label . "</label>
+                <span><input " . $required . " " . $attributes . " class='input-text {$additionClasses}' maxlength='255' type='datetime-local' name='" . $name . "' id='" . $name . "' value='" . esc_attr($defaultValue) . "'" . $fieldActions . "  /> </span>
+                {$hint}
+            </li>";
             break;
         case 'textarea':
             $html = "
             <li class='" . $required . "' " . ">
-                <label>" . $label . ":</label>
-                <span><textarea " . $required . " " . $attributes . " class='input-text {$additionClasses}' type='" . $type . "' name='" . $name . "' id='" . $name . "' " . $fieldActions . ">" . $defaultValue . "</textarea></span>
+                <label{$forAttr}>" . $label . "</label>
+                <span><textarea " . $required . " " . $attributes . " class='input-text {$additionClasses}' type='" . $type . "' name='" . $name . "' id='" . $name . "' " . $fieldActions . ">" . esc_textarea((string) ($defaultValue ?? '')) . "</textarea></span>
+                {$hint}
             </li>";
             break;
         case 'enum':
         case 'dynamicenum':
         case 'select':
             $html = "<li class='" . $required . "' " . ">
-            <label>" . $label . ":</label>
-            <span><select " . $required . " " . $attributes . " class='input-text {$additionClasses}' name='" . $name . "' id='" . $name . "' value='" . $defaultValue . "' " . $fieldActions . "/>";
+            <label{$forAttr}>" . $label . "</label>
+            <span><select " . $required . " " . $attributes . " class='input-text {$additionClasses}' name='" . $name . "' id='" . $name . "' value='" . $escValue . "' " . $fieldActions . "/>";
             if (!isset($value['selectValues'])) {
                 $list = array();
                 foreach ($crmDefinition['options'] as $item) {
@@ -256,19 +379,21 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
             $sel = "";
             $html .= "
                 </select></span>
+                {$hint}
             </li>";
             break;
         case 'bool';
             $html = "
             <li class='" . $required . "' " . ">
-            <span><label>" . $label . "</label>
+            <span><label{$forAttr}>" . $label . "</label>
                 <input " . $required . " " . $attributes . " class='{$additionClasses}' maxlength='255' type='checkbox' name='" . $name . "' id='" . $name . "' ". ($defaultValue ? " checked " : " ") . $fieldActions . "  /> </span>
             </li>";
             break;
         case 'radio':
+            $groupLabelId = esc_attr($name) . '_label';
             $html = "<li class='" . $required . "' " . ">
-            <label>" . $label . ":</label>
-            <div class='stic-check-group' id='{$name}'>";
+            <label id='{$groupLabelId}'>" . $label . "</label>
+            <div class='stic-check-group' role='radiogroup' aria-labelledby='{$groupLabelId}' id='{$name}'>";
             $defaultValue = $defaultValue === null ? '' : $defaultValue;
             foreach ($value['selectValues'] as $skey => $svalue) {
                 $checked = $defaultValue == $skey ? 'checked' : '';
@@ -282,7 +407,7 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
         case 'multienum';
         case 'selectMultiple':
             $html = "<li class='{$type} " . $required . "' " . ">
-            <label>" . $label . ":</label>
+            <label{$forAttr}>" . $label . "</label>
             <span><select multiple " . $required . " " . $attributes . " class='{$additionClasses}' name='" . $name . "[]' id='" . $name . "' value='" . $defaultValue . "' " . $fieldActions . "/>";
             $arrayValues = explode("^,^", $defaultValue);
             $arrayValues = str_replace("^", "", $arrayValues);
@@ -301,12 +426,13 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
             $sel = "";
             $html .= "
                 </select></span>
+                {$hint}
             </li>";
             break;
         case 'readOnly':
             $html = "
             <li class=''>
-                <label>" . $label . ":</label>
+                <label>" . $label . "</label>
                 <span class='{$additionClasses}' id='{$name}' {$fieldActions} > {$defaultValue} </span>
             </li>";
             break;
@@ -348,7 +474,7 @@ function renderHiddenData($fieldList, $data)
         }
 
         $defaultValue = getFieldDefaultValue($value, $name, $data, $type);
-        $html .= "<input type='hidden'" . "' name='" . $name . "' id='" . $name . "' value='" . $defaultValue . "'  />";
+        $html .= "<input type='hidden' name='" . esc_attr($name) . "' id='" . esc_attr($name) . "' value='" . esc_attr((string) ($defaultValue ?? '')) . "'  />";
     }
     return $html;
 }

@@ -1,3 +1,673 @@
+/* ============================================================================
+   CAPA BASE del Área Privada (stic-base.css)
+   ----------------------------------------------------------------------------
+   Consolidación (UI-15, 2026-07) de los antiguos stic-style.css (base
+   histórica del plugin) + stic-modern-style.css (capa de modernización),
+   EN ESE ORDEN, sin cambios de contenido: una petición HTTP menos y un solo
+   sitio que mantener. La capa premium (custom-style.css) carga DESPUÉS y
+   pisa lo que haga falta — el CSS nuevo va SIEMPRE allí, no aquí.
+   ============================================================================ */
+
+/* ─────────────── PARTE 1 · base histórica (ex stic-style.css) ─────────────── */
+/* ============================================================
+   SinergiaCRM Private Area - Core Styles
+   Compatible con mobile-first design
+   ============================================================ */
+
+/* ============================================================
+   FORM STRUCTURE
+   ============================================================ */
+.stic-form h5 {
+    background-color: var(--gray-100, #f3f4f6);
+    padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
+    border-bottom: 2px solid var(--primary-color, #253782);
+    font-size: var(--font-size-lg, 1.125rem);
+    font-weight: 600;
+    color: var(--gray-800, #1f2937);
+    border-radius: var(--radius-md, 0.5rem) var(--radius-md, 0.5rem) 0 0;
+    margin-bottom: var(--space-4, 1rem);
+}
+
+.stic-form ul {
+    width: 100%;
+    display: block;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.stic-form li {
+    width: 100%;
+    display: block;
+    padding-bottom: var(--space-4, 1rem);
+    margin-bottom: var(--space-2, 0.5rem);
+}
+
+.stic-form li label {
+    width: 100%;
+    display: block;
+    font-size: var(--font-size-sm, 0.875rem);
+    font-weight: 500;
+    padding-bottom: var(--space-2, 0.5rem);
+    color: var(--gray-700, #374151);
+}
+
+.stic-form li label b {
+    font-size: var(--font-size-base, 1rem);
+    font-weight: 700;
+}
+
+.stic-form li span {
+    width: 100%;
+    display: block;
+}
+
+.stic-form li .input-text {
+    width: 100%;
+    font-size: var(--font-size-base, 1rem);
+}
+
+.stic-form li.stic-send span {
+    display: inline-block;
+    width: auto;
+}
+
+.stic-form li.stic-send .forgot-pass {
+    display: inline-block;
+    margin-left: var(--space-3, 0.75rem);
+}
+
+.stic-form li.last {
+    padding-bottom: 0;
+}
+
+.stic-form input[type="file"] {
+    border: 2px dashed var(--gray-300, #d1d5db);
+    padding: var(--space-4, 1rem);
+    line-height: normal;
+    height: auto;
+    font-size: var(--font-size-sm, 0.875rem);
+    border-radius: var(--radius-lg, 0.75rem);
+    background-color: var(--gray-50, #f9fafb);
+    cursor: pointer;
+    transition: var(--transition-fast, 150ms); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
+    width: 100%;
+}
+
+.stic-form input[type="file"]:hover {
+    border-color: var(--secondary-color, #34aadf);
+    background-color: var(--white, #ffffff);
+}
+
+.stic-form textarea.input-text {
+    min-height: 150px;
+    line-height: var(--line-height-normal, 1.5);
+}
+
+/* Form columns - Mobile first (stacked) */
+.stic-form-two-col li,
+.stic-form-one-col li {
+    width: 100%;
+    margin-right: 0;
+}
+
+/* ============================================================
+   FORM LIST VIEW (Detail View)
+   ============================================================ */
+.stic-form-list-view {
+    background: var(--white, #ffffff);
+    border: 1px solid var(--gray-200, #e5e7eb);
+    border-radius: var(--radius-lg, 0.75rem);
+    display: block;
+    margin-bottom: var(--space-6, 1.5rem);
+    padding: var(--space-4, 1rem);
+    width: 100%;
+}
+
+.stic-form-list-view ul {
+    width: 100%;
+    display: block;
+    margin: 0;
+    padding: 0;
+}
+
+.stic-form-list-view li {
+    border-top: 1px solid var(--gray-100, #f3f4f6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1, 0.25rem);
+    font-size: var(--font-size-sm, 0.875rem);
+    padding: var(--space-3, 0.75rem) 0;
+    vertical-align: top;
+    width: 100%;
+}
+
+.stic-form-list-view li:first-child {
+    border-top: none;
+}
+
+.stic-form-list-view li label {
+    font-weight: 600;
+    color: var(--gray-700, #374151);
+    font-size: var(--font-size-sm, 0.875rem);
+    width: 100%;
+    margin-bottom: 0;
+}
+
+.stic-form-list-view li span {
+    color: var(--gray-600, #4b5563);
+    width: 100%;
+}
+
+/* ============================================================
+   TAB NAVIGATION
+   ============================================================ */
+.stic-tab-content {
+    width: 100%;
+    border: none;
+    padding: var(--space-4, 1rem);
+    background: var(--white, #ffffff);
+}
+
+.stic-tab-content h3 {
+    margin: 0;
+    padding: 0 0 var(--space-4, 1rem) 0;
+    font-size: var(--font-size-xl, 1.25rem);
+    font-weight: 600;
+}
+
+.stic-tab-content table {
+    margin: 0;
+    padding: 0;
+}
+
+/* ============================================================
+   INFO TEXT
+   ============================================================ */
+.stic-info {
+    font-style: italic;
+    color: var(--gray-500, #6b7280);
+    font-size: var(--font-size-sm, 0.875rem);
+}
+
+/* ============================================================
+   CHECKBOX CONTAINER
+   ============================================================ */
+.stic-check-container {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3, 0.75rem);
+    margin-bottom: var(--space-4, 1rem);
+    padding: var(--space-3, 0.75rem);
+    background: var(--gray-50, #f9fafb);
+    border-radius: var(--radius-md, 0.5rem);
+}
+
+.stic-check-container input[type="checkbox"] {
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.stic-form li label.stic-check-label {
+    width: auto;
+    flex: 1;
+    font-size: var(--font-size-sm, 0.875rem);
+    font-weight: 400;
+    padding-bottom: 0;
+    margin-bottom: 0;
+    line-height: var(--line-height-normal, 1.5);
+}
+
+/* ============================================================
+   PAGINATION
+   ============================================================ */
+.pagination {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: var(--space-2, 0.5rem);
+    margin-top: var(--space-6, 1.5rem);
+    list-style: none;
+    padding: 0;
+}
+
+.pagination li {
+    list-style: none;
+}
+
+.pagination .current {
+    color: var(--primary-color, #253782) !important;
+    font-weight: 600;
+}
+
+/* ============================================================
+   SEND ACTIONS
+   ============================================================ */
+.stic-send .right {
+    float: right;
+}
+
+/* ============================================================
+   MAIN CONTENT LINKS
+   ============================================================ */
+.main-col a {
+    color: var(--primary-color, #253782) !important;
+    padding-right: var(--space-4, 1rem);
+    font-weight: 500;
+    transition: color var(--transition-fast, 150ms);
+}
+
+.main-col a:hover {
+    color: var(--secondary-color, #34aadf) !important;
+    text-decoration: none;
+}
+
+/* ============================================================
+   SIGNUP FORM
+   ============================================================ */
+#accounts_fields {
+    display: none;
+}
+
+/* ============================================================
+   NOTES SECTION
+   ============================================================ */
+.all-notes ul {
+    width: auto;
+    margin-left: 0 !important;
+    padding: 0 !important;
+    list-style: none;
+}
+
+.all-notes ul li {
+    margin-top: var(--space-3, 0.75rem) !important;
+    padding-bottom: var(--space-4, 1rem) !important;
+    border-bottom: 1px solid var(--gray-100, #f3f4f6);
+}
+
+.all-notes li .name {
+    font-size: var(--font-size-base, 1rem) !important;
+    font-weight: 600;
+    margin-bottom: var(--space-2, 0.5rem);
+    color: var(--gray-900, #111827);
+}
+
+.all-notes li .description {
+    width: 100%;
+    padding-left: 0 !important;
+    margin-bottom: var(--space-2, 0.5rem);
+    color: var(--gray-600, #4b5563);
+}
+
+.all-notes li .name_autor {
+    font-size: var(--font-size-xs, 0.75rem);
+    font-style: italic;
+    margin-bottom: var(--space-2, 0.5rem);
+    color: var(--gray-500, #6b7280);
+}
+
+.all-notes li .asttachment {
+    width: 100%;
+    padding-left: 0 !important;
+    margin-bottom: var(--space-2, 0.5rem);
+}
+
+.all-notes li .asttachment span {
+    margin-top: 1px;
+}
+
+.attachmentli {
+    margin-bottom: var(--space-4, 1rem);
+}
+
+/* ============================================================
+   LOGIN FORM SPECIFICS
+   ============================================================ */
+.input_login {
+    width: 100% !important;
+}
+
+.actions_login {
+    margin-top: var(--space-4, 1rem);
+}
+
+/* ============================================================
+   DOWNLOAD LINKS
+   ============================================================ */
+.download-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2, 0.5rem);
+    color: var(--primary-color, #253782) !important;
+    font-weight: 500;
+    padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+    border-radius: var(--radius-md, 0.5rem);
+    transition: var(--transition-fast, 150ms); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
+    border: none !important;
+    background: var(--gray-50, #f9fafb);
+}
+
+.download-link::before {
+    content: "📥";
+    font-size: var(--font-size-base, 1rem);
+}
+
+.download-link:hover {
+    text-decoration: none;
+    background: var(--gray-100, #f3f4f6);
+    color: var(--secondary-color, #34aadf) !important;
+}
+
+/* ============================================================
+   REQUIRED FIELDS
+   ============================================================ */
+li.required label::after {
+    content: " *";
+    color: var(--danger-color, #ef4444);
+    font-weight: bold;
+}
+
+/* ============================================================
+   INFO LINKS
+   ============================================================ */
+.info a {
+    color: var(--white, #ffffff) !important;
+    text-decoration: underline;
+}
+
+/* ============================================================
+   FLEX FORMS
+   ============================================================ */
+form[flex] ul {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: var(--space-4, 1rem);
+}
+
+.stic-form-one-col form[flex] ul li {
+    max-width: 100%;
+}
+
+form[flex] ul li {
+    max-width: 100%;
+}
+
+form[flex].col3 ul li {
+    max-width: 100%;
+}
+
+/* ============================================================
+   INVALID INPUT STATE
+   ============================================================ */
+.input-text[invalid] {
+    border-color: var(--danger-color, #ef4444) !important;
+    color: var(--danger-color, #ef4444);
+    background-color: var(--danger-light, #fee2e2);
+}
+
+/* ============================================================
+   CSME CUSTOM CLASSES
+   ============================================================ */
+.stic-titulo-csme {
+    color: #005b50;
+    font-size: var(--font-size-lg, 1.125rem);
+    font-weight: 600;
+}
+
+/* ============================================================
+   INTERNAL TABS WITH CONTENT
+   ============================================================ */
+.stic-ctabs {
+    width: 100%;
+    height: auto;
+    margin: 0 auto;
+}
+
+.stic-ctabs .stic-ctabs-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2, 0.5rem);
+}
+
+.stic-ctabs .stic-ctabs-list li {
+    flex: 1;
+    min-width: 80px;
+    padding: var(--space-3, 0.75rem) var(--space-2, 0.5rem);
+    text-align: center;
+    background-color: var(--gray-100, #f3f4f6);
+    border-radius: var(--radius-md, 0.5rem);
+    cursor: pointer;
+    transition: var(--transition-fast, 150ms); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
+}
+
+.stic-ctabs-list li.stic-ctabs-button {
+    background-color: var(--white, #ffffff);
+}
+
+.stic-ctabs-list li button {
+    width: auto;
+}
+
+.stic-ctabs .stic-ctabs-list li:hover {
+    background-color: var(--gray-200, #e5e7eb);
+}
+
+.stic-ctabs .stic-ctabs-list li a {
+    text-decoration: none;
+    color: var(--gray-700, #374151);
+    font-weight: 500;
+    box-shadow: none;
+}
+
+.stic-ctabs .stic-ctab {
+    display: none;
+    width: 100%;
+    min-height: 200px;
+    height: auto;
+    border-radius: var(--radius-lg, 0.75rem);
+    padding: var(--space-4, 1rem);
+    background-color: var(--white, #ffffff);
+    color: var(--gray-700, #374151);
+    clear: both;
+    margin-top: var(--space-4, 1rem);
+}
+
+.stic-ctabs .stic-ctab h3 {
+    border-bottom: 2px solid var(--gray-200, #e5e7eb);
+    letter-spacing: 0.025em;
+    font-weight: 600;
+    padding: var(--space-2, 0.5rem);
+    margin-bottom: var(--space-4, 1rem);
+}
+
+.stic-ctabs .stic-ctab p {
+    line-height: var(--line-height-relaxed, 1.75);
+}
+
+/* Active tab states */
+.stic-cactive {
+    display: block !important;
+}
+
+.stic-tab-active {
+    display: block !important;
+}
+
+.stic-ctabs .stic-ctabs-list li.stic-cactive {
+    background-color: var(--primary-color, #253782) !important;
+}
+
+.stic-ctabs .stic-ctabs-list li.stic-cactive a {
+    color: var(--white, #ffffff) !important;
+}
+
+.stic-cactive a {
+    color: var(--white, #ffffff) !important;
+}
+
+.stic-ctab b {
+    font-weight: 700;
+    color: var(--gray-900, #111827);
+}
+
+/* ============================================================
+   BUTTON LIST
+   ============================================================ */
+ul.stic-button-list {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    gap: var(--space-3, 0.75rem);
+    margin-top: var(--space-6, 1.5rem);
+    list-style: none;
+    padding: 0;
+}
+
+.stic-button-list .stic-button {
+    width: 100%;
+    margin: 0;
+}
+
+/* ============================================================
+   PROFILE PICTURE
+   ============================================================ */
+.stic-profile-picture {
+    border: 3px solid var(--gray-200, #e5e7eb);
+    padding: var(--space-1, 0.25rem);
+    max-width: 180px;
+    border-radius: var(--radius-lg, 0.75rem);
+    box-shadow: var(--shadow-sm);
+}
+
+/* ============================================================
+   MENU TEXT STYLES
+   ============================================================ */
+.stic-link-menu-text {
+    font-weight: 500;
+    font-family: var(--font-family);
+    font-size: var(--font-size-base, 1rem);
+}
+
+/* ============================================================
+   FULLCALENDAR EVENT CURSORS
+   ============================================================ */
+.fc-daygrid-event {
+    cursor: pointer;
+}
+
+.fc-daygrid-day-number {
+    text-decoration: none;
+}
+
+/* ============================================================
+   DISABLED INPUTS (Transparent Background)
+   ============================================================ */
+input[disabled=disabled],
+textarea[disabled=disabled],
+select[disabled=disabled] {
+    background-color: var(--gray-50, #f9fafb);
+    color: var(--gray-700, #374151) !important;
+}
+
+/* ============================================================
+   RESPONSIVE - TABLET (min-width: 640px)
+   ============================================================ */
+@media (min-width: 640px) {
+    .stic-tab-content {
+        padding: var(--space-6, 1.5rem);
+    }
+    
+    .stic-form-list-view li {
+        flex-direction: row;
+        width: 100%;
+    }
+    
+    .stic-form-list-view li label {
+        width: 35%;
+        flex-shrink: 0;
+    }
+    
+    .stic-form-list-view li span {
+        width: 65%;
+    }
+    
+    .stic-form-two-col li {
+        width: calc(50% - var(--space-3, 0.75rem));
+        display: inline-block;
+        margin-right: var(--space-3, 0.75rem);
+        vertical-align: top;
+    }
+    
+    .stic-form-two-col li:nth-child(2n) {
+        margin-right: 0;
+    }
+    
+    form[flex] ul {
+        flex-direction: row;
+    }
+    
+    form[flex] ul li {
+        max-width: calc(50% - var(--space-2, 0.5rem));
+    }
+    
+    ul.stic-button-list {
+        flex-direction: row;
+        justify-content: flex-start;
+        align-items: center;
+    }
+    
+    .stic-button-list .stic-button {
+        width: auto;
+        padding-right: var(--space-4, 1rem);
+    }
+}
+
+/* ============================================================
+   RESPONSIVE - DESKTOP (min-width: 768px)
+   ============================================================ */
+@media (min-width: 768px) {
+    .stic-tab-content {
+        font-size: var(--font-size-sm, 0.875rem);
+    }
+    
+    form[flex].col3 ul li {
+        max-width: calc(33.333% - var(--space-4, 1rem));
+    }
+    
+    .stic-ctabs .stic-ctabs-list li {
+        flex: 0 0 auto;
+        min-width: 100px;
+        padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
+    }
+    
+    .stic-ctabs .stic-ctab {
+        padding: var(--space-6, 1.5rem);
+    }
+}
+
+/* ============================================================
+   RESPONSIVE - SMALL SCREENS (max-width: 480px)
+   ============================================================ */
+@media (max-width: 480px) {
+    .stic-ctabs .stic-ctabs-list li {
+        flex: 1 1 calc(50% - var(--space-2, 0.5rem));
+    }
+}
+
+/* ============================================================
+   ENTRY CONTENT TABLE HEADERS
+   ============================================================ */
+.entry-content th {
+    line-height: var(--line-height-tight, 1.25);
+    padding-bottom: var(--space-4, 1rem);
+}
+
+/* ─────────── PARTE 2 · modernización (ex stic-modern-style.css) ─────────── */
 /* ============================================================
    SinergiaCRM Private Area - Modern Mobile-First Styles
    Versión 2.0 - Rediseño completo responsive
@@ -5,84 +675,16 @@
 
 /* ============================================================
    CSS CUSTOM PROPERTIES (Variables)
+   ------------------------------------------------------------
+   (Plan 018) Esta capa YA NO define tokens. El :root que vivía aquí
+   competía con el de custom-style.css y solo "ganaba" en apariencia:
+   custom-style.css se carga DESPUÉS y lo pisaba entero. Ahora la
+   ÚNICA fuente de tokens es custom-style.css §1 (incluido el bloque
+   "herencia base" con los que solo usaba esta capa: --gray-*, --white,
+   --info-*, --warning-light, --transition-*, --space-*, --font-size-*,
+   --line-height-*). Cero cambio visual: los valores efectivos ya eran
+   los de custom-style.
    ============================================================ */
-:root {
-    /* Colores principales */
-    --primary-color: #253782;
-    --primary-dark: #1a2759;
-    --primary-light: #3a4d9e;
-    --secondary-color: #34aadf;
-    --secondary-dark: #2891c4;
-    --secondary-light: #5bbce8;
-    --accent-color: #2e5c8a;
-    
-    /* Estados */
-    --success-color: #10b981;
-    --success-light: #d1fae5;
-    --danger-color: #ef4444;
-    --danger-light: #fee2e2;
-    --warning-color: #f59e0b;
-    --warning-light: #fef3c7;
-    --info-color: #3b82f6;
-    --info-light: #dbeafe;
-    
-    /* Neutros */
-    --white: #ffffff;
-    --gray-50: #f9fafb;
-    --gray-100: #f3f4f6;
-    --gray-200: #e5e7eb;
-    --gray-300: #d1d5db;
-    --gray-400: #9ca3af;
-    --gray-500: #6b7280;
-    --gray-600: #4b5563;
-    --gray-700: #374151;
-    --gray-800: #1f2937;
-    --gray-900: #111827;
-    
-    /* Sombras */
-    --shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-    --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
-    
-    /* Transiciones */
-    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
-    
-    /* Bordes */
-    --radius-sm: 0.375rem;
-    --radius-md: 0.5rem;
-    --radius-lg: 0.75rem;
-    --radius-xl: 1rem;
-    --radius-full: 9999px;
-    
-    /* Espaciado base */
-    --space-1: 0.25rem;
-    --space-2: 0.5rem;
-    --space-3: 0.75rem;
-    --space-4: 1rem;
-    --space-5: 1.25rem;
-    --space-6: 1.5rem;
-    --space-8: 2rem;
-    --space-10: 2.5rem;
-    --space-12: 3rem;
-    
-    /* Tipografía */
-    --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    --font-size-xs: 0.75rem;
-    --font-size-sm: 0.875rem;
-    --font-size-base: 1rem;
-    --font-size-lg: 1.125rem;
-    --font-size-xl: 1.25rem;
-    --font-size-2xl: 1.5rem;
-    --font-size-3xl: 1.875rem;
-    
-    --line-height-tight: 1.25;
-    --line-height-normal: 1.5;
-    --line-height-relaxed: 1.75;
-}
 
 /* ============================================================
    RESET & BASE STYLES
@@ -179,7 +781,7 @@
     font-size: var(--font-size-sm);
     font-weight: 500;
     text-decoration: none;
-    transition: all var(--transition-fast);
+    transition: var(--transition-fast); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
 }
 
 .stic-logout:hover {
@@ -222,7 +824,7 @@ ul.stic-primary-menu li a {
     text-decoration: none !important;
     text-align: center;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    transition: all var(--transition-fast);
+    transition: var(--transition-fast); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
     position: relative;
 }
 
@@ -328,7 +930,7 @@ ul.stic-primary-menu li.current-menu-item a {
     font-size: var(--font-size-base);
     color: var(--gray-800);
     background-color: var(--white);
-    transition: all var(--transition-fast);
+    transition: var(--transition-fast); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
     -webkit-appearance: none;
     appearance: none;
 }
@@ -412,7 +1014,7 @@ ul.stic-primary-menu li.current-menu-item a {
     font-weight: 600;
     text-decoration: none;
     cursor: pointer;
-    transition: all var(--transition-base);
+    transition: var(--transition-base); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
     text-align: center;
     min-height: 48px; /* Touch-friendly */
     background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
@@ -553,7 +1155,7 @@ ul.stic-primary-menu li.current-menu-item a {
     font-weight: 500;
     padding: var(--space-1) var(--space-2);
     border-radius: var(--radius-sm);
-    transition: all var(--transition-fast);
+    transition: var(--transition-fast); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
     white-space: nowrap;
 }
 
@@ -607,7 +1209,7 @@ ul.stic-primary-menu li.current-menu-item a {
     background-repeat: no-repeat !important;
     background-position: var(--space-3) center !important;
     background-size: 1.25rem !important;
-    transition: all var(--transition-fast) !important;
+    transition: var(--transition-fast) !important; transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter !important;
     min-height: 48px;
     margin: 0 !important;
 }
@@ -649,7 +1251,7 @@ ul.stic-primary-menu li.current-menu-item a {
     color: var(--gray-700) !important;
     font-weight: 500;
     cursor: pointer;
-    transition: all var(--transition-fast);
+    transition: var(--transition-fast); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
 }
 
 .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
@@ -766,7 +1368,7 @@ table.dataTable thead .sorting_desc {
     padding: var(--space-4);
     margin-bottom: var(--space-4);
     box-shadow: var(--shadow-sm);
-    transition: all var(--transition-base);
+    transition: var(--transition-base); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
 }
 
 .card:hover,
@@ -835,7 +1437,7 @@ table.dataTable thead .sorting_desc {
     font-weight: 500;
     text-decoration: none;
     border-radius: var(--radius-md) var(--radius-md) 0 0;
-    transition: all var(--transition-fast);
+    transition: var(--transition-fast); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
     border: 2px solid transparent;
     border-bottom: none;
     margin-bottom: -2px;
@@ -893,7 +1495,7 @@ table.dataTable thead .sorting_desc {
     border-radius: var(--radius-md) !important;
     background: var(--primary-color) !important;
     border: none !important;
-    transition: all var(--transition-fast) !important;
+    transition: var(--transition-fast) !important; transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter !important;
 }
 
 .fc .fc-button:hover {

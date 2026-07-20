@@ -18,12 +18,12 @@ $html .= "<div class='stic-entry-header'>";
 <table>
     <tr>
         <td>
-            <img src="<?php echo plugins_url('../images/sinergiacrm.jpg', __FILE__);?>" >
+            <img src="<?php echo plugins_url('../images/sinergiacrm.jpg', __FILE__);?>" alt="SinergiaCRM" loading="lazy" decoding="async">
         </td>
         <td>
 
             <form action="">
-            <iframe width="300" height="200" src="https://www.youtube.com/embed/9n8YRA-IMDo" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+            <iframe width="300" height="200" src="https://www.youtube.com/embed/9n8YRA-IMDo" title="YouTube video player" frameborder="0" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
             </form>
 
         </td>

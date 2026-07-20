@@ -43,33 +43,6 @@ function getDestinationModule()
     return $scp_module;
 }
 
-/* Log to File
- * Description: Log into system php error log, usefull for Ajax and stuff that FirePHP doesn't catch
- */
-function my_log_file($msg, $name = '')
-{
-    // Print the name of the calling function if $name is left empty
-    $trace = debug_backtrace();
-    $name = ('' == $name) ? $trace[1]['function'] : $name;
-
-    $error_dir = './wordpress.log';
-    $msg = print_r($msg, true);
-    date_default_timezone_set('Europe/Andorra');
-    $now = date('d/m/Y H:i:s', time());
-    $log = $now . " | " . $name . "  |  " . $msg . "\n";
-    error_log($log, 3, $error_dir);
-}
-
-//function to easy debug
-function debug($v, $n)
-{
-    echo '<pre style="font-size:10px;border:1px solid red;">';
-
-    echo '<b>___' . $n . '________________________</b><br>';
-    print_r($v);
-    echo '</pre>';
-}
-
 function sticpa_load_languages()
 {
     $text_domain = 'sticpa';
@@ -83,17 +56,75 @@ include plugin_dir_path(__FILE__) . 'inc/stic-comunica-roles.php';
 
 add_action('admin_menu', 'sugar_crm_portal_create_menu');
 
+/**
+ * Página interna pedida (?internalpage), saneada con la misma whitelist que
+ * sticpa_resolve_page_file. '' si no se pide ninguna (home/login).
+ * Se usa para decidir qué librerías pesadas encolar (plan 010).
+ */
+function sticpa_current_internal_page()
+{
+    $page = isset($_REQUEST['internalpage']) ? (string) $_REQUEST['internalpage'] : '';
+    return preg_match('/^[a-z0-9_]+$/', $page) ? $page : '';
+}
+
 // Add JS script for form management
 // Don't add the action to avoid including the js in all the pages of the site. Instead it is loaded when the shortcode is applied
 // add_action("wp_enqueue_scripts", "dcms_insertar_js");
+/**
+ * MAPA DE LIBRERÍAS POR PÁGINA (plan 010) — al añadir una página que use una
+ * lib pesada hay que añadirla aquí:
+ *   · FullCalendar (+locale)  → solo single_stic_activities_calendar.
+ *   · DataTables (JS; el CSS vendorizado se encola en
+ *     sugar_crm_portal_style_and_script) → solo páginas list_*.
+ *   · Selectize (multiselect) → páginas de formulario single_* (los multienum
+ *     pueden venir de la definición del CRM sin declararse en la página, así
+ *     que se es conservador: TODAS las single_* menos el calendario).
+ *   · iban.js → páginas con validación de IBAN (payment_form, tutor_profile,
+ *     profile, payments, payment_commitments).
+ *   · stic-utils / stic-ui / stic-cropper / stic-init → SIEMPRE (propios, ligeros).
+ * Sin ?internalpage (home/login/selección de perfil) no se carga ninguna pesada.
+ */
 function dcms_insertar_js()
 {
-    wp_register_script('sugarcrm', plugin_dir_url(__FILE__) . 'js/iban.js', array('jquery'), '1', true);
-    wp_enqueue_script('sugarcrm');
-    wp_register_script('fullcalendar', plugin_dir_url(__FILE__) . 'js/fullcalendar/lib/main.js', array('jquery'), '1', true);
-    wp_enqueue_script('fullcalendar');
-    wp_register_script('fullcalendar-locale', plugin_dir_url(__FILE__) . 'js/fullcalendar/lib/locales-all.min.js', array('jquery'), '1', true);
-    wp_enqueue_script('fullcalendar-locale');
+    $page = sticpa_current_internal_page();
+    $isList = strpos($page, 'list_') === 0;
+    $isCalendar = ($page === 'single_stic_activities_calendar');
+    $isSingleForm = (strpos($page, 'single_') === 0) && !$isCalendar;
+    $ibanPages = array(
+        'single_stic_payment_form',
+        'single_stic_tutor_profile',
+        'single_stic_profile',
+        'single_stic_payments',
+        'single_stic_payment_commitments',
+    );
+
+    if (in_array($page, $ibanPages, true)) {
+        wp_register_script('sugarcrm', plugin_dir_url(__FILE__) . 'js/iban.js', array('jquery'), '1', true);
+        wp_enqueue_script('sugarcrm');
+    }
+    if ($isCalendar) {
+        // Build minificado (269 KB vs 718 KB del sin minificar que se cargaba antes).
+        wp_register_script('fullcalendar', plugin_dir_url(__FILE__) . 'js/fullcalendar/lib/main.min.js', array('jquery'), '1', true);
+        wp_enqueue_script('fullcalendar');
+        // Solo el locale del idioma activo; el paquete con TODOS los idiomas (24 KB)
+        // queda como fallback si no existe el archivo del locale.
+        $fcLocale = strtolower(str_replace('_', '-', get_locale()));
+        $fcLocaleShort = explode('-', $fcLocale)[0];
+        $fcLocaleRel = null;
+        foreach (array($fcLocale, $fcLocaleShort) as $candidate) {
+            if ($candidate && $candidate !== 'en' && file_exists(plugin_dir_path(__FILE__) . 'js/fullcalendar/lib/locales/' . $candidate . '.js')) {
+                $fcLocaleRel = 'js/fullcalendar/lib/locales/' . $candidate . '.js';
+                break;
+            }
+        }
+        if ($fcLocaleRel === null && $fcLocaleShort !== 'en') {
+            $fcLocaleRel = 'js/fullcalendar/lib/locales-all.min.js';
+        }
+        if ($fcLocaleRel !== null) {
+            wp_register_script('fullcalendar-locale', plugin_dir_url(__FILE__) . $fcLocaleRel, array('fullcalendar'), '1', true);
+            wp_enqueue_script('fullcalendar-locale');
+        }
+    }
     // Versión por filemtime en los JS propios: cada deploy rompe la caché.
     $jsver = function ($rel) {
         $path = plugin_dir_path(__FILE__) . $rel;
@@ -101,17 +132,35 @@ function dcms_insertar_js()
     };
     wp_register_script('sugarcrm-own', plugin_dir_url(__FILE__) . 'js/stic-utils.js', array('jquery'), $jsver('js/stic-utils.js'), true);
     wp_enqueue_script('sugarcrm-own');
-    wp_register_script('custom-utils', plugin_dir_url(__FILE__) . 'js/custom-utils.js', array('jquery'), $jsver('js/custom-utils.js'), true);
-    wp_enqueue_script('custom-utils');
     // UI helpers: overlay de carga + toggle de contraseña (sin dependencias)
     wp_register_script('stic-ui', plugin_dir_url(__FILE__) . 'js/stic-ui.js', array(), $jsver('js/stic-ui.js'), true);
     wp_enqueue_script('stic-ui');
+    // Cropper de fotos móvil-first (se engancha solo a los input de imagen)
+    wp_register_script('stic-cropper', plugin_dir_url(__FILE__) . 'js/stic-cropper.js', array(), $jsver('js/stic-cropper.js'), true);
+    wp_enqueue_script('stic-cropper');
     // We use only one file for plugin literals, so although theoretically we should call this function twice (one efor each js), we only call it once.
     wp_localize_script('sugarcrm-own', 'stic_script_vars', getSticScriptVars());
-    wp_register_script('multiselect', plugin_dir_url(__FILE__) . 'js/selectize.min.js', array('jquery'), '1', true);
-    wp_enqueue_script('multiselect');
-    wp_register_script('datatables', plugin_dir_url(__FILE__) . 'js/jquery.dataTables.min.js', array('jquery'), '1', true);
-    wp_enqueue_script('datatables');
+    if ($isSingleForm) {
+        wp_register_script('multiselect', plugin_dir_url(__FILE__) . 'js/selectize.min.js', array('jquery'), '1', true);
+        wp_enqueue_script('multiselect');
+    }
+    if ($isList) {
+        wp_register_script('datatables', plugin_dir_url(__FILE__) . 'js/jquery.dataTables.min.js', array('jquery'), '1', true);
+        wp_enqueue_script('datatables');
+    }
+    // Init dirigida por data-* (plan 021): lee data-dt-settings / data-fc-settings
+    // y arranca DataTables/FullCalendar sin <script> inline en el body.
+    if ($isList || $isCalendar) {
+        $initDeps = array('jquery', 'sugarcrm-own');
+        if ($isList) {
+            $initDeps[] = 'datatables';
+        }
+        if ($isCalendar) {
+            $initDeps[] = 'fullcalendar';
+        }
+        wp_register_script('stic-init', plugin_dir_url(__FILE__) . 'js/stic-init.js', $initDeps, $jsver('js/stic-init.js'), true);
+        wp_enqueue_script('stic-init');
+    }
 }
 
 function sugar_crm_portal_create_menu()
@@ -351,11 +400,11 @@ function sticpa_section_meta($key)
             'icon' => "<circle cx='12' cy='8' r='4'/><path d='M4 21v-1a8 8 0 0 1 16 0v1'/>",
         ),
         'single_stic_tutor_profile' => array(
-            'desc' => __('Tus datos como tutor/a.', 'sticpa'),
+            'desc' => __('Tus datos como familiar: contacto, dirección y medio de pago.', 'sticpa'),
             'icon' => "<circle cx='12' cy='8' r='4'/><path d='M4 21v-1a8 8 0 0 1 16 0v1'/>",
         ),
         'single_stic_profile_selection' => array(
-            'desc' => __('Cambia de perfil.', 'sticpa'),
+            'desc' => __('Elige a qué participante quieres ver.', 'sticpa'),
             'icon' => "<path d='M16 21v-2a4 4 0 0 0-8 0v2'/><circle cx='12' cy='7' r='4'/><path d='M22 21v-2a4 4 0 0 0-3-3.87'/>",
         ),
         'list_stic_relationships' => array(
@@ -395,7 +444,7 @@ function sticpa_section_meta($key)
             'icon' => "<circle cx='12' cy='12' r='10'/><path d='M12 16v-4M12 8h.01'/>",
         ),
         'single_stic_comunica_perfil' => array(
-            'desc' => __('Consulta y edita tus datos personales y de contacto.', 'sticpa'),
+            'desc' => __('Tus datos personales, de contacto, MCM, salud y RGPD.', 'sticpa'),
             'icon' => "<circle cx='12' cy='8' r='4'/><path d='M4 21v-1a8 8 0 0 1 16 0v1'/>",
         ),
         'single_stic_comunica_monitor' => array(
@@ -451,7 +500,7 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
     // Mensaje genérico tras pedir un enlace mágico (no revela si el email existe).
     $magicMsg = "";
     if (isset($_REQUEST['success']) && $_REQUEST['success'] == true) {
-        $magicMsg = "<span class='success'>" . __('Si tu email está registrado, te hemos enviado un enlace de acceso. Revisa tu bandeja de entrada. 📩', 'sticpa') . "</span>";
+        $magicMsg = "<span class='success' role='status'>" . __('Si tu email está registrado, te hemos enviado un enlace de acceso. Revisa tu bandeja de entrada. 📩', 'sticpa') . "</span>";
     }
 
     // Selector de idioma (opcional, según plugin de traducción activo).
@@ -491,13 +540,26 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
 
     $html .= "<div class='stic-auth' data-mode='" . esc_attr($mode) . "'>";
 
+    /* ---------- TABS: elegir cómo entrar (enlace mágico / contraseña) ---------- */
+    $magicSelected = ($mode === 'password') ? 'false' : 'true';
+    $passwordSelected = ($mode === 'password') ? 'true' : 'false';
+    $html .= "
+        <div class='stic-auth-tabs' role='tablist' aria-label='" . esc_attr__('Forma de acceso', 'sticpa') . "'>
+            <button type='button' class='stic-auth-tab' data-auth-toggle='magic' role='tab' id='stic-auth-tab-magic' aria-controls='stic-auth-panel-magic' aria-selected='{$magicSelected}'>"
+                . sticpa_icon('sparkles') . "<span>" . __('Enlace mágico', 'sticpa') . "</span>
+            </button>
+            <button type='button' class='stic-auth-tab' data-auth-toggle='password' role='tab' id='stic-auth-tab-password' aria-controls='stic-auth-panel-password' aria-selected='{$passwordSelected}'>"
+                . sticpa_icon('lock') . "<span>" . __('Contraseña', 'sticpa') . "</span>
+            </button>
+        </div>";
+
     /* ---------- VISTA 1: ENLACE MÁGICO (por defecto) ---------- */
     $html .= "
-        <div class='stic-auth-view stic-auth-magic'>
+        <div class='stic-auth-view stic-auth-magic' id='stic-auth-panel-magic' role='tabpanel' aria-labelledby='stic-auth-tab-magic'>
             " . $magicMsg . "
             <p class='stic-auth-help'>
                 <span class='stic-sparkle' aria-hidden='true'>" . sticpa_icon('sparkles') . "</span>
-                " . __('Introduce tu email y te enviamos un enlace para entrar sin contraseña.', 'sticpa') . "
+                " . __('Sin contraseñas que recordar: escribe tu email y te enviamos un enlace para entrar con un clic.', 'sticpa') . "
             </p>
             <form action='" . site_url() . "/wp-admin/admin-post.php' method='post' class='stic-loading-form'
                   data-loading-text='" . esc_attr__('Enviando tu enlace de acceso…', 'sticpa') . "'
@@ -527,14 +589,11 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
                     </li>
                 </ul>
             </form>
-            <p class='stic-auth-switch'>
-                <a href='?mode=password' data-auth-toggle='password'>" . __('¿Tienes una contraseña? Inicia sesión', 'sticpa') . "</a>
-            </p>
         </div>";
 
     /* ---------- VISTA 2: USUARIO + CONTRASEÑA ---------- */
     $html .= "
-        <div class='stic-auth-view stic-auth-login'>
+        <div class='stic-auth-view stic-auth-login' id='stic-auth-panel-password' role='tabpanel' aria-labelledby='stic-auth-tab-password'>
             <form name='stic-login-form' id='stic-login-form' class='stic-loading-form' action='' method='post'
                   data-loading-text='" . esc_attr__('Verificando tus datos…', 'sticpa') . "'
                   data-loading-sub='" . esc_attr__('Estamos comprobando tu acceso de forma segura.', 'sticpa') . "'>
@@ -561,18 +620,16 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
                     </li>
                 </ul>
             </form>
-            <p class='stic-auth-switch'>
-                <a href='?mode=magic' data-auth-toggle='magic'>" . sticpa_icon('sparkles', 'stic-inline-icon') . " " . __('Prefiero entrar con un enlace mágico', 'sticpa') . "</a>
-            </p>
         </div>";
 
     $html .= "</div>"; // .stic-auth
 
-    // Registro (común a ambas vistas).
+    // Registro + sello de confianza (común a ambas vistas).
     $html .= "
         <p class='stic-auth-links' style='text-align:center;margin-top:1.1rem;font-size:0.92rem;color:var(--gray-500);'>"
         . __('¿Todavía no tienes cuenta?', 'sticpa') . " <a href='?internalpage=single_stic_signup'>" . __('Consulta cómo conseguirlo', 'sticpa') . "</a>
-        </p>";
+        </p>
+        <p class='stic-auth-trust'>" . sticpa_icon('shield') . "<span>" . __('Conexión segura · Tus datos viven en SinergiaCRM', 'sticpa') . "</span></p>";
 
     return $html;
 }
@@ -615,9 +672,9 @@ function sugar_crm_portal_check_user_and_login($html = "")
             $html .= sugar_crm_portal_index();
         } else {
             // Login fallido: reabrimos directamente en la vista de usuario/contraseña.
-            $html .= "<div class='stic-auth-shell'><div class='stic-login-form stic-form'>";
+            $html .= "<div class='stic-auth-shell'" . sticpa_theme_attr() . "><div class='stic-login-form stic-form'>";
             $html .= sugar_crm_portal_login_form("", 'password');
-            $html .= "<span class='error'>" . __('Username and/or password are not correct.', 'sticpa') . "</span>";
+            $html .= "<span class='error' role='alert'>" . __('Username and/or password are not correct.', 'sticpa') . "</span>";
             $html .= "</div></div>";
 
         }
@@ -625,7 +682,7 @@ function sugar_crm_portal_check_user_and_login($html = "")
     } else {
         // Vista inicial: por defecto enlace mágico; 'password' si se pide con ?mode=password.
         $mode = (isset($_REQUEST['mode']) && $_REQUEST['mode'] === 'password') ? 'password' : 'magic';
-        $html .= "<div class='stic-auth-shell'><div class='stic-login-form stic-form'>";
+        $html .= "<div class='stic-auth-shell'" . sticpa_theme_attr() . "><div class='stic-login-form stic-form'>";
         $html .= sugar_crm_portal_login_form("", $mode);
         if (isset($_REQUEST['signup']) && $_REQUEST['signup'] == true) {
             $html .= "<span class='success'>" . __('You have successfully signed up.', 'sticpa') . ".</span>";
@@ -675,7 +732,7 @@ function sugar_crm_portal_forgot_password($html = "")
     $current_url = explode('?', $_SERVER['REQUEST_URI'], 2);
     $current_url = $current_url[0] . '?internalpage=stic_forgot_password';
 
-    $html .= "<div class='stic-auth-shell'><div class='stic-forgotpas-form stic-form'>";
+    $html .= "<div class='stic-auth-shell'" . sticpa_theme_attr() . "><div class='stic-forgotpas-form stic-form'>";
 
     $html .= "
         <div class='stic-auth-brand'>
@@ -724,6 +781,23 @@ function sugar_crm_portal_forgot_password($html = "")
     return $html;
 }
 
+/**
+ * Sanea el parámetro ?internalpage y devuelve la ruta del archivo de pages/ a
+ * incluir, o '' si no es válido. IMPRESCINDIBLE: internalpage viene del
+ * navegador y sin esta comprobación permitiría incluir archivos arbitrarios
+ * del servidor (path traversal, p. ej. ../../wp-config).
+ */
+function sticpa_resolve_page_file($page)
+{
+    $page = (string) $page;
+    // Solo minúsculas, números y guion bajo: es el formato de todos los archivos de pages/.
+    if ($page === '' || !preg_match('/^[a-z0-9_]+$/', $page)) {
+        return '';
+    }
+    $file = plugin_dir_path(__FILE__) . 'pages/' . $page . '.php';
+    return file_exists($file) ? $file : '';
+}
+
 function sugar_crm_portal_index($html = "")
 {
     // index
@@ -742,11 +816,13 @@ function sugar_crm_portal_index($html = "")
             $currentPage = 'single_stic_profile_selection';
         }
     } else {
-        $currentPage = $_REQUEST['internalpage'];
+        // Con sesión de tutor pero sin página pedida (URL "pelada"): a la home.
+        $currentPage = $_REQUEST['internalpage'] ?? 'single_stic_home';
     }
-    if (!$currentPage == '') {
+    $pageFile = sticpa_resolve_page_file($currentPage);
+    if ($pageFile !== '') {
         ob_start();
-        include plugin_dir_path(__FILE__) . 'pages/' . $currentPage . '.php';
+        include $pageFile;
         $returned = ob_get_contents();
         $html .= $returned;
         ob_end_clean();
@@ -766,9 +842,10 @@ function sugar_crm_portal_signup($html = "")
 
     $html .='<div>';
     //We include the corresponding form based on the content of $_REQUEST
-    if (!$_REQUEST['internalpage'] == '') {
+    $pageFile = sticpa_resolve_page_file($_REQUEST['internalpage'] ?? '');
+    if ($pageFile !== '') {
         ob_start();
-        require_once plugin_dir_path(__FILE__) . 'pages/' . $_REQUEST['internalpage'] . '.php';
+        require_once $pageFile;
         $returned = ob_get_contents();
         ob_end_clean();
         $html .= $returned;
@@ -781,6 +858,24 @@ function sugar_crm_portal_signup($html = "")
 }
 
 add_shortcode('sinergiacrm-private-area', 'sinergiacrm_private_area_shortcode'); // add shortcode [sinergiacrm-private-area]
+
+/**
+ * El área privada está detrás de login: no debe indexarse en buscadores.
+ * Marca noindex/nofollow en cualquier página que contenga el shortcode.
+ */
+add_filter('wp_robots', 'sticpa_private_area_robots');
+function sticpa_private_area_robots($robots)
+{
+    if (is_singular()) {
+        $post = get_post();
+        if ($post && has_shortcode($post->post_content, 'sinergiacrm-private-area')) {
+            $robots['noindex'] = true;
+            $robots['nofollow'] = true;
+            unset($robots['max-image-preview']);
+        }
+    }
+    return $robots;
+}
 function sinergiacrm_private_area_shortcode()
 {
     // Load js only when shortcode is present
@@ -801,15 +896,143 @@ function sinergiacrm_private_area_shortcode()
     return $content;
 }
 
+/**
+ * ============================================================================
+ *  MODO APP (?app=1) — para la WebView de la app (React Native, etc.)
+ * ----------------------------------------------------------------------------
+ * Oculta el header/footer/admin-bar del tema de WordPress para que la WebView
+ * muestre SOLO el área privada. Se activa con ?app=1 en cualquier URL del área
+ * y se recuerda en una cookie (los enlaces internos no llevan el parámetro);
+ * se desactiva con ?app=0. Ejemplo de URL de arranque de la app:
+ *   https://…/area-privada/?token=XXXX&app=1
+ */
+add_action('init', 'sticpa_app_mode_boot', 2);
+function sticpa_app_mode_boot()
+{
+    if (!isset($_GET['app'])) {
+        return;
+    }
+    $on = $_GET['app'] !== '0';
+    setcookie('sticpa_app', $on ? '1' : '', $on ? time() + 30 * DAY_IN_SECONDS : time() - 3600, '/');
+    $_COOKIE['sticpa_app'] = $on ? '1' : ''; // efectivo ya en esta petición
+}
+
+/** ¿Estamos dentro de la app (WebView)? */
+function sticpa_is_app_mode()
+{
+    return !empty($_COOKIE['sticpa_app']);
+}
+
+/**
+ * Atributo data-stic-theme para los contenedores del área (plan 016).
+ * El tema oscuro es OPT-IN: solo se activa si el usuario lo eligió (cookie
+ * escrita por el toggle en js/stic-ui.js). Por defecto, claro. Se pinta en
+ * servidor — como el modo app — para que NO haya flash de tema al cargar.
+ */
+function sticpa_theme_attr()
+{
+    return (!empty($_COOKIE['sticpa_theme']) && $_COOKIE['sticpa_theme'] === 'dark')
+        ? " data-stic-theme='dark'"
+        : '';
+}
+
+// Clase en el body + CSS que esconde el "chrome" del tema alrededor del área.
+add_filter('body_class', function ($classes) {
+    if (sticpa_is_app_mode()) {
+        $classes[] = 'sticpa-app-mode';
+    }
+    return $classes;
+});
+
+function sticpa_app_mode_css()
+{
+    // Selectores genéricos de headers/footers de los temas habituales
+    // (clásicos, Elementor, bloques). Si el tema usa otro wrapper, añádelo aquí.
+    return '
+    body.sticpa-app-mode :is(
+        header, .site-header, #masthead, #site-header,
+        .elementor-location-header, header.wp-block-template-part,
+        footer, .site-footer, #colophon,
+        .elementor-location-footer, footer.wp-block-template-part,
+        #wpadminbar
+    ) { display: none !important; }
+    body.sticpa-app-mode { padding-top: 0 !important; margin-top: 0 !important; }
+    body.sticpa-app-mode.admin-bar { margin-top: 0 !important; } /* hueco del admin bar */
+    ';
+}
+
+/**
+ * Duración de la sesión (cookie + recolección en servidor).
+ *
+ * Por defecto 1 año. Es una ventana DESLIZANTE: se renueva en cada visita
+ * (ver más abajo), así que mientras el usuario entre al menos una vez al año
+ * su sesión no caduca nunca. Ideal para el área embebida en la app (Expo) y
+ * también para quien entra por web de forma esporádica.
+ *
+ * Se puede ajustar sin tocar código con el filtro `sticpa_session_ttl`.
+ */
+function sticpa_session_ttl()
+{
+    return (int) apply_filters('sticpa_session_ttl', YEAR_IN_SECONDS);
+}
+
 add_action('init', 'sugar_crm_portal_start_session', 1); // start session
 function sugar_crm_portal_start_session()
 {
-    if (!session_id()) {
-        session_start();
+    if (session_id()) {
+        return; // sesión ya iniciada en esta petición
+    }
+
+    $ttl = sticpa_session_ttl();
+
+    // La sesión debe sobrevivir en servidor al menos tanto como la cookie; si no,
+    // el recolector de basura de PHP borraría los datos aunque la cookie siga viva.
+    // (Nota: algunos hostings gestionan la limpieza de sesiones por su cuenta y
+    //  pueden ignorar este ajuste; si ocurre, habría que usar un save_path propio.)
+    if ((int) ini_get('session.gc_maxlifetime') < $ttl) {
+        @ini_set('session.gc_maxlifetime', (string) $ttl);
+    }
+
+    // Cookie de sesión de larga duración (en vez de "hasta cerrar el navegador").
+    $secure = is_ssl();
+    if (PHP_VERSION_ID >= 70300) {
+        session_set_cookie_params(array(
+            'lifetime' => $ttl,
+            'path'     => defined('COOKIEPATH') && COOKIEPATH ? COOKIEPATH : '/',
+            'domain'   => defined('COOKIE_DOMAIN') ? COOKIE_DOMAIN : '',
+            'secure'   => $secure,
+            'httponly' => true,
+            'samesite' => 'Lax', // permite volver al área desde enlaces externos
+        ));
+    } else {
+        session_set_cookie_params($ttl, '/', '', $secure, true);
+    }
+
+    session_start();
+
+    // Ventana DESLIZANTE: PHP no reenvía la cookie de sesión si el navegador ya
+    // trae una válida, así que la caducidad no se movería. La reenviamos nosotros
+    // en cada visita para que el año cuente desde la última vez que entró.
+    if (!headers_sent()) {
+        $params  = session_get_cookie_params();
+        $expires = time() + $ttl;
+        $path    = !empty($params['path']) ? $params['path'] : '/';
+        if (PHP_VERSION_ID >= 70300) {
+            setcookie(session_name(), session_id(), array(
+                'expires'  => $expires,
+                'path'     => $path,
+                'domain'   => $params['domain'],
+                'secure'   => $secure,
+                'httponly' => true,
+                'samesite' => !empty($params['samesite']) ? $params['samesite'] : 'Lax',
+            ));
+        } else {
+            setcookie(session_name(), session_id(), $expires, $path, $params['domain'], $secure, true);
+        }
     }
 }
 
-if (isset($_REQUEST['logout']) == 'true') // logout
+if (isset($_REQUEST['logout'])) // logout
 {
     add_action('init', 'sugar_crm_portal_louout', 1);
     function sugar_crm_portal_louout()
@@ -834,6 +1057,25 @@ if (isset($_REQUEST['logout']) == 'true') // logout
     }
 }
 
+/**
+ * Preconnect a los orígenes de Google Fonts: el CSS viene de fonts.googleapis.com
+ * y los .woff2 de fonts.gstatic.com (este último necesita crossorigin). Ahorra un
+ * viaje DNS+TLS completo en el camino crítico del primer render en móvil.
+ */
+add_filter('wp_resource_hints', 'sticpa_font_resource_hints', 10, 2);
+function sticpa_font_resource_hints($urls, $relation_type)
+{
+    if ($relation_type !== 'preconnect') {
+        return $urls;
+    }
+    global $post;
+    if (is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'sinergiacrm-private-area')) {
+        $urls[] = 'https://fonts.googleapis.com';
+        $urls[] = array('href' => 'https://fonts.gstatic.com', 'crossorigin' => 'anonymous');
+    }
+    return $urls;
+}
+
 add_action('wp_enqueue_scripts', 'sugar_crm_portal_style_and_script'); // add custom style and script
 function sugar_crm_portal_style_and_script()
 {
@@ -847,14 +1089,36 @@ function sugar_crm_portal_style_and_script()
             $path = plugin_dir_path(__FILE__) . $rel;
             return file_exists($path) ? filemtime($path) : null;
         };
+        // CSS de librerías CONDICIONAL por página (plan 010): en este hook
+        // $_REQUEST['internalpage'] ya está disponible, y las páginas que usan
+        // cada lib solo se alcanzan pidiéndolas explícitamente por URL (sin
+        // internalpage se sirve home/login/selección, que no usan ninguna).
+        // Se mantienen aquí (y no en dcms_insertar_js) para conservar el orden
+        // de cascada: SIEMPRE antes de custom-style.css, que las tematiza.
+        $page = function_exists('sticpa_current_internal_page') ? sticpa_current_internal_page() : '';
+
         // Modern typography (Inter) loaded from Google Fonts
         wp_enqueue_style('stic-google-fonts', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap', array(), null);
-        wp_enqueue_style('stic-style', plugins_url('css/stic-style.css', __FILE__), array(), $ver('css/stic-style.css'));
-        wp_enqueue_style('stic-multiselect', plugins_url('css/selectize.css', __FILE__), array(), $ver('css/selectize.css'));
-        wp_enqueue_style('stic-modern-style', plugins_url('css/stic-modern-style.css', __FILE__), array(), $ver('css/stic-modern-style.css'));
-        wp_enqueue_style('fullcalendar', plugins_url('js/fullcalendar/lib/main.css', __FILE__));
+        // Capa BASE consolidada (UI-15: ex stic-style + stic-modern-style, en ese orden).
+        wp_enqueue_style('stic-base', plugins_url('css/stic-base.css', __FILE__), array(), $ver('css/stic-base.css'));
+        if (strpos($page, 'single_') === 0 && $page !== 'single_stic_activities_calendar') {
+            wp_enqueue_style('stic-multiselect', plugins_url('css/selectize.css', __FILE__), array('stic-base'), $ver('css/selectize.css'));
+        }
+        if ($page === 'single_stic_activities_calendar') {
+            wp_enqueue_style('fullcalendar', plugins_url('js/fullcalendar/lib/main.min.css', __FILE__), array(), $ver('js/fullcalendar/lib/main.min.css'));
+        }
+        if (strpos($page, 'list_') === 0) {
+            // CSS de DataTables vendorizado (plan 010): misma versión 1.12.1 que
+            // js/jquery.dataTables.min.js; antes venía del CDN en mitad del body.
+            wp_enqueue_style('stic-datatables', plugins_url('css/vendor/jquery.dataTables.min.css', __FILE__), array('stic-base'), $ver('css/vendor/jquery.dataTables.min.css'));
+        }
         // custom-style.css is loaded LAST on purpose so it can override/enhance everything above
-        wp_enqueue_style('custom-style', plugins_url('css/custom-style.css', __FILE__), array('stic-modern-style'), $ver('css/custom-style.css'));
+        wp_enqueue_style('custom-style', plugins_url('css/custom-style.css', __FILE__), array('stic-base'), $ver('css/custom-style.css'));
+
+        // Modo app (?app=1): esconder el header/footer del tema en la WebView.
+        if (function_exists('sticpa_is_app_mode') && sticpa_is_app_mode()) {
+            wp_add_inline_style('custom-style', sticpa_app_mode_css());
+        }
     }
 
 }

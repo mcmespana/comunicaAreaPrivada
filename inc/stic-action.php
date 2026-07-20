@@ -9,40 +9,42 @@
 
 add_action('admin_post_single_stic_profile_selection', 'prefix_admin_single_stic_profile_selection'); 
 add_action('admin_post_nopriv_single_stic_profile_selection', 'prefix_admin_single_stic_profile_selection'); 
-function prefix_admin_single_stic_profile_selection() 
+function prefix_admin_single_stic_profile_selection()
 {
-    if (is_array($_REQUEST) && isset($_REQUEST['profile_selected_id']) && isset($_REQUEST['profile_selected_name'])) {
-        // The $_REQUEST array will contain the ID and full name of the selected participant
-        $requestUserId = $_REQUEST['profile_selected_id'];
-        $requestUserName = $_REQUEST['profile_selected_name'];
-        // This condition adds the option of using the Tutor as Participant
-        $_SESSION['scp_tutor_is_user'] = false;
-        $userId = $_SESSION['scp_tutor_user_id'] ?? $_REQUEST['scp_user_id'];
-        if ($userId == $requestUserId) {
-            $_SESSION['scp_tutor_is_user'] = true;
-            $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=".$_REQUEST['default_page'];
-            wp_redirect($redirectUrl);
-        }
+    // Cambio de participante SOLO con sesión abierta (las URLs de cambio llegan
+    // por GET desde el selector rápido: sin sesión no hay nada que cambiar).
+    if (!isset($_SESSION['scp_user_id'])) {
+        wp_redirect(home_url());
+        exit;
+    }
 
-        // We set the current user ID and full name to the tutor, if it hasn't been assigned yet
+    if (is_array($_REQUEST) && isset($_REQUEST['profile_selected_id']) && isset($_REQUEST['profile_selected_name'])) {
+        $requestUserId = sanitize_text_field($_REQUEST['profile_selected_id']);
+        $requestUserName = sanitize_text_field(rawurldecode(stripslashes_deep($_REQUEST['profile_selected_name'])));
+
+        // El FAMILIAR (quien inició sesión) queda fijado la primera vez y ya no cambia.
         if (!isset($_SESSION['scp_tutor_user_id'])) {
-            $_SESSION['scp_tutor_user_id'] = $_REQUEST['scp_user_id'];
+            $_SESSION['scp_tutor_user_id'] = sanitize_text_field($_REQUEST['scp_user_id']);
         }
         if (!isset($_SESSION['scp_tutor_user_contact_name'])) {
-            $_SESSION['scp_tutor_user_contact_name'] = $_REQUEST['scp_user_contact_name'];
+            $_SESSION['scp_tutor_user_contact_name'] = sanitize_text_field(rawurldecode(stripslashes_deep($_REQUEST['scp_user_contact_name'])));
         }
-        // We assigned the selected participant ID and full name to the current user
+
+        // scp_user_* pasa a ser el PARTICIPANTE activo: es lo que leen todas las
+        // páginas. Si el familiar se elige a sí mismo, scp_tutor_is_user = true.
+        $_SESSION['scp_tutor_is_user'] = ($_SESSION['scp_tutor_user_id'] == $requestUserId);
         $_SESSION['scp_user_id'] = $requestUserId;
         $_SESSION['scp_user_contact_name'] = $requestUserName;
     }
-    // When the session is expired, we redirect the user to the participant selection page. Otherwise default page
+
+    // Sin sesión de familiar montada → de vuelta a la selección; si no, a la home.
     if (!isset($_SESSION['scp_tutor_user_id'])) {
         $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=single_stic_profile_selection";
     } else {
-        $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=".$_REQUEST['default_page'];
+        $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=" . sanitize_key($_REQUEST['default_page'] ?? 'single_stic_home');
     }
     wp_redirect($redirectUrl);
-
+    exit;
 }
 
 /**
@@ -77,6 +79,7 @@ function prefix_admin_single_stic_profile()
         $redirect_url = $_REQUEST['scp_current_url'] . '&action=detail&id=' . $id . '&msg=error'; 
     }
     wp_redirect($redirect_url);
+    exit;
 }
 
 /**
@@ -84,25 +87,50 @@ function prefix_admin_single_stic_profile()
  */
 add_action('admin_post_single_stic_tutor_profile', 'prefix_admin_single_stic_tutor_profile'); 
 add_action('admin_post_nopriv_single_stic_tutor_profile', 'prefix_admin_single_stic_tutor_profile'); 
-function prefix_admin_single_stic_tutor_profile() 
-
+function prefix_admin_single_stic_tutor_profile()
 {
-    $moduleName = getDestinationModule(); 
+    $moduleName = getDestinationModule();
 
     $objSCP = SugarRestApiCall::getObjSCP();
 
+    // El familiar solo puede editar SU ficha: id desde la sesión, nunca del request.
+    $tutorId = $_SESSION['scp_tutor_user_id'] ?? ($_SESSION['scp_user_id'] ?? '');
+    if (!$tutorId) {
+        wp_redirect(home_url());
+        exit;
+    }
+
+    // Claves que no son campos del CRM (no enviar a set_entry).
+    $skip = array('action', 'scp_current_url', 'stic-action', 'save', 'back', 'id', 'stic_year_only_fields');
+    $moduleData = array();
     foreach ($_REQUEST as $key => $value) {
+        if (in_array($key, $skip, true)) {
+            continue;
+        }
         $moduleData[$key] = is_array($value) ? '^' . implode('^,^', stripslashes_deep($value)) . '^' : stripslashes_deep($value);
     }
-    $moduleData['id'] = $_SESSION['scp_tutor_user_id'];
+    if (function_exists('sticpa_apply_year_only_fields')) {
+        sticpa_apply_year_only_fields($moduleData);
+    }
+    $moduleData['id'] = $tutorId;
 
     $isUpdate = $objSCP->set_entry($moduleName, $moduleData);
     if ($isUpdate) {
+        // El nombre puede haber cambiado: refrescamos la identidad de la sesión.
+        $first = $moduleData['first_name'] ?? '';
+        $last = $moduleData['last_name'] ?? '';
+        if ($first || $last) {
+            $_SESSION['scp_tutor_user_contact_name'] = trim($last . ', ' . $first, ', ');
+            if (!empty($_SESSION['scp_tutor_is_user'])) {
+                $_SESSION['scp_user_contact_name'] = $_SESSION['scp_tutor_user_contact_name'];
+            }
+        }
         $redirect_url = $_REQUEST['scp_current_url'] . '&msg=true';
     } else {
         $redirect_url = $_REQUEST['scp_current_url'] . '&msg=error';
     }
     wp_redirect($redirect_url);
+    exit;
 }
 
 /**
@@ -493,6 +521,7 @@ function prefix_admin_single_stic_events()
         $redirect_url = explode('?', $_REQUEST['scp_current_url'], 2)[0] .'/?internalpage=list_stic_registrations';
     }
     wp_redirect($redirect_url);
+    exit;
 }
 
 /**
@@ -508,6 +537,7 @@ function prefix_admin_single_stic_job_offers()
         $redirect_url = explode('?', $_REQUEST['scp_current_url'], 2)[0] .'/?internalpage=list_stic_job_offers';
     }
     wp_redirect($redirect_url);
+    exit;
 }
 
 /**
@@ -546,6 +576,7 @@ function prefix_admin_single_stic_password_change()
         $redirect_url = $_REQUEST['scp_current_url'] . '&error=2';
     }
     wp_redirect($redirect_url);
+    exit;
 
 }
 
@@ -642,6 +673,7 @@ function prefix_admin_stic_forgot_password()
     // we never reveal whether a given email exists in the CRM.
     $redirect_url = $_REQUEST['scp_current_url'] . '&success=true';
     wp_redirect($redirect_url);
+    exit;
 }
 
 /**
@@ -670,6 +702,7 @@ function prefix_admin_single_stic_unsubscribe()
         $redirect_url = $_REQUEST['scp_current_url'] . '&msg=error';
     }
     wp_redirect($redirect_url);
+    exit;
 }
 
 
@@ -705,6 +738,7 @@ function prefix_admin_single_stic_signup()
         }
     }
     wp_redirect($redirect_url);
+    exit;
 }
 
 /**
@@ -738,6 +772,98 @@ function download_document($documentId) {
     header('Content-Type: application/octet-stream');
     header('Content-Disposition: attachment; filename="' . $filename . '"');
     echo $decodedFileData;
+}
+
+/**
+ * Ruta en disco de la miniatura cacheada de la foto de perfil de un contacto.
+ * La clave es md5(id) para no exponer el id del CRM en el nombre del archivo.
+ * El directorio photo-cache/ puede vaciarse sin riesgo: se regenera solo.
+ *
+ * @param String $userId
+ * @return String
+ */
+function sticpa_profile_photo_cache_path($userId)
+{
+    $upload = wp_upload_dir();
+    return $upload['basedir'] . '/stic-uploads/photo-cache/' . md5((string) $userId) . '.jpg';
+}
+
+/**
+ * Endpoint que sirve la foto de perfil como miniatura JPEG cacheada en disco,
+ * en lugar de incrustarla como data URI base64 en el HTML de las páginas.
+ *
+ * Sirve SIEMPRE la foto del usuario EN SESIÓN ($_SESSION['scp_user_id']):
+ * el id nunca viene del request.
+ */
+add_action('admin_post_stic_profile_photo', 'prefix_admin_stic_profile_photo');
+add_action('admin_post_nopriv_stic_profile_photo', 'prefix_admin_stic_profile_photo');
+function prefix_admin_stic_profile_photo()
+{
+    if (empty($_SESSION['scp_user_id'])) {
+        status_header(403);
+        exit;
+    }
+    $userId = $_SESSION['scp_user_id'];
+    $cachePath = sticpa_profile_photo_cache_path($userId);
+
+    // Miniatura cacheada y fresca (< 24h) → se sirve directamente, sin CRM.
+    if (!is_file($cachePath) || (time() - (int) filemtime($cachePath)) >= DAY_IN_SECONDS) {
+        $objSCP = SugarRestApiCall::getObjSCP();
+        $image = $objSCP->get_image(array('id' => $userId, 'field' => 'photo'));
+        $binary = !empty($image->image_data->data) ? base64_decode($image->image_data->data) : false;
+        if (empty($binary)) {
+            // Sin foto en el CRM: el <img> mostrará el placeholder vía onerror.
+            status_header(404);
+            exit;
+        }
+
+        $cacheDir = dirname($cachePath);
+        if (!is_dir($cacheDir)) {
+            wp_mkdir_p($cacheDir);
+        }
+
+        // wp_get_image_editor() necesita un archivo de origen en disco.
+        $tmpPath = $cachePath . '.tmp';
+        if (file_put_contents($tmpPath, $binary) === false) {
+            status_header(500);
+            exit;
+        }
+
+        $resized = false;
+        $editor = wp_get_image_editor($tmpPath);
+        if (!is_wp_error($editor)) {
+            $editor->resize(400, 400, true);
+            $editor->set_quality(82);
+            $saved = $editor->save($cachePath, 'image/jpeg');
+            $resized = !is_wp_error($saved);
+        }
+        if ($resized) {
+            @unlink($tmpPath);
+        } else {
+            // Fallback integrado (STOP del plan resuelto por diseño): si el
+            // hosting no tiene GD/Imagick (WP_Error) o el guardado falla, se
+            // cachea y sirve el binario ORIGINAL sin redimensionar. Se pierde
+            // la reducción a 400×400, pero la página deja igualmente de
+            // incrustar base64 y las siguientes peticiones salen de disco.
+            if (!@rename($tmpPath, $cachePath)) {
+                @copy($tmpPath, $cachePath);
+                @unlink($tmpPath);
+            }
+        }
+        if (!is_file($cachePath)) {
+            status_header(500);
+            exit;
+        }
+    }
+
+    if (ob_get_level()) {
+        ob_end_clean();
+    }
+    header('Content-Type: image/jpeg');
+    header('Cache-Control: private, max-age=86400');
+    header('Content-Length: ' . filesize($cachePath));
+    readfile($cachePath);
+    exit;
 }
 
 /**
@@ -776,6 +902,20 @@ function upload_file_to_record($fieldName, $moduleName, $id) {
                 if (!$objSCP->set_image($contactData)) {
                     return $_REQUEST['scp_current_url'] . '&msg=error_upload';
                 } else {
+                    // Foto nueva subida: invalidar la miniatura cacheada del
+                    // endpoint stic_profile_photo para que la próxima petición
+                    // la regenere. Se invalida la del registro modificado y la
+                    // del usuario en sesión (coinciden salvo al editar la ficha
+                    // de otro miembro de la organización).
+                    if ($fieldName === 'photo') {
+                        $staleIds = array_unique(array_filter(array(
+                            (string) $id,
+                            (string) ($_SESSION['scp_user_id'] ?? ''),
+                        )));
+                        foreach ($staleIds as $staleId) {
+                            @unlink(sticpa_profile_photo_cache_path($staleId));
+                        }
+                    }
                     return  $_REQUEST['scp_current_url'] . '&msg=true';
                 }
             }
@@ -801,6 +941,28 @@ add_action('admin_post_nopriv_single_stic_comunica_laico', 'prefix_comunica_save
 add_action('admin_post_single_stic_comunica_monitor', 'prefix_comunica_save_contact');
 add_action('admin_post_nopriv_single_stic_comunica_monitor', 'prefix_comunica_save_contact');
 
+/**
+ * Convierte los campos "solo año" (marcados por el motor de formularios con el
+ * hidden stic_year_only_fields[]) de 'AAAA' a la fecha interna 'AAAA-01-01'
+ * que espera el CRM. El 1 de enero es un convenio interno: al usuario nunca
+ * se le muestra (el motor le enseña solo el año — clave 'yearOnly').
+ */
+function sticpa_apply_year_only_fields(&$moduleData)
+{
+    $yearFields = isset($_REQUEST['stic_year_only_fields']) ? (array) $_REQUEST['stic_year_only_fields'] : array();
+    foreach ($yearFields as $fieldName) {
+        $fieldName = sanitize_key($fieldName);
+        if (!isset($moduleData[$fieldName])) {
+            continue;
+        }
+        $year = trim((string) $moduleData[$fieldName]);
+        if (preg_match('/^\d{4}$/', $year)) {
+            $moduleData[$fieldName] = $year . '-01-01';
+        }
+    }
+    unset($moduleData['stic_year_only_fields']);
+}
+
 function prefix_comunica_save_contact()
 {
     $objSCP = SugarRestApiCall::getObjSCP();
@@ -813,7 +975,7 @@ function prefix_comunica_save_contact()
     }
 
     // Claves que no son campos del CRM (no enviar a set_entry).
-    $skip = array('action', 'scp_current_url', 'stic-action', 'save', 'back', 'id');
+    $skip = array('action', 'scp_current_url', 'stic-action', 'save', 'back', 'id', 'stic_year_only_fields', 'ds_option');
     $moduleData = array();
     foreach ($_REQUEST as $key => $value) {
         if (in_array($key, $skip, true)) {
@@ -823,6 +985,7 @@ function prefix_comunica_save_contact()
             ? '^' . implode('^,^', stripslashes_deep($value)) . '^'
             : stripslashes_deep($value);
     }
+    sticpa_apply_year_only_fields($moduleData);
     $moduleData['id'] = $id;
 
     $isUpdate = $objSCP->set_entry('Contacts', $moduleData);
@@ -908,6 +1071,7 @@ function prefix_admin_single_stic_contacts()
     if ($_REQUEST['stic-action'] == 'detail') {
         $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=list_stic_contacts";
         wp_redirect($redirectUrl);
+        exit;
     } else {
         $moduleName = 'Contacts'; 
 
@@ -939,5 +1103,6 @@ function prefix_admin_single_stic_contacts()
             $redirect_url = $_REQUEST['scp_current_url'] . '&msg=error' . '&id=' . $isUpdate . ($action ? '&action=detail' : '');
         }
         wp_redirect($redirect_url);
+        exit;
     }
 }
