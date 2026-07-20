@@ -3712,24 +3712,36 @@ span.stic-field {
 }
 .stic-msg-hide { opacity: 0; }
 
-/* --- 42.e Leyenda del calendario (antes eran <label> sueltos) --- */
+/* --- 42.e Leyenda del calendario (chips). El color de cada punto viaja EN LÍNEA
+   desde la paleta única de inc/stic-calendar.php, así que leyenda y eventos del
+   calendario NUNCA se desincronizan (misma fuente de verdad). --- */
 .stic-calendar-legend {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.4rem 1.4rem;
+    gap: 0.5rem 0.6rem;
     margin: 0 0 1rem;
-    font-size: 0.88rem;
-    color: var(--gray-600);
+    padding: 0;
+    list-style: none;
+    font-size: 0.82rem;
+    color: var(--gray-700);
 }
-.stic-legend-item { display: inline-flex; align-items: center; gap: 0.45rem; }
+.stic-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--surface-2);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-full);
+    padding: 0.26rem 0.7rem 0.26rem 0.55rem;
+    font-weight: 600;
+}
 .stic-legend-dot {
-    width: 10px;
-    height: 10px;
+    width: 11px;
+    height: 11px;
     border-radius: 50%;
     flex-shrink: 0;
+    box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 8%, transparent);
 }
-.stic-legend-item--sessions .stic-legend-dot { background: #dc001b; } /* color fijado en el JS del calendario */
-.stic-legend-item--events .stic-legend-dot { background: #3788d8; }  /* azul por defecto de FullCalendar */
 
 /* --- 42.f Estado vacío: variante de error (p. ej. pago fallido) --- */
 .stic-empty-state--error { border-color: var(--danger-border); }
@@ -3936,3 +3948,214 @@ span.stic-field {
 [data-stic-theme="dark"] .stic-theme-sun { display: block; }
 [data-stic-theme="dark"] .stic-theme-moon { display: none; }
 .stic-theme-toggle svg { width: 20px; height: 20px; }
+
+/* ============================================================
+   45. CALENDARIO DE ACTIVIDADES — pulido de FullCalendar
+   ------------------------------------------------------------
+   Los COLORES de los eventos son DATO (paleta única en
+   inc/stic-calendar.php): eventos abiertos a inscripción (violeta),
+   eventos ya inscritos (azul suave) y sesiones coloreadas por
+   asistencia. Aquí solo la FORMA: chips redondeados, hover, foco y
+   legibilidad. La rejilla y los botones ya vienen de §23.c/d.
+   ============================================================ */
+.stic-calendar-wrap { margin-top: 0.25rem; }
+.stic-calendar-intro {
+    margin: 0 0 0.9rem;
+    color: var(--gray-600);
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+
+/* Eventos: chip redondeado, legible y clicable. */
+.fc .fc-event { cursor: pointer; }
+.fc-daygrid-event {
+    border-radius: var(--radius-sm);
+    padding: 2px 6px;
+    font-weight: 600;
+    font-size: 0.78rem;
+    line-height: 1.25;
+    white-space: normal; /* títulos largos hacen wrap, no se cortan */
+    transition: box-shadow 0.14s var(--ease-out), filter 0.14s var(--ease-out);
+}
+.fc .fc-event:hover { filter: brightness(0.96); box-shadow: var(--shadow-sm); }
+.fc .fc-event:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+
+/* Barras de día completo (eventos): guía blanca a la izquierda para diferenciarlas
+   de las sesiones; el evento ya inscrito, un pelín más apagado que el inscribible. */
+.stic-fc-available,
+.stic-fc-registered { border-left: 3px solid rgba(255, 255, 255, 0.55) !important; }
+.stic-fc-registered { opacity: 0.9; }
+
+/* Sesiones con hora en vista Mes: el punto toma el color del estado y se agranda
+   para leerse de un vistazo; el texto queda oscuro y nítido sobre la celda. */
+.fc-daygrid-dot-event { padding: 2px 4px; font-weight: 600; }
+.fc-daygrid-dot-event .fc-daygrid-event-dot { border-width: 5px; margin: 0 5px 0 2px; }
+.fc-daygrid-dot-event:hover { background: var(--surface-2); }
+
+/* Vista Agenda (listMonth): filas con el punto de color del estado. */
+.fc .fc-list-event:hover td { background: var(--surface-2); }
+.fc .fc-list-event-dot { border-width: 6px; }
+.fc .fc-list-day-cushion { background: var(--surface-2) !important; }
+.fc .fc-list-empty { color: var(--gray-500); }
+
+/* "+N más": pastilla discreta de marca. */
+.fc .fc-daygrid-more-link { font-weight: 700; color: var(--primary-color); font-size: 0.74rem; }
+
+/* Móvil: chips más compactos y toolbar centrada. */
+@media (max-width: 560px) {
+    .fc-daygrid-event { font-size: 0.72rem; }
+    .fc .fc-toolbar.fc-header-toolbar { justify-content: center; }
+}
+
+/* ============================================================
+   46. HOME — layout en 2 columnas + widget "Próximas actividades"
+   ------------------------------------------------------------
+   Móvil: una columna (tarjetas y, debajo, la agenda). Escritorio
+   (≥1024px): las secciones a la izquierda y la agenda a un lado,
+   pegada al hacer scroll. El widget es HTML/CSS puro (NO carga
+   FullCalendar), así que la home sigue igual de ligera.
+   ============================================================ */
+.stic-home-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: clamp(1.1rem, 2.5vw, 1.8rem);
+    align-items: start;
+}
+@media (min-width: 1024px) {
+    .stic-home-layout:not(.stic-home-layout--solo) {
+        grid-template-columns: minmax(0, 1fr) 340px;
+    }
+    .stic-home-layout:not(.stic-home-layout--solo) .stic-home-aside {
+        position: sticky;
+        top: 1rem;
+    }
+}
+.stic-home-main { min-width: 0; }
+
+/* --- Panel de la agenda --- */
+.stic-agenda {
+    background: var(--surface);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-sm);
+    padding: clamp(1rem, 2.2vw, 1.3rem);
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    animation: stic-fade-up 0.5s var(--ease-out) both;
+    animation-delay: 0.12s;
+}
+.stic-agenda-head { display: flex; align-items: center; gap: 0.6rem; }
+.stic-agenda-ico {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-md);
+    background: var(--grad-brand);
+    color: #fff;
+    flex-shrink: 0;
+}
+.stic-agenda-ico svg { width: 18px; height: 18px; }
+.stic-agenda-title { margin: 0; font-size: 1.02rem; font-weight: 800; color: var(--gray-900); }
+
+.stic-agenda-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+.stic-agenda-link {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.55rem 0.5rem;
+    border-radius: var(--radius-md);
+    text-decoration: none !important;
+    color: inherit;
+    transition: background 0.15s var(--ease-out), transform 0.15s var(--ease-out);
+}
+.stic-agenda-link:hover { background: var(--surface-2); transform: translateX(2px); }
+.stic-agenda-link:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+
+/* Chip de fecha (día de la semana + número + mes) */
+.stic-agenda-date {
+    flex-shrink: 0;
+    width: 46px;
+    text-align: center;
+    background: var(--primary-50);
+    border-radius: var(--radius-md);
+    padding: 0.3rem 0;
+    line-height: 1.05;
+}
+.stic-agenda-wd { display: block; font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--primary-color); }
+.stic-agenda-day { display: block; font-size: 1.15rem; font-weight: 800; color: var(--gray-900); }
+.stic-agenda-mon { display: block; font-size: 0.62rem; font-weight: 700; text-transform: uppercase; color: var(--gray-500); }
+
+.stic-agenda-body { min-width: 0; flex: 1; }
+.stic-agenda-item-title {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--gray-900);
+}
+.stic-agenda-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.stic-agenda-sub {
+    display: block;
+    margin-top: 0.1rem;
+    font-size: 0.78rem;
+    color: var(--gray-500);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.stic-agenda-time {
+    flex-shrink: 0;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--gray-600);
+    background: var(--surface-2);
+    border-radius: var(--radius-full);
+    padding: 0.15rem 0.5rem;
+}
+.stic-agenda-badge {
+    flex-shrink: 0;
+    font-size: 0.66rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #fff;
+    background: var(--accent-color);
+    border-radius: var(--radius-full);
+    padding: 0.22rem 0.55rem;
+}
+
+/* Estado vacío del panel */
+.stic-agenda-empty { text-align: center; padding: 0.6rem 0.3rem 0.2rem; }
+.stic-agenda-empty-title { margin: 0 0 0.25rem; font-weight: 700; color: var(--gray-700); }
+.stic-agenda-empty-sub { margin: 0; font-size: 0.83rem; color: var(--gray-500); line-height: 1.5; }
+
+/* CTA "Ver calendario" */
+.stic-agenda-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    margin-top: 0.1rem;
+    padding: 0.6rem 1rem;
+    border-radius: var(--radius-md);
+    background: var(--grad-brand);
+    color: #fff !important;
+    font-weight: 700;
+    font-size: 0.9rem;
+    text-decoration: none !important;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.15s var(--ease-out), box-shadow 0.15s var(--ease-out);
+}
+.stic-agenda-cta svg { width: 17px; height: 17px; }
+.stic-agenda-cta:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.stic-agenda-cta:focus-visible { outline: none; box-shadow: var(--shadow-glow); }

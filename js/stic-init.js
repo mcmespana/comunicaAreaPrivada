@@ -42,10 +42,24 @@
         var calEl = document.querySelector('[data-fc-settings]');
         if (calEl && typeof FullCalendar !== 'undefined') {
             var fcSettings = parseSettings(calEl, 'data-fc-settings');
+            // Clic en un evento → su destino. Prioridad: extendedProps.href (nuevo
+            // esquema: sesión/evento/inscripción); si no, el patrón antiguo por
+            // módulo (?internalpage=<módulo>&action=detail&id=<id>).
             fcSettings.eventClick = function (arg) {
-                window.location.assign(
-                    '?internalpage=' + arg.event.extendedProps.module + '&action=detail&id=' + arg.event.id
-                );
+                var props = arg.event.extendedProps || {};
+                if (arg.jsEvent) { arg.jsEvent.preventDefault(); }
+                if (props.href) {
+                    window.location.assign(props.href);
+                } else if (props.module) {
+                    window.location.assign(
+                        '?internalpage=' + props.module + '&action=detail&id=' + arg.event.id
+                    );
+                }
+            };
+            // Tooltip nativo (title) con el nombre + estado, para hover y lectores.
+            fcSettings.eventDidMount = function (info) {
+                var tip = info.event.extendedProps && info.event.extendedProps.tooltip;
+                if (tip) { info.el.setAttribute('title', tip); }
             };
             new FullCalendar.Calendar(calEl, fcSettings).render();
         }

@@ -78,20 +78,39 @@ $portalName = get_option('sticpa_scp_name');
     }
     ?>
 
-    <p class="stic-section-label"><?= esc_html__('Tus secciones', 'sticpa'); ?></p>
+    <?php
+    // Layout de la home: en escritorio, las secciones a la izquierda y la agenda
+    // "Próximas actividades" a un lado; en móvil se apilan (agenda debajo).
+    // El widget es ligero (no carga FullCalendar) y solo se muestra si el usuario
+    // tiene disponible la sección Calendario.
+    $showAgenda = function_exists('sticpa_home_agenda_html')
+        && isset($objSCP)
+        && isset($menuElements['single_stic_activities_calendar']);
+    ?>
+    <div class="stic-home-layout<?= $showAgenda ? '' : ' stic-home-layout--solo'; ?>">
+        <div class="stic-home-main">
+            <p class="stic-section-label"><?= esc_html__('Tus secciones', 'sticpa'); ?></p>
 
-    <div class="stic-dashboard-grid">
-        <?php foreach ($menuElements as $key => $label) :
-            $meta = sticpa_home_card_meta($key);
-            ?>
-            <a class="stic-dash-card" href="?internalpage=<?= esc_attr($key); ?>">
-                <span class="stic-dash-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><?= $meta['icon']; ?></svg>
-                </span>
-                <span class="stic-dash-title"><?= esc_html(__($label, 'sticpa')); ?></span>
-                <p class="stic-dash-desc"><?= esc_html($meta['desc']); ?></p>
-                <span class="stic-dash-go"><?= esc_html__('Entrar', 'sticpa'); ?> <?= $goIcon; ?></span>
-            </a>
-        <?php endforeach; ?>
+            <div class="stic-dashboard-grid">
+                <?php foreach ($menuElements as $key => $label) :
+                    $meta = sticpa_home_card_meta($key);
+                    ?>
+                    <a class="stic-dash-card" href="?internalpage=<?= esc_attr($key); ?>">
+                        <span class="stic-dash-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><?= $meta['icon']; ?></svg>
+                        </span>
+                        <span class="stic-dash-title"><?= esc_html(__($label, 'sticpa')); ?></span>
+                        <p class="stic-dash-desc"><?= esc_html($meta['desc']); ?></p>
+                        <span class="stic-dash-go"><?= esc_html__('Entrar', 'sticpa'); ?> <?= $goIcon; ?></span>
+                    </a>
+                <?php endforeach; ?>
+            </div>
+        </div>
+
+        <?php if ($showAgenda) : ?>
+            <aside class="stic-home-aside">
+                <?= sticpa_home_agenda_html($objSCP); ?>
+            </aside>
+        <?php endif; ?>
     </div>
 </div>

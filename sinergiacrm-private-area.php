@@ -53,6 +53,7 @@ function sticpa_load_languages()
 include plugin_dir_path(__FILE__) . 'inc/stic-action.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-magic-login.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-comunica-roles.php';
+include plugin_dir_path(__FILE__) . 'inc/stic-calendar.php';
 
 add_action('admin_menu', 'sugar_crm_portal_create_menu');
 

@@ -450,6 +450,11 @@ function prefix_admin_single_stic_registrations()
 
         $isUpdate = $objSCP->set_entry($moduleName, $moduleData);
         if ($isUpdate != null) {
+            // Inscripción creada/editada/borrada → invalida la caché del calendario
+            // para que la home y el calendario reflejen el cambio al instante.
+            if (function_exists('sticpa_calendar_flush_cache')) {
+                sticpa_calendar_flush_cache();
+            }
             if ($action === 'delete') {
                 $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=list_stic_registrations&msgDelete=true";
             } elseif ($action == 'payment') {

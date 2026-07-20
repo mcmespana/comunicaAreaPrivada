@@ -1,126 +1,38 @@
 <?php
+/**
+ * CALENDARIO DE ACTIVIDADES del área privada.
+ * ----------------------------------------------------------------------------
+ * Muestra en un mismo calendario (FullCalendar):
+ *   · Eventos abiertos a inscripción (violeta)  → clic = inscribirte.
+ *   · Eventos en los que ya estás inscrito (azul suave, contexto).
+ *   · Sesiones de tus eventos, coloreadas por ASISTENCIA:
+ *       próxima · asististe · parcial · falta justificada · no asististe · sin registrar.
+ *
+ * Toda la lógica de datos, colores y etiquetas vive en inc/stic-calendar.php
+ * (misma fuente que el widget "Próximas actividades" de la home). La config de
+ * FullCalendar viaja en data-fc-settings y la arranca js/stic-init.js (plan 021);
+ * el eventClick/eventDidMount (no serializables) se añaden allí.
+ */
+
+if (!defined('ABSPATH')) {
+    exit;
+}
 
 $pageSettings['fileName'] = basename(__FILE__, ".php");
 
-// Getting Registrations of current user
-$parentModule = 'Contacts';
-$relationship = 'stic_registrations_contacts';
-$params = array(
-    'module_name' => $parentModule,
-    "module_id" => $_SESSION['scp_user_id'], //Do not touch
-    "link_field_name" => $relationship,
-    "related_module_query" => "(status = 'confirmed')", //sql where conditions
-    // "related_module_query" => "(end_date is null OR end_date >curdate())", //sql where conditions
-    "related_fields" => array('id'), //Do not touch
-    "related_module_link_name_to_fields_array" => array(),
-    "deleted" => 0, //show or not deleted elements (usually 0)
-    "order_by" => "",
-    "offset" => "",
-    "limit" => 0,
-);
-
-$getRelatedRegistrations = $objSCP->getRelatedElementsForLoggedUser($params);
-$availableSessions = array();
-$sessionIds = array();
-
-// Get the Sessions related to the Events of the Registrations
-if (is_array($getRelatedRegistrations)){
-    foreach($getRelatedRegistrations as $element) {
-        $parentModule = 'stic_Registrations';
-        $relationship = 'stic_registrations_stic_events';
-        $params = array(
-            'module_name' => $parentModule,
-            "module_id" => $element->name_value_list->id->value, //Do not touch
-            "link_field_name" => $relationship,
-            // "related_module_query" => "(status = 'confirmed')", //sql where conditions
-            "related_fields" => array('id'), //Do not touch
-            "related_module_link_name_to_fields_array" => array(),
-            "deleted" => 0, //show or not deleted elements (usually 0)
-            "order_by" => "",
-            "offset" => "",
-            "limit" => 0,
-        );
-        
-        $getRelatedEvents = $objSCP->getRelatedElementsForLoggedUser($params);
-
-        foreach($getRelatedEvents as $element) {
-            $parentModule = 'stic_Events';
-            $relationship = 'stic_sessions_stic_events';
-            $params = array(
-                'module_name' => $parentModule,
-                "module_id" => $element->name_value_list->id->value, //Do not touch
-                "link_field_name" => $relationship,
-                // "related_module_query" => "(end_date is null OR end_date >curdate())", //sql where conditions
-                "related_fields" => array('id', 'name', 'start_date', 'end_date', 'stic_sessions_stic_events_name', 'stic_sessions_stic_eventsstic_events_ida'), //Do not touch
-                "related_module_link_name_to_fields_array" => array(),
-                "deleted" => 0, //show or not deleted elements (usually 0)
-                "order_by" => "",
-                "offset" => "",
-                "limit" => 0,
-            );
-            
-            $getRelatedSessions = $objSCP->getRelatedElementsForLoggedUser($params);
-            // Parsing the Sessions regarding Calendar format
-            foreach($getRelatedSessions as $session) {
-                $data = $session->name_value_list;
-                if (!in_array($data->id->value, $sessionIds)) {
-                    $availableSessions[] = array(
-                        'event_id' => $element->name_value_list->id->value,
-                        'id' => $data->id->value,
-                        'title' => $data->name->value,
-                        'start' => get_date_from_gmt($data->start_date->value),
-                        'end' => get_date_from_gmt($data->end_date->value),
-                        'color' => '#dc001b',
-                        'module' => 'single_stic_sessions',
-                    );
-                    $sessionIds[] = $data->id->value;
-                }
-            }
-        }
-        
-    }
-}
-
-// Getting Events with start_date greater than last month and end_date is null or before next year
-// We filter them in case we load too many of them
-$filterParam = "(stic_events.start_date BETWEEN DATE_ADD(curdate(), INTERVAL -3 MONTH) AND DATE_ADD(curdate(), INTERVAL 12 MONTH))";
-$fields = array('id', 'name', 'type', 'start_date', 'end_date');
-
-$getElements = $objSCP->getRecordsModule('stic_Events', $filterParam, $fields);
-$availableEvents = array();
-if (is_array($getElements)) {
-    foreach ($getElements as $key => $event) {
-        if ($id = $event->id) {
-            $event = $event->name_value_list;
-            $availableEvents[] = array(
-                'id' => $event->id->value,
-                'title' => $event->name->value,
-                'start' => $event->start_date->value,
-                'end' => $event->end_date->value,
-                'module' => 'single_stic_events',
-            );
-        }
-    }
-}
-
-// Merging both records that the Calendar will display: Sessions and Events
-$availableItems = array_merge($availableSessions,$availableEvents);
-
-$current_url = explode('?', $_SERVER['REQUEST_URI'], 2);
-$current_url = $current_url[0];
+$calData = sticpa_gather_calendar_data($objSCP);
+$calEvents = sticpa_calendar_fc_events($calData);
 
 $lang = explode('_', get_locale())[0];
 
-// Configuración de FullCalendar como datos (plan 021): viaja en el atributo
-// data-fc-settings y la arranca js/stic-init.js — sin <script> inline. El
-// handler eventClick (no serializable) lo añade stic-init.js.
 $fcSettings = array(
     'initialView' => 'dayGridMonth',
     'locale' => $lang,
     'contentHeight' => 'auto',
     'handleWindowResize' => true,
+    'firstDay' => 1, // la semana empieza en lunes
+    'dayMaxEvents' => 3, // en móvil agrupa el exceso en "+N más"
     'eventTimeFormat' => array(
-        // like '14:30'
         'hour' => '2-digit',
         'minute' => '2-digit',
         'meridiem' => false,
@@ -130,14 +42,23 @@ $fcSettings = array(
         'center' => 'title',
         'right' => 'dayGridMonth,listMonth',
     ),
-    'events' => $availableItems,
+    'buttonText' => array(
+        'today' => __('Hoy', 'sticpa'),
+        'month' => __('Mes', 'sticpa'),
+        'list' => __('Agenda', 'sticpa'),
+    ),
+    'noEventsText' => __('No hay actividades en estas fechas', 'sticpa'),
+    'events' => $calEvents,
 );
 
-// Loading FullCalendar
 $html .= "<div class='stic-entry-header'>
-<h3>".__('Calendar', 'sticpa')."</h3>
-<p class='stic-calendar-legend'>
-    <span class='stic-legend-item stic-legend-item--sessions'><span class='stic-legend-dot' aria-hidden='true'></span>".__("Registered events' sessions appear in red.", 'sticpa')."</span>
-    <span class='stic-legend-item stic-legend-item--events'><span class='stic-legend-dot' aria-hidden='true'></span>".__('Available events appear in blue.', 'sticpa')."</span>
-</p>
-<div id='calendar' data-fc-settings='" . esc_attr(json_encode($fcSettings)) . "'></div>";
+    <h3>" . __('Calendario', 'sticpa') . "</h3>
+</div>";
+
+$html .= "<div class='stic-calendar-wrap'>";
+$html .= "<p class='stic-calendar-intro'>"
+    . esc_html__('Tus sesiones se colorean según tu asistencia. Toca cualquier actividad para ver el detalle o inscribirte.', 'sticpa')
+    . "</p>";
+$html .= sticpa_calendar_legend_html();
+$html .= "<div id='calendar' data-fc-settings='" . esc_attr(json_encode($fcSettings)) . "'></div>";
+$html .= "</div>";
