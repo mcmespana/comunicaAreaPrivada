@@ -95,6 +95,44 @@
     --warning-100:    #fef3c7;
     --warning-200:    #fde68a;
     --warning-border: #fcd34d;
+
+    /* ---- Herencia base (plan 018) — tokens que ANTES vivían en el :root de
+       stic-base.css. Se consolidan aquí para que haya UNA sola fuente. Los que
+       stic-base ya duplicaba con otro valor (marca, sombras, radios, estados,
+       font-family) los pisaba esta capa por orden de carga, así que se
+       eliminaron de allí sin efecto visual; estos otros solo existían en base
+       y se conservan con su valor exacto. ---- */
+    --white: #ffffff;
+    --gray-50:  #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    --gray-900: #111827;
+
+    --info-color: #3b82f6;
+    --info-light: #dbeafe;
+    --warning-light: #fef3c7;   /* pálido de fondo; distinto de --warning-* de arriba */
+
+    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-base: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+
+    --space-1: 0.25rem;  --space-2: 0.5rem;  --space-3: 0.75rem;
+    --space-4: 1rem;     --space-5: 1.25rem; --space-6: 1.5rem;
+    --space-8: 2rem;     --space-10: 2.5rem; --space-12: 3rem;
+
+    --font-size-xs: 0.75rem;  --font-size-sm: 0.875rem; --font-size-base: 1rem;
+    --font-size-lg: 1.125rem; --font-size-xl: 1.25rem;  --font-size-2xl: 1.5rem;
+    --font-size-3xl: 1.875rem;
+
+    --line-height-tight: 1.25;
+    --line-height-normal: 1.5;
+    --line-height-relaxed: 1.75;
 }
 
 /* ============================================================
@@ -205,16 +243,20 @@
     animation: stic-pop 0.6s var(--ease-spring) both;
 }
 
-/* Halo de color que respira detrás de la tarjeta */
+/* Halo de color detrás de la tarjeta. (Plan 020) Antes era var(--grad-brand)
+   con filter: blur(64px): difuminar un elemento grande en cada composición es
+   de lo más caro en GPU móvil. Un radial-gradient ya "nace" difuminado y no
+   cuesta filtro — mismo efecto, coste de pintura mucho menor. */
 .stic-login-form::before,
 .stic-forgotpas-form::before {
     content: '';
     position: absolute;
     inset: -45% -30% auto -30%;
     height: 70%;
-    background: var(--grad-brand);
-    filter: blur(64px);
-    opacity: 0.34;
+    background:
+        radial-gradient(60% 80% at 30% 20%, color-mix(in srgb, var(--primary-color) 32%, transparent), transparent 70%),
+        radial-gradient(60% 80% at 75% 30%, color-mix(in srgb, var(--secondary-color) 28%, transparent), transparent 70%);
+    opacity: 0.5;
     z-index: -1;
 }
 
@@ -1308,6 +1350,19 @@ span.stic-field {
     .stic-auth-shell { min-height: 100vh; min-height: 100dvh; padding: 1rem 0.75rem; }
     .stic-login-form, .stic-forgotpas-form { padding: 1.75rem 1.4rem; }
     .stic-dashboard-grid { grid-template-columns: 1fr; }
+}
+
+/* (Plan 020) Cristal más barato en móvil: un fondo más opaco permite bajar el
+   radio de blur sin perder legibilidad, y el blur es la operación cara. */
+@media (max-width: 600px) {
+    :root { --glass-blur: 8px; }
+    .stic-login-form, .stic-forgotpas-form { background: rgba(255, 255, 255, 0.88); }
+}
+
+/* (Plan 020) Fallback sin backdrop-filter: sin soporte, el fondo translúcido
+   dejaba el texto sobre casi nada. Fondo sólido salvo que el blur exista. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .stic-login-form, .stic-forgotpas-form { background: rgba(255, 255, 255, 0.92); }
 }
 
 /* ============================================================
