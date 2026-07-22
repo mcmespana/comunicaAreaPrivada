@@ -30,28 +30,42 @@ antes de empezar, respeta sus "STOP conditions" y actualiza su fila de estado al
 | 006 | Escapar los valores del CRM al pintarlos (XSS almacenado) | P1 | M | — | TODO |
 | 007 | Regenerar el ID de sesión al autenticar (session fixation) | P1 | S | — | TODO |
 | 008 | Endurecer el transporte al CRM: TLS + queries de login | P0 | M | — | TODO |
-| 009 | Cachear `get_module_fields` también en `makeList` | P1 | S | — | **DONE** (Fable, 2026-07-19) |
-| 010 | Servir el CSS de DataTables local + enqueue condicional | P1 | M | — | TODO |
+| 009 | Cachear `get_module_fields` también en `makeList` | P1 | S | — | **DONE** → `archive/` |
+| 010 | Servir el CSS de DataTables local + enqueue condicional | P1 | M | — | **DONE** → `archive/` |
 | 011 | Eliminar los N+1 de listados, calendario y selector | P1 | L | 013 | TODO |
-| 012 | Sustituir `getAllEmail()` por una consulta puntual | P1 | S | — | TODO |
-| 013 | Establecer una base de verificación (PHPUnit + mocks) | P1 | M | — | TODO |
-| 014 | Retirar assets muertos y arreglar docs desfasadas | P2 | S | — | **DONE** (Fable, 2026-07-19) |
+| 012 | Sustituir `getAllEmail()` por una consulta puntual | P1 | S | — | TODO (ver nota de riesgo) |
+| 013 | Establecer una base de verificación (PHPUnit + mocks) | P1 | M | — | TODO ← **desbloquea 011/012/015** |
+| 014 | Retirar assets muertos y arreglar docs desfasadas | P2 | S | — | **DONE** → `archive/` |
 | 015 | Conectar o bloquear el formulario de pago del familiar | P1 | M | 013 | TODO |
-| 016 | Tema oscuro OPT-IN real (conmutable, basado en tokens) | P2 | L | 018 (recom.) | **DONE** (Opus, 2026-07-20) |
-| 017 | Foto de perfil por endpoint con miniatura (fuera base64) | P1 | M | — | **DONE** (Fable, 2026-07-20) |
-| 018 | Consolidar CSS: un solo :root, menos duplicados/!important | P2 | L | — | **PARTIAL** (Opus, 2026-07-20) |
-| 019 | Integrar (o retirar) el chrome de DataTables en listados | P2 | M | 010 | **DONE** (Fable, 2026-07-20) |
-| 020 | Aligerar el coste de pintura del login (blur/glass) | P2 | S-M | — | **DONE** (Opus, 2026-07-20) |
-| 021 | Externalizar los script inline de init (DT/FullCalendar) | P3 | S-M | 019 (coord.) | **DONE** (Fable, 2026-07-20) |
+| 016 | Tema oscuro OPT-IN (conmutable, basado en tokens) | P2 | L | 018 | **APARCADO** (implementado y luego retirado el conmutador) |
+| 017 | Foto de perfil por endpoint con miniatura (fuera base64) | P1 | M | — | **DONE** → `archive/` |
+| 018 | Consolidar CSS: un solo :root, menos duplicados/!important | P2 | L | — | **PARCIAL** (Fase 1 hecha) |
+| 019 | Integrar (o retirar) el chrome de DataTables en listados | P2 | M | 010 | **DONE** → `archive/` |
+| 020 | Aligerar el coste de pintura del login (blur/glass) | P2 | S-M | — | **DONE** → `archive/` |
+| 021 | Externalizar los script inline de init (DT/FullCalendar) | P3 | S-M | 019 | **DONE** → `archive/` |
 
-> **Ejecución 2026-07-20 (a producción).** Se ejecutaron 010, 016, 017, 019, 020, 021 completos y 018
-> parcial. **010** también quedó hecho (enqueue condicional + CSS de DataTables vendorizado en
-> `css/vendor/`). **018 PARCIAL**: se hizo la Fase 1 (un solo `:root`; `stic-base.css` ya no define
-> tokens, todo consolidado en `custom-style.css §1`, verificado sin `var()` huérfanos) y el plan 020
-> completo; **queda pendiente** la Fase 2/3 (borrar reglas base muertas y de-escalar los ~567+87
-> `!important`) porque exige verificación visual en navegador, que no hay en este entorno. Retomar 018
-> en staging. Todo lo demás verificado con `php -l` / `node --check` y análisis estático (llaves,
-> tokens, greps). Verificación visual pendiente de staging para todos.
+Los planes **DONE** están en producción y sus fichas se movieron a
+[`plans/archive/`](archive/) (2026-07-20). En `plans/` quedan solo los **pendientes** y los
+**parciales/aparcados**, para que la carpeta refleje de un vistazo qué falta.
+
+> **Estado tras la pasada UI/UX + rendimiento (2026-07-20, en producción).**
+> - **Entregado y en vivo**: 009, 010, 014, 017, 019, 020, 021 + la Fase 1 del 018 + la pasada
+>   directa de UI/a11y/motion (login compacto, foco, validación inline, `datetime-local`, etc.).
+> - **016 (tema oscuro): APARCADO.** Se implementó como opt-in por tokens, pero a decisión del
+>   mantenedor se retiró el conmutador y se fuerza claro (`sticpa_theme_attr()` devuelve `''`, el JS
+>   limpia cookie/localStorage). El CSS §44 y `applyTheme` quedan latentes. Rediseñar antes de reactivar.
+> - **018 PARCIAL**: hecha la Fase 1 (un solo `:root`, sin `var()` huérfanos). Falta Fase 2/3 (borrar
+>   reglas base muertas + de-escalar ~567+87 `!important`); exige verificación visual → hacer en staging.
+>
+> **Recomendación para continuar (leído contra el código):**
+> - **013 primero.** Es la única pieza segura que no toca runtime y **desbloquea** 011/012/015. Sin
+>   ella, los siguientes son inverificables.
+> - **012** parece "S/LOW" pero toca la **lógica de alta de cuentas** (duplicados de email) y
+>   `getContactByEmail` no cubre el módulo `'Any'`. No mandar a producción a ciegas: hacer con 013 o
+>   probar el signup en staging.
+> - **011 / 015**: dinero y datos. **Requieren 013** y, en 015, saber dónde viven los campos de pago
+>   en el CRM (es un *spike* de decisión, no de código).
+> - Verificación visual de todo lo ya desplegado: pendiente de una revisión en el sitio real.
 
 Estados: TODO · IN PROGRESS · DONE · BLOCKED (motivo) · REJECTED (motivo).
 
