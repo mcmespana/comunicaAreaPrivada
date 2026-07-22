@@ -1,0 +1,19 @@
+{
+    "name": "mcmespana/sinergiacrm-private-area",
+    "description": "Área Privada Comunica/MCM — plugin WordPress para SinergiaCRM",
+    "type": "wordpress-plugin",
+    "license": "proprietary",
+    "require": {
+        "php": ">=7.4"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.0 || ^10.5 || ^9.6"
+    },
+    "scripts": {
+        "test": "phpunit",
+        "lint": "bash -c 'find . -name \"*.php\" -not -path \"./vendor/*\" -not -path \"./.agents/*\" -not -path \"./.claude/*\" -print0 | xargs -0 -n1 -P4 php -l >/dev/null'"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

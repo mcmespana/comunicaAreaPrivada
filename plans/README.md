@@ -34,7 +34,7 @@ antes de empezar, respeta sus "STOP conditions" y actualiza su fila de estado al
 | 010 | Servir el CSS de DataTables local + enqueue condicional | P1 | M | — | **DONE** → `archive/` |
 | 011 | Eliminar los N+1 de listados, calendario y selector | P1 | L | 013 | TODO |
 | 012 | Sustituir `getAllEmail()` por una consulta puntual | P1 | S | — | TODO (ver nota de riesgo) |
-| 013 | Establecer una base de verificación (PHPUnit + mocks) | P1 | M | — | TODO ← **desbloquea 011/012/015** |
+| 013 | Establecer una base de verificación (PHPUnit + mocks) | P1 | M | — | **DONE** → `archive/` (baseline; ver seguimiento) |
 | 014 | Retirar assets muertos y arreglar docs desfasadas | P2 | S | — | **DONE** → `archive/` |
 | 015 | Conectar o bloquear el formulario de pago del familiar | P1 | M | 013 | TODO |
 | 016 | Tema oscuro OPT-IN (conmutable, basado en tokens) | P2 | L | 018 | **APARCADO** (implementado y luego retirado el conmutador) |
@@ -56,6 +56,18 @@ Los planes **DONE** están en producción y sus fichas se movieron a
 >   limpia cookie/localStorage). El CSS §44 y `applyTheme` quedan latentes. Rediseñar antes de reactivar.
 > - **018 PARCIAL**: hecha la Fase 1 (un solo `:root`, sin `var()` huérfanos). Falta Fase 2/3 (borrar
 >   reglas base muertas + de-escalar ~567+87 `!important`); exige verificación visual → hacer en staging.
+>
+> **013 (base de tests): HECHO.** `composer.json` + PHPUnit 11 + `tests/bootstrap.php` con stubs
+> mínimos de WP; suites `MagicLinkTest` (HMAC del acceso mágico: firma válida/manipulada, caducado,
+> módulo fuera de whitelist, payload malformado, base64url) y `SessionTest`
+> (`sticpa_establish_session` mapea el registro del CRM a `$_SESSION` sin llamar al CRM). **10 tests
+> verdes.** El deploy a producción ahora depende de un job `test` (lint de todo el PHP + PHPUnit):
+> si algo falla, no se despliega. Los ficheros de dev (`vendor/`, `tests/`, `composer.*`, `phpunit.*`)
+> se excluyen del FTP.
+> - *Seguimiento 013*: los tests a nivel de HANDLER (signup con email duplicado, login por token, la
+>   guarda de sesión del plan 001) se dejan como paso siguiente — necesitan stubear más WP + un doble
+>   de `SugarRestApiCall`, y por diseño cada uno llega con su plan (002/011/015 "añaden sus tests").
+>   La lógica pura crítica (firma HMAC) ya está cubierta, que era el objetivo del baseline.
 >
 > **Recomendación para continuar (leído contra el código):**
 > - **013 primero.** Es la única pieza segura que no toca runtime y **desbloquea** 011/012/015. Sin

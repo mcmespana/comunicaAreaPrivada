@@ -19,8 +19,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Puerta de calidad (plan 013): lint de todo el PHP + PHPUnit. Si algo falla,
+  # el deploy NO se ejecuta (el job deploy declara `needs: test`).
+  test:
+    name: Lint + tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código del repo
+        uses: actions/checkout@v4
+      - name: Preparar PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer
+      - name: Validar composer.json
+        run: composer validate --no-check-publish --no-check-all
+      - name: Instalar dependencias
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Lint de todos los .php del plugin
+        run: composer run lint
+      - name: PHPUnit
+        run: composer test
+
   deploy:
     name: Subir plugin por FTPS
+    needs: test          # el deploy espera a que la puerta de calidad pase
     runs-on: ubuntu-latest
     steps:
       - name: Descargar el código del repo
@@ -55,7 +79,16 @@ jobs:
             **/.gitignore
             **/.DS_Store
             **/.agents/**
+            **/.claude/**
             **/plans/**
+            **/vendor/**
+            **/tests/**
+            **/node_modules/**
+            **/.phpunit.cache/**
+            **/composer.json
+            **/composer.lock
+            **/phpunit.xml.dist
+            **/skills-lock.json
 
 # ──────────────────────────────────────────────────────────────────────────────
 # ¿Tu acceso es SFTP de verdad (puerto 22, basado en SSH) y NO FTPS (puerto 21)?
