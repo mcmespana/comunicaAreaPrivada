@@ -81,11 +81,16 @@ $portalName = get_option('sticpa_scp_name');
     <?php
     // Layout de la home: en escritorio, las secciones a la izquierda y la agenda
     // "Próximas actividades" a un lado; en móvil se apilan (agenda debajo).
-    // El widget es ligero (no carga FullCalendar) y solo se muestra si el usuario
-    // tiene disponible la sección Calendario.
-    $showAgenda = function_exists('sticpa_home_agenda_html')
+    // El widget es ligero (no carga FullCalendar). Se calcula ANTES: si no hay
+    // nada concreto que mostrar devuelve '' y NO se pinta el panel (la home pasa
+    // a una sola columna a ancho completo).
+    $agendaHtml = '';
+    if (function_exists('sticpa_home_agenda_html')
         && isset($objSCP)
-        && isset($menuElements['single_stic_activities_calendar']);
+        && isset($menuElements['single_stic_activities_calendar'])) {
+        $agendaHtml = sticpa_home_agenda_html($objSCP);
+    }
+    $showAgenda = ($agendaHtml !== '');
     ?>
     <div class="stic-home-layout<?= $showAgenda ? '' : ' stic-home-layout--solo'; ?>">
         <div class="stic-home-main">
@@ -108,9 +113,7 @@ $portalName = get_option('sticpa_scp_name');
         </div>
 
         <?php if ($showAgenda) : ?>
-            <aside class="stic-home-aside">
-                <?= sticpa_home_agenda_html($objSCP); ?>
-            </aside>
+            <aside class="stic-home-aside"><?= $agendaHtml; ?></aside>
         <?php endif; ?>
     </div>
 </div>

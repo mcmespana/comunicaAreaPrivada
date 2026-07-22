@@ -6,8 +6,8 @@ Cómo se publica el plugin en **comunica.movimientoconsolacion.com** automática
 
 ## 1. Cómo funciona
 
-- Hay una rama de **producción** (el repo usa **`production`**; el workflow también acepta
-  `produccion`) que representa lo que está publicado en el sitio real.
+- Hay una rama de **producción** (`production`) que representa lo que está
+  publicado en el sitio real.
 - Cuando se hace **push** a esa rama (normalmente al **mergear una Pull Request** ahí), se
   dispara el workflow [`.github/workflows/deploy-produccion.yml`](../.github/workflows/deploy-produccion.yml).
 - El workflow **sube el plugin por FTPS** a la carpeta del plugin en el hosting, de forma
@@ -15,11 +15,11 @@ Cómo se publica el plugin en **comunica.movimientoconsolacion.com** automática
 - También se puede lanzar **a mano** desde la pestaña **Actions → Deploy a producción → Run workflow**.
 
 ```
-   PR aprobada ──merge──►  rama produccion  ──push──►  GitHub Action  ──FTPS──►  hosting WordPress
+   PR aprobada ──merge──►  rama production  ──push──►  GitHub Action  ──FTPS──►  hosting WordPress
                                                                                 wp-content/plugins/<plugin>/
 ```
 
-> El resto de ramas (`main`, ramas de trabajo) **no despliegan nada**. Solo `produccion`.
+> El resto de ramas (`main`, ramas de trabajo) **no despliegan nada**. Solo `production`.
 
 ---
 
@@ -46,20 +46,20 @@ Crea estos **4 secretos** (método FTPS, el configurado por defecto):
 
 ---
 
-## 3. Crear la rama `produccion` (una sola vez)
+## 3. Crear la rama `production` (una sola vez)
 
 Si aún no existe, créala desde la rama que quieras publicar (normalmente `main`):
 
-- Desde la web de GitHub: selector de ramas → escribe `produccion` → *Create branch*.
+- Desde la web de GitHub: selector de ramas → escribe `production` → *Create branch*.
 - O por consola:
   ```bash
   git checkout main
   git pull
-  git checkout -b produccion
-  git push -u origin produccion
+  git checkout -b production
+  git push -u origin production
   ```
 
-> ⚠️ La **primera vez** que hagas push a `produccion`, el workflow intentará desplegar. Asegúrate de
+> ⚠️ La **primera vez** que hagas push a `production`, el workflow intentará desplegar. Asegúrate de
 > tener los 4 secretos creados **antes**, o ese primer run fallará (sin consecuencias: solo reintenta).
 
 ---
@@ -68,12 +68,12 @@ Si aún no existe, créala desde la rama que quieras publicar (normalmente `main
 
 1. Desarrollas en una rama de trabajo y abres PR hacia **`main`**.
 2. Se revisa y se mergea a `main` (esto **no** despliega).
-3. Cuando quieras **publicar**, llevas `main` a `produccion`:
-   - Abre una PR de `main` → `produccion` y mergéala, **o**
-   - lanza el deploy a mano desde **Actions** si ya tienes `produccion` al día.
-4. El push a `produccion` despliega por FTPS. Lo ves en la pestaña **Actions**.
+3. Cuando quieras **publicar**, llevas `main` a `production`:
+   - Abre una PR de `main` → `production` y mergéala, **o**
+   - lanza el deploy a mano desde **Actions** si ya tienes `production` al día.
+4. El push a `production` despliega por FTPS. Lo ves en la pestaña **Actions**.
 
-Así `produccion` siempre refleja exactamente lo que está publicado, y desplegar es **un merge**.
+Así `production` siempre refleja exactamente lo que está publicado, y desplegar es **un merge**.
 
 ---
 

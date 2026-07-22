@@ -167,6 +167,41 @@ function sticpa_session_bucket($statusClass, $startTs, $nowTs)
 }
 
 /**
+ * Estados granulares ACTIVOS. Comunica hoy no distingue "asistencia parcial" ni
+ * "falta justificada" (no hay forma de justificar), así que van desactivados por
+ * defecto. Reactivar cualquiera es una línea:
+ *
+ *   add_filter('sticpa_calendar_enabled_states', function ($s) {
+ *       $s['partial'] = true; $s['absent_justified'] = true; return $s;
+ *   });
+ */
+function sticpa_calendar_enabled_states()
+{
+    return apply_filters('sticpa_calendar_enabled_states', array(
+        'partial' => false,
+        'absent_justified' => false,
+    ));
+}
+
+/**
+ * Colapsa un bucket desactivado en su equivalente activo:
+ *   · 'partial'          → 'attended'            (parcial también cuenta como asistir)
+ *   · 'absent_justified' → 'absent_unjustified'  (sigue siendo "no asististe")
+ * Si el estado está activo (vía filtro), se devuelve tal cual.
+ */
+function sticpa_calendar_effective_bucket($bucket)
+{
+    $enabled = sticpa_calendar_enabled_states();
+    if ($bucket === 'partial' && empty($enabled['partial'])) {
+        return 'attended';
+    }
+    if ($bucket === 'absent_justified' && empty($enabled['absent_justified'])) {
+        return 'absent_unjustified';
+    }
+    return $bucket;
+}
+
+/**
  * Clave del transient de caché para el usuario/participante activo.
  */
 function sticpa_calendar_cache_key()
@@ -448,6 +483,7 @@ function sticpa_calendar_fc_events($data)
         $startLocal = get_date_from_gmt($s['start']); // 'Y-m-d H:i:s' en hora local
         $startTs = strtotime($startLocal);
         $bucket = sticpa_session_bucket($cls, $startTs, $now);
+        $bucket = sticpa_calendar_effective_bucket($bucket); // colapsa estados desactivados
         $meta = $palette[$bucket];
         $endLocal = !empty($s['end']) ? get_date_from_gmt($s['end']) : '';
         $events[] = array(
@@ -480,11 +516,20 @@ function sticpa_calendar_legend_html($buckets = null)
 {
     $palette = sticpa_calendar_palette();
     if ($buckets === null) {
-        $buckets = array(
-            'upcoming', 'attended', 'partial',
-            'absent_justified', 'absent_unjustified', 'pending',
-            'available_event', 'registered_event',
-        );
+        // Solo los estados activos (parcial y falta justificada van ocultos por
+        // defecto; ver sticpa_calendar_enabled_states).
+        $enabled = sticpa_calendar_enabled_states();
+        $buckets = array('upcoming', 'attended');
+        if (!empty($enabled['partial'])) {
+            $buckets[] = 'partial';
+        }
+        $buckets[] = 'absent_unjustified';
+        if (!empty($enabled['absent_justified'])) {
+            $buckets[] = 'absent_justified';
+        }
+        $buckets[] = 'pending';
+        $buckets[] = 'available_event';
+        $buckets[] = 'registered_event';
     }
     $out = "<ul class='stic-calendar-legend' aria-label='" . esc_attr__('Leyenda de colores', 'sticpa') . "'>";
     foreach ($buckets as $b) {
@@ -510,28 +555,11 @@ function sticpa_home_agenda_items($data, $limit = 5)
 {
     $palette = sticpa_calendar_palette();
     $todayTs = strtotime('today');
-    $items = array();
 
-    foreach ($data['sessions'] as $s) {
-        if (empty($s['start'])) {
-            continue;
-        }
-        $startLocal = get_date_from_gmt($s['start']);
-        $ts = strtotime($startLocal);
-        if ($ts === false || $ts < $todayTs) {
-            continue; // solo próximas
-        }
-        $items[] = array(
-            'ts' => $ts,
-            'has_time' => (strpos($s['start'], ' ') !== false && substr($startLocal, 11, 5) !== '00:00'),
-            'type' => 'session',
-            'title' => $s['title'],
-            'subtitle' => $s['event_name'],
-            'bucket' => 'upcoming',
-            'href' => '?internalpage=single_stic_sessions&action=detail&id=' . $s['id'],
-        );
-    }
-
+    // Dos grupos separados: primero los eventos ABIERTOS A INSCRIPCIÓN (acción
+    // inmediata, suelen ser pocos) y debajo las próximas SESIONES de eventos en
+    // los que ya estás inscrito (p. ej. las sesiones semanales de un curso).
+    $available = array();
     foreach ($data['available_events'] as $ev) {
         if (empty($ev['start'])) {
             continue;
@@ -540,7 +568,7 @@ function sticpa_home_agenda_items($data, $limit = 5)
         if ($ts === false || $ts < $todayTs) {
             continue;
         }
-        $items[] = array(
+        $available[] = array(
             'ts' => $ts,
             'has_time' => false,
             'type' => 'available_event',
@@ -551,10 +579,35 @@ function sticpa_home_agenda_items($data, $limit = 5)
         );
     }
 
-    usort($items, function ($a, $b) {
-        return $a['ts'] <=> $b['ts'];
-    });
+    $sessions = array();
+    foreach ($data['sessions'] as $s) {
+        if (empty($s['start'])) {
+            continue;
+        }
+        $startLocal = get_date_from_gmt($s['start']);
+        $ts = strtotime($startLocal);
+        if ($ts === false || $ts < $todayTs) {
+            continue; // solo próximas
+        }
+        $sessions[] = array(
+            'ts' => $ts,
+            'has_time' => (strpos($s['start'], ' ') !== false && substr($startLocal, 11, 5) !== '00:00'),
+            'type' => 'session',
+            'title' => $s['title'],
+            'subtitle' => $s['event_name'],
+            'bucket' => 'upcoming',
+            'href' => '?internalpage=single_stic_sessions&action=detail&id=' . $s['id'],
+        );
+    }
 
+    $byTs = function ($a, $b) {
+        return $a['ts'] <=> $b['ts'];
+    };
+    usort($available, $byTs);
+    usort($sessions, $byTs);
+
+    // Disponibles primero, luego sesiones (cada grupo por fecha).
+    $items = array_merge($available, $sessions);
     return array_slice($items, 0, max(1, (int) $limit));
 }
 
@@ -566,6 +619,13 @@ function sticpa_home_agenda_html($objSCP)
 {
     $data = sticpa_gather_calendar_data($objSCP);
     $items = sticpa_home_agenda_items($data, 5);
+
+    // Sin nada concreto que mostrar (ni eventos abiertos ni próximas sesiones),
+    // el widget NO se pinta: vacío solo molesta. La home queda a ancho completo.
+    if (empty($items)) {
+        return '';
+    }
+
     $palette = sticpa_calendar_palette();
     $calUrl = '?internalpage=single_stic_activities_calendar';
 
@@ -578,12 +638,7 @@ function sticpa_home_agenda_html($objSCP)
         . "<h3 id='stic-agenda-title' class='stic-agenda-title'>" . esc_html__('Próximas actividades', 'sticpa') . "</h3>"
         . "</div>";
 
-    if (empty($items)) {
-        $html .= "<div class='stic-agenda-empty'>"
-            . "<p class='stic-agenda-empty-title'>" . esc_html__('No tienes actividades próximas', 'sticpa') . "</p>"
-            . "<p class='stic-agenda-empty-sub'>" . esc_html__('Cuando te inscribas a un evento o haya sesiones programadas, aparecerán aquí.', 'sticpa') . "</p>"
-            . "</div>";
-    } else {
+    {
         $html .= "<ul class='stic-agenda-list'>";
         foreach ($items as $it) {
             $meta = $palette[$it['bucket']] ?? $palette['upcoming'];

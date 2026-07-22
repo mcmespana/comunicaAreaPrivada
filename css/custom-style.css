@@ -4134,11 +4134,6 @@ span.stic-field {
     padding: 0.22rem 0.55rem;
 }
 
-/* Estado vacío del panel */
-.stic-agenda-empty { text-align: center; padding: 0.6rem 0.3rem 0.2rem; }
-.stic-agenda-empty-title { margin: 0 0 0.25rem; font-weight: 700; color: var(--gray-700); }
-.stic-agenda-empty-sub { margin: 0; font-size: 0.83rem; color: var(--gray-500); line-height: 1.5; }
-
 /* CTA "Ver calendario" */
 .stic-agenda-cta {
     display: inline-flex;
