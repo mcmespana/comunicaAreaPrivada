@@ -39,7 +39,7 @@ antes de empezar, respeta sus "STOP conditions" y actualiza su fila de estado al
 | 015 | Conectar o bloquear el formulario de pago del familiar | P1 | M | 013 | TODO |
 | 016 | Tema oscuro OPT-IN (conmutable, basado en tokens) | P2 | L | 018 | **APARCADO** (implementado y luego retirado el conmutador) |
 | 017 | Foto de perfil por endpoint con miniatura (fuera base64) | P1 | M | — | **DONE** → `archive/` |
-| 018 | Consolidar CSS: un solo :root, menos duplicados/!important | P2 | L | — | **PARCIAL** (Fase 1 hecha) |
+| 018 | Consolidar CSS: un solo :root, menos duplicados/!important | P2 | L | — | **PARCIAL** (F1 hecha; F2/3 medidas = no-batch, ver ficha) |
 | 019 | Integrar (o retirar) el chrome de DataTables en listados | P2 | M | 010 | **DONE** → `archive/` |
 | 020 | Aligerar el coste de pintura del login (blur/glass) | P2 | S-M | — | **DONE** → `archive/` |
 | 021 | Externalizar los script inline de init (DT/FullCalendar) | P3 | S-M | 019 | **DONE** → `archive/` |
@@ -54,8 +54,11 @@ Los planes **DONE** están en producción y sus fichas se movieron a
 > - **016 (tema oscuro): APARCADO.** Se implementó como opt-in por tokens, pero a decisión del
 >   mantenedor se retiró el conmutador y se fuerza claro (`sticpa_theme_attr()` devuelve `''`, el JS
 >   limpia cookie/localStorage). El CSS §44 y `applyTheme` quedan latentes. Rediseñar antes de reactivar.
-> - **018 PARCIAL**: hecha la Fase 1 (un solo `:root`, sin `var()` huérfanos). Falta Fase 2/3 (borrar
->   reglas base muertas + de-escalar ~567+87 `!important`); exige verificación visual → hacer en staging.
+> - **018 PARCIAL**: hecha la Fase 1 (un solo `:root`, sin `var()` huérfanos). La Fase 2/3 se intentó
+>   y se **midió a nivel de píxel** (2026-07-22): los `!important` son *portantes* (quitarlos cambia el
+>   render de las tarjetas ~16–20k px; base compite desde varios sitios). NO es un batch seguro; queda
+>   como QA visual iterativo con el runbook (curl-login → render offline → diff Pillow) que está en la
+>   ficha `018-css-consolidation.md`. No se envió nada de F2/3 a producción para no romper el render.
 >
 > **013 (base de tests): HECHO.** `composer.json` + PHPUnit 11 + `tests/bootstrap.php` con stubs
 > mínimos de WP; suites `MagicLinkTest` (HMAC del acceso mágico: firma válida/manipulada, caducado,

@@ -13,6 +13,40 @@
 - **Category**: perf / tech-debt / ui
 - **Planned at**: commit `c2d7cff`, 2026-07-19
 
+## Estado de ejecución (actualizado 2026-07-22)
+
+- **Fase 1: HECHA y en producción.** Un solo `:root` (en `custom-style.css §1`); `stic-base.css` ya
+  no define tokens. Verificado sin `var()` huérfanos y llaves balanceadas.
+- **Fase 2 y 3: NO HECHAS — a propósito.** Se intentaron y se **midió a nivel de píxel** que NO son
+  un batch seguro:
+  - Quitar los 23 `!important` de §22.b (tarjetas de listado) **cambia el render** del listado
+    (~16 000 px distintos, banda de tarjetas y=163–477). Son *portantes*: vencen a la capa base.
+  - El intento **acoplado** (borrar además el bloque de tabla de `stic-base.css` 1090–1143 **y**
+    quitar el `!important`) **sigue cambiando** el render (~20 000 px). Base compite desde MÁS
+    sitios: `stic-base.css` líneas ~179, 1090, 1291 (dataTables), 1815, 1879.
+  - Conclusión: F2/F3 están entrelazadas; hay que neutralizar TODOS los competidores de base por
+    componente y verificar por diff de píxeles **y en todos los estados** (hover, modal, selectize
+    —que no renderiza offline—, `?app=1`). Es QA visual iterativo, no automatizable a ciegas.
+
+### Runbook de verificación (ya montado — úsalo para retomar)
+
+Método barato para iterar F2/F3 con seguridad, sin navegador contra el sitio (el proxy bloquea
+Chromium contra la web autenticada):
+
+1. Login por `curl` con cookie-jar contra `…/aptest/` (usuario/contraseña de pruebas) y descargar el
+   HTML autenticado de un formulario (`?internalpage=single_stic_comunica_perfil`) y un listado
+   (`?internalpage=list_stic_events`).
+2. Extraer el bloque `.stic-container` y renderizarlo **offline** (`file://`) con Playwright
+   (`playwright-core` + Chromium de `/opt/pw-browsers`), inline de `stic-base.css` + `custom-style.css`.
+3. Diff con **Pillow** (`ImageChops.difference().getbbox()`): objetivo = bbox `None` (0 px) para cada
+   página y estado tras cada cambio. Si difiere, revertir esa regla.
+4. Repetir por sección (§25 selectize y §12/§22 tablas primero); cada `!important` que se quite debe
+   ir acompañado del borrado de la regla base que combatía, y quedar 0 px de diff.
+
+Ojo: `!important` que solo actúan en `:hover`/modales/selectize/app-mode NO se ven en un render
+estático — hay que forzar esos estados o revisarlos a mano. **No** dar por seguro un `!important`
+solo porque el render en reposo no cambie.
+
 ## Why this matters
 
 Cada página del área carga ~175 KB de CSS sin comprimir en dos hojas que compiten entre sí:
