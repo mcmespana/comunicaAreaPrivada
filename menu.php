@@ -17,7 +17,7 @@ function getSticMenuElements()
     // un familiar viendo a un participante ve "Sus datos" (no son los suyos).
     $audience = function_exists('sticpa_profile_audience') ? sticpa_profile_audience() : 'miembro';
     $menuElements['single_stic_comunica_perfil'] = ($audience === 'participante')
-        ? __('Sus datos', 'sticpa')
+        ? __('Datos participante', 'sticpa')
         : __('Mis datos', 'sticpa');
     if ($role === 'monitor' && $audience !== 'participante') {
         $menuElements['single_stic_comunica_monitor'] = __('Monitor/a', 'sticpa');
@@ -256,9 +256,10 @@ function menu()
     $actions .= "<a class='stic-iconbtn stic-logout' href='?logout=true' title='" . esc_attr__('Cerrar sesión', 'sticpa') . "' aria-label='" . esc_attr__('Cerrar sesión', 'sticpa') . "'>"
         . ($iconFn ? sticpa_icon('logout') : '') . "<span class='stic-logout-text'>" . __('Salir', 'sticpa') . "</span></a>";
     if ($showItems) {
-        $actions .= "<button type='button' class='stic-nav-toggle' aria-expanded='false' aria-controls='stic-nav-list' aria-label='" . esc_attr__('Abrir menú', 'sticpa') . "'>
+        // Botón hamburguesa SOLO icono: el nombre de la sección ya lo pone el
+        // título de la página (antes salía duplicado en la barra, feo en móvil).
+        $actions .= "<button type='button' class='stic-nav-toggle' aria-expanded='false' aria-controls='stic-nav-list' aria-label='" . esc_attr__('Menú', 'sticpa') . "' title='" . esc_attr__('Menú', 'sticpa') . "'>
                         <span class='stic-nav-toggle-bars' aria-hidden='true'><i></i><i></i><i></i></span>
-                        <span class='stic-nav-toggle-current'>" . esc_html($currentLabel) . "</span>
                      </button>";
     }
     $actions .= "</div>";

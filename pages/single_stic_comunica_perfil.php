@@ -43,7 +43,7 @@ $sections = apply_filters(
 );
 
 $formSettings['moduleName'] = 'Contacts';
-$formSettings['title'] = ($audience === 'participante') ? __('Sus datos', 'sticpa') : __('Mis datos', 'sticpa');
+$formSettings['title'] = ($audience === 'participante') ? __('Datos participante', 'sticpa') : __('Mis datos', 'sticpa');
 $formSettings['msg'][] = array('value' => 'true', 'type' => 'success', 'msg' => __('Los datos se han guardado correctamente.', 'sticpa'));
 $formSettings['msg'][] = array('value' => 'error', 'type' => 'error', 'msg' => __('Error al guardar los datos.', 'sticpa'));
 $formSettings['msg'][] = array('value' => 'error_type', 'type' => 'error', 'msg' => __('El formato del archivo no es válido.', 'sticpa'));

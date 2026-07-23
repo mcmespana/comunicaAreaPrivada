@@ -42,6 +42,15 @@
         var calEl = document.querySelector('[data-fc-settings]');
         if (calEl && typeof FullCalendar !== 'undefined') {
             var fcSettings = parseSettings(calEl, 'data-fc-settings');
+            // En MÓVIL abrimos en Agenda (listMonth): la rejilla de mes en pantallas
+            // pequeñas aprieta demasiado; la lista es clara y cómoda. En escritorio
+            // se mantiene la vista Mes. El usuario puede cambiar con los botones.
+            try {
+                if (window.matchMedia && window.matchMedia('(max-width: 767px)').matches
+                    && (!fcSettings.initialView || fcSettings.initialView === 'dayGridMonth')) {
+                    fcSettings.initialView = 'listMonth';
+                }
+            } catch (e) { /* sin matchMedia: se queda la vista por defecto */ }
             // Clic en un evento → su destino. Prioridad: extendedProps.href (nuevo
             // esquema: sesión/evento/inscripción); si no, el patrón antiguo por
             // módulo (?internalpage=<módulo>&action=detail&id=<id>).
@@ -60,6 +69,21 @@
             fcSettings.eventDidMount = function (info) {
                 var tip = info.event.extendedProps && info.event.extendedProps.tooltip;
                 if (tip) { info.el.setAttribute('title', tip); }
+            };
+            // Título del mes limpio: "Octubre 2025" en vez de "Octubre De 2025"
+            // (el locale da "octubre de 2025"; quitamos el "de" y capitalizamos).
+            var fcLang = fcSettings.locale || 'es';
+            fcSettings.datesSet = function (arg) {
+                try {
+                    // Mes y Agenda muestran un rango mensual: en ambos ponemos
+                    // "Octubre 2025" (textContent REEMPLAZA, así que nunca duplica).
+                    var d = arg.view.currentStart;
+                    var t = d.toLocaleDateString(fcLang, { month: 'long', year: 'numeric' });
+                    t = t.replace(/\sde\s(\d{4})$/, ' $1');
+                    t = t.charAt(0).toUpperCase() + t.slice(1);
+                    var el = arg.view.calendar.el.querySelector('.fc-toolbar-title');
+                    if (el) { el.textContent = t; }
+                } catch (e) { /* si algo falla, se queda el título nativo */ }
             };
             new FullCalendar.Calendar(calEl, fcSettings).render();
         }

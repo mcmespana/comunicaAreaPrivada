@@ -957,22 +957,25 @@ span.stic-field {
 @media (max-width: 767px) {
     /* Separación con el título de la página (lo pinta Elementor encima). */
     .stic-container { margin-top: 1.15rem; }
-    .stic-nav-toggle { display: inline-flex; }
-    /* Pill del toggle más oscuro: el texto blanco "Inscripciones" se leía lavado
-       sobre fondo demasiado claro (parecía gris/negro). */
+    /* Hamburguesa = solo icono (el nombre de sección ya lo pone el título). */
     .stic-nav-toggle {
+        display: inline-flex;
         background: rgba(0, 0, 0, 0.2) !important;
         color: #fff !important;
+        padding: 0.55rem !important;
     }
-    .stic-nav-toggle-current { color: #fff !important; }
     .stic-logout .stic-logout-text { display: none; } /* salir = solo icono en móvil */
     .stic-iconbtn { padding: 0.55rem; }
     .stic-nav-bar { padding: 0.6rem 0.65rem; gap: 0.5rem; }
     .stic-avatar { width: 42px; height: 42px; font-size: 1.05rem; }
-    .stic-account { gap: 0.55rem; }
+    .stic-account { gap: 0.55rem; min-width: 0; flex: 1 1 auto; } /* identidad manda el ancho libre */
+    .stic-account-info { flex: 1 1 auto; }
     .stic-account-name { font-size: 0.95rem; }
     .stic-account-tag { display: none; } /* la etiqueta sobra en móvil: prima el nombre */
-    .stic-nav-toggle-current { max-width: 6.5rem; }
+    /* El nombre del participante respira: ahora que la hamburguesa no lleva texto
+       hay sitio; solo recorta si de verdad no cabe. */
+    .stic-part-switch-btn { max-width: 100%; }
+    .stic-part-switch-btn .stic-part-name { max-width: 46vw; }
     .stic-nav-list {
         flex-direction: column;
         gap: 0.2rem;
@@ -994,12 +997,6 @@ span.stic-field {
     /* Item activo (página actual) en el menú: texto siempre blanco legible. */
     .stic-nav.is-open .stic-nav-item.current-menu-item .stic-nav-link,
     .stic-nav.is-open .stic-nav-link { color: #fff !important; }
-    .stic-nav.is-open .stic-nav-toggle-current {
-        display: none !important;
-    }
-    .stic-nav.is-open .stic-nav-toggle {
-        padding: 0.55rem !important;
-    }
     .stic-nav-link { padding: 0.9rem 1rem; font-size: 1.02rem; } /* targets cómodos en móvil */
     .stic-nav-link:hover { transform: none; }
     .stic-nav-item.current-menu-item .stic-nav-link { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3); }
@@ -2053,7 +2050,9 @@ span.stic-field {
     font-size: clamp(1.05rem, 3vw, 1.3rem) !important;
     font-weight: 800;
     color: var(--gray-900);
-    text-transform: capitalize;
+    /* nada de capitalize: ponía "Octubre De 2025" (la D); el JS ya deja
+       "Octubre 2025" con la inicial en mayúscula. */
+    text-transform: none;
 }
 /* La cabecera de los días deja de heredar el gradiente de las tablas. */
 .fc thead,
@@ -4154,3 +4153,63 @@ span.stic-field {
 .stic-agenda-cta svg { width: 17px; height: 17px; }
 .stic-agenda-cta:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
 .stic-agenda-cta:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+
+/* ============================================================
+   45. CALENDARIO EN MÓVIL — el sitio principal es la app (?app=1)
+   ------------------------------------------------------------
+   Un calendario en móvil siempre aprieta: aquí lo hacemos respirar.
+   · Menos cajas: el calendario va a sangre (sin doble borde).
+   · Toolbar estable: el título en SU fila (no empuja los botones al
+     crecer el nombre del mes) y los botones centrados debajo.
+   · Vista Mes: los eventos se ven como BARRITA/punto de color (sin
+     título, que desbordaba); el tap sigue abriendo el evento.
+   · Vista Agenda: nada se corta (tabla fluida, textos que envuelven).
+   ============================================================ */
+@media (max-width: 767px) {
+    /* Menos bordes: fuera la caja externa del calendario (la rejilla ya
+       tiene sus líneas); se recupera ancho útil. */
+    .fc {
+        border: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+    }
+    .stic-calendar-intro { font-size: 0.86rem; margin-bottom: 0.7rem; }
+    .stic-calendar-legend { gap: 0.3rem 0.45rem; }
+
+    /* Toolbar: título en su propia fila; botones centrados y estables debajo. */
+    .fc .fc-toolbar.fc-header-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.55rem !important;
+        margin-bottom: 0.75rem !important;
+    }
+    .fc .fc-toolbar-chunk { display: flex; justify-content: center; align-items: center; gap: 0.4rem; }
+    .fc .fc-toolbar-chunk:has(.fc-toolbar-title) { order: -1; }
+    .fc .fc-toolbar-title { text-align: center; }
+    .fc .fc-button { padding: 0.4rem 0.7rem !important; font-size: 0.82rem !important; }
+
+    /* Vista MES: solo compactamos números y cabecera (el restyling de los eventos
+       —punto/barra + tap-tooltip— se hará en JS con eventContent; ver plan 022,
+       para no romper el layout de FullCalendar con CSS a pelo). */
+    .fc-daygrid-event { font-size: 0.72rem; }
+    .fc-daygrid-event .fc-event-time { display: none; } /* la hora en la celda sobra en móvil (ya se ve en Agenda) */
+    .fc .fc-daygrid-day-number { padding: 0.2rem 0.35rem; font-size: 0.82rem; }
+    .fc .fc-col-header-cell-cushion { font-size: 0.66rem; }
+
+    /* Vista AGENDA (listMonth): que NO se corte nada. Tabla fluida, sin overflow
+       horizontal, textos que envuelven. */
+    .fc .fc-list { width: 100% !important; min-width: 0 !important; border: 0 !important; }
+    .fc .fc-list-table { width: 100% !important; table-layout: fixed !important; }
+    .fc .fc-list-table td { overflow: hidden !important; word-break: break-word; white-space: normal !important; }
+    .fc .fc-list-event-title, .fc .fc-list-event-title a { white-space: normal !important; }
+    .fc .fc-list-event-time { width: 3.8rem; font-size: 0.8rem; }
+    .fc .fc-list-event-graphic { width: 1.4rem; }
+    .fc .fc-list-day-cushion {
+        display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 0.5rem;
+        font-size: 0.85rem; padding: 0.5rem 0.7rem !important;
+    }
+    .fc .fc-list-day-cushion .fc-list-day-side-text { margin-left: auto; font-weight: 600; }
+    .fc .fc-scroller,
+    .fc .fc-list .fc-scroller { overflow-x: hidden !important; }
+}

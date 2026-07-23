@@ -14,19 +14,30 @@ if (!defined('ABSPATH')) {
 
 list($menuElements, $defaultMenuElement) = getSticMenuElements();
 
-// Saludo personalizado: intentamos sacar el nombre de pila.
-$fullName = $_SESSION['scp_user_contact_name'] ?? '';
-$firstName = $fullName;
-if ($fullName !== '') {
+// Nombre de pila a partir de "Apellidos, Nombre" o "Nombre Apellidos".
+$firstNameOf = function ($fullName) {
+    $fullName = trim((string) $fullName);
+    if ($fullName === '') { return ''; }
     if (strpos($fullName, ',') !== false) {
-        // Formato "Apellidos, Nombre" -> nos quedamos con lo de después de la coma.
         $parts = explode(',', $fullName, 2);
-        $firstName = trim($parts[1]);
-    } else {
-        $parts = preg_split('/\s+/', trim($fullName));
-        $firstName = $parts[0];
+        return trim($parts[1]) !== '' ? trim($parts[1]) : trim($parts[0]);
     }
-}
+    return preg_split('/\s+/', $fullName)[0];
+};
+
+// Audiencia: un familiar viendo la ficha de un participante ('participante')
+// ve un mensaje distinto (habla del participante), no "tu espacio personal".
+$audience = function_exists('sticpa_profile_audience') ? sticpa_profile_audience() : 'miembro';
+$isFamilyView = ($audience === 'participante');
+
+// Participante activo (para familias, el hijo/a que se está viendo).
+$participantFirst = $firstNameOf($_SESSION['scp_user_contact_name'] ?? '');
+// Familiar que ha accedido (para el saludo en modo familia).
+$tutorFirst = $firstNameOf($_SESSION['scp_tutor_user_contact_name'] ?? '');
+
+// Nombre para el saludo grande: el familiar si estamos en vista de familia; si
+// no, la propia persona.
+$firstName = $isFamilyView ? ($tutorFirst !== '' ? $tutorFirst : '') : $participantFirst;
 
 /**
  * Iconos + descripción por sección: se reutiliza el mapa compartido
@@ -60,7 +71,15 @@ $portalName = get_option('sticpa_scp_name');
             <?php endif; ?>
         </h2>
         <p class="stic-welcome-lead">
-            <?= esc_html__('Este es tu espacio personal. Desde aquí puedes consultar y gestionar toda tu información. Elige una sección para empezar.', 'sticpa'); ?>
+            <?php if ($isFamilyView && $participantFirst !== '') : ?>
+                <?= sprintf(
+                    /* translators: %s = nombre del participante (hijo/a) */
+                    esc_html__('Aquí puedes revisar los datos de %s e inscribirle a las actividades. Elige una sección para empezar.', 'sticpa'),
+                    '<strong>' . esc_html($participantFirst) . '</strong>'
+                ); ?>
+            <?php else : ?>
+                <?= esc_html__('Este es tu espacio personal. Desde aquí puedes consultar y gestionar toda tu información. Elige una sección para empezar.', 'sticpa'); ?>
+            <?php endif; ?>
         </p>
         <?php if (isset($_GET['rol_debug'])) : ?>
             <span class="stic-role-chip" title="Valor del campo stic_relationship_type_c en el CRM">
