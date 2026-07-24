@@ -43,7 +43,7 @@ antes de empezar, respeta sus "STOP conditions" y actualiza su fila de estado al
 | 019 | Integrar (o retirar) el chrome de DataTables en listados | P2 | M | 010 | **DONE** → `archive/` |
 | 020 | Aligerar el coste de pintura del login (blur/glass) | P2 | S-M | — | **DONE** → `archive/` |
 | 021 | Externalizar los script inline de init (DT/FullCalendar) | P3 | S-M | 019 | **DONE** → `archive/` |
-| 022 | Calendario MES en móvil: dots + tap-tooltip (eventContent) | P2 | M | — | TODO (coordinar con mantenedor) |
+| 022 | Calendario MES en móvil: dots + tap-tooltip (eventContent) | P2 | M | — | **DONE** → `archive/` (verificado en render offline) |
 
 Los planes **DONE** están en producción y sus fichas se movieron a
 [`plans/archive/`](archive/) (2026-07-20). En `plans/` quedan solo los **pendientes** y los

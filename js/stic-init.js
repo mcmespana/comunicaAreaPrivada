@@ -42,41 +42,127 @@
         var calEl = document.querySelector('[data-fc-settings]');
         if (calEl && typeof FullCalendar !== 'undefined') {
             var fcSettings = parseSettings(calEl, 'data-fc-settings');
-            // En MÓVIL abrimos en Agenda (listMonth): la rejilla de mes en pantallas
-            // pequeñas aprieta demasiado; la lista es clara y cómoda. En escritorio
-            // se mantiene la vista Mes. El usuario puede cambiar con los botones.
-            try {
-                if (window.matchMedia && window.matchMedia('(max-width: 767px)').matches
-                    && (!fcSettings.initialView || fcSettings.initialView === 'dayGridMonth')) {
-                    fcSettings.initialView = 'listMonth';
+            var fcLang = fcSettings.locale || 'es';
+            function isMobile() {
+                try { return window.matchMedia && window.matchMedia('(max-width: 767px)').matches; }
+                catch (e) { return false; }
+            }
+            // Destino de un evento: nuevo esquema extendedProps.href; si no, el
+            // patrón antiguo por módulo (?internalpage=<módulo>&action=detail&id=<id>).
+            function eventHref(ev) {
+                var props = ev.extendedProps || {};
+                if (props.href) { return props.href; }
+                if (props.module) { return '?internalpage=' + props.module + '&action=detail&id=' + ev.id; }
+                return null;
+            }
+
+            /* ---- Popover al TOCAR un evento (móvil): nombre + "Ir al evento" ----
+               En móvil no navegamos de golpe (un toque accidental en una barrita no
+               debe sacarte de la pantalla): mostramos un globo con el nombre, el
+               estado y un botón para ir. Se cierra al tocar fuera / Escape / scroll. */
+            var openPop = null;
+            function closePop() {
+                if (openPop) { openPop.remove(); openPop = null; }
+                document.removeEventListener('keydown', popEsc, true);
+                window.removeEventListener('scroll', closePop, true);
+                document.removeEventListener('click', popOutside, true);
+            }
+            function popEsc(e) { if (e.key === 'Escape' || e.keyCode === 27) { closePop(); } }
+            function popOutside(e) { if (openPop && !openPop.contains(e.target)) { closePop(); } }
+            function showEventPopover(arg) {
+                closePop();
+                var ev = arg.event;
+                var href = eventHref(ev);
+                var color = ev.backgroundColor || ev.borderColor || '';
+                var sub = (ev.extendedProps && ev.extendedProps.tooltip) ? ev.extendedProps.tooltip : '';
+                var pop = document.createElement('div');
+                pop.className = 'stic-fc-pop';
+                pop.setAttribute('role', 'dialog');
+                pop.setAttribute('aria-label', ev.title || '');
+                var head = document.createElement('div');
+                head.className = 'stic-fc-pop-head';
+                var dot = document.createElement('span');
+                dot.className = 'stic-fc-pop-dot';
+                if (color) { dot.style.background = color; }
+                var h = document.createElement('span');
+                h.className = 'stic-fc-pop-title';
+                h.textContent = ev.title || '';
+                head.appendChild(dot); head.appendChild(h);
+                pop.appendChild(head);
+                if (sub && sub !== ev.title) {
+                    var s = document.createElement('p');
+                    s.className = 'stic-fc-pop-sub';
+                    s.textContent = sub;
+                    pop.appendChild(s);
                 }
-            } catch (e) { /* sin matchMedia: se queda la vista por defecto */ }
-            // Clic en un evento → su destino. Prioridad: extendedProps.href (nuevo
-            // esquema: sesión/evento/inscripción); si no, el patrón antiguo por
-            // módulo (?internalpage=<módulo>&action=detail&id=<id>).
+                if (href) {
+                    var go = document.createElement('a');
+                    go.className = 'stic-fc-pop-go';
+                    go.href = href;
+                    go.textContent = (vars && vars.calGoEvent) ? vars.calGoEvent : 'Ir al evento';
+                    pop.appendChild(go);
+                }
+                document.body.appendChild(pop);
+                openPop = pop;
+                // Anclar (fixed) al evento, con clamp al viewport para que no se corte.
+                var anchor = arg.el || (arg.jsEvent && arg.jsEvent.target);
+                var r = anchor ? anchor.getBoundingClientRect() : { left: 20, right: 40, top: 80, bottom: 90, width: 20, height: 10 };
+                var w = pop.offsetWidth, ph = pop.offsetHeight;
+                var left = Math.round(r.left + r.width / 2 - w / 2);
+                left = Math.max(10, Math.min(left, window.innerWidth - w - 10));
+                var top = Math.round(r.bottom + 8);
+                if (top + ph > window.innerHeight - 10) { top = Math.round(r.top - ph - 8); }
+                if (top < 10) { top = 10; }
+                pop.style.left = left + 'px';
+                pop.style.top = top + 'px';
+                setTimeout(function () {
+                    document.addEventListener('click', popOutside, true);
+                    document.addEventListener('keydown', popEsc, true);
+                    window.addEventListener('scroll', closePop, true);
+                    var f = pop.querySelector('.stic-fc-pop-go') || pop;
+                    if (f.focus) { f.focus(); }
+                }, 0);
+            }
+
             fcSettings.eventClick = function (arg) {
-                var props = arg.event.extendedProps || {};
                 if (arg.jsEvent) { arg.jsEvent.preventDefault(); }
-                if (props.href) {
-                    window.location.assign(props.href);
-                } else if (props.module) {
-                    window.location.assign(
-                        '?internalpage=' + props.module + '&action=detail&id=' + arg.event.id
-                    );
-                }
+                var href = eventHref(arg.event);
+                if (isMobile()) { showEventPopover(arg); }
+                else if (href) { window.location.assign(href); }
             };
+
+            // Render propio de cada evento en la rejilla (Mes): barra de color
+            // unificada + título. El CSS decide: en móvil solo la barra (sin texto),
+            // en escritorio punto + título. En Agenda se deja el render por defecto.
+            fcSettings.eventContent = function (arg) {
+                if (arg.view.type.indexOf('dayGrid') !== 0) { return undefined; }
+                var color = arg.event.backgroundColor || arg.event.borderColor || '';
+                var wrap = document.createElement('div');
+                wrap.className = 'stic-fc-chip';
+                var bar = document.createElement('span');
+                bar.className = 'stic-fc-chip-bar';
+                if (color) { bar.style.background = color; }
+                var title = document.createElement('span');
+                title.className = 'stic-fc-chip-title';
+                if (arg.timeText) {
+                    var tm = document.createElement('span');
+                    tm.className = 'stic-fc-chip-time';
+                    tm.textContent = arg.timeText + ' ';
+                    title.appendChild(tm);
+                }
+                title.appendChild(document.createTextNode(arg.event.title));
+                wrap.appendChild(bar); wrap.appendChild(title);
+                return { domNodes: [wrap] };
+            };
+
             // Tooltip nativo (title) con el nombre + estado, para hover y lectores.
             fcSettings.eventDidMount = function (info) {
                 var tip = info.event.extendedProps && info.event.extendedProps.tooltip;
                 if (tip) { info.el.setAttribute('title', tip); }
             };
-            // Título del mes limpio: "Octubre 2025" en vez de "Octubre De 2025"
-            // (el locale da "octubre de 2025"; quitamos el "de" y capitalizamos).
-            var fcLang = fcSettings.locale || 'es';
+            // Título del mes limpio: "Octubre 2025" (el locale da "octubre de 2025").
             fcSettings.datesSet = function (arg) {
                 try {
-                    // Mes y Agenda muestran un rango mensual: en ambos ponemos
-                    // "Octubre 2025" (textContent REEMPLAZA, así que nunca duplica).
                     var d = arg.view.currentStart;
                     var t = d.toLocaleDateString(fcLang, { month: 'long', year: 'numeric' });
                     t = t.replace(/\sde\s(\d{4})$/, ' $1');

@@ -3967,29 +3967,65 @@ span.stic-field {
 
 /* Eventos: chip redondeado, legible y clicable. */
 .fc .fc-event { cursor: pointer; }
-.fc-daygrid-event {
-    border-radius: var(--radius-sm);
-    padding: 2px 6px;
-    font-weight: 600;
-    font-size: 0.78rem;
-    line-height: 1.25;
-    white-space: normal; /* títulos largos hacen wrap, no se cortan */
-    transition: box-shadow 0.14s var(--ease-out), filter 0.14s var(--ease-out);
-}
-.fc .fc-event:hover { filter: brightness(0.96); box-shadow: var(--shadow-sm); }
-.fc .fc-event:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
 
-/* Barras de día completo (eventos): guía blanca a la izquierda para diferenciarlas
-   de las sesiones; el evento ya inscrito, un pelín más apagado que el inscribible. */
-.stic-fc-available,
-.stic-fc-registered { border-left: 3px solid rgba(255, 255, 255, 0.55) !important; }
+/* ---- Evento en la rejilla (Mes): render PROPIO vía eventContent (plan 022) ----
+   Quitamos el "chrome" por defecto de FullCalendar (fondo/borde/punto) y pintamos
+   nosotros un chip uniforme para TODOS los tipos (rango o sesión con hora):
+   ESCRITORIO = punto de color + título; MÓVIL (§45) = solo barra de color. */
+.fc .fc-daygrid-event {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    padding: 1px 2px !important;
+    transition: filter 0.14s var(--ease-out), background 0.14s var(--ease-out);
+}
+.fc .fc-daygrid-event:hover { background: var(--surface-2) !important; }
+.fc .fc-daygrid-event:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+.fc .fc-daygrid-event .fc-daygrid-event-dot { display: none !important; } /* usamos nuestro chip */
 .stic-fc-registered { opacity: 0.9; }
 
-/* Sesiones con hora en vista Mes: el punto toma el color del estado y se agranda
-   para leerse de un vistazo; el texto queda oscuro y nítido sobre la celda. */
-.fc-daygrid-dot-event { padding: 2px 4px; font-weight: 600; }
-.fc-daygrid-dot-event .fc-daygrid-event-dot { border-width: 5px; margin: 0 5px 0 2px; }
-.fc-daygrid-dot-event:hover { background: var(--surface-2); }
+.stic-fc-chip { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.stic-fc-chip-bar {
+    flex: none;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--primary-color);
+}
+.stic-fc-chip-title {
+    min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-weight: 600; font-size: 0.78rem; color: var(--gray-800);
+}
+.stic-fc-chip-time { font-weight: 700; opacity: 0.8; }
+
+/* ---- Popover al tocar un evento en móvil (stic-init.js) ---- */
+.stic-fc-pop {
+    position: fixed;
+    z-index: 99999;
+    width: max-content;
+    max-width: min(280px, calc(100vw - 20px));
+    background: var(--surface);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: 0.8rem 0.9rem;
+    animation: stic-fade-up 0.16s var(--ease-out) both;
+}
+.stic-fc-pop-head { display: flex; align-items: center; gap: 0.5rem; }
+.stic-fc-pop-dot { flex: none; width: 11px; height: 11px; border-radius: 50%; background: var(--primary-color); }
+.stic-fc-pop-title { font-weight: 800; font-size: 0.95rem; color: var(--gray-900); line-height: 1.3; }
+.stic-fc-pop-sub { margin: 0.45rem 0 0; font-size: 0.85rem; color: var(--gray-600); line-height: 1.45; }
+.stic-fc-pop-go {
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+    margin-top: 0.75rem; width: 100%; min-height: 44px;
+    padding: 0.5rem 0.9rem;
+    background: var(--grad-brand);
+    color: #fff !important;
+    text-decoration: none !important;
+    border-radius: var(--radius-md);
+    font-weight: 700; font-size: 0.9rem;
+}
+.stic-fc-pop-go:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
 
 /* Vista Agenda (listMonth): filas con el punto de color del estado. */
 .fc .fc-list-event:hover td { background: var(--surface-2); }
@@ -4189,11 +4225,22 @@ span.stic-field {
     .fc .fc-toolbar-title { text-align: center; }
     .fc .fc-button { padding: 0.4rem 0.7rem !important; font-size: 0.82rem !important; }
 
-    /* Vista MES: solo compactamos números y cabecera (el restyling de los eventos
-       —punto/barra + tap-tooltip— se hará en JS con eventContent; ver plan 022,
-       para no romper el layout de FullCalendar con CSS a pelo). */
-    .fc-daygrid-event { font-size: 0.72rem; }
-    .fc-daygrid-event .fc-event-time { display: none; } /* la hora en la celda sobra en móvil (ya se ve en Agenda) */
+    /* Vista MES en móvil: cada evento = BARRA de color a lo ancho, sin texto
+       (el título vive en el popover al tocar). El chip lo pinta eventContent
+       (plan 022); aquí solo lo adaptamos a móvil. */
+    .stic-fc-chip-title { display: none !important; }
+    .stic-fc-chip { display: block !important; }
+    .stic-fc-chip-bar {
+        display: block !important;   /* inline span ignoraría width/height → barra invisible */
+        width: auto !important;
+        height: 6px !important;
+        border-radius: 999px !important;
+        margin: 0 !important;
+    }
+    .fc .fc-daygrid-event { padding: 0 !important; margin: 2px 3px !important; }
+    .fc .fc-daygrid-day-events { min-height: 0 !important; margin-bottom: 2px; }
+    .fc .fc-daygrid-day-frame { min-height: 2.7rem !important; }
+    .fc .fc-daygrid-more-link { font-size: 0.66rem; font-weight: 700; }
     .fc .fc-daygrid-day-number { padding: 0.2rem 0.35rem; font-size: 0.82rem; }
     .fc .fc-col-header-cell-cushion { font-size: 0.66rem; }
 
