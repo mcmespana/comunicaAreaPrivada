@@ -15,7 +15,10 @@ function getSticScriptVars() {
         'otherIdentificationType' => __('Identification type not validable', 'sticpa'),
         'enterValidIban' => __('Please, enter a valid IBAN number.', 'sticpa'), 
         'invalidDocumentNumber' => __('Please, enter a valid identification number.', 'sticpa'),
-        'calGoEvent' => __('Ir al evento', 'sticpa'), // botón del popover del calendario (plan 022)
+        // Calendario móvil (plan 022): lista de actividades del día seleccionado.
+        'calGoEvent' => __('Ir al evento', 'sticpa'),
+        'calNoEvents' => __('No hay actividades este día', 'sticpa'),
+        'calAllDay' => __('Todo el día', 'sticpa'),
         'reactivationConfirmation' => __('Si actualiza este registro dejará de estar marcado como programa a eliminar y pasará a status "mantener"', 'csme'),
         'recordatorioTrabajo' => __('Recordad que desde la general debéis realizar tres tareas: modificar si es necesario los datos de Mi perfil, responder el cuestionario de satisfacción en relación al año anterior, revisar y actualizar la lista y datos de los programas del año pasado.', 'csme'),
         'trabajoFinalizado' => __('Estás seguro que ya has completado todo el workplace necesario y no hay que modificar ya ningún dato?', 'csme'),

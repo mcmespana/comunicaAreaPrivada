@@ -91,3 +91,32 @@ la web autenticada):
 ## Maintenance notes
 - Alternativa/меnor esfuerzo ya aplicada: en móvil se abre Agenda por defecto, que evita el problema
   del todo para quien no cambie de vista. Este plan es para pulir la vista Mes cuando se use en móvil.
+
+## Segunda vuelta (2026-07-23) — patrón definitivo
+
+La primera versión (barras de color en la celda + popover flotante al tocar) mejoraba, pero seguía
+sin ser "un buen calendario". Se investigó cómo lo resuelven los calendarios móviles de referencia
+(iOS, Google Calendar, Mobiscroll; issue #7513 de FullCalendar pide justo esto) y el patrón estándar
+es otro:
+
+> **Rejilla compacta con PUNTITOS por día + al tocar un día, sus actividades en una LISTA DEBAJO.**
+
+Es lo que está implementado ahora:
+- **Puntitos propios** (`paintDots` en `js/stic-init.js`), NO los eventos de FullCalendar: así un
+  evento de varios días marca TODOS sus días y coincide exactamente con la lista. Máx. 4 por celda.
+- **Celda compacta**: número centrado en círculo de 30px; hoy = círculo suave, día seleccionado =
+  círculo con el degradado de marca. Altura de rejilla ~350px (antes 560px).
+- **Lista del día** (`.stic-cal-day`) debajo del calendario: cabecera "Martes, 14 de octubre" y una
+  tarjeta por actividad (punto de color + nombre + hora · estado + chevron) que enlaza al detalle.
+  Si no hay nada: "No hay actividades este día".
+- Al cambiar de mes se selecciona hoy (si está en el mes) o el día 1, para que la lista nunca quede
+  huérfana.
+- **Escritorio intacto**: punto + título + hora en la celda; clic navega al detalle.
+- El tap del día usa un **listener delegado propio** (no la opción `dateClick`, que depende del
+  plugin interaction y puede no estar en el bundle).
+
+Bugs cazados en la verificación (dejados aquí como aviso para quien retome):
+- `dayMaxEvents: 0` manda TODOS los eventos al "+N más" → la celda queda sin puntos. Usar `false`.
+- El calendario es una `<table>`: el `tbody tr:hover` de los listados pintaba una banda azul en toda
+  la semana; hay que neutralizarlo.
+- Un `<span>` inline ignora width/height: los puntos/barras necesitan `display:block`.
