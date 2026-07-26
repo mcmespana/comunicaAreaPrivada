@@ -217,10 +217,10 @@ if ($alreadyRegistered) {
         'name' => 'already_registered_msg',
         'type' => 'html',
         'html' => '
-            <li class="stic-warning-card" style="grid-column: 1 / -1; list-style: none; background: #fffbeb; border: 1.5px solid #fef3c7; border-left: 4px solid #d97706; border-radius: var(--radius-md); padding: 1.25rem 1.4rem; margin-top: 1rem; color: #92400e; display: flex; align-items: flex-start; gap: 0.75rem;">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0; margin-top: 0.15rem;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <li class="stic-warning-card">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 <div>
-                    <strong style="display: block; font-size: 1rem; margin-bottom: 0.25rem;">' . __('Ya estás inscrito', 'sticpa') . '</strong>
+                    <strong>' . __('Ya estás inscrito', 'sticpa') . '</strong>
                     <span>' . __('Ya cuentas con una inscripción activa para este evento. No es necesario que te vuelvas a inscribir.', 'sticpa') . '</span>
                 </div>
             </li>',

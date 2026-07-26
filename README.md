@@ -12,10 +12,15 @@ plan "explícamelo como si tuviera 5 años, pero sin mentirme".
 > 📋 **¿Vas a desarrollar algo?** Mira primero [`TODO.md`](TODO.md) (tareas priorizadas y
 > convenciones) y los análisis de fondo en [`docs/`](docs/):
 > [**sistema de diseño (léelo antes de tocar UI)**](docs/design-system.md) ·
+> [**contrato con la app MCM (WebView)**](docs/comunica/CONTRATO-APP-WEBVIEW.md) ·
 > [despliegue a producción (CI/CD)](docs/despliegue.md).
 >
-> La app futura será una **WebView de Expo cargando esta misma web** (ver §8 y "modo app" en
-> [`docs/design-system.md`](docs/design-system.md)); no hay BFF ni endpoints REST que mantener.
+> La app MCM es una **WebView de Expo cargando esta misma web**, y en móvil es el canal
+> NORMAL, no la excepción: casi todo el mundo ve el área privada desde ahí. Qué le manda la
+> app a la web (modo app, tema claro/oscuro, zona segura, navegación) está en
+> [`docs/comunica/CONTRATO-APP-WEBVIEW.md`](docs/comunica/CONTRATO-APP-WEBVIEW.md); ver
+> también §8 y "modo app" en [`docs/design-system.md`](docs/design-system.md). No hay BFF ni
+> endpoints REST que mantener.
 > Análisis de decisiones ya cerradas (Expo/plataforma, diseño de magic links) archivados en
 > [`docs/archivo/`](docs/archivo/) — no hace falta leerlos para el día a día.
 

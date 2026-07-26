@@ -297,12 +297,21 @@ function sticpa_render_access_loading_screen()
     $goUrlAttr = esc_url($goUrl); // para el <meta refresh> del <noscript> (codifica & como &#038;, correcto en HTML)
     $lang = esc_attr(substr(get_locale(), 0, 2));
 
+    // Apariencia de la pantalla puente. Es una página HTML propia (no pasa por
+    // el tema de WordPress), así que resuelve el tema ella misma con las mismas
+    // reglas que el área: manda la app MCM si venimos de su WebView, luego la
+    // preferencia guardada, y si no hay nada, el dispositivo
+    // (`prefers-color-scheme`). Sin esto, alguien con el móvil en oscuro y la
+    // app en claro veía un fogonazo blanco → oscuro → blanco al entrar.
+    $themePref = function_exists('sticpa_theme_pref') ? sticpa_theme_pref() : 'auto';
+    $themeAttr = esc_attr($themePref);
+
     if (!headers_sent()) {
         header('Content-Type: text/html; charset=utf-8');
         header('Cache-Control: no-store, no-cache, must-revalidate');
     }
     ?><!DOCTYPE html>
-<html lang="<?= $lang ?>">
+<html lang="<?= $lang ?>" data-stic-theme="<?= $themeAttr ?>">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -368,15 +377,27 @@ function sticpa_render_access_loading_screen()
         .dots span:nth-child(2){animation-delay:.2s;}
         .dots span:nth-child(3){animation-delay:.4s;}
         @keyframes blink { 0%,100%{opacity:.3;transform:scale(.85);} 50%{opacity:1;transform:scale(1.1);} }
+        /* Tema oscuro. Se aplica en DOS casos y por eso el selector va repetido:
+           preferencia explícita ([data-stic-theme="dark"]) o preferencia
+           automática + dispositivo en oscuro. El bloque claro por defecto sigue
+           siendo el de arriba, así que ?theme=light siempre gana. */
+        html[data-stic-theme="dark"] body { color:#e8edf4;
+            background:
+                radial-gradient(40% 50% at 18% 22%, rgba(28,111,179,.32), transparent 60%),
+                radial-gradient(45% 55% at 85% 18%, rgba(157,30,116,.30), transparent 60%),
+                linear-gradient(135deg,#0d1119 0%,#141019 50%,#190f16 100%);
+            background-size:200% 200%; }
+        html[data-stic-theme="dark"] .card { background:rgba(22,26,36,.74); border-color:rgba(255,255,255,.08); }
+        html[data-stic-theme="dark"] p { color:#aab2c2; }
         @media (prefers-color-scheme: dark) {
-            body { color:#e8edf4;
+            html[data-stic-theme="auto"] body { color:#e8edf4;
                 background:
                     radial-gradient(40% 50% at 18% 22%, rgba(28,111,179,.32), transparent 60%),
                     radial-gradient(45% 55% at 85% 18%, rgba(157,30,116,.30), transparent 60%),
                     linear-gradient(135deg,#0d1119 0%,#141019 50%,#190f16 100%);
                 background-size:200% 200%; }
-            .card { background:rgba(22,26,36,.74); border-color:rgba(255,255,255,.08); }
-            p { color:#aab2c2; }
+            html[data-stic-theme="auto"] .card { background:rgba(22,26,36,.74); border-color:rgba(255,255,255,.08); }
+            html[data-stic-theme="auto"] p { color:#aab2c2; }
         }
         @media (prefers-reduced-motion: reduce) {
             body,.logo,.card { animation:none !important; }

@@ -46,7 +46,15 @@ if (!function_exists('add_query_arg')) {
 if (!function_exists('__'))          { function __($t, $d = null) { return $t; } }
 if (!function_exists('esc_html'))    { function esc_html($t) { return $t; } }
 if (!function_exists('esc_attr'))    { function esc_attr($t) { return $t; } }
+if (!function_exists('esc_attr__'))  { function esc_attr__($t, $d = null) { return $t; } }
+if (!function_exists('esc_html__'))  { function esc_html__($t, $d = null) { return $t; } }
+if (!function_exists('esc_url'))     { function esc_url($u) { return $u; } }
+if (!function_exists('is_singular')) { function is_singular($t = '') { return false; } }
+if (!function_exists('get_post'))    { function get_post($p = null) { return null; } }
+if (!function_exists('has_shortcode')) { function has_shortcode($c, $tag) { return false; } }
+if (!function_exists('wp_json_encode')) { function wp_json_encode($d, $f = 0, $depth = 512) { return json_encode($d, $f, $depth); } }
 if (!function_exists('sanitize_text_field')) { function sanitize_text_field($t) { return is_string($t) ? trim($t) : $t; } }
 
 // --- Código bajo prueba ---
+require_once __DIR__ . '/../inc/stic-theme.php';
 require_once __DIR__ . '/../inc/stic-magic-login.php';

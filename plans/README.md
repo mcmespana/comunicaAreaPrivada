@@ -37,7 +37,7 @@ antes de empezar, respeta sus "STOP conditions" y actualiza su fila de estado al
 | 013 | Establecer una base de verificación (PHPUnit + mocks) | P1 | M | — | **DONE** → `archive/` (baseline; ver seguimiento) |
 | 014 | Retirar assets muertos y arreglar docs desfasadas | P2 | S | — | **DONE** → `archive/` |
 | 015 | Conectar o bloquear el formulario de pago del familiar | P1 | M | 013 | TODO |
-| 016 | Tema oscuro OPT-IN (conmutable, basado en tokens) | P2 | L | 018 | **APARCADO** (implementado y luego retirado el conmutador) |
+| 016 | Tema claro/oscuro AUTOMÁTICO (dispositivo + app MCM) | P2 | L | 018 | **DONE** → [`archive/016-dark-theme.md`](archive/016-dark-theme.md) |
 | 017 | Foto de perfil por endpoint con miniatura (fuera base64) | P1 | M | — | **DONE** → `archive/` |
 | 018 | Consolidar CSS: un solo :root, menos duplicados/!important | P2 | L | — | **PARCIAL** (F1 hecha; F2/3 medidas = no-batch, ver ficha) |
 | 019 | Integrar (o retirar) el chrome de DataTables en listados | P2 | M | 010 | **DONE** → `archive/` |
@@ -46,15 +46,24 @@ antes de empezar, respeta sus "STOP conditions" y actualiza su fila de estado al
 | 022 | Calendario MES en móvil: dots + tap-tooltip (eventContent) | P2 | M | — | **DONE** → `archive/` (verificado en render offline) |
 
 Los planes **DONE** están en producción y sus fichas se movieron a
-[`plans/archive/`](archive/) (2026-07-20). En `plans/` quedan solo los **pendientes** y los
+[`plans/archive/`](archive/) (2026-07-20; el 016 el 2026-07-26). En `plans/` quedan solo los **pendientes** y los
 **parciales/aparcados**, para que la carpeta refleje de un vistazo qué falta.
 
 > **Estado tras la pasada UI/UX + rendimiento (2026-07-20, en producción).**
 > - **Entregado y en vivo**: 009, 010, 014, 017, 019, 020, 021 + la Fase 1 del 018 + la pasada
 >   directa de UI/a11y/motion (login compacto, foco, validación inline, `datetime-local`, etc.).
-> - **016 (tema oscuro): APARCADO.** Se implementó como opt-in por tokens, pero a decisión del
->   mantenedor se retiró el conmutador y se fuerza claro (`sticpa_theme_attr()` devuelve `''`, el JS
->   limpia cookie/localStorage). El CSS §44 y `applyTheme` quedan latentes. Rediseñar antes de reactivar.
+> - **016 (tema oscuro): HECHO en 2ª vuelta (2026-07-26), ahora AUTOMÁTICO.** La 1ª vuelta era
+>   opt-in con un conmutador en la barra y se retiró. Rediseño:
+>   · **automático por defecto** (`prefers-color-scheme`), resuelto en un script inline de `<head>`
+>     antes del primer pintado (sin flash);
+>   · **dentro de la app MCM manda la app** (`?theme=` / cookie `mcm_theme` / `data-mcm-theme` en
+>     `<html>`, incluido el cambio en caliente sin recargar) y el control propio NO se pinta;
+>   · en navegador, control **discreto** de 3 estados (Auto/Claro/Oscuro) en el **pie** del área, no
+>     en la barra (donde ya compiten identidad, participante, salir y menú);
+>   · el CSS se engancha a `data-stic-scheme` y §20.d ya no fuerza claro siempre, así que el oscuro
+>     no pelea con `!important`;
+>   · lógica extraída a `inc/stic-theme.php` (con el modo app) y cubierta por `tests/ThemeTest.php`
+>     (18 tests: prioridades + saneado); contrato en `docs/comunica/CONTRATO-APP-WEBVIEW.md`.
 > - **018 PARCIAL**: hecha la Fase 1 (un solo `:root`, sin `var()` huérfanos). La Fase 2/3 se intentó
 >   y se **midió a nivel de píxel** (2026-07-22): los `!important` son *portantes* (quitarlos cambia el
 >   render de las tarjetas ~16–20k px; base compite desde varios sitios). NO es un batch seguro; queda
@@ -173,5 +182,7 @@ Hallazgos verificados y aplicados directamente (no necesitan plan):
 - **Navegación por flechas/Home/End en los desplegables** (patrón menu-button completo): el foco ya
   entra al panel al abrir (`c2d7cff`) y Tab/Escape funcionan; la mejora restante es de baja palanca.
   Retomar solo si llega feedback real de usuarios de teclado.
-- **Modo oscuro automático por SO**: decisión de producto vigente = claro por defecto. El oscuro
-  será OPT-IN (plan 016), nunca automático.
+- ~~**Modo oscuro automático por SO**: decisión de producto vigente = claro por defecto. El oscuro
+  será OPT-IN (plan 016), nunca automático.~~ → **REVERTIDO** (2026-07-26, a petición del
+  mantenedor): el área es **automática** y sigue al dispositivo; dentro de la app MCM sigue a la app.
+  Ver plan 016.

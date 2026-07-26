@@ -95,7 +95,7 @@ $html .= '
                 for="Contacts___first_name">'.__('Name', 'sticpa').':</label>
             </span></td>
           <td id="td_Contacts___first_name" class="column_25"><span>
-              <input id="Contacts___first_name" name="Contacts___first_name" type="text" span="" sugar="slot" readonly style="background: #fdf8c8 !important" value="'.$first_name.'" />
+              <input id="Contacts___first_name" name="Contacts___first_name" type="text" span="" sugar="slot" readonly class="stic-locked-field" value="'.$first_name.'" />
             </span></td>
         </tr>
         <tr>
@@ -103,7 +103,7 @@ $html .= '
                 for="Contacts___last_name">'.__('Last name', 'sticpa').':</label>
             </span></td>
           <td id="td_Contacts___last_name" class="column_25"><span>
-              <input id="Contacts___last_name" name="Contacts___last_name" type="text" span="" sugar="slot" readonly style="background: #fdf8c8 !important" value="'.$last_name.'" />
+              <input id="Contacts___last_name" name="Contacts___last_name" type="text" span="" sugar="slot" readonly class="stic-locked-field" value="'.$last_name.'" />
             </span></td>
         </tr>
         <tr>
@@ -111,7 +111,7 @@ $html .= '
                 for="Contacts___email1">'.__('Email', 'sticpa').':</label>
             </span></td>
           <td id="td_Contacts___email1" class="column_25"><span>
-              <input id="Contacts___email1" name="Contacts___email1" type="text" span="" sugar="slot" readonly style="background: #fdf8c8 !important" value="'.$email.'"/>
+              <input id="Contacts___email1" name="Contacts___email1" type="text" span="" sugar="slot" readonly class="stic-locked-field" value="'.$email.'"/>
             </span></td>
         </tr>
         <tr>
@@ -120,7 +120,7 @@ $html .= '
             </span></td>
           <td id="td_Contacts___stic_identification_number_c" class="column_25"><span>
               <input id="Contacts___stic_identification_number_c" name="Contacts___stic_identification_number_c"
-                type="text" span="" sugar="slot" readonly style="background: #fdf8c8 !important" value="'.$stic_identification_number_c.'"/>
+                type="text" span="" sugar="slot" readonly class="stic-locked-field" value="'.$stic_identification_number_c.'"/>
             </span></td>
         </tr>
       </tbody>'.(!$tutorIsUser ? '
@@ -135,7 +135,7 @@ $html .= '
                 for="recipient_name">'.__('Full name', 'sticpa').':</label>
             </span></td>
           <td id="td_recipient_name" class="column_25"><span>
-              <input id="recipient_name" name="recipient_name" type="text" span="" sugar="slot" readonly style="background: #fdf8c8 !important" value="'.$_SESSION['scp_user_contact_name'].'" />
+              <input id="recipient_name" name="recipient_name" type="text" span="" sugar="slot" readonly class="stic-locked-field" value="'.$_SESSION['scp_user_contact_name'].'" />
             </span></td>
         </tr>
         </tbody>' : '').
@@ -147,7 +147,7 @@ $html .= '
         </tr>
         <tr>
           <td id="td_lbl_stic_Payment_Commitments___amount" class="column_25"><span>
-              <label id="lbl_stic_Payment_Commitments___amount" for="stic_Payment_Commitments___amount">'.__('Amount', 'sticpa').': <span id="lbl_stic_Payment_Commitments___payment_method_required" style="color: red;">*</span></label>
+              <label id="lbl_stic_Payment_Commitments___amount" for="stic_Payment_Commitments___amount">'.__('Amount', 'sticpa').': <span class="stic-required-mark" aria-hidden="true">*</span></label>
             </span></td>
           <td id="td_stic_Payment_Commitments___amount" class="column_25"><span>
               <input id="stic_Payment_Commitments___amount" name="stic_Payment_Commitments___amount" type="number" min="0"
@@ -157,7 +157,7 @@ $html .= '
         <tr>
           <td id="td_lbl_stic_Payment_Commitments___payment_method" class="column_25"><span>
               <label id="lbl_stic_Payment_Commitments___payment_method"
-                for="stic_Payment_Commitments___payment_method">'.__('Payment method', 'sticpa').': <span id="lbl_stic_Payment_Commitments___payment_method_required" style="color: red;">*</span></label>
+                for="stic_Payment_Commitments___payment_method">'.__('Payment method', 'sticpa').': <span class="stic-required-mark" aria-hidden="true">*</span></label>
               
           </td>
           <td id="td_stic_Payment_Commitments___payment_method" class="column_25"><span><select required

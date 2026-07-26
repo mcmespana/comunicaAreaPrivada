@@ -24,9 +24,13 @@
    `.stic-container`, `.stic-tab-content` o `.stic-auth-shell`. Un selector
    global (`button`, `input`, `*`) rompe el tema de WordPress (ya pasó: ver
    PLAN.md "Fuga de estilos al tema").
-5. **Tema claro forzado.** El área privada se muestra clara aunque el SO esté en
-   oscuro (sección 20.d pisa el dark). No añadas bloques `prefers-color-scheme`
-   nuevos sin tener en cuenta ese override final.
+5. **Tema claro Y oscuro, automáticos.** El área sigue al dispositivo por
+   defecto. **Todo se tematiza redefiniendo TOKENS** (sección 44), nunca
+   reescribiendo reglas: si una regla nueva usa `var(--…)`, el modo oscuro le
+   sale gratis. Nunca un color literal en una regla nueva, y **jamás** un color
+   en un atributo `style=` (un inline gana a todo y no hay forma de tematizarlo).
+   No añadas bloques `prefers-color-scheme` nuevos: el CSS se engancha a
+   `data-stic-scheme`, que ya resuelve el automático. Ver §10.
 
 ## 2. Dónde vive cada cosa (orden de carga = orden de prioridad)
 
@@ -41,6 +45,11 @@
 (30 días) que oculta el header/footer/admin-bar del tema (clase
 `body.sticpa-app-mode`, CSS en `sticpa_app_mode_css()`); `?app=0` lo desactiva.
 Pensado para la WebView de la app: arranca con `…/?token=XXX&app=1`.
+**En móvil este es el caso NORMAL, no la excepción**: el área se ve casi siempre
+dentro de la app MCM. Diseña para ahí primero y lee
+[`docs/comunica/CONTRATO-APP-WEBVIEW.md`](comunica/CONTRATO-APP-WEBVIEW.md).
+El modo app y el tema viven juntos en
+[`inc/stic-theme.php`](../inc/stic-theme.php).
 
 El versionado de caché es automático (`filemtime`): al desplegar, el navegador
 recarga el CSS/JS solo. No hace falta tocar versiones.
@@ -105,6 +114,9 @@ editan `--primary-*` y `--secondary-*`.**
 | Botones | `.stic-button` (primario degradado), `.stic-back-button` (secundario), `.stic-danger-button` (peligro), `.stic-soft-btn` (suave), `.stic-legal-link` (píldora outline) | §11, 23 CSS |
 | Overlay de carga | `.stic-loading-overlay` (form con clase `stic-loading-form` + `data-loading-text`) | §5 CSS · `js/stic-ui.js` |
 | Auth / login | `.stic-auth-shell`, `.stic-auth-tabs`, `.stic-auth-view`, `.stic-field` | §3-4, 24, 34 CSS |
+| Control de apariencia (Auto/Claro/Oscuro) | `.stic-appearance*` | §44.j CSS · `sticpa_appearance_switch_html()` |
+| Aviso ámbar en línea del motor | `.stic-warning-card` | §47 CSS |
+| Campo bloqueado (viene del CRM) | `.stic-locked-field` | §47 CSS |
 
 ### Iconos
 SVG inline con `stroke='currentColor'`, 24×24, stroke-width 2. Generales en
@@ -260,10 +272,60 @@ FUNCIONALMENTE (mismos campos, orden, tooltips y textos; la estética es la del
 
 ## 9. Anti-patrones (cosas que NO se hacen)
 
-- ❌ Colores hex nuevos fuera de los tokens.
+- ❌ Colores hex nuevos fuera de los tokens (§1 para el claro, §44 para el oscuro).
+- ❌ Colores dentro de un atributo `style=` (imposible de tematizar; usa una clase).
 - ❌ Selectores globales sin acotar (`button {…}`, `input {…}`).
 - ❌ `!important` nuevo salvo para ganar a estilos del tema WP (documenta por qué).
 - ❌ Librerías de UI externas (todo es CSS/JS propio y ligero).
 - ❌ Texto hardcodeado sin `__()`.
 - ❌ Ocultar el botón Guardar bajo el teclado móvil (la botonera es sticky, §28).
 - ❌ Duplicar campos entre "Mis datos" y "Monitor/a": lo general vive en Mis datos.
+
+## 10. Tema claro / oscuro
+
+**Automático por defecto**: el área sigue la apariencia del dispositivo. Toda la
+lógica de servidor vive en [`inc/stic-theme.php`](../inc/stic-theme.php) y todo
+el CSS en `custom-style.css` **§44**.
+
+### Los dos atributos
+
+| Atributo | Valores | Qué es | Quién lo pone |
+|---|---|---|---|
+| `data-stic-theme` | `auto` \| `light` \| `dark` | la **preferencia** | `sticpa_theme_attr()` (contenedores) y el filtro `language_attributes` (`<html>`) |
+| `data-stic-scheme` | `light` \| `dark` | el **esquema resuelto**; **es el único que mira el CSS** | PHP si la preferencia es explícita; el script inline de `<head>` (`sticpa_theme_boot_js`) si es `auto` |
+
+### Quién decide (orden)
+
+1. **La app MCM** si estamos en su WebView (`?app=1`): `?theme=` y luego la cookie
+   `mcm_theme`. Contrato: [`comunica/CONTRATO-APP-WEBVIEW.md`](comunica/CONTRATO-APP-WEBVIEW.md).
+2. **La cookie propia `sticpa_theme`**, que escribe el control *Apariencia* del
+   pie del área (`.stic-appearance`, §44.j). **No** se pinta en modo app: la app
+   ya tiene su selector y dos interruptores es peor que uno.
+3. **El dispositivo** (`prefers-color-scheme`), resuelto en el cliente antes del
+   primer pintado (sin flash) y re-resuelto si el dispositivo cambia en caliente.
+
+Sin JavaScript, `auto` se queda en claro (el comportamiento de siempre).
+
+### Cómo se tematiza algo nuevo
+
+1. Usa `var(--…)` para **todos** los colores → ya funciona en oscuro.
+2. Si necesitas un color que no existe como token: créalo en **§1** con su valor
+   claro y dale su valor oscuro en **§44.a**.
+3. Si el elemento se ancla a `<body>` (overlay, tooltip, modal, desplegable de
+   Selectize), añade su clase a la lista de anfitriones de tokens de §44.a: si no,
+   hereda los tokens claros del `:root`.
+4. Ojo con los nombres: en oscuro `--success-dark` / `--danger-dark` /
+   `--warning-dark` son el **texto CLARO** que se lee sobre el fondo profundo del
+   estado. El sufijo significa "el par de texto de este estado", no "más oscuro".
+5. La marca tiene dos papeles en oscuro: los **tokens** (`--primary-color`…) se
+   aclaran para que el TEXTO sea legible, y los **degradados** (`--grad-brand`)
+   se fijan con los hex de marca originales para que la barra de navegación y los
+   botones sigan siendo los de la marca. No lo mezcles.
+
+### Verificación
+
+- `tests/ThemeTest.php` fija el contrato de prioridades y el saneado (el `?theme=`
+  y las cookies son entrada de usuario: solo se aceptan `'light'` y `'dark'`).
+- A mano, las **cuatro** combinaciones: {SO claro, SO oscuro} × {apariencia auto,
+  apariencia forzada}, sobre login, home, "Mis datos", un listado, el calendario,
+  el modal de borrado y el cropper. Y con `?app=1`.

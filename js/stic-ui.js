@@ -566,52 +566,50 @@
         });
     }
 
-    /* -------- Conmutador de tema claro/oscuro (opt-in, plan 016) --------
-       El servidor ya pinta data-stic-theme desde la cookie (sin flash). Aquí
-       solo alternamos en vivo y persistimos: cookie (la lee PHP en la próxima
-       carga) + localStorage (respaldo). Sin JS, el tema queda como estaba. */
-    function applyTheme(theme) {
-        var dark = theme === 'dark';
-        var nodes = document.querySelectorAll('.stic-container, .stic-auth-shell');
-        Array.prototype.forEach.call(nodes, function (el) {
-            if (dark) { el.setAttribute('data-stic-theme', 'dark'); }
-            else { el.removeAttribute('data-stic-theme'); }
-        });
-        // Los overlays/tooltips/modales se anclan a <body> (fuera de .stic-container):
-        // estampamos también <html> para poder tematizarlos por descendencia.
-        if (dark) { document.documentElement.setAttribute('data-stic-theme', 'dark'); }
-        else { document.documentElement.removeAttribute('data-stic-theme'); }
-        var btns = document.querySelectorAll('.stic-theme-toggle');
-        Array.prototype.forEach.call(btns, function (b) {
-            b.setAttribute('aria-pressed', dark ? 'true' : 'false');
-        });
+    /* -------- Apariencia: Auto / Claro / Oscuro (plan 016, 2ª vuelta) --------
+       El trabajo de fondo (resolver 'auto' con matchMedia, escuchar al
+       dispositivo y seguir el tema de la app MCM) lo hace el script inline de
+       <head> que imprime sticpa_theme_boot_js(): así se resuelve ANTES del
+       primer pintado y no hay flash. Aquí solo enganchamos los tres botones
+       del pie: guardamos la preferencia en cookie (la lee PHP en la siguiente
+       carga, otra vez sin flash) y repintamos en vivo.
+
+       En modo app (?app=1) el control NO se pinta: manda el selector de la
+       propia app MCM, que nos llega por ?theme= / cookie mcm_theme / el
+       atributo data-mcm-theme de <html>. */
+    var THEME_COOKIE_MAX_AGE = 31536000; // 1 año
+
+    function repaintTheme() {
+        // La resuelve el script de <head>; si por lo que sea no está, no pasa nada.
+        if (typeof window.sticpaPaintTheme === 'function') { window.sticpaPaintTheme(); }
     }
 
-    function bindThemeToggle() {
-        var toggles = document.querySelectorAll('.stic-theme-toggle');
-        if (!toggles.length) { return; }
-        Array.prototype.forEach.call(toggles, function (btn) {
+    function bindAppearanceSwitch() {
+        var btns = document.querySelectorAll('[data-stic-theme-set]');
+        if (!btns.length) { return; }
+        Array.prototype.forEach.call(btns, function (btn) {
             btn.addEventListener('click', function () {
-                var isDark = btn.getAttribute('aria-pressed') === 'true';
-                var next = isDark ? 'light' : 'dark';
-                applyTheme(next);
-                // Cookie 1 año para que el render del servidor no parpadee.
+                var pref = btn.getAttribute('data-stic-theme-set');
+                if (pref !== 'light' && pref !== 'dark') { pref = 'auto'; }
+                // 'auto' = ninguna preferencia guardada -> se borra la cookie.
                 try {
-                    document.cookie = 'sticpa_theme=' + (next === 'dark' ? 'dark' : '') +
-                        ';path=/;max-age=' + (next === 'dark' ? 31536000 : 0) + ';samesite=lax';
-                } catch (err) { /* nada */ }
-                try { localStorage.setItem('sticpa-theme', next); } catch (err) { /* modo privado */ }
+                    document.cookie = pref === 'auto'
+                        ? 'sticpa_theme=;path=/;max-age=0;samesite=lax'
+                        : 'sticpa_theme=' + pref + ';path=/;max-age=' + THEME_COOKIE_MAX_AGE + ';samesite=lax';
+                } catch (err) { /* cookies bloqueadas: el cambio vale para esta página */ }
+                // El script de <head> lee la preferencia de <html>, así que la
+                // actualizamos ahí y le pedimos que repinte.
+                document.documentElement.setAttribute('data-stic-theme', pref);
+                repaintTheme();
             });
         });
     }
 
     ready(function () {
-        // Tema oscuro aparcado: forzamos claro y limpiamos cualquier rastro
-        // (cookie/localStorage/atributo de pruebas anteriores) para que nadie
-        // quede en oscuro tras la retirada del conmutador.
-        applyTheme('light');
-        try { localStorage.removeItem('sticpa-theme'); } catch (err) { /* nada */ }
-        try { document.cookie = 'sticpa_theme=;path=/;max-age=0;samesite=lax'; } catch (err) { /* nada */ }
+        // Por si el script de <head> se ejecutó antes de existir el DOM del área:
+        // deja los contenedores y los botones con el estado correcto.
+        repaintTheme();
+        bindAppearanceSwitch();
         bindLoadingForms();
         bindPasswordToggles();
         bindAuthToggle();
