@@ -137,7 +137,7 @@ if (isset($_REQUEST['action']) && $_REQUEST['action'] == 'edit' && !empty($_REQU
         'html' => '
             <li>
                 <label>' . __('Archivo subido', 'sticpa') . '</label>
-                ' . ($stic_current_file ? '<div style="font-size:12px;color:#6b7280;margin-bottom:6px">' . esc_html($stic_current_file) . '</div>' : '') . '
+                ' . ($stic_current_file ? '<div style="font-size:12px;color:var(--gray-500);margin-bottom:6px">' . esc_html($stic_current_file) . '</div>' : '') . '
                 <span><a class="stic-soft-btn" href="' . esc_url($stic_dl_url) . '">'
                     . '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg> '
                     . __('Descargar archivo', 'sticpa') . '</a></span>

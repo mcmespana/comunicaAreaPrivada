@@ -1,4 +1,103 @@
-# Plan 016: Tema oscuro OPT-IN real (conmutable, basado en tokens)
+# Plan 016: Tema claro/oscuro AUTOMÁTICO (dispositivo + app MCM)
+
+## Status
+
+- **DONE** — 2ª vuelta, 2026-07-26. La 1ª vuelta (opt-in con conmutador en la barra) se
+  implementó y se retiró; esta la sustituye.
+- **Priority**: P2 · **Effort**: L · **Risk**: MED · **Category**: ui / dark-mode
+
+## Qué se hizo (y en qué se aparta del plan original)
+
+El plan original decía "opt-in, NUNCA automático". El mantenedor cambió de criterio: el
+área debe seguir al dispositivo, y el interruptor tiene que ser discreto porque en la barra
+de navegación ya no cabe nada. Lo entregado:
+
+| Decisión | Cómo quedó |
+|---|---|
+| Activación | **Automática** (`prefers-color-scheme`), resuelta en un script inline de `<head>` antes del primer pintado → sin flash. Sin JS, `auto` cae a claro (comportamiento anterior). |
+| Dentro de la app MCM | **Manda la app**: `?theme=` (1ª carga), cookie `mcm_theme` (resto) y `data-mcm-theme` en `<html>`, incluido el **cambio en caliente sin recargar** (MutationObserver). El control propio del área NO se pinta ahí. |
+| Interruptor propio | Segmentado de 3 estados **Auto / Claro / Oscuro**, discreto, en el **pie** del área (y abajo en la pantalla de login). Persiste en la cookie `sticpa_theme` (1 año), que PHP lee para renderizar sin parpadeo. |
+| Enganche del CSS | `data-stic-scheme` (esquema resuelto), **no** `data-stic-theme` (preferencia) y **no** `prefers-color-scheme`. |
+| §20.d (forzado de claro) | Ya no fuerza claro siempre: se condiciona a `:not([data-stic-scheme="dark"])`, así que el oscuro **no** tiene que pelear con sus `!important`. |
+| Persistencia | Solo cookie (la lee el servidor). Se retiró `localStorage`, que no servía para evitar el flash. |
+| Dónde vive | `inc/stic-theme.php` (extraído del monolito, junto con el modo app), `css/custom-style.css` §44, `js/stic-ui.js::bindAppearanceSwitch`. |
+
+## Arreglos de fondo que hacían falta (la parte de "que todo se mueva bien")
+
+- **Fondo de página**: `.stic-container` no tiene fondo propio (el `<body>` del tema de
+  WordPress lo pintaba blanco) → en oscuro se pinta `body` en páginas del área. Excepción
+  consciente al design system §1.4, acotada por `sticpa_has_area_shortcode()`.
+- **Marca con dos papeles**: los tokens `--primary/--secondary/--accent` se aclaran en
+  oscuro (los hex de marca dan ~3:1 sobre el fondo oscuro y se usan como color de TEXTO en
+  ~36 reglas), mientras `--grad-brand`/`--grad-brand-rev` se fijan con los hex ORIGINALES
+  para que la barra y los botones sigan siendo de marca.
+- **Colores literales tokenizados** (no se podían tematizar): campo del login, hover del
+  CTA mágico, `<option>` del select, hover del checkbox, input y desplegable de Selectize,
+  velo del overlay, fondo del tooltip, mensajes de login/recuperación, icono del aviso
+  ámbar, textos de `.success/.error/.warning/.info` y `.badge-*` en `stic-base.css`.
+  Tokens nuevos: `--field-bg`, `--field-bg-focus`, `--tip-bg`, `--tip-fg`, `--overlay-bg`,
+  `--page-bg`, `--info-dark`.
+- **Colores en atributos `style=`** (un inline gana a cualquier regla → ilegibles en
+  oscuro): `single_stic_payment_form.php` (5 campos con fondo amarillo fijo →
+  `.stic-locked-field`), `single_stic_registrations.php` (aviso "ya estás inscrito" →
+  `.stic-warning-card`, §47), `single_stic_documents.php` (gris literal → token).
+  De paso se quitó un `id` duplicado en los asteriscos de obligatorio.
+- **Tooltip**: en claro es una pastilla oscura sobre página clara; invertirlo lo hacía
+  desaparecer. En oscuro SUBE de nivel (gris medio + borde), no se hunde.
+- **Controles nativos**: `color-scheme: dark`, `::placeholder`, autofill de Chrome, y los
+  `input[type=date]` (que forzaban `color-scheme: light`) ahora siguen al tema del área,
+  con el icono del calendario en rosa claro.
+- **Librerías**: FullCalendar por sus variables `--fc-*`; Selectize y DataTables solo donde
+  fijan literales.
+- **Pantalla puente del enlace mágico** (`inc/stic-magic-login.php`, HTML propio fuera del
+  tema de WordPress): tenía modo oscuro **solo por SO**, así que alguien con el móvil en
+  oscuro y la app en claro veía blanco → oscuro → blanco. Ahora resuelve con las mismas
+  reglas que el área.
+- **Código muerto retirado**: dos bloques `@media (prefers-color-scheme: dark)` de §19 que
+  quedaban pisados por §20.d y hablaban de una tarjeta oscura que no existía.
+
+## Cambio DELIBERADO en el tema claro (el único)
+
+Los mensajes `.success` / `.error` y los `.badge-success` / `.badge-danger` tenían fondo
+saturado (`--success-light` #40c057, `--danger-light` #ef4444) con texto oscuro encima:
+~2–3:1, por debajo de AA, y en oscuro no había forma de arreglarlo sin arreglarlo también
+en claro. Ahora usan el fondo pálido de su familia (`--success-50` / `--danger-100`), como
+`.warning` y `.info` ya hacían, con el texto fuerte del estado (~5–8:1). `--success-dark`
+pasa de `#087f5b` a `#076b4d` para llegar a AA sobre el pálido.
+**El diff de píxeles en claro es exactamente eso y nada más** (verificado, ver abajo).
+
+## Verificación hecha
+
+- `php -l` de todos los PHP tocados y `node --check js/stic-ui.js`: limpios.
+- **PHPUnit: 28 tests verdes** (10 previos + 18 nuevos en `tests/ThemeTest.php`, que fijan
+  el orden de prioridades y el saneado de `?theme=`/cookies: `DARK`, `' dark '`,
+  `"><script>` y compañía caen a `auto`).
+- **Resolución del tema en navegador real** (Chromium + Playwright, 10 casos): las 4
+  combinaciones de {SO, preferencia}, los 4 casos de app (`theme=dark`, `theme=light`,
+  "Sistema", app pisando la preferencia propia), el caso "el tema de WordPress no imprime
+  `language_attributes()`", y los DOS cambios en caliente (la app cambia de tema; el
+  dispositivo cambia de apariencia). Todos correctos.
+- **Render offline** (harness con nav, dashboard, agenda, formulario completo, mensajes,
+  badges, alerta ámbar, listado-tarjeta, overlay de carga, tooltip, modal y login) a 400px
+  y 1180px en los dos temas: todo legible.
+- **Diff de píxeles del tema CLARO contra `main`** sobre el mismo markup: la única
+  diferencia es la de la sección anterior (mensajes y badges). El resto: 0 px.
+
+## Lo que queda pendiente / se sabe que no está
+
+- **El chrome del tema de WordPress alrededor del área no se oscurece.** En la app da igual
+  (está oculto, `body.sticpa-app-mode`). En navegador, con el área en oscuro, el header y
+  el footer del tema siguen claros. Oscurecerlos exige tocar el tema, que no es de este
+  plugin. Si molesta, la vía limpia es una hoja de estilos del tema, no más CSS aquí.
+- **Verificación en el sitio real**: todo lo de arriba es lint + tests + render offline. La
+  pasada visual en `…/aptest/` con datos reales (y en la app) sigue pendiente.
+- **Cropper y selectize no renderizan offline**: sus reglas oscuras están escritas y
+  revisadas a mano, pero no fotografiadas.
+
+---
+
+<details>
+<summary>Plan original de la 1ª vuelta (opt-in) — se conserva por contexto</summary>
 
 > **Executor instructions**: paso a paso, verifica, respeta STOP conditions, actualiza `plans/README.md`.
 >
@@ -195,3 +294,5 @@ modal de borrado y cropper. En `?app=1` (WebView) el toggle también debe funcio
 - Futuro: si producto decide seguir el SO, basta añadir
   `@media (prefers-color-scheme: dark) { .stic-container:not([data-stic-theme="light"]) { … } }`
   reutilizando el mismo bloque de tokens.
+
+</details>

@@ -46,6 +46,16 @@
     --glass-border: rgba(255, 255, 255, 0.6);
     --glass-blur: 18px;
 
+    /* ---- Superficies que NO son ni --surface ni un gris (§44 las invierte) ----
+       Existen como token porque su valor en oscuro no se deduce de los demás:
+       el campo del login es translúcido sobre cristal, y el tooltip / overlay
+       son "lo contrario" del fondo de página (oscuro sobre claro y al revés). */
+    --field-bg: rgba(255, 255, 255, 0.85);  /* input dentro de la tarjeta glass */
+    --field-bg-focus: #ffffff;
+    --tip-bg: #111827;                      /* tooltip: siempre en contraste */
+    --tip-fg: #ffffff;
+    --overlay-bg: rgba(244, 247, 252, 0.82); /* velo del overlay "Guardando…" */
+
     /* ---- Sombras premium (tintadas de marca) ---- */
     --shadow-xs: 0 1px 2px rgba(21, 36, 71, 0.06);
     --shadow-sm: 0 2px 10px rgba(21, 36, 71, 0.08);
@@ -73,7 +83,7 @@
     /* ---- Colores de estado (semánticos) — ÚNICA fuente para éxito/peligro/aviso.
        Antes convivían dos rojos y dos verdes distintos para el mismo concepto. ---- */
     --success-color:  #2f9e44;   /* acento/borde */
-    --success-dark:   #087f5b;   /* texto sobre fondo suave */
+    --success-dark:   #076b4d;   /* texto sobre fondo suave (AA sobre --success-50) */
     --success-light:  #40c057;
     --success-soft:   #f4fbf7;
     --success-50:     #e6fcf5;
@@ -116,6 +126,7 @@
 
     --info-color: #3b82f6;
     --info-light: #dbeafe;
+    --info-dark:  #1e40af;      /* texto azul sobre --info-light */
     --warning-light: #fef3c7;   /* pálido de fondo; distinto de --warning-* de arriba */
 
     --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -383,14 +394,14 @@ span.stic-field {
     font-size: 1rem;
     border: 1.5px solid var(--gray-200);
     border-radius: var(--radius-md);
-    background: rgba(255, 255, 255, 0.85);
+    background: var(--field-bg);
     transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .stic-field input:focus {
     outline: none;
     border-color: var(--primary-color);
-    background: #fff;
+    background: var(--field-bg-focus);
     box-shadow: var(--shadow-glow);
 }
 .stic-field:focus-within .stic-field-icon { color: var(--primary-color); }
@@ -608,7 +619,7 @@ span.stic-field {
 .stic-magic-cta svg { width: 20px; height: 20px; }
 .stic-magic-cta:hover {
     transform: translateY(-2px);
-    background: #fff;
+    background: var(--field-bg-focus);
     box-shadow: var(--shadow-glow-pink);
 }
 
@@ -634,7 +645,7 @@ span.stic-field {
     gap: 1.5rem;
     padding: 2rem;
     text-align: center;
-    background: rgba(244, 247, 252, 0.82);
+    background: var(--overlay-bg);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     opacity: 0;
@@ -1300,9 +1311,9 @@ span.stic-field {
     text-align: center;
 }
 .stic-login-form .error,
-.stic-forgotpas-form .error { background: var(--danger-light); color: #b42318; }
+.stic-forgotpas-form .error { background: var(--danger-100); color: var(--danger-dark); }
 .stic-login-form .success,
-.stic-forgotpas-form .success { background: var(--success-light); color: #067647; }
+.stic-forgotpas-form .success { background: var(--success-50); color: var(--success-dark); }
 
 /* ============================================================
    14. TARJETAS GENÉRICAS + foto de perfil
@@ -1353,13 +1364,13 @@ span.stic-field {
    radio de blur sin perder legibilidad, y el blur es la operación cara. */
 @media (max-width: 600px) {
     :root { --glass-blur: 8px; }
-    .stic-login-form, .stic-forgotpas-form { background: rgba(255, 255, 255, 0.88); }
+    .stic-login-form, .stic-forgotpas-form { background: color-mix(in srgb, var(--surface) 88%, transparent); }
 }
 
 /* (Plan 020) Fallback sin backdrop-filter: sin soporte, el fondo translúcido
    dejaba el texto sobre casi nada. Fondo sólido salvo que el blur exista. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    .stic-login-form, .stic-forgotpas-form { background: rgba(255, 255, 255, 0.92); }
+    .stic-login-form, .stic-forgotpas-form { background: color-mix(in srgb, var(--surface) 92%, transparent); }
 }
 
 /* ============================================================
@@ -1415,16 +1426,9 @@ span.stic-field {
 .stic-dash-card { padding: 1.6rem 1.5rem; gap: 0.7rem; }
 .stic-dash-desc { margin-top: 0.1rem; }
 
-@media (prefers-color-scheme: dark) {
-    /* El degradado de hover por defecto es claro -> sobre tarjeta oscura el texto
-       claro desaparecía. Lo sustituimos por un tinte de marca oscuro. */
-    .stic-dash-card::before {
-        background: linear-gradient(135deg, rgba(28, 111, 179, 0.22), rgba(157, 30, 116, 0.22));
-    }
-    .stic-dash-card:hover .stic-dash-title { color: #ffffff; }
-    .stic-dash-card:hover .stic-dash-desc  { color: var(--gray-700); }
-    .stic-dash-card:hover .stic-dash-go    { color: var(--primary-light); }
-}
+/* (El bloque `prefers-color-scheme: dark` que había aquí quedaba pisado por el
+   forzado de §20.d y hablaba de una tarjeta oscura que no existía. El tema
+   oscuro real vive en §44 y se activa por `data-stic-scheme`, no por el SO.) */
 
 /* Indicador de rol detectado (Comunica) en la pantalla de bienvenida. */
 .stic-role-chip {
@@ -1466,7 +1470,7 @@ span.stic-field {
     background-position: right 1rem center;
 }
 /* Las opciones del desplegable, legibles también en modo oscuro. */
-.stic-form select option { color: #1f2937; background: #fff; }
+.stic-form select option { color: var(--gray-800); background: var(--surface); }
 
 /* ---- Inputs de FECHA: icono de calendario de marca (morado) ---- */
 /* El selector nativo es feo y gris; reemplazamos el icono por uno propio
@@ -1509,10 +1513,7 @@ span.stic-field {
     margin: 0 0 0.4rem;
 }
 
-@media (prefers-color-scheme: dark) {
-    .stic-tab-content > h3,
-    .stic-form > h3 { color: var(--gray-900); }
-}
+/* (Aquí había otro `prefers-color-scheme: dark` que repetía el mismo color: no-op.) */
 
 /* ============================================================
    20. REDISEÑO — claro siempre + aplanar cajas + 2 columnas
@@ -1613,11 +1614,17 @@ span.stic-field {
     }
 }
 
-/* ---- 20.d FORZAR TEMA CLARO (ignora el modo oscuro del SO) ----
-   El resto del WordPress es claro; el área privada debe acompañar.
-   Este bloque va el último, así que gana sobre el dark de la sección 17. */
+/* ---- 20.d SO EN OSCURO + APARIENCIA "CLARO" ----
+   Cuando el usuario (o la app) pide CLARO explícitamente y el sistema operativo
+   está en oscuro, hay que re-imponer los tokens claros: algunos navegadores y el
+   tema de WordPress arrastran superficies oscuras.
+   OJO: todo va condicionado a `:not([data-stic-scheme="dark"])`. Antes este
+   bloque forzaba claro SIEMPRE (el área era clara por decisión de producto) y
+   por eso el tema oscuro tenía que pelearse con sus `!important`. Ahora se
+   aparta solo cuando el esquema resuelto es oscuro — el CSS de §44 no necesita
+   ganar ninguna guerra de especificidad. */
 @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-stic-scheme="dark"]) {
         --surface: #ffffff;
         --surface-2: #f7f9fc;
         --surface-glass: rgba(255, 255, 255, 0.74);
@@ -1634,27 +1641,25 @@ span.stic-field {
         --gray-800: #1f2937;
         --gray-900: #111827;
     }
-    .stic-tab-content,
-    .stic-form,
-    .stic-dash-card,
-    .stic-container table, .stic-container table.display {
+    :root:not([data-stic-scheme="dark"]) :is(.stic-tab-content, .stic-form, .stic-dash-card),
+    :root:not([data-stic-scheme="dark"]) :is(.stic-container table, .stic-container table.display) {
         color: var(--gray-800);
     }
-    .stic-dash-card { background: var(--surface) !important; }
+    :root:not([data-stic-scheme="dark"]) .stic-dash-card { background: var(--surface) !important; }
     /* ACOTADO al área: el selector global `input, textarea…` de antes forzaba
        fondos blancos en los formularios del TEMA de WordPress en modo oscuro
        (el anti-patrón que prohíbe el design system §1.4). */
-    :is(.stic-container, .stic-auth-shell) :is(input, textarea, select, .input-text),
-    .stic-field input {
+    :root:not([data-stic-scheme="dark"]) :is(.stic-container, .stic-auth-shell) :is(input, textarea, select, .input-text),
+    :root:not([data-stic-scheme="dark"]) .stic-field input {
         background-color: var(--surface) !important;
         color: var(--gray-800) !important;
         border-color: var(--gray-200) !important;
     }
-    .stic-form select option { color: var(--gray-800); background: var(--surface); }
-    .stic-dash-card::before { background: var(--grad-brand-soft); }
-    .stic-dash-card:hover .stic-dash-title { color: var(--gray-900); }
-    .stic-dash-card:hover .stic-dash-desc { color: var(--gray-500); }
-    .stic-container tbody tr:hover { background-color: var(--gray-100) !important; }
+    :root:not([data-stic-scheme="dark"]) .stic-form select option { color: var(--gray-800); background: var(--surface); }
+    :root:not([data-stic-scheme="dark"]) .stic-dash-card::before { background: var(--grad-brand-soft); }
+    :root:not([data-stic-scheme="dark"]) .stic-dash-card:hover .stic-dash-title { color: var(--gray-900); }
+    :root:not([data-stic-scheme="dark"]) .stic-dash-card:hover .stic-dash-desc { color: var(--gray-500); }
+    :root:not([data-stic-scheme="dark"]) .stic-container tbody tr:hover { background-color: var(--gray-100) !important; }
 }
 
 /* ============================================================
@@ -2193,7 +2198,7 @@ span.stic-field {
 
 .stic-form input[type="checkbox"]:hover {
     border-color: var(--primary-color) !important;
-    background-color: #f0f6fa !important;
+    background-color: var(--primary-50) !important;
 }
 
 .stic-form input[type="checkbox"]:focus-visible {
@@ -2233,7 +2238,7 @@ span.stic-field {
     border-radius: var(--radius-md) !important;
     padding: 0.65rem 0.85rem !important;
     box-shadow: none !important;
-    background: #ffffff !important;
+    background: var(--surface) !important;
     transition: border-color 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out) !important;
     min-height: 52px !important;
     display: flex !important;
@@ -2284,7 +2289,7 @@ span.stic-field {
     border-radius: var(--radius-md) !important;
     box-shadow: var(--shadow-md) !important;
     margin-top: 4px !important;
-    background: #ffffff !important;
+    background: var(--surface) !important;
     z-index: 99999 !important;   /* va anclado a <body>: siempre por encima de las tarjetas */
     overflow: hidden !important;
 }
@@ -2811,8 +2816,8 @@ span.stic-field {
     max-width: min(320px, calc(100vw - 24px));
     padding: 0.7rem 0.85rem;
     border-radius: var(--radius-md);
-    background: var(--gray-900, #111827);
-    color: #fff;
+    background: var(--tip-bg);
+    color: var(--tip-fg);
     font-size: 0.8rem;
     font-weight: 500;
     line-height: 1.5;
@@ -3376,7 +3381,7 @@ span.stic-field {
 }
 .stic-alert--warning .stic-alert-ico {
     background: linear-gradient(135deg, var(--warning-100), var(--warning-200));
-    color: #b45309;
+    color: var(--warning-dark);
 }
 .stic-alert--warning .stic-alert-title { color: var(--warning-dark); }
 .stic-alert--warning .stic-alert-text { color: var(--warning-text); }
@@ -3865,92 +3870,384 @@ span.stic-field {
 }
 
 /* ============================================================
-   44. TEMA OSCURO OPT-IN — [data-stic-theme="dark"] (plan 016)
+   44. TEMA OSCURO — [data-stic-scheme="dark"] (plan 016, 2ª vuelta)
    ------------------------------------------------------------
-   NO se activa por el modo oscuro del SO: el área es clara por
-   defecto (decisión de producto). El usuario lo enciende con el
-   botón de la barra; el estado se recuerda en cookie (lo pinta el
-   servidor sin flash) + localStorage (js/stic-ui.js).
-   Todo se consigue REDEFINIENDO TOKENS: como el resto del CSS usa
-   var(--…), no hay que reescribir reglas. Cero cambio en claro.
+   AUTOMÁTICO: por defecto el área sigue al dispositivo
+   (`prefers-color-scheme`). Quien manda, por orden:
+     1. la app MCM cuando el área va dentro de su WebView (?app=1),
+     2. la preferencia guardada con el control "Apariencia" del pie,
+     3. el dispositivo.
+   Ver la explicación completa en inc/stic-theme.php (bloque "TEMA
+   CLARO / OSCURO") y en docs/comunica/CONTRATO-APP-WEBVIEW.md.
+
+   DOS ATRIBUTOS, no los confundas:
+     · data-stic-theme  = preferencia  ('auto' | 'light' | 'dark')
+     · data-stic-scheme = esquema YA resuelto ('light' | 'dark')
+   Este CSS SOLO mira `data-stic-scheme`. Lo estampan PHP (preferencia
+   explícita, cero parpadeo) o el script inline de <head> (caso 'auto').
+
+   CÓMO SE TEMATIZA: redefiniendo TOKENS. Como el resto de la hoja usa
+   var(--…), no hay que reescribir reglas. Si un componente nuevo
+   necesita un color que no existe como token, se crea el token en §1 y
+   se le da su valor oscuro aquí — nunca un hex a pelo en la regla.
    ============================================================ */
-.stic-container[data-stic-theme="dark"],
-.stic-auth-shell[data-stic-theme="dark"],
-:root[data-stic-theme="dark"] {
+
+/* --- 44.a Paleta oscura ---------------------------------------------------
+   Neutra y ligeramente fría, cercana al #1C1C1E que la app MCM pinta detrás
+   de la WebView: así no se ve una costura entre el chrome de la app y el área.
+   Los grises van INVERTIDOS (gray-50 = fondo, gray-900 = texto), que es lo que
+   hace que ~4.000 líneas de CSS claro funcionen en oscuro sin tocarlas. */
+:root[data-stic-scheme="dark"] :is(
+    .stic-container, .stic-auth-shell,
+    .stic-loading-overlay, .stic-info-tip, .stic-modal-overlay, .selectize-dropdown
+),
+.stic-container[data-stic-scheme="dark"],
+.stic-auth-shell[data-stic-scheme="dark"] {
     color-scheme: dark;
-    --surface: #111827;
-    --surface-2: #1f2937;
-    --surface-glass: rgba(17, 24, 39, 0.74);
-    --glass-border: rgba(255, 255, 255, 0.14);
-    --primary-50:   color-mix(in srgb, var(--primary-color) 20%, #111827);
-    --secondary-50: color-mix(in srgb, var(--secondary-color) 20%, #111827);
-    /* Escala de grises INVERTIDA: el texto (gray-700..900) sale claro y los
-       fondos (gray-50..200) oscuros — sin tocar ninguna regla que use var(). */
-    --gray-50:  #1f2937;  --gray-100: #273449;  --gray-200: #374151;
-    --gray-300: #4b5563;  --gray-400: #6b7280;  --gray-500: #9ca3af;
-    --gray-600: #cbd5e1;  --gray-700: #d1d5db;  --gray-800: #e5e7eb;  --gray-900: #f9fafb;
-    --white: #0b1220;     /* "blanco" invertido para los pocos usos directos */
-    /* Estados: fondos suaves oscurecidos + texto legible sobre ellos */
-    --success-soft: color-mix(in srgb, var(--success-color) 16%, #111827);
-    --success-50:   color-mix(in srgb, var(--success-color) 20%, #111827);
-    --success-100:  color-mix(in srgb, var(--success-color) 26%, #111827);
-    --success-dark: #34d399;
-    --danger-soft:  color-mix(in srgb, var(--danger-color) 16%, #111827);
-    --danger-100:   color-mix(in srgb, var(--danger-color) 24%, #111827);
-    --warning-soft: color-mix(in srgb, var(--warning-color) 14%, #111827);
-    --warning-100:  color-mix(in srgb, var(--warning-color) 20%, #111827);
-    --warning-200:  color-mix(in srgb, var(--warning-color) 28%, #111827);
-    --warning-light: color-mix(in srgb, var(--warning-color) 18%, #111827);
-    --warning-dark: #fbbf24;
-    --warning-darker: #fcd34d;
-    --warning-text: #f59e0b;
+
+    --surface: #1c1d21;
+    --surface-2: #24262b;
+    --surface-glass: rgba(28, 29, 33, 0.72);
+    --glass-border: rgba(255, 255, 255, 0.10);
+
+    --field-bg: rgba(255, 255, 255, 0.06);
+    --field-bg-focus: #24262b;
+    /* El tooltip en claro es una pastilla OSCURA sobre página clara. Invertirlo a
+       "casi negro sobre oscuro" lo hacía desaparecer: en oscuro tiene que SUBIR
+       de nivel respecto a la página, no hundirse. */
+    --tip-bg: #3a3d45;
+    --tip-fg: #f5f7fa;
+    --overlay-bg: rgba(10, 11, 13, 0.84);
+
+    /* Grises invertidos: fondos abajo, textos arriba. Contrastes sobre
+       --surface (#1c1d21): gray-500 ≈ 6.2:1, gray-800 ≈ 13:1 (AA/AAA). */
+    --white: #16171a;
+    --gray-50:  #1c1d21;
+    --gray-100: #24262b;
+    --gray-200: #32353c;
+    --gray-300: #454951;
+    --gray-400: #6b7078;
+    --gray-500: #9aa0a9;
+    --gray-600: #b9bfc7;
+    --gray-700: #ccd2d9;
+    --gray-800: #e4e7ec;
+    --gray-900: #f5f7fa;
+
+    /* --- Marca en oscuro: DOS papeles distintos ---------------------------
+       El azul y el magenta reales (#1c6fb3 / #9d1e74) están pensados para leerse
+       sobre BLANCO. Sobre #1c1d21 dan ~3:1, por debajo del AA que hace falta
+       para las ~36 reglas que los usan como COLOR DE TEXTO (enlaces, "Entrar"
+       de las tarjetas, etiquetas del chip de fecha, contadores…).
+       Así que en oscuro se separan los dos papeles:
+         · los TOKENS de color se aclaran → texto legible (≥4.5:1),
+         · los DEGRADADOS se fijan con los hex de marca ORIGINALES → la barra de
+           navegación y los botones siguen siendo exactamente los de la marca.
+       Sobre los rellenos de marca el texto blanco queda en 3.2–3.7:1, que es AA
+       para el texto grande/negrita que llevan encima (pastillas de hover). */
+    --primary-color:  #3f95d6;
+    --primary-light:  #74b6e8;
+    --primary-dark:   #2a8cd1;
+    --secondary-color: #d158a3;
+    --secondary-light: #e17fbe;
+    --secondary-dark:  #b92b89;
+    --accent-color:    #9a7ed6;
+    --grad-brand: linear-gradient(135deg, #1c6fb3 0%, #6c4b9e 52%, #9d1e74 100%);
+    --grad-brand-rev: linear-gradient(135deg, #9d1e74 0%, #6c4b9e 48%, #1c6fb3 100%);
+
+    /* Tintes de marca: los pálidos de fondo se recalculan sobre el oscuro. */
+    --primary-50:   color-mix(in srgb, var(--primary-color) 22%, #1c1d21);
+    --secondary-50: color-mix(in srgb, var(--secondary-color) 22%, #1c1d21);
+    --grad-brand-soft: linear-gradient(135deg,
+        color-mix(in srgb, var(--primary-color) 20%, #1c1d21) 0%,
+        color-mix(in srgb, var(--accent-color) 20%, #1c1d21) 50%,
+        color-mix(in srgb, var(--secondary-color) 20%, #1c1d21) 100%);
+    /* El barrido de brillo de los botones sería un fogonazo en oscuro. */
+    --grad-sheen: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.18) 50%, transparent 100%);
+
+    /* Sombras: en oscuro una sombra "tintada de azul" no se ve. Negro y más
+       profundas, que es lo que separa una tarjeta del fondo aquí. */
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.40);
+    --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.45);
+    --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.50);
+    --shadow-lg: 0 20px 44px rgba(0, 0, 0, 0.55);
+    --shadow-xl: 0 32px 70px rgba(0, 0, 0, 0.62);
+    --shadow-glow: 0 0 0 4px color-mix(in srgb, var(--primary-light) 34%, transparent);
+    --shadow-glow-pink: 0 0 0 4px color-mix(in srgb, var(--secondary-light) 34%, transparent);
+
+    /* Colores de estado: el ACENTO se aclara (para que se vea sobre oscuro),
+       el fondo suave se oscurece y el "-dark" pasa a ser el texto CLARO que
+       se lee encima. Ojo: en claro `--success-dark` es texto oscuro sobre
+       fondo pálido; en oscuro es texto claro sobre fondo profundo. El nombre
+       significa "el par de texto de este estado", no "más oscuro". */
+    --success-color:  #34d399;
+    --success-light:  color-mix(in srgb, #10b981 24%, #1c1d21);
+    --success-dark:   #6ee7b7;
+    --success-soft:   color-mix(in srgb, #10b981 14%, #1c1d21);
+    --success-50:     color-mix(in srgb, #10b981 20%, #1c1d21);
+    --success-100:    color-mix(in srgb, #10b981 26%, #1c1d21);
+    --success-border: color-mix(in srgb, #10b981 42%, #1c1d21);
+
+    --danger-color:   #f87171;
+    --danger-light:   color-mix(in srgb, #dc2626 26%, #1c1d21);
+    --danger-dark:    #fca5a5;
+    --danger-soft:    color-mix(in srgb, #dc2626 15%, #1c1d21);
+    --danger-100:     color-mix(in srgb, #dc2626 24%, #1c1d21);
+    --danger-border:  color-mix(in srgb, #dc2626 44%, #1c1d21);
+
+    --warning-color:  #fbbf24;
+    --warning-light:  color-mix(in srgb, #f59e0b 22%, #1c1d21);
+    --warning-dark:   #fcd34d;
+    --warning-darker: #fde68a;
+    --warning-text:   #fbbf24;
+    --warning-soft:   color-mix(in srgb, #f59e0b 13%, #1c1d21);
+    --warning-100:    color-mix(in srgb, #f59e0b 20%, #1c1d21);
+    --warning-200:    color-mix(in srgb, #f59e0b 28%, #1c1d21);
+    --warning-border: color-mix(in srgb, #f59e0b 44%, #1c1d21);
+
+    --info-color: #60a5fa;
+    --info-light: color-mix(in srgb, #3b82f6 24%, #1c1d21);
+    --info-dark:  #93c5fd;
+
     scrollbar-color: var(--gray-300) transparent;
 }
 
-/* Inputs: §20.d fuerza fondos claros con !important dentro de prefers-color-scheme:dark;
-   aquí (mayor especificidad por el atributo) devolvemos el oscuro. */
-.stic-container[data-stic-theme="dark"] :is(input, textarea, select, .input-text),
-.stic-auth-shell[data-stic-theme="dark"] :is(input, textarea, select, .input-text),
-[data-stic-theme="dark"] .stic-field input {
-    background-color: var(--surface-2) !important;
+/* --- 44.b Fondo de página -------------------------------------------------
+   `.stic-container` no tiene fondo propio (solo dos tintes radiales): el fondo
+   real lo pone el <body> del tema de WordPress, que es blanco. Sin esto, el
+   área oscura quedaría flotando sobre una página blanca.
+   EXCEPCIÓN CONSCIENTE al design system §1.4 ("el CSS del plugin no se
+   escapa"): solo se aplica en páginas que contienen el shortcode, porque el
+   atributo `data-stic-scheme` únicamente se estampa ahí (ver la guarda
+   sticpa_has_area_shortcode() en PHP). */
+:root[data-stic-scheme="dark"] body {
+    background-color: #121316;
+    /* El color va con el fondo: oscurecer solo el fondo dejaría ilegible
+       cualquier texto que la página ponga alrededor del shortcode. */
+    color: #e4e7ec;
+}
+:root[data-stic-scheme="dark"] .stic-container {
+    color: var(--gray-800);
+    background:
+        radial-gradient(1100px 460px at 100% -10%, rgba(157, 30, 116, 0.16), transparent 60%),
+        radial-gradient(900px 480px at -10% 0%, rgba(28, 111, 179, 0.18), transparent 55%);
+}
+
+/* --- 44.c Inputs y controles nativos -------------------------------------- */
+/* §20.d ya se aparta con :not([data-stic-scheme="dark"]), así que aquí NO hace
+   falta pelear con !important: basta dar el valor bueno. */
+:is(.stic-container, .stic-auth-shell)[data-stic-scheme="dark"] :is(input, textarea, select, .input-text),
+:root[data-stic-scheme="dark"] :is(.stic-container, .stic-auth-shell) :is(input, textarea, select, .input-text) {
+    background-color: var(--surface-2);
+    color: var(--gray-800);
+    border-color: var(--gray-200);
+}
+:root[data-stic-scheme="dark"] :is(.stic-container, .stic-auth-shell) ::placeholder {
+    color: var(--gray-400);
+    opacity: 1;
+}
+/* Los <input type=date/datetime-local> forzaban `color-scheme: light` (§19)
+   para que el desplegable nativo no siguiera al SO. Ahora sí debe seguir AL
+   TEMA DEL ÁREA: en oscuro, calendario nativo oscuro. */
+:root[data-stic-scheme="dark"] .stic-form :is(input[type="date"], input[type="datetime-local"]) {
+    color-scheme: dark;
+}
+/* El icono del calendario es magenta de marca: sobre oscuro se apaga. Rosa claro. */
+:root[data-stic-scheme="dark"] .stic-form :is(input[type="date"], input[type="datetime-local"])::-webkit-calendar-picker-indicator {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e879b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2'/%3E%3Cpath d='M16 2v4M8 2v4M3 10h18'/%3E%3C/svg%3E");
+}
+/* Autofill de Chrome: pinta un amarillo fijo que ignora todo menos esto. */
+:root[data-stic-scheme="dark"] :is(.stic-container, .stic-auth-shell) :is(input, textarea, select):-webkit-autofill {
+    -webkit-text-fill-color: var(--gray-800);
+    -webkit-box-shadow: 0 0 0 1000px var(--surface-2) inset;
+    caret-color: var(--gray-800);
+}
+/* El "pomo" del switch de consentimientos es blanco a propósito: se queda. */
+
+/* --- 44.d Pantalla de login ---------------------------------------------- */
+:root[data-stic-scheme="dark"] .stic-auth-shell::before {
+    background:
+        radial-gradient(40% 50% at 18% 22%, rgba(28, 111, 179, 0.34), transparent 60%),
+        radial-gradient(45% 55% at 85% 18%, rgba(157, 30, 116, 0.30), transparent 60%),
+        radial-gradient(50% 60% at 70% 90%, rgba(108, 75, 158, 0.30), transparent 62%),
+        radial-gradient(45% 55% at 12% 88%, rgba(42, 140, 209, 0.24), transparent 60%),
+        linear-gradient(135deg, #0d1119 0%, #141019 50%, #190f16 100%);
+    background-size: 200% 200%;
+}
+/* La trama de puntos era oscura sobre claro: en oscuro no se veía. */
+:root[data-stic-scheme="dark"] .stic-auth-shell::after {
+    background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+}
+
+/* --- 44.e Listados en tarjeta -------------------------------------------- */
+/* La banda de cabecera de cada tarjeta es un tinte de marca sobre blanco: en
+   oscuro hay que recomponerlo sobre la superficie oscura. */
+:root[data-stic-scheme="dark"] .stic-table-responsive td.stic-cell-title {
+    background: linear-gradient(135deg,
+        color-mix(in srgb, var(--primary-color) 30%, #1c1d21),
+        color-mix(in srgb, var(--secondary-color) 30%, #1c1d21));
+}
+
+/* --- 44.f Calendario (FullCalendar 5) ------------------------------------
+   FullCalendar expone sus propias variables CSS: se redefinen y el resto de
+   §23/§45 (que ya usa tokens) viene solo. */
+:root[data-stic-scheme="dark"] #calendar,
+:root[data-stic-scheme="dark"] .stic-calendar-wrap {
+    --fc-page-bg-color: var(--surface);
+    --fc-neutral-bg-color: var(--surface-2);
+    --fc-neutral-text-color: var(--gray-600);
+    --fc-border-color: var(--gray-200);
+    --fc-button-text-color: var(--gray-800);
+    --fc-list-event-hover-bg-color: var(--gray-100);
+    --fc-today-bg-color: color-mix(in srgb, var(--primary-color) 24%, #1c1d21);
+    --fc-highlight-color: color-mix(in srgb, var(--primary-color) 20%, #1c1d21);
+    --fc-non-business-color: color-mix(in srgb, #000 22%, transparent);
+    color: var(--gray-800);
+}
+/* Los colores de los EVENTOS son dato (paleta de inc/stic-calendar.php) y se
+   pintan sobre chips propios: solo hay que garantizar que el texto encima siga
+   siendo legible cuando el chip es claro. */
+:root[data-stic-scheme="dark"] .fc .fc-daygrid-day-number,
+:root[data-stic-scheme="dark"] .fc .fc-col-header-cell-cushion,
+:root[data-stic-scheme="dark"] .fc .fc-list-day-text,
+:root[data-stic-scheme="dark"] .fc .fc-list-day-side-text { color: var(--gray-800); }
+:root[data-stic-scheme="dark"] .fc .fc-day-other .fc-daygrid-day-number { color: var(--gray-400); }
+
+/* --- 44.g DataTables (chrome vendorizado) -------------------------------- */
+/* §43 ya es 100% tokens; aquí solo lo que el vendorizado fija a mano. */
+:root[data-stic-scheme="dark"] .stic-container .dataTables_wrapper :is(.dataTables_info, .dataTables_length, .dataTables_filter) { color: var(--gray-600); }
+:root[data-stic-scheme="dark"] .stic-container table.dataTable tbody tr { background-color: transparent; }
+:root[data-stic-scheme="dark"] .stic-container table.dataTable :is(thead th, thead td) { border-bottom-color: var(--gray-200); }
+
+/* --- 44.h Selectize (multiselect) ---------------------------------------- */
+/* El desplegable se ancla a <body>, por eso está en la lista de tokens de
+   44.a; estas dos reglas son las que la librería fija con literales. */
+:root[data-stic-scheme="dark"] .selectize-dropdown,
+:root[data-stic-scheme="dark"] .selectize-input,
+:root[data-stic-scheme="dark"] .selectize-input.dropdown-active,
+:root[data-stic-scheme="dark"] .selectize-control.single .selectize-input.input-active {
+    background: var(--surface) !important;
     color: var(--gray-800) !important;
     border-color: var(--gray-200) !important;
 }
-[data-stic-theme="dark"] .stic-form select option { color: #e5e7eb; background: #1f2937; }
-
-/* Banda de cabecera de las tarjetas de listado: el tinte claro sobre oscuro se
-   ve raro; tinte de marca oscuro coherente. */
-.stic-container[data-stic-theme="dark"] .stic-table-responsive td.stic-cell-title {
-    background: linear-gradient(135deg,
-        color-mix(in srgb, var(--primary-color) 26%, #111827),
-        color-mix(in srgb, var(--secondary-color) 26%, #111827));
+:root[data-stic-scheme="dark"] .selectize-dropdown :is(.optgroup-header, .create) {
+    background: var(--surface) !important;
+    color: var(--gray-500) !important;
+}
+:root[data-stic-scheme="dark"] .selectize-control.multi .selectize-input > div {
+    background: var(--primary-50) !important;
+    color: var(--gray-900) !important;
 }
 
-/* Elementos anclados a <body> (portales): overlay de carga, tooltips y modales.
-   Se tematizan por el atributo en <html> (lo estampa js/stic-ui.js::applyTheme). */
-:root[data-stic-theme="dark"] .stic-loading-overlay { background: rgba(11, 18, 32, 0.85); }
-:root[data-stic-theme="dark"] .stic-info-tip { background: #0b1220; }
-:root[data-stic-theme="dark"] .stic-modal-card,
-:root[data-stic-theme="dark"] .stic-crop-card { background: #1f2937; color: #e5e7eb; }
-:root[data-stic-theme="dark"] .stic-modal-msg { color: #cbd5e1; }
-
-/* FullCalendar 5 expone variables CSS: se redefinen para el calendario oscuro. */
-:root[data-stic-theme="dark"] #calendar,
-.stic-container[data-stic-theme="dark"] #calendar {
-    --fc-page-bg-color: var(--surface);
-    --fc-neutral-bg-color: var(--surface-2);
-    --fc-border-color: var(--gray-200);
-    --fc-list-event-hover-bg-color: var(--gray-100);
-    --fc-today-bg-color: color-mix(in srgb, var(--primary-color) 22%, #111827);
+/* --- 44.i Elementos anclados a <body> ------------------------------------ */
+/* Ya reciben los tokens en 44.a; lo que queda son los pocos valores que no
+   salían de un token. */
+:root[data-stic-scheme="dark"] .stic-modal-overlay { background: rgba(10, 11, 13, 0.72); }
+/* Un pelo de borde: sobre oscuro la sombra sola no dibuja el contorno. */
+:root[data-stic-scheme="dark"] .stic-info-tip { border: 1px solid var(--gray-300); }
+:root[data-stic-scheme="dark"] :is(.stic-modal-card, .stic-crop-card) {
+    background: var(--surface);
     color: var(--gray-800);
 }
 
-/* Iconos del botón de tema: luna en claro (→ ir a oscuro), sol en oscuro. */
-.stic-theme-sun { display: none; }
-.stic-theme-moon { display: block; }
-[data-stic-theme="dark"] .stic-theme-sun { display: block; }
-[data-stic-theme="dark"] .stic-theme-moon { display: none; }
-.stic-theme-toggle svg { width: 20px; height: 20px; }
+/* --- 44.j Control "Apariencia" del pie ----------------------------------- */
+/* Discreto a propósito: vive al final del área, no en la barra (donde ya
+   compiten identidad, participante, salir y menú). Tipografía pequeña, color
+   apagado y solo toma color el segmento activo. */
+.stic-appearance {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.5rem 0.7rem;
+    margin: 1.4rem 0 0.4rem;
+    padding: 0.85rem clamp(0.5rem, 2vw, 1rem) 0.2rem;
+    border-top: 1px solid var(--gray-200);
+}
+/* En la pantalla de login el control va anclado al borde inferior de la pantalla.
+   Tiene que ser `absolute`: el shell es un flex ROW que centra la tarjeta, y un
+   hijo en flujo se colocaría al lado de la tarjeta, no debajo. Para que no se
+   solape con la tarjeta en pantallas cortas, el shell reserva el hueco. */
+.stic-auth-shell:has(.stic-appearance) {
+    padding-bottom: calc(clamp(1.5rem, 5vw, 3.5rem) + 3.4rem);
+}
+.stic-auth-shell .stic-appearance {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    justify-content: center;
+    margin: 0;
+    padding: 0.9rem 1rem calc(0.9rem + env(safe-area-inset-bottom));
+    border-top: 0;
+}
+.stic-appearance-label {
+    font-family: var(--font-family);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--gray-500);
+}
+.stic-appearance-seg {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px;
+    border-radius: var(--radius-full);
+    background: var(--surface-2);
+    border: 1px solid var(--gray-200);
+}
+.stic-appearance-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    /* Alto real 30px pero área táctil de 44px vía ::before (WCAG 2.5.8): el
+       control tiene que seguir siendo discreto sin castigar al dedo. */
+    position: relative;
+    padding: 0.3rem 0.62rem !important;
+    min-height: 30px;
+    /* stic-base.css fija `button { min-width: 140px }` en su bloque responsive:
+       sin esto los tres segmentos salen enormes y el control deja de ser discreto. */
+    min-width: 0 !important;
+    width: auto !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: var(--radius-full) !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--gray-500) !important;
+    font-family: var(--font-family);
+    font-size: 0.76rem !important;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color 0.16s var(--ease-out), color 0.16s var(--ease-out);
+}
+.stic-appearance-btn::before {
+    content: '';
+    position: absolute;
+    inset: -7px -2px;
+}
+.stic-appearance-btn svg { width: 14px; height: 14px; flex: none; }
+.stic-appearance-btn:hover { color: var(--gray-700) !important; background: var(--gray-100) !important; }
+.stic-appearance-btn:focus-visible { outline: none; box-shadow: var(--shadow-glow) !important; }
+.stic-appearance-btn[aria-pressed="true"] {
+    background: var(--surface) !important;
+    color: var(--primary-color) !important;
+    box-shadow: var(--shadow-xs) !important;
+}
+/* En claro el segmento activo destaca por ser BLANCO sobre la pista gris. En
+   oscuro eso se invierte (el activo saldría más oscuro que la pista y no se
+   leería como "seleccionado"), así que aquí sube de nivel y toma color de marca. */
+:root[data-stic-scheme="dark"] .stic-appearance-btn[aria-pressed="true"],
+[data-stic-scheme="dark"] .stic-appearance-btn[aria-pressed="true"] {
+    background: var(--gray-200) !important;
+    color: var(--primary-light) !important;
+}
+/* Móvil: el texto sobra, con el icono y el title se entiende. */
+@media (max-width: 420px) {
+    .stic-appearance-btn span { display: none; }
+    .stic-appearance-btn { padding: 0.3rem 0.55rem !important; }
+}
 
 /* ============================================================
    45. CALENDARIO DE ACTIVIDADES — pulido de FullCalendar
@@ -4308,3 +4605,43 @@ span.stic-field {
     .fc .fc-scroller,
     .fc .fc-list .fc-scroller { overflow-x: hidden !important; }
 }
+
+/* ============================================================
+   47. AVISOS EN LÍNEA DEL MOTOR DE FORMULARIOS
+   ------------------------------------------------------------
+   Bloques que las páginas inyectaban como `type => 'html'` con los
+   colores a pelo en `style=`. Al vivir en un atributo inline no
+   había forma de tematizarlos (un `style` gana a cualquier regla,
+   y en oscuro quedaban ilegibles). Ahora son clases con tokens.
+   ============================================================ */
+
+/* Aviso ámbar de "ya estás inscrito" (pages/single_stic_registrations.php). */
+.stic-form li.stic-warning-card {
+    grid-column: 1 / -1;
+    list-style: none;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding: 1.25rem 1.4rem;
+    background: var(--warning-soft);
+    border: 1.5px solid var(--warning-border);
+    border-left: 4px solid var(--warning-color);
+    border-radius: var(--radius-md);
+    color: var(--warning-dark);
+}
+.stic-warning-card svg { flex-shrink: 0; margin-top: 0.15rem; }
+.stic-warning-card strong { display: block; font-size: 1rem; margin-bottom: 0.25rem; }
+
+/* Campos de solo lectura del formulario de pago: vienen precargados del CRM y
+   se marcan con un fondo cálido para que se entienda que no se editan
+   (pages/single_stic_payment_form.php). */
+.stic-form input.stic-locked-field {
+    background-color: var(--warning-soft) !important;
+    border-color: var(--warning-border) !important;
+    color: var(--gray-800) !important;
+    cursor: default;
+}
+
+/* Asterisco de campo obligatorio. */
+.stic-form .stic-required-mark { color: var(--danger-color); font-weight: 700; }

@@ -411,7 +411,7 @@ form[flex].col3 ul li {
    CSME CUSTOM CLASSES
    ============================================================ */
 .stic-titulo-csme {
-    color: #005b50;
+    color: var(--success-dark);
     font-size: var(--font-size-lg, 1.125rem);
     font-weight: 600;
 }
@@ -1331,29 +1331,29 @@ table.dataTable thead .sorting_desc {
 
 .success,
 .alert-success {
-    background-color: var(--success-light);
-    color: #065f46;
-    border-color: var(--success-color);
+    background-color: var(--success-50);
+    color: var(--success-dark);
+    border-color: var(--success-border);
 }
 
 .error,
 .alert-danger {
-    background-color: var(--danger-light);
-    color: #991b1b;
-    border-color: var(--danger-color);
+    background-color: var(--danger-100);
+    color: var(--danger-dark);
+    border-color: var(--danger-border);
 }
 
 .warning,
 .alert-warning {
-    background-color: var(--warning-light);
-    color: #92400e;
-    border-color: var(--warning-color);
+    background-color: var(--warning-100);
+    color: var(--warning-dark);
+    border-color: var(--warning-border);
 }
 
 .info,
 .alert-info {
     background-color: var(--info-light);
-    color: #1e40af;
+    color: var(--info-dark);
     border-color: var(--info-color);
 }
 
@@ -1590,18 +1590,18 @@ table.dataTable thead .sorting_desc {
 }
 
 .badge-success {
-    background-color: var(--success-light);
-    color: #065f46;
+    background-color: var(--success-50);
+    color: var(--success-dark);
 }
 
 .badge-danger {
-    background-color: var(--danger-light);
-    color: #991b1b;
+    background-color: var(--danger-100);
+    color: var(--danger-dark);
 }
 
 .badge-warning {
-    background-color: var(--warning-light);
-    color: #92400e;
+    background-color: var(--warning-100);
+    color: var(--warning-dark);
 }
 
 /* ============================================================

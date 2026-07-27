@@ -51,6 +51,9 @@ function sticpa_load_languages()
 }
 
 include plugin_dir_path(__FILE__) . 'inc/stic-action.php';
+// stic-theme.php ANTES de stic-magic-login.php: la pantalla puente del enlace
+// mágico resuelve su apariencia con sticpa_theme_pref().
+include plugin_dir_path(__FILE__) . 'inc/stic-theme.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-magic-login.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-comunica-roles.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-calendar.php';
@@ -673,7 +676,7 @@ function sugar_crm_portal_check_user_and_login($html = "")
             $html .= "<div class='stic-auth-shell'" . sticpa_theme_attr() . "><div class='stic-login-form stic-form'>";
             $html .= sugar_crm_portal_login_form("", 'password');
             $html .= "<span class='error' role='alert'>" . __('Username and/or password are not correct.', 'sticpa') . "</span>";
-            $html .= "</div></div>";
+            $html .= "</div>" . sticpa_appearance_switch_html() . "</div>";
 
         }
 
@@ -685,7 +688,7 @@ function sugar_crm_portal_check_user_and_login($html = "")
         if (isset($_REQUEST['signup']) && $_REQUEST['signup'] == true) {
             $html .= "<span class='success'>" . __('You have successfully signed up.', 'sticpa') . ".</span>";
         }
-        $html .= "</div></div>";
+        $html .= "</div>" . sticpa_appearance_switch_html() . "</div>";
     }
     return $html;
 }
@@ -774,7 +777,7 @@ function sugar_crm_portal_forgot_password($html = "")
             <p class='stic-auth-links' style='text-align:center;margin-top:1.25rem;font-size:0.92rem;'>
                 <a href='?'>" . __('← Volver al inicio de sesión', 'sticpa') . "</a>
             </p>";
-    $html .= "</div></div>";
+    $html .= "</div>" . sticpa_appearance_switch_html() . "</div>";
 
     return $html;
 }
@@ -826,7 +829,9 @@ function sugar_crm_portal_index($html = "")
         ob_end_clean();
 
     }
-    $html .= "</div>
+    // El control de apariencia va al final del contenido, dentro del contenedor
+    // del área (así hereda los tokens del tema) y fuera de .stic-tab-content.
+    $html .= "</div>" . sticpa_appearance_switch_html() . "
     </div>";
 
 
@@ -894,68 +899,9 @@ function sinergiacrm_private_area_shortcode()
     return $content;
 }
 
-/**
- * ============================================================================
- *  MODO APP (?app=1) — para la WebView de la app (React Native, etc.)
- * ----------------------------------------------------------------------------
- * Oculta el header/footer/admin-bar del tema de WordPress para que la WebView
- * muestre SOLO el área privada. Se activa con ?app=1 en cualquier URL del área
- * y se recuerda en una cookie (los enlaces internos no llevan el parámetro);
- * se desactiva con ?app=0. Ejemplo de URL de arranque de la app:
- *   https://…/area-privada/?token=XXXX&app=1
- */
-add_action('init', 'sticpa_app_mode_boot', 2);
-function sticpa_app_mode_boot()
-{
-    if (!isset($_GET['app'])) {
-        return;
-    }
-    $on = $_GET['app'] !== '0';
-    setcookie('sticpa_app', $on ? '1' : '', $on ? time() + 30 * DAY_IN_SECONDS : time() - 3600, '/');
-    $_COOKIE['sticpa_app'] = $on ? '1' : ''; // efectivo ya en esta petición
-}
-
-/** ¿Estamos dentro de la app (WebView)? */
-function sticpa_is_app_mode()
-{
-    return !empty($_COOKIE['sticpa_app']);
-}
-
-/**
- * Atributo data-stic-theme para los contenedores del área.
- * DESACTIVADO a propósito: el tema oscuro (plan 016) queda aparcado hasta
- * rediseñarlo bien. De momento TODO claro; esta función siempre devuelve ''.
- * (El CSS §44 y el JS del tema quedan latentes pero nunca se activan.)
- */
-function sticpa_theme_attr()
-{
-    return '';
-}
-
-// Clase en el body + CSS que esconde el "chrome" del tema alrededor del área.
-add_filter('body_class', function ($classes) {
-    if (sticpa_is_app_mode()) {
-        $classes[] = 'sticpa-app-mode';
-    }
-    return $classes;
-});
-
-function sticpa_app_mode_css()
-{
-    // Selectores genéricos de headers/footers de los temas habituales
-    // (clásicos, Elementor, bloques). Si el tema usa otro wrapper, añádelo aquí.
-    return '
-    body.sticpa-app-mode :is(
-        header, .site-header, #masthead, #site-header,
-        .elementor-location-header, header.wp-block-template-part,
-        footer, .site-footer, #colophon,
-        .elementor-location-footer, footer.wp-block-template-part,
-        #wpadminbar
-    ) { display: none !important; }
-    body.sticpa-app-mode { padding-top: 0 !important; margin-top: 0 !important; }
-    body.sticpa-app-mode.admin-bar { margin-top: 0 !important; } /* hueco del admin bar */
-    ';
-}
+// El modo app (?app=1) y el tema claro/oscuro del área viven juntos en
+// inc/stic-theme.php (se incluye arriba): sticpa_is_app_mode(),
+// sticpa_theme_pref(), sticpa_theme_attr() y sticpa_appearance_switch_html().
 
 /**
  * Duración de la sesión (cookie + recolección en servidor).
