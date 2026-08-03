@@ -129,7 +129,30 @@ propios.
 
 ---
 
-## 5. Checklist al añadir UI nueva al área
+## 5. Enlaces de acceso del correo que abren la app
+
+Los correos de acceso **no enlazan al área directamente**, sino a la ruta puente
+`/app/acceso?acceso_magico=…` (o `?token=…`) de este mismo dominio, declarada en
+la app como universal link (iOS) y app link (Android).
+
+| Situación | Qué pasa |
+| --- | --- |
+| App instalada | El sistema abre **la app**, que carga el área en su WebView con ese token. La petición web ni se hace |
+| Sin app / ordenador | Llega aquí → **302** al área privada con el token intacto → login por web |
+
+Lado web: [`inc/stic-app-links.php`](../../inc/stic-app-links.php) (sirve los
+`/.well-known/…`, atiende el puente y expone `sticpa_app_link_url()`).
+Lado app: `app/+native-intent.ts` + `utils/pendingComunicaLink.ts`.
+Detalle completo y pasos pendientes en el README §8.6.
+
+> Cosas que **no** hay que romper desde aquí: si se cambia la URL del área en
+> ajustes, el puente la sigue sola. Pero si algún día se cambia la ruta
+> `/app/acceso`, hay que cambiarla **también en `app.json` de la app**, y eso
+> exige build de tienda.
+
+---
+
+## 6. Checklist al añadir UI nueva al área
 
 - [ ] ¿Usa **tokens** (`var(--…)`) para todos los colores? Si sí, el tema oscuro
       le sale gratis. Si necesitas un color que no existe, crea el token en

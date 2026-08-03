@@ -493,16 +493,60 @@ En el menú **"SinergiaCRM Private Area"** se ha añadido la sección **"Passwor
 ### 8.5 Integración con los emails del CRM
 
 Para el botón "Acceder" al pie de los emails, inserta en la plantilla de SinergiaCRM el campo
-`ajmcm_pa_token_c` como mail-merge y construye el enlace `https://…/?token={token}`. (Opcional:
+`ajmcm_pa_token_c` como mail-merge y construye el enlace **`https://…/app/acceso?token={token}`**
+(ver 8.6: esa ruta abre la app MCM si está instalada y, si no, redirige al área). (Opcional:
 crear un campo `ajmcm_pa_portal_url_c` con la URL completa ya montada para arrastrarlo directamente.)
 
-### 8.6 Qué hay que crear en el CRM (resumen)
+### 8.6 Que el enlace abra la **app MCM** si está instalada 📱
+
+En móvil, el área privada casi siempre se ve dentro de la app MCM (ver
+[`docs/comunica/CONTRATO-APP-WEBVIEW.md`](docs/comunica/CONTRATO-APP-WEBVIEW.md)). Sería absurdo que
+el enlace del correo te sacara al navegador teniendo la app. Por eso los enlaces de acceso **no
+apuntan al área directamente**, sino a una ruta puente del mismo dominio:
+
+```
+https://comunica.movimientoconsolacion.com/app/acceso?acceso_magico=XXXX
+https://comunica.movimientoconsolacion.com/app/acceso?token=XXXX
+```
+
+| Situación | Qué pasa al pulsar |
+|---|---|
+| **App instalada** (iOS o Android) | El sistema operativo abre **la app**, que carga el área en su WebView con ese mismo token. La petición web ni se hace |
+| **Sin app, u ordenador** | La petición llega a WordPress → **302** al área privada con el token intacto → login por web de siempre |
+
+Toda la mecánica está en [`inc/stic-app-links.php`](inc/stic-app-links.php):
+
+- sirve desde PHP los dos ficheros de verificación de dominio
+  (`/.well-known/apple-app-site-association` y `/.well-known/assetlinks.json`), así no hace falta
+  tocar el directorio del hosting;
+- atiende `/app/acceso` y redirige conservando **solo** `acceso_magico` y `token` (no es un
+  redirector abierto);
+- `sticpa_app_link_url()` convierte cualquier enlace del área en su versión puente — es lo que usa
+  el correo de "envíame un enlace de acceso".
+
+Se reclama **solo `/app/acceso`**, no el portal entero: un enlace normal de Comunica que alguien
+comparta por WhatsApp sigue abriendo el navegador, como debe ser.
+
+> ⚠️ **Android necesita un dato manual**: la huella **SHA-256** del certificado de firma de la app,
+> que se pega en Ajustes → SinergiaCRM Private Area. Se saca de Play Console → Setup → App
+> integrity → App signing → *"SHA-256 certificate fingerprint"*. Sin ella Android no verifica el
+> dominio y los enlaces seguirán abriendo el navegador. **iOS no necesita nada** por este lado (le
+> basta el Team ID + bundle ID, que ya van en el fichero).
+>
+> Del lado de la app hace falta una **build de tienda**: declarar el dominio es configuración
+> nativa y no viaja en una actualización OTA.
+>
+> Comprobaciones tras desplegar:
+> `https://app-site-association.cdn-apple.com/a/v1/comunica.movimientoconsolacion.com` (iOS) y
+> el [generador de Digital Asset Links](https://developers.google.com/digital-asset-links/tools/generator) (Android).
+
+### 8.7 Qué hay que crear en el CRM (resumen)
 
 - **Obligatorio:** campo custom **`ajmcm_pa_token_c`** (texto) en Contacts y/o Accounts (Studio).
 - *(Opcional)* `ajmcm_pa_portal_url_c` para el mail-merge cómodo.
 - **Nada de código en el CRM.** El secreto HMAC y toda la lógica viven en WordPress.
 
-### 8.7 Pendiente (ver TODO)
+### 8.8 Pendiente (ver TODO)
 
 El núcleo está hecho. Queda endurecer: **audit log** y **banner** al impersonar, usar enlace de un
 solo uso en "Entrar como", activar verificación TLS (`SEC-04`) y escapar las queries (`SEC-02`).
