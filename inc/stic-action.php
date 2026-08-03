@@ -655,7 +655,11 @@ function prefix_admin_stic_forgot_password()
         foreach (sticpa_modules_to_try() as $module) {
             $contact = $objSCP->getContactByEmail($email, $module);
             if ($contact) {
-                $link = sticpa_generate_magic_link($areaUrl, $module, $contact->id);
+                // El enlace del correo pasa por la ruta puente `/app/acceso`:
+                // si quien lo pulsa tiene la app MCM instalada, se abre ahí; si
+                // no, WordPress redirige al área privada de siempre. Ver
+                // `inc/stic-app-links.php`.
+                $link = sticpa_app_link_url(sticpa_generate_magic_link($areaUrl, $module, $contact->id));
                 $name = $contact->name_value_list->name->value ?? '';
 
                 $portalName = get_option('sticpa_scp_name') ?: __('Tu área privada', 'sticpa');
