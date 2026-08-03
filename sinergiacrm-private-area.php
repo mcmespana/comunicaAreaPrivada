@@ -55,6 +55,7 @@ include plugin_dir_path(__FILE__) . 'inc/stic-action.php';
 // mágico resuelve su apariencia con sticpa_theme_pref().
 include plugin_dir_path(__FILE__) . 'inc/stic-theme.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-magic-login.php';
+include plugin_dir_path(__FILE__) . 'inc/stic-app-links.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-comunica-roles.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-calendar.php';
 
@@ -189,6 +190,7 @@ function register_sugar_crm_portal_settings()
     register_setting('sugar_crm_portal-settings-group', 'sticpa_scp_area_url');
     register_setting('sugar_crm_portal-settings-group', 'sticpa_scp_case_per_page');
     register_setting('sugar_crm_portal-settings-group', 'sticpa_scp_sugar_crm_version');
+    register_setting('sugar_crm_portal-settings-group', 'sticpa_android_sha256');
 }
 
 function sugar_crm_portal_settings_page()
@@ -245,6 +247,14 @@ function sugar_crm_portal_settings_page()
                         <td>
                             <input type='text' class='regular-text' value="<?php echo get_option('sticpa_scp_area_url'); ?>" name='sticpa_scp_area_url'>
                             <p class="description"><?=__('Página pública donde está el shortcode. Se usa para construir los enlaces de acceso, ej: https://comunica.movimientoconsolacion.com/area-privada/', 'sticpa');?></p>
+                        </td>
+                    </tr>
+
+                    <tr valign='top'>
+                        <th scope='row'><?=__('Huella SHA-256 de la app Android', 'sticpa');?></th>
+                        <td>
+                            <input type='text' class='regular-text' value="<?php echo esc_attr(get_option('sticpa_android_sha256')); ?>" name='sticpa_android_sha256'>
+                            <p class="description"><?=__('Necesaria para que los enlaces de los correos abran la app en Android. Play Console → Setup → App integrity → App signing → «SHA-256 certificate fingerprint». Formato AA:BB:…:99, varias separadas por comas. En iOS no hace falta nada.', 'sticpa');?></p>
                         </td>
                     </tr>
 
