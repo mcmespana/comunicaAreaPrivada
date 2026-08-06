@@ -110,29 +110,110 @@ $portalName = get_option('sticpa_scp_name');
         $agendaHtml = sticpa_home_agenda_html($objSCP);
     }
     $showAgenda = ($agendaHtml !== '');
+
+    /**
+     * ORDEN CON SENTIDO EN LA HOME.
+     * ------------------------------------------------------------------
+     * El menú tiene un orden pensado para la barra de navegación; la home
+     * necesita otro: primero lo que la persona VIENE A HACER (apuntarse a
+     * algo, ver qué tiene), y aparte —más pequeño— lo de "mi cuenta", que
+     * se toca una vez cada muchos meses.
+     *
+     * Las claves que no estén en la lista de prioridad se mantienen en el
+     * orden del menú, así que añadir una sección nueva sigue funcionando
+     * sin tocar esto.
+     */
+    $accountKeys = array(
+        'single_stic_comunica_perfil',
+        'single_stic_comunica_monitor',
+        'single_stic_comunica_laico',
+        'single_stic_profile',
+        'single_stic_tutor_profile',
+        'single_stic_profile_selection',
+        'single_stic_password_change',
+        'single_stic_unsubscribe',
+    );
+    $mainPriority = array(
+        'list_stic_events',
+        'list_stic_registrations',
+        'single_stic_activities_calendar',
+        'list_stic_documents',
+        'list_stic_payments',
+        'list_stic_payment_commitments',
+        'single_stic_payment_form',
+    );
+
+    $mainCards = array();
+    $accountCards = array();
+    foreach ($menuElements as $key => $label) {
+        if (in_array($key, $accountKeys, true)) {
+            $accountCards[$key] = $label;
+        } else {
+            $mainCards[$key] = $label;
+        }
+    }
+    // Prioridad dentro del grupo principal (el resto, detrás y en su orden).
+    $ordered = array();
+    foreach ($mainPriority as $key) {
+        if (isset($mainCards[$key])) {
+            $ordered[$key] = $mainCards[$key];
+            unset($mainCards[$key]);
+        }
+    }
+    $mainCards = $ordered + $mainCards;
+    // Las de cuenta en el orden en que aparecen en $accountKeys.
+    $orderedAccount = array();
+    foreach ($accountKeys as $key) {
+        if (isset($accountCards[$key])) {
+            $orderedAccount[$key] = $accountCards[$key];
+        }
+    }
+    $accountCards = $orderedAccount + $accountCards;
+
+    // Si no hubiera nada "principal", no partimos en dos: todo junto.
+    if (empty($mainCards)) {
+        $mainCards = $accountCards;
+        $accountCards = array();
+    }
+
+    /** Pinta una tarjeta de acceso. */
+    $renderCard = function ($key, $label) use ($goIcon) {
+        $meta = sticpa_home_card_meta($key);
+        ?>
+        <a class="stic-dash-card" href="?internalpage=<?= esc_attr($key); ?>">
+            <span class="stic-dash-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><?= $meta['icon']; ?></svg>
+            </span>
+            <span class="stic-dash-title"><?= esc_html(__($label, 'sticpa')); ?></span>
+            <p class="stic-dash-desc"><?= esc_html($meta['desc']); ?></p>
+            <span class="stic-dash-go"><?= esc_html__('Entrar', 'sticpa'); ?> <?= $goIcon; ?></span>
+        </a>
+        <?php
+    };
     ?>
     <div class="stic-home-layout<?= $showAgenda ? '' : ' stic-home-layout--solo'; ?>">
         <div class="stic-home-main">
-            <p class="stic-section-label"><?= esc_html__('Tus secciones', 'sticpa'); ?></p>
+            <p class="stic-section-label"><?= esc_html($accountCards ? __('Tu día a día', 'sticpa') : __('Tus secciones', 'sticpa')); ?></p>
 
             <div class="stic-dashboard-grid">
-                <?php foreach ($menuElements as $key => $label) :
-                    $meta = sticpa_home_card_meta($key);
-                    ?>
-                    <a class="stic-dash-card" href="?internalpage=<?= esc_attr($key); ?>">
-                        <span class="stic-dash-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><?= $meta['icon']; ?></svg>
-                        </span>
-                        <span class="stic-dash-title"><?= esc_html(__($label, 'sticpa')); ?></span>
-                        <p class="stic-dash-desc"><?= esc_html($meta['desc']); ?></p>
-                        <span class="stic-dash-go"><?= esc_html__('Entrar', 'sticpa'); ?> <?= $goIcon; ?></span>
-                    </a>
-                <?php endforeach; ?>
+                <?php foreach ($mainCards as $key => $label) { $renderCard($key, $label); } ?>
             </div>
+
         </div>
 
         <?php if ($showAgenda) : ?>
             <aside class="stic-home-aside"><?= $agendaHtml; ?></aside>
         <?php endif; ?>
     </div>
+
+    <?php if ($accountCards) : ?>
+        <?php // "Tu cuenta" va FUERA de la rejilla de 2 columnas: es el cierre de
+              // la página (en móvil, lo último; en escritorio, una fila a lo ancho). ?>
+        <section class="stic-home-account">
+            <p class="stic-section-label stic-section-label--mini"><?= esc_html__('Tu cuenta', 'sticpa'); ?></p>
+            <div class="stic-dashboard-grid stic-dashboard-grid--mini">
+                <?php foreach ($accountCards as $key => $label) { $renderCard($key, $label); } ?>
+            </div>
+        </section>
+    <?php endif; ?>
 </div>
