@@ -88,6 +88,12 @@ function sticpa_participant_switcher_html()
     $familiarName = $_SESSION['scp_tutor_user_contact_name'] ?? ($_SESSION['scp_user_contact_name'] ?? '');
     $activeId = $_SESSION['scp_user_id'] ?? '';
     $activeName = $_SESSION['scp_user_contact_name'] ?? '';
+    // El familiar viéndose a sí mismo es un caso especial: en vez de repetir
+    // su propio nombre (que ya se ve justo encima, en la identidad de la
+    // barra) el botón dice "Yo mismo/a" — más claro y no es redundante.
+    $isSelfActive = !empty($_SESSION['scp_tutor_is_user']);
+    $selfLabel = sticpa_guess_self_label($familiarName);
+    $activeLabel = $isSelfActive ? $selfLabel : sticpa_short_name($activeName);
 
     $current_url = explode('?', $_SERVER['REQUEST_URI'], 2)[0];
     $defaultPage = defaultMenuElement();
@@ -109,7 +115,7 @@ function sticpa_participant_switcher_html()
     $html = "<span class='stic-part-switch'>";
     $html .= "<button type='button' class='stic-part-switch-btn' aria-haspopup='true' aria-expanded='false' aria-controls='stic-part-switch-menu' title='" . esc_attr__('Cambiar de participante', 'sticpa') . "'>";
     $html .= "<span class='stic-part-avatar' aria-hidden='true'>" . esc_html(sticpa_name_initial($activeName)) . "</span>";
-    $html .= "<span class='stic-part-name' title='" . esc_attr($activeName) . "'>" . esc_html(sticpa_short_name($activeName)) . "</span>" . $chevron;
+    $html .= "<span class='stic-part-name' title='" . esc_attr($activeName) . "'>" . esc_html($activeLabel) . "</span>" . $chevron;
     $html .= "</button>";
 
     $html .= "<span class='stic-part-switch-menu' id='stic-part-switch-menu'>";
@@ -120,17 +126,54 @@ function sticpa_participant_switcher_html()
             . "<span class='stic-part-avatar' aria-hidden='true'>" . esc_html(sticpa_name_initial($profile['name'])) . "</span>"
             . "<span>" . esc_html($profile['name']) . "</span></a></li>";
     }
-    // El propio familiar como opción ("mis propios datos").
-    $selfActive = (!empty($_SESSION['scp_tutor_is_user'])) ? ' is-active' : '';
+    // El propio familiar como opción ("mis propios datos"): mismo "Yo mismo/a"
+    // del botón, en vez de repetir su nombre (ya está arriba en la identidad).
+    $selfActive = $isSelfActive ? ' is-active' : '';
     $html .= "<li><a class='stic-part-option{$selfActive}' href='" . $selectUrl($familiarId, $familiarName) . "' data-part-switch-to='{$switching}'>"
         . "<span class='stic-part-avatar' aria-hidden='true'>" . esc_html(sticpa_name_initial($familiarName)) . "</span>"
-        . "<span>" . esc_html($familiarName) . " <small>(" . esc_html__('yo', 'sticpa') . ")</small></span></a></li>";
+        . "<span>" . esc_html($selfLabel) . "</span></a></li>";
     // Acceso a la pantalla completa de selección.
     $html .= "<li><a class='stic-part-option stic-part-option--all' href='?internalpage=single_stic_profile_selection'>"
         . esc_html__('Ver todos los perfiles…', 'sticpa') . "</a></li>";
     $html .= "</ul></span></span>";
 
     return $html;
+}
+
+/**
+ * "Yo mismo/a" para el selector de participante, con el género inferido del
+ * nombre de pila. No hay un campo de género cacheado en sesión (solo vive en
+ * el CRM tras cargar el perfil completo), así que se aproxima con una
+ * heurística: los nombres españoles más frecuentes que rompen el patrón
+ * habitual ("-a" = femenino) se listan a mano; el resto cae al patrón general.
+ * Ante la duda, "Yo mismo" (mismo criterio que usa el propio idioma como
+ * genérico no marcado).
+ */
+function sticpa_guess_self_label($name)
+{
+    $name = trim((string) $name);
+    if ($name === '') {
+        return __('Yo mismo/a', 'sticpa');
+    }
+    if (strpos($name, ',') !== false) {
+        $parts = explode(',', $name, 2);
+        $name = trim($parts[1]) !== '' ? trim($parts[1]) : trim($parts[0]);
+    }
+    $first = preg_split('/\s+/', trim($name))[0];
+    $lower = function_exists('mb_strtolower') ? mb_strtolower($first, 'UTF-8') : strtolower($first);
+
+    // Nombres frecuentes que terminan en consonante pero son femeninos.
+    $feminineExceptions = array(
+        'carmen', 'pilar', 'soledad', 'isabel', 'belén', 'inés', 'mercedes',
+        'lourdes', 'dolores', 'ángeles', 'montserrat', 'rocío', 'raquel',
+        'miriam', 'ruth', 'noelia', 'yolanda', 'esther', 'marta', 'ester',
+        'itziar', 'nagore', 'yasmin', 'nur',
+    );
+    if (in_array($lower, $feminineExceptions, true)) {
+        return __('Yo misma', 'sticpa');
+    }
+    $lastChar = function_exists('mb_substr') ? mb_substr($lower, -1, 1, 'UTF-8') : substr($lower, -1);
+    return ($lastChar === 'a') ? __('Yo misma', 'sticpa') : __('Yo mismo', 'sticpa');
 }
 
 /**
@@ -209,23 +252,31 @@ function menu()
     $initial = sticpa_name_initial($avatarName);
 
     // ---- Bloque de identidad (dentro de la barra única) ----
+    // El avatar y el nombre llevan a INICIO: es el "logo" de la barra, el
+    // atajo más natural para volver (un tap grande, sin ir a buscar el item
+    // "Inicio" del menú). Los accesos a "mis datos" siguen disponibles desde
+    // el menú y desde la home ("Tu cuenta"), así que no se pierde nada.
+    $homeTitle = esc_attr__('Ir a inicio', 'sticpa');
     $account = "<div class='stic-account'>";
+    $account .= "<a class='stic-avatar-link' href='?internalpage=single_stic_home' title='{$homeTitle}'>";
     $account .= "<span class='stic-avatar' aria-hidden='true'>" . esc_html($initial) . "</span>";
+    $account .= "</a>";
     $account .= "<span class='stic-account-info'>";
 
     $hasTutorSession = isset($_SESSION['scp_tutor_user_contact_name']);
     if (($familiarName !== null || $hasTutorSession) && sticpa_is_familia()) {
-        // FAMILIA: nombre del familiar arriba y, debajo, el SELECTOR RÁPIDO con
-        // el participante activo (siempre visible: nunca hay duda de a quién ves).
+        // FAMILIA: nombre del familiar arriba (enlaza a inicio) y, debajo, el
+        // SELECTOR RÁPIDO con el participante activo (siempre visible: nunca
+        // hay duda de a quién ves).
         $topName = $familiarName !== null ? $familiarName : ($_SESSION['scp_tutor_user_contact_name'] ?? $participantName);
-        $account .= "<span class='stic-account-name'><a href='?internalpage=single_stic_tutor_profile' title='" . esc_attr($topName) . "'>" . esc_html(sticpa_short_name($topName)) . "</a></span>";
+        $account .= "<span class='stic-account-name'><a href='?internalpage=single_stic_home' title='{$homeTitle}'>" . esc_html(sticpa_short_name($topName)) . "</a></span>";
         $account .= "<span class='stic-account-sub'>";
         $account .= "<span class='stic-account-tag'>" . __('Viendo a', 'sticpa') . "</span>";
         $account .= sticpa_participant_switcher_html();
         $account .= "</span>";
     } elseif ($familiarName !== null) {
         // Tutor sin selector (sin perfiles cargados): identidad fija como antes.
-        $account .= "<span class='stic-account-name'><a href='?internalpage=single_stic_tutor_profile' title='" . esc_attr($familiarName) . "'>" . esc_html(sticpa_short_name($familiarName)) . "</a></span>";
+        $account .= "<span class='stic-account-name'><a href='?internalpage=single_stic_home' title='{$homeTitle}'>" . esc_html(sticpa_short_name($familiarName)) . "</a></span>";
         $account .= "<span class='stic-account-sub'>";
         $account .= "<span class='stic-account-tag'>" . __('Participante', 'sticpa') . "</span>";
         if ($participantName) {
@@ -235,7 +286,7 @@ function menu()
     } else {
         // Usuario individual.
         $name = $participantName ? $participantName : __('Mi cuenta', 'sticpa');
-        $account .= "<span class='stic-account-name'><a href='?internalpage=single_stic_profile' title='" . esc_attr($name) . "'>" . esc_html(sticpa_short_name($name)) . "</a></span>";
+        $account .= "<span class='stic-account-name'><a href='?internalpage=single_stic_home' title='{$homeTitle}'>" . esc_html(sticpa_short_name($name)) . "</a></span>";
         $account .= "<span class='stic-account-sub stic-account-sub--muted'>" . __('Tu área privada', 'sticpa') . "</span>";
     }
     $account .= "</span></div>";

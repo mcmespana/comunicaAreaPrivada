@@ -707,6 +707,26 @@ span.stic-field {
 }
 
 .stic-account { display: flex; align-items: center; gap: 0.7rem; min-width: 0; flex: 1; }
+
+/* El avatar es el "logo" de la barra: lleva a Inicio. Radio propio (no
+   heredado de .stic-avatar) para que el tap/focus cubra círculo + aire, no
+   solo el círculo justo. */
+.stic-avatar-link {
+    flex-shrink: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    transition: transform 0.2s var(--ease-spring);
+}
+.stic-avatar-link:hover { transform: scale(1.06); }
+.stic-avatar-link:active { transform: scale(0.94); }
+.stic-avatar-link:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.7);
+}
+@media (hover: none) {
+    .stic-avatar-link:hover { transform: none; }
+}
 .stic-avatar {
     flex-shrink: 0;
     width: 46px; height: 46px;
@@ -1359,6 +1379,14 @@ span.stic-field {
     .stic-login-form, .stic-forgotpas-form { padding: 1.75rem 1.4rem; }
     /* (La rejilla del dashboard en móvil se define en §48: 2 columnas
        compactas, no una sola columna de tarjetas altas.) */
+
+    /* Menos margen muerto alrededor del CONTENIDO de cada subpantalla (listados,
+       formularios, calendario…): en una pantalla de ~360-390px de ancho cada
+       rem de padding lateral es una columna menos de tabla o un campo más
+       estrecho. Los propios `stic-form`/`stic-dash-card`/etc. ya usan clamp()
+       para el "aire" interno; aquí se afina el margen exterior. */
+    .stic-container { margin-top: 0.85rem; }
+    .stic-tab-content { padding: 0.75rem; border-radius: var(--radius-lg) !important; }
 }
 
 /* (Plan 020) Cristal más barato en móvil: un fondo más opaco permite bajar el
