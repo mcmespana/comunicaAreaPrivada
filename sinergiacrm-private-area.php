@@ -58,6 +58,7 @@ include plugin_dir_path(__FILE__) . 'inc/stic-magic-login.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-app-links.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-comunica-roles.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-calendar.php';
+include plugin_dir_path(__FILE__) . 'inc/stic-events.php';
 
 add_action('admin_menu', 'sugar_crm_portal_create_menu');
 

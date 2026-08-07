@@ -45,6 +45,8 @@ antes de empezar, respeta sus "STOP conditions" y actualiza su fila de estado al
 | 021 | Externalizar los script inline de init (DT/FullCalendar) | P3 | S-M | 019 | **DONE** → `archive/` |
 | 022 | Calendario MES en móvil: dots + tap-tooltip (eventContent) | P2 | M | — | **DONE** → `archive/` (verificado en render offline) |
 | 023 | Home móvil: accesos compactos (2 col) + orden con sentido | P2 | S-M | — | **DONE** → [`archive/023-home-mobile-first.md`](archive/023-home-mobile-first.md) |
+| 024 | Login compacto en móvil + encaje visual con WordPress | P2 | M | — | TODO (hace falta ver el sitio real) |
+| 025 | Eventos: tarjetas propias + ficha de detalle | P2 | M | — | **DONE** → [`archive/025-eventos-tarjetas-y-detalle.md`](archive/025-eventos-tarjetas-y-detalle.md) |
 
 Los planes **DONE** están en producción y sus fichas se movieron a
 [`plans/archive/`](archive/) (2026-07-20; el 016 el 2026-07-26). En `plans/` quedan solo los **pendientes** y los

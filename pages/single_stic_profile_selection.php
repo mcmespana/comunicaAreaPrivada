@@ -111,22 +111,27 @@ $_SESSION['scp_is_familia'] = count($availableContacts) > 0;
 // ---------- 3) Render ----------
 $current_url = explode('?', $_SERVER['REQUEST_URI'], 2);
 $current_url = $current_url[0];
-$defaultPage = defaultMenuElement();
 
-/** URL que activa un perfil (handler admin-post single_stic_profile_selection). */
-$selectUrl = function ($id, $name) use ($current_url, $familiarId, $familiarName, $defaultPage) {
+/** URL que activa un perfil (handler admin-post single_stic_profile_selection).
+ *  Sin 'default_page': el handler lleva SIEMPRE a la home tras elegir. */
+$selectUrl = function ($id, $name) use ($current_url, $familiarId, $familiarName) {
     return esc_url(add_query_arg(array(
         'action' => 'single_stic_profile_selection',
         'profile_selected_id' => $id,
         'profile_selected_name' => rawurlencode($name),
         'scp_user_id' => $familiarId,
         'scp_user_contact_name' => rawurlencode($familiarName),
-        'default_page' => $defaultPage,
         'scp_current_url' => $current_url,
     ), admin_url('admin-post.php')));
 };
 
 $goIcon = "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12h14'/><path d='m13 6 6 6-6 6'/></svg>";
+
+/** Etiqueta del CTA de la tarjeta. En móvil solo se ve la flecha (§32), así que
+ *  el texto va en su propio <span> para poder ocultarlo sin perder el icono. */
+$goLabel = function ($text) use ($goIcon) {
+    return "<span class='stic-profile-go'><span class='stic-profile-go-text'>" . esc_html($text) . "</span>{$goIcon}</span>";
+};
 $switchingText = esc_attr__('Cambiando de participante…', 'sticpa');
 
 $html .= "<div class='stic-profiles'>";
@@ -148,7 +153,7 @@ foreach ($availableContacts as $contact) {
         <span class='stic-profile-avatar' aria-hidden='true'>" . esc_html($initial) . "</span>
         <span class='stic-profile-name'>" . esc_html($contact['name']) . "</span>
         <span class='stic-profile-tag'>" . ($isActive ? esc_html__('Viéndolo ahora', 'sticpa') : esc_html__('Participante', 'sticpa')) . "</span>
-        <span class='stic-profile-go'>" . ($isActive ? esc_html__('Seguir con este perfil', 'sticpa') : esc_html__('Ver como este participante', 'sticpa')) . " {$goIcon}</span>
+        " . $goLabel($isActive ? __('Seguir aquí', 'sticpa') : __('Elegir', 'sticpa')) . "
     </a>";
 }
 
@@ -160,7 +165,7 @@ $html .= "
         <span class='stic-profile-avatar' aria-hidden='true'>" . esc_html($selfInitial) . "</span>
         <span class='stic-profile-name'>" . esc_html($familiarName) . "</span>
         <span class='stic-profile-tag'>" . esc_html__('Yo (familiar)', 'sticpa') . "</span>
-        <span class='stic-profile-go'>" . esc_html__('Entrar con mis propios datos', 'sticpa') . " {$goIcon}</span>
+        " . $goLabel(__('Entrar', 'sticpa')) . "
     </a>";
 
 $html .= "</div>"; // .stic-profiles-grid
