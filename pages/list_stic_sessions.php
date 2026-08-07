@@ -19,6 +19,8 @@ switch (getDestinationModule()) {
 $listSettings['moduleName'] = "stic_Sessions"; // list title
 $listSettings['title'] = __('Sessions', 'sticpa'); // list title
 $listSettings['linkDestination'] = '?internalpage=single_stic_sessions&action=create'; //The link destination of each record in the list
+// Columna que se pinta como cápsula de fecha en la cabecera de la tarjeta.
+$listSettings['cardDate'] = 'start_date';
 $listSettings['actions'] = array(
     // array('label' => __('Edit', 'sticpa'), 'link' => '?internalpage=single_stic_sessions&action=edit'),
     array('label' => __('View', 'sticpa'), 'link' => '?internalpage=single_stic_sessions&action=detail'),
