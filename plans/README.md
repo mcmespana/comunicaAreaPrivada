@@ -44,6 +44,7 @@ antes de empezar, respeta sus "STOP conditions" y actualiza su fila de estado al
 | 020 | Aligerar el coste de pintura del login (blur/glass) | P2 | S-M | — | **DONE** → `archive/` |
 | 021 | Externalizar los script inline de init (DT/FullCalendar) | P3 | S-M | 019 | **DONE** → `archive/` |
 | 022 | Calendario MES en móvil: dots + tap-tooltip (eventContent) | P2 | M | — | **DONE** → `archive/` (verificado en render offline) |
+| 023 | Home móvil: accesos compactos (2 col) + orden con sentido | P2 | S-M | — | **DONE** → [`archive/023-home-mobile-first.md`](archive/023-home-mobile-first.md) |
 
 Los planes **DONE** están en producción y sus fichas se movieron a
 [`plans/archive/`](archive/) (2026-07-20; el 016 el 2026-07-26). En `plans/` quedan solo los **pendientes** y los
