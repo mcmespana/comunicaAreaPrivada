@@ -14,45 +14,23 @@ switch (getDestinationModule()) {
         break;
 }
 $listSettings['moduleName'] = "stic_Events"; // list title
-$listSettings['title'] = __('Events', 'sticpa'); // list title
-// "Inscribirse" lleva a una pantalla única: info del evento + formulario de inscripción.
-$listSettings['actions'] = array(
-    array('label' => __('Inscribirse', 'sticpa'), 'link' => '?internalpage=single_stic_registrations&action=create&from=stic_events'),
-);
-$listSettings['datatables'] = array('value' => true, 'jsonSettings' => array( 'paging' =>false, 'searching' => true)); // if columns are sortable or filterable (this use jquery plugin datatables) /json Settings in json format from https://datatables.net/manual/options
-$listSettings['msgDelete'][] = array('value' => 'true', 'type' => 'success', 'msg' => __('Record successfully deleted.', 'sticpa')); //messages that will be shown on the screen after processing the data
+$listSettings['title'] = __('Eventos', 'sticpa'); // list title
+// NOTA: este listado ya NO usa makeList() ni DataTables. Un evento no se lee
+// bien como "ETIQUETA: valor" (Estado / Fecha inicio / Fecha fin ocupaban tres
+// filas para decir cuándo es), así que se pinta con tarjetas propias —
+// sticpa_events_list_html() en inc/stic-events.php.
 
 #########################################################
 
 #########################################################
-# Columns list
-# Important: Include id field for update operations.
-# The field definition will be retrieved from the CRM. But it can also be specified like this:
-# $columnsList[] = array(
-#    'name' => '<field_name>',
-#    'label' => __('<field_label>', 'sticpa'),
-#    'format' => '<format_type>',   # currency, number, date... if "translate" it will transalate the value to a label
-#    'attributes' => array ()
-# "');
-#
+# Campos que se piden al CRM.
+# Los OPCIONALES (lugar, plazas, precio…) se piden solo si están declarados en
+# sticpa_event_optional_fields(): si no existen en SinergiaCRM, simplemente no
+# vienen y la tarjeta no los pinta. Así, crear el campo en el CRM basta para
+# que aparezca aquí (ver docs/comunica/EVENTOS.md).
 #########################################################
-$columnsList[] = array('name' => 'id');
-$columnsList[] = array('name' => 'name');
-$columnsList[] = array('name' => 'status', 'format' => 'enum');
-$columnsList[] = array('name' => 'start_date', 'format' => 'date');
-$columnsList[] = array('name' => 'end_date', 'format' => 'date');
-#########################################################
+$fields = sticpa_event_fields_to_request($objSCP);
 
-$fieldsToRetrieve = array_column($columnsList, 'name');
-
-#########################################################
-# Params for the API query to retrieve related beans
-#########################################################
-#########################################################
-// $filterParam = "(end_date is null OR end_date >curdate())";
-$fields = array_map(function ($elem) {
-    return $elem['name'];
-},$columnsList);
 $filterParam = '';
 $listSettings['fileName'] = basename(__FILE__, ".php"); //The list name, from the filename. Don't touch.
 $getElements = $objSCP->getRecordsModule($listSettings['moduleName'], $filterParam, $fields);
@@ -68,8 +46,17 @@ if (is_array($getElements) && function_exists('prefix_user_active_event_ids')) {
         }));
     }
 }
-if (empty($getElements)) {
-    $getElements = null; // fuerza el estado vacío con estilo
+
+// Etiquetas del desplegable `status` tal y como están traducidas en el CRM
+// (el valor crudo es un código tipo "Planned", que no se le enseña a nadie).
+$statusMap = array();
+$statusDef = sticpa_cached_field_definition($objSCP, $listSettings['moduleName'], array('status'));
+if (!empty($statusDef['status']['options']) && is_array($statusDef['status']['options'])) {
+    foreach ($statusDef['status']['options'] as $key => $option) {
+        $statusMap[$key] = is_array($option) ? ($option['value'] ?? '') : (string) $option;
+    }
 }
 
-$html .= makeList($columnsList, $listSettings, $getElements);
+$html .= renderDeleteMessage($listSettings['msgDelete'] ?? array());
+$html .= "<div class='stic-entry-header'><h3>" . esc_html($listSettings['title']) . "</h3></div>";
+$html .= sticpa_events_list_html($getElements, $statusMap);

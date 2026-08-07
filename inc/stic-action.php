@@ -37,11 +37,16 @@ function prefix_admin_single_stic_profile_selection()
         $_SESSION['scp_user_contact_name'] = $requestUserName;
     }
 
-    // Sin sesión de familiar montada → de vuelta a la selección; si no, a la home.
+    // Sin sesión de familiar montada → de vuelta a la selección; si no, SIEMPRE a
+    // la home. Antes se saltaba a `default_page` (= 'list_stic_events'), así que
+    // cambiar de participante te dejaba en Eventos, con el contexto perdido:
+    // acabas de decir "quiero ver a X" y lo primero que quieres es el panel de X,
+    // no una sección cualquiera. El parámetro `default_page` ya no se usa (se
+    // acepta en la URL por compatibilidad con enlaces antiguos, pero se ignora).
     if (!isset($_SESSION['scp_tutor_user_id'])) {
         $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=single_stic_profile_selection";
     } else {
-        $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=" . sanitize_key($_REQUEST['default_page'] ?? 'single_stic_home');
+        $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=single_stic_home";
     }
     wp_redirect($redirectUrl);
     exit;

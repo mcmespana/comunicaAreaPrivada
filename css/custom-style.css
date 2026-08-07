@@ -3049,8 +3049,10 @@ span.stic-field {
 }
 .stic-profiles-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr));
-    gap: clamp(0.9rem, 2vw, 1.2rem);
+    /* Son pocas tarjetas (lo normal: 1-2 participantes + "yo"), así que caben de
+       sobra en una fila; 220px basta y deja las tres a la vista sin apretarlas. */
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+    gap: clamp(0.75rem, 1.8vw, 1rem);
 }
 .stic-profile-card {
     position: relative;
@@ -3058,9 +3060,9 @@ span.stic-field {
     flex-direction: column;
     align-items: center;
     text-align: center;
-    gap: 0.55rem;
+    gap: 0.5rem;
     width: 100%;
-    padding: 1.7rem 1.3rem 1.4rem;
+    padding: 1.35rem 1.1rem 1.15rem;
     border: 2px solid var(--gray-200);
     border-radius: var(--radius-xl);
     background: var(--surface) !important;   /* gana al gradiente de .stic-button */
@@ -3085,12 +3087,12 @@ span.stic-field {
 .stic-profile-avatar {
     display: grid;
     place-items: center;
-    width: 74px;
-    height: 74px;
+    width: 62px;
+    height: 62px;
     border-radius: 50%;
     background: var(--grad-brand);
     color: #fff;
-    font-size: 1.9rem;
+    font-size: 1.6rem;
     font-weight: 800;
     box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.35);
     transition: transform 0.25s var(--ease-spring);
@@ -3119,6 +3121,7 @@ span.stic-field {
     font-size: 0.88rem;
     font-weight: 700;
     color: var(--primary-color);
+    white-space: nowrap;   /* el CTA es corto: en 2 líneas descolocaba la flecha */
 }
 .stic-profile-go svg { width: 15px; height: 15px; transition: transform 0.22s var(--ease-spring); }
 .stic-profile-card:hover .stic-profile-go svg { transform: translateX(4px); }
@@ -3132,6 +3135,45 @@ span.stic-field {
     background: var(--primary-50) !important;
 }
 .stic-profile-card.is-active .stic-profile-tag { color: var(--primary-color); }
+/* --- Móvil: la tarjeta se tumba (avatar · nombre · flecha) -----------------
+   Apiladas en vertical, 3 tarjetas centradas ocupaban toda la pantalla y había
+   que hacer scroll para ver a quién más puedes elegir — justo lo contrario de
+   lo que pide esta pantalla, que es COMPARAR y elegir. En fila caben las tres
+   de un vistazo y siguen siendo targets grandes (~72px de alto).
+   La rejilla de áreas evita tocar el HTML: el avatar ocupa las dos filas de
+   texto a su derecha y la flecha se va al extremo. */
+@media (max-width: 640px) {
+    .stic-profiles-lead { font-size: 0.92rem; margin-bottom: 1rem; }
+    .stic-profiles-grid { grid-template-columns: 1fr; gap: 0.6rem; }
+
+    .stic-profile-card {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        grid-template-areas:
+            "avatar name go"
+            "avatar tag  go";
+        align-items: center;
+        justify-items: start;
+        text-align: left;
+        column-gap: 0.85rem;
+        row-gap: 0.1rem;
+        padding: 0.8rem 0.95rem;
+        border-radius: var(--radius-lg);
+    }
+    .stic-profile-avatar {
+        grid-area: avatar;
+        width: 46px;
+        height: 46px;
+        font-size: 1.15rem;
+    }
+    .stic-profile-name { grid-area: name; font-size: 1rem; }
+    .stic-profile-tag  { grid-area: tag; font-size: 0.66rem; }
+    /* El CTA se queda en la flecha: el texto ("Ver como este participante") se
+       entiende igual al ser toda la tarjeta el enlace, y ahorra una línea. */
+    .stic-profile-go { grid-area: go; margin-top: 0; }
+    .stic-profile-go-text { display: none; }
+}
+
 /* Aviso de datos de demostración. */
 .stic-profiles-demo {
     display: inline-flex;
@@ -4840,4 +4882,290 @@ span.stic-field {
 @media (max-width: 640px) {
     .stic-section-label--mini { margin-top: 1.15rem; }
     .stic-dashboard-grid--mini { grid-template-columns: 1fr; gap: 0.5rem; }
+}
+
+/* ============================================================
+   49. EVENTOS — tarjetas del listado y ficha de detalle
+   ------------------------------------------------------------
+   "Eventos" se pintaba con el renderizador genérico de listados: tres filas
+   "ETIQUETA: valor" (Estado / Fecha inicio / Fecha fin) para decir cuándo es
+   algo. Mucha tinta administrativa y poca información útil, sobre todo en
+   móvil, donde dos eventos ya llenaban la pantalla.
+
+   Ahora el evento tiene formato propio (inc/stic-events.php):
+   · Cápsula de fecha a la izquierda — el "cuándo" se lee de un vistazo.
+   · Nombre, fecha en lenguaje humano ("del 1 al 10 de julio de 2026") y,
+     si el CRM lo tiene, el lugar.
+   · Dos acciones claras y separadas: "Ver detalle" (secundaria) e
+     "Inscribirme" (primaria). Antes solo había "Inscribirse", sin manera de
+     saber a qué te apuntabas.
+   ============================================================ */
+
+.stic-ev-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.7rem;
+}
+@media (min-width: 900px) {
+    .stic-ev-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.9rem; }
+}
+
+.stic-ev-card {
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xs);
+    overflow: hidden;
+    transition: box-shadow 0.2s ease, transform 0.15s var(--ease-spring), border-color 0.2s ease;
+    animation: stic-fade-up 0.45s var(--ease-out) both;
+}
+.stic-ev-card:hover { box-shadow: var(--shadow-md); border-color: color-mix(in srgb, var(--primary-color) 35%, transparent); }
+@media (hover: none) { .stic-ev-card:hover { box-shadow: var(--shadow-xs); transform: none; } }
+/* Ya celebrado: presente pero apagado (sigue siendo consultable). */
+.stic-ev-card.is-past { opacity: 0.78; }
+
+/* Zona principal: toda ella es el enlace al detalle. */
+.stic-ev-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    /* Empuja la barra de acciones al fondo: en la rejilla de 2 columnas las
+       tarjetas se estiran a la misma altura y, sin esto, los botones de la
+       tarjeta corta quedaban a media altura con un hueco blanco debajo. */
+    flex: 1;
+    padding: 0.9rem 1rem;
+    text-decoration: none !important;
+    color: inherit !important;
+    -webkit-tap-highlight-color: transparent;
+}
+.stic-ev-main:active { background: var(--surface-2); }
+
+/* Cápsula de fecha (día grande + mes). */
+.stic-ev-badge {
+    flex-shrink: 0;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    width: 52px;
+    padding: 0.4rem 0;
+    border-radius: var(--radius-md);
+    background: var(--grad-brand);
+    color: #fff;
+    line-height: 1.05;
+    box-shadow: var(--shadow-sm);
+}
+.stic-ev-badge-day { font-size: 1.35rem; font-weight: 800; }
+.stic-ev-badge-mon { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.92; }
+.stic-ev-badge.is-past { background: var(--gray-400); box-shadow: none; }
+.stic-ev-badge--empty { background: var(--surface-2); color: var(--gray-400); height: 52px; }
+.stic-ev-badge--empty svg { width: 22px; height: 22px; }
+
+.stic-ev-body { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; flex: 1; }
+.stic-ev-name {
+    font-size: 1.02rem;
+    font-weight: 800;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+    color: var(--gray-900);
+}
+.stic-ev-when,
+.stic-ev-where {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.84rem;
+    color: var(--gray-600);
+    min-width: 0;
+}
+.stic-ev-when svg,
+.stic-ev-where svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--primary-color); }
+.stic-ev-where span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stic-ev-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.15rem; }
+
+.stic-ev-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.16rem 0.55rem;
+    border-radius: var(--radius-full);
+    background: var(--primary-50);
+    color: var(--primary-color);
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.stic-ev-chip--past { background: var(--gray-100); color: var(--gray-500); }
+
+/* Fila de acciones, separada del cuerpo por una línea. */
+.stic-ev-actions {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.6rem 0.7rem;
+    border-top: 1px solid var(--gray-100);
+    background: var(--surface-2);
+}
+.stic-ev-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    flex: 1;
+    min-height: 42px;
+    padding: 0.5rem 0.9rem;
+    border-radius: var(--radius-md);
+    font-size: 0.88rem;
+    font-weight: 700;
+    text-decoration: none !important;
+    transition: transform 0.15s var(--ease-out), box-shadow 0.15s var(--ease-out), background 0.15s ease;
+}
+.stic-ev-btn::after { display: none !important; }
+.stic-ev-btn svg { width: 16px; height: 16px; }
+.stic-ev-btn--ghost {
+    background: var(--surface);
+    border: 1px solid var(--gray-200);
+    color: var(--gray-700) !important;
+}
+.stic-ev-btn--ghost:hover { background: var(--gray-50); color: var(--gray-900) !important; }
+.stic-ev-btn--primary {
+    background: var(--grad-brand);
+    color: #fff !important;
+    box-shadow: var(--shadow-sm);
+}
+.stic-ev-btn--primary:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.stic-ev-btn:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+@media (hover: none) {
+    .stic-ev-btn--primary:hover { transform: none; box-shadow: var(--shadow-sm); }
+    .stic-ev-btn:active { transform: scale(0.98); }
+}
+
+/* --- 49.b Ficha de detalle del evento --- */
+.stic-ev-detail { animation: stic-fade-up 0.5s var(--ease-out) both; }
+
+.stic-ev-hero {
+    position: relative;
+    overflow: hidden;
+    padding: clamp(1.1rem, 3vw, 1.75rem);
+    border-radius: var(--radius-xl);
+    background: var(--grad-brand);
+    color: #fff;
+    box-shadow: var(--shadow-md);
+}
+.stic-ev-hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(60% 80% at 100% 0%, rgba(255, 255, 255, 0.2), transparent 60%);
+    pointer-events: none;
+}
+.stic-ev-hero > * { position: relative; z-index: 1; }
+.stic-ev-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-bottom: 0.7rem;
+    padding: 0.3rem 0.7rem 0.3rem 0.5rem;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff !important;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-decoration: none !important;
+}
+.stic-ev-back::after { display: none !important; }
+.stic-ev-back svg { width: 15px; height: 15px; }
+.stic-ev-back:hover { background: rgba(255, 255, 255, 0.3); }
+.stic-container .stic-ev-hero-title,
+.stic-ev-hero-title {
+    margin: 0 0 0.5rem;
+    font-size: clamp(1.3rem, 4vw, 1.9rem);
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    color: #fff !important;
+    background: none !important;
+    -webkit-text-fill-color: #fff !important;
+}
+.stic-ev-hero-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.8rem; }
+.stic-ev-hero-when { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.95rem; font-weight: 600; }
+.stic-ev-hero-when svg { width: 16px; height: 16px; }
+.stic-ev-hero-meta .stic-ev-chip { background: rgba(255, 255, 255, 0.22); color: #fff; }
+.stic-ev-hero-meta .stic-ev-chip--past { background: rgba(0, 0, 0, 0.22); color: #fff; }
+
+/* Datos clave: solo salen los que el CRM tenga rellenos. */
+.stic-ev-facts {
+    list-style: none;
+    margin: 1rem 0 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr));
+    gap: 0.6rem;
+}
+.stic-ev-fact {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.7rem 0.8rem;
+    background: var(--surface);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
+}
+.stic-ev-fact-ico {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    border-radius: var(--radius-sm);
+    background: var(--primary-50);
+    color: var(--primary-color);
+}
+.stic-ev-fact-ico svg { width: 18px; height: 18px; }
+.stic-ev-fact-body { display: flex; flex-direction: column; min-width: 0; }
+.stic-ev-fact-label {
+    font-size: 0.66rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gray-500);
+}
+.stic-ev-fact-text { font-size: 0.92rem; font-weight: 600; color: var(--gray-900); }
+
+.stic-ev-desc { margin-top: 1.25rem; }
+.stic-container .stic-ev-desc h4,
+.stic-ev-desc h4 {
+    margin: 0 0 0.5rem;
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--gray-900);
+}
+.stic-ev-desc-body {
+    font-size: 0.95rem;
+    line-height: 1.65;
+    color: var(--gray-700);
+    max-width: 70ch;
+}
+
+.stic-ev-cta-row { margin-top: 1.35rem; }
+.stic-ev-btn--lg { flex: 0 1 auto; min-height: 50px; padding: 0.7rem 1.5rem; font-size: 0.98rem; }
+.stic-ev-cta-note {
+    margin: 0;
+    padding: 0.8rem 1rem;
+    border-radius: var(--radius-md);
+    background: var(--surface-2);
+    border: 1px solid var(--gray-200);
+    color: var(--gray-600);
+    font-size: 0.9rem;
+}
+
+@media (max-width: 640px) {
+    .stic-ev-main { padding: 0.8rem 0.85rem; gap: 0.7rem; }
+    .stic-ev-badge { width: 46px; }
+    .stic-ev-badge-day { font-size: 1.2rem; }
+    .stic-ev-name { font-size: 0.98rem; }
+    .stic-ev-actions { padding: 0.5rem 0.55rem; }
+    .stic-ev-facts { grid-template-columns: 1fr; gap: 0.5rem; }
+    /* El CTA de la ficha, a lo ancho: es LA acción de la pantalla. */
+    .stic-ev-btn--lg { display: flex; width: 100%; }
 }

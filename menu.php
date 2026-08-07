@@ -96,15 +96,15 @@ function sticpa_participant_switcher_html()
     $activeLabel = $isSelfActive ? $selfLabel : sticpa_short_name($activeName);
 
     $current_url = explode('?', $_SERVER['REQUEST_URI'], 2)[0];
-    $defaultPage = defaultMenuElement();
-    $selectUrl = function ($id, $name) use ($current_url, $familiarId, $familiarName, $defaultPage) {
+    // (Sin 'default_page': tras elegir participante el handler va SIEMPRE a la
+    // home — ver prefix_admin_single_stic_profile_selection en inc/stic-action.php.)
+    $selectUrl = function ($id, $name) use ($current_url, $familiarId, $familiarName) {
         return esc_url(add_query_arg(array(
             'action' => 'single_stic_profile_selection',
             'profile_selected_id' => $id,
             'profile_selected_name' => rawurlencode($name),
             'scp_user_id' => $familiarId,
             'scp_user_contact_name' => rawurlencode($familiarName),
-            'default_page' => $defaultPage,
             'scp_current_url' => $current_url,
         ), admin_url('admin-post.php')));
     };
