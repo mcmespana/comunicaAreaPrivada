@@ -358,6 +358,9 @@ function sticpa_icon($name, $class = '')
         'more'     => "<path d='M5 12h.01M12 12h.01M19 12h.01'/>",
         'shield'   => "<path d='M12 3l8 3v6c0 4.5-3.2 7.7-8 9-4.8-1.3-8-4.5-8-9V6l8-3Z'/><path d='m9 12 2 2 4-4'/>",
         'arrow'    => "<path d='M5 12h14'/><path d='m13 6 6 6-6 6'/>",
+        'calendar' => "<rect x='3' y='4' width='18' height='18' rx='2'/><path d='M16 2v4M8 2v4M3 10h18'/>",
+        'check'    => "<path d='M9 11l3 3L22 4'/><path d='M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'/>",
+        'doc'      => "<path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><path d='M14 2v6h6M9 13h6M9 17h6'/>",
     );
     $inner = $paths[$name] ?? '';
     return "<svg class='" . esc_attr($class) . "' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>" . $inner . "</svg>";
@@ -488,25 +491,62 @@ function sticpa_section_icon($key, $class = '')
     return "<svg class='" . esc_attr($class) . "' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>" . $meta['icon'] . "</svg>";
 }
 
+/**
+ * Saludo según la hora del día ("¡Buenos días!"). Un detalle pequeño, pero es
+ * la diferencia entre que la pantalla te salude y que te pida credenciales.
+ */
+function sticpa_greeting()
+{
+    $hour = (int) (function_exists('current_time') ? current_time('G') : date('G'));
+    if ($hour < 6)  { return __('¡Buenas noches!', 'sticpa'); }
+    if ($hour < 14) { return __('¡Buenos días!', 'sticpa'); }
+    if ($hour < 21) { return __('¡Buenas tardes!', 'sticpa'); }
+    return __('¡Buenas noches!', 'sticpa');
+}
+
 function sugar_crm_portal_login_form($html = "", $mode = 'magic')
 {
     $scp_name = get_option('sticpa_scp_name');
-    $title = __('Hola de nuevo', 'sticpa');
+    // Saludo cercano + UNA línea de contexto. Antes había tres cosas diciendo lo
+    // mismo (kicker "ÁREA PRIVADA" + "Hola de nuevo" + "Accede a tu área privada
+    // de X"), que ocupaban media pantalla de móvil para no aportar nada.
+    $title = sticpa_greeting();
     $subtitle = $scp_name != null
-        ? sprintf(__('Accede a tu área privada de %s.', 'sticpa'), $scp_name)
-        : __('Accede a tu área privada.', 'sticpa');
+        ? sprintf(__('Tu área privada de %s.', 'sticpa'), $scp_name)
+        : __('Tu área privada.', 'sticpa');
 
     // URL de retorno para el enlace mágico (debe llevar un '?' para que el handler
     // pueda añadir '&success=true' al redirigir de vuelta a esta misma pantalla).
     $base_url = strtok($_SERVER['REQUEST_URI'], '?');
     $return_url = $base_url . '?stic_auth=1';
 
+    // ---- Panel de bienvenida (solo en pantallas anchas, ver §4.b del CSS) ----
+    // En escritorio la tarjeta se parte en dos: aquí se cuenta qué hay dentro,
+    // que es lo que da ganas de entrar; el formulario va al lado. En móvil este
+    // bloque no se pinta (display:none) y manda el formulario.
+    $perks = array(
+        array('calendar', __('Las actividades y sus fechas', 'sticpa')),
+        array('check',    __('Tus inscripciones, al día', 'sticpa')),
+        array('doc',      __('Documentos siempre a mano', 'sticpa')),
+    );
+    $perksHtml = '';
+    foreach ($perks as $perk) {
+        $perksHtml .= "<li><span class='stic-auth-perk-ico'>" . sticpa_icon($perk[0]) . "</span><span>" . esc_html($perk[1]) . "</span></li>";
+    }
+    $html .= "
+        <aside class='stic-auth-aside' aria-hidden='true'>
+            <div class='stic-auth-aside-logo'>" . sticpa_icon('shield') . "</div>
+            <p class='stic-auth-aside-claim'>" . esc_html__('Todo lo tuyo, en un sitio', 'sticpa') . "</p>
+            <ul class='stic-auth-perks'>" . $perksHtml . "</ul>
+        </aside>";
+
+    $html .= "<div class='stic-auth-panel'>";
+
     // Cabecera de marca.
     $html .= "
         <div class='stic-auth-brand'>
             <div class='stic-auth-logo'>" . sticpa_icon('shield') . "</div>
             <div>
-                <p class='stic-auth-kicker'>" . __('Área privada', 'sticpa') . "</p>
                 <h3>" . esc_html($title) . "</h3>
                 <p class='stic-auth-sub'>" . esc_html($subtitle) . "</p>
             </div>
@@ -515,7 +555,7 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
     // Mensaje genérico tras pedir un enlace mágico (no revela si el email existe).
     $magicMsg = "";
     if (isset($_REQUEST['success']) && $_REQUEST['success'] == true) {
-        $magicMsg = "<span class='success' role='status'>" . __('Si tu email está registrado, te hemos enviado un enlace de acceso. Revisa tu bandeja de entrada. 📩', 'sticpa') . "</span>";
+        $magicMsg = "<span class='success' role='status'>" . __('¡Listo! Si tu correo está registrado, ya tienes el enlace en tu bandeja de entrada. 📩', 'sticpa') . "</span>";
     }
 
     // Selector de idioma (opcional, según plugin de traducción activo).
@@ -572,13 +612,13 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
     $html .= "
         <div class='stic-auth-view stic-auth-magic' id='stic-auth-panel-magic' role='tabpanel' aria-labelledby='stic-auth-tab-magic'>
             " . $magicMsg . "
-            <p class='stic-auth-help'>" . __('Escribe tu correo y te enviamos un enlace para entrar. Sin contraseñas.', 'sticpa') . "</p>
+            <p class='stic-auth-help'>" . __('Escribe tu correo y te mandamos un enlace para entrar. Sin contraseñas ni líos.', 'sticpa') . "</p>
             <form action='" . site_url() . "/wp-admin/admin-post.php' method='post' class='stic-loading-form'
-                  data-loading-text='" . esc_attr__('Enviando tu enlace de acceso…', 'sticpa') . "'
-                  data-loading-sub='" . esc_attr__('En unos segundos lo tendrás en tu correo.', 'sticpa') . "'>
+                  data-loading-text='" . esc_attr__('Preparando tu enlace…', 'sticpa') . "'
+                  data-loading-sub='" . esc_attr__('En unos segundos lo tienes en el correo.', 'sticpa') . "'>
                 <ul>
                     <li class='input_login'>
-                        <label for='stic-magic-email'>" . __('Tu correo electrónico', 'sticpa') . "</label>
+                        <label for='stic-magic-email'>" . __('Tu correo', 'sticpa') . "</label>
                         <span class='stic-field'>
                             <span class='stic-field-icon'>" . sticpa_icon('mail') . "</span>
                             <input type='email' class='input-text' name='forgot-password-email-address' id='stic-magic-email' autocomplete='email' inputmode='email' placeholder='" . esc_attr__('nombre@correo.com', 'sticpa') . "' required>
@@ -596,7 +636,7 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
                         <input type='hidden' name='scp_current_url' value='" . esc_attr($return_url) . "'>
                         <button type='submit' class='stic-btn-magic'>
                             <span class='stic-btn-magic-icon'>" . sticpa_icon('send') . "</span>
-                            <span>" . __('Enviar enlace de acceso', 'sticpa') . "</span>
+                            <span>" . __('Enviarme el enlace', 'sticpa') . "</span>
                         </button>
                     </li>
                 </ul>
@@ -608,8 +648,8 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
         <div class='stic-auth-view stic-auth-login' id='stic-auth-panel-password' role='tabpanel' aria-labelledby='stic-auth-tab-password'>
             <p class='stic-auth-help'>" . __('Solo si ya creaste una contraseña. Tu usuario es tu DNI.', 'sticpa') . "</p>
             <form name='stic-login-form' id='stic-login-form' class='stic-loading-form' action='' method='post'
-                  data-loading-text='" . esc_attr__('Verificando tus datos…', 'sticpa') . "'
-                  data-loading-sub='" . esc_attr__('Estamos comprobando tu acceso de forma segura.', 'sticpa') . "'>
+                  data-loading-text='" . esc_attr__('Un momento…', 'sticpa') . "'
+                  data-loading-sub='" . esc_attr__('Comprobando tu acceso de forma segura.', 'sticpa') . "'>
                 <ul>
                     " . $languageHtml . "
                     " . $moduleSelectHTML . "
@@ -637,11 +677,13 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
 
     $html .= "</div>"; // .stic-auth
 
-    // Registro + sello de confianza (común a ambas vistas).
+    // Registro (común a ambas vistas).
     $html .= "
-        <p class='stic-auth-links' style='text-align:center;margin-top:1.1rem;font-size:0.92rem;color:var(--gray-500);'>"
-        . __('¿Todavía no tienes cuenta?', 'sticpa') . " <a href='?internalpage=single_stic_signup'>" . __('Consulta cómo conseguirlo', 'sticpa') . "</a>
+        <p class='stic-auth-links'>"
+        . __('¿Aún no tienes acceso?', 'sticpa') . " <a href='?internalpage=single_stic_signup'>" . __('Te contamos cómo', 'sticpa') . "</a>
         </p>";
+
+    $html .= "</div>"; // .stic-auth-panel
 
     return $html;
 }

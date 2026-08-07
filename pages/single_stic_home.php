@@ -74,11 +74,11 @@ $portalName = get_option('sticpa_scp_name');
             <?php if ($isFamilyView && $participantFirst !== '') : ?>
                 <?= sprintf(
                     /* translators: %s = nombre del participante (hijo/a) */
-                    esc_html__('Aquí puedes revisar los datos de %s e inscribirle a las actividades. Elige una sección para empezar.', 'sticpa'),
+                    esc_html__('Aquí ves los datos de %s y le inscribes a las actividades.', 'sticpa'),
                     '<strong>' . esc_html($participantFirst) . '</strong>'
                 ); ?>
             <?php else : ?>
-                <?= esc_html__('Este es tu espacio personal. Desde aquí puedes consultar y gestionar toda tu información. Elige una sección para empezar.', 'sticpa'); ?>
+                <?= esc_html__('Tu espacio personal. Elige una sección para empezar.', 'sticpa'); ?>
             <?php endif; ?>
         </p>
         <?php if (isset($_GET['rol_debug'])) : ?>
