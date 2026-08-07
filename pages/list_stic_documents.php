@@ -15,6 +15,8 @@ $relationship = 'documents';
 $listSettings['moduleName'] = 'Documents'; // list title
 $listSettings['title'] = __('Documents', 'sticpa'); // list title
 $listSettings['linkDestination'] = '?internalpage=single_stic_documents&action=create'; //page must be the basename of the file to proccess (without extension)
+// Columna que se pinta como cápsula de fecha en la cabecera de la tarjeta.
+$listSettings['cardDate'] = 'active_date';
 // Una sola entrada: "Abrir" lleva a la pantalla única (editar datos + descargar archivo).
 $listSettings['actions'] = array(
     array('label' => __('Abrir', 'sticpa'), 'link' => '?internalpage=single_stic_documents&action=edit'),

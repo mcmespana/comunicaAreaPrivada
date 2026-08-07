@@ -64,14 +64,51 @@ function makeList($columnsList, $listSettings, $data, $extraActions = array())
     </tr>
     </thead>";
 
+        // CÁPSULA DE FECHA en la cabecera de la tarjeta (mismo lenguaje visual que
+        // las tarjetas de Eventos, §49 del CSS). La página elige QUÉ columna es
+        // "la fecha" del registro con $listSettings['cardDate']; sin eso, la
+        // tarjeta se pinta como siempre. La columna elegida se sigue mostrando
+        // como línea bajo el título (la cápsula solo lleva día y mes: la hora y
+        // el año siguen haciendo falta).
+        $cardDateCol = $listSettings['cardDate'] ?? null;
+
         //build table rows
         foreach ($data as $key => $row) {
             $html .= '<tr>';
             $rowObj = $row->name_value_list ?? null;
             $isFirstCol = true; // la primera columna (nombre) se pinta como cabecera de la tarjeta
+
+            // Se calcula ANTES del bucle porque se pinta dentro de la primera celda.
+            $badgeHtml = '';
+            $whenHtml = '';
+            if ($cardDateCol && !empty($rowObj->$cardDateCol->value)) {
+                $ts = strtotime($rowObj->$cardDateCol->value);
+                if ($ts) {
+                    $badgeHtml = "<span class='stic-cell-badge' aria-hidden='true'>"
+                        . "<span class='stic-cell-badge-day'>" . esc_html(date_i18n('j', $ts)) . "</span>"
+                        . "<span class='stic-cell-badge-mon'>" . esc_html(date_i18n('M', $ts)) . "</span>"
+                        . "</span>";
+                    $dateColumn = null;
+                    foreach ($columnsList as $candidate) {
+                        if ($candidate['name'] === $cardDateCol) {
+                            $dateColumn = $candidate;
+                            break;
+                        }
+                    }
+                    $whenText = formatValue($rowObj->$cardDateCol->value, $dateColumn['format'] ?? 'date');
+                    if ((string) $whenText !== '') {
+                        $whenHtml = "<span class='stic-cell-when'>"
+                            . "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><rect x='3' y='4' width='18' height='18' rx='2'/><path d='M16 2v4M8 2v4M3 10h18'/></svg>"
+                            . "<span>" . esc_html($whenText) . "</span></span>";
+                    }
+                }
+            }
+
             foreach ($columnsList as $column) {
                 $colName = $column['name'];
                 if ($colName == 'id') {continue;}
+                // Ya va en la cabecera como cápsula + línea de fecha.
+                if ($badgeHtml !== '' && $colName === $cardDateCol) {continue;}
                 if (isset($column['format'])) {
                     $columnValue = formatValue(isset($rowObj->$colName) ? $rowObj->$colName->value : null, $column['format']);
                 } else {
@@ -95,6 +132,20 @@ function makeList($columnsList, $listSettings, $data, $extraActions = array())
                 // tarjeta y no dejar filas "Etiqueta:" vacías. '0' SÍ es un valor.
                 if (!$isFirstCol && trim((string) $columnValue) === '') {
                     $cellClass = trim($cellClass . ' stic-cell-empty');
+                }
+                // El ESTADO se lee mejor como chip de color que como texto suelto
+                // a la derecha (es una etiqueta, no un dato más).
+                if (!$isFirstCol && strpos($colName, 'status') !== false && trim((string) $columnValue) !== '') {
+                    $cellClass = trim($cellClass . ' stic-cell-status');
+                    $columnValue = "<span class='stic-chip'>" . $columnValue . "</span>";
+                }
+                if ($isFirstCol) {
+                    // Cabecera de la tarjeta: cápsula de fecha + nombre + cuándo.
+                    $columnValue = $badgeHtml
+                        . "<span class='stic-cell-head'>"
+                        . "<span class='stic-cell-name'>" . $columnValue . "</span>"
+                        . $whenHtml
+                        . "</span>";
                 }
                 $isFirstCol = false;
                 $html .= "<td data-label='{$dataLabel}' class='{$cellClass}' {$attributes}>" . $columnValue . "</td>";
@@ -133,12 +184,18 @@ function makeList($columnsList, $listSettings, $data, $extraActions = array())
 function buildActionsColumn($current_url, $id, $actions, $linkDestination, $linkDestinationLabel, $extraAction = '')
 {
     $actionsLabel = esc_attr__('Actions', 'sticpa');
+    // La PRIMERA acción es la principal (la que se espera que pulses) y se pinta
+    // como botón de marca; el resto, como botón secundario. Antes eran todos
+    // enlaces iguales y no había forma de saber cuál era "la" acción.
     if ($actions === null) {
-        $html = "<td data-label='{$actionsLabel}' class='stic-cell-actions'><a href='{$current_url}{$linkDestination}{$extraAction}&id={$id}'>{$linkDestinationLabel}</a></td>";
+        $html = "<td data-label='{$actionsLabel}' class='stic-cell-actions'><a class='stic-rowbtn stic-rowbtn--primary' href='{$current_url}{$linkDestination}{$extraAction}&id={$id}'>{$linkDestinationLabel}</a></td>";
     } else {
         $html = "<td data-label='{$actionsLabel}' class='stic-cell-actions'>";
+        $isFirstAction = true;
         foreach ($actions as $action) {
-            $html .= "<a href='{$current_url}{$action['link']}{$extraAction}&id={$id}'>{$action['label']}</a> ";
+            $btnClass = $isFirstAction ? 'stic-rowbtn stic-rowbtn--primary' : 'stic-rowbtn stic-rowbtn--ghost';
+            $isFirstAction = false;
+            $html .= "<a class='{$btnClass}' href='{$current_url}{$action['link']}{$extraAction}&id={$id}'>{$action['label']}</a>";
         }
         $html .= '</td>';
     }

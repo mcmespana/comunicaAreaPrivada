@@ -1770,29 +1770,71 @@ span.stic-field {
 /* Ocultamos la fila de cabeceras (cada celda lleva su etiqueta vía data-label). */
 .stic-table-responsive table.display thead { position: absolute !important; left: -9999px; top: -9999px; }
 .stic-table-responsive table.display tbody tr {
+    /* Columna flex (no `block`) para que la barra de acciones pueda irse al
+       fondo con `margin-top:auto`: en la rejilla de 2 columnas las tarjetas se
+       estiran a la misma altura y los botones quedaban a media altura. */
+    display: flex !important;
+    flex-direction: column;
     background: var(--surface) !important;
     border: 1px solid var(--gray-200) !important;
     border-radius: var(--radius-lg) !important;
     box-shadow: var(--shadow-xs);
-    margin: 0 0 0.9rem;
+    margin: 0 0 0.7rem;
     padding: 0 !important;
-    overflow: hidden;            /* la banda de cabecera respeta las esquinas */
+    overflow: hidden;
     transition: box-shadow 0.2s ease, transform 0.15s var(--ease-spring);
 }
 
-/* Primera columna (nombre) = CABECERA de la tarjeta, no fila etiqueta/valor */
+/* Primera columna (nombre) = CABECERA de la tarjeta, no fila etiqueta/valor.
+   Mismo formato que las tarjetas de Eventos (§49): cápsula de fecha a la
+   izquierda y, a su derecha, el nombre con la fecha completa debajo. Antes era
+   una banda con degradado lavado y el nombre suelto. */
 .stic-table-responsive td.stic-cell-title {
-    display: block !important;
+    display: flex !important;
+    align-items: flex-start;
+    gap: 0.8rem;
     text-align: left;
-    font-size: 1.12rem;
-    font-weight: 800;
-    letter-spacing: -0.01em;
-    color: var(--gray-900);
-    padding: 0.9rem 1.05rem 0.8rem !important;
-    border-bottom: 1px solid var(--gray-200) !important;
-    background: linear-gradient(135deg, rgba(28, 111, 179, 0.08), rgba(157, 30, 116, 0.08));
+    padding: 0.85rem 0.95rem 0.7rem !important;
+    border-bottom: 0 !important;
+    background: transparent;
 }
 .stic-table-responsive td.stic-cell-title::before { display: none !important; }
+/* `text-align: left` va aquí, en el hijo, y no en la celda: la regla genérica
+   `.stic-table-responsive table.display td` alinea a la derecha (para las filas
+   etiqueta/valor) y le gana en especificidad a `td.stic-cell-title`. */
+.stic-cell-head { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; flex: 1; text-align: left; }
+.stic-cell-name {
+    font-size: 1.02rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    line-height: 1.25;
+    color: var(--gray-900);
+}
+.stic-cell-when {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.82rem;
+    color: var(--gray-600);
+}
+.stic-cell-when svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--primary-color); }
+
+/* Cápsula de fecha: idéntica a la de Eventos para que el área tenga UN idioma. */
+.stic-cell-badge {
+    flex-shrink: 0;
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    width: 48px;
+    padding: 0.35rem 0;
+    border-radius: var(--radius-md);
+    background: var(--grad-brand);
+    color: #fff;
+    line-height: 1.05;
+    box-shadow: var(--shadow-sm);
+}
+.stic-cell-badge-day { font-size: 1.25rem; font-weight: 800; }
+.stic-cell-badge-mon { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.92; }
 .stic-table-responsive table.display tbody tr:hover {
     box-shadow: var(--shadow-md);
     transform: translateY(-2px);
@@ -1822,28 +1864,74 @@ span.stic-field {
     text-align: left;
     flex-shrink: 0;
 }
-/* Celda de acciones: enlaces como botones de marca. */
+/* Celda de acciones = barra inferior de la tarjeta (igual que en Eventos):
+   separada por una línea, sobre fondo suave, con la acción PRINCIPAL en color
+   de marca y las secundarias en gris. Antes eran enlaces todos iguales y no
+   se sabía cuál era "la" acción. */
 .stic-table-responsive table.display td.stic-cell-actions {
     flex-wrap: wrap;
-    justify-content: flex-end !important;
+    justify-content: stretch !important;
     gap: 0.5rem !important;
+    margin-top: auto;
+    padding: 0.6rem 0.7rem !important;
+    border-top: 1px solid var(--gray-100) !important;
+    background: var(--surface-2);
 }
 .stic-table-responsive table.display td.stic-cell-actions::before {
     display: none !important;
 }
-.stic-table-responsive td.stic-cell-actions a {
+.stic-table-responsive td.stic-cell-actions a,
+.stic-rowbtn {
     display: inline-flex;
     align-items: center;
-    min-height: 44px;               /* target táctil AAA: antes ~30px */
-    color: var(--primary-color);
-    font-weight: 600;
-    text-decoration: none;
-    padding: 0.35rem 0.85rem;
-    border-radius: var(--radius-sm);
-    background: var(--primary-50);
-    transition: background 0.18s ease, color 0.18s ease;
+    justify-content: center;
+    gap: 0.4rem;
+    flex: 1;
+    min-height: 42px;               /* target táctil cómodo */
+    padding: 0.5rem 0.9rem;
+    border-radius: var(--radius-md);
+    font-size: 0.88rem;
+    font-weight: 700;
+    text-decoration: none !important;
+    transition: transform 0.15s var(--ease-out), box-shadow 0.15s var(--ease-out), background 0.15s ease;
 }
-.stic-table-responsive td.stic-cell-actions a:hover { background: var(--primary-color); color: #fff; }
+.stic-table-responsive td.stic-cell-actions a::after { display: none !important; }
+.stic-rowbtn--primary,
+.stic-table-responsive td.stic-cell-actions a.stic-rowbtn--primary {
+    background: var(--grad-brand);
+    color: #fff !important;
+    box-shadow: var(--shadow-sm);
+}
+.stic-rowbtn--primary:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.stic-rowbtn--ghost,
+.stic-table-responsive td.stic-cell-actions a.stic-rowbtn--ghost {
+    background: var(--surface);
+    border: 1px solid var(--gray-200);
+    color: var(--gray-700) !important;
+}
+.stic-rowbtn--ghost:hover { background: var(--gray-50); color: var(--gray-900) !important; }
+.stic-rowbtn:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+@media (hover: none) {
+    .stic-rowbtn--primary:hover { transform: none; box-shadow: var(--shadow-sm); }
+    .stic-rowbtn:active { transform: scale(0.98); }
+}
+
+/* El estado, como chip (es una etiqueta, no un dato más). Lo envuelve
+   makeList() en un <span> para poder darle forma de píldora. */
+.stic-table-responsive table.display td.stic-cell-status { align-items: center; }
+.stic-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.16rem 0.6rem;
+    border-radius: var(--radius-full);
+    background: var(--primary-50);
+    color: var(--primary-color);
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-align: center;
+}
 
 /* En escritorio: 2 tarjetas de listado por fila. */
 @media (min-width: 768px) {
@@ -5168,4 +5256,225 @@ span.stic-field {
     .stic-ev-facts { grid-template-columns: 1fr; gap: 0.5rem; }
     /* El CTA de la ficha, a lo ancho: es LA acción de la pantalla. */
     .stic-ev-btn--lg { display: flex; width: 100%; }
+}
+
+/* ============================================================
+   50. LOGIN — que dé gusto entrar
+   ------------------------------------------------------------
+   La pantalla de acceso tenía dos problemas opuestos: en móvil no cabía de un
+   vistazo (tres elementos decían lo mismo antes de llegar al campo: el kicker
+   "ÁREA PRIVADA", el título y el subtítulo), y en escritorio desperdiciaba
+   toda la pantalla para mostrar una tarjeta estrecha en el centro.
+
+   Ahora:
+   · Móvil — saludo por hora del día + UNA línea, y directo al campo.
+   · Escritorio (≥860px) — la tarjeta se parte en dos: un panel de marca que
+     cuenta qué hay dentro (es lo que da ganas de entrar) y el formulario al
+     lado. El panel NO se pinta en móvil.
+   · Entrada escalonada de los elementos y detalles vivos (el logo respira, el
+     avión de papel despega al pulsar). Todo con transform/opacity, que es lo
+     único que no cuesta pintura — el plan 020 ya midió lo cara que sale esta
+     pantalla.
+   ============================================================ */
+
+/* --- 50.a Tarjeta: en escritorio, dos columnas ---------------------------
+   OJO con la §24: a partir de 561px es el SHELL el que hace de tarjeta (con
+   su borde, sombra y `overflow:hidden`) y la tarjeta interior queda
+   transparente y sin padding, todo con `!important`. Aquí no se pelea contra
+   eso: se aprovecha. El shell se ensancha y pierde su padding, y la tarjeta
+   interior pasa a ser la rejilla de dos columnas — así el panel de marca
+   llega a sangre hasta el borde redondeado del shell. */
+@media (min-width: 860px) {
+    /* `:has(.stic-auth-aside)` acota esto al LOGIN: la pantalla de recuperar
+       contraseña comparte shell pero no tiene panel de marca, y sin el filtro
+       se quedaba a 840px y sin padding (el contenido pegado al borde). */
+    .stic-auth-shell:has(.stic-auth-aside) {
+        max-width: 840px !important;
+        padding: 0 !important;
+    }
+    .stic-login-form:has(.stic-auth-aside) {
+        display: grid;
+        grid-template-columns: 310px minmax(0, 1fr);
+        align-items: stretch;
+        width: 100%;
+        padding: 0 !important;
+    }
+    .stic-auth-aside { display: flex !important; }
+    .stic-auth-panel { padding: clamp(1.75rem, 3vw, 2.4rem); }
+    /* El logo del panel derecho sobra: ya preside el panel de marca. */
+    .stic-auth-panel .stic-auth-logo { display: none; }
+    .stic-auth-brand { align-items: flex-start; text-align: left; }
+}
+
+/* --- 50.b Panel de marca (solo escritorio) --- */
+.stic-auth-aside {
+    display: none;             /* en móvil manda el formulario */
+    position: relative;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1.1rem;
+    padding: 2rem 1.6rem;
+    background: var(--grad-brand);
+    color: #fff;
+    overflow: hidden;
+}
+.stic-auth-aside::after {
+    content: '';
+    position: absolute;
+    inset: -30%;
+    background:
+        radial-gradient(45% 45% at 20% 20%, rgba(255, 255, 255, 0.22), transparent 60%),
+        radial-gradient(40% 40% at 85% 75%, rgba(0, 0, 0, 0.16), transparent 60%);
+    pointer-events: none;
+    animation: stic-aside-drift 14s ease-in-out infinite alternate;
+}
+.stic-auth-aside > * { position: relative; z-index: 1; }
+@keyframes stic-aside-drift {
+    from { transform: translate3d(-2%, -1%, 0) scale(1); }
+    to   { transform: translate3d(3%, 2%, 0) scale(1.06); }
+}
+.stic-auth-aside-logo {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.2);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    animation: stic-float 5s ease-in-out infinite;
+}
+.stic-auth-aside-logo svg { width: 27px; height: 27px; }
+.stic-auth-aside-claim {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+}
+.stic-auth-perks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.7rem; }
+.stic-auth-perks li {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.92rem;
+    font-weight: 600;
+    opacity: 0;
+    animation: stic-fade-up 0.5s var(--ease-out) forwards;
+}
+.stic-auth-perks li:nth-child(1) { animation-delay: 0.25s; }
+.stic-auth-perks li:nth-child(2) { animation-delay: 0.38s; }
+.stic-auth-perks li:nth-child(3) { animation-delay: 0.51s; }
+.stic-auth-perk-ico {
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.18);
+}
+.stic-auth-perk-ico svg { width: 16px; height: 16px; }
+
+/* --- 50.c Entrada escalonada del formulario --- */
+.stic-auth-panel > * { animation: stic-fade-up 0.5s var(--ease-out) both; }
+.stic-auth-panel > .stic-auth-brand { animation-delay: 0.05s; }
+.stic-auth-panel > .stic-auth { animation-delay: 0.14s; }
+.stic-auth-panel > .stic-auth-links { animation-delay: 0.22s; }
+
+/* Halo que late detrás del logo: señal de "esto está vivo" sin ser un anuncio. */
+.stic-auth-logo { position: relative; }
+.stic-auth-logo::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+    border-radius: inherit;
+    border: 2px solid color-mix(in srgb, var(--primary-color) 35%, transparent);
+    opacity: 0;
+    animation: stic-halo 3.4s var(--ease-out) infinite;
+}
+@keyframes stic-halo {
+    0%   { opacity: 0.55; transform: scale(0.92); }
+    70%  { opacity: 0;    transform: scale(1.18); }
+    100% { opacity: 0;    transform: scale(1.18); }
+}
+
+.stic-auth-links {
+    margin: 1rem 0 0;
+    text-align: center;
+    font-size: 0.9rem;
+    color: var(--gray-500);
+}
+
+/* --- 50.d Móvil: que quepa de un vistazo --- */
+@media (max-width: 640px) {
+    .stic-auth-shell { padding: 1rem 0.85rem; }
+    .stic-login-form { padding: 1.35rem 1.15rem; }
+    /* Marca en horizontal: el logo deja de comerse una fila entera. */
+    .stic-auth-brand {
+        flex-direction: row;
+        align-items: center;
+        text-align: left;
+        gap: 0.7rem;
+        margin-bottom: 0.85rem;
+    }
+    .stic-auth-logo { width: 42px; height: 42px; }
+    .stic-auth-logo svg { width: 21px; height: 21px; }
+    .stic-login-form h3 { font-size: 1.3rem; }
+    .stic-auth-sub { font-size: 0.88rem; margin-top: 0.15rem; }
+    .stic-auth-help { font-size: 0.86rem; }
+    .stic-auth-links { margin-top: 0.8rem; font-size: 0.85rem; }
+}
+
+/* Sin movimiento: se queda todo quieto, pero VISIBLE (las tarjetas del panel
+   nacen con opacity:0 y sin animación se quedarían invisibles). */
+@media (prefers-reduced-motion: reduce) {
+    .stic-auth-perks li { opacity: 1; }
+    .stic-auth-aside::after,
+    .stic-auth-logo::after { animation: none; }
+}
+
+/* ============================================================
+   51. HOME EN MÓVIL — un solo bloque de marca, no dos
+   ------------------------------------------------------------
+   En el móvil se veían DOS tarjetas moradas seguidas antes de cualquier
+   contenido: la barra de identidad ("Sol Meseguer") y, justo debajo, el hero
+   ("Hola, Sol 👋"). El mismo degradado y el mismo nombre dos veces, ~340px de
+   pantalla gastados en presentarse.
+
+   En móvil el hero deja de ser una tarjeta: el saludo se queda como texto
+   sobre el fondo de la página. Sigue siendo cercano, pero ya no compite con
+   la barra ni repite el bloque de color. En escritorio, donde sí hay sitio,
+   el hero se mantiene tal cual.
+   ============================================================ */
+@media (max-width: 640px) {
+    .stic-welcome-hero {
+        padding: 0.15rem 0.15rem 0.35rem;
+        margin-bottom: 0.9rem;
+        background: none;
+        box-shadow: none;
+        border-radius: 0;
+    }
+    .stic-welcome-hero::after { display: none; }   /* los orbes del degradado */
+
+    .stic-container .stic-welcome-title,
+    .stic-welcome-title {
+        color: var(--gray-900) !important;
+        -webkit-text-fill-color: var(--gray-900) !important;
+        font-size: 1.25rem;
+        margin-bottom: 0.15rem;
+    }
+    .stic-welcome-title .stic-welcome-name { color: var(--primary-color) !important; }
+    .stic-welcome-lead {
+        color: var(--gray-600);
+        opacity: 1;
+        font-size: 0.9rem;
+    }
+    .stic-welcome-lead strong { color: var(--gray-900); }
+    /* El chip de ?rol_debug era blanco sobre el degradado; sin degradado
+       necesita contraste propio. */
+    .stic-welcome-hero .stic-role-chip {
+        background: var(--gray-100);
+        color: var(--gray-700);
+        border: 1px solid var(--gray-200);
+    }
 }
