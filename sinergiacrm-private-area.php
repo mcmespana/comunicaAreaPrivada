@@ -531,7 +531,8 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
     );
     $perksHtml = '';
     foreach ($perks as $perk) {
-        $perksHtml .= "<li><span class='stic-auth-perk-ico'>" . sticpa_icon($perk[0]) . "</span><span>" . esc_html($perk[1]) . "</span></li>";
+        $perksHtml .= "<li><span class='stic-auth-perk-ico'>" . sticpa_icon($perk[0]) . "</span>"
+            . "<span class='stic-auth-perk-text'>" . esc_html($perk[1]) . "</span></li>";
     }
     $html .= "
         <aside class='stic-auth-aside' aria-hidden='true'>

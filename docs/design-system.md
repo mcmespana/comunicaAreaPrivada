@@ -476,3 +476,40 @@ offline con Chromium** (ya instalado, `/opt/pw-browsers/chromium-*`):
    `getComputedStyle`) en vez de adivinar la especificidad: en este CSS hay
    `!important` portantes y reglas antiguas que ganan por número de elementos
    (ver §24 vs §50 en el login).
+
+**Contra el SITIO REAL (cuando el render offline no basta).** El área privada
+vive dentro de un WordPress con Astra + Elementor, y ahí pasan cosas que el
+mock no reproduce. La página de login es pública, así que se puede auditar sin
+credenciales:
+
+```bash
+curl -sSL https://comunica.movimientoconsolacion.com/aptest -o page.html
+# descargar cada <link rel=stylesheet>, reescribir los href a rutas locales
+python3 -m http.server 8899      # ¡por HTTP! con file:// el navegador
+                                 # bloquea document.styleSheets[].cssRules
+```
+Sirviéndolo por HTTP puedes recorrer `document.styleSheets` y preguntar
+`el.matches(regla.selectorText)` para saber **exactamente qué regla y de qué
+archivo** está ganando. Es la diferencia entre arreglarlo y probar cosas.
+
+### 11.9 La trampa de `.stic-form`
+
+La tarjeta de login lleva las clases `stic-login-form` **y `stic-form`**. Y
+`stic-base.css` estila los campos así:
+
+```css
+.stic-form ul      { display: block; width: 100%; }
+.stic-form li      { display: block; width: 100%; padding-bottom: 1rem; }
+.stic-form li span { display: block; width: 100%; }
+```
+
+Esas reglas **alcanzan a cualquier `ul`/`li`/`span` que metas dentro de la
+tarjeta**, aunque no sea un campo. Y `.stic-form li span` (1 clase + 2
+elementos) le gana a una clase suelta como `.stic-auth-perk-ico`: el icono se
+estiraba a todo el ancho y el texto se salía del panel por debajo del
+formulario (pasó de verdad, en producción).
+
+**Regla:** si metes marcado que no sea un campo dentro de un `.stic-form`,
+cuélgalo de un contenedor propio y **prefija todos los selectores con él**
+(`.stic-auth-aside .stic-auth-perk-ico`, no `.stic-auth-perk-ico`). Dos clases
+ganan a una clase + elementos, y te ahorras el `!important`.
