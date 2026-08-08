@@ -5284,13 +5284,39 @@ span.stic-field {
    eso: se aprovecha. El shell se ensancha y pierde su padding, y la tarjeta
    interior pasa a ser la rejilla de dos columnas — así el panel de marca
    llega a sangre hasta el borde redondeado del shell. */
+/* --- 50.a-bis El control de apariencia necesita SU hueco -------------------
+   `.stic-appearance` va `position:absolute; bottom:0` dentro del shell, y §43
+   reserva el hueco con `padding-bottom` en el shell. Pero §24 (≥561px) pisa el
+   padding del shell con `!important` y se lleva por delante esa reserva: de
+   561px para arriba el control se montaba encima del pie de la tarjeta
+   ("¿Aún no tienes acceso?"). Por debajo de 561px nunca pasó, porque ahí manda
+   el padding grande del shell.
+   Se recupera la reserva con la misma arma (`!important`), que es exactamente
+   el caso que el sistema de diseño permite: ganar a una regla anterior. */
+@media (min-width: 561px) {
+    .stic-auth-shell:has(.stic-appearance) {
+        padding-bottom: calc(clamp(2.5rem, 5vw, 3.5rem) + 3.6rem) !important;
+    }
+}
+
 @media (min-width: 860px) {
     /* `:has(.stic-auth-aside)` acota esto al LOGIN: la pantalla de recuperar
        contraseña comparte shell pero no tiene panel de marca, y sin el filtro
        se quedaba a 840px y sin padding (el contenido pegado al borde). */
     .stic-auth-shell:has(.stic-auth-aside) {
         max-width: 840px !important;
-        padding: 0 !important;
+        /* Sin padding a los lados (las columnas van a sangre) pero SÍ abajo:
+           es la franja donde vive el control de apariencia. */
+        padding: 0 0 3.9rem !important;
+    }
+    /* La franja es del ancho de la tarjeta y hace de pie: separada por una
+       línea y sobre superficie, para que no quede flotando sobre el degradado
+       del panel de marca. */
+    .stic-auth-shell:has(.stic-auth-aside) .stic-appearance {
+        margin: 0;
+        padding: 0.55rem 1rem;
+        background: var(--surface-2);
+        border-top: 1px solid var(--gray-200);
     }
     .stic-login-form:has(.stic-auth-aside) {
         display: grid;
@@ -5351,29 +5377,59 @@ span.stic-field {
     line-height: 1.2;
     letter-spacing: -0.02em;
 }
-.stic-auth-perks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.7rem; }
-.stic-auth-perks li {
+/* OJO con la especificidad. La tarjeta de login lleva TAMBIÉN la clase
+   `stic-form`, así que a esta lista le caen encima las reglas de campos de
+   `stic-base.css`:
+       .stic-form ul      { display: block; width: 100%; }
+       .stic-form li      { display: block; width: 100%; padding-bottom: 1rem; }
+       .stic-form li span { display: block; width: 100%; }
+   `.stic-form li span` (1 clase + 2 elementos) le ganaba a `.stic-auth-perk-ico`
+   (1 clase): el icono se estiraba a todo el ancho y el texto se salía del panel,
+   por debajo del formulario. Por eso TODO va colgado de `.stic-auth-aside`: con
+   dos clases gana sin necesidad de `!important`. Si tocas esto, no le quites el
+   prefijo. */
+.stic-auth-aside .stic-auth-perks {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    width: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+}
+.stic-auth-aside .stic-auth-perks li {
     display: flex;
     align-items: center;
+    width: auto;
     gap: 0.6rem;
+    /* el `padding-bottom`/`margin-bottom` de .stic-form li estiraba las filas */
+    padding: 0;
+    margin: 0;
     font-size: 0.92rem;
     font-weight: 600;
     opacity: 0;
     animation: stic-fade-up 0.5s var(--ease-out) forwards;
 }
-.stic-auth-perks li:nth-child(1) { animation-delay: 0.25s; }
-.stic-auth-perks li:nth-child(2) { animation-delay: 0.38s; }
-.stic-auth-perks li:nth-child(3) { animation-delay: 0.51s; }
-.stic-auth-perk-ico {
+.stic-auth-aside .stic-auth-perks li:nth-child(1) { animation-delay: 0.25s; }
+.stic-auth-aside .stic-auth-perks li:nth-child(2) { animation-delay: 0.38s; }
+.stic-auth-aside .stic-auth-perks li:nth-child(3) { animation-delay: 0.51s; }
+.stic-auth-aside .stic-auth-perk-ico {
     display: grid;
     place-items: center;
     width: 30px;
     height: 30px;
-    flex-shrink: 0;
+    flex: 0 0 30px;
     border-radius: var(--radius-sm);
     background: rgba(255, 255, 255, 0.18);
 }
-.stic-auth-perk-ico svg { width: 16px; height: 16px; }
+.stic-auth-aside .stic-auth-perk-ico svg { width: 16px; height: 16px; }
+.stic-auth-aside .stic-auth-perk-text {
+    display: block;
+    width: auto;
+    min-width: 0;
+    flex: 1;
+    line-height: 1.3;
+}
 
 /* --- 50.c Entrada escalonada del formulario --- */
 .stic-auth-panel > * { animation: stic-fade-up 0.5s var(--ease-out) both; }
