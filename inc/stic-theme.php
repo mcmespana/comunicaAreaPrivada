@@ -265,3 +265,34 @@ function sticpa_app_mode_css()
     body.sticpa-app-mode.admin-bar { margin-top: 0 !important; } /* hueco del admin bar */
     ';
 }
+
+/**
+ * Arranque de la TARJETA DE BIENVENIDA de la home, inline en `<head>`.
+ *
+ * La tarjeta se puede cerrar y no vuelve hasta pasado un mes (la fecha del
+ * cierre vive en localStorage). Esto tiene que resolverse ANTES del primer
+ * pintado: si lo hiciera el JS de abajo, la tarjeta aparecería y desaparecería
+ * a la vista, que es peor que dejarla siempre.
+ *
+ * Vive aquí, junto al arranque del tema, porque es el mismo patrón (mini script
+ * de <head> que marca <html> con una clase y deja que mande el CSS).
+ * Sin JavaScript la tarjeta se ve siempre: el comportamiento de toda la vida.
+ */
+add_action('wp_head', 'sticpa_welcome_boot_js', 1);
+function sticpa_welcome_boot_js()
+{
+    if (!sticpa_has_area_shortcode()) {
+        return;
+    }
+    $js = <<<'JS'
+(function () {
+    try {
+        var until = parseInt(localStorage.getItem('sticpa_hero_hidden_until') || '0', 10);
+        if (until && Date.now() < until) {
+            document.documentElement.classList.add('stic-hero-dismissed');
+        }
+    } catch (e) { /* sin localStorage: la tarjeta se ve siempre */ }
+})();
+JS;
+    echo "<script>" . $js . "</script>\n";
+}

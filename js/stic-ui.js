@@ -442,6 +442,44 @@
         partSwitchOpen = false;
     }
 
+    /**
+     * TARJETA DE BIENVENIDA de la home: cerrarla la esconde durante un mes.
+     * La bienvenida con tu nombre gusta; verla SIEMPRE, no. Así sigue apareciendo
+     * de vez en cuando sin estorbar a diario.
+     *
+     * Quien decide si se pinta al cargar es el script de <head>
+     * (sticpa_welcome_boot_js, inc/stic-theme.php), que marca <html> antes del
+     * primer pintado. Aquí solo se gestiona el clic.
+     */
+    var HERO_HIDE_DAYS = 30;
+
+    function bindHeroClose() {
+        var btn = document.querySelector('[data-hero-close]');
+        if (!btn) { return; }
+        btn.addEventListener('click', function () {
+            var hero = btn.closest('.stic-welcome-hero');
+            if (!hero) { return; }
+            try {
+                localStorage.setItem(
+                    'sticpa_hero_hidden_until',
+                    String(Date.now() + HERO_HIDE_DAYS * 24 * 60 * 60 * 1000)
+                );
+            } catch (e) { /* sin localStorage: se cierra solo por esta vez */ }
+
+            // Se quita del DOM al acabar la animación (o ya, si el usuario
+            // pidió no tener movimiento y la animación no llega a disparar).
+            var done = false;
+            var remove = function () {
+                if (done) { return; }
+                done = true;
+                if (hero.parentNode) { hero.parentNode.removeChild(hero); }
+            };
+            hero.addEventListener('animationend', remove);
+            hero.classList.add('is-closing');
+            setTimeout(remove, 450);
+        });
+    }
+
     function bindPartSwitch() {
         document.addEventListener('click', function (e) {
             var btn = e.target.closest ? e.target.closest('.stic-part-switch-btn') : null;
@@ -618,6 +656,7 @@
         bindInfoTips();
         bindConditionalFields();
         bindPartSwitch();
+        bindHeroClose();
         bindCollapsibleSections();
         layoutNav();
         // Reajuste tras cargar las fuentes (cambian anchos de los textos).
