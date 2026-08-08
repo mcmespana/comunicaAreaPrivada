@@ -10,8 +10,9 @@
 ## 1. Principios (en orden de prioridad)
 
 1. **Mobile-first.** La mayoría de familias entra desde el móvil vía enlace de
-   email. Todo se diseña primero a 390px y luego se enriquece en escritorio
-   (breakpoint principal: `768px`; secundarios: `560/600px` para auth y botones).
+   email. Todo se diseña primero a 375–390px y luego se enriquece en escritorio.
+   **Las reglas concretas (breakpoints, tarjetas, densidad, táctil, cómo
+   verificar) están en la §11 — léela antes de maquetar nada.**
 2. **Un solo lugar para los colores:** los design tokens del bloque `:root` de
    [`css/custom-style.css`](../css/custom-style.css) (sección 1). **Nunca** se
    escriben colores de marca a pelo en reglas nuevas: usa `var(--primary-color)`,
@@ -257,8 +258,9 @@ FUNCIONALMENTE (mismos campos, orden, tooltips y textos; la estética es la del
 3. Sección nueva → entrada en `getSticMenuElements()` (menu.php) + icono/desc
    en `sticpa_section_meta()`.
 4. Textos SIEMPRE con `__('…', 'sticpa')`, en español neutro y cercano.
-5. Pruébalo a 390px ANTES que en escritorio. Botón primario alcanzable, inputs
-   de 52px, sin scroll horizontal.
+5. Pruébalo a 375/390px ANTES que en escritorio. Botón primario alcanzable,
+   inputs de 52px, sin scroll horizontal. **Lee la §11 (Móvil) entera**: ahí
+   están el lenguaje de tarjetas, la densidad, lo táctil y cómo verificar.
 6. CSS nuevo → sección numerada al final de `custom-style.css`, acotado a
    `.stic-container`/`.stic-auth-shell`, tokens en vez de colores.
 7. Animaciones: 150–450ms, `--ease-out`/`--ease-spring`, y nada imprescindible
@@ -280,6 +282,10 @@ FUNCIONALMENTE (mismos campos, orden, tooltips y textos; la estética es la del
 - ❌ Texto hardcodeado sin `__()`.
 - ❌ Ocultar el botón Guardar bajo el teclado móvil (la botonera es sticky, §28).
 - ❌ Duplicar campos entre "Mis datos" y "Monitor/a": lo general vive en Mis datos.
+- ❌ Filas "ETIQUETA: valor" para presentar un registro: usa la tarjeta de §11.2.
+- ❌ Efectos de `:hover` sin `@media (hover: …)`: en móvil se quedan pegados.
+- ❌ Dos bloques con degradado de marca seguidos en la misma pantalla móvil.
+- ❌ Dar por buena una pantalla sin haberla capturado a 375px (§11.8).
 
 ## 10. Tema claro / oscuro
 
@@ -329,3 +335,128 @@ Sin JavaScript, `auto` se queda en claro (el comportamiento de siempre).
 - A mano, las **cuatro** combinaciones: {SO claro, SO oscuro} × {apariencia auto,
   apariencia forzada}, sobre login, home, "Mis datos", un listado, el calendario,
   el modal de borrado y el cropper. Y con `?app=1`.
+
+## 11. Móvil: cómo se diseña aquí
+
+> Esta es la sección que hay que leer antes de maquetar CUALQUIER pantalla nueva.
+> Recoge las decisiones que ya están tomadas y en producción (planes 022, 023,
+> 025 y 026) para que lo siguiente que se haga se vea de la misma familia.
+>
+> La regla madre: **el móvil no es una versión reducida del escritorio, es el
+> caso normal.** La mayoría entra desde el móvil, desde un enlace de correo.
+
+### 11.1 Breakpoints (usa estos, no inventes)
+
+| Ancho | Para qué |
+|-------|----------|
+| `≤ 340px` | Rescate de móviles muy estrechos: lo que iba en 2 columnas pasa a 1, en horizontal |
+| `≤ 640px` | **El breakpoint móvil de referencia.** Densidad, tipografías y "qué se oculta" |
+| `≤ 767px` | Navegación colapsada (hamburguesa) y calendario |
+| `≥ 768px` | Dos columnas en formularios y listados |
+| `≥ 860px` | Login partido en dos (marca + formulario) |
+| `≥ 1024px` | Home con la agenda en columna lateral |
+
+Los `560/561px` y `600px` que verás en el CSS son históricos (auth y botones).
+No añadas breakpoints nuevos si uno de estos sirve.
+
+### 11.2 UN solo lenguaje para "un registro" (la tarjeta)
+
+Todo lo que sea un registro — un evento, una inscripción, una sesión, un
+documento — se pinta **igual**, venga del renderizador genérico
+(`makeList`, `inc/stic-listController.php`) o de uno propio
+(`sticpa_events_list_html`, `inc/stic-events.php`):
+
+```
+┌──────────────────────────────────────────┐
+│ ┌────┐  Nombre del registro              │  ← cabecera
+│ │ 12 │  📅 del 1 al 10 de julio de 2026  │
+│ │SEP │  📍 Lugar (si lo hay)             │
+│ └────┘  [CHIP DE ESTADO]                 │
+│ ─────────────────────────────────────────│
+│ [ Secundaria ]      [ ACCIÓN PRINCIPAL ] │  ← barra de acciones
+└──────────────────────────────────────────┘
+```
+
+Reglas:
+- **Cápsula de fecha** (día grande + mes) a la izquierda. En listados genéricos
+  se activa declarando `$listSettings['cardDate'] = '<columna>'`; si no se
+  declara, la tarjeta se pinta sin ella y no se rompe nada.
+- **Fechas en lenguaje humano**, nunca `01/07/2026 – 01/07/2026`. Un evento de
+  un día dice "5 de mayo de 2026"; uno del mismo mes, "del 1 al 10 de julio de
+  2026" (ver `sticpa_event_date_line()`).
+- **El estado es un chip** (`.stic-chip`), no una fila "ESTADO: valor".
+- **La barra de acciones va al pie**, separada por una línea y sobre
+  `--surface-2`. La **primera** acción es la principal (`--primary`, degradado
+  de marca); las demás, `--ghost`. Nunca dos botones de marca en la misma fila.
+- En la rejilla de 2 columnas de escritorio las tarjetas se estiran a la misma
+  altura: la zona de contenido lleva `flex: 1` (o la barra `margin-top: auto`)
+  para que los botones queden abajo y no a media altura.
+
+Clases: `.stic-ev-*` (renderizador de eventos) y `.stic-cell-*` / `.stic-rowbtn`
+(genérico). Comparten aspecto a propósito; si tocas uno, mira el otro.
+
+### 11.3 Densidad: qué se cae en móvil
+
+- **Descripciones y textos de CTA se ocultan** cuando la tarjeta entera ya es el
+  enlace (las tarjetas de la home muestran solo icono + nombre; en la selección
+  de participante el CTA se queda en la flecha). No es "esconder", es que en 2
+  columnas de 180px la descripción no cabe y el destino ya lo dice el nombre.
+- **Nada de rejillas de una sola columna con tarjetas altas.** La home usa
+  2 columnas tipo "iconos de app": 6 accesos a la vista sin scroll.
+- Lo que decida "cuántos caben en pantalla" manda sobre lo bonito.
+
+### 11.4 Un solo bloque de marca por pantalla
+
+Dos degradados de marca seguidos (barra de identidad + hero, por ejemplo) se
+comen media pantalla para no decir nada nuevo, y repiten el nombre dos veces.
+**En móvil, solo uno lleva el degradado**; el otro pasa a texto sobre el fondo
+de la página (así se resolvió la home, §51 del CSS).
+
+### 11.5 Táctil, no hover
+
+- Los efectos de `:hover` (elevación, giro de iconos) van dentro de
+  `@media (hover: hover)`, o se anulan en `@media (hover: none)`. Sin esto el
+  navegador los simula al tocar y **se quedan pegados** hasta que tocas en otro
+  sitio.
+- El feedback real en táctil es `:active` (`transform: scale(0.97-0.98)`).
+- `-webkit-tap-highlight-color: transparent` en todo lo pulsable (el recuadro
+  gris del navegador se come el diseño).
+- Objetivo táctil: **42px mínimo** en botones de fila, **44px+** en acciones
+  principales, inputs a 52px.
+
+### 11.6 Textos
+
+Cortos, claros y cercanos — y en móvil, más cortos todavía:
+- ✅ "Enviarme el enlace" · ❌ "Enviar enlace de acceso"
+- ✅ "Tu espacio personal. Elige una sección para empezar."
+- ✅ "Sin contraseñas ni líos"
+- Saludo por hora del día (`sticpa_greeting()`) antes que un "Bienvenido" plano.
+- No repitas en el subtítulo lo que ya dice el título.
+- Género: evita "Bienvenido/a" cuando puedas reformular; si hay que resolverlo,
+  se infiere (ver `sticpa_guess_self_label()`), con "mismo" como recurso neutro
+  ante la duda.
+
+### 11.7 Movimiento (sin pagarlo caro)
+
+- Solo `transform` y `opacity`. **Nada de `blur` nuevo** ni de animar `top`,
+  `width` o `background-position`: son las operaciones caras en GPU de móvil
+  (el plan 020 lo midió sobre el login).
+- Entradas escalonadas con `animation-delay` (40–60ms entre elementos), 150–450ms.
+- Si un elemento nace con `opacity: 0` y se revela con una animación, **acuérdate
+  del bloque `prefers-reduced-motion`**: sin animación se queda invisible.
+
+### 11.8 Cómo verificar (obligatorio antes de dar algo por hecho)
+
+No hay entorno de pruebas con WordPress, así que la verificación es **render
+offline con Chromium** (ya instalado, `/opt/pw-browsers/chromium-*`):
+
+1. Monta un HTML que cargue `css/custom-style.css` y reproduzca el marcado real
+   (si es PHP, se puede stubear `__()`, `esc_html()`, `get_option()`… y llamar a
+   la función que genera el HTML).
+2. Captura al menos **375px** (iPhone SE, el caso duro), **390px** y un ancho de
+   escritorio.
+3. Míralas. Un cambio de CSS no está terminado hasta que lo has visto.
+4. Si algo no cuadra, **mide en el navegador** (`getBoundingClientRect`,
+   `getComputedStyle`) en vez de adivinar la especificidad: en este CSS hay
+   `!important` portantes y reglas antiguas que ganan por número de elementos
+   (ver §24 vs §50 en el login).
