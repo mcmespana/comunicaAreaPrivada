@@ -5434,47 +5434,79 @@ span.stic-field {
 }
 
 /* ============================================================
-   51. HOME EN MÓVIL — un solo bloque de marca, no dos
+   51. LA TARJETA DE BIENVENIDA — se cierra y vuelve al mes
    ------------------------------------------------------------
-   En el móvil se veían DOS tarjetas moradas seguidas antes de cualquier
-   contenido: la barra de identidad ("Sol Meseguer") y, justo debajo, el hero
-   ("Hola, Sol 👋"). El mismo degradado y el mismo nombre dos veces, ~340px de
-   pantalla gastados en presentarse.
+   El saludo con tu nombre sobre el degradado de marca gusta y da carácter: la
+   pega no era la tarjeta, era verla SIEMPRE. Con la barra de identidad justo
+   encima, dos bloques morados seguidos con el mismo nombre se comían media
+   pantalla de móvil cada vez que entrabas.
 
-   En móvil el hero deja de ser una tarjeta: el saludo se queda como texto
-   sobre el fondo de la página. Sigue siendo cercano, pero ya no compite con
-   la barra ni repite el bloque de color. En escritorio, donde sí hay sitio,
-   el hero se mantiene tal cual.
+   Solución: se queda tal cual, pero se puede CERRAR. Al cerrarla se recuerda
+   la fecha (localStorage) y no vuelve hasta pasado un mes, así que sigue
+   habiendo bienvenida de vez en cuando sin que estorbe a diario.
+
+   Sin JavaScript la tarjeta se ve siempre — que es justo el comportamiento
+   de antes, así que no hay regresión.
    ============================================================ */
-@media (max-width: 640px) {
-    .stic-welcome-hero {
-        padding: 0.15rem 0.15rem 0.35rem;
-        margin-bottom: 0.9rem;
-        background: none;
-        box-shadow: none;
-        border-radius: 0;
-    }
-    .stic-welcome-hero::after { display: none; }   /* los orbes del degradado */
 
+/* Lo pinta el script de <head> (sticpa_welcome_boot_js) ANTES del primer
+   pintado: así una tarjeta cerrada no aparece y desaparece. */
+html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
+
+.stic-welcome-hero { position: relative; }
+
+.stic-hero-close {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.55rem;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.18s ease, transform 0.18s var(--ease-spring);
+}
+.stic-hero-close::after { display: none !important; }
+.stic-hero-close svg { width: 16px; height: 16px; }
+.stic-hero-close:hover { background: rgba(255, 255, 255, 0.32); transform: rotate(90deg); }
+.stic-hero-close:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.7); }
+@media (hover: none) {
+    .stic-hero-close:hover { transform: none; background: rgba(255, 255, 255, 0.18); }
+    .stic-hero-close:active { transform: scale(0.9); }
+}
+
+/* Salida: se encoge y se va. La quita del DOM el JS al terminar. */
+.stic-welcome-hero.is-closing {
+    animation: stic-hero-out 0.32s var(--ease-out) forwards;
+    overflow: hidden;
+}
+@keyframes stic-hero-out {
+    to { opacity: 0; transform: scale(0.97); max-height: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; }
+}
+
+@media (max-width: 640px) {
+    /* Algo más contenida que en escritorio: sigue siendo la tarjeta de
+       siempre, pero sin comerse la pantalla. */
+    .stic-welcome-hero {
+        padding: 1.15rem 1.2rem;
+        margin-bottom: 1rem;
+        border-radius: var(--radius-xl);
+    }
     .stic-container .stic-welcome-title,
-    .stic-welcome-title {
-        color: var(--gray-900) !important;
-        -webkit-text-fill-color: var(--gray-900) !important;
-        font-size: 1.25rem;
-        margin-bottom: 0.15rem;
-    }
-    .stic-welcome-title .stic-welcome-name { color: var(--primary-color) !important; }
-    .stic-welcome-lead {
-        color: var(--gray-600);
-        opacity: 1;
-        font-size: 0.9rem;
-    }
-    .stic-welcome-lead strong { color: var(--gray-900); }
-    /* El chip de ?rol_debug era blanco sobre el degradado; sin degradado
-       necesita contraste propio. */
-    .stic-welcome-hero .stic-role-chip {
-        background: var(--gray-100);
-        color: var(--gray-700);
-        border: 1px solid var(--gray-200);
-    }
+    .stic-welcome-title { font-size: 1.35rem; }
+    .stic-welcome-lead { font-size: 0.92rem; }
+    /* Sitio para el botón de cierre, que no pise al saludo. */
+    .stic-welcome-hero { padding-right: 3rem; }
+    .stic-hero-close { width: 32px; height: 32px; top: 0.45rem; right: 0.45rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .stic-welcome-hero.is-closing { animation: none; display: none; }
 }

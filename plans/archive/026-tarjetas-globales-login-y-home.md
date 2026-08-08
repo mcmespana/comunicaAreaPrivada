@@ -57,11 +57,25 @@ invisibles).
 
 ## C) Home: se veían dos cabeceras moradas
 
-En móvil, la barra de identidad y el hero eran dos tarjetas con el mismo
-degradado y el mismo nombre, una encima de otra: ~340 px de pantalla para
-presentarse. En móvil el hero **deja de ser tarjeta** (fondo transparente,
-texto oscuro) y el saludo se queda como texto sobre el fondo de la página. En
-escritorio se mantiene como estaba. Textos acortados.
+En móvil, la barra de identidad y la tarjeta de bienvenida eran dos bloques con
+el mismo degradado y el mismo nombre, uno encima de otro: ~340 px de pantalla
+para presentarse. Textos acortados.
+
+**Primera solución (descartada):** aplanar la tarjeta en móvil (fondo
+transparente, texto oscuro). Funcionaba en espacio, pero se perdía lo bueno:
+que te den la bienvenida con tu nombre da carácter y gusta.
+
+**Solución final:** la tarjeta se queda tal cual, con su degradado, y se le
+añade un **botón de cierre con memoria**: al cerrarla se guarda la fecha en
+`localStorage` y no vuelve hasta pasado un mes. Sigue habiendo bienvenida de vez
+en cuando sin estorbar a diario, y decide quien la usa.
+
+Detalles que importan (ver §11.4 del sistema de diseño):
+- Lo resuelve un script inline de `<head>` (`sticpa_welcome_boot_js`) ANTES del
+  primer pintado; si lo hiciera el JS del final, la tarjeta aparecería y
+  desaparecería a la vista.
+- Sin JavaScript la tarjeta se ve siempre: el comportamiento de toda la vida.
+- Al cerrarla se quita del DOM tras la animación, para no dejar hueco.
 
 ## Pendiente relacionado
 - Plan **024 parte B**: el encaje visual con WordPress (los grises). Sigue
