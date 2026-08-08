@@ -284,7 +284,7 @@ FUNCIONALMENTE (mismos campos, orden, tooltips y textos; la estética es la del
 - ❌ Duplicar campos entre "Mis datos" y "Monitor/a": lo general vive en Mis datos.
 - ❌ Filas "ETIQUETA: valor" para presentar un registro: usa la tarjeta de §11.2.
 - ❌ Efectos de `:hover` sin `@media (hover: …)`: en móvil se quedan pegados.
-- ❌ Dos bloques con degradado de marca seguidos en la misma pantalla móvil.
+- ❌ Dos bloques con degradado de marca seguidos que no se puedan cerrar (§11.4).
 - ❌ Dar por buena una pantalla sin haberla capturado a 375px (§11.8).
 
 ## 10. Tema claro / oscuro
@@ -405,12 +405,28 @@ Clases: `.stic-ev-*` (renderizador de eventos) y `.stic-cell-*` / `.stic-rowbtn`
   2 columnas tipo "iconos de app": 6 accesos a la vista sin scroll.
 - Lo que decida "cuántos caben en pantalla" manda sobre lo bonito.
 
-### 11.4 Un solo bloque de marca por pantalla
+### 11.4 Bloques de marca repetidos: que se puedan cerrar
 
-Dos degradados de marca seguidos (barra de identidad + hero, por ejemplo) se
-comen media pantalla para no decir nada nuevo, y repiten el nombre dos veces.
-**En móvil, solo uno lleva el degradado**; el otro pasa a texto sobre el fondo
-de la página (así se resolvió la home, §51 del CSS).
+Dos degradados de marca seguidos (barra de identidad + tarjeta de bienvenida)
+se comen media pantalla de móvil y repiten el nombre dos veces. Pero **la
+bienvenida con tu nombre gusta y da carácter**: el problema no es la tarjeta,
+es verla SIEMPRE.
+
+La solución que usa la home (§51 del CSS): la tarjeta se queda como está y se
+le añade un **cierre con memoria**. Al cerrarla se guarda la fecha en
+`localStorage` y no vuelve hasta pasado un mes.
+
+Si repites este patrón, tres reglas:
+1. **Resuélvelo antes del primer pintado.** Un mini script inline en `<head>`
+   (ver `sticpa_welcome_boot_js` en `inc/stic-theme.php`) marca `<html>` con una
+   clase y el CSS esconde el bloque. Si lo hace el JS del final, el usuario ve
+   la tarjeta aparecer y desaparecer, que es peor que dejarla siempre.
+2. **Sin JavaScript se ve.** El servidor siempre pinta el bloque; esconderlo es
+   una mejora progresiva, nunca un requisito.
+3. **Quítalo del DOM al cerrar** (tras la animación) para que no deje hueco.
+
+Primero pregúntate si el bloque aporta algo: si no, no lo pintes. Esto es para
+lo que **sí** aporta pero cansa a diario.
 
 ### 11.5 Táctil, no hover
 

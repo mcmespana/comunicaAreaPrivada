@@ -63,6 +63,12 @@ $portalName = get_option('sticpa_scp_name');
 ?>
 <div class="stic-welcome">
     <div class="stic-welcome-hero">
+        <?php // Cerrarla la esconde durante un mes (js/stic-ui.js::bindHeroClose). ?>
+        <button type="button" class="stic-hero-close" data-hero-close
+                aria-label="<?= esc_attr__('Ocultar el saludo (volverá dentro de un mes)', 'sticpa'); ?>"
+                title="<?= esc_attr__('Ocultar el saludo (volverá dentro de un mes)', 'sticpa'); ?>">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
         <h2 class="stic-welcome-title">
             <?php if ($firstName !== '') : ?>
                 <?= esc_html__('Hola', 'sticpa'); ?>, <span class="stic-welcome-name"><?= esc_html($firstName); ?></span> 👋
