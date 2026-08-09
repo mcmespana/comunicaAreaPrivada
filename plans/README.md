@@ -48,6 +48,12 @@ antes de empezar, respeta sus "STOP conditions" y actualiza su fila de estado al
 | 024 | Login compacto en móvil + encaje visual con WordPress | P2 | M | — | **PARCIAL** — A (login) hecho en el 026; B (grises de WordPress) pendiente de ver el sitio real |
 | 025 | Eventos: tarjetas propias + ficha de detalle | P2 | M | — | **DONE** → [`archive/025-eventos-tarjetas-y-detalle.md`](archive/025-eventos-tarjetas-y-detalle.md) |
 | 026 | Tarjetas en TODOS los listados + login rediseñado + home | P2 | M | 025 | **DONE** → [`archive/026-tarjetas-globales-login-y-home.md`](archive/026-tarjetas-globales-login-y-home.md) |
+| 027 | Cliente CRM: keep-alive, HTTP/1.1, timeouts y gzip | P0 | S-M | — (coordina con 008) | TODO |
+| 028 | Soltar el lock de sesión PHP (foto/descargas en paralelo) | P1 | S-M | — | TODO |
+| 029 | Quick wins de lecturas CRM (guard, caches, typo de pago) | P1 | M | — | TODO |
+| 030 | Tap instantáneo: feedback en enlaces + prefetch + puente app | P1 | S-M | — | TODO |
+| 031 | Dieta de assets: CSS minificado en deploy + Inter local | P2 | M | — | TODO |
+| 032 | Acotar listados: ventana de eventos + techo de filas | P2 | M | — (tras 011 en páginas compartidas) | TODO |
 
 Los planes **DONE** están en producción y sus fichas se movieron a
 [`plans/archive/`](archive/) (2026-07-20; el 016 el 2026-07-26). En `plans/` quedan solo los **pendientes** y los
@@ -105,6 +111,13 @@ Estados: TODO · IN PROGRESS · DONE · BLOCKED (motivo) · REJECTED (motivo).
 - **013 (tests) antes de 011**: los N+1 viven en rutas de dinero/datos sin red de seguridad;
   escribir tests de caracterización antes de refactorizar evita romperlas en silencio.
 - **015 depende de 013** por la misma razón (toca datos de pago).
+- **Pasada de rendimiento (027-032)**: 027 y 030 primero (máxima ganancia percibida, riesgo
+  bajo, no dependen de nada); 028 y 029 después (independientes entre sí); 031 y 032 al
+  final. **027 coordina con 008** (ambos tocan `inc/stic-class-6.php:52`: 027 pone HTTP/1.1,
+  008 pone TLS verify — no duplicar). **029 st.1 acopla el guard de inscripción al gather del
+  calendario**: si se ejecuta el 011 (que refactoriza ese gather), preservar la forma de
+  `registered_events`. **032 va después del 011** en las páginas que comparten
+  (`list_stic_payments`, `list_stic_attendances`).
 
 ## Tabla de hallazgos — Seguridad (vetados contra el código)
 
@@ -172,6 +185,70 @@ Hallazgos verificados y aplicados directamente (no necesitan plan):
 | Perf JS/CSS | `layoutNav` sin layout-thrashing (medir 1 vez, mover en lote); listeners de scroll pasivos con early-return; 16× `transition:all` → lista explícita de propiedades compositor |
 | A11y | Focus trap + restauración en el cropper; tooltips con `aria-describedby`; mensajes con `role=status/alert` y despedida por temporizador; secciones colapsables con `<button>` real dentro del `h5` (headings intactos); `aria-current` en menú; `aria-controls` + foco al abrir en "Más" y selector de participante; anillos de foco en item activo, paneles y todos los botones; `th scope=col`; `ordering:false` por defecto en DataTables (cabeceras ocultas atrapaban foco); targets táctiles ≥44px; `safe-area-inset-bottom` en botonera sticky; spinner visible bajo reduced-motion |
 | UI/UX | Tokens semánticos `--success/--danger/--warning-*` (39 hex unificados); `--grad-brand-soft`/`--shadow-glow` derivados con `color-mix`; forzado de claro completo (`color-scheme:light` + `scrollbar-color`) y override oscuro acotado al área (ya no pisa al tema WP); `datetime-local` vacío ya se renderiza; overlay "Guardando…" en todos los formularios del motor; validación inline con `aria-invalid` (fuera `alert()`); error de pago con marca y CTAs; leyenda del calendario + HTML válido; contraste (gray-400→500, placeholders); `-webkit-backdrop-filter` en sticky bar/chip |
+
+## Tercera pasada (2026-08-09, commit `337ec6a`): RENDIMIENTO PERCIBIDO
+
+Auditoría enfocada en la lentitud percibida dentro de la app MCM (WebView): "cada tap pesa,
+las inscripciones tardan, mostrar datos tarda". 3 subagentes read-only (camino de llamadas al
+CRM · frontend percibido · flujos y overhead WordPress); todos los hallazgos citados abajo
+fueron vetados abriendo el código citado. Resultado: planes **027-032** + corrección de las
+referencias desfasadas del **011** (el N+1 del calendario vive ahora en `inc/stic-calendar.php`,
+no en la página).
+
+**El diagnóstico en una frase**: todos los datos vienen de un CRM remoto; cada pantalla hace
+2-40+ llamadas cURL SECUENCIALES, cada una con conexión TLS nueva (HTTP/1.0, sin keep-alive,
+sin timeout), con el lock de sesión PHP retenido toda la petición (serializa la foto y
+cualquier tap paralelo), sin feedback visual en los enlaces, y con ~268 KB de CSS sin
+minificar re-parseados en cada navegación. La inscripción — el flujo estrella — son 3
+documentos HTTP y `6+2R` llamadas al CRM, pagando 3 veces el mismo guard `1+R`.
+
+### Hallazgos → planes (orden de ejecución recomendado)
+
+| # | Hallazgo (evidencia clave) | Plan |
+|---|----------------------------|------|
+| N1 | cURL: handle nuevo + HTTP/1.0 por llamada, sin `CURLOPT_TIMEOUT`, sin gzip (`inc/stic-class-6.php:48,52,50-67`) | **027** |
+| N2 | `session_write_close()` inexistente en el repo; la foto (`inc/stic-action.php:949`) espera al HTML; `Set-Cookie` en cada respuesta (`sinergiacrm-private-area.php:1099-1120`) | **028** |
+| N3 | Guard de inscripción `1+R` ejecutado hasta 4 veces por flujo (`inc/stic-action.php:372-411,448`; `pages/list_stic_events.php:41`; `single_stic_events.php:55`; `single_stic_registrations.php:152`), con el mismo dato ya cacheado por el calendario (`inc/stic-calendar.php:391`) | **029** (st.1) |
+| N4 | Home consulta el CRM para un booleano de monitor sin caché (`pages/single_stic_home.php:101` → `inc/stic-comunica-roles.php:157-169`) | **029** (st.2) |
+| N5 | **BUG**: redirect de pago a página inexistente `single_stic_payments_form` (`inc/stic-action.php:466`; el archivo es `single_stic_payment_form.php`) + definición sin cachear (`pages/single_stic_payment_form.php:30`) + `alert()` bloqueantes | **029** (st.3-4) |
+| N6 | `getRecordDetail(null)` en 4 formularios de creación (`single_stic_documents.php:160`, `single_stic_contacts.php:106`, `single_stic_relationships.php:82`, `single_stic_payment_commitments.php:127`) | **029** (st.5) |
+| N7 | Guardar perfil con 4 certificados = hasta 18 llamadas; 4 `set_entry` de flags colapsables en 1 (`inc/stic-action.php:1155-1160,1206`) | **029** (st.6) |
+| N8 | Ningún feedback al tocar enlaces (solo 4 formularios tienen overlay, `js/stic-ui.js:50-67`); cero prefetch/speculation; sin canal web→app (`postMessage` inexistente) | **030** |
+| N9 | Pantalla puente del enlace mágico: 5 animaciones infinitas + `backdrop-filter` sobre fondo animado (`inc/stic-magic-login.php:329-378`) | **030** (st.4) |
+| N10 | 268 KB de CSS render-blocking sin minificar (27 % comentarios); Inter desde Google Fonts (2 orígenes encadenados, 2 conjuntos de pesos distintos: `sinergiacrm-private-area.php:1189`, `inc/stic-magic-login.php:322`); cropper (13 KB) encolado siempre | **031** |
+| N11 | Eventos sin filtro temporal (`pages/list_stic_events.php:34` vs la ventana del calendario `inc/stic-calendar.php:369`); desplegables con el módulo entero; `limit=0` en todos los listados; opción `sticpa_scp_case_per_page` registrada y sin usar | **032** |
+| N12 | N+1 de listados/calendario/selector SIGUEN VIGENTES tal y como los describe el plan 011 (con la referencia del calendario corregida); el flush del calendario al inscribirse (`inc/stic-action.php:461`) recoloca el pico en la home | **011** (actualizado) |
+| N13 | Sesión CRM cacheada sin timestamp → renovación reactiva de 3 round-trips en el primer tap al volver (`inc/stic-class-6.php:22-24,76-80`) | **027** (st.6) |
+
+### Menores, verificados y NO planificados (fáciles de coger sueltos)
+
+- `js/stic-init.js:87-126` — `paintDots` del calendario recorre todos los eventos por cada
+  celda del mes (O(celdas×eventos)); construir un índice por día lo arregla. S/LOW.
+- `js/stic-ui.js:711-716` — `layoutNav` corre 3 veces por carga (ready + fonts + timeout);
+  cortocircuito por firma. Solo afecta ≥768 px. S/LOW.
+- `pages/single_stic_documents.php:216-224` — `?download` pinta una página que se auto-envía
+  (3 ciclos de carga por descarga); servir el fichero directo. S/LOW-MED.
+- 10 páginas con `<script>` inline pendientes de migrar al patrón `data-*` del plan 021.
+- Foto de perfil sin `ETag`/`Last-Modified` (no hay 304 al expirar el `max-age`;
+  `inc/stic-action.php:1011-1013`). S/LOW, compone con 028.
+
+### Considerado y RECHAZADO en esta pasada
+
+- **AJAX-ificar formularios / intercambio parcial de contenido / View Transitions** (el salto
+  de arquitectura): coste L-XL y riesgo alto con handlers que solo saben redirigir (35
+  `wp_redirect` en `inc/stic-action.php`). No merece la pena **hasta medir el efecto de
+  027-030**: el transporte + el lock + el feedback capturan la mayor parte de la ganancia
+  percibida. Si tras eso sigue corto, el punto de entrada natural ya está identificado: el
+  contenido vive aislado en `.stic-tab-content` y el único precedente de endpoint no-HTML es
+  `admin_post_stic_profile_photo`. Reevaluar entonces.
+- **`NumberFormatter` por celda en `inc/stic-formatter.php:16-19`**: microsegundos frente a
+  round-trips de cientos de ms. No cambia nada perceptible.
+- **`filemtime()`/`file_exists()` del encolado** (~10 stats/petición): ruido.
+- **Quitar jQuery del área** (~103 KB con migrate): real pero M/MED-riesgo (scripts inline de
+  varias páginas dependen de `$`); solo tiene sentido DESPUÉS del plan 031 st.4 (DataTables) y
+  de terminar la migración de inlines del 021. Anotado, no planificado.
+- **Carga diferida de los 13 includes del plugin** (~336 KB de PHP por petición): con OPcache
+  (lo normal incluso en hosting compartido) el ahorro es marginal; medir antes de refactorizar.
 
 ## Findings considered and rejected
 
