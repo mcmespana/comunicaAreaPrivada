@@ -654,15 +654,17 @@ function sticpa_magic_email_html($name, $link, $portalName, $code = '')
           </table>';
     }
 
-    // Insignia "MCM" del pie. Es un distintivo dibujado con HTML/CSS (círculo +
-    // degradado de marca), no una imagen: un email no puede tirar de un archivo
-    // del repo, necesita una URL https ya publicada, y no había ninguna URL de
-    // logo configurada. Si en algún momento se sube el logo real a un sitio
-    // público, esta tabla se sustituye por un <img src="...">.
+    // Logo del pie: "Consolación para el Mundo", el logo institucional real
+    // (antes había aquí una insignia "MCM" dibujada en CSS porque no teníamos
+    // ninguna URL publicada). width/height van como ATRIBUTOS, no solo en
+    // style: varios clientes de correo (Outlook clásico entre ellos) ignoran
+    // el CSS de <img> pero sí respetan estos atributos, y sin ellos la imagen
+    // "salta" el layout mientras carga. Se sirve por HTTPS: los avisos de
+    // "contenido no seguro" de algunos clientes bloquean el HTTP a pelo.
     $footerBadge = '
-          <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 10px;">
-            <tr><td width="34" height="34" align="center" valign="middle" style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#1c6fb3,#9d1e74);color:#ffffff;font-size:11px;font-weight:bold;letter-spacing:.02em;font-family:Arial,Helvetica,sans-serif;">MCM</td></tr>
-          </table>';
+          <img src="https://comunica.movimientoconsolacion.com/mcm_mini.png"
+               width="120" height="45" alt="Consolación para el Mundo"
+               style="display:block;width:120px;height:45px;border:0;margin:0 auto 10px;">';
 
     return '
 <!DOCTYPE html>
