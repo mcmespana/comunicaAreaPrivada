@@ -98,3 +98,7 @@ if (!function_exists('delete_transient')) {
 require_once __DIR__ . '/../inc/stic-theme.php';
 require_once __DIR__ . '/../inc/stic-magic-login.php';
 require_once __DIR__ . '/../inc/stic-otp.php';
+// stic-action.php solo registra `add_action(...)` a nivel de archivo (ya
+// stubeado arriba); el resto son definiciones de función, así que cargarlo
+// aquí no ejecuta nada que dependa de WordPress/SugarCRM real.
+require_once __DIR__ . '/../inc/stic-action.php';
