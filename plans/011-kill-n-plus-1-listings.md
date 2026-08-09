@@ -2,7 +2,7 @@
 
 > **Executor instructions**: paso a paso, verifica, respeta STOP conditions, actualiza `plans/README.md`.
 >
-> **Drift check**: `git diff --stat bc3c436..HEAD -- pages/ inc/stic-class-6.php`
+> **Drift check**: `git diff --stat 337ec6a..HEAD -- pages/ inc/stic-class-6.php inc/stic-calendar.php`
 
 ## Status
 
@@ -11,7 +11,7 @@
 - **Risk**: MED
 - **Depends on**: plans/013-verification-baseline.md (recomendado antes de refactorizar rutas de dinero/datos)
 - **Category**: perf
-- **Planned at**: commit `bc3c436`, 2026-07-19
+- **Planned at**: commit `bc3c436`, 2026-07-19 — **referencias re-verificadas y corregidas contra `337ec6a` el 2026-08-09** (el N+1 del calendario se movió de la página a `inc/stic-calendar.php`)
 
 ## Why this matters
 
@@ -22,11 +22,24 @@ datos. El peor caso es triple-anidado (`1 + N + N×M`) en Sesiones y Calendario:
 
 ## Current state
 
-- **Triple-anidado** — `pages/list_stic_sessions.php:72-117`: `getRelatedElementsForLoggedUser`
-  (inscripciones) → `foreach` con una llamada por inscripción (eventos, ~:91) → `foreach` anidado
-  con una llamada por evento (sesiones, ~:108). Idéntico en
-  `pages/single_stic_activities_calendar.php:22-82` (llamadas en :22, :44, :62). Hay dedupe por
-  `$sessionIds` que debe preservarse.
+- **Triple-anidado** — `pages/list_stic_sessions.php:74-110`: `getRelatedElementsForLoggedUser`
+  (inscripciones, :74) → `foreach` con una llamada por inscripción (eventos, :93) → `foreach`
+  anidado con una llamada por evento (sesiones, :110). Hay dedupe que debe preservarse.
+- **Triple-anidado del CALENDARIO (referencia corregida 2026-08-09)** — ya NO está en
+  `pages/single_stic_activities_calendar.php` (esa página tiene una sola llamada): vive en
+  `inc/stic-calendar.php::sticpa_gather_calendar_data` (`:233-399`): inscripciones (:256) →
+  una llamada por inscripción (eventos, :274) → una llamada por evento (sesiones, :300) →
+  otra llamada por inscripción (asistencias, :335) → todos los eventos de la ventana (:370).
+  Coste en frío `2 + 2N + N×M`. Está MITIGADO por un transient de 300 s
+  (`:239-244`, `:395-397`, clave `sticpa_calendar_cache_key()`), que
+  `inc/stic-action.php:460-462` borra entero en cada inscripción — así que el pico se paga
+  justo después de inscribirse, y también lo paga la HOME (`pages/single_stic_home.php:116`
+  consume el mismo helper). Al colapsar los niveles, preserva: el dedupe por `$sessions[$sid]`,
+  el fallback de asistencia por nombre único (`:324-327`, `:352-357`) y el filtrado de
+  inscripciones `cancelled` (`:269`). Considera además subir el TTL (p. ej. 30 min vía filtro
+  `sticpa_calendar_cache_ttl`): la invalidación explícita ya cubre los cambios del propio
+  usuario. OJO: el plan 029 (step 1) hace que el guard de inscripciones LEA de este helper —
+  si cambias la forma de `registered_events`, revisa `prefix_user_active_event_ids`.
 - **N+1 por fila** — `pages/list_stic_payments.php:89-104` (una llamada por pago para el nombre del
   compromiso; rama else en :120-141 anida pagos dentro de compromisos),
   `pages/list_stic_attendances.php:74-96` (una por inscripción), y
@@ -65,13 +78,20 @@ aparecer dentro de un `foreach` de filas.
 
 ### Step 2: Colapsar el triple-anidado (Sesiones y Calendario) a 3 consultas por nivel
 
-En `list_stic_sessions.php:72-117` y `single_stic_activities_calendar.php:22-82`: en vez de una
-llamada por inscripción y por evento, recoge primero todos los ids de inscripción, luego una
-consulta batch para todos los eventos de esos ids, luego una consulta batch para todas las sesiones
-de esos eventos (3 llamadas por nivel en total). Mantén el dedupe (`$sessionIds`) y el formateo de
-fechas del calendario intactos.
+En `list_stic_sessions.php:74-110` y en `inc/stic-calendar.php::sticpa_gather_calendar_data`
+(`:233-399` — NO en la página del calendario, ver "Current state"): en vez de una llamada por
+inscripción y por evento, recoge primero todos los ids de inscripción, luego una consulta
+batch para todos los eventos de esos ids, luego una consulta batch para todas las sesiones de
+esos eventos (3 llamadas por nivel en total). En el gather del calendario, preserva: dedupe
+por `$sessions[$sid]`, fallback de asistencia por nombre único, filtrado de `cancelled`, y la
+FORMA del array devuelto (`sessions` / `attendance_by_session` / `registered_events` /
+`available_events`) — el plan 029 hace que el guard de inscripciones lea `registered_events`.
+Opcional en el mismo paso: subir el TTL del transient (filtro `sticpa_calendar_cache_ttl`) a
+30 min, apoyándose en que `inc/stic-action.php:460-462` ya invalida al inscribirse.
 
-**Verify**: leyendo, no quedan llamadas al CRM dentro de bucles anidados en esas dos páginas.
+**Verify**: leyendo, no quedan llamadas al CRM dentro de bucles anidados en
+`list_stic_sessions.php` ni en `sticpa_gather_calendar_data`.
+**Verify** (si hay vendor/): `composer test` → verde.
 
 ### Step 3 (opcional, si el plan 008 ya subió a HTTP/1.1): keep-alive del handler cURL
 
