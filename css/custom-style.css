@@ -5566,3 +5566,157 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 @media (prefers-reduced-motion: reduce) {
     .stic-welcome-hero.is-closing { animation: none; display: none; }
 }
+
+/* ============================================================
+   45. CÓDIGO DE ACCESO (OTP de 6 cifras)
+   ------------------------------------------------------------
+   Pantalla a la que se llega tras pedir acceso por correo
+   (`sticpa_access_code_form()`). En la app va abierta; en
+   navegador vive dentro de un <details> discreto.
+
+   Solo tokens: el tema oscuro sale gratis por §44.a, que ya
+   redefine la paleta dentro de .stic-auth-shell.
+   ============================================================ */
+
+.stic-code {
+    margin-top: var(--space-2);
+}
+
+.stic-code-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.stic-code-label {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--gray-700);
+}
+
+/* El campo del código. UN solo input, no seis: seis cajas se ven muy bien en
+   una maqueta y son un desastre real — el lector de pantalla anuncia seis
+   campos sin etiqueta, pegar el código se comporta distinto en cada navegador
+   y el borrado en Android se vuelve loco. Aquí el agrupado "123 456" lo da el
+   espacio que mete el JS al teclear, y sin JS se escribe seguido y funciona
+   igual. */
+.stic-code-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: var(--space-4) var(--space-3);
+    text-align: center;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: clamp(1.9rem, 9vw, 2.4rem);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    /* El letter-spacing sobra por la derecha de la última cifra y descentra el
+       texto; el padding-left lo compensa. */
+    letter-spacing: 0.28em;
+    padding-left: calc(var(--space-3) + 0.28em);
+    color: var(--gray-900);
+    background: var(--field-bg);
+    border: 2px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    caret-color: var(--primary-color);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+}
+
+.stic-code-input::placeholder {
+    color: var(--gray-400);
+    font-weight: 500;
+}
+
+.stic-code-input:focus {
+    outline: none;
+    background: var(--field-bg-focus);
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-glow);
+}
+
+/* Marca de error tras un código incorrecto (la pone el JS un instante). */
+.stic-code-input.is-wrong {
+    border-color: var(--danger-color);
+    animation: stic-code-shake 0.4s ease;
+}
+
+@keyframes stic-code-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    75% { transform: translateX(6px); }
+}
+
+.stic-code-hint {
+    margin: 0;
+    text-align: center;
+    font-size: var(--font-size-xs);
+    color: var(--gray-500);
+}
+
+/* ---- El botón pequeño de "¿prefieres introducir el código?" (navegador) ---- */
+.stic-code-reveal {
+    margin-top: var(--space-4);
+    border-top: 1px solid var(--gray-200);
+    padding-top: var(--space-3);
+}
+
+.stic-code-reveal > summary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: 44px;          /* objetivo táctil cómodo en móvil */
+    cursor: pointer;
+    list-style: none;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--primary-color);
+    border-radius: var(--radius-md);
+}
+
+.stic-code-reveal > summary::-webkit-details-marker { display: none; }
+
+.stic-code-reveal > summary:hover { color: var(--primary-dark); }
+
+.stic-code-reveal > summary:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.stic-code-reveal[open] > summary .stic-hint-chevron { transform: rotate(180deg); }
+
+.stic-code-reveal .stic-hint-chevron { transition: transform var(--transition-fast); }
+
+/* ---- "¿No te llega? Envíamelo otra vez" ---- */
+.stic-code-resend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: center;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+    font-size: var(--font-size-sm);
+    color: var(--gray-500);
+}
+
+.stic-code-resend button {
+    background: none;
+    border: 0;
+    padding: var(--space-1) var(--space-2);
+    font: inherit;
+    font-weight: 600;
+    color: var(--primary-color);
+    text-decoration: underline;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+}
+
+.stic-code-resend button:hover { color: var(--primary-dark); }
+
+.stic-code-resend button:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .stic-code-input.is-wrong { animation: none; }
+}
