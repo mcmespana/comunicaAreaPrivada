@@ -130,23 +130,20 @@ Esto es importante que lo sepas (y es un riesgo de seguridad heredado del diseñ
 - La contraseña del socio se guarda **tal cual, sin cifrar ni hashear**, en el campo
   `stic_pa_password_c` del CRM.
 - El login compara directamente texto contra texto (`stic_pa_password_c = '{password}'`).
-- La función **"He olvidado mi contraseña"** literalmente **lee la contraseña del CRM y la
-  envía por email en claro** (ver `prefix_admin_stic_forgot_password` en `inc/stic-action.php`):
-
-  ```php
-  $body .= __('Your private area password is: ', 'sticpa') . ': ' . $password;
-  ```
-
 - El cambio de contraseña (`prefix_admin_single_stic_password_change`) también guarda la nueva
   en claro.
 
-> 💡 **Recomendación de mejora:** este es el punto más flojo del plugin. Idealmente las
-> contraseñas deberían hashearse (p.ej. `password_hash`/`password_verify` de PHP) y "olvidé mi
-> contraseña" debería enviar un enlace de reseteo en vez de la contraseña. Pero cambiarlo
-> implica tocar también cómo se valida el login y cómo lo gestiona SinergiaCRM, así que es un
-> cambio de calado, no un parche de una línea. Además hay **inyección SQL/SuiteQL** potencial
-> en la query del login (el usuario/contraseña se concatenan sin escapar): otra cosa a
-> endurecer si se mete mano.
+> ✅ **Lo que ya no pasa:** la vieja función "He olvidado mi contraseña" leía la contraseña del
+> CRM y la mandaba por email **en claro**. Eso se eliminó, y desde el código OTP (§8) ya no
+> queda ni la pantalla: por correo solo viajan un código de un solo uso y un enlace firmado,
+> nunca la contraseña. Quien quiera contraseña se la pone **dentro** del área.
+>
+> 💡 **Lo que sigue flojo:** la contraseña sigue guardada sin hashear en el CRM, así que quien
+> vea la ficha la ve. Idealmente iría hasheada (`password_hash`/`password_verify`), pero eso
+> obliga a tocar también cómo valida el login SinergiaCRM: es un cambio de calado, no un parche.
+> Además hay **inyección SQL/SuiteQL** potencial en la query del login (usuario y contraseña se
+> concatenan sin escapar): otra cosa a endurecer si se mete mano. Nada de esto afecta a quien
+> entra por correo, que es el camino recomendado.
 
 ### 2.5 Resumen del flujo de login
 
@@ -446,7 +443,7 @@ por email). Toda la lógica vive en [`inc/stic-magic-login.php`](inc/stic-magic-
 | **URL** | `…/area-privada/?token=XXXX` | `…/area-privada/?acceso_magico=XXXX` |
 | **Para qué** | Botón "Acceder" al pie de **todos los emails** de comunicación | Flujo bajo demanda: *"introduce tu email y te mando acceso"* |
 | **Dónde vive** | Campo `ajmcm_pa_token_c` en la ficha del CRM | **En ningún sitio**: va firmado con HMAC y se valida solo en WordPress |
-| **Caduca** | No (es revocable: se regenera) | Sí, **~1 hora** (configurable) |
+| **Caduca** | No (es revocable: se regenera) | Sí, **40 minutos** (igual que el código; configurable) |
 | **Seguridad** | Bearer permanente (asumible, revocable) | Firmado + corta vida (alta) |
 
 ### 8.2 Cómo funciona por dentro
@@ -468,15 +465,22 @@ por email). Toda la lógica vive en [`inc/stic-magic-login.php`](inc/stic-magic-
 4. **Sesión.** En ambos casos se usa la misma sesión PHP de siempre (`$_SESSION['scp_*']`), así que
    el resto del área funciona idéntico. Tras el primer clic se navega por **cookie**, no por token.
 
-### 8.3 El flujo "envíame un enlace de acceso" (sustituye al *forgot password*)
+### 8.3 El flujo "envíame el acceso" (sustituye del todo al *forgot password*)
 
-El antiguo "He olvidado mi contraseña" **enviaba la contraseña en claro** — eso se ha eliminado.
-Ahora (`prefix_admin_stic_forgot_password` en `inc/stic-action.php`):
+Ya **no existe** ninguna pantalla de "He olvidado mi contraseña": ni la que enviaba la contraseña en
+claro (eliminada hace tiempo) ni la de pedir un enlace, que duplicaba la pestaña de login. Se entra
+por el correo y, quien quiera contraseña, se la pone **dentro** del área
+(`pages/single_stic_password_change.php`).
 
-- El usuario introduce **solo su email** → WordPress busca el contacto por email
-  (`getContactByEmail`) → genera un **acceso mágico** y lo envía a ese correo.
-- La respuesta es **genérica siempre** ("si tu email está registrado, recibirás un enlace"), para
+El flujo vive en `sticpa_handle_send_access` (`inc/stic-action.php`):
+
+- La persona introduce **solo su email** → WordPress busca el contacto (`getContactByEmail`) y le
+  manda **un correo con las dos formas de entrar**: un **código de 6 cifras** (§8.7) y el enlace
+  mágico de siempre.
+- La respuesta es **genérica siempre** ("si tu email está registrado, recibirás el acceso"), para
   no revelar qué emails existen (anti-enumeración).
+- Los **envíos están limitados** (5 por email cada 20 min, 30 por IP cada hora). Sin eso, cualquiera
+  podía llenar el buzón de cualquier contacto del CRM y, de paso, enumerar direcciones.
 
 ### 8.4 Panel de administración (ajustes del plugin)
 
@@ -552,6 +556,35 @@ El núcleo está hecho. Queda endurecer: **audit log** y **banner** al impersona
 solo uso en "Entrar como", activar verificación TLS (`SEC-04`) y escapar las queries (`SEC-02`).
 
 ---
+
+### 8.9 El código de 6 cifras (OTP) 🔢
+
+Lógica completa en [`inc/stic-otp.php`](inc/stic-otp.php), con el porqué en su cabecera. Resumen:
+
+**Por qué existe.** Dentro de la app MCM el enlace es frágil: si el cliente de correo lo envuelve en
+un redirector, el universal link se pierde y la sesión acaba **en el navegador, no en la WebView**
+(§8.6). El código es lo único que sobrevive a cualquier cliente de correo, porque lo transporta la
+persona. También arregla "leo el correo en el ordenador y quiero entrar en el móvil".
+
+**Cómo se presenta.** El correo lleva el código grande **siempre**. En pantalla:
+
+| Dónde | Qué se ve al pedir acceso |
+|---|---|
+| App MCM (`?app=1`) | El campo del código, **abierto y enfocado**, es lo primero |
+| Navegador | "Mira tu correo" + un `<details>` pequeño: *¿Prefieres introducir el código?* |
+
+**Seguridad.** Seis cifras son 1 entre un millón: mucho menos que el HMAC de 256 bits del enlace. Lo
+que lo hace aceptable **no es la longitud, es el contador de fallos**:
+
+- El contador va **por email, no por código**, y pedir un código nuevo **no lo reinicia**. Si fuera
+  por código, bastaría con pedir otro cada 10 intentos para tener intentos infinitos. Esta es *la*
+  propiedad que sostiene todo lo demás, y está clavada en `tests/OtpTest.php`.
+- **10 fallos** y ese email deja de aceptar códigos durante **una hora**. Nadie se queda fuera: el
+  enlace del mismo correo sigue funcionando.
+- El código es de **un solo uso**, caduca a los **40 minutos** y en servidor solo se guarda su HMAC,
+  en un transient cuya clave es también un HMAC del email (ninguna dirección en claro en
+  `wp_options`).
+- Acertar el código abre **la misma sesión** que el enlace: no hay accesos de primera y de segunda.
 
 ## 9. Glosario rápido para humanos despistados (y agentes de IA)
 

@@ -55,6 +55,46 @@ if (!function_exists('has_shortcode')) { function has_shortcode($c, $tag) { retu
 if (!function_exists('wp_json_encode')) { function wp_json_encode($d, $f = 0, $depth = 512) { return json_encode($d, $f, $depth); } }
 if (!function_exists('sanitize_text_field')) { function sanitize_text_field($t) { return is_string($t) ? trim($t) : $t; } }
 
+// --- Transients (los usa el código OTP) ---
+// Implementación en memoria con caducidad real. El reloj se puede adelantar con
+// $GLOBALS['__stic_time_offset'] para probar caducidades sin esperar 40 minutos.
+$GLOBALS['__stic_transients'] = array();
+$GLOBALS['__stic_time_offset'] = 0;
+
+if (!function_exists('stic_test_now')) {
+    function stic_test_now() { return time() + (int) $GLOBALS['__stic_time_offset']; }
+}
+if (!function_exists('set_transient')) {
+    function set_transient($key, $value, $ttl = 0) {
+        $GLOBALS['__stic_transients'][$key] = array(
+            'value' => $value,
+            // Igual que WordPress: TTL 0 significa "sin caducidad".
+            'expires' => $ttl > 0 ? stic_test_now() + (int) $ttl : 0,
+        );
+        return true;
+    }
+}
+if (!function_exists('get_transient')) {
+    function get_transient($key) {
+        if (!isset($GLOBALS['__stic_transients'][$key])) {
+            return false;
+        }
+        $item = $GLOBALS['__stic_transients'][$key];
+        if ($item['expires'] > 0 && stic_test_now() >= $item['expires']) {
+            unset($GLOBALS['__stic_transients'][$key]);
+            return false;
+        }
+        return $item['value'];
+    }
+}
+if (!function_exists('delete_transient')) {
+    function delete_transient($key) {
+        unset($GLOBALS['__stic_transients'][$key]);
+        return true;
+    }
+}
+
 // --- Código bajo prueba ---
 require_once __DIR__ . '/../inc/stic-theme.php';
 require_once __DIR__ . '/../inc/stic-magic-login.php';
+require_once __DIR__ . '/../inc/stic-otp.php';

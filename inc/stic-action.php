@@ -591,26 +591,48 @@ function prefix_admin_single_stic_password_change()
 }
 
 /**
- * Action that manages the passwordless access request: the user enters their
- * email and we send a signed, time-limited "magic link" (no password is ever
- * sent or exposed). See inc/stic-magic-login.php for the link logic.
- */
-/**
- * Email HTML (branded, mobile-first) para el enlace de acceso mágico.
+ * Email HTML (branded, mobile-first) con las DOS formas de entrar: el botón del
+ * enlace mágico y el código de 6 cifras.
+ *
+ * El código va grande y arriba SIEMPRE, también cuando la petición sale de un
+ * navegador. Un código grande no le estorba a quien va a pulsar el botón, y en
+ * cambio salva el caso que más se rompe: abrir el correo en un sitio (el
+ * ordenador, el correo del trabajo) y querer entrar en otro (la app del móvil).
+ * Una sola plantilla, sin ramas según el origen.
+ *
  * Colores de marca MCM: azul #1c6fb3, magenta #9d1e74. Estilos inline porque
  * los clientes de correo no respetan <style> ni CSS externo.
  */
-function sticpa_magic_email_html($name, $link, $portalName)
+function sticpa_magic_email_html($name, $link, $portalName, $code = '')
 {
     $name = esc_html($name);
     $portalName = esc_html($portalName);
     $linkAttr = esc_url($link);
+    $minutos = (int) round(sticpa_otp_ttl() / MINUTE_IN_SECONDS);
     $saludo = $name !== '' ? sprintf(__('Hola %s,', 'sticpa'), $name) : __('Hola,', 'sticpa');
-    $intro = __('Pulsa el botón para entrar a tu área privada. No necesitas recordar ninguna contraseña.', 'sticpa');
+    $intro = __('Tienes dos formas de entrar a tu área privada, la que te venga mejor. No necesitas recordar ninguna contraseña.', 'sticpa');
     $btn = __('Acceder a mi área privada', 'sticpa');
-    $expira = __('Por seguridad, este enlace caduca en aproximadamente 1 hora. Si caduca, pídelo de nuevo desde la web.', 'sticpa');
+    $expira = sprintf(__('Por seguridad, el código y el enlace caducan en %d minutos. Si caducan, pídelos de nuevo desde la web.', 'sticpa'), $minutos);
     $fallback = __('¿El botón no funciona? Copia y pega esta dirección en tu navegador:', 'sticpa');
-    $ignore = __('Si no has solicitado este acceso, puedes ignorar este correo.', 'sticpa');
+    $ignore = __('Si no has solicitado este acceso, puedes ignorar este correo. Nadie puede entrar en tu cuenta sin este mensaje.', 'sticpa');
+
+    // Bloque del código. Se dibuja con una tabla y tamaños en px porque es lo
+    // único que respetan Outlook y Gmail; el espacio de «123 456» es literal
+    // (letter-spacing solo, sin el espacio, se pierde en varios clientes).
+    $codeBlock = '';
+    if ($code !== '') {
+        $codeBlock = '
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+            <tr><td align="center" style="background:#f4f6fb;border:1px solid #e3e8f2;border-radius:14px;padding:18px 12px;">
+              <div style="font-size:13px;color:#6b7280;letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px;">'
+                . esc_html__('Tu código de acceso', 'sticpa') . '</div>
+              <div style="font-size:38px;line-height:1.1;font-weight:bold;color:#1c6fb3;letter-spacing:.12em;font-family:Consolas,Menlo,Monaco,monospace;">'
+                . esc_html(sticpa_otp_format_code($code)) . '</div>
+              <div style="font-size:13px;color:#6b7280;margin-top:10px;">'
+                . esc_html__('Escríbelo en la pantalla de acceso.', 'sticpa') . '</div>
+            </td></tr>
+          </table>';
+    }
 
     return '
 <!DOCTYPE html>
@@ -621,11 +643,13 @@ function sticpa_magic_email_html($name, $link, $portalName)
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#ffffff;border-radius:18px;overflow:hidden;box-shadow:0 6px 24px rgba(21,36,71,.08);font-family:Arial,Helvetica,sans-serif;">
         <tr><td style="background:linear-gradient(135deg,#1c6fb3 0%,#6c4b9e 52%,#9d1e74 100%);padding:28px 28px;color:#ffffff;">
           <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;opacity:.9;">' . $portalName . '</div>
-          <div style="font-size:22px;font-weight:bold;margin-top:6px;">' . __('Tu enlace de acceso', 'sticpa') . '</div>
+          <div style="font-size:22px;font-weight:bold;margin-top:6px;">' . esc_html__('Tu acceso', 'sticpa') . '</div>
         </td></tr>
         <tr><td style="padding:28px 28px 8px;color:#1f2937;font-size:16px;line-height:1.55;">
           <p style="margin:0 0 14px;">' . $saludo . '</p>
           <p style="margin:0 0 22px;color:#4b5563;">' . esc_html($intro) . '</p>
+          ' . $codeBlock . '
+          <p style="margin:0 0 14px;text-align:center;color:#9ca3af;font-size:13px;">' . esc_html__('o si lo prefieres', 'sticpa') . '</p>
           <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 22px;"><tr><td align="center" style="border-radius:12px;background:linear-gradient(135deg,#1c6fb3,#9d1e74);">
             <a href="' . $linkAttr . '" style="display:inline-block;padding:14px 28px;color:#ffffff;text-decoration:none;font-weight:bold;font-size:16px;border-radius:12px;">' . esc_html($btn) . '</a>
           </td></tr></table>
@@ -640,23 +664,44 @@ function sticpa_magic_email_html($name, $link, $portalName)
 </body></html>';
 }
 
-add_action('admin_post_stic_forgot_password', 'prefix_admin_stic_forgot_password');
-add_action('admin_post_nopriv_stic_forgot_password', 'prefix_admin_stic_forgot_password');
-function prefix_admin_stic_forgot_password()
+/**
+ * Pide acceso: la persona escribe su email y le mandamos UN correo con las dos
+ * formas de entrar (código de 6 cifras + enlace mágico). Ver `inc/stic-otp.php`
+ * para por qué hacen falta las dos.
+ *
+ * Sustituye al antiguo "he olvidado mi contraseña": ya no hay recuperación de
+ * contraseña por correo. Se entra por aquí y, una vez dentro, quien quiera
+ * contraseña se la pone en su perfil (`single_stic_password_change`).
+ *
+ * `stic_forgot_password` se mantiene registrado como alias del nombre nuevo
+ * para que un formulario ya pintado en una pestaña abierta no se rompa al
+ * desplegar. Se puede quitar dentro de unas semanas.
+ */
+add_action('admin_post_sticpa_send_access', 'sticpa_handle_send_access');
+add_action('admin_post_nopriv_sticpa_send_access', 'sticpa_handle_send_access');
+add_action('admin_post_stic_forgot_password', 'sticpa_handle_send_access');
+add_action('admin_post_nopriv_stic_forgot_password', 'sticpa_handle_send_access');
+function sticpa_handle_send_access()
 {
-    $objSCP = SugarRestApiCall::getObjSCP();
-
     $email = sanitize_email(stripslashes_deep($_REQUEST['forgot-password-email-address'] ?? ''));
-    $baseUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0];
+    $returnUrl = sticpa_auth_return_url();
+
+    // Primero se pregunta y DESPUÉS se apunta: al revés, la petición que hace
+    // de tope se contaría a sí misma y solo saldrían 4 de los 5 envíos.
+    // Se apunta siempre, exista o no el email: si solo contáramos los envíos
+    // reales, mirar qué direcciones gastan cupo sería una forma de enumerar el CRM.
+    $allowed = sticpa_otp_send_allowed($email);
+    sticpa_otp_note_send($email);
 
     // Base ABSOLUTA para el enlace (REQUEST_URI es solo la ruta, sin dominio:
     // daría un enlace relativo que el cliente de correo no puede abrir).
     $areaUrl = get_option('sticpa_scp_area_url');
     if (empty($areaUrl)) {
-        $areaUrl = home_url($baseUrl);
+        $areaUrl = home_url(strtok($returnUrl, '?'));
     }
 
-    if (is_email($email)) {
+    if ($allowed && is_email($email)) {
+        $objSCP = SugarRestApiCall::getObjSCP();
         foreach (sticpa_modules_to_try() as $module) {
             $contact = $objSCP->getContactByEmail($email, $module);
             if ($contact) {
@@ -664,7 +709,13 @@ function prefix_admin_stic_forgot_password()
                 // si quien lo pulsa tiene la app MCM instalada, se abre ahí; si
                 // no, WordPress redirige al área privada de siempre. Ver
                 // `inc/stic-app-links.php`.
-                $link = sticpa_app_link_url(sticpa_generate_magic_link($areaUrl, $module, $contact->id));
+                //
+                // Se firma con la caducidad del código para que el correo pueda
+                // dar UNA fecha de caducidad y sea verdad para las dos vías.
+                $link = sticpa_app_link_url(
+                    sticpa_generate_magic_link($areaUrl, $module, $contact->id, sticpa_otp_ttl())
+                );
+                $code = sticpa_otp_issue($email, $module, $contact->id);
                 $name = $contact->name_value_list->name->value ?? '';
 
                 $portalName = get_option('sticpa_scp_name') ?: __('Tu área privada', 'sticpa');
@@ -675,7 +726,7 @@ function prefix_admin_stic_forgot_password()
                     'Reply-To: ' . $portalName . ' <' . $fromEmail . '>',
                 );
                 $subject = sprintf(__('Tu acceso a %s', 'sticpa'), $portalName);
-                $body = sticpa_magic_email_html($name, $link, $portalName);
+                $body = sticpa_magic_email_html($name, $link, $portalName, $code);
 
                 wp_mail($email, $subject, $body, $headers);
                 break; // found in this module; stop
@@ -683,11 +734,95 @@ function prefix_admin_stic_forgot_password()
         }
     }
 
-    // Always redirect with a generic success message to avoid user enumeration:
-    // we never reveal whether a given email exists in the CRM.
-    $redirect_url = $_REQUEST['scp_current_url'] . '&success=true';
-    wp_redirect($redirect_url);
+    // Recordamos a quién se lo hemos mandado SOLO para poder pre-rellenar la
+    // pantalla del código y enseñar el correo enmascarado. No autoriza nada.
+    if (is_email($email)) {
+        $_SESSION['sticpa_otp_email'] = $email;
+    }
+
+    // Redirección genérica pase lo que pase: nunca se revela si el email existe
+    // en el CRM. `wp_safe_redirect` porque `scp_current_url` viene del cliente
+    // y con `wp_redirect` se podía saltar a un host externo (plan 005).
+    $args = array('sticpa_code' => '1');
+    if (!$allowed) {
+        $args['otp_error'] = 'throttled';
+    }
+    wp_safe_redirect(add_query_arg($args, $returnUrl));
     exit;
+}
+
+/**
+ * Verifica el código de 6 cifras y, si cuadra, abre sesión igual que haría el
+ * enlace mágico (misma sesión, misma duración: no hay accesos de primera y de
+ * segunda según por dónde entres).
+ */
+add_action('admin_post_sticpa_verify_code', 'sticpa_handle_verify_code');
+add_action('admin_post_nopriv_sticpa_verify_code', 'sticpa_handle_verify_code');
+function sticpa_handle_verify_code()
+{
+    $returnUrl = sticpa_auth_return_url();
+
+    // El email puede venir del formulario (campo oculto o visible). Es lo que
+    // permite pedir el código en el ordenador y teclearlo en la app; no da
+    // ninguna ventaja a quien lo manipule, porque el código está guardado por
+    // email y el contador de fallos también.
+    $email = sanitize_email(stripslashes_deep($_REQUEST['sticpa_otp_email'] ?? ''));
+    if (!is_email($email) && !empty($_SESSION['sticpa_otp_email'])) {
+        $email = (string) $_SESSION['sticpa_otp_email'];
+    }
+    $code = sticpa_otp_normalize_code(stripslashes_deep($_REQUEST['sticpa_otp_code'] ?? ''));
+
+    $locked = sticpa_otp_is_locked($email);
+    $valid = $locked ? false : sticpa_otp_verify($email, $code);
+
+    if ($valid) {
+        list($module, $contactId) = $valid;
+        $result = SugarRestApiCall::getObjSCP()->getRecordDetail(
+            $contactId,
+            $module,
+            sticpa_session_select_fields($module)
+        );
+        if (isset($result->entry_list[0]) && $result->entry_list[0] != null) {
+            sticpa_establish_session($result->entry_list[0], $module);
+            unset($_SESSION['sticpa_otp_email']);
+
+            $areaUrl = get_option('sticpa_scp_area_url');
+            wp_safe_redirect($areaUrl ? $areaUrl : strtok($returnUrl, '?'));
+            exit;
+        }
+        // Código correcto pero el CRM no devuelve la ficha: es un fallo nuestro,
+        // no de quien lo teclea. El código ya se ha consumido, así que hay que
+        // pedir otro.
+        wp_safe_redirect(add_query_arg(array('sticpa_code' => '1', 'otp_error' => 'crm'), $returnUrl));
+        exit;
+    }
+
+    // Mismo mensaje para código incorrecto, caducado o email que no existe: si
+    // se distinguieran, el formulario diría qué correos están registrados.
+    wp_safe_redirect(add_query_arg(array(
+        'sticpa_code' => '1',
+        'otp_error' => $locked || sticpa_otp_is_locked($email) ? 'locked' : 'bad',
+    ), $returnUrl));
+    exit;
+}
+
+/**
+ * URL de la pantalla de acceso a la que vuelven los handlers. Sale del campo
+ * `scp_current_url` del formulario, así que se limpia: solo se conserva la
+ * RUTA. Cualquier host, esquema o query que venga del cliente se descarta, que
+ * es justo por donde se colaba el open redirect.
+ */
+function sticpa_auth_return_url()
+{
+    $raw = (string) ($_REQUEST['scp_current_url'] ?? '');
+    $path = parse_url(stripslashes($raw), PHP_URL_PATH);
+    if (!is_string($path) || $path === '' || $path[0] !== '/') {
+        $path = parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH);
+    }
+    if (!is_string($path) || $path === '' || $path[0] !== '/') {
+        $path = '/';
+    }
+    return add_query_arg('stic_auth', '1', $path);
 }
 
 /**

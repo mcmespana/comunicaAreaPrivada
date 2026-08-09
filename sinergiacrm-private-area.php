@@ -55,6 +55,7 @@ include plugin_dir_path(__FILE__) . 'inc/stic-action.php';
 // mágico resuelve su apariencia con sticpa_theme_pref().
 include plugin_dir_path(__FILE__) . 'inc/stic-theme.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-magic-login.php';
+include plugin_dir_path(__FILE__) . 'inc/stic-otp.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-app-links.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-comunica-roles.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-calendar.php';
@@ -602,7 +603,7 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
     $html .= "
         <div class='stic-auth-tabs' role='tablist' aria-label='" . esc_attr__('Forma de acceso', 'sticpa') . "'>
             <button type='button' class='stic-auth-tab' data-auth-toggle='magic' role='tab' id='stic-auth-tab-magic' aria-controls='stic-auth-panel-magic' aria-selected='{$magicSelected}'>"
-                . sticpa_icon('sparkles') . "<span>" . __('Enlace mágico', 'sticpa') . "</span>
+                . sticpa_icon('sparkles') . "<span>" . __('Por correo', 'sticpa') . "</span>
             </button>
             <button type='button' class='stic-auth-tab' data-auth-toggle='password' role='tab' id='stic-auth-tab-password' aria-controls='stic-auth-panel-password' aria-selected='{$passwordSelected}'>"
                 . sticpa_icon('lock') . "<span>" . __('Contraseña', 'sticpa') . "</span>
@@ -613,9 +614,9 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
     $html .= "
         <div class='stic-auth-view stic-auth-magic' id='stic-auth-panel-magic' role='tabpanel' aria-labelledby='stic-auth-tab-magic'>
             " . $magicMsg . "
-            <p class='stic-auth-help'>" . __('Escribe tu correo y te mandamos un enlace para entrar. Sin contraseñas ni líos.', 'sticpa') . "</p>
+            <p class='stic-auth-help'>" . __('Escribe tu correo y te mandamos un código y un enlace para entrar. Sin contraseñas ni líos.', 'sticpa') . "</p>
             <form action='" . site_url() . "/wp-admin/admin-post.php' method='post' class='stic-loading-form'
-                  data-loading-text='" . esc_attr__('Preparando tu enlace…', 'sticpa') . "'
+                  data-loading-text='" . esc_attr__('Preparando tu acceso…', 'sticpa') . "'
                   data-loading-sub='" . esc_attr__('En unos segundos lo tienes en el correo.', 'sticpa') . "'>
                 <ul>
                     <li class='input_login'>
@@ -633,11 +634,11 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
                         </details>
                     </li>
                     <li class='stic-send'>
-                        <input type='hidden' name='action' value='stic_forgot_password'>
+                        <input type='hidden' name='action' value='sticpa_send_access'>
                         <input type='hidden' name='scp_current_url' value='" . esc_attr($return_url) . "'>
                         <button type='submit' class='stic-btn-magic'>
                             <span class='stic-btn-magic-icon'>" . sticpa_icon('send') . "</span>
-                            <span>" . __('Enviarme el enlace', 'sticpa') . "</span>
+                            <span>" . __('Enviarme el acceso', 'sticpa') . "</span>
                         </button>
                     </li>
                 </ul>
@@ -689,9 +690,148 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
     return $html;
 }
 
-function modify_plugin_locale_defaults($locale, $domain) { 
+/**
+ * Pantalla "ya te hemos mandado el acceso", con el formulario del código de 6
+ * cifras. Se llega aquí después de pedir acceso (`?sticpa_code=1`).
+ *
+ * Dos presentaciones, misma capacidad:
+ *
+ *  · Dentro de la app MCM el código va ABIERTO y es lo primero que se ve. Es el
+ *    caso en el que el enlace del correo falla más (ver `inc/stic-otp.php`), y
+ *    además es donde más duele: la sesión de la app dura un año, así que esto
+ *    se hace una vez y ya.
+ *  · En navegador el enlace del correo funciona bien, así que manda el mensaje
+ *    de "míralo en tu correo" y el código queda detrás de un botón pequeño.
+ *
+ * El desplegable es un <details> nativo a propósito: sin JS sigue abriéndose, y
+ * el lector de pantalla ya sabe contarlo.
+ */
+function sticpa_access_code_form($html = "")
+{
+    $base_url = strtok($_SERVER['REQUEST_URI'], '?');
+    $return_url = $base_url . '?stic_auth=1';
+    $appMode = function_exists('sticpa_is_app_mode') && sticpa_is_app_mode();
+
+    // Solo sirve para pre-rellenar y para enseñar a dónde se mandó. Si no hay
+    // nada (se pidió en otro dispositivo), se pide el correo a mano.
+    $pending = isset($_SESSION['sticpa_otp_email']) ? (string) $_SESSION['sticpa_otp_email'] : '';
+    $masked = $pending !== '' ? sticpa_otp_mask_email($pending) : '';
+
+    $error = isset($_REQUEST['otp_error']) ? sanitize_key($_REQUEST['otp_error']) : '';
+    $errorMsg = '';
+    if ($error === 'bad') {
+        $errorMsg = __('Ese código no es correcto o ha caducado. Comprueba el último correo que te hemos enviado.', 'sticpa');
+    } elseif ($error === 'locked') {
+        $errorMsg = __('Has fallado demasiadas veces. Espera un rato antes de volver a probar con el código, o entra con el botón del correo, que sigue funcionando.', 'sticpa');
+    } elseif ($error === 'throttled') {
+        $errorMsg = __('Has pedido acceso varias veces seguidas. Espera unos minutos y revisa mientras tu bandeja de entrada (y la carpeta de spam).', 'sticpa');
+    } elseif ($error === 'crm') {
+        $errorMsg = __('El código era correcto, pero no hemos podido cargar tu ficha. Vuelve a pedir el acceso, por favor.', 'sticpa');
+    }
+
+    $html .= "
+        <aside class='stic-auth-aside' aria-hidden='true'>
+            <div class='stic-auth-aside-logo'>" . sticpa_icon('shield') . "</div>
+            <p class='stic-auth-aside-claim'>" . esc_html__('Ya casi estás dentro', 'sticpa') . "</p>
+        </aside>";
+
+    $html .= "<div class='stic-auth-panel'>";
+
+    $html .= "
+        <div class='stic-auth-brand'>
+            <div class='stic-auth-logo'>" . sticpa_icon('mail') . "</div>
+            <div>
+                <h3>" . esc_html__('Mira tu correo', 'sticpa') . "</h3>
+                <p class='stic-auth-sub'>" . ($masked !== ''
+                    ? sprintf(esc_html__('Te lo hemos enviado a %s', 'sticpa'), esc_html($masked))
+                    : esc_html__('Si tu correo está registrado, ya lo tienes en tu bandeja.', 'sticpa')) . "</p>
+            </div>
+        </div>";
+
+    if ($errorMsg !== '') {
+        $html .= "<span class='error' role='alert'>" . esc_html($errorMsg) . "</span>";
+    } elseif (!$appMode) {
+        $html .= "<span class='success' role='status'>" . esc_html__('¡Listo! Abre el correo y pulsa el botón para entrar. 📩', 'sticpa') . "</span>";
+    }
+
+    /* ---------- Formulario del código ---------- */
+    // maxlength 7 y no 6: al pegar «123 456» desde el correo cabe el espacio.
+    // El servidor se queda solo con los dígitos.
+    $codeForm = "
+        <form action='" . site_url() . "/wp-admin/admin-post.php' method='post' class='stic-loading-form stic-code-form'
+              data-loading-text='" . esc_attr__('Comprobando tu código…', 'sticpa') . "'
+              data-loading-sub='" . esc_attr__('Un segundo y estás dentro.', 'sticpa') . "'>
+            <label class='stic-code-label' for='stic-otp-code'>" . esc_html__('Código de 6 cifras', 'sticpa') . "</label>
+            <input type='text' id='stic-otp-code' name='sticpa_otp_code' class='stic-code-input" . ($error === 'bad' ? " is-wrong" : "") . "'
+                   inputmode='numeric' autocomplete='one-time-code' maxlength='7'
+                   placeholder='000 000' aria-describedby='stic-code-hint' required" . ($appMode ? " autofocus" : "") . ">
+            <p class='stic-code-hint' id='stic-code-hint'>" . sprintf(
+                esc_html__('Caduca en %d minutos.', 'sticpa'),
+                (int) round(sticpa_otp_ttl() / MINUTE_IN_SECONDS)
+            ) . "</p>";
+
+    if ($pending !== '') {
+        $codeForm .= "<input type='hidden' name='sticpa_otp_email' value='" . esc_attr($pending) . "'>";
+    } else {
+        // Se pidió el código en otro sitio (típico: correo en el ordenador, app
+        // en el móvil). Necesitamos saber de quién es el código.
+        $codeForm .= "
+            <label class='stic-code-label' for='stic-otp-email'>" . esc_html__('Tu correo', 'sticpa') . "</label>
+            <span class='stic-field'>
+                <span class='stic-field-icon'>" . sticpa_icon('mail') . "</span>
+                <input type='email' class='input-text' id='stic-otp-email' name='sticpa_otp_email'
+                       autocomplete='email' inputmode='email' placeholder='" . esc_attr__('nombre@correo.com', 'sticpa') . "' required>
+            </span>";
+    }
+
+    $codeForm .= "
+            <input type='hidden' name='action' value='sticpa_verify_code'>
+            <input type='hidden' name='scp_current_url' value='" . esc_attr($return_url) . "'>
+            <button type='submit' class='stic-btn-magic'>
+                <span class='stic-btn-magic-icon'>" . sticpa_icon('check') . "</span>
+                <span>" . esc_html__('Entrar', 'sticpa') . "</span>
+            </button>
+        </form>";
+
+    if ($appMode) {
+        $html .= "<div class='stic-code'>"
+            . "<p class='stic-auth-help'>" . esc_html__('Escribe el código que te hemos mandado y entras directo.', 'sticpa') . "</p>"
+            . $codeForm . "</div>";
+    } else {
+        $html .= "
+            <details class='stic-code-reveal'" . ($errorMsg !== '' ? " open" : "") . ">
+                <summary>" . sticpa_icon('lock', 'stic-hint-icon') . "<span>"
+                    . esc_html__('¿Prefieres introducir el código?', 'sticpa') . "</span>"
+                    . sticpa_icon('chevron', 'stic-hint-chevron') . "</summary>
+                <div class='stic-code'>" . $codeForm . "</div>
+            </details>";
+    }
+
+    /* ---------- Reenvío / volver ---------- */
+    if ($pending !== '') {
+        $html .= "
+            <form action='" . site_url() . "/wp-admin/admin-post.php' method='post' class='stic-code-resend'>
+                <input type='hidden' name='action' value='sticpa_send_access'>
+                <input type='hidden' name='forgot-password-email-address' value='" . esc_attr($pending) . "'>
+                <input type='hidden' name='scp_current_url' value='" . esc_attr($return_url) . "'>
+                <span>" . esc_html__('¿No te llega?', 'sticpa') . "</span>
+                <button type='submit'>" . esc_html__('Envíamelo otra vez', 'sticpa') . "</button>
+            </form>";
+    }
+
+    $html .= "
+        <p class='stic-auth-links'>
+            <a href='" . esc_url($return_url) . "'>" . esc_html__('Usar otro correo', 'sticpa') . "</a>
+        </p>";
+
+    $html .= "</div>"; // .stic-auth-panel
+
+    return $html;
+}
+
+function modify_plugin_locale_defaults($locale, $domain) {
     $locale = 'ca_ES';
-    return $locale; 
+    return $locale;
 }
 
     
@@ -734,6 +874,11 @@ function sugar_crm_portal_check_user_and_login($html = "")
 
         }
 
+    } elseif (isset($_REQUEST['sticpa_code'])) {
+        // Acaba de pedir acceso: pantalla "mira tu correo" + código de 6 cifras.
+        $html .= "<div class='stic-auth-shell'" . sticpa_theme_attr() . "><div class='stic-login-form stic-form'>";
+        $html .= sticpa_access_code_form();
+        $html .= "</div>" . sticpa_appearance_switch_html() . "</div>";
     } else {
         // Vista inicial: por defecto enlace mágico; 'password' si se pide con ?mode=password.
         $mode = (isset($_REQUEST['mode']) && $_REQUEST['mode'] === 'password') ? 'password' : 'magic';
@@ -779,61 +924,6 @@ function check_user_adult($userId, $relationshipTypes = array()) {
         return true;
     }
     return false;
-}
-
-function sugar_crm_portal_forgot_password($html = "")
-{
-    // Passwordless access: the user enters their email and we send a magic link.
-    $current_url = explode('?', $_SERVER['REQUEST_URI'], 2);
-    $current_url = $current_url[0] . '?internalpage=stic_forgot_password';
-
-    $html .= "<div class='stic-auth-shell'" . sticpa_theme_attr() . "><div class='stic-forgotpas-form stic-form'>";
-
-    $html .= "
-        <div class='stic-auth-brand'>
-            <div class='stic-auth-logo'>" . sticpa_icon('sparkles') . "</div>
-            <div>
-                <p class='stic-auth-kicker'>" . __('Acceso sin contraseña', 'sticpa') . "</p>
-                <h3>" . __('Enlace mágico', 'sticpa') . "</h3>
-                <p class='stic-auth-sub'>" . __('Sin contraseñas que recordar.', 'sticpa') . "</p>
-            </div>
-        </div>";
-
-    if (isset($_REQUEST['success']) && $_REQUEST['success'] == true) {
-        // Mensaje genérico a propósito (no revela si el email existe o no).
-        $html .= "<span class='success'>" . __('Si tu dirección de email está registrada, recibirás un enlace de acceso en breve. Revisa tu bandeja de entrada.', 'sticpa') . "</span>";
-    }
-
-    if (isset($_REQUEST['error']) && $_REQUEST['error'] == 1) {
-        $html .= "<span class='error'>" . __('Algo ha ido mal. Inténtalo de nuevo más tarde o contacta con el administrador.', 'sticpa') . "</span>";
-    }
-
-    $html .= "
-            <p class='stic-auth-help'>" . __('Introduce tu dirección de email y te enviaremos un enlace para acceder a tu área privada sin contraseña.', 'sticpa') . "</p>
-            <form action='" . site_url() . "/wp-admin/admin-post.php' method='post' class='stic-loading-form'
-                  data-loading-text='" . esc_attr__('Enviando tu enlace de acceso…', 'sticpa') . "'
-                  data-loading-sub='" . esc_attr__('En unos segundos lo tendrás en tu correo.', 'sticpa') . "'>
-                <ul>
-                    <li class='field_signup'>
-                        <label for='forgot-password-email-address'>" . __('Introduce tu dirección de email', 'sticpa') . "</label>
-                        <span class='stic-field'>
-                            <span class='stic-field-icon'>" . sticpa_icon('mail') . "</span>
-                            <input class='input-text' type='email' name='forgot-password-email-address' id='forgot-password-email-address' autocomplete='email' required />
-                        </span>
-                    </li>
-                    <li class='stic-send'>
-                        <input type='hidden' name='action' value='stic_forgot_password'>
-                        <input type='hidden' name='scp_current_url' value='" . $current_url . "'>
-                        <input type='submit' value='" . __('Envíame el enlace de acceso', 'sticpa') . "' />
-                    </li>
-                </ul>
-            </form>
-            <p class='stic-auth-links' style='text-align:center;margin-top:1.25rem;font-size:0.92rem;'>
-                <a href='?'>" . __('← Volver al inicio de sesión', 'sticpa') . "</a>
-            </p>";
-    $html .= "</div>" . sticpa_appearance_switch_html() . "</div>";
-
-    return $html;
 }
 
 /**
@@ -944,9 +1034,11 @@ function sinergiacrm_private_area_shortcode()
         if (isset($_REQUEST['internalpage']) && $_REQUEST['internalpage'] == 'single_stic_signup') {
             $content .= sugar_crm_portal_signup();
 
-        } else if (isset($_REQUEST['internalpage']) && $_REQUEST['internalpage'] == 'stic_forgot_password') {
-            $content .= sugar_crm_portal_forgot_password();
         } else {
+            // Ya no hay pantalla de "he olvidado mi contraseña": se entra con el
+            // código o el enlace del correo (pestaña "Por correo" del login) y,
+            // una vez dentro, quien quiera contraseña se la pone en su perfil.
+            // Un ?internalpage=stic_forgot_password antiguo cae aquí, en el login.
             $content .= sugar_crm_portal_check_user_and_login();
         }
     }

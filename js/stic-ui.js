@@ -643,11 +643,61 @@
         });
     }
 
+    /* -------- Código de acceso de 6 cifras --------
+       Tres cosas, todas prescindibles: sin JS el campo sigue siendo un input de
+       texto normal en el que se escriben 6 dígitos y se pulsa "Entrar".
+         1. Solo dígitos (pegar «123 456» o «123-456» del correo funciona).
+         2. Espacio automático tras la 3ª cifra: se lee y se comprueba mejor.
+         3. Al llegar a 6, enviar solo. Un paso menos y el teclado numérico del
+            móvil no tiene tecla de enviar decente. */
+    function bindCodeInput() {
+        var input = document.getElementById('stic-otp-code');
+        if (!input) { return; }
+
+        var form = input.form;
+        var sent = false;
+
+        function digits(value) {
+            return (value || '').replace(/\D/g, '').slice(0, 6);
+        }
+
+        function format(value) {
+            return value.length > 3 ? value.slice(0, 3) + ' ' + value.slice(3) : value;
+        }
+
+        input.addEventListener('input', function () {
+            var clean = digits(input.value);
+            input.value = format(clean);
+            input.classList.remove('is-wrong');
+
+            // Autoenvío solo cuando ya hay 6 cifras. El guard evita mandarlo dos
+            // veces si el navegador dispara 'input' otra vez durante el submit.
+            if (clean.length === 6 && form && !sent) {
+                sent = true;
+                // requestSubmit respeta la validación y el overlay de carga;
+                // submit() se los salta, por eso el fallback va después.
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                } else {
+                    form.submit();
+                }
+            }
+        });
+
+        // Al volver de un código incorrecto, el campo llega marcado: basta con
+        // ponerse a escribir para que se limpie (lo hace el listener de arriba).
+        if (input.classList.contains('is-wrong')) {
+            input.focus();
+            input.select();
+        }
+    }
+
     ready(function () {
         // Por si el script de <head> se ejecutó antes de existir el DOM del área:
         // deja los contenedores y los botones con el estado correcto.
         repaintTheme();
         bindAppearanceSwitch();
+        bindCodeInput();
         bindLoadingForms();
         bindPasswordToggles();
         bindAuthToggle();

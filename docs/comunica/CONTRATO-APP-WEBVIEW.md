@@ -140,6 +140,33 @@ la app como universal link (iOS) y app link (Android).
 | App instalada | El sistema abre **la app**, que carga el área en su WebView con ese token. La petición web ni se hace |
 | Sin app / ordenador | Llega aquí → **302** al área privada con el token intacto → login por web |
 
+### 5.a Y cuando el enlace no llega a la app: el código de 6 cifras
+
+La fila de arriba tiene una tercera situación que no se ve en la tabla y que en
+la práctica pasa a menudo: **el cliente de correo envuelve el enlace en un
+redirector** (Gmail en iOS, SafeLinks de Outlook…). Entonces el universal link
+se pierde, la petición sí llega aquí, y la sesión acaba **en el navegador, no en
+la WebView**. Desde fuera se lee como "la app no funciona": la app sigue
+pidiendo acceso porque su cookie de sesión es otra.
+
+Por eso el mismo correo lleva **un código de 6 cifras** además del enlace
+([`inc/stic-otp.php`](../../inc/stic-otp.php)). Es lo único que sobrevive a
+cualquier cliente de correo, porque lo transporta la persona.
+
+- **Dentro de la app** (`sticpa_is_app_mode()`), al pedir acceso el campo del
+  código sale **abierto y enfocado**: es el camino principal.
+- **En navegador** manda el enlace y el código queda detrás de un `<details>`
+  pequeño ("¿Prefieres introducir el código?").
+
+⚠️ Esto es lo único de todo el contrato en lo que `app=1` cambia algo más que
+presentación pura, así que conviene decirlo claro: cambia **qué se ve primero**,
+nunca **qué se puede hacer**. Las dos vías están siempre disponibles en las dos
+partes, porque `app=1` es una cookie de 30 días y no es una señal fiable (§1).
+
+Como la sesión de la app dura un año deslizante, esto se hace **una vez** y
+luego se olvida — que es justo por lo que merece la pena que ese primer día
+salga bien.
+
 Lado web: [`inc/stic-app-links.php`](../../inc/stic-app-links.php) (sirve los
 `/.well-known/…`, atiende el puente y expone `sticpa_app_link_url()`).
 Lado app: `app/+native-intent.ts` + `utils/pendingComunicaLink.ts`.
