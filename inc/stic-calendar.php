@@ -212,6 +212,35 @@ function sticpa_calendar_cache_key()
 }
 
 /**
+ * Extrae la lista de ids de eventos inscritos de una estructura ya cacheada por
+ * sticpa_gather_calendar_data(). Función PURA (no toca CRM ni sesión) para que
+ * pueda cubrirse con tests: la usa el guard anti-duplicado de inscripciones
+ * (prefix_user_active_event_ids), que antes pagaba 1+N llamadas al CRM cada vez.
+ *
+ * @param mixed $cached lo que devuelva get_transient (false si no hay caché).
+ * @return array|null lista de ids (puede estar VACÍA: significa "no hay ninguna
+ *                    inscripción", que es una respuesta válida) o null si la
+ *                    caché no existe o no tiene la forma esperada, y entonces
+ *                    hay que preguntar al CRM.
+ */
+function sticpa_event_ids_from_calendar_cache($cached)
+{
+    if (!is_array($cached) || !isset($cached['registered_events']) || !is_array($cached['registered_events'])) {
+        return null;
+    }
+    $ids = array();
+    foreach ($cached['registered_events'] as $event) {
+        // Tolerante a objeto o array: el transient guarda arrays, pero un filtro
+        // de terceros podría inyectar objetos.
+        $id = is_array($event) ? ($event['id'] ?? null) : ($event->id ?? null);
+        if (!empty($id)) {
+            $ids[] = (string) $id;
+        }
+    }
+    return array_values(array_unique($ids));
+}
+
+/**
  * Invalida la caché del calendario del usuario activo (p. ej. tras inscribirse).
  */
 function sticpa_calendar_flush_cache()

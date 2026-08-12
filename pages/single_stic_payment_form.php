@@ -10,46 +10,93 @@ $pageSettings['fileName'] = basename(__FILE__, ".php"); // List name, from the f
 $html .= "<div class='stic-entry-header'>
 <h4>".__('Payment form', 'sticpa')."</h4>";
 
-if (isset($_REQUEST['eventId']) && $eventId = $_REQUEST['eventId']) {
-  if (!$registrationId = $_REQUEST['registrationId']) {
-    $html .= '<script>
-    alert("'.__("There is no available registration.", 'sticpa').'");
-    window.location.href = "?internalpage=list_stic_events";
-    </script>';
-  } 
-  $eventData = $objSCP->getRecordDetail($eventId, 'stic_Events')->entry_list[0]->name_value_list;
+/**
+ * Pantalla de "aquí no puedes seguir" con su salida a otro sitio.
+ *
+ * Antes esto era un alert() bloqueante en medio del HTML seguido de un
+ * window.location.href, y encima la página SEGUÍA ejecutándose: pintaba el
+ * formulario completo (con sus llamadas al CRM) para luego rebotar. Un diálogo
+ * modal nativo a media carga es justo lo que dentro de la WebView se lee como
+ * "la app se ha colgado".
+ *
+ * No se puede usar wp_redirect: el shortcode se pinta cuando el tema ya ha
+ * enviado las cabeceras. Así que se muestra el mismo lenguaje de error que
+ * pages/single_stic_payment_error.php y el usuario decide.
+ */
+if (!function_exists('sticpa_payment_form_bounce')) {
+function sticpa_payment_form_bounce($title, $sub, $link, $linkLabel)
+{
+    return "<div class='stic-empty-state stic-empty-state--error' role='alert'>"
+        . "<span class='stic-empty-ico stic-empty-ico--error'>"
+        . "<svg viewBox='0 0 24 24' width='30' height='30' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><circle cx='12' cy='12' r='10'/><path d='M12 8v4M12 16h.01'/></svg>"
+        . "</span>"
+        . "<p class='stic-empty-title'>" . esc_html($title) . "</p>"
+        . "<p class='stic-empty-sub'>" . esc_html($sub) . "</p>"
+        . "<p class='stic-empty-actions'><a class='stic-button' href='" . esc_url($link) . "'>" . esc_html($linkLabel) . "</a></p>"
+        . "</div>";
+}
+}
 
-  $eventName = $eventData->name->value;
+$eventId = !empty($_REQUEST['eventId']) ? $_REQUEST['eventId'] : '';
+$registrationId = !empty($_REQUEST['registrationId']) ? $_REQUEST['registrationId'] : '';
 
-  $html .= "<div class='stic-entry-header'>
-  <h5>".__('Event', 'sticpa') .": ".$eventName."</h5>";
+// Guard SIN llamadas al CRM: si venimos de un evento pero no hay inscripción,
+// esta pantalla no tiene nada que cobrar. Se sale antes de gastar 3 round-trips.
+if ($eventId !== '' && $registrationId === '') {
+    $html .= sticpa_payment_form_bounce(
+        __('No encontramos la inscripción', 'sticpa'),
+        __('Para pagar una actividad hace falta estar inscrito. Vuelve a Eventos y apúntate primero.', 'sticpa'),
+        '?internalpage=list_stic_events',
+        __('Ir a Eventos', 'sticpa')
+    );
+    return;
 }
 
 $objSCP = SugarRestApiCall::getObjSCP();
 
-$fieldsDefinitionResults = $objSCP->getFieldDefinition('stic_Payment_Commitments', array('payment_method'));
-$paymentMethodOptions = $fieldsDefinitionResults->module_fields->payment_method->options;
-$paymentMethodOptionsHtml = "<option value='' label='' ></option>";
-$paymentMethod = array('card', 'cash', 'direct_debit', 'bizum');
-foreach($paymentMethod as $elem) {
-    $paymentMethodOptionsHtml .= "<option value='".$elem."' label='{$paymentMethodOptions->$elem->value}' >{$paymentMethodOptions->$elem->value}</option>";
-}
-
-
+// Datos del pagador ANTES de montar nada: si le faltan campos obligatorios hay
+// que mandarle a su perfil, y así no se paga la definición de campos ni la ficha
+// del evento para luego tirarlas.
 $userId = $_SESSION['scp_user_adult'] ? $_SESSION['scp_user_id'] : $_SESSION['scp_tutor_user_id'];
-$userData = $objSCP->getRecordDetail($userId, 'Contacts')->entry_list[0]->name_value_list;
-$email = $userData->email1->value;
-$last_name = $userData->last_name->value;
-$first_name = $userData->first_name->value;
-$stic_identification_number_c = $userData->stic_identification_number_c->value;
+$userData = $objSCP->getRecordDetail($userId, 'Contacts', array(
+    'id', 'email1', 'first_name', 'last_name', 'stic_identification_number_c',
+))->entry_list[0]->name_value_list;
+$email = $userData->email1->value ?? '';
+$last_name = $userData->last_name->value ?? '';
+$first_name = $userData->first_name->value ?? '';
+$stic_identification_number_c = $userData->stic_identification_number_c->value ?? '';
 $assignedUserId = '1';
 
 if (!$email || !$last_name || !$first_name || !$stic_identification_number_c) {
-    $html .= '<script>
-    alert("'.__('There are missing fields to perform the payment. Please, fill the required fields in the next page.', 'sticpa').'");
-    window.location.href = "?internalpage='.($_SESSION['scp_user_adult'] ? 'single_stic_profile' : 'single_stic_tutor_profile').'";
-    </script>';
+    $html .= sticpa_payment_form_bounce(
+        __('Te faltan datos para poder pagar', 'sticpa'),
+        __('Necesitamos tu nombre, apellidos, correo y documento de identidad. Complétalos en tus datos y vuelve al pago.', 'sticpa'),
+        '?internalpage=' . ($_SESSION['scp_user_adult'] ? 'single_stic_profile' : 'single_stic_tutor_profile'),
+        __('Completar mis datos', 'sticpa')
+    );
+    return;
 }
+
+if ($eventId !== '') {
+  $eventData = $objSCP->getRecordDetail($eventId, 'stic_Events', array('id', 'name'))->entry_list[0]->name_value_list;
+
+  $eventName = $eventData->name->value ?? '';
+
+  $html .= "<div class='stic-entry-header'>
+  <h5>".__('Event', 'sticpa') .": ".esc_html($eventName)."</h5>";
+}
+
+// Definición cacheada 6h (como el resto de formularios del área): antes esta
+// pantalla llamaba a getFieldDefinition en CADA visita, saltándose la caché.
+$paymentMethodDef = sticpa_cached_field_definition($objSCP, 'stic_Payment_Commitments', array('payment_method'));
+$paymentMethodOptions = $paymentMethodDef['payment_method']['options'] ?? array();
+$paymentMethodOptionsHtml = "<option value='' label='' ></option>";
+$paymentMethod = array('card', 'cash', 'direct_debit', 'bizum');
+foreach($paymentMethod as $elem) {
+    $optionLabel = $paymentMethodOptions[$elem]['value'] ?? $elem;
+    $paymentMethodOptionsHtml .= "<option value='".esc_attr($elem)."' label='".esc_attr($optionLabel)."' >".esc_html($optionLabel)."</option>";
+}
+
 $hostUrl = get_option('sticpa_scp_host_url');
 $tutorIsUser = $_SESSION['scp_tutor_is_user'] ?? ($_SESSION['scp_user_adult'] ?? false);
 

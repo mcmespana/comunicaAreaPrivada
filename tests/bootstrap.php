@@ -98,3 +98,7 @@ if (!function_exists('delete_transient')) {
 require_once __DIR__ . '/../inc/stic-theme.php';
 require_once __DIR__ . '/../inc/stic-magic-login.php';
 require_once __DIR__ . '/../inc/stic-otp.php';
+// stic-calendar.php solo define funciones (más el guard de ABSPATH), así que se
+// carga sin WordPress. De aquí se testea sticpa_event_ids_from_calendar_cache,
+// la pieza pura del guard anti-duplicado de inscripciones.
+require_once __DIR__ . '/../inc/stic-calendar.php';
