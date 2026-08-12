@@ -68,6 +68,26 @@ function sticpa_event_fields_to_request($objSCP)
     return array_values(array_unique(array_merge($base, array_intersect($wanted, $existing))));
 }
 
+/**
+ * Filtro SQL de la ventana temporal de eventos "vivos" (por defecto -3 … +12
+ * meses). FUENTE ÚNICA: la comparten el calendario y el listado de Eventos.
+ *
+ * RENDIMIENTO: "Eventos" pedía al CRM TODOS los eventos históricos sin filtro
+ * ni límite, así que el tiempo de respuesta, el JSON y el HTML crecían con la
+ * antigüedad de la base de datos y no con lo que hay que mostrar. El calendario
+ * ya usaba esta misma ventana, así que además ahora dicen lo mismo.
+ *
+ * Los eventos pasados NO desaparecen del área: las inscripciones del usuario
+ * siguen listándose enteras en "Inscripciones". Y la ventana se puede ampliar
+ * sin tocar código con los filtros sticpa_events_window_months_back/ahead.
+ */
+function sticpa_events_window_filter()
+{
+    $back  = (int) apply_filters('sticpa_events_window_months_back', 3);
+    $ahead = (int) apply_filters('sticpa_events_window_months_ahead', 12);
+    return "(stic_events.start_date BETWEEN DATE_ADD(curdate(), INTERVAL -{$back} MONTH) AND DATE_ADD(curdate(), INTERVAL {$ahead} MONTH))";
+}
+
 /** Iconos en línea de la ficha (mismo trazo que el resto del área). */
 function sticpa_event_icon($name)
 {
