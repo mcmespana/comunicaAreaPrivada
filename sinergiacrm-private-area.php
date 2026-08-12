@@ -1145,19 +1145,38 @@ if (isset($_REQUEST['logout'])) // logout
     add_action('init', 'sugar_crm_portal_louout', 1);
     function sugar_crm_portal_louout()
     {
-        unset($_SESSION['scp_user_id']);
-        unset($_SESSION['scp_tutor_user_id']);
-        unset($_SESSION['scp_tutor_user_contact_name']);
-        unset($_SESSION['scp_account_id']);
-        unset($_SESSION['scp_user_account_name']);
-        unset($_SESSION['scp_user_contact_name']);
-        unset($_SESSION['api_session_id']);
-        unset($_SESSION['scp_user_securitygroups']);
-        unset($_SESSION['scp_user_assigned_user_id']);
-        unset($_SESSION['scp_user_adult']);
-        unset($_SESSION['scp_tutor_is_user']);
-        unset($_SESSION['scp_module']);
-        
+        // TODO lo que identifica o describe a quien había entrado. Ojo al añadir
+        // una clave de sesión nueva: si no se limpia aquí, la siguiente persona
+        // que entre en el MISMO navegador la hereda — y en familias el móvil se
+        // comparte. Aquí están también las cachés en sesión (rol, participantes
+        // disponibles, aviso del certificado) precisamente por eso.
+        $sessionKeysToClear = array(
+            'scp_user_id',
+            'scp_tutor_user_id',
+            'scp_tutor_user_contact_name',
+            'scp_account_id',
+            'scp_user_account_name',
+            'scp_user_contact_name',
+            'scp_user_securitygroups',
+            'scp_user_assigned_user_id',
+            'scp_user_adult',
+            'scp_tutor_is_user',
+            'scp_module',
+            // Cachés por usuario (ver inc/stic-comunica-roles.php y menu.php).
+            'scp_role',
+            'scp_relationship_raw',
+            'scp_available_profiles',
+            'scp_is_familia',
+            'scp_ds_pending',
+            // Sesión del CRM y su marca de tiempo (van en pareja).
+            'api_session_id',
+            'api_session_time',
+        );
+        foreach ($sessionKeysToClear as $sessionKey) {
+            unset($_SESSION[$sessionKey]);
+        }
+
+
         $redirect_url = explode('?', $_SERVER['REQUEST_URI'], 2);
         $redirect_url = $redirect_url[0];
         wp_redirect($redirect_url);

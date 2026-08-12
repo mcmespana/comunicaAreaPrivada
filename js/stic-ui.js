@@ -85,6 +85,12 @@
                     form.getAttribute('data-loading-sub') || ''
                 );
                 notifyApp('start', form.getAttribute('action') || '');
+                // Red de seguridad holgada: si el envío no acaba en navegación
+                // (un formulario que responde un fichero, por ejemplo) el overlay
+                // se quedaría puesto para siempre. 45s porque un guardado con
+                // varios adjuntos puede tardar de verdad y no queremos quitarle
+                // el aviso a quien está esperando.
+                setTimeout(hideOverlay, 45000);
             });
         });
     }

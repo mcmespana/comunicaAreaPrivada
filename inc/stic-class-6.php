@@ -11,6 +11,9 @@ class SugarRestApiCall
     public $url;
     public $session_id;
     public $destinationModule;
+    /** Idioma que se le pide al CRM al autenticar (declarada: en PHP 8.2+ crear
+     *  la propiedad al vuelo emite un "deprecated" en CADA petición). */
+    public $language;
 
     /**
      * Handle de cURL reutilizado en TODAS las llamadas de esta petición.
