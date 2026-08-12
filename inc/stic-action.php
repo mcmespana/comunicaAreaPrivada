@@ -621,27 +621,46 @@ function prefix_admin_single_stic_password_change()
 }
 
 /**
- * Email HTML (branded, mobile-first) con las DOS formas de entrar: el botón del
- * enlace mágico y el código de 6 cifras.
+ * Nombre "seguro" para el correo: nombre de pila + inicial del primer apellido
+ * ("Juan Pérez García" -> "Juan P."). El correo puede acabar reenviado, quedar
+ * en un buzón compartido o abrirse en una pantalla ajena, así que enseña lo
+ * justo para que la persona se reconozca sin exponer el apellido completo.
  *
- * El código va grande y arriba SIEMPRE, también cuando la petición sale de un
- * navegador. Un código grande no le estorba a quien va a pulsar el botón, y en
- * cambio salva el caso que más se rompe: abrir el correo en un sitio (el
- * ordenador, el correo del trabajo) y querer entrar en otro (la app del móvil).
- * Una sola plantilla, sin ramas según el origen.
+ * Si solo hay una palabra (habitual en Cuentas, que son organizaciones y no
+ * personas) se devuelve tal cual: no hay apellido que enmascarar.
+ */
+function sticpa_mask_display_name($name)
+{
+    $name = trim((string) $name);
+    if ($name === '') {
+        return '';
+    }
+    $parts = preg_split('/\s+/', $name);
+    if (count($parts) < 2) {
+        return $parts[0];
+    }
+    return $parts[0] . ' ' . mb_strtoupper(mb_substr($parts[1], 0, 1)) . '.';
+}
+
+/**
+ * Email HTML (branded, mobile-first) con las DOS formas de entrar: el botón del
+ * enlace mágico primero (es lo más fácil para casi todo el mundo) y, debajo,
+ * el código de 6 cifras para quien prefiera teclearlo o vaya a entrar desde la
+ * app MCM (ver `inc/stic-otp.php` para el porqué del código).
  *
  * Colores de marca MCM: azul #1c6fb3, magenta #9d1e74. Estilos inline porque
  * los clientes de correo no respetan <style> ni CSS externo.
  */
 function sticpa_magic_email_html($name, $link, $portalName, $code = '')
 {
-    $name = esc_html($name);
+    $name = esc_html(sticpa_mask_display_name($name));
     $portalName = esc_html($portalName);
     $linkAttr = esc_url($link);
     $minutos = (int) round(sticpa_otp_ttl() / MINUTE_IN_SECONDS);
     $saludo = $name !== '' ? sprintf(__('Hola %s,', 'sticpa'), $name) : __('Hola,', 'sticpa');
-    $intro = __('Tienes dos formas de entrar a tu área privada, la que te venga mejor. No necesitas recordar ninguna contraseña.', 'sticpa');
+    $intro = __('Has solicitado entrar en el área privada de MCM Comunica.', 'sticpa');
     $btn = __('Acceder a mi área privada', 'sticpa');
+    $otroModo = __('Si te resulta más fácil, o si vas a entrar desde la app, usa este código:', 'sticpa');
     $expira = sprintf(__('Por seguridad, el código y el enlace caducan en %d minutos. Si caducan, pídelos de nuevo desde la web.', 'sticpa'), $minutos);
     $fallback = __('¿El botón no funciona? Copia y pega esta dirección en tu navegador:', 'sticpa');
     $ignore = __('Si no has solicitado este acceso, puedes ignorar este correo. Nadie puede entrar en tu cuenta sin este mensaje.', 'sticpa');
@@ -652,6 +671,7 @@ function sticpa_magic_email_html($name, $link, $portalName, $code = '')
     $codeBlock = '';
     if ($code !== '') {
         $codeBlock = '
+          <p style="margin:0 0 10px;text-align:center;color:#9ca3af;font-size:13px;">' . esc_html($otroModo) . '</p>
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
             <tr><td align="center" style="background:#f4f6fb;border:1px solid #e3e8f2;border-radius:14px;padding:18px 12px;">
               <div style="font-size:13px;color:#6b7280;letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px;">'
@@ -663,6 +683,18 @@ function sticpa_magic_email_html($name, $link, $portalName, $code = '')
             </td></tr>
           </table>';
     }
+
+    // Logo del pie: "Consolación para el Mundo", el logo institucional real
+    // (antes había aquí una insignia "MCM" dibujada en CSS porque no teníamos
+    // ninguna URL publicada). width/height van como ATRIBUTOS, no solo en
+    // style: varios clientes de correo (Outlook clásico entre ellos) ignoran
+    // el CSS de <img> pero sí respetan estos atributos, y sin ellos la imagen
+    // "salta" el layout mientras carga. Se sirve por HTTPS: los avisos de
+    // "contenido no seguro" de algunos clientes bloquean el HTTP a pelo.
+    $footerBadge = '
+          <img src="https://comunica.movimientoconsolacion.com/mcm_mini.png"
+               width="120" height="45" alt="Consolación para el Mundo"
+               style="display:block;width:120px;height:45px;border:0;margin:0 auto 10px;">';
 
     return '
 <!DOCTYPE html>
@@ -678,16 +710,19 @@ function sticpa_magic_email_html($name, $link, $portalName, $code = '')
         <tr><td style="padding:28px 28px 8px;color:#1f2937;font-size:16px;line-height:1.55;">
           <p style="margin:0 0 14px;">' . $saludo . '</p>
           <p style="margin:0 0 22px;color:#4b5563;">' . esc_html($intro) . '</p>
-          ' . $codeBlock . '
-          <p style="margin:0 0 14px;text-align:center;color:#9ca3af;font-size:13px;">' . esc_html__('o si lo prefieres', 'sticpa') . '</p>
           <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 22px;"><tr><td align="center" style="border-radius:12px;background:linear-gradient(135deg,#1c6fb3,#9d1e74);">
             <a href="' . $linkAttr . '" style="display:inline-block;padding:14px 28px;color:#ffffff;text-decoration:none;font-weight:bold;font-size:16px;border-radius:12px;">' . esc_html($btn) . '</a>
           </td></tr></table>
+          ' . $codeBlock . '
           <p style="margin:0 0 18px;color:#6b7280;font-size:13px;line-height:1.5;">' . esc_html($expira) . '</p>
           <p style="margin:0 0 6px;color:#6b7280;font-size:13px;">' . esc_html($fallback) . '</p>
           <p style="margin:0 0 22px;word-break:break-all;"><a href="' . $linkAttr . '" style="color:#1c6fb3;font-size:13px;">' . $linkAttr . '</a></p>
         </td></tr>
         <tr><td style="padding:18px 28px 26px;border-top:1px solid #eef0f5;color:#9ca3af;font-size:12px;line-height:1.5;">' . esc_html($ignore) . '</td></tr>
+        <tr><td align="center" style="padding:4px 28px 26px;">'
+          . $footerBadge . '
+          <div style="color:#9ca3af;font-size:12px;">comunica@movimientoconsolacion.com</div>
+        </td></tr>
       </table>
     </td></tr>
   </table>
