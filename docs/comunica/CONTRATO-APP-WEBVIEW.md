@@ -127,6 +127,42 @@ sobre el historial de la WebView, y en Android el botón atrás del sistema nave
 primero por el historial de la web. El área **no** añade botones de volver
 propios.
 
+### 4.a El área avisa de sus navegaciones (`sticpa:nav`) — web → app
+
+Es el **único** mensaje que viaja de la web a la app; todo lo demás del contrato
+va en sentido contrario. Existe por rendimiento percibido: el área son recargas
+completas de página, y entre el tap y el primer pintado pasa todo lo que el
+servidor tarda en hablar con el CRM. El único indicador nativo de eso es la barra
+de progreso de la WebView, que es fina, va arriba y queda fuera del foco visual:
+la sensación es que el tap no ha hecho nada.
+
+Cuando el área detecta que empieza una navegación (tap en un enlace interno o
+envío de un formulario) manda, **si el puente existe**:
+
+```js
+window.ReactNativeWebView.postMessage(JSON.stringify({
+    type: 'sticpa:nav',
+    state: 'start',        // 'start' | 'end'
+    href: 'https://…'      // destino ('' en formularios sin action)
+}));
+```
+
+Y en cuanto la página siguiente está viva (evento `pageshow`, incluida la vuelta
+desde el bfcache) manda el mismo mensaje con `state: 'end'`.
+
+| Quién | Qué hace |
+|---|---|
+| **Área (web)** | Emite el mensaje. Si `window.ReactNativeWebView` no existe (navegador), no hace nada. Ya pinta además su propio overlay de carga, así que el mensaje es un extra, no un requisito |
+| **App** | *Puede* usarlo para mostrar un indicador **nativo** (que se siente instantáneo porque no depende del hilo de la WebView) y, si quiere, ocultar la barra de progreso. Si lo ignora, no pasa nada |
+
+Lado web: `bindLoadingLinks()` / `notifyApp()` en
+[`js/stic-ui.js`](../../js/stic-ui.js).
+
+> Cosas que **no** hay que romper desde aquí: `state: 'end'` puede llegar sin un
+> `'start'` previo (primera carga, enlace del correo, recarga manual), así que la
+> app no debe asumir que van emparejados. Y si algún día se añaden más tipos de
+> mensaje, mantener el prefijo `sticpa:` para poder filtrarlos.
+
 ---
 
 ## 5. Enlaces de acceso del correo que abren la app

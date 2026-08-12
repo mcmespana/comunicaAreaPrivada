@@ -46,6 +46,28 @@
         el.classList.add('is-active');
     }
 
+    function hideOverlay() {
+        if (overlay) { overlay.classList.remove('is-active'); }
+    }
+
+    /**
+     * Avisa a la app MCM de que empieza/termina una navegación. La app lleva su
+     * propia cápsula de navegación sobre el historial de la WebView, así que con
+     * esto puede pintar un indicador NATIVO (que se siente instantáneo porque no
+     * depende del hilo de la WebView) en vez de la barrita de progreso.
+     * Si no estamos dentro de la app, no existe el puente y no pasa nada.
+     */
+    function notifyApp(state, href) {
+        if (!window.ReactNativeWebView || !window.ReactNativeWebView.postMessage) { return; }
+        try {
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'sticpa:nav',
+                state: state,
+                href: href || ''
+            }));
+        } catch (err) { /* el puente es opcional: nunca debe romper la página */ }
+    }
+
     /* -------- Formularios que muestran carga al enviar -------- */
     function bindLoadingForms() {
         var forms = document.querySelectorAll('form.stic-loading-form');
@@ -62,7 +84,50 @@
                     form.getAttribute('data-loading-text') || 'Procesando…',
                     form.getAttribute('data-loading-sub') || ''
                 );
+                notifyApp('start', form.getAttribute('action') || '');
             });
+        });
+    }
+
+    /* -------- Enlaces que muestran carga al navegar --------
+       El área son recargas completas de página: entre el tap y el primer pintado
+       pasa TODO el tiempo que el servidor tarda en hablar con el CRM, y hasta
+       ahora no se veía nada (la barra de progreso de la WebView es fina y va
+       arriba, fuera del foco visual). Sin señal, la lectura del usuario es "no ha
+       hecho nada" → segundo tap → doble navegación.
+       Delegado en document: cubre también el contenido que se pinta después. */
+    function bindLoadingLinks() {
+        document.addEventListener('click', function (e) {
+            // Respetar clics ya gestionados, botón no primario y modificadores
+            // (abrir en pestaña nueva no navega esta página).
+            if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) { return; }
+            if (!e.target || !e.target.closest) { return; }
+            var link = e.target.closest('a[href]');
+            if (!link) { return; }
+            // El selector de participante trae su propio texto ("Cambiando…").
+            if (link.hasAttribute('data-part-switch-to')) { return; }
+            if (link.target && link.target !== '_self') { return; }
+            if (link.hasAttribute('download')) { return; }
+            var href = link.getAttribute('href') || '';
+            if (href === '' || href.charAt(0) === '#') { return; }
+            if (/^(mailto:|tel:|javascript:|blob:|data:)/i.test(href)) { return; }
+            var url;
+            try { url = new URL(link.href, window.location.href); } catch (err) { return; }
+            if (url.origin !== window.location.origin) { return; }
+            // Las descargas responden un fichero, no una página: la navegación
+            // nunca "termina" y el overlay se quedaría puesto.
+            if (/[?&](download|descargar)=/.test(url.search) || /action=download/.test(url.search)) { return; }
+            showOverlay(link.getAttribute('data-loading-text') || 'Cargando…', '');
+            notifyApp('start', url.href);
+            // Red de seguridad: si la navegación no llega a ocurrir (descarga no
+            // detectada, cancelación), el overlay no se queda bloqueando la vista.
+            setTimeout(hideOverlay, 12000);
+        });
+        // Al volver atrás la página puede revivir del bfcache con el overlay
+        // puesto (la app usa el historial de la WebView para su botón atrás).
+        window.addEventListener('pageshow', function (e) {
+            if (e.persisted) { hideOverlay(); }
+            notifyApp('end', window.location.href);
         });
     }
 
@@ -699,6 +764,7 @@
         bindAppearanceSwitch();
         bindCodeInput();
         bindLoadingForms();
+        bindLoadingLinks();
         bindPasswordToggles();
         bindAuthToggle();
         bindNavToggle();
