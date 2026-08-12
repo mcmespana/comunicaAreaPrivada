@@ -74,7 +74,12 @@ $params = array(
 $getRelatedRegistrations = $objSCP->getRelatedElementsForLoggedUser($params);
 $availableSessions = array();
 $sessionIds = array();
-foreach($getRelatedRegistrations as $element) {
+// Eventos ya consultados: varias inscripciones pueden apuntar al MISMO evento, y
+// entonces se repetía la consulta de sus sesiones para acabar descartando el
+// resultado duplicado más abajo (por $sessionIds). Se salta directamente.
+$seenEventIds = array();
+// is_array: el cliente del CRM devuelve null si la llamada falla o expira.
+foreach((is_array($getRelatedRegistrations) ? $getRelatedRegistrations : array()) as $element) {
     $parentModule = 'stic_Registrations';
     $relationship = 'stic_registrations_stic_events';
     $params = array(
@@ -92,7 +97,12 @@ foreach($getRelatedRegistrations as $element) {
     
     $getRelatedEvents = $objSCP->getRelatedElementsForLoggedUser($params);
 
-    foreach($getRelatedEvents as $element) {
+    foreach((is_array($getRelatedEvents) ? $getRelatedEvents : array()) as $element) {
+        $eventId = $element->name_value_list->id->value ?? null;
+        if (!$eventId || isset($seenEventIds[$eventId])) {
+            continue;
+        }
+        $seenEventIds[$eventId] = true;
         $parentModule = 'stic_Events';
         $relationship = 'stic_sessions_stic_events';
         $params = array(
@@ -108,7 +118,7 @@ foreach($getRelatedRegistrations as $element) {
             "limit" => 0,
         );
         $getRelatedSessions = $objSCP->getRelatedElementsForLoggedUser($params);
-        foreach($getRelatedSessions as $session) {
+        foreach((is_array($getRelatedSessions) ? $getRelatedSessions : array()) as $session) {
             $data = $session->name_value_list;
             if (!in_array($data->id->value, $sessionIds)) {
                 $availableSessions[] = $session;

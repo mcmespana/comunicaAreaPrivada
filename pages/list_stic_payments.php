@@ -86,21 +86,31 @@ if ((isset($_SESSION['scp_tutor_is_user']) && $_SESSION['scp_tutor_is_user']) ||
     );
 
     $getRelatedElements = $objSCP->getRelatedElementsForLoggedUser($params);
-    foreach($getRelatedElements as $key => $payment) {
-        $params = array(
-            'module_name' => 'stic_Payments',
-            "module_id" => $payment->id, //Do not touch
-            "link_field_name" => 'stic_payments_stic_payment_commitments',
-            // "related_module_query" => "(end_date is null OR end_date >curdate())", //sql where conditions
-            "related_fields" => array('stic_payment_commitments_contacts_1_name'), //Do not touch
-            "related_module_link_name_to_fields_array" => array(),
-            "deleted" => 0, //show or not deleted elements (usually 0)
-            "order_by" => "",
-            "offset" => "",
-            "limit" => 0,
-        );
-        $getRelatedPC = $objSCP->getRelatedElementsForLoggedUser($params);
-        $getRelatedElements[$key]->name_value_list->stic_payment_commitments_contacts_1_name = $getRelatedPC[0]->name_value_list->stic_payment_commitments_contacts_1_name;
+    // RENDIMIENTO: la columna "Contacto destinatario" solo se AÑADE a
+    // $columnsList (y por tanto solo se pinta) cuando el familiar se está viendo
+    // a sí mismo. Para el resto de personas adultas se hacía igualmente una
+    // llamada al CRM POR PAGO para rellenar un valor que makeList no muestra:
+    // con 50 pagos, 50 round-trips a la basura.
+    $showsRecipientColumn = isset($_SESSION['scp_tutor_is_user']) && $_SESSION['scp_tutor_is_user'];
+    if ($showsRecipientColumn && is_array($getRelatedElements)) {
+        foreach($getRelatedElements as $key => $payment) {
+            $params = array(
+                'module_name' => 'stic_Payments',
+                "module_id" => $payment->id, //Do not touch
+                "link_field_name" => 'stic_payments_stic_payment_commitments',
+                // "related_module_query" => "(end_date is null OR end_date >curdate())", //sql where conditions
+                "related_fields" => array('stic_payment_commitments_contacts_1_name'), //Do not touch
+                "related_module_link_name_to_fields_array" => array(),
+                "deleted" => 0, //show or not deleted elements (usually 0)
+                "order_by" => "",
+                "offset" => "",
+                "limit" => 0,
+            );
+            $getRelatedPC = $objSCP->getRelatedElementsForLoggedUser($params);
+            if (isset($getRelatedPC[0]->name_value_list->stic_payment_commitments_contacts_1_name)) {
+                $getRelatedElements[$key]->name_value_list->stic_payment_commitments_contacts_1_name = $getRelatedPC[0]->name_value_list->stic_payment_commitments_contacts_1_name;
+            }
+        }
     }
     $availablePayments = $getRelatedElements;
 } else {
@@ -117,7 +127,8 @@ if ((isset($_SESSION['scp_tutor_is_user']) && $_SESSION['scp_tutor_is_user']) ||
     );
 
     $getRelatedElements = $objSCP->getRelatedElementsForLoggedUser($params);
-    foreach($getRelatedElements as $key => $PC) {
+    // is_array: el cliente del CRM devuelve null si la llamada falla o expira.
+    foreach((is_array($getRelatedElements) ? $getRelatedElements : array()) as $key => $PC) {
         $params = array(
             'module_name' => 'stic_Payment_Commitments',
             "module_id" => $PC->id, //Do not touch
