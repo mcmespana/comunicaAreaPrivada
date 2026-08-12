@@ -318,8 +318,10 @@ function sticpa_render_access_loading_screen()
     <meta name="robots" content="noindex,nofollow">
     <title><?= esc_html($title) ?></title>
     <noscript><meta http-equiv="refresh" content="0;url=<?= $goUrlAttr ?>"></noscript>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Sin tipografía externa a propósito: esta pantalla dura uno o dos
+         segundos y solo espera un redirect. Pedirla a Google (hoja + woff2 en
+         otro origen) era meter dos saltos DNS+TLS delante de una espera. Cae al
+         stack del sistema, que ya está cargado. -->
     <style>
         :root { --blue:#1c6fb3; --pink:#9d1e74; --violet:#6c4b9e; }
         * { box-sizing:border-box; margin:0; padding:0; }
