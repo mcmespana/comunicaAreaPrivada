@@ -300,12 +300,26 @@ Se cargan **solo** en las páginas que tienen el shortcode (para no ensuciar el 
 en `sugar_crm_portal_style_and_script()`. **El orden importa: lo último pisa a lo anterior.**
 
 ```php
-wp_enqueue_style('stic-google-fonts', 'https://fonts.googleapis.com/...Inter...'); // tipografía
-wp_enqueue_style('stic-base',         'css/stic-base.css');         // capa base consolidada
-wp_enqueue_style('stic-multiselect',  'css/selectize.css');         // librería selectize
-wp_enqueue_style('fullcalendar',      'js/fullcalendar/lib/main.css');
+wp_enqueue_style('stic-base',         'css/stic-base.css');         // capa base + @font-face de Inter
+wp_enqueue_style('stic-multiselect',  'css/selectize.css');         // librería selectize (solo single_*)
+wp_enqueue_style('stic-datatables',   'css/vendor/...min.css');     // solo páginas list_*
+wp_enqueue_style('fullcalendar',      'js/fullcalendar/lib/main.min.css'); // solo el calendario
 wp_enqueue_style('custom-style',      'css/custom-style.css');      // ← TUYO, carga el ÚLTIMO
 ```
+
+> ⚡ **La tipografía va AUTOALOJADA** en `fonts/` (Inter, fuente variable, subsets
+> `latin` y `latin-ext`), declarada con `@font-face` al principio de
+> `css/stic-base.css`. Ya **no** se pide a `fonts.googleapis.com`: eso metía dos
+> saltos DNS+TLS encadenados (hoja en un origen, `.woff2` en otro) delante del
+> primer pintado con la letra correcta, en cada arranque en frío de la app. Para
+> actualizar Inter basta con sustituir los dos `.woff2` de `fonts/`.
+>
+> ⚡ **En producción el CSS y el JS propios van minificados**, pero el repositorio
+> guarda los fuentes comentados: la minificación (solo espacios y comentarios) la
+> hace el job de deploy sobre su copia — ver
+> [`.github/workflows/deploy-produccion.yml`](.github/workflows/deploy-produccion.yml).
+> Son ~146 KB menos que el navegador tiene que parsear **en cada navegación**
+> (el área son recargas completas, así que la caché ahorra la descarga, no el parseo).
 
 - `css/stic-base.css` → capa base consolidada (ex `stic-style.css` + `stic-modern-style.css`, en ese orden).
 - **`css/custom-style.css` → CAPA PREMIUM y TU sitio para personalizar.** Se carga **el último

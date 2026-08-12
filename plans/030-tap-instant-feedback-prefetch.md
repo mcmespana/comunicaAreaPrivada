@@ -17,6 +17,13 @@
 - **Depends on**: none (compone con 027/029: ellos acortan la espera, este la hace visible y la solapa)
 - **Category**: perf (velocidad percibida)
 - **Planned at**: commit `337ec6a`, 2026-08-09
+- **Estado**: **PARCIAL** — steps 1, 3 y 4 en `d2873dd` (2026-08-12).
+  **Step 2 (Speculation Rules) APARCADO, no fallido**: comprobado con curl contra el
+  sitio real que responde `cache-control: no-store, no-cache, must-revalidate` (el
+  limitador de sesión de PHP por defecto). La especificación de Speculation Rules no
+  usa respuestas `no-store`, así que el prefetch sería inerte. Habilitarlo exige
+  quitar el `no-store` → páginas con datos personales de menores pasarían a la caché
+  de disco del navegador: decisión de privacidad del mantenedor, no técnica.
 
 ## Why this matters
 

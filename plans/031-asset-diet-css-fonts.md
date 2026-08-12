@@ -17,6 +17,14 @@
 - **Depends on**: none
 - **Category**: perf
 - **Planned at**: commit `337ec6a`, 2026-08-09
+- **Estado**: **PARCIAL** — steps 1-3 en `7dc928a` (2026-08-12). Step 4 (retirar
+  DataTables) pendiente: necesita QA visual de los 11 listados.
+  Desvíos deliberados: se usa `--minify-whitespace` y NO `--minify` (comprobado que
+  el minificado completo reescribe reglas; con 726 `!important` portantes no merece
+  el riesgo por 1,5 KB) y, en JS, evita renombrar identificadores, que rompería las
+  funciones globales llamadas por nombre desde HTML generado. Inter se autoaloja como
+  fuente VARIABLE: 2 archivos (latin + latin-ext, este último necesario para la ela
+  geminada del catalán) en vez de los 5-10 que suponía la ficha.
 
 ## Why this matters
 

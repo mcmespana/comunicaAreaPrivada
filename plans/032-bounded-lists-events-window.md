@@ -17,6 +17,15 @@
 - **Depends on**: none (independiente del plan 011, que reduce el nº de llamadas; este reduce su TAMAÑO)
 - **Category**: perf
 - **Planned at**: commit `337ec6a`, 2026-08-09
+- **Estado**: **PARCIAL** — steps 1-2 en `113255e` (2026-08-12).
+  **Step 3 (techo de filas) NO aplicado**: las 4 páginas piden al CRM con `order_by`
+  vacío, así que un límite mostraría los registros MÁS ANTIGUOS y esconderías los
+  recientes — lo contrario de lo que se busca. Es justo el STOP que la propia ficha
+  anticipaba: hace falta el `order_by` descendente correcto por módulo, validado
+  contra el CRM real.
+  En el step 2 la ventana se aplica al desplegable SOLO al crear: al editar una
+  inscripción antigua el evento podría caer fuera de la ventana y guardar perdería la
+  relación.
 
 ## Why this matters
 
@@ -101,7 +110,7 @@ un texto de UI que prometa "histórico completo de eventos"), es STOP.
 - `inc/stic-class-6.php` — no cambies los defaults de `getRecordsModule` (otros llamantes
   dependen de "sin límite", p. ej. herramientas de admin).
 - Paginación completa con offset/navegación — deliberadamente aplazada (ver Maintenance).
-- DataTables/چrome de los listados — plan 031 step 4.
+- El chrome de DataTables en los listados — plan 031 step 4.
 
 ## Git workflow
 
