@@ -1100,8 +1100,16 @@ function sugar_crm_portal_start_session()
 
     // Ventana DESLIZANTE: PHP no reenvía la cookie de sesión si el navegador ya
     // trae una válida, así que la caducidad no se movería. La reenviamos nosotros
-    // en cada visita para que el año cuente desde la última vez que entró.
-    if (!headers_sent()) {
+    // para que el año cuente desde la última vez que entró.
+    //
+    // Pero NO en cada petición: eso añadía un Set-Cookie a todas las respuestas
+    // del sitio (también a las que no son del área) para mover una caducidad de
+    // un año. Con reenviarla una vez al día la ventana sigue siendo deslizante a
+    // todos los efectos y las respuestas quedan más limpias.
+    $lastRefresh = isset($_SESSION['sticpa_cookie_refreshed']) ? (int) $_SESSION['sticpa_cookie_refreshed'] : 0;
+    $needsRefresh = (time() - $lastRefresh) > DAY_IN_SECONDS;
+    if ($needsRefresh && !headers_sent()) {
+        $_SESSION['sticpa_cookie_refreshed'] = time();
         $params  = session_get_cookie_params();
         $expires = time() + $ttl;
         $path    = !empty($params['path']) ? $params['path'] : '/';

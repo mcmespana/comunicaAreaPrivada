@@ -897,6 +897,16 @@ function prefix_admin_single_stic_signup()
  * @return void
  */
 function download_document($documentId) {
+    // RENDIMIENTO: soltamos el candado del fichero de sesión antes de hablar con
+    // el CRM. PHP lo mantiene bloqueado en exclusiva toda la petición, así que
+    // una descarga lenta dejaba en cola CUALQUIER otra petición del mismo
+    // usuario (incluida la página que esté cargando en paralelo).
+    // A partir de aquí no se escribe en $_SESSION; si algún día se añaden
+    // comprobaciones de sesión, van en el handler, ANTES de llamar aquí.
+    if (session_id()) {
+        session_write_close();
+    }
+
     $objSCP = SugarRestApiCall::getObjSCP();
 
     $resultDocument = $objSCP->getRecordDetail($documentId, 'Documents', array('document_revision_id'));
@@ -953,6 +963,17 @@ function prefix_admin_stic_profile_photo()
         exit;
     }
     $userId = $_SESSION['scp_user_id'];
+
+    // RENDIMIENTO: este endpoint es de SOLO LECTURA y ya tiene lo único que
+    // necesita de la sesión, así que suelta el candado del fichero de sesión
+    // (PHP lo mantiene en exclusiva hasta el final del script). Sin esto, la
+    // foto se ponía a la cola detrás del HTML de la página que la pide —
+    // esperaba a que terminaran TODAS sus llamadas al CRM— en vez de cargarse
+    // en paralelo. Nada de aquí en adelante escribe en $_SESSION.
+    if (session_id()) {
+        session_write_close();
+    }
+
     $cachePath = sticpa_profile_photo_cache_path($userId);
 
     // Miniatura cacheada y fresca (< 24h) → se sirve directamente, sin CRM.
