@@ -88,7 +88,9 @@ function sticpa_current_internal_page()
  *     que se es conservador: TODAS las single_* menos el calendario).
  *   · iban.js → páginas con validación de IBAN (payment_form, tutor_profile,
  *     profile, payments, payment_commitments).
- *   · stic-utils / stic-ui / stic-cropper / stic-init → SIEMPRE (propios, ligeros).
+ *   · stic-cropper → solo páginas con input de archivo (documents,
+ *     comunica_monitor, comunica_perfil, profile).
+ *   · stic-utils / stic-ui / stic-init → SIEMPRE (propios, ligeros).
  * Sin ?internalpage (home/login/selección de perfil) no se carga ninguna pesada.
  */
 function dcms_insertar_js()
@@ -142,9 +144,19 @@ function dcms_insertar_js()
     // UI helpers: overlay de carga + toggle de contraseña (sin dependencias)
     wp_register_script('stic-ui', plugin_dir_url(__FILE__) . 'js/stic-ui.js', array(), $jsver('js/stic-ui.js'), true);
     wp_enqueue_script('stic-ui');
-    // Cropper de fotos móvil-first (se engancha solo a los input de imagen)
-    wp_register_script('stic-cropper', plugin_dir_url(__FILE__) . 'js/stic-cropper.js', array(), $jsver('js/stic-cropper.js'), true);
-    wp_enqueue_script('stic-cropper');
+    // Cropper de fotos móvil-first: solo en las páginas que tienen input de
+    // archivo. Se cargaba en TODAS (login, home, selección de participante
+    // incluidos), que son justo las del primer arranque de la app.
+    $cropperPages = array(
+        'single_stic_documents',
+        'single_stic_comunica_monitor',
+        'single_stic_comunica_perfil',
+        'single_stic_profile',
+    );
+    if (in_array($page, $cropperPages, true)) {
+        wp_register_script('stic-cropper', plugin_dir_url(__FILE__) . 'js/stic-cropper.js', array(), $jsver('js/stic-cropper.js'), true);
+        wp_enqueue_script('stic-cropper');
+    }
     // We use only one file for plugin literals, so although theoretically we should call this function twice (one efor each js), we only call it once.
     wp_localize_script('sugarcrm-own', 'stic_script_vars', getSticScriptVars());
     if ($isSingleForm) {
@@ -1100,8 +1112,16 @@ function sugar_crm_portal_start_session()
 
     // Ventana DESLIZANTE: PHP no reenvía la cookie de sesión si el navegador ya
     // trae una válida, así que la caducidad no se movería. La reenviamos nosotros
-    // en cada visita para que el año cuente desde la última vez que entró.
-    if (!headers_sent()) {
+    // para que el año cuente desde la última vez que entró.
+    //
+    // Pero NO en cada petición: eso añadía un Set-Cookie a todas las respuestas
+    // del sitio (también a las que no son del área) para mover una caducidad de
+    // un año. Con reenviarla una vez al día la ventana sigue siendo deslizante a
+    // todos los efectos y las respuestas quedan más limpias.
+    $lastRefresh = isset($_SESSION['sticpa_cookie_refreshed']) ? (int) $_SESSION['sticpa_cookie_refreshed'] : 0;
+    $needsRefresh = (time() - $lastRefresh) > DAY_IN_SECONDS;
+    if ($needsRefresh && !headers_sent()) {
+        $_SESSION['sticpa_cookie_refreshed'] = time();
         $params  = session_get_cookie_params();
         $expires = time() + $ttl;
         $path    = !empty($params['path']) ? $params['path'] : '/';
@@ -1125,19 +1145,38 @@ if (isset($_REQUEST['logout'])) // logout
     add_action('init', 'sugar_crm_portal_louout', 1);
     function sugar_crm_portal_louout()
     {
-        unset($_SESSION['scp_user_id']);
-        unset($_SESSION['scp_tutor_user_id']);
-        unset($_SESSION['scp_tutor_user_contact_name']);
-        unset($_SESSION['scp_account_id']);
-        unset($_SESSION['scp_user_account_name']);
-        unset($_SESSION['scp_user_contact_name']);
-        unset($_SESSION['api_session_id']);
-        unset($_SESSION['scp_user_securitygroups']);
-        unset($_SESSION['scp_user_assigned_user_id']);
-        unset($_SESSION['scp_user_adult']);
-        unset($_SESSION['scp_tutor_is_user']);
-        unset($_SESSION['scp_module']);
-        
+        // TODO lo que identifica o describe a quien había entrado. Ojo al añadir
+        // una clave de sesión nueva: si no se limpia aquí, la siguiente persona
+        // que entre en el MISMO navegador la hereda — y en familias el móvil se
+        // comparte. Aquí están también las cachés en sesión (rol, participantes
+        // disponibles, aviso del certificado) precisamente por eso.
+        $sessionKeysToClear = array(
+            'scp_user_id',
+            'scp_tutor_user_id',
+            'scp_tutor_user_contact_name',
+            'scp_account_id',
+            'scp_user_account_name',
+            'scp_user_contact_name',
+            'scp_user_securitygroups',
+            'scp_user_assigned_user_id',
+            'scp_user_adult',
+            'scp_tutor_is_user',
+            'scp_module',
+            // Cachés por usuario (ver inc/stic-comunica-roles.php y menu.php).
+            'scp_role',
+            'scp_relationship_raw',
+            'scp_available_profiles',
+            'scp_is_familia',
+            'scp_ds_pending',
+            // Sesión del CRM y su marca de tiempo (van en pareja).
+            'api_session_id',
+            'api_session_time',
+        );
+        foreach ($sessionKeysToClear as $sessionKey) {
+            unset($_SESSION[$sessionKey]);
+        }
+
+
         $redirect_url = explode('?', $_SERVER['REQUEST_URI'], 2);
         $redirect_url = $redirect_url[0];
         wp_redirect($redirect_url);
@@ -1146,22 +1185,32 @@ if (isset($_REQUEST['logout'])) // logout
 }
 
 /**
- * Preconnect a los orígenes de Google Fonts: el CSS viene de fonts.googleapis.com
- * y los .woff2 de fonts.gstatic.com (este último necesita crossorigin). Ahorra un
- * viaje DNS+TLS completo en el camino crítico del primer render en móvil.
+ * ¿Estamos en una página que lleva el shortcode del área privada?
+ * (Los estilos, scripts y el preload de la tipografía solo se encolan ahí, para
+ * no ensuciar el resto de la web.)
  */
-add_filter('wp_resource_hints', 'sticpa_font_resource_hints', 10, 2);
-function sticpa_font_resource_hints($urls, $relation_type)
+function sticpa_page_has_area_shortcode()
 {
-    if ($relation_type !== 'preconnect') {
-        return $urls;
-    }
     global $post;
-    if (is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'sinergiacrm-private-area')) {
-        $urls[] = 'https://fonts.googleapis.com';
-        $urls[] = array('href' => 'https://fonts.gstatic.com', 'crossorigin' => 'anonymous');
+    return is_a($post, 'WP_Post') && has_shortcode($post->post_content, 'sinergiacrm-private-area');
+}
+
+/**
+ * Preload de la tipografía del cuerpo. Inter está AUTOALOJADA en fonts/ (ver los
+ * @font-face al principio de css/stic-base.css): ya no hay preconnect a Google
+ * porque ya no se sale del dominio. El preload sirve para que el .woff2 no espere
+ * a que el navegador descubra la regla dentro de un CSS de 130 KB.
+ */
+add_action('wp_head', 'sticpa_preload_font', 2);
+function sticpa_preload_font()
+{
+    if (!sticpa_page_has_area_shortcode()) {
+        return;
     }
-    return $urls;
+    printf(
+        "<link rel='preload' href='%s' as='font' type='font/woff2' crossorigin>\n",
+        esc_url(plugins_url('fonts/inter-latin-var.woff2', __FILE__))
+    );
 }
 
 add_action('wp_enqueue_scripts', 'sugar_crm_portal_style_and_script'); // add custom style and script
@@ -1185,8 +1234,10 @@ function sugar_crm_portal_style_and_script()
         // de cascada: SIEMPRE antes de custom-style.css, que las tematiza.
         $page = function_exists('sticpa_current_internal_page') ? sticpa_current_internal_page() : '';
 
-        // Modern typography (Inter) loaded from Google Fonts
-        wp_enqueue_style('stic-google-fonts', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap', array(), null);
+        // La tipografía (Inter) va AUTOALOJADA: sus @font-face están al principio
+        // de css/stic-base.css y los .woff2 en fonts/. Antes se pedía a
+        // fonts.googleapis.com, que además encadenaba un segundo origen para los
+        // archivos: dos saltos DNS+TLS delante del primer pintado.
         // Capa BASE consolidada (UI-15: ex stic-style + stic-modern-style, en ese orden).
         wp_enqueue_style('stic-base', plugins_url('css/stic-base.css', __FILE__), array(), $ver('css/stic-base.css'));
         if (strpos($page, 'single_') === 0 && $page !== 'single_stic_activities_calendar') {

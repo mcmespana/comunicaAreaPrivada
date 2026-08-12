@@ -48,12 +48,69 @@ antes de empezar, respeta sus "STOP conditions" y actualiza su fila de estado al
 | 024 | Login compacto en móvil + encaje visual con WordPress | P2 | M | — | **PARCIAL** — A (login) hecho en el 026; B (grises de WordPress) pendiente de ver el sitio real |
 | 025 | Eventos: tarjetas propias + ficha de detalle | P2 | M | — | **DONE** → [`archive/025-eventos-tarjetas-y-detalle.md`](archive/025-eventos-tarjetas-y-detalle.md) |
 | 026 | Tarjetas en TODOS los listados + login rediseñado + home | P2 | M | 025 | **DONE** → [`archive/026-tarjetas-globales-login-y-home.md`](archive/026-tarjetas-globales-login-y-home.md) |
-| 027 | Cliente CRM: keep-alive, HTTP/1.1, timeouts y gzip | P0 | S-M | — (coordina con 008) | TODO |
-| 028 | Soltar el lock de sesión PHP (foto/descargas en paralelo) | P1 | S-M | — | TODO |
-| 029 | Quick wins de lecturas CRM (guard, caches, typo de pago) | P1 | M | — | TODO |
-| 030 | Tap instantáneo: feedback en enlaces + prefetch + puente app | P1 | S-M | — | TODO |
-| 031 | Dieta de assets: CSS minificado en deploy + Inter local | P2 | M | — | TODO |
-| 032 | Acotar listados: ventana de eventos + techo de filas | P2 | M | — (tras 011 en páginas compartidas) | TODO |
+| 027 | Cliente CRM: keep-alive, HTTP/1.1, timeouts y gzip | P0 | S-M | — (coordina con 008) | **DONE** (`cb79e9c`) |
+| 028 | Soltar el lock de sesión PHP (foto/descargas en paralelo) | P1 | S-M | — | **PARCIAL** (`122289f`) — falta el cierre durante el render |
+| 029 | Quick wins de lecturas CRM (guard, caches, typo de pago) | P1 | M | — | **DONE** (`967ef24`) |
+| 030 | Tap instantáneo: feedback en enlaces + prefetch + puente app | P1 | S-M | — | **PARCIAL** (`d2873dd`) — prefetch aparcado (ver abajo) |
+| 031 | Dieta de assets: CSS minificado en deploy + Inter local | P2 | M | — | **PARCIAL** (`7dc928a`) — falta retirar DataTables |
+| 032 | Acotar listados: ventana de eventos + techo de filas | P2 | M | — (tras 011 en páginas compartidas) | **PARCIAL** (`113255e`) — falta el techo de filas |
+
+### Estado tras implementar la pasada de rendimiento (2026-08-12)
+
+Todo lo de abajo está en la rama `claude/mcm-performance-improvement-rwrovk`, con
+lint global y PHPUnit verdes (56 tests, 7 nuevos en `tests/CalendarCacheTest.php`).
+
+**Entregado:**
+
+| Área | Qué cambió |
+|---|---|
+| Transporte al CRM (027) | Handle cURL reutilizado + HTTP/1.1 + `TCP_KEEPALIVE` (antes: socket nuevo y handshake TLS por llamada, con 2-40 llamadas por pantalla) · `CONNECTTIMEOUT`/`TIMEOUT` (antes: ninguno) · `Accept-Encoding` · sesión del CRM con marca de tiempo (renovación proactiva a 20 min) · el reintento por sesión caducada ya refresca el `session` de los parámetros, que antes reenviaba el id muerto |
+| Candado de sesión (028) | `session_write_close()` en el endpoint de la foto y en la descarga de documentos: dejaban en cola cualquier otra petición del usuario · la cookie deslizante se reenvía 1×/día en vez de en cada respuesta del sitio |
+| Lecturas (029) | Guard de inscripción memorizado + leído del transient del calendario si está caliente (era `1+N` × 4 veces por flujo) · aviso del monitor cacheado en sesión · flags de certificados en un solo `set_entry` · 4 formularios de alta dejan de pedir un registro con id null · formulario de pago con definición cacheada y rebotes antes de tocar el CRM |
+| Bug (029) | El redirect tras inscribirse con pago apuntaba a `single_stic_payments_form`, que no existe → pantalla vacía |
+| Velocidad percibida (030) | Overlay de carga al tocar **cualquier** enlace interno (antes solo 4 formularios), con red de seguridad para bfcache y descargas · `postMessage` `sticpa:nav` para que la app pinte indicador nativo (§4.a del contrato) · pantalla puente del enlace mágico sin 4 de sus 5 animaciones infinitas |
+| Assets (031) | Minificado de CSS/JS propio en el job de deploy: 268→162 KB de CSS y 80→40 KB de JS, sin tocar los fuentes del repo · Inter autoalojada (fuente variable, subsets latin + latin-ext): fuera dos orígenes externos encadenados del camino crítico · cropper solo en las 4 páginas con input de archivo |
+| Listados (011 parcial) | Pagos: el bucle `1+N` que rellenaba una columna **que no se pinta** ya no se ejecuta para personas adultas normales · Sesiones: dedup por evento · guards `is_array` para tolerar el nuevo timeout |
+| Eventos (032 parcial) | Ventana temporal compartida con el calendario (-3…+12 meses, filtrable) en el listado y en el desplegable de inscripción (solo al crear) |
+
+**Pendiente y por qué (decisiones tomadas al implementar):**
+
+- **Prefetch especulativo del menú (030, paso 2) — APARCADO.** Verificado contra
+  el sitio real: responde `cache-control: no-store, no-cache, must-revalidate`
+  (limitador de sesión de PHP por defecto), y la especificación de Speculation
+  Rules no usa respuestas `no-store`, así que el prefetch sería **inerte**.
+  Habilitarlo exige quitar el `no-store`, y eso implica que páginas con datos
+  personales de menores queden en la caché de disco del navegador: es una
+  decisión de privacidad del mantenedor, no técnica. Si se aprueba, el cambio es
+  `session_cache_limiter('')` + cabecera explícita `private, no-cache,
+  must-revalidate` y el `<script type="speculationrules">` del plan.
+- **Cerrar la sesión durante el render (028) — PENDIENTE.** Es donde está el
+  resto del beneficio del lock, pero el cliente del CRM escribe
+  `api_session_id` a mitad de render cuando renueva sesión: cerrar antes
+  provocaría un login al CRM **por petición**, peor que el lock. Necesita las 3
+  piezas anotadas en la ficha del 028 (forzar antes la detección del rol, excluir
+  `single_stic_profile_selection`, y que `inc/stic-class-6.php` reabra la sesión
+  para escribir).
+- **Techo de filas en listados (032, paso 3) — PENDIENTE.** Las 4 páginas piden
+  con `order_by` vacío, así que un límite mostraría los registros **más
+  antiguos** y esconderías los recientes. Hace falta fijar el `order_by`
+  descendente correcto por módulo, validando nombres de columna contra el CRM
+  real.
+- **Colapsar los N+1 estructurales (011) — PENDIENTE.** Asistencias, el triple
+  anidado de Sesiones y el selector de participante necesitan reescribir las
+  consultas con `related_module_link_name_to_fields_array`, cuya forma de
+  respuesta no es verificable sin el CRM (y `getRelatedElementsForLoggedUser`
+  descarta hoy el `relationship_list`, así que también habría que tocar el
+  cliente). Un fallo ahí deja listados vacíos en rutas de datos y dinero.
+  Atenuante: Sesiones y Asistencias **no están en el menú**, así que no afectan
+  a la velocidad percibida actual.
+- **Retirar DataTables (031, paso 4) — PENDIENTE.** 108 KB para aportar solo una
+  caja de búsqueda en cliente (paginación y ordenación ya están desactivadas en
+  los 11 listados), pero sustituirla cambia la UI de todos ellos y necesita QA
+  visual en el sitio real.
+- **`select_fields` en las fichas de perfil — PENDIENTE.** Recorta payload, pero
+  el motor de formularios puede leer campos no declarados: requiere QA pantalla
+  a pantalla.
 
 Los planes **DONE** están en producción y sus fichas se movieron a
 [`plans/archive/`](archive/) (2026-07-20; el 016 el 2026-07-26). En `plans/` quedan solo los **pendientes** y los

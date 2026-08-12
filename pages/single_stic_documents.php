@@ -157,7 +157,13 @@ $fieldList[] = array('name' => 'category_id');
 $fieldList[] = array('name' => 'description', 'type' => 'textarea');
 
 
-$data = $objSCP->getRecordDetail($_REQUEST['id'] ?? null, $formSettings['moduleName'])->entry_list[0]->name_value_list;
+// Sin id (formulario de ALTA) no hay nada que traer: antes se preguntaba al CRM
+// igualmente y se tiraba la respuesta, un round-trip completo por cada apertura
+// del formulario. makeForm ya trata $data = null como "registro nuevo".
+$data = null;
+if (!empty($_REQUEST['id'])) {
+    $data = $objSCP->getRecordDetail($_REQUEST['id'], $formSettings['moduleName'])->entry_list[0]->name_value_list;
+}
 $formSettings['fileName'] = basename(__FILE__, ".php"); //The page name, from the filename. Don't touch.
 
 // If it's only detailview, disable fields

@@ -31,7 +31,10 @@ $listSettings['title'] = __('Eventos', 'sticpa'); // list title
 #########################################################
 $fields = sticpa_event_fields_to_request($objSCP);
 
-$filterParam = '';
+// Ventana temporal compartida con el calendario (-3 … +12 meses por defecto).
+// Antes aquí no había filtro: se descargaba el histórico ENTERO de eventos del
+// CRM para mostrar los pocos a los que uno puede apuntarse.
+$filterParam = function_exists('sticpa_events_window_filter') ? sticpa_events_window_filter() : '';
 $listSettings['fileName'] = basename(__FILE__, ".php"); //The list name, from the filename. Don't touch.
 $getElements = $objSCP->getRecordsModule($listSettings['moduleName'], $filterParam, $fields);
 

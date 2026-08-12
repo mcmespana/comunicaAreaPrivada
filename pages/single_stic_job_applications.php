@@ -152,8 +152,11 @@ function getRelatedRecord($objSCP, $relatedModule) {
     $events = $objSCP->getRecordsModule($relatedModule);
 
     $listEvents = array();
-    foreach ($events as $event) {
-        $listEvents[$event->name_value_list->id->value] = $event->name_value_list->name->value;
+    // is_array: el cliente del CRM devuelve null si la llamada falla o expira.
+    if (is_array($events)) {
+        foreach ($events as $event) {
+            $listEvents[$event->name_value_list->id->value] = $event->name_value_list->name->value;
+        }
     }
     return $listEvents;
 }

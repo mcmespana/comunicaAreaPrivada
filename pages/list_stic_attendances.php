@@ -73,7 +73,8 @@ $params = array(
 
 $getRelatedRegistrations = $objSCP->getRelatedElementsForLoggedUser($params);
 $availableAttendances = array();
-foreach($getRelatedRegistrations as $element) {
+// is_array: el cliente del CRM devuelve null si la llamada falla o expira.
+foreach((is_array($getRelatedRegistrations) ? $getRelatedRegistrations : array()) as $element) {
     $params = array(
         'module_name' => 'stic_Registrations',
         "module_id" => $element->name_value_list->id->value, //Do not touch

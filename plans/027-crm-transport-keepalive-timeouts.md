@@ -17,6 +17,9 @@
 - **Depends on**: none (pero coordina con `plans/008-harden-crm-transport-and-queries.md`, ver "Solapes")
 - **Category**: perf
 - **Planned at**: commit `337ec6a`, 2026-08-09
+- **Estado**: **DONE** — implementado en `cb79e9c` (2026-08-12). Los 6 steps hechos.
+  El `api_session_time` se escribe desde un único helper `storeSessionId()`, así que
+  aparece 2 veces y no 3 como decía el criterio: misma intención, menos duplicación.
 
 ## Why this matters
 

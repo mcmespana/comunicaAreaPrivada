@@ -18,6 +18,18 @@
 - **Depends on**: none (compone con 027; NO pisa al plan 011 — ver Scope)
 - **Category**: perf
 - **Planned at**: commit `337ec6a`, 2026-08-09
+- **Estado**: **DONE** — los 6 steps en `967ef24` (2026-08-12).
+  Dos desvíos deliberados respecto a la ficha, ambos a mejor:
+  (1) el guard lee el transient del calendario SOLO si ya está caliente, en vez de
+  llamar a `sticpa_gather_calendar_data()`: si estuviera frío, generarlo cuesta más
+  que la propia consulta `1+N`, así que no se provoca desde el listado de Eventos;
+  (2) la lectura de esa caché se extrajo como función pura
+  `sticpa_event_ids_from_calendar_cache()` en `inc/stic-calendar.php` y se cubrió con
+  7 tests (`tests/CalendarCacheTest.php`): la distinción null / array-vacío es lo que
+  evita inscripciones duplicadas.
+  En el step 4 los rebotes NO usan `wp_redirect` (imposible: el shortcode se pinta con
+  las cabeceras ya enviadas); usan el lenguaje de error de
+  `pages/single_stic_payment_error.php` con su CTA, y `return` para no seguir.
 
 ## Why this matters
 

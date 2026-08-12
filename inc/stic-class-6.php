@@ -11,6 +11,26 @@ class SugarRestApiCall
     public $url;
     public $session_id;
     public $destinationModule;
+    /** Idioma que se le pide al CRM al autenticar (declarada: en PHP 8.2+ crear
+     *  la propiedad al vuelo emite un "deprecated" en CADA petición). */
+    public $language;
+
+    /**
+     * Handle de cURL reutilizado en TODAS las llamadas de esta petición.
+     * Antes se creaba y destruía uno por llamada, así que cada round-trip pagaba
+     * DNS + TCP + handshake TLS completos. Una sola pantalla hace de 2 a 40
+     * llamadas al CRM: era el coste fijo más caro del área privada.
+     */
+    private $curlHandle = null;
+
+    /**
+     * Ventana durante la cual se reutiliza el session_id del CRM guardado en la
+     * sesión de PHP. La sesión de WordPress dura un año (ver sticpa_session_ttl)
+     * pero la del CRM caduca mucho antes: con un id viejo la primera llamada
+     * falla y cuesta 3 round-trips (fallo → login → reintento), y eso caía
+     * SIEMPRE en el primer tap al volver a la app. Renovar antes cuesta 1.
+     */
+    const SESSION_MAX_AGE = 1200; // 20 minutos
 
     private function __construct($url, $username, $password, $destinationModule)
     {
@@ -19,17 +39,77 @@ class SugarRestApiCall
         $this->password = $password;
         $this->language = get_locale() == 'ca' ? 'ca_ES' : get_locale();
         $this->destinationModule = $destinationModule;
-        if (isset($_SESSION['api_session_id']) && $_SESSION['api_session_id']) {
+        if ($this->hasFreshSessionId()) {
             $this->session_id = $_SESSION['api_session_id'];
         }
         else if (!isset(self::$objSCP) || self::$objSCP->url !== $url || self::$objSCP->username !== $username || self::$objSCP->password !== $password) {
-            $this->session_id = $this->login();
-            $_SESSION['api_session_id'] =  $this->session_id;
+            $this->storeSessionId($this->login());
             self::$objSCP = $this;
         } else {
             $this->session_id = self::$objSCP->session_id;
         }
 
+    }
+
+    /**
+     * ¿Hay un session_id del CRM en sesión y es lo bastante reciente para fiarse?
+     * Sin marca de tiempo (sesiones creadas antes de este cambio) se considera
+     * caducado: mejor un login de más que una llamada fallida más un reintento.
+     */
+    private function hasFreshSessionId()
+    {
+        if (empty($_SESSION['api_session_id'])) {
+            return false;
+        }
+        $stamped = isset($_SESSION['api_session_time']) ? (int) $_SESSION['api_session_time'] : 0;
+        if ($stamped <= 0) {
+            return false;
+        }
+        $age = time() - $stamped;
+        return $age >= 0 && $age < self::sessionMaxAge();
+    }
+
+    /** Guarda el session_id del CRM en sesión junto a su marca de tiempo. */
+    private function storeSessionId($sessionId)
+    {
+        $this->session_id = $sessionId;
+        $_SESSION['api_session_id'] = $sessionId;
+        $_SESSION['api_session_time'] = time();
+    }
+
+    private static function sessionMaxAge()
+    {
+        return self::intSetting('sticpa_crm_session_max_age', self::SESSION_MAX_AGE);
+    }
+
+    /** Ajuste entero filtrable, tolerante a que WordPress no esté cargado (tests). */
+    private static function intSetting($filter, $default)
+    {
+        $value = function_exists('apply_filters') ? apply_filters($filter, $default) : $default;
+        return (int) $value;
+    }
+
+    /**
+     * Devuelve el handle de cURL de esta instancia, limpio de opciones previas.
+     * curl_reset() vacía las opciones pero CONSERVA el pool de conexiones, que
+     * es justo lo que queremos reutilizar.
+     */
+    private function getCurlHandle()
+    {
+        if ($this->curlHandle === null) {
+            $this->curlHandle = curl_init();
+        } else {
+            curl_reset($this->curlHandle);
+        }
+        return $this->curlHandle;
+    }
+
+    public function __destruct()
+    {
+        if ($this->curlHandle !== null) {
+            curl_close($this->curlHandle);
+            $this->curlHandle = null;
+        }
     }
 
     public static function getObjSCP() {
@@ -44,16 +124,28 @@ class SugarRestApiCall
 
     public function call($method, $parameters, $url, $retry = false)
     {
-        ob_start();
-        $curl_request = curl_init();
+        $curl_request = $this->getCurlHandle();
 
         curl_setopt($curl_request, CURLOPT_URL, $url);
         curl_setopt($curl_request, CURLOPT_POST, 1);
-        curl_setopt($curl_request, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_0);
-        curl_setopt($curl_request, CURLOPT_HEADER, 1);
+        // HTTP/1.1 (antes 1.0): 1.0 no negocia keep-alive, así que el servidor
+        // cerraba la conexión tras cada respuesta y la siguiente llamada volvía
+        // a pagar el handshake TLS.
+        curl_setopt($curl_request, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+        // Sin cabeceras dentro del cuerpo: cURL las separa por su cuenta. Antes
+        // se partía la respuesta a mano con explode("\r\n\r\n"), que es lo que
+        // obligaba a usar HTTP/1.0 (con 1.1 puede llegar chunked o 100-continue).
+        curl_setopt($curl_request, CURLOPT_HEADER, 0);
         curl_setopt($curl_request, CURLOPT_SSL_VERIFYPEER, 0);
         curl_setopt($curl_request, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($curl_request, CURLOPT_FOLLOWLOCATION, 0);
+        curl_setopt($curl_request, CURLOPT_TCP_KEEPALIVE, 1);
+        // Respuestas comprimidas ('' = acepta lo que soporte cURL y descomprime).
+        curl_setopt($curl_request, CURLOPT_ENCODING, '');
+        // Antes NO había ningún timeout: un CRM colgado se comía el
+        // max_execution_time entero y la WebView se quedaba en blanco.
+        curl_setopt($curl_request, CURLOPT_CONNECTTIMEOUT, self::intSetting('sticpa_crm_connect_timeout', 5));
+        curl_setopt($curl_request, CURLOPT_TIMEOUT, self::intSetting('sticpa_crm_timeout', 20));
 
         $jsonEncodedData = json_encode($parameters);
 
@@ -66,16 +158,24 @@ class SugarRestApiCall
 
         curl_setopt($curl_request, CURLOPT_POSTFIELDS, $post);
         $result = curl_exec($curl_request);
-        curl_close($curl_request);
 
-        $result = explode("\r\n\r\n", $result, 2);
-        $response = json_decode($result[1]);
-        ob_end_flush();
-        //echo "result: ";
-        //print_r ($result);
+        if ($result === false) {
+            // Timeout o error de red: se devuelve null y cada consumidor pinta su
+            // estado vacío, en vez de dejar la petición colgada.
+            error_log('[sticpa] Llamada al CRM fallida (' . $method . '): ' . curl_error($curl_request));
+            return null;
+        }
+
+        $response = json_decode($result);
+
         if (isset($response->number) && $response->number == 11 && !$retry) {
-            $this->session_id = $this->login();
-            $_SESSION['api_session_id'] = $this->session_id;
+            // Sesión del CRM caducada: re-login y reintento. El 'session' que
+            // traen los $parameters es el viejo, así que hay que refrescarlo o el
+            // reintento fallaría igual (antes se reenviaba el id muerto).
+            $this->storeSessionId($this->login());
+            if (is_array($parameters) && array_key_exists('session', $parameters)) {
+                $parameters['session'] = $this->session_id;
+            }
             return $this->call($method, $parameters, $url, true);
         }
         return $response;
