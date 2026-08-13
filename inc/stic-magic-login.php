@@ -318,8 +318,10 @@ function sticpa_render_access_loading_screen()
     <meta name="robots" content="noindex,nofollow">
     <title><?= esc_html($title) ?></title>
     <noscript><meta http-equiv="refresh" content="0;url=<?= $goUrlAttr ?>"></noscript>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Sin tipografía externa a propósito: esta pantalla dura uno o dos
+         segundos y solo espera un redirect. Pedirla a Google (hoja + woff2 en
+         otro origen) era meter dos saltos DNS+TLS delante de una espera. Cae al
+         stack del sistema, que ya está cargado. -->
     <style>
         :root { --blue:#1c6fb3; --pink:#9d1e74; --violet:#6c4b9e; }
         * { box-sizing:border-box; margin:0; padding:0; }
@@ -333,14 +335,16 @@ function sticpa_render_access_loading_screen()
                 radial-gradient(45% 55% at 85% 18%, rgba(157,30,116,.26), transparent 60%),
                 radial-gradient(50% 60% at 70% 90%, rgba(108,75,158,.24), transparent 62%),
                 linear-gradient(135deg,#eef5fc 0%,#f4eef9 50%,#fbeef5 100%);
-            background-size:200% 200%;
-            animation:mesh 16s ease-in-out infinite;
         }
-        @keyframes mesh { 0%{background-position:0 0;} 50%{background-position:100% 100%;} 100%{background-position:0 0;} }
+        /* RENDIMIENTO: esta pantalla solo espera un redirect, y animar
+           background-position repinta el viewport ENTERO en cada frame (la
+           propiedad menos componible que hay). En un Android de gama media era
+           jank garantizado justo en el primer contacto con el área. El fondo se
+           queda quieto: igual de bonito y gratis. Por lo mismo se fue el
+           backdrop-filter de la tarjeta, que se recalculaba contra ese fondo. */
         .card {
             position:relative; width:100%; max-width:440px; padding:48px 36px; text-align:center;
-            background:rgba(255,255,255,.74); backdrop-filter:blur(18px) saturate(1.4);
-            -webkit-backdrop-filter:blur(18px) saturate(1.4);
+            background:rgba(255,255,255,.92);
             border:1px solid rgba(255,255,255,.6); border-radius:30px;
             box-shadow:0 32px 70px rgba(21,36,71,.20), inset 0 1px 0 rgba(255,255,255,.7);
             animation:pop .6s cubic-bezier(.34,1.56,.64,1) both;
@@ -350,9 +354,7 @@ function sticpa_render_access_loading_screen()
             width:72px; height:72px; margin:0 auto 22px; border-radius:20px; display:grid; place-items:center;
             color:#fff; box-shadow:0 10px 28px rgba(21,36,71,.18);
             background:linear-gradient(135deg,var(--blue) 0%,var(--violet) 52%,var(--pink) 100%);
-            animation:float 4.5s ease-in-out infinite;
         }
-        @keyframes float { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-7px);} }
         .logo svg { width:36px; height:36px; }
         .spinner {
             width:58px; height:58px; margin:0 auto 26px; border-radius:50%;
@@ -372,11 +374,7 @@ function sticpa_render_access_loading_screen()
         .dots span {
             width:9px; height:9px; border-radius:50%;
             background:linear-gradient(135deg,var(--blue),var(--pink)); opacity:.35;
-            animation:blink 1.4s ease-in-out infinite;
         }
-        .dots span:nth-child(2){animation-delay:.2s;}
-        .dots span:nth-child(3){animation-delay:.4s;}
-        @keyframes blink { 0%,100%{opacity:.3;transform:scale(.85);} 50%{opacity:1;transform:scale(1.1);} }
         /* Tema oscuro. Se aplica en DOS casos y por eso el selector va repetido:
            preferencia explícita ([data-stic-theme="dark"]) o preferencia
            automática + dispositivo en oscuro. El bloque claro por defecto sigue
@@ -386,8 +384,8 @@ function sticpa_render_access_loading_screen()
                 radial-gradient(40% 50% at 18% 22%, rgba(28,111,179,.32), transparent 60%),
                 radial-gradient(45% 55% at 85% 18%, rgba(157,30,116,.30), transparent 60%),
                 linear-gradient(135deg,#0d1119 0%,#141019 50%,#190f16 100%);
-            background-size:200% 200%; }
-        html[data-stic-theme="dark"] .card { background:rgba(22,26,36,.74); border-color:rgba(255,255,255,.08); }
+        }
+        html[data-stic-theme="dark"] .card { background:rgba(22,26,36,.92); border-color:rgba(255,255,255,.08); }
         html[data-stic-theme="dark"] p { color:#aab2c2; }
         @media (prefers-color-scheme: dark) {
             html[data-stic-theme="auto"] body { color:#e8edf4;
@@ -395,12 +393,12 @@ function sticpa_render_access_loading_screen()
                     radial-gradient(40% 50% at 18% 22%, rgba(28,111,179,.32), transparent 60%),
                     radial-gradient(45% 55% at 85% 18%, rgba(157,30,116,.30), transparent 60%),
                     linear-gradient(135deg,#0d1119 0%,#141019 50%,#190f16 100%);
-                background-size:200% 200%; }
-            html[data-stic-theme="auto"] .card { background:rgba(22,26,36,.74); border-color:rgba(255,255,255,.08); }
+            }
+            html[data-stic-theme="auto"] .card { background:rgba(22,26,36,.92); border-color:rgba(255,255,255,.08); }
             html[data-stic-theme="auto"] p { color:#aab2c2; }
         }
         @media (prefers-reduced-motion: reduce) {
-            body,.logo,.card { animation:none !important; }
+            .card,.spinner { animation:none !important; }
         }
     </style>
 </head>

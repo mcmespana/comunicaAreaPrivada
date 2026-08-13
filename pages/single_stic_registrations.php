@@ -189,11 +189,20 @@ if ($eventId && $_REQUEST['action'] !== 'edit' && $_REQUEST['action'] !== 'detai
     );
     
 } else {
+    // Al CREAR se ofrecen solo los eventos de la ventana viva (-3 … +12 meses):
+    // nadie se apunta a algo de hace tres años, y sin filtro esto descargaba el
+    // histórico completo de eventos del CRM.
+    // Al EDITAR se piden TODOS a propósito: si el evento ya elegido cayera fuera
+    // de la ventana no estaría en el desplegable, y guardar perdería la relación.
+    $isNewRegistration = (($_REQUEST['action'] ?? '') === 'create') || empty($data);
+    $eventsQuery = ($isNewRegistration && function_exists('sticpa_events_window_filter'))
+        ? sticpa_events_window_filter()
+        : '';
     $fieldList[] = array(
-        'name' => 'stic_registrations_stic_eventsstic_events_ida', 
-        'type' => 'select', 
+        'name' => 'stic_registrations_stic_eventsstic_events_ida',
+        'type' => 'select',
         'label' => __('Event', 'sticpa'), // this field can't return label from API cause _ida field doesn't have label
-        'selectValues' => getRelatedRecord($objSCP, 'stic_Events')
+        'selectValues' => getRelatedRecord($objSCP, 'stic_Events', $eventsQuery)
     );
 }
 
@@ -251,12 +260,20 @@ if ($_REQUEST['action'] == 'detail') {
 
 $html .= makeForm($fieldList, $formSettings, $data, $formSettings['action']);
 
-function getRelatedRecord($objSCP, $relatedModule) {
-    $events = $objSCP->getRecordsModule($relatedModule);
+/**
+ * Opciones (id => nombre) de un módulo relacionado para un <select>.
+ *
+ * $query acota lo que se pide al CRM: sin ella se descarga el módulo ENTERO
+ * (todo el histórico de eventos) para rellenar un desplegable.
+ */
+function getRelatedRecord($objSCP, $relatedModule, $query = '') {
+    $events = $objSCP->getRecordsModule($relatedModule, $query);
 
     $listEvents = array('');
-    foreach ($events as $event) {
-        $listEvents[$event->name_value_list->id->value] = $event->name_value_list->name->value;
+    if (is_array($events)) {
+        foreach ($events as $event) {
+            $listEvents[$event->name_value_list->id->value] = $event->name_value_list->name->value;
+        }
     }
     return $listEvents;
 }

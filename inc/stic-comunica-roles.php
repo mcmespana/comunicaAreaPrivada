@@ -146,13 +146,25 @@ function sticpa_profile_audience()
  * archivo subido (ajmcm_cert_del_sex_c) está vacío. Sirve para pintar la
  * alerta de la home y de la sección Monitor/a.
  *
+ * RENDIMIENTO: sin $data esto es una llamada al CRM, y la home la hacía en CADA
+ * visita (es la pantalla tras el login y el destino de todos los "volver") para
+ * pintar un aviso cuyo valor casi nunca cambia. El resultado se cachea en sesión;
+ * lo invalida comunica_upload_certificate(), que es lo único que lo cambia.
+ *
  * @param object|null $data name_value_list ya cargado (evita otra llamada API);
- *                          si es null, se consultan solo los 2 campos al CRM.
+ *                          si es null, se usa la caché de sesión y, si no la hay,
+ *                          se consultan solo los 2 campos al CRM.
  */
 function sticpa_monitor_ds_pending($data = null)
 {
     if (sticpa_get_comunica_role() !== 'monitor') {
         return false;
+    }
+    // Con $data del llamante se recalcula siempre (es gratis) y se refresca la
+    // caché: así la sección Monitor/a, que ya trae la ficha cargada, corrige el
+    // valor guardado sin pedir nada al CRM.
+    if ($data === null && isset($_SESSION['scp_ds_pending'])) {
+        return (bool) $_SESSION['scp_ds_pending'];
     }
     if ($data === null) {
         if (empty($_SESSION['scp_user_id']) || !class_exists('SugarRestApiCall')) {
@@ -165,12 +177,15 @@ function sticpa_monitor_ds_pending($data = null)
         );
         $data = $detail->entry_list[0]->name_value_list ?? null;
         if ($data === null) {
+            // Sin respuesta del CRM no se cachea nada: se reintenta a la próxima.
             return false;
         }
     }
     $aut = isset($data->ajmcm_aut_del_sex_c->value) ? (string) $data->ajmcm_aut_del_sex_c->value : '';
     $cert = isset($data->ajmcm_cert_del_sex_c->value) ? (string) $data->ajmcm_cert_del_sex_c->value : '';
-    return $aut === '0' && ($cert === '' || $cert === '0');
+    $pending = $aut === '0' && ($cert === '' || $cert === '0');
+    $_SESSION['scp_ds_pending'] = $pending;
+    return $pending;
 }
 
 /**

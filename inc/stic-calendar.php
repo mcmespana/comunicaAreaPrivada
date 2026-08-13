@@ -212,6 +212,35 @@ function sticpa_calendar_cache_key()
 }
 
 /**
+ * Extrae la lista de ids de eventos inscritos de una estructura ya cacheada por
+ * sticpa_gather_calendar_data(). Función PURA (no toca CRM ni sesión) para que
+ * pueda cubrirse con tests: la usa el guard anti-duplicado de inscripciones
+ * (prefix_user_active_event_ids), que antes pagaba 1+N llamadas al CRM cada vez.
+ *
+ * @param mixed $cached lo que devuelva get_transient (false si no hay caché).
+ * @return array|null lista de ids (puede estar VACÍA: significa "no hay ninguna
+ *                    inscripción", que es una respuesta válida) o null si la
+ *                    caché no existe o no tiene la forma esperada, y entonces
+ *                    hay que preguntar al CRM.
+ */
+function sticpa_event_ids_from_calendar_cache($cached)
+{
+    if (!is_array($cached) || !isset($cached['registered_events']) || !is_array($cached['registered_events'])) {
+        return null;
+    }
+    $ids = array();
+    foreach ($cached['registered_events'] as $event) {
+        // Tolerante a objeto o array: el transient guarda arrays, pero un filtro
+        // de terceros podría inyectar objetos.
+        $id = is_array($event) ? ($event['id'] ?? null) : ($event->id ?? null);
+        if (!empty($id)) {
+            $ids[] = (string) $id;
+        }
+    }
+    return array_values(array_unique($ids));
+}
+
+/**
  * Invalida la caché del calendario del usuario activo (p. ej. tras inscribirse).
  */
 function sticpa_calendar_flush_cache()
@@ -366,7 +395,13 @@ function sticpa_gather_calendar_data($objSCP)
 
     // 2) Todos los eventos en la ventana (-3 meses … +12 meses). Los ya inscritos
     //    se apartan; el resto son "abiertos a inscripción".
-    $filter = "(stic_events.start_date BETWEEN DATE_ADD(curdate(), INTERVAL -3 MONTH) AND DATE_ADD(curdate(), INTERVAL 12 MONTH))";
+    // Misma ventana que el listado de Eventos (fuente única en inc/stic-events.php):
+    // -14 … +12 meses. En el calendario los eventos pasados no molestan (caen en
+    // su fecha, y para verlos hay que navegar hasta su mes), y así se puede mirar
+    // atrás el curso anterior completo.
+    $filter = function_exists('sticpa_events_window_filter')
+        ? sticpa_events_window_filter()
+        : "(stic_events.start_date BETWEEN DATE_ADD(curdate(), INTERVAL -14 MONTH) AND DATE_ADD(curdate(), INTERVAL 12 MONTH))";
     $allEvents = $objSCP->getRecordsModule('stic_Events', $filter, array('id', 'name', 'type', 'start_date', 'end_date'));
     $availableEvents = array();
     if (is_array($allEvents)) {

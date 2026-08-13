@@ -368,9 +368,35 @@ add_action('admin_post_nopriv_single_stic_registrations', 'prefix_admin_single_s
 /**
  * IDs de los eventos en los que el usuario logueado tiene una inscripción ACTIVA
  * (no cancelada). Devuelve un array de strings (puede estar vacío).
+ *
+ * RENDIMIENTO: esta consulta cuesta 1+N llamadas al CRM (una por inscripción) y
+ * se pedía hasta CUATRO veces en el flujo de inscribirse (listado de eventos,
+ * ficha del evento, formulario y handler de guardado). Ahora se memoriza por
+ * petición y, si el calendario ya tiene su caché caliente, se lee de ahí.
+ *
+ * @param bool $fresh true = ignorar memo y caché y preguntar al CRM. Lo usa el
+ *                    handler de guardado: un guard anti-duplicado que decide si
+ *                    se ESCRIBE no puede fiarse de una caché de 5 minutos.
  */
-function prefix_user_active_event_ids($objSCP)
+function prefix_user_active_event_ids($objSCP, $fresh = false)
 {
+    static $memo = null;
+    if (!$fresh && $memo !== null) {
+        return $memo;
+    }
+
+    // Atajo: sticpa_gather_calendar_data() ya calcula esta misma lista (misma
+    // relación del CRM, mismo filtrado de canceladas) y la cachea. Se lee el
+    // transient SOLO si YA está caliente: generarlo en frío cuesta más que la
+    // consulta de abajo, así que no se provoca desde aquí.
+    if (!$fresh && function_exists('sticpa_calendar_cache_key') && function_exists('sticpa_event_ids_from_calendar_cache')) {
+        $cachedIds = sticpa_event_ids_from_calendar_cache(get_transient(sticpa_calendar_cache_key()));
+        if ($cachedIds !== null) {
+            $memo = $cachedIds;
+            return $memo;
+        }
+    }
+
     $module = getDestinationModule();
     $relationship = ($module === 'Accounts') ? 'stic_registrations_accounts' : 'stic_registrations_contacts';
 
@@ -384,6 +410,7 @@ function prefix_user_active_event_ids($objSCP)
         'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
     ));
     if (!is_array($myRegs)) {
+        $memo = $ids;
         return $ids;
     }
     foreach ($myRegs as $reg) {
@@ -407,7 +434,8 @@ function prefix_user_active_event_ids($objSCP)
             }
         }
     }
-    return array_values(array_unique($ids));
+    $memo = array_values(array_unique($ids));
+    return $memo;
 }
 
 function prefix_user_has_active_registration($objSCP, $eventId)
@@ -445,7 +473,9 @@ function prefix_admin_single_stic_registrations()
         // "Ya estás inscrito".
         if ($action !== 'delete' && empty($moduleData['id'])) {
             $eventId = $moduleData['stic_registrations_stic_eventsstic_events_ida'] ?? '';
-            if (prefix_user_has_active_registration($objSCP, $eventId)) {
+            // $fresh = true a propósito: este guard decide si se CREA un registro,
+            // así que pregunta al CRM en vez de fiarse de la caché de 5 minutos.
+            if (!empty($eventId) && in_array($eventId, prefix_user_active_event_ids($objSCP, true), true)) {
                 $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0]
                     . "?internalpage=single_stic_registrations&action=create&from=stic_events&id=" . urlencode($eventId);
                 wp_redirect($redirectUrl);
@@ -463,7 +493,7 @@ function prefix_admin_single_stic_registrations()
             if ($action === 'delete') {
                 $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=list_stic_registrations&msgDelete=true";
             } elseif ($action == 'payment') {
-                $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=single_stic_payments_form&registrationId=".$isUpdate."&eventId=".$moduleData['stic_registrations_stic_eventsstic_events_ida'];
+                $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=single_stic_payment_form&registrationId=".$isUpdate."&eventId=".$moduleData['stic_registrations_stic_eventsstic_events_ida'];
             } else {
                 $redirectUrl = $_REQUEST['scp_current_url'] . '&msg=true' . '&id=' . $isUpdate . ($action ? '&action=detail' : '');
             }
@@ -932,6 +962,16 @@ function prefix_admin_single_stic_signup()
  * @return void
  */
 function download_document($documentId) {
+    // RENDIMIENTO: soltamos el candado del fichero de sesión antes de hablar con
+    // el CRM. PHP lo mantiene bloqueado en exclusiva toda la petición, así que
+    // una descarga lenta dejaba en cola CUALQUIER otra petición del mismo
+    // usuario (incluida la página que esté cargando en paralelo).
+    // A partir de aquí no se escribe en $_SESSION; si algún día se añaden
+    // comprobaciones de sesión, van en el handler, ANTES de llamar aquí.
+    if (session_id()) {
+        session_write_close();
+    }
+
     $objSCP = SugarRestApiCall::getObjSCP();
 
     $resultDocument = $objSCP->getRecordDetail($documentId, 'Documents', array('document_revision_id'));
@@ -988,6 +1028,17 @@ function prefix_admin_stic_profile_photo()
         exit;
     }
     $userId = $_SESSION['scp_user_id'];
+
+    // RENDIMIENTO: este endpoint es de SOLO LECTURA y ya tiene lo único que
+    // necesita de la sesión, así que suelta el candado del fichero de sesión
+    // (PHP lo mantiene en exclusiva hasta el final del script). Sin esto, la
+    // foto se ponía a la cola detrás del HTML de la página que la pide —
+    // esperaba a que terminaran TODAS sus llamadas al CRM— en vez de cargarse
+    // en paralelo. Nada de aquí en adelante escribe en $_SESSION.
+    if (session_id()) {
+        session_write_close();
+    }
+
     $cachePath = sticpa_profile_photo_cache_path($userId);
 
     // Miniatura cacheada y fresca (< 24h) → se sirve directamente, sin CRM.
@@ -1187,10 +1238,25 @@ function prefix_comunica_save_contact()
             'ds_file'   => array('label' => 'Certificado Delitos Sexuales', 'category' => 'legal_cert_delitos',     'flag' => 'ajmcm_cert_del_sex_c'),
             'form_file' => array('label' => 'Otros certificados',          'category' => 'formacion_titulo_otros', 'flag' => 'ajmcm_cert_files_c'),
         );
+        // Los flags de "archivo subido" se acumulan y se guardan en UN solo
+        // set_entry al final: antes cada certificado hacía el suyo, así que
+        // guardar el perfil con los 4 eran 4 escrituras idénticas al mismo
+        // contacto (4 round-trips al CRM) dentro de una petición que el usuario
+        // está esperando con el overlay puesto.
+        $flagsToSet = array();
         foreach ($certs as $field => $meta) {
             if (isset($_FILES[$field]) && !empty($_FILES[$field]['name'])) {
-                comunica_upload_certificate($objSCP, $id, $field, $meta);
+                $uploaded = comunica_upload_certificate($objSCP, $id, $field, $meta);
+                if (!empty($uploaded['flag'])) {
+                    $flagsToSet[$uploaded['flag']] = '1';
+                }
             }
+        }
+        if (!empty($flagsToSet)) {
+            $objSCP->set_entry('Contacts', array_merge(array('id' => $id), $flagsToSet));
+            // El aviso "te falta el certificado" se cachea en sesión: al subirlo
+            // hay que recalcularlo (ver sticpa_monitor_ds_pending).
+            unset($_SESSION['scp_ds_pending']);
         }
     }
 
@@ -1200,8 +1266,13 @@ function prefix_comunica_save_contact()
 }
 
 /**
- * Sube un certificado como Documento del CRM, lo vincula al contacto y marca el
- * flag correspondiente. Modela el patrón de prefix_admin_single_stic_documents.
+ * Sube un certificado como Documento del CRM y lo vincula al contacto.
+ *
+ * NO marca el flag `ajmcm_*_c` del contacto: devuelve cuál hay que marcar para
+ * que el llamante los agrupe en un único set_entry (ver prefix_comunica_save_contact).
+ *
+ * @return array|false array('docId' => id del Documento, 'flag' => campo a marcar)
+ *                     o false si no había archivo válido que subir.
  */
 function comunica_upload_certificate($objSCP, $contactId, $field, $meta)
 {
@@ -1239,10 +1310,8 @@ function comunica_upload_certificate($objSCP, $contactId, $field, $meta)
         'filename' => $fileName,
     ));
 
-    // 4) Marcar el flag del contacto (archivo subido = 1).
-    $objSCP->set_entry('Contacts', array('id' => $contactId, $meta['flag'] => '1'));
-
-    return $docId;
+    // El flag del contacto lo escribe el llamante, agrupado con los demás.
+    return array('docId' => $docId, 'flag' => $meta['flag']);
 }
 
 /**

@@ -18,6 +18,9 @@
 - **Depends on**: none
 - **Category**: perf
 - **Planned at**: commit `337ec6a`, 2026-08-09
+- **Estado**: **PARCIAL** — steps 1-3 en `122289f` (2026-08-12). Falta el cierre de
+  sesión DURANTE el render, que estaba fuera de alcance a propósito (ver
+  "Decisión deliberada" y "Maintenance notes"): sigue siendo el siguiente paso.
 
 ## Why this matters
 

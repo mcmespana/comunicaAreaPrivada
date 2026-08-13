@@ -49,6 +49,32 @@ jobs:
       - name: Descargar el código del repo
         uses: actions/checkout@v4
 
+      # El área son recargas completas de página, así que el navegador vuelve a
+      # PARSEAR todo el CSS en cada tap (la caché ahorra la descarga, no el
+      # parseo). Se minifica aquí, sobre la copia del runner: el repositorio
+      # conserva los fuentes comentados y producción recibe ~146 KB menos.
+      #
+      # Solo --minify-whitespace (comentarios + espacios), NO --minify: el
+      # minificado completo reescribe reglas, y este CSS tiene 726 !important
+      # portantes y una cascada delicada (ver plans/018-css-consolidation.md).
+      # En JS evita además renombrar identificadores, y hay funciones globales
+      # (confirmDelete, verifyIban, getCurrentDateTime…) invocadas por nombre
+      # desde atributos HTML generados en PHP.
+      - name: Preparar Node (para minificar assets)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Minificar CSS y JS propios (solo en lo que se sube)
+        run: |
+          set -euo pipefail
+          for f in css/custom-style.css css/stic-base.css \
+                   js/stic-ui.js js/stic-utils.js js/stic-init.js js/stic-cropper.js; do
+            before=$(wc -c < "$f")
+            npx --yes esbuild "$f" --minify-whitespace --allow-overwrite --outfile="$f"
+            echo "$f: $before -> $(wc -c < "$f") bytes"
+          done
+
       - name: Subir el plugin por FTPS
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
