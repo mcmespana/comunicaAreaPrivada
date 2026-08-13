@@ -1269,6 +1269,12 @@ function sticpa_area_cache_headers()
  * excluye a mano todo lo que tenga efectos (salir, descargar, borrar, recargar
  * definiciones de campo). Nunca añadas aquí un enlace que cambie algo: una
  * precarga es una petición REAL al servidor.
+ *
+ * NO ES REDUNDANTE con las reglas que WordPress emite por su cuenta: las de core
+ * excluyen `/*\?(.+)`, es decir, TODA url con query string. Y la navegación del
+ * área es entera `?internalpage=…`, así que el área quedaba fuera de la precarga
+ * de core. Comprobado en el HTML servido. Que conste para que nadie borre esto
+ * pensando que sobra: los dos bloques de reglas conviven y el navegador los suma.
  */
 add_action('wp_footer', 'sticpa_speculation_rules');
 function sticpa_speculation_rules()
