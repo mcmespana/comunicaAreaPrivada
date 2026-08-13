@@ -104,12 +104,25 @@ class SugarRestApiCall
         return $this->curlHandle;
     }
 
-    public function __destruct()
+    /**
+     * Tira el handle de cURL. Se llama tras un error de red por precaución: el
+     * handle guarda su pool de conexiones y, tras un timeout, esa conexión queda
+     * a medias (el servidor puede seguir escribiendo en ella más tarde).
+     * Empezar de cero cuesta un handshake, pero solo en el camino de error.
+     * Nota: en las pruebas contra un servidor que se cuelga a propósito, cURL ya
+     * se recuperaba solo; esto es cinturón, no la corrección de un fallo visto.
+     */
+    private function closeCurlHandle()
     {
         if ($this->curlHandle !== null) {
             curl_close($this->curlHandle);
             $this->curlHandle = null;
         }
+    }
+
+    public function __destruct()
+    {
+        $this->closeCurlHandle();
     }
 
     public static function getObjSCP() {
@@ -162,7 +175,11 @@ class SugarRestApiCall
         if ($result === false) {
             // Timeout o error de red: se devuelve null y cada consumidor pinta su
             // estado vacío, en vez de dejar la petición colgada.
-            error_log('[sticpa] Llamada al CRM fallida (' . $method . '): ' . curl_error($curl_request));
+            $curlError = curl_error($curl_request);
+            // Y se tira el handle: la conexión que ha fallado no vale para la
+            // siguiente llamada (ver closeCurlHandle).
+            $this->closeCurlHandle();
+            error_log('[sticpa] Llamada al CRM fallida (' . $method . '): ' . $curlError);
             return null;
         }
 

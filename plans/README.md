@@ -51,7 +51,7 @@ antes de empezar, respeta sus "STOP conditions" y actualiza su fila de estado al
 | 027 | Cliente CRM: keep-alive, HTTP/1.1, timeouts y gzip | P0 | S-M | — (coordina con 008) | **DONE** (`cb79e9c`) |
 | 028 | Soltar el lock de sesión PHP (foto/descargas en paralelo) | P1 | S-M | — | **PARCIAL** (`122289f`) — falta el cierre durante el render |
 | 029 | Quick wins de lecturas CRM (guard, caches, typo de pago) | P1 | M | — | **DONE** (`967ef24`) |
-| 030 | Tap instantáneo: feedback en enlaces + prefetch + puente app | P1 | S-M | — | **PARCIAL** (`d2873dd`) — prefetch aparcado (ver abajo) |
+| 030 | Tap instantáneo: feedback en enlaces + prefetch + puente app | P1 | S-M | — | **DONE** (`d2873dd` + prefetch 2026-08-13) |
 | 031 | Dieta de assets: CSS minificado en deploy + Inter local | P2 | M | — | **PARCIAL** (`7dc928a`) — falta retirar DataTables |
 | 032 | Acotar listados: ventana de eventos + techo de filas | P2 | M | — (tras 011 en páginas compartidas) | **PARCIAL** (`113255e`) — falta el techo de filas |
 
@@ -71,19 +71,27 @@ lint global y PHPUnit verdes (56 tests, 7 nuevos en `tests/CalendarCacheTest.php
 | Velocidad percibida (030) | Overlay de carga al tocar **cualquier** enlace interno (antes solo 4 formularios), con red de seguridad para bfcache y descargas · `postMessage` `sticpa:nav` para que la app pinte indicador nativo (§4.a del contrato) · pantalla puente del enlace mágico sin 4 de sus 5 animaciones infinitas |
 | Assets (031) | Minificado de CSS/JS propio en el job de deploy: 268→162 KB de CSS y 80→40 KB de JS, sin tocar los fuentes del repo · Inter autoalojada (fuente variable, subsets latin + latin-ext): fuera dos orígenes externos encadenados del camino crítico · cropper solo en las 4 páginas con input de archivo |
 | Listados (011 parcial) | Pagos: el bucle `1+N` que rellenaba una columna **que no se pinta** ya no se ejecuta para personas adultas normales · Sesiones: dedup por evento · guards `is_array` para tolerar el nuevo timeout |
-| Eventos (032 parcial) | Ventana temporal compartida con el calendario (-3…+12 meses, filtrable) en el listado y en el desplegable de inscripción (solo al crear) |
+| Eventos (032 parcial) | Ventana temporal compartida con el calendario (**-14…+12 meses**, filtrable) en el listado y en el desplegable de inscripción (solo al crear). 14 meses hacia atrás porque las actividades son anuales y la edición anterior sigue siendo la referencia útil |
+| Precarga (030) | Las secciones del menú se precargan al apoyar el dedo (Speculation Rules). Requirió cambiar `no-store` por `private, no-cache, must-revalidate` en las páginas del área — decisión aprobada por el mantenedor |
+| Validación (027) | Arnés en `tests/manual/` que prueba el cliente del CRM contra un servidor real, sin credenciales. Keep-alive medido: 1ª llamada 1947 ms, siguientes ~350 ms sin abrir conexión |
 
 **Pendiente y por qué (decisiones tomadas al implementar):**
 
-- **Prefetch especulativo del menú (030, paso 2) — APARCADO.** Verificado contra
-  el sitio real: responde `cache-control: no-store, no-cache, must-revalidate`
-  (limitador de sesión de PHP por defecto), y la especificación de Speculation
-  Rules no usa respuestas `no-store`, así que el prefetch sería **inerte**.
-  Habilitarlo exige quitar el `no-store`, y eso implica que páginas con datos
-  personales de menores queden en la caché de disco del navegador: es una
-  decisión de privacidad del mantenedor, no técnica. Si se aprueba, el cambio es
-  `session_cache_limiter('')` + cabecera explícita `private, no-cache,
-  must-revalidate` y el `<script type="speculationrules">` del plan.
+- **Prefetch especulativo del menú (030, paso 2) — HECHO el 2026-08-13**, tras
+  aprobarlo el mantenedor. Estaba aparcado porque el sitio responde
+  `cache-control: no-store` (limitador de sesión de PHP) y la especificación de
+  Speculation Rules no usa respuestas `no-store`: el prefetch habría sido
+  **inerte**. Ahora las páginas del área —y solo ellas— responden
+  `private, no-cache, must-revalidate` (`sticpa_area_cache_headers`, en
+  `template_redirect`): ninguna caché compartida guarda nada y el navegador no
+  puede reutilizar sin revalidar, así que tras cerrar sesión el botón atrás
+  acaba en el login. **Lo que se acepta a cambio**: la respuesta puede quedar en
+  la caché de disco del navegador, recuperable por alguien con acceso al perfil
+  del navegador en un dispositivo compartido.
+  `eagerness` por defecto **conservative** (al apoyar el dedo, nunca en hover),
+  porque cada precarga es un render con sus llamadas al CRM y la barra de menú es
+  horizontal: con `moderate`, un barrido del ratón precargaría media. Subirlo es
+  un filtro de una línea: `sticpa_prefetch_eagerness`.
 - **Cerrar la sesión durante el render (028) — PENDIENTE.** Es donde está el
   resto del beneficio del lock, pero el cliente del CRM escribe
   `api_session_id` a mitad de render cuando renueva sesión: cerrar antes

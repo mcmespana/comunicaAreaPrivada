@@ -1196,6 +1196,108 @@ function sticpa_page_has_area_shortcode()
 }
 
 /**
+ * Igual que la anterior, pero válida ANTES de que empiece el loop (en
+ * `template_redirect` todavía no hay $post). Se usa para tocar cabeceras, que
+ * hay que enviar antes de cualquier salida.
+ */
+function sticpa_queried_page_has_area_shortcode()
+{
+    if (is_admin()) {
+        return false;
+    }
+    $queried = get_queried_object();
+    return ($queried instanceof WP_Post) && has_shortcode($queried->post_content, 'sinergiacrm-private-area');
+}
+
+/**
+ * Cabeceras de caché del área privada.
+ *
+ * PROBLEMA: con una sesión de PHP abierta, el limitador de caché por defecto
+ * (`nocache`) manda `Cache-Control: no-store, no-cache, must-revalidate` +
+ * `Pragma: no-cache` + un `Expires` en 1981. Y `no-store` prohíbe al navegador
+ * GUARDAR la respuesta, lo que deja INERTE cualquier precarga: las Speculation
+ * Rules de más abajo no servirían de nada (verificado contra el sitio real).
+ *
+ * QUÉ SE CAMBIA: se sustituye `no-store` por `no-cache` + `must-revalidate`.
+ * La diferencia importa y conviene tenerla clara:
+ *   · `private`         → NINGUNA caché compartida (CDN, proxy del hosting)
+ *                         puede guardar esto. Sigue siendo tan estricto como antes.
+ *   · `no-cache`        → el navegador puede guardarla, pero NO puede reutilizarla
+ *                         sin volver a preguntar al servidor. Así, tras cerrar
+ *                         sesión, darle a "atrás" revalida y acaba en el login:
+ *                         no se sirve contenido privado de una sesión cerrada.
+ *   · lo que se pierde  → la respuesta puede quedar en la caché de disco del
+ *                         navegador. En un dispositivo compartido, alguien con
+ *                         acceso al perfil del navegador podría recuperarla.
+ *                         Es el precio de la precarga, aceptado a conciencia.
+ *
+ * Solo se aplica a las páginas del área: el resto de la web conserva las
+ * cabeceras que le ponga WordPress.
+ */
+add_action('template_redirect', 'sticpa_area_cache_headers');
+function sticpa_area_cache_headers()
+{
+    if (headers_sent() || !sticpa_queried_page_has_area_shortcode()) {
+        return;
+    }
+    // Reemplaza la cabecera homónima que ya hubiera puesto el limitador de sesión.
+    header('Cache-Control: private, no-cache, must-revalidate, max-age=0');
+    // Estas dos las pone el limitador `nocache` y contradicen lo anterior
+    // (un Expires en el pasado y un Pragma que algunos intermediarios leen
+    // como no-store).
+    header_remove('Pragma');
+    header_remove('Expires');
+}
+
+/**
+ * PRECARGA de las secciones del menú (Speculation Rules).
+ *
+ * El área son recargas completas de página y el cuello de botella es el CRM, así
+ * que la única forma de que un tap se sienta instantáneo es haber empezado a
+ * pedir la página ANTES de soltar el dedo. Esto lo hace el navegador solo.
+ *
+ * `eagerness` por defecto: **conservative** = se dispara al APOYAR el dedo o el
+ * botón (pointerdown), no antes. Elegido a propósito: cada precarga es un render
+ * completo con sus llamadas al CRM, y con `moderate` (que además precarga al
+ * pasar el ratón por encima 200 ms) una barra de menú HORIZONTAL como esta se
+ * precargaría media al mover el cursón por encima. En móvil —el canal principal—
+ * apenas hay diferencia entre ambos, porque no hay hover. Si algún día se ve que
+ * el CRM va sobrado, subirlo a 'moderate' es una palabra:
+ *     add_filter('sticpa_prefetch_eagerness', fn() => 'moderate');
+ *
+ * SEGURIDAD: solo se precargan GET idempotentes. Se exige `internalpage=` y se
+ * excluye a mano todo lo que tenga efectos (salir, descargar, borrar, recargar
+ * definiciones de campo). Nunca añadas aquí un enlace que cambie algo: una
+ * precarga es una petición REAL al servidor.
+ */
+add_action('wp_footer', 'sticpa_speculation_rules');
+function sticpa_speculation_rules()
+{
+    if (!sticpa_page_has_area_shortcode() || empty($_SESSION['scp_user_id'])) {
+        return; // sin sesión no hay menú que precargar
+    }
+    $eagerness = (string) apply_filters('sticpa_prefetch_eagerness', 'conservative');
+    if (!in_array($eagerness, array('conservative', 'moderate', 'eager'), true)) {
+        $eagerness = 'conservative';
+    }
+    $rules = array(
+        'prefetch' => array(
+            array(
+                'where' => array(
+                    'and' => array(
+                        array('selector_matches' => "a[href*='internalpage=']"),
+                        array('not' => array('selector_matches' =>
+                            "a[href*='logout'], a[href*='download'], a[href*='action=delete'], a[href*='refresh_fields']")),
+                    ),
+                ),
+                'eagerness' => $eagerness,
+            ),
+        ),
+    );
+    echo "<script type=\"speculationrules\">" . wp_json_encode($rules) . "</script>\n";
+}
+
+/**
  * Preload de la tipografía del cuerpo. Inter está AUTOALOJADA en fonts/ (ver los
  * @font-face al principio de css/stic-base.css): ya no hay preconnect a Google
  * porque ya no se sale del dominio. El preload sirve para que el .woff2 no espere

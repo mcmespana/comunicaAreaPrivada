@@ -18,6 +18,13 @@
 - **Category**: perf
 - **Planned at**: commit `337ec6a`, 2026-08-09
 - **Estado**: **DONE** — implementado en `cb79e9c` (2026-08-12). Los 6 steps hechos.
+  **VALIDADO con medición (2026-08-13)**, sin necesidad de credenciales del CRM:
+  arnés en `tests/manual/` (servidor que imita la API v4_1) que comprueba el parseo
+  del cuerpo con HTTP/1.1, la compresión, el timeout, la recuperación tras el timeout
+  y que el reintento por sesión caducada manda el `session_id` nuevo. El keep-alive no
+  se puede medir con `php -S` (manda `Connection: close`), así que se midió contra el
+  sitio real: 1ª llamada 1947 ms abriendo conexión, 2ª y 3ª ~350 ms **sin abrir
+  ninguna**. El handshake costaba ~1,6 s por llamada y una pantalla hace entre 2 y 40.
   El `api_session_time` se escribe desde un único helper `storeSessionId()`, así que
   aparece 2 veces y no 3 como decía el criterio: misma intención, menos duplicación.
 
