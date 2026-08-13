@@ -17,13 +17,19 @@
 - **Depends on**: none (compone con 027/029: ellos acortan la espera, este la hace visible y la solapa)
 - **Category**: perf (velocidad percibida)
 - **Planned at**: commit `337ec6a`, 2026-08-09
-- **Estado**: **PARCIAL** — steps 1, 3 y 4 en `d2873dd` (2026-08-12).
-  **Step 2 (Speculation Rules) APARCADO, no fallido**: comprobado con curl contra el
-  sitio real que responde `cache-control: no-store, no-cache, must-revalidate` (el
-  limitador de sesión de PHP por defecto). La especificación de Speculation Rules no
-  usa respuestas `no-store`, así que el prefetch sería inerte. Habilitarlo exige
-  quitar el `no-store` → páginas con datos personales de menores pasarían a la caché
-  de disco del navegador: decisión de privacidad del mantenedor, no técnica.
+- **Estado**: **DONE** — steps 1, 3 y 4 en `d2873dd`; step 2 (Speculation Rules) en la
+  segunda tanda (2026-08-13), tras aprobarlo el mantenedor.
+  El step 2 estuvo aparcado porque el sitio responde `no-store` (limitador de sesión
+  de PHP) y eso deja INERTE cualquier precarga. Aprobado el cambio, se sustituye por
+  `private, no-cache, must-revalidate` **solo en las páginas del área**
+  (`sticpa_area_cache_headers`, enganchada a `template_redirect`): ninguna caché
+  compartida puede guardar nada y el navegador no puede reutilizar la respuesta sin
+  revalidar, así que tras cerrar sesión el botón atrás acaba en el login. Lo que se
+  acepta a cambio es que la respuesta pueda quedar en la caché de disco del navegador.
+  `eagerness` por defecto **conservative** (se dispara al apoyar el dedo, nunca en
+  hover): cada precarga es un render con sus llamadas al CRM, y la barra de menú es
+  horizontal, así que con `moderate` un barrido del ratón precargaría media. Subirlo
+  es un filtro de una línea (`sticpa_prefetch_eagerness`).
 
 ## Why this matters
 

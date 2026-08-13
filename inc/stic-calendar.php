@@ -395,10 +395,13 @@ function sticpa_gather_calendar_data($objSCP)
 
     // 2) Todos los eventos en la ventana (-3 meses … +12 meses). Los ya inscritos
     //    se apartan; el resto son "abiertos a inscripción".
-    // Misma ventana que el listado de Eventos (fuente única en inc/stic-events.php).
+    // Misma ventana que el listado de Eventos (fuente única en inc/stic-events.php):
+    // -14 … +12 meses. En el calendario los eventos pasados no molestan (caen en
+    // su fecha, y para verlos hay que navegar hasta su mes), y así se puede mirar
+    // atrás el curso anterior completo.
     $filter = function_exists('sticpa_events_window_filter')
         ? sticpa_events_window_filter()
-        : "(stic_events.start_date BETWEEN DATE_ADD(curdate(), INTERVAL -3 MONTH) AND DATE_ADD(curdate(), INTERVAL 12 MONTH))";
+        : "(stic_events.start_date BETWEEN DATE_ADD(curdate(), INTERVAL -14 MONTH) AND DATE_ADD(curdate(), INTERVAL 12 MONTH))";
     $allEvents = $objSCP->getRecordsModule('stic_Events', $filter, array('id', 'name', 'type', 'start_date', 'end_date'));
     $availableEvents = array();
     if (is_array($allEvents)) {

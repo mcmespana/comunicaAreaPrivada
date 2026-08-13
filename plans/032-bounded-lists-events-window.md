@@ -67,6 +67,14 @@ ya filtra una ventana de -3 a +12 meses.
 
 ### Decisión de producto (tomada por el mantenedor al aprobar este plan)
 
+> **ACTUALIZADA el 2026-08-13**: la ventana hacia atrás es de **14 meses**, no de 3.
+> Las actividades del MCM son anuales y se repiten, así que la edición del año
+> anterior sigue siendo la referencia útil; con 3 meses desaparecía justo lo que la
+> gente busca. 14 = ciclo anual + 2 meses de margen. Aplica al listado Y al
+> calendario (allí los eventos pasados caen en su fecha, así que no molestan y
+> permiten mirar atrás el curso anterior). Ajustable con
+> `sticpa_events_window_months_back` / `_ahead`.
+
 **"Eventos" muestra la misma ventana temporal que el calendario (-3 a +12 meses).** Los
 eventos pasados siguen visibles en "Inscripciones" (las inscripciones del usuario no se
 filtran por este plan). Si al ejecutar encuentras un requisito que contradiga esto (p. ej.
