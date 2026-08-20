@@ -227,31 +227,38 @@ async function verificarGifs() {
   return malos === 0 ? 0 : 1;
 }
 
-/** Datos de mentira para poder ver el correo sin tocar el CRM. */
+/**
+ * Datos de mentira para ver el correo sin tocar el CRM.
+ *
+ * Los nombres son deliberadamente inverosímiles y los correos usan el dominio
+ * reservado `.invalid`, que por norma no puede existir (RFC 2606). Antes esto
+ * tenía nombres reales sacados del CRM con fechas inventadas encima, y era
+ * imposible saber de un vistazo qué era real y qué no.
+ */
 function datosDemo() {
   return [
     {
-      id: '00000533-dc25-a5f7-6175-68d10443ffde',
-      nombre: 'Mercedes Martí París',
-      nombreCorto: 'Mercedes',
+      id: 'demo-1',
+      nombre: 'Fulanita de Tal',
+      nombreCorto: 'Fulanita',
       nacimiento: '2006-08-18',
       edad: 20,
       genero: 'female',
-      movil: '600123456',
-      email: 'mercedes@example.org',
+      movil: '600000001',
+      email: 'fulanita@ejemplo.invalid',
       etapa: 'COM',
       grupo: 'COMser',
       monitorDesde: '2022-09-01',
     },
     {
-      id: '0000009f-6d50-d6b7-7658-68d104f5bad7',
-      nombre: 'Jaime Pardo Aragonés',
-      nombreCorto: 'Jaime',
+      id: 'demo-2',
+      nombre: 'Menganito de Cual',
+      nombreCorto: 'Menganito',
       nacimiento: '1998-08-18',
       edad: 28,
       genero: 'male',
       movil: '',
-      email: 'jaime@example.org',
+      email: 'menganito@ejemplo.invalid',
       etapa: 'LC',
       grupo: '',
       monitorDesde: '2019-09-01',
@@ -279,6 +286,9 @@ async function principal() {
   const mensajes = await leerJson('mensajes.json');
 
   const modoDemo = banderas.has('demo');
+  if (modoDemo) {
+    aviso('MODO DEMO: los nombres, fechas y edades son INVENTADOS. No se consulta el CRM.');
+  }
   const seco = banderas.has('dry-run') || modoDemo;
   const forzarHora = banderas.has('forzar-hora') || modoDemo || Boolean(valores.fecha);
 
