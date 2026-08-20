@@ -14,9 +14,10 @@ import { readFileSync } from 'node:fs';
 
 import {
   asunto, asuntoPersona, correoHtml, correoPersonaHtml, cumpleanosDeHoy,
-  delegacionesActivas, edad, elegir, fechaLarga, indiceMonitores, listaNatural,
-  MENSAJES_POR_DEFECTO, movilInternacional, normaliza, palabraMonitor,
-  plantilla, relacionEsDe, repartoGifs, textoPersona, textoPlano, urlFicha,
+  delegacionesActivas, edad, elegir, elegirRemitente, fechaLarga,
+  indiceMonitores, listaNatural, MENSAJES_POR_DEFECTO, movilInternacional,
+  normaliza, palabraMonitor, plantilla, relacionEsDe, repartoGifs,
+  textoPersona, textoPlano, urlFicha,
 } from './felicitacion.mjs';
 
 // Los textos de verdad, los mismos que usa el workflow.
@@ -143,6 +144,23 @@ test('movilInternacional: solo móviles, con prefijo 34 si falta', () => {
   assert.equal(movilInternacional('964123456'), '', 'un fijo no lleva WhatsApp');
   assert.equal(movilInternacional(''), '');
   assert.equal(movilInternacional('no tiene'), '');
+});
+
+test('elegirRemitente: prioridad delegación > entorno > por defecto', () => {
+  const D = { remite: 'Onda <onda@x.org>' };
+  assert.equal(elegirRemitente(D, 'general@x.org', 'defecto@x.org'), 'Onda <onda@x.org>');
+  assert.equal(elegirRemitente({}, 'general@x.org', 'defecto@x.org'), 'general@x.org');
+  assert.equal(elegirRemitente({}, undefined, 'defecto@x.org'), 'defecto@x.org');
+});
+
+test('elegirRemitente: un secreto sin definir en GitHub Actions llega como \'\', no undefined', () => {
+  // Caso real que rompió el envío: sin CUMPLES_FROM, el runner mete '' en el
+  // entorno. Con `??` esa cadena vacía "cuenta" como valor y el correo sale
+  // con from: '' (Resend lo rechaza con "The domain is invalid"). Aquí se
+  // comprueba que SÍ se cae al remitente por defecto.
+  assert.equal(elegirRemitente({}, '', 'defecto@x.org'), 'defecto@x.org');
+  assert.equal(elegirRemitente({ remite: '' }, '', 'defecto@x.org'), 'defecto@x.org');
+  assert.equal(elegirRemitente(undefined, '', 'defecto@x.org'), 'defecto@x.org');
 });
 
 // ── Mensajes (mensajes.json) ─────────────────────────────────────────────────

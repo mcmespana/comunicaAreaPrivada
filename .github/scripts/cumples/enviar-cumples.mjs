@@ -34,8 +34,8 @@ import { dirname, join } from 'node:path';
 
 import {
   ahoraEnMadrid, asunto, asuntoPersona, correoHtml, correoPersonaHtml,
-  cumpleanosDeHoy, delegacionesActivas, fechaLarga, indiceMonitores,
-  textoPersona, textoPlano,
+  cumpleanosDeHoy, delegacionesActivas, elegirRemitente, fechaLarga,
+  indiceMonitores, textoPersona, textoPlano,
 } from './felicitacion.mjs';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
@@ -417,7 +417,7 @@ async function principal() {
     }
 
     const apiKey = process.env.RESEND_API_KEY ?? '';
-    const from = delegacion.remite ?? process.env.CUMPLES_FROM ?? REMITENTE_POR_DEFECTO;
+    const from = elegirRemitente(delegacion, process.env.CUMPLES_FROM, REMITENTE_POR_DEFECTO);
     if (!apiKey) throw new Error('Falta RESEND_API_KEY.');
 
     // --destinatario es SOLO para probar: manda TODO (aviso y felicitaciones) a

@@ -88,6 +88,21 @@ export function palabraMonitor(genero) {
 }
 
 /**
+ * Elige el remitente: el de la delegación si tiene uno propio, si no el del
+ * secreto CUMPLES_FROM, y si tampoco hay, el por defecto.
+ *
+ * Existe como función aparte (en vez de encadenar `??`) porque cuando un
+ * secreto de GitHub Actions no está definido, el runner lo interpola como
+ * cadena vacía `''`, NO como `undefined`. Con `??` esa cadena vacía "cuenta"
+ * como valor y el correo sale con `from: ''`, que Resend rechaza con "The
+ * domain is invalid" — un mensaje que no dice en absoluto que el problema es
+ * un secreto vacío. `||` sí trata `''` como "no hay valor".
+ */
+export function elegirRemitente(delegacion, entornoFrom, porDefecto) {
+  return delegacion?.remite || entornoFrom || porDefecto;
+}
+
+/**
  * Móvil en formato internacional para el enlace de WhatsApp.
  * Devuelve '' si no parece un móvil usable (y entonces no se pone el botón).
  */
