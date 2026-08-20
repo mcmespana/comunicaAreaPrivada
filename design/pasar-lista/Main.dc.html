@@ -1,0 +1,121 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <style>
+    body { margin: 0; font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+    a { color: #1c6fb3; text-decoration: none; } a:hover { color: #155a92; }
+  </style>
+</helmet>
+
+<div style="width: 390px; min-height: 844px; background: #f7f9fc; color: #1f2937; display: flex; flex-direction: column;">
+
+  <!-- Cabecera -->
+  <div style="display: flex; flex-direction: column; gap: 4px; padding: 24px 20px 16px 20px;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="width: 4px; height: 26px; border-radius: 9999px; background: linear-gradient(135deg, #1c6fb3 0%, #6c4b9e 52%, #9d1e74 100%);"></div>
+      <div style="font-size: 1.45rem; font-weight: 800; letter-spacing: -0.02em;">Pasar lista</div>
+    </div>
+    <div style="font-size: 0.85rem; color: #6b7280; padding-left: 14px;">Sábado 15 de noviembre</div>
+  </div>
+
+  <!-- Tarjeta de la sesión de hoy -->
+  <div style="padding: 0 20px;">
+    <div style="border-radius: 1.4rem; background: linear-gradient(135deg, #1c6fb3 0%, #6c4b9e 52%, #9d1e74 100%); box-shadow: 0 20px 44px rgba(21, 36, 71, 0.14); padding: 22px; display: flex; flex-direction: column; gap: 18px;">
+
+      <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: inline-flex; align-items: center; padding: 0.16rem 0.6rem; border-radius: 9999px; background: rgba(255,255,255,0.22); color: #ffffff; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; align-self: flex-start;">Hoy</div>
+          <div style="font-size: 1.6rem; font-weight: 800; color: #ffffff; letter-spacing: -0.02em; line-height: 1.1;">C1 · 1º ESO</div>
+          <div style="font-size: 0.9rem; color: rgba(255,255,255,0.88); font-weight: 500;">17:00 – 19:00 · 14 participantes</div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 58px; height: 58px; border-radius: 1.1rem; background: rgba(255,255,255,0.18); flex-shrink: 0;">
+          <div style="font-size: 1.4rem; font-weight: 800; color: #ffffff; line-height: 1;">15</div>
+          <div style="font-size: 0.62rem; font-weight: 700; color: rgba(255,255,255,0.85); text-transform: uppercase; letter-spacing: 0.06em;">Nov</div>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; justify-content: center; gap: 10px; height: 54px; border-radius: 1.1rem; background: #ffffff; box-shadow: 0 2px 10px rgba(21, 36, 71, 0.08);">
+        <span style="font-size: 1rem; font-weight: 800; color: #1c6fb3; letter-spacing: -0.01em;">Pasar lista</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#1c6fb3" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 19px; height: 19px;"><path d="M5 12h13"/><path d="m12 5 7 7-7 7"/></svg>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Listas pendientes -->
+  <div style="padding: 20px 20px 0 20px; display: flex; flex-direction: column; gap: 10px;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#a16207" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px;"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+      <div style="font-size: 0.82rem; font-weight: 800; color: #92400e; text-transform: uppercase; letter-spacing: 0.04em;">Te faltan 2 listas</div>
+    </div>
+
+    <div style="border-radius: 1.1rem; background: #fffbeb; border: 1px solid #fde68a; overflow: hidden;">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px;">
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="font-size: 0.95rem; font-weight: 700; color: #78350f;">Sábado 1 de noviembre</div>
+          <div style="font-size: 0.78rem; color: #a16207;">C1 · hace 2 semanas</div>
+        </div>
+        <div style="display: inline-flex; align-items: center; padding: 8px 14px; border-radius: 9999px; background: #ffffff; border: 1px solid #fcd34d; font-size: 0.8rem; font-weight: 700; color: #92400e;">Recuperar</div>
+      </div>
+      <div style="height: 1px; background: #fde68a;"></div>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px;">
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="font-size: 0.95rem; font-weight: 700; color: #78350f;">Sábado 25 de octubre</div>
+          <div style="font-size: 0.78rem; color: #a16207;">C1 · hace 3 semanas</div>
+        </div>
+        <div style="display: inline-flex; align-items: center; padding: 8px 14px; border-radius: 9999px; background: #ffffff; border: 1px solid #fcd34d; font-size: 0.8rem; font-weight: 700; color: #92400e;">Recuperar</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Otro grupo -->
+  <div style="padding: 24px 20px 0 20px; display: flex; flex-direction: column; gap: 10px;">
+    <div style="font-size: 0.78rem; font-weight: 800; color: #6b7280; text-transform: uppercase; letter-spacing: 0.06em;">Pasar lista de otro grupo</div>
+
+    <div style="border-radius: 1.1rem; background: #ffffff; box-shadow: 0 1px 2px rgba(21, 36, 71, 0.06); overflow: hidden;">
+
+      <div style="display: flex; align-items: center; gap: 14px; padding: 15px 16px;">
+        <div style="width: 10px; height: 10px; border-radius: 9999px; background: #dc2626; flex-shrink: 0;"></div>
+        <div style="font-size: 1rem; font-weight: 700; flex-grow: 1;">MIC</div>
+        <div style="display: inline-flex; align-items: center; padding: 0.16rem 0.6rem; border-radius: 9999px; background: #f3f4f6; color: #4b5563; font-size: 0.75rem; font-weight: 800;">93</div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px;"><path d="m9 18 6-6-6-6"/></svg>
+      </div>
+      <div style="height: 1px; background: #f3f4f6; margin-left: 40px;"></div>
+
+      <div style="display: flex; align-items: center; gap: 14px; padding: 15px 16px;">
+        <div style="width: 10px; height: 10px; border-radius: 9999px; background: #2f9e44; flex-shrink: 0;"></div>
+        <div style="font-size: 1rem; font-weight: 700; flex-grow: 1;">COM I</div>
+        <div style="display: inline-flex; align-items: center; padding: 0.16rem 0.6rem; border-radius: 9999px; background: #f3f4f6; color: #4b5563; font-size: 0.75rem; font-weight: 800;">75</div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px;"><path d="m9 18 6-6-6-6"/></svg>
+      </div>
+      <div style="height: 1px; background: #f3f4f6; margin-left: 40px;"></div>
+
+      <div style="display: flex; align-items: center; gap: 14px; padding: 15px 16px;">
+        <div style="width: 10px; height: 10px; border-radius: 9999px; background: #1c6fb3; flex-shrink: 0;"></div>
+        <div style="font-size: 1rem; font-weight: 700; flex-grow: 1;">COM II</div>
+        <div style="display: inline-flex; align-items: center; padding: 0.16rem 0.6rem; border-radius: 9999px; background: #f3f4f6; color: #4b5563; font-size: 0.75rem; font-weight: 800;">51</div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px;"><path d="m9 18 6-6-6-6"/></svg>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Resumen -->
+  <div style="padding: 16px 20px 28px 20px;">
+    <div style="display: flex; align-items: center; justify-content: center; gap: 9px; height: 48px; border-radius: 1.1rem; background: #ffffff; border: 1px solid #e5e7eb;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#4b5563" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M7 16v-5"/><path d="M12 16V8"/><path d="M17 16v-3"/></svg>
+      <span style="font-size: 0.92rem; font-weight: 700; color: #374151;">Resumen de grupos</span>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

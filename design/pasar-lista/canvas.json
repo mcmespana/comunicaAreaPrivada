@@ -1,0 +1,40 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "title": "1 · Home de Pasar Lista", "x": 0, "y": 0, "w": 390, "h": 860 },
+    { "file": "Grupos.dc.html", "title": "2 · Etapas y grupos", "x": 510, "y": 0, "w": 390, "h": 860 },
+    { "file": "Marcar.dc.html", "title": "3 · Marcar asistencia", "x": 1020, "y": 0, "w": 390, "h": 900 },
+    { "file": "Ficha.dc.html", "title": "4 · Ficha del participante", "x": 1530, "y": 0, "w": 390, "h": 1040 },
+    { "file": "Resumen.dc.html", "title": "5 · Resumen (coordinación)", "x": 2040, "y": 0, "w": 390, "h": 980 }
+  ],
+  "annotations": [
+    {
+      "id": "flujo",
+      "x": 0,
+      "y": -200,
+      "w": 900,
+      "text": "EL CAMINO CORTO\n\nEl 90% de las veces el monitor va a su grupo y a la sesión de hoy: eso son DOS toques desde la home del área privada.\nLa navegación por etapas (pantalla 2) es el camino largo, para cubrir a otro monitor.\n\nLa regla de qué sesión se propone y las decisiones abiertas están en docs/comunica/PASAR-LISTA.md"
+    },
+    {
+      "id": "marcar-nota",
+      "x": 1020,
+      "y": -200,
+      "w": 390,
+      "text": "ESTA PANTALLA FUNCIONA\n\nToca una fila: sin marcar → vino → falta.\n«Han venido todos» rellena de golpe y luego\nquitas las dos faltas. El contador de abajo\nva vivo.\n\nNadie empieza marcado: no queremos guardar\ndatos que nadie ha mirado."
+    },
+    {
+      "id": "ficha-nota",
+      "x": 1530,
+      "y": -200,
+      "w": 390,
+      "text": "Lo primero de la ficha son los dos botones\nde contactar, no los datos. Es lo que se\nnecesita con prisa.\n\nEl % de asistencia lo calcula ya el CRM en la\ninscripción; el detalle por sesión existe hoy\nen el calendario de actividades."
+    },
+    {
+      "id": "resumen-nota",
+      "x": 2040,
+      "y": -200,
+      "w": 390,
+      "text": "«Datos por revisar» es deliberado: es el\ngancho para que coordinación limpie los\ngrupos comodín del CRM. Sin esa limpieza\nninguna de las otras cuatro pantallas\nfunciona bien."
+    }
+  ],
+  "launch": { "view": "canvas" }
+}

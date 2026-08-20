@@ -1,0 +1,186 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <style>
+    body { margin: 0; font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+    a { color: #1c6fb3; text-decoration: none; } a:hover { color: #155a92; }
+    .row { cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background 150ms cubic-bezier(0.4, 0, 0.2, 1); }
+    .row:hover { background: #f9fafb; }
+    .tap { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  </style>
+</helmet>
+
+<div style="width: 390px; min-height: 844px; background: #f7f9fc; color: #1f2937; display: flex; flex-direction: column;">
+
+  <!-- Cabecera + selector de sesión -->
+  <div style="display: flex; align-items: center; gap: 12px; padding: 22px 20px 14px 20px;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px; flex-shrink: 0;"><path d="m15 18-6-6 6-6"/></svg>
+    <div style="display: flex; flex-direction: column; gap: 1px; flex-grow: 1;">
+      <div style="font-size: 1.2rem; font-weight: 800; letter-spacing: -0.02em;">C1 · 1º ESO</div>
+      <div style="font-size: 0.8rem; color: #6b7280;">14 participantes</div>
+    </div>
+    <div class="tap" style="display: inline-flex; align-items: center; gap: 7px; padding: 9px 13px; border-radius: 9999px; background: #ffffff; border: 1px solid #e5e7eb;">
+      <span style="font-size: 0.82rem; font-weight: 700; color: #374151;">sáb 15</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px;"><path d="m6 9 6 6 6-6"/></svg>
+    </div>
+  </div>
+
+  <!-- Aviso: la sesión aún no ha empezado -->
+  <div style="margin: 0 20px 14px 20px; display: flex; align-items: flex-start; gap: 11px; padding: 13px 15px; border-radius: 1.1rem; background: #fffbeb; border: 1px solid #fde68a;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#a16207" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px;"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+    <div style="font-size: 0.83rem; color: #78350f; line-height: 1.45;">La sesión empieza a las <strong style="font-weight: 800;">17:00</strong> y aún no han llegado. ¿Seguro que quieres pasar lista ya?</div>
+  </div>
+
+  <!-- Acciones rápidas -->
+  <div style="display: flex; gap: 10px; padding: 0 20px 14px 20px;">
+    <div class="tap" onClick="{{ allPresent }}" style="display: flex; align-items: center; justify-content: center; gap: 8px; flex-grow: 1; height: 46px; border-radius: 1.1rem; background: #e6fcf5; border: 1px solid #b2f2bb;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#076b4d" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px;"><path d="M20 6 9 17l-5-5"/></svg>
+      <span style="font-size: 0.86rem; font-weight: 700; color: #076b4d;">Han venido todos</span>
+    </div>
+    <div class="tap" style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 16px; height: 46px; border-radius: 1.1rem; background: #ffffff; border: 1px solid #e5e7eb;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;"><path d="m5 4 10 8-10 8V4Z"/><path d="M19 5v14"/></svg>
+      <span style="font-size: 0.86rem; font-weight: 700; color: #4b5563;">No hubo</span>
+    </div>
+  </div>
+
+  <!-- Lista de niños -->
+  <div style="padding: 0 20px; flex-grow: 1;">
+    <div style="border-radius: 1.1rem; background: #ffffff; box-shadow: 0 1px 2px rgba(21, 36, 71, 0.06); overflow: hidden;">
+      <sc-for list="{{ kids }}" as="kid" hint-placeholder-count="5">
+        <div class="row" onClick="{{ kid.cycle }}" style="display: flex; align-items: center; gap: 13px; padding: 12px 14px; border-top: {{ kid.border }};">
+
+          <div style="display: flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 9999px; background: {{ kid.avatarBg }}; flex-shrink: 0;">
+            <span style="font-size: 0.85rem; font-weight: 800; color: {{ kid.avatarFg }}; letter-spacing: 0.02em;">{{ kid.initials }}</span>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 3px; flex-grow: 1; min-width: 0;">
+            <div style="font-size: 0.98rem; font-weight: 700; letter-spacing: -0.01em; color: {{ kid.nameColor }};">{{ kid.name }}</div>
+            <div style="display: flex; align-items: center; gap: 7px;">
+              <span style="font-size: 0.76rem; color: #6b7280;">{{ kid.pct }}% asistencia</span>
+              <sc-if value="{{ kid.warn }}" hint-placeholder-val="{{ true }}">
+                <span style="display: inline-flex; align-items: center; padding: 0.1rem 0.45rem; border-radius: 9999px; background: #fef2f2; color: #b91c1c; font-size: 0.66rem; font-weight: 800;">3 faltas</span>
+              </sc-if>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 9999px; background: {{ kid.markBg }}; border: {{ kid.markBorder }}; flex-shrink: 0;">
+            <sc-if value="{{ kid.isYes }}" hint-placeholder-val="{{ true }}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" style="width: 19px; height: 19px;"><path d="M20 6 9 17l-5-5"/></svg>
+            </sc-if>
+            <sc-if value="{{ kid.isNo }}" hint-placeholder-val="{{ false }}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px;"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </sc-if>
+          </div>
+
+          <svg viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; flex-shrink: 0;"><path d="m9 18 6-6-6-6"/></svg>
+
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 7px; padding: 12px 4px 0 4px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px; flex-shrink: 0;"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+      <span style="font-size: 0.76rem; color: #6b7280; line-height: 1.4;">Toca la fila para marcar. Mantén pulsado para «parcial» o «falta justificada».</span>
+    </div>
+  </div>
+
+  <!-- Barra de guardado -->
+  <div style="position: sticky; bottom: 0; margin-top: 18px; padding: 14px 20px 20px 20px; background: rgba(247, 249, 252, 0.94); border-top: 1px solid #e5e7eb; display: flex; flex-direction: column; gap: 11px;">
+    <div style="display: flex; align-items: center; justify-content: center; gap: 18px;">
+      <div style="display: flex; align-items: center; gap: 7px;">
+        <div style="width: 9px; height: 9px; border-radius: 9999px; background: #2f9e44;"></div>
+        <span style="font-size: 0.83rem; font-weight: 700; color: #374151;">{{ countYes }} vinieron</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 7px;">
+        <div style="width: 9px; height: 9px; border-radius: 9999px; background: #dc2626;"></div>
+        <span style="font-size: 0.83rem; font-weight: 700; color: #374151;">{{ countNo }} faltas</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 7px;">
+        <div style="width: 9px; height: 9px; border-radius: 9999px; background: #d1d5db;"></div>
+        <span style="font-size: 0.83rem; font-weight: 700; color: #6b7280;">{{ countNone }} sin marcar</span>
+      </div>
+    </div>
+    <div class="tap" style="display: flex; align-items: center; justify-content: center; height: 54px; border-radius: 1.1rem; background: linear-gradient(135deg, #1c6fb3 0%, #6c4b9e 52%, #9d1e74 100%); box-shadow: 0 10px 28px rgba(21, 36, 71, 0.10);">
+      <span style="font-size: 1rem; font-weight: 800; color: #ffffff; letter-spacing: -0.01em;">Guardar lista</span>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      marks: {
+        1: 'yes', 2: 'yes', 3: 'no', 4: 'yes', 5: '', 6: 'yes', 7: ''
+      }
+    };
+  }
+
+  cycle(id) {
+    const order = ['', 'yes', 'no'];
+    const cur = this.state.marks[id] || '';
+    const next = order[(order.indexOf(cur) + 1) % 3];
+    this.setState({ marks: Object.assign({}, this.state.marks, { [id]: next }) });
+  }
+
+  renderVals() {
+    const roster = [
+      { id: 1, name: 'Solete Vilarroya', initials: 'SV', pct: 79, warn: false },
+      { id: 2, name: 'Jaume Pascual', initials: 'JP', pct: 92, warn: false },
+      { id: 3, name: 'Lydia Godoy', initials: 'LG', pct: 41, warn: true },
+      { id: 4, name: 'Carla Machordom', initials: 'CM', pct: 85, warn: false },
+      { id: 5, name: 'Pablo Prada', initials: 'PP', pct: 74, warn: false },
+      { id: 6, name: 'Mateo Ronchera', initials: 'MR', pct: 96, warn: false },
+      { id: 7, name: 'Daniela Regis', initials: 'DR', pct: 63, warn: false }
+    ];
+
+    const marks = this.state.marks;
+    let countYes = 0, countNo = 0, countNone = 0;
+
+    const kids = roster.map((k, i) => {
+      const st = marks[k.id] || '';
+      if (st === 'yes') { countYes++; } else if (st === 'no') { countNo++; } else { countNone++; }
+      return {
+        id: k.id,
+        name: k.name,
+        initials: k.initials,
+        pct: k.pct,
+        warn: k.warn,
+        isYes: st === 'yes',
+        isNo: st === 'no',
+        border: i === 0 ? 'none' : '1px solid #f3f4f6',
+        nameColor: st === 'no' ? '#6b7280' : '#1f2937',
+        avatarBg: st === 'yes' ? '#e6fcf5' : (st === 'no' ? '#fef2f2' : '#f3f4f6'),
+        avatarFg: st === 'yes' ? '#076b4d' : (st === 'no' ? '#b91c1c' : '#6b7280'),
+        markBg: st === 'yes' ? '#2f9e44' : (st === 'no' ? '#dc2626' : '#ffffff'),
+        markBorder: st === '' ? '2px solid #d1d5db' : 'none',
+        cycle: () => this.cycle(k.id)
+      };
+    });
+
+    return {
+      kids: kids,
+      countYes: countYes,
+      countNo: countNo,
+      countNone: countNone,
+      allPresent: () => {
+        const all = {};
+        roster.forEach((k) => { all[k.id] = 'yes'; });
+        this.setState({ marks: all });
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>
