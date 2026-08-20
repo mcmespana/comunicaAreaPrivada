@@ -1,0 +1,165 @@
+{
+  "_ayuda": [
+    "FLAG por delegación: pon \"activa\": true y ya recibe el correo de cumpleaños.",
+    "Nada más que tocar: el workflow recorre todas las que estén activas.",
+    "  clave         -> valor del campo ajmcm_delegacion_c en Relaciones con Personas.",
+    "  usuario_crm   -> nombre del usuario asignado en el CRM (assigned_user_name).",
+    "                   Se acepta cualquiera de los dos, así que un desajuste de",
+    "                   claves (p.ej. 'madird' o 'vilareal') no rompe nada.",
+    "  destinatarios -> a quién se le manda el AVISO. Puede haber varios.",
+    "  felicitar_a_la_persona -> si es true (por defecto), además se le manda una",
+    "                   felicitación directa a quien cumple, a su email1 del CRM.",
+    "                   Ponlo en false para que solo se avise a la delegación.",
+    "  remite        -> opcional; si falta se usa el secreto CUMPLES_FROM.",
+    "Para una prueba puntual sin tocar este fichero:",
+    "  Actions > Cumpleaños de monitores > Run workflow > delegaciones: castellon (o 'todas')."
+  ],
+  "delegaciones": [
+    {
+      "clave": "castellon",
+      "activa": true,
+      "nombre": "MCM Castellón",
+      "usuario_crm": "MCM Castellón",
+      "destinatarios": [
+        "Castellon@movimientoconsolacion.com"
+      ],
+      "felicitar_a_la_persona": true
+    },
+    {
+      "clave": "benicarlovinaros",
+      "activa": false,
+      "nombre": "MCM Benicarló-Vinaròs",
+      "usuario_crm": "MCM Benicarló-Vinaròs",
+      "destinatarios": [],
+      "felicitar_a_la_persona": true
+    },
+    {
+      "clave": "burriana",
+      "activa": false,
+      "nombre": "MCM Burriana",
+      "usuario_crm": "MCM Burriana",
+      "destinatarios": [],
+      "felicitar_a_la_persona": true
+    },
+    {
+      "clave": "caravaca",
+      "activa": false,
+      "nombre": "MCM Caravaca",
+      "usuario_crm": "MCM Caravaca",
+      "destinatarios": [],
+      "felicitar_a_la_persona": true
+    },
+    {
+      "clave": "ciutadella",
+      "activa": false,
+      "nombre": "MCM Ciutadella",
+      "usuario_crm": "MCM Ciutadella",
+      "destinatarios": [],
+      "felicitar_a_la_persona": true
+    },
+    {
+      "clave": "espinardo",
+      "activa": false,
+      "nombre": "MCM Espinardo",
+      "usuario_crm": "MCM Espinardo",
+      "destinatarios": [],
+      "felicitar_a_la_persona": true
+    },
+    {
+      "clave": "granada",
+      "activa": false,
+      "nombre": "MCM Granada",
+      "usuario_crm": "MCM Granada",
+      "destinatarios": [],
+      "felicitar_a_la_persona": true
+    },
+    {
+      "clave": "huetor",
+      "activa": false,
+      "nombre": "MCM Huétor-Santillán",
+      "usuario_crm": "MCM Huétor-Santillán",
+      "destinatarios": [],
+      "felicitar_a_la_persona": true
+    },
+    {
+      "clave": "alcora",
+      "activa": false,
+      "nombre": "MCM L'Alcora",
+      "usuario_crm": "MCM L'Alcora",
+      "destinatarios": [],
+      "felicitar_a_la_persona": true
+    },
+    {
+      "clave": "madird",
+      "activa": false,
+      "nombre": "MCM Madrid",
+      "usuario_crm": "MCM Madrid",
+      "destinatarios": [],
+      "felicitar_a_la_persona": true
+    },
+    {
+      "clave": "nules",
+      "activa": false,
+      "nombre": "MCM Nules",
+      "usuario_crm": "MCM Nules",
+      "destinatarios": [],
+      "felicitar_a_la_persona": true
+    },
+    {
+      "clave": "onda",
+      "activa": false,
+      "nombre": "MCM Onda",
+      "usuario_crm": "MCM Onda",
+      "destinatarios": [],
+      "felicitar_a_la_persona": true
+    },
+    {
+      "clave": "quintanar",
+      "activa": false,
+      "nombre": "MCM Quintanar",
+      "usuario_crm": "MCM Quintanar",
+      "destinatarios": [],
+      "felicitar_a_la_persona": true
+    },
+    {
+      "clave": "reus",
+      "activa": false,
+      "nombre": "MCM Reus",
+      "usuario_crm": "MCM Reus",
+      "destinatarios": [],
+      "felicitar_a_la_persona": true
+    },
+    {
+      "clave": "tortosa",
+      "activa": false,
+      "nombre": "MCM Tortosa",
+      "usuario_crm": "MCM Tortosa",
+      "destinatarios": [],
+      "felicitar_a_la_persona": true
+    },
+    {
+      "clave": "vilareal",
+      "activa": false,
+      "nombre": "MCM Vila-real",
+      "usuario_crm": "MCM Vila-real",
+      "destinatarios": [],
+      "felicitar_a_la_persona": true
+    },
+    {
+      "clave": "villacanas",
+      "activa": false,
+      "nombre": "MCM Villacañas",
+      "usuario_crm": "MCM Villacañas",
+      "destinatarios": [],
+      "felicitar_a_la_persona": true
+    },
+    {
+      "clave": "zaragoza",
+      "activa": false,
+      "nombre": "MCM Zaragoza",
+      "usuario_crm": "MCM Zaragoza",
+      "destinatarios": [],
+      "felicitar_a_la_persona": true
+    }
+  ]
+}

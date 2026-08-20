@@ -1,0 +1,124 @@
+name: Cumpleaños de monitores
+
+# Cada mañana mira en SinergiaCRM qué monitores cumplen años hoy y, si hay
+# alguno, manda un correo con Resend al buzón de su delegación.
+#
+# Delegaciones: se controla con el flag "activa" de
+# .github/scripts/cumples/delegaciones.json. Ahora mismo solo Castellón.
+# Para sumar otra: pon "activa": true y su correo en "destinatarios".
+#
+# ── Por qué DOS horas de cron ────────────────────────────────────────────────
+# El cron de GitHub es siempre UTC y España cambia de hora dos veces al año:
+#   verano (CEST, UTC+2) -> las 07:00 de Madrid son las 05:00 UTC
+#   invierno (CET, UTC+1) -> las 07:00 de Madrid son las 06:00 UTC
+# Se lanza a las dos y el propio script comprueba la hora real en Europe/Madrid
+# y se sale sin hacer nada si no son las 7. Así siempre sale a las 7 en punto de
+# aquí, sin tocar nada en marzo y en octubre.
+#
+# Aviso conocido de GitHub: los crons de Actions no son puntuales al minuto; en
+# horas de mucha carga pueden retrasarse unos minutos. Para un "feliz cumple" da
+# igual, pero que no sorprenda ver el correo a las 7:09.
+
+on:
+  schedule:
+    - cron: '0 5 * * *'   # 07:00 en Madrid en horario de verano
+    - cron: '0 6 * * *'   # 07:00 en Madrid en horario de invierno
+  workflow_dispatch:
+    inputs:
+      delegaciones:
+        description: 'Delegaciones (claves separadas por comas, o "todas"). Vacío = las marcadas como activas.'
+        required: false
+        default: ''
+      fecha:
+        description: 'Simular otro día (YYYY-MM-DD). Vacío = hoy.'
+        required: false
+        default: ''
+      destinatario:
+        description: 'PRUEBA: mandar a este correo en vez de al de la delegación.'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Consultar el CRM pero no enviar nada.'
+        type: boolean
+        required: false
+        default: false
+      demo:
+        description: 'Correo de muestra con datos inventados (no consulta el CRM).'
+        type: boolean
+        required: false
+        default: false
+
+# Si por lo que sea coinciden dos ejecuciones, que no se pisen ni salga el
+# correo dos veces.
+concurrency:
+  group: cumples-monitores
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  felicitar:
+    name: Revisar cumpleaños y avisar
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Descargar el código del repo
+        uses: actions/checkout@v4
+
+      # El runner ya trae Node 20; se fija la versión para que no cambie sin avisar.
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # El script no tiene dependencias, así que basta con ejecutarlo. Antes
+      # pasan los tests: si la lógica está rota, mejor no mandar nada.
+      - name: Tests de la lógica
+        run: node --test .github/scripts/cumples/
+
+      - name: Revisar cumpleaños y enviar
+        env:
+          CRM_URL: ${{ secrets.CRM_URL }}
+          CRM_CLIENT_ID: ${{ secrets.CRM_CLIENT_ID }}
+          CRM_CLIENT_SECRET: ${{ secrets.CRM_CLIENT_SECRET }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          # Opcional: si no se define, se usa comunica@movimientoconsolacion.com,
+          # que ya está verificado en Resend.
+          CUMPLES_FROM: ${{ secrets.CUMPLES_FROM }}
+          # Los datos que vienen del formulario se pasan por el entorno, NUNCA
+          # interpolados en el shell: así un valor con comillas o con `;` no
+          # puede acabar ejecutándose como comando.
+          IN_DELEGACIONES: ${{ inputs.delegaciones }}
+          IN_FECHA: ${{ inputs.fecha }}
+          IN_DESTINATARIO: ${{ inputs.destinatario }}
+          IN_DRY_RUN: ${{ inputs.dry_run }}
+          IN_DEMO: ${{ inputs.demo }}
+          EVENTO: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          args=()
+          # Ojo: aquí no vale `[ -n "$X" ] && args+=(...)`. Con `set -e`, la
+          # línea entera devuelve 1 cuando la condición es falsa y el job
+          # abortaría los días normales. Con `if` no pasa.
+          if [ -n "$IN_DELEGACIONES" ]; then args+=("--delegaciones=$IN_DELEGACIONES"); fi
+          if [ -n "$IN_FECHA" ]; then args+=("--fecha=$IN_FECHA"); fi
+          if [ -n "$IN_DESTINATARIO" ]; then args+=("--destinatario=$IN_DESTINATARIO"); fi
+          if [ "$IN_DRY_RUN" = "true" ]; then args+=("--dry-run"); fi
+          if [ "$IN_DEMO" = "true" ]; then args+=("--demo"); fi
+          # En ejecución manual siempre se salta el candado de la hora: si has
+          # pulsado el botón a las 16:30, es que lo quieres ahora.
+          if [ "$EVENTO" = "workflow_dispatch" ]; then args+=("--forzar-hora"); fi
+          node .github/scripts/cumples/enviar-cumples.mjs ${args[@]+"${args[@]}"}
+
+      # Así se puede abrir el correo tal cual salió sin tener que buscarlo en la
+      # bandeja. Solo se sube si se generó algo (los días sin cumpleaños, no).
+      - name: Guardar el correo generado
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: correo-cumples
+          path: .github/scripts/cumples/vista-previa-*.html
+          if-no-files-found: ignore
+          retention-days: 14
