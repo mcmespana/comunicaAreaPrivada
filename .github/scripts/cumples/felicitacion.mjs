@@ -118,24 +118,40 @@ export function hash32(texto) {
   return h >>> 0;
 }
 
-const FRASES = [
-  'Hoy toca tarta. Es ciencia.',
-  'Un año más regalando tiempo a los demás. Se nota.',
-  'Que no falte el abrazo (ni el trozo de tarta).',
-  'Gracias por estar. Hoy te toca a ti que te cuiden.',
-  'Un año más de risas, de furgoneta y de campamento.',
-  'Que se te note en la cara todo el día.',
-  'Hoy el chapuzón de la piscina va dedicado.',
-  'Que cumplas muchos más rodeado de esta panda.',
-  'Se abre oficialmente el turno de felicitaciones en el grupo.',
-  'Un aplauso, que hoy hay motivo.',
-  'Avisad a quien tenga que traer la tarta.',
-  'Hoy se permite cantar desafinando. Es tradición.',
-];
+/**
+ * Textos de reserva, por si mensajes.json no se puede leer. El correo tiene que
+ * salir aunque el fichero esté mal: más vale una frase sosa que ningún correo.
+ */
+export const MENSAJES_POR_DEFECTO = {
+  titulares: ['¡Feliz cumpleaños, {nombre}!'],
+  asuntos: ['🎉 ¡Feliz cumpleaños, {nombre}!'],
+  agradecimientos: ['Gracias por todo lo que das al Movimiento.'],
+  frases: ['Hoy toca tarta. Es ciencia.'],
+};
 
-/** Frase alegre del día. Determinista: misma fecha, misma frase. */
-export function fraseDelDia(hoy) {
-  return FRASES[hash32(hoy) % FRASES.length];
+/**
+ * Coge un elemento de la lista "al azar" pero de forma reproducible.
+ *
+ * La semilla lleva la fecha y el id de la persona, así que dos monitores que
+ * cumplen el mismo día reciben textos distintos, dos ejecuciones del mismo día
+ * dan el mismo correo, y el año que viene toca otro.
+ *
+ * Si la lista viene vacía o rota, se cae a la de reserva en vez de reventar.
+ */
+export function elegir(mensajes, clave, semilla) {
+  const lista = Array.isArray(mensajes?.[clave]) && mensajes[clave].length > 0
+    ? mensajes[clave]
+    : MENSAJES_POR_DEFECTO[clave];
+
+  return lista[hash32(`${clave}|${semilla}`) % lista.length];
+}
+
+/**
+ * Rellena los huecos de una plantilla. Solo existe {nombre}, y se escapa antes
+ * de meterlo: la plantilla es nuestra, pero el nombre viene del CRM.
+ */
+export function plantilla(texto, nombre) {
+  return String(texto).replace(/\{nombre\}/g, nombre);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -324,7 +340,7 @@ export function asunto(cumples, nombreDelegacion) {
 }
 
 /** Versión en texto plano (clientes sin HTML, y ayuda con el antispam). */
-export function textoPlano(cumples, delegacion, hoy) {
+export function textoPlano(cumples, delegacion, hoy, mensajes = MENSAJES_POR_DEFECTO) {
   const lineas = [`¡Hoy hay cumpleaños en ${delegacion.nombre}!`, ''];
 
   for (const c of cumples) {
@@ -340,7 +356,11 @@ export function textoPlano(cumples, delegacion, hoy) {
     lineas.push('');
   }
 
-  lineas.push(fraseDelDia(hoy), '', 'Aviso automático del área privada — datos de SinergiaCRM.');
+  lineas.push(
+    elegir(mensajes, 'frases', `${hoy}|${delegacion.clave}`),
+    '',
+    'Aviso automático del área privada — datos de SinergiaCRM.',
+  );
   return lineas.join('\n');
 }
 
@@ -434,7 +454,7 @@ function tarjeta(c, gif) {
  * se los come) — la gracia la ponen los GIFs, que sí funcionan en todas partes
  * (Outlook de escritorio muestra el primer fotograma y aun así se ve bien).
  */
-export function correoHtml(cumples, delegacion, hoy, gifs = []) {
+export function correoHtml(cumples, delegacion, hoy, gifs = [], mensajes = MENSAJES_POR_DEFECTO) {
   const n = cumples.length;
   const titular = n === 1 ? '¡Hoy hay cumpleaños!' : `¡Hoy hay ${n} cumpleaños!`;
   const preheader = n === 1
@@ -501,7 +521,7 @@ export function correoHtml(cumples, delegacion, hoy, gifs = []) {
   <!-- Frase del día -->
   <tr><td class="cp-pad" style="padding:8px 30px 22px 30px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#fef3c7" style="background-color:#fef3c7;border-radius:14px;">
-      <tr><td align="center" style="padding:18px 22px;font-family:Georgia,'Times New Roman',serif;font-size:17px;line-height:25px;color:#78350f;font-style:italic;">&ldquo;${esc(fraseDelDia(hoy))}&rdquo;</td></tr>
+      <tr><td align="center" style="padding:18px 22px;font-family:Georgia,'Times New Roman',serif;font-size:17px;line-height:25px;color:#78350f;font-style:italic;">&ldquo;${esc(elegir(mensajes, 'frases', `${hoy}|${delegacion.clave}`))}&rdquo;</td></tr>
     </table>
   </td></tr>
 
@@ -525,37 +545,24 @@ export function correoHtml(cumples, delegacion, hoy, gifs = []) {
 // Correo directo a la persona que cumple
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Mensajes de agradecimiento. Se elige uno por persona y día, así que dos
- * monitores del mismo día no reciben el mismo texto y el año que viene toca
- * otro distinto.
- */
-const AGRADECIMIENTOS = [
-  'Gracias por todas las horas que regalas: las reuniones, los campamentos, los madrugones y las mil cosas que no se ven.',
-  'Gracias por estar ahí para los chavales. Lo que siembras con ellos se queda para siempre.',
-  'Hoy nos toca a nosotros cuidarte a ti un poquito. Gracias por todo lo que das al Movimiento.',
-  'Gracias por el tiempo, la paciencia y las ganas que le pones. Se nota, y mucho.',
-  'Gracias por seguir diciendo sí cada curso. El Movimiento es lo que es también por ti.',
-];
-
 /** Asunto del correo que va a la persona. */
-export function asuntoPersona(cumple) {
-  return `🎉 ¡Feliz cumpleaños, ${cumple.nombreCorto}!`;
+export function asuntoPersona(cumple, hoy, mensajes = MENSAJES_POR_DEFECTO) {
+  return plantilla(elegir(mensajes, 'asuntos', `${hoy}|${cumple.id}`), cumple.nombreCorto);
 }
 
 /** Versión en texto plano del correo a la persona. */
-export function textoPersona(cumple, delegacion, hoy) {
+export function textoPersona(cumple, delegacion, hoy, mensajes = MENSAJES_POR_DEFECTO) {
   const años = cumple.edad !== null ? ` ${cumple.edad}` : '';
   return [
-    `¡Feliz cumpleaños, ${cumple.nombreCorto}!`,
+    plantilla(elegir(mensajes, 'titulares', `${hoy}|${cumple.id}`), cumple.nombreCorto),
     '',
     `Hoy cumples${años} y desde ${delegacion.nombre} queríamos ser de los primeros en decírtelo.`,
     '',
-    AGRADECIMIENTOS[hash32(`${hoy}|${cumple.id}`) % AGRADECIMIENTOS.length],
+    elegir(mensajes, 'agradecimientos', `${hoy}|${cumple.id}`),
     '',
-    fraseDelDia(hoy),
+    elegir(mensajes, 'frases', `${hoy}|${cumple.id}`),
     '',
-    `Que lo disfrutes muchísimo. Un abrazo enorme,`,
+    'Que lo disfrutes muchísimo. Un abrazo enorme,',
     delegacion.nombre,
   ].join('\n');
 }
@@ -568,11 +575,12 @@ export function textoPersona(cumple, delegacion, hoy) {
  * en una felicitación quedaría raro (y de paso evita mandarle sus propios
  * datos personales por correo sin necesidad).
  */
-export function correoPersonaHtml(cumple, delegacion, hoy, gifs = []) {
+export function correoPersonaHtml(cumple, delegacion, hoy, gifs = [], mensajes = MENSAJES_POR_DEFECTO) {
   const años = cumple.edad !== null
     ? `Hoy cumples <strong style="color:${MAGENTA};">${cumple.edad} años</strong>`
     : 'Hoy es tu cumpleaños';
-  const gracias = AGRADECIMIENTOS[hash32(`${hoy}|${cumple.id}`) % AGRADECIMIENTOS.length];
+  const gracias = elegir(mensajes, 'agradecimientos', `${hoy}|${cumple.id}`);
+  const titular = plantilla(elegir(mensajes, 'titulares', `${hoy}|${cumple.id}`), cumple.nombreCorto);
 
   // Semilla distinta de la del aviso a la delegación, para que la persona no
   // reciba exactamente el mismo bicho que ven en Castellón.
@@ -585,7 +593,7 @@ export function correoPersonaHtml(cumple, delegacion, hoy, gifs = []) {
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="color-scheme" content="light only" />
 <meta name="supported-color-schemes" content="light only" />
-<title>¡Feliz cumpleaños, ${esc(cumple.nombreCorto)}!</title>
+<title>${esc(titular)}</title>
 <style type="text/css">
 @media only screen and (max-width:620px){
   .cp-wrap{width:100% !important}
@@ -605,7 +613,7 @@ export function correoPersonaHtml(cumple, delegacion, hoy, gifs = []) {
 
   <!-- Cabecera -->
   <tr><td bgcolor="${MAGENTA}" align="center" class="cp-pad" style="background-color:${MAGENTA};padding:30px 30px 26px 30px;">
-    <div class="cp-h1" style="font-family:Georgia,'Times New Roman',serif;font-size:36px;line-height:42px;font-weight:700;color:#ffffff;letter-spacing:-0.4px;">¡Feliz cumpleaños,<br />${esc(cumple.nombreCorto)}! 🎉</div>
+    <div class="cp-h1" style="font-family:Georgia,'Times New Roman',serif;font-size:36px;line-height:42px;font-weight:700;color:#ffffff;letter-spacing:-0.4px;text-wrap:balance;">${esc(titular)} 🎉</div>
     ${gif
       ? '<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin-top:20px;">'
         + '<tr><td style="background-color:#ffffff;padding:8px;border-radius:16px;line-height:0;">'
@@ -626,7 +634,7 @@ export function correoPersonaHtml(cumple, delegacion, hoy, gifs = []) {
   <!-- Frase del día -->
   <tr><td class="cp-pad" style="padding:22px 34px 24px 34px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#fef3c7" style="background-color:#fef3c7;border-radius:14px;">
-      <tr><td align="center" style="padding:18px 22px;font-family:Georgia,'Times New Roman',serif;font-size:18px;line-height:26px;color:#78350f;font-style:italic;">&ldquo;${esc(fraseDelDia(hoy))}&rdquo;</td></tr>
+      <tr><td align="center" style="padding:18px 22px;font-family:Georgia,'Times New Roman',serif;font-size:18px;line-height:26px;color:#78350f;font-style:italic;">&ldquo;${esc(elegir(mensajes, 'frases', `${hoy}|${cumple.id}`))}&rdquo;</td></tr>
     </table>
   </td></tr>
 

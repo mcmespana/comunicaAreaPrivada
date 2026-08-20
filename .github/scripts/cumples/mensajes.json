@@ -1,0 +1,86 @@
+{
+  "_ayuda": [
+    "Los textos del correo. Añade, quita o reescribe lo que quieras: el script",
+    "coge uno al azar de cada lista, así que no hay que tocar código.",
+    "",
+    "  titulares      -> el titular grande del correo a quien cumple.",
+    "  asuntos        -> el asunto de ese mismo correo.",
+    "  agradecimientos-> el párrafo de gracias, también en ese correo.",
+    "  frases         -> la cita del recuadro amarillo. Sale en los dos correos.",
+    "",
+    "En titulares y asuntos, {nombre} se sustituye por el nombre de pila.",
+    "En el resto no hay huecos: son frases sueltas.",
+    "",
+    "La elección es aleatoria pero DETERMINISTA: la semilla es la fecha más el",
+    "id de la persona. Eso significa que:",
+    "  - dos monitores que cumplen el mismo día reciben textos distintos,",
+    "  - si el workflow se ejecuta dos veces hoy, sale el mismo correo,",
+    "  - el año que viene a la misma persona le toca otro.",
+    "",
+    "Cuantas más frases haya, menos se repiten. Con las listas de abajo salen",
+    "miles de combinaciones distintas, así que no hace falta ser exhaustivo:",
+    "mejor pocas y buenas que muchas y sosas."
+  ],
+
+  "titulares": [
+    "¡Feliz cumpleaños, {nombre}!",
+    "¡Felicidades, {nombre}!",
+    "¡{nombre}, hoy es tu día!",
+    "Muchas felicidades, {nombre}",
+    "¡Va por ti, {nombre}!",
+    "Hoy toca celebrarte, {nombre}",
+    "¡{nombre}, feliz cumple!",
+    "Un año más, {nombre}. ¡Enhorabuena!"
+  ],
+
+  "asuntos": [
+    "🎉 ¡Feliz cumpleaños, {nombre}!",
+    "🎂 ¡Felicidades, {nombre}!",
+    "🥳 {nombre}, hoy es tu día",
+    "🎈 Muchas felicidades, {nombre}",
+    "🎉 ¡Va por ti, {nombre}!",
+    "🎂 Feliz cumple, {nombre}"
+  ],
+
+  "agradecimientos": [
+    "Gracias por todas las horas que regalas: las reuniones, los campamentos, los madrugones y las mil cosas que no se ven.",
+    "Gracias por estar ahí para los chavales. Lo que siembras con ellos se queda para siempre.",
+    "Hoy nos toca a nosotros cuidarte a ti un poquito. Gracias por todo lo que das al Movimiento.",
+    "Gracias por el tiempo, la paciencia y las ganas que le pones. Se nota, y mucho.",
+    "Gracias por seguir diciendo sí cada curso. El Movimiento es lo que es también por ti.",
+    "Gracias por las tardes de reunión, por los nervios antes de cada actividad y por quedarte a recoger.",
+    "Gracias por ser de los que se remangan sin que nadie lo pida.",
+    "Gracias por hacer que los chavales tengan ganas de volver la semana siguiente.",
+    "Gracias por prestar tus fines de semana. No es poca cosa, y aquí lo sabemos.",
+    "Gracias por cuidar del grupo incluso los días en que tú también estabas cansado.",
+    "Gracias por aparecer, curso tras curso, con la misma ilusión del primer día.",
+    "Gracias por todo lo que enseñas sin darte cuenta de que estás enseñando.",
+    "Gracias por poner el hombro, la voz y la guitarra cuando hace falta.",
+    "Gracias por hacer equipo. Contigo el trabajo pesa la mitad."
+  ],
+
+  "frases": [
+    "Hoy toca tarta. Es ciencia.",
+    "Un año más regalando tiempo a los demás. Se nota.",
+    "Que no falte el abrazo (ni el trozo de tarta).",
+    "Gracias por estar. Hoy te toca a ti que te cuiden.",
+    "Un año más de risas, de furgoneta y de campamento.",
+    "Que se te note en la cara todo el día.",
+    "Hoy el chapuzón de la piscina va dedicado.",
+    "Que cumplas muchos más rodeado de esta panda.",
+    "Se abre oficialmente el turno de felicitaciones en el grupo.",
+    "Un aplauso, que hoy hay motivo.",
+    "Avisad a quien tenga que traer la tarta.",
+    "Hoy se permite cantar desafinando. Es tradición.",
+    "Que hoy te toque el trozo con más chocolate.",
+    "Un año más de pañuelo bien puesto.",
+    "Hoy no hay reunión: hoy hay fiesta.",
+    "Que la celebres despacio y con los tuyos.",
+    "Hoy los buenos deseos van todos en la misma dirección.",
+    "Que este año venga cargado de cosas buenas.",
+    "Se agradece la merienda, pero con felicitarte ya vamos servidos.",
+    "Que sople bien fuerte, que hay muchas velas.",
+    "Hoy el grupo entero está de tu parte. Bueno, como siempre.",
+    "Un año más siendo imprescindible sin presumir de ello."
+  ]
+}

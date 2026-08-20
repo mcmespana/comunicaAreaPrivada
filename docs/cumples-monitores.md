@@ -122,6 +122,60 @@ verdad sin enviar:
 node .github/scripts/cumples/enviar-cumples.mjs --dry-run --fecha=2026-08-18
 ```
 
+## Los textos (cambiarlos sin tocar código)
+
+Todo lo que se lee sale de [`mensajes.json`](../.github/scripts/cumples/mensajes.json),
+en cuatro listas. El script coge una al azar de cada una:
+
+| Lista | Dónde sale |
+|---|---|
+| `titulares` | el titular grande del correo a quien cumple |
+| `asuntos` | el asunto de ese mismo correo |
+| `agradecimientos` | el párrafo de gracias |
+| `frases` | la cita del recuadro amarillo (en los dos correos) |
+
+En `titulares` y `asuntos`, `{nombre}` se sustituye por el nombre de pila. Para
+añadir frases basta con escribirlas en la lista; hay un test que comprueba que
+ninguna se queda vacía y que los huecos `{nombre}` están donde toca.
+
+**La elección es aleatoria pero determinista.** La semilla es la fecha más el id
+de la persona, y de ahí sale un hash (FNV-1a, no `Math.random()`). Eso da tres
+propiedades que interesan:
+
+- dos monitores que cumplen el mismo día reciben textos distintos;
+- si el workflow se ejecuta dos veces hoy, sale exactamente el mismo correo (no
+  hay dos versiones del mismo mensaje rondando);
+- el año que viene, a la misma persona le toca otro.
+
+Con las listas actuales (8 titulares × 6 asuntos × 14 agradecimientos ×
+22 frases) salen unas 14.000 combinaciones, así que no hace falta ampliarlas
+para que no se repita.
+
+Los GIFs funcionan igual, con su propia semilla, así que el bicho también cambia.
+
+## Los colores
+
+Son tres constantes al principio de
+[`felicitacion.mjs`](../.github/scripts/cumples/felicitacion.mjs), copiadas de
+las variables de marca de `css/custom-style.css`:
+
+```js
+export const AZUL    = '#1c6fb3';  // --primary-color   (azul Comunica)
+export const VIOLETA = '#6c4b9e';  // --accent-color    (cabecera del aviso)
+export const MAGENTA = '#9d1e74';  // --secondary-color (cabecera de la felicitación)
+```
+
+Cambiando esas tres líneas cambia todo el correo. El resto de tonos (el gris del
+fondo, el amarillo del recuadro de la frase, el verde del botón de WhatsApp) van
+escritos en el sitio donde se usan.
+
+Y van **en línea, atributo por atributo**, no en una hoja de estilos. No es
+dejadez: Gmail y Outlook tiran buena parte del CSS de `<style>`, así que en
+correo lo único que se ve igual en todas partes son los `style="..."` de cada
+etiqueta y los atributos viejos tipo `bgcolor`. Lo único que va en `<style>` es
+la media query del móvil, y está puesta de forma que si el cliente la ignora se
+queda la versión de escritorio, que también encaja.
+
 ## Los GIFs
 
 Están en `.github/assets/cumples/` (24 ficheros, ~5,4 MB) y se sirven por
@@ -171,8 +225,7 @@ igual, pero que no sorprenda ver el correo a las 7:09.
   felicitación ya escrita (solo si hay móvil que parezca móvil; un fijo no lo
   pone), **Correo** y **Ficha** en el CRM. En la felicitación a la persona no hay
   botones: es un mensaje, no un panel de gestión.
-- El texto de agradecimiento y el GIF de la felicitación se eligen por persona y
-  día, así que dos monitores del mismo día no reciben lo mismo y el año que viene
-  toca otro.
+- Los textos y el GIF se eligen por persona y día (ver «Los textos»), así que dos
+  monitores del mismo día no reciben lo mismo.
 - Si una fecha de nacimiento es una centinela del CRM (año anterior a 1900) se
   muestra "cumple años" sin edad, en vez de un número absurdo.

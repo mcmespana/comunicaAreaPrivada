@@ -276,6 +276,7 @@ async function principal() {
 
   const config = await leerJson('delegaciones.json');
   const { gifs } = await leerJson('gifs.json');
+  const mensajes = await leerJson('mensajes.json');
 
   const modoDemo = banderas.has('demo');
   const seco = banderas.has('dry-run') || modoDemo;
@@ -356,8 +357,8 @@ async function principal() {
     }
 
     const asuntoCorreo = asunto(cumples, delegacion.nombre);
-    const html = correoHtml(cumples, delegacion, hoy, gifs);
-    const texto = textoPlano(cumples, delegacion, hoy);
+    const html = correoHtml(cumples, delegacion, hoy, gifs, mensajes);
+    const texto = textoPlano(cumples, delegacion, hoy, mensajes);
 
     log(`· ${delegacion.nombre}: ${cumples.map((c) => `${c.nombre} (${c.edad ?? '?'})`).join(', ')}`);
     lineasResumen.push(
@@ -383,9 +384,9 @@ async function principal() {
         }
         personales.push({
           c,
-          asunto: asuntoPersona(c),
-          html: correoPersonaHtml(c, delegacion, hoy, gifs),
-          texto: textoPersona(c, delegacion, hoy),
+          asunto: asuntoPersona(c, hoy, mensajes),
+          html: correoPersonaHtml(c, delegacion, hoy, gifs, mensajes),
+          texto: textoPersona(c, delegacion, hoy, mensajes),
         });
       }
       if (personales.length > 0) {

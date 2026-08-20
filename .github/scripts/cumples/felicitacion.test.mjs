@@ -10,13 +10,19 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import {
   asunto, asuntoPersona, correoHtml, correoPersonaHtml, cumpleanosDeHoy,
-  delegacionesActivas, edad, fechaLarga, fraseDelDia, indiceMonitores,
-  listaNatural, movilInternacional, normaliza, palabraMonitor, relacionEsDe,
-  repartoGifs, textoPersona, textoPlano, urlFicha,
+  delegacionesActivas, edad, elegir, fechaLarga, indiceMonitores, listaNatural,
+  MENSAJES_POR_DEFECTO, movilInternacional, normaliza, palabraMonitor,
+  plantilla, relacionEsDe, repartoGifs, textoPersona, textoPlano, urlFicha,
 } from './felicitacion.mjs';
+
+// Los textos de verdad, los mismos que usa el workflow.
+const MENSAJES = JSON.parse(
+  readFileSync(new URL('./mensajes.json', import.meta.url), 'utf8'),
+);
 
 const CASTELLON = {
   clave: 'castellon',
@@ -139,9 +145,56 @@ test('movilInternacional: solo móviles, con prefijo 34 si falta', () => {
   assert.equal(movilInternacional('no tiene'), '');
 });
 
-test('fraseDelDia: la misma fecha da siempre la misma frase', () => {
-  assert.equal(fraseDelDia('2026-08-20'), fraseDelDia('2026-08-20'));
-  assert.notEqual(fraseDelDia('2026-08-20'), '');
+// ── Mensajes (mensajes.json) ─────────────────────────────────────────────────
+
+test('mensajes.json: tiene todas las listas y ninguna vacía', () => {
+  for (const clave of Object.keys(MENSAJES_POR_DEFECTO)) {
+    assert.ok(Array.isArray(MENSAJES[clave]), `falta la lista "${clave}"`);
+    assert.ok(MENSAJES[clave].length > 0, `"${clave}" está vacía`);
+    for (const t of MENSAJES[clave]) {
+      assert.equal(typeof t, 'string');
+      assert.ok(t.trim().length > 0, `hay un texto vacío en "${clave}"`);
+    }
+  }
+});
+
+test('mensajes.json: titulares y asuntos llevan el hueco {nombre}', () => {
+  for (const clave of ['titulares', 'asuntos']) {
+    for (const t of MENSAJES[clave]) {
+      assert.ok(t.includes('{nombre}'), `"${t}" no tiene {nombre}`);
+    }
+  }
+  // En el resto no debe haber huecos: nadie los sustituiría.
+  for (const clave of ['agradecimientos', 'frases']) {
+    for (const t of MENSAJES[clave]) {
+      assert.ok(!t.includes('{'), `"${t}" tiene un hueco que no se rellena`);
+    }
+  }
+});
+
+test('elegir: estable, y reparte entre toda la lista', () => {
+  assert.equal(
+    elegir(MENSAJES, 'frases', '2026-08-20|abc'),
+    elegir(MENSAJES, 'frases', '2026-08-20|abc'),
+  );
+  // Con 300 semillas deberían salir bastantes frases distintas; si el hash
+  // estuviera sesgado se vería aquí.
+  const vistas = new Set(
+    Array.from({ length: 300 }, (_, i) => elegir(MENSAJES, 'frases', `sem-${i}`)),
+  );
+  assert.ok(vistas.size >= MENSAJES.frases.length * 0.8,
+    `solo salen ${vistas.size} de ${MENSAJES.frases.length} frases`);
+});
+
+test('elegir: si la lista falta o está vacía, tira de la de reserva', () => {
+  assert.equal(elegir({}, 'frases', 'x'), MENSAJES_POR_DEFECTO.frases[0]);
+  assert.equal(elegir({ frases: [] }, 'frases', 'x'), MENSAJES_POR_DEFECTO.frases[0]);
+  assert.equal(elegir(null, 'frases', 'x'), MENSAJES_POR_DEFECTO.frases[0]);
+});
+
+test('plantilla: sustituye todos los {nombre}', () => {
+  assert.equal(plantilla('¡Hola {nombre}, {nombre}!', 'Ana'), '¡Hola Ana, Ana!');
+  assert.equal(plantilla('sin hueco', 'Ana'), 'sin hueco');
 });
 
 // ── Delegaciones (el FLAG) ───────────────────────────────────────────────────
@@ -344,13 +397,27 @@ const MERCEDES = cumpleanosDeHoy(
   CONTACTOS, indiceMonitores(RELACIONES, CASTELLON), '2026-08-18',
 )[0];
 
-test('asuntoPersona: se le habla por su nombre de pila', () => {
-  assert.equal(asuntoPersona(MERCEDES), '🎉 ¡Feliz cumpleaños, Mercedes!');
+test('asuntoPersona: sale de la lista y lleva su nombre de pila', () => {
+  const a = asuntoPersona(MERCEDES, '2026-08-18', MENSAJES);
+  assert.match(a, /Mercedes/);
+  assert.ok(!a.includes('{nombre}'), 'el hueco se ha rellenado');
+  assert.ok(MENSAJES.asuntos.some((t) => plantilla(t, 'Mercedes') === a));
+});
+
+test('los textos varían entre personas del mismo día', () => {
+  const otro = { ...MERCEDES, id: 'otro-id', nombreCorto: 'Mercedes' };
+  const distintos = ['asuntos', 'agradecimientos', 'frases', 'titulares'].filter(
+    (clave) => elegir(MENSAJES, clave, `2026-08-18|${MERCEDES.id}`)
+      !== elegir(MENSAJES, clave, `2026-08-18|${otro.id}`),
+  );
+  assert.ok(distintos.length >= 3,
+    `solo cambian ${distintos.length} listas de 4 entre dos personas`);
 });
 
 test('correoPersonaHtml: felicita sin soltarle sus propios datos', () => {
-  const html = correoPersonaHtml(MERCEDES, CASTELLON, '2026-08-18', GIFS);
-  assert.match(html, /¡Feliz cumpleaños,<br \/>Mercedes!/);
+  const html = correoPersonaHtml(MERCEDES, CASTELLON, '2026-08-18', GIFS, MENSAJES);
+  assert.match(html, /Mercedes/);
+  assert.ok(!html.includes('{nombre}'), 'sin huecos sin rellenar');
   assert.match(html, /20 años/);
   assert.match(html, /MCM Castellón/);
   // Lo importante: en la felicitación NO va información interna.
@@ -361,7 +428,7 @@ test('correoPersonaHtml: felicita sin soltarle sus propios datos', () => {
 });
 
 test('correoPersonaHtml: le toca un GIF distinto del del aviso a la delegación', () => {
-  const suyo = correoPersonaHtml(MERCEDES, CASTELLON, '2026-08-18', GIFS);
+  const suyo = correoPersonaHtml(MERCEDES, CASTELLON, '2026-08-18', GIFS, MENSAJES);
   const aviso = correoHtml([MERCEDES], CASTELLON, '2026-08-18', GIFS);
   const usados = (h) => [...h.matchAll(/https:\/\/ejemplo\/gif-(\d)\.gif/g)].map((m) => m[1]);
   assert.equal(usados(suyo).length, 1);
@@ -370,24 +437,24 @@ test('correoPersonaHtml: le toca un GIF distinto del del aviso a la delegación'
 
 test('correoPersonaHtml: es estable dentro del mismo día', () => {
   assert.equal(
-    correoPersonaHtml(MERCEDES, CASTELLON, '2026-08-18', GIFS),
-    correoPersonaHtml(MERCEDES, CASTELLON, '2026-08-18', GIFS),
+    correoPersonaHtml(MERCEDES, CASTELLON, '2026-08-18', GIFS, MENSAJES),
+    correoPersonaHtml(MERCEDES, CASTELLON, '2026-08-18', GIFS, MENSAJES),
   );
   assert.notEqual(
-    correoPersonaHtml(MERCEDES, CASTELLON, '2026-08-18', GIFS),
-    correoPersonaHtml(MERCEDES, CASTELLON, '2027-08-18', GIFS),
+    correoPersonaHtml(MERCEDES, CASTELLON, '2026-08-18', GIFS, MENSAJES),
+    correoPersonaHtml(MERCEDES, CASTELLON, '2027-08-18', GIFS, MENSAJES),
   );
 });
 
 test('correoPersonaHtml y textoPersona: sin edad no se inventan un número', () => {
   const sinEdad = { ...MERCEDES, edad: null };
-  assert.match(correoPersonaHtml(sinEdad, CASTELLON, '2026-08-18', GIFS), /Hoy es tu cumpleaños/);
-  assert.match(textoPersona(sinEdad, CASTELLON, '2026-08-18'), /Hoy cumples y desde/);
+  assert.match(correoPersonaHtml(sinEdad, CASTELLON, '2026-08-18', GIFS, MENSAJES), /Hoy es tu cumpleaños/);
+  assert.match(textoPersona(sinEdad, CASTELLON, '2026-08-18', MENSAJES), /Hoy cumples y desde/);
 });
 
 test('textoPersona: lleva firma y agradecimiento', () => {
-  const texto = textoPersona(MERCEDES, CASTELLON, '2026-08-18');
-  assert.match(texto, /¡Feliz cumpleaños, Mercedes!/);
+  const texto = textoPersona(MERCEDES, CASTELLON, '2026-08-18', MENSAJES);
+  assert.match(texto, /Mercedes/);
   assert.match(texto, /MCM Castellón/);
   assert.match(texto, /Gracias/);
 });
