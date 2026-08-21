@@ -66,10 +66,22 @@
             </sc-if>
           </div>
 
-          <!-- Pastilla de estado: color + etiqueta, no solo un icono -->
-          <div style="display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 9999px; background: {{ kid.pillBg }}; border: {{ kid.pillBorder }}; flex-shrink: 0;">
-            <div style="width: 8px; height: 8px; border-radius: 9999px; background: {{ kid.dot }};"></div>
-            <span style="font-size: 0.75rem; font-weight: 800; color: {{ kid.pillFg }}; letter-spacing: 0.01em;">{{ kid.label }}</span>
+          <!-- Circulo de estado. Vacio y punteado = por marcar, y se lee como
+               un control que espera un toque. Lleno = marcado, con glifo y
+               color propios para que no haga falta la etiqueta. -->
+          <div style="display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 9999px; background: {{ kid.circleBg }}; border: {{ kid.circleBorder }}; box-shadow: {{ kid.circleShadow }}; flex-shrink: 0;">
+            <sc-if value="{{ kid.isYes }}" hint-placeholder-val="{{ true }}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px;"><path d="M20 6 9 17l-5-5"/></svg>
+            </sc-if>
+            <sc-if value="{{ kid.isPartial }}" hint-placeholder-val="{{ false }}">
+              <svg viewBox="0 0 24 24" fill="#ffffff" style="width: 15px; height: 15px;"><path d="M12 2a10 10 0 0 1 0 20Z"/></svg>
+            </sc-if>
+            <sc-if value="{{ kid.isJust }}" hint-placeholder-val="{{ false }}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round"><path d="M6 12h12"/></svg>
+            </sc-if>
+            <sc-if value="{{ kid.isNo }}" hint-placeholder-val="{{ false }}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px;"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </sc-if>
           </div>
 
           <div style="display: flex; align-items: center; justify-content: center; width: 40px; height: 44px; flex-shrink: 0;">
@@ -80,9 +92,38 @@
       </sc-for>
     </div>
 
-    <div style="display: flex; align-items: flex-start; gap: 7px; padding: 12px 4px 0 4px;">
+    <!-- Leyenda de los cuatro circulos. Va aqui abajo, no en cada fila:
+         el color y el glifo se aprenden una vez y luego la lista queda limpia. -->
+    <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 13px 4px 0 4px;">
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 9999px; background: #2f9e44;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" style="width: 11px; height: 11px;"><path d="M20 6 9 17l-5-5"/></svg>
+        </div>
+        <span style="font-size: 0.74rem; font-weight: 600; color: #4b5563;">Vino</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 9999px; background: #0d9488;">
+          <svg viewBox="0 0 24 24" fill="#ffffff" style="width: 10px; height: 10px;"><path d="M12 2a10 10 0 0 1 0 20Z"/></svg>
+        </div>
+        <span style="font-size: 0.74rem; font-weight: 600; color: #4b5563;">Parcial</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 9999px; background: #f59e0b;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" style="width: 10px; height: 10px;"><path d="M6 12h12"/></svg>
+        </div>
+        <span style="font-size: 0.74rem; font-weight: 600; color: #4b5563;">Justificada</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 9999px; background: #dc2626;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" style="width: 10px; height: 10px;"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </div>
+        <span style="font-size: 0.74rem; font-weight: 600; color: #4b5563;">No vino</span>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: flex-start; gap: 7px; padding: 10px 4px 0 4px;">
       <svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px; flex-shrink: 0; margin-top: 2px;"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-      <span style="font-size: 0.76rem; color: #6b7280; line-height: 1.45;">Toca para <strong style="font-weight: 700;">vino / no vino</strong>. Mantén pulsado para parcial o justificar. La flecha abre la ficha.</span>
+      <span style="font-size: 0.76rem; color: #6b7280; line-height: 1.45;">Toca la fila para <strong style="font-weight: 700;">vino / no vino</strong>. Mantén pulsado para parcial o justificar. La flecha abre la ficha.</span>
     </div>
 
     <div class="tap" style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; height: 44px; border-radius: 1.1rem; background: transparent; border: 1px dashed #d1d5db;">
@@ -142,12 +183,15 @@ class Component extends DCLogic {
   }
 
   renderVals() {
+    // Un color por estado, con glifo propio: el circulo se lee sin etiqueta.
+    // Parcial va en verde azulado (no en el verde de "vino") para que se
+    // distinga de un vistazo aunque las dos cuenten como asistencia.
     const STATES = {
-      '':               { label: 'Sin marcar', dot: '#d1d5db', bg: '#ffffff', fg: '#9ca3af', border: '1px solid #e5e7eb' },
-      'yes':            { label: 'Vino',       dot: '#2f9e44', bg: '#e6fcf5', fg: '#076b4d', border: 'none' },
-      'partial':        { label: 'Parcial',    dot: '#0ca678', bg: '#e6fcf5', fg: '#0b6b52', border: 'none' },
-      'no_justified':   { label: 'Justif.',    dot: '#f59e0b', bg: '#fffbeb', fg: '#92400e', border: 'none' },
-      'no_unjustified': { label: 'No',         dot: '#dc2626', bg: '#fef2f2', fg: '#b91c1c', border: 'none' }
+      '':               { label: 'Sin marcar', color: '#d1d5db', tint: '#f3f4f6', ink: '#6b7280' },
+      'yes':            { label: 'Vino',       color: '#2f9e44', tint: '#e6fcf5', ink: '#076b4d' },
+      'partial':        { label: 'Parcial',    color: '#0d9488', tint: '#e6fffb', ink: '#0b6b62' },
+      'no_justified':   { label: 'Justificada',color: '#f59e0b', tint: '#fffbeb', ink: '#92400e' },
+      'no_unjustified': { label: 'No vino',    color: '#dc2626', tint: '#fef2f2', ink: '#b91c1c' }
     };
 
     const roster = [
@@ -183,16 +227,20 @@ class Component extends DCLogic {
         name: k.name,
         initials: k.initials,
         label: meta.label,
-        dot: meta.dot,
-        pillBg: meta.bg,
-        pillFg: meta.fg,
-        pillBorder: meta.border,
+        isYes: st === 'yes',
+        isPartial: st === 'partial',
+        isJust: st === 'no_justified',
+        isNo: st === 'no_unjustified',
+        // Sin marcar: circulo vacio con borde punteado, que pide que lo toques.
+        circleBg: st === '' ? 'transparent' : meta.color,
+        circleBorder: st === '' ? '2px dashed #cbd5e1' : 'none',
+        circleShadow: st === '' ? 'none' : ('0 2px 6px ' + meta.color + '33'),
         note: warn ? (k.seguidas + ' faltas seguidas') : '',
         noteColor: '#b91c1c',
         border: i === 0 ? 'none' : '1px solid #f3f4f6',
         nameColor: (st === 'no_unjustified' || st === 'no_justified') ? '#6b7280' : '#1f2937',
-        avatarBg: st === '' ? '#f3f4f6' : meta.bg,
-        avatarFg: st === '' ? '#6b7280' : meta.fg,
+        avatarBg: st === '' ? '#f3f4f6' : meta.tint,
+        avatarFg: st === '' ? '#6b7280' : meta.ink,
         cycle: () => this.cycle(k.id)
       };
     });

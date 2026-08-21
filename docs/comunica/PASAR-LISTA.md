@@ -231,10 +231,27 @@ pantalla y no una falta.
 - **La flecha del final abre la ficha**, con 44 px de área táctil. Marcar es lo
   frecuente y se queda con el área grande; la ficha es lo raro y tiene su botón
   propio. *(Esto cierra la duda 6.1: fila para marcar, flecha para la ficha.)*
+- **El estado se pinta como un círculo de color con su glifo**, no como una
+  pastilla con texto. Sin marcar es un círculo **vacío con borde punteado**, que
+  se lee como un control que espera un toque; los cuatro marcados son círculos
+  llenos con check (`yes`), medio disco (`partial`), guion (`no_justified`) y
+  cruz (`no_unjustified`). La etiqueta no hace falta en cada fila: **una leyenda
+  debajo de la lista** enseña los cuatro una vez.
+- **Un color por estado**: verde `#2f9e44` vino, verde azulado `#0d9488`
+  parcial, ámbar `#f59e0b` justificada, rojo `#dc2626` no vino. Parcial sale del
+  verde puro a propósito: cuenta como asistencia igual que «vino», pero tiene
+  que distinguirse de un vistazo.
 - **Parcial y falta justificada** no ensucian el gesto principal: salen al
   mantener pulsado, en una hoja inferior con los cuatro valores y un motivo
   opcional (artboard `Estados`). El toque simple solo recorre
   sin marcar → `yes` → `no_unjustified`, que es el 95 % de los casos.
+- **El mantener pulsado funciona en web**, y es lo que usaremos: `pointerdown`
+  con un temporizador de ~500 ms, cancelado por `pointerup`, `pointercancel` o
+  un `pointermove` de más de unos píxeles (para no confundirlo con un scroll),
+  más `contextmenu` anulado y `touch-action: manipulation` en la fila para que
+  el navegador no se lleve el gesto. En escritorio el clic derecho abre la misma
+  hoja. Es la misma técnica que usan las apps nativas, y no depende de la
+  webview de MCM App.
 - **El aviso de faltas seguidas solo si son consecutivas.** Tres faltas
   repartidas en el curso no dicen nada; tres seguidas sí. El umbral es
   `seguidas >= 3`.
@@ -254,8 +271,10 @@ prisa. Luego asistencia, familia, salud y datos.
 - **Teléfono del propio chaval** en el COM (menos habitual, pero lo tienen).
   El botón de WhatsApp respeta `ajmcm_menorwhatsapp_c`: si no autoriza, no se
   pinta.
-- **Pañuelo** visible y **editable con confirmación** — es un dato importante y
-  el monitor es quien lo sabe. Editar pide confirmar antes de escribir.
+- **Pañuelo editable con confirmación** — es un dato importante y el monitor es
+  quien lo sabe. Editar pide confirmar antes de escribir. Va **abajo, después de
+  Permisos**: no es un dato de urgencia como el teléfono, y arriba competía con
+  las acciones de contacto, que son el motivo real por el que se abre la ficha.
 - **Edad** visible (viene calculada en `stic_age_c`).
 - **Sexo no**, no aporta nada aquí.
 - **Salud en una sola tarjeta**, no cuatro campos sueltos: alergias,
