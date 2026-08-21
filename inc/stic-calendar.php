@@ -462,9 +462,23 @@ function sticpa_calendar_fc_events($data)
     $now = time();
     $events = array();
 
+    // Eventos que YA aportan sesiones al calendario. Su banda de días no se
+    // pinta: las sesiones son el detalle bueno (con día y hora reales) y la
+    // banda solo taparía el mes. Es lo que hace ilegible un evento de curso
+    // completo — "MIC · Castellón · 2024-2025" iría de octubre a mayo, así que
+    // FullCalendar lo dibuja como un bloque continuo y solo lo etiqueta al
+    // principio de cada semana. Un evento SIN sesiones (una convivencia, un
+    // campamento) sí conserva su banda: ahí los días ocupados son el dato.
+    $eventsWithSessions = array();
+    foreach ($data['sessions'] as $s) {
+        if (!empty($s['event_id']) && !empty($s['start'])) {
+            $eventsWithSessions[$s['event_id']] = true;
+        }
+    }
+
     // --- Eventos en los que YA estás inscrito (contexto) ---
     foreach ($data['registered_events'] as $ev) {
-        if (empty($ev['start'])) {
+        if (empty($ev['start']) || isset($eventsWithSessions[$ev['id']])) {
             continue;
         }
         $meta = $palette['registered_event'];
@@ -487,7 +501,7 @@ function sticpa_calendar_fc_events($data)
 
     // --- Eventos abiertos a inscripción (CTA) ---
     foreach ($data['available_events'] as $ev) {
-        if (empty($ev['start'])) {
+        if (empty($ev['start']) || isset($eventsWithSessions[$ev['id']])) {
             continue;
         }
         $meta = $palette['available_event'];
