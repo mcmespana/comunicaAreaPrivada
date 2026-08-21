@@ -61,8 +61,10 @@
   <!-- Hoja inferior -->
   <div style="position: absolute; left: 0; right: 0; bottom: 0; border-radius: 1.9rem 1.9rem 0 0; background: #ffffff; box-shadow: 0 -20px 44px rgba(21, 36, 71, 0.18); padding: 12px 20px 24px 20px; display: flex; flex-direction: column; gap: 16px;">
 
-    <div style="display: flex; justify-content: center;">
-      <div style="width: 40px; height: 4px; border-radius: 9999px; background: #e5e7eb;"></div>
+    <!-- El asidero: la rayita se ve fina, pero el area por la que se arrastra
+         es alta. Un asidero de 4 px no se puede coger con el pulgar. -->
+    <div style="display: flex; align-items: center; justify-content: center; height: 28px; margin: -4px 0 4px 0;">
+      <div style="width: 44px; height: 5px; border-radius: 9999px; background: #d1d5db;"></div>
     </div>
 
     <div style="display: flex; align-items: center; gap: 13px;">
