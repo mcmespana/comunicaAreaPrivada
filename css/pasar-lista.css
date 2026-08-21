@@ -1063,3 +1063,110 @@ a.pl-group .pl-name { display: block; }
     border-radius: var(--radius-full);
     background: var(--gray-200);
 }
+
+/* ---- Monitores ---------------------------------------------------------- */
+
+/* La línea de los grupos de un monitor. Gris y pequeña: informa, no compite. */
+.pl-rowsub { font-size: 0.75rem; color: var(--gray-400); }
+
+/* La regla de esta pantalla, dicha antes de guardar y no después: aquí el
+   defecto es verde, que es lo contrario de la lista de participantes. */
+.pl-hint--rule {
+    padding: 0.55rem 0.75rem;
+    margin-bottom: 0.7rem;
+    border-radius: var(--radius-md);
+    background: var(--success-50);
+    color: var(--success-dark);
+    font-weight: 600;
+}
+.pl-hint--rule svg { color: var(--success-dark); }
+
+/* En la lista de monitores no hay "sin marcar", así que el círculo vacío no
+   aparece nunca; el punteado sobraría y confundiría. */
+[data-pl-monitores] .pl-mark { border-style: solid; }
+
+/* Certificado de delitos sexuales: se lee de un vistazo porque es lo que se
+   reclama. Verde entregado, rojo falta — sin ámbar intermedio, porque aquí no
+   hay medias tintas legales. */
+.pl-ds {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.9rem 1rem;
+    border-radius: var(--radius-lg);
+    background: var(--white);
+    box-shadow: var(--shadow-xs);
+}
+.pl-ds-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+}
+.pl-ds-icon svg { width: 17px; height: 17px; stroke: var(--white); fill: none; }
+.pl-ds-body { display: flex; flex-direction: column; gap: 0.1rem; }
+.pl-ds-label { font-size: 0.98rem; font-weight: 800; }
+.pl-ds-sub { font-size: 0.78rem; color: var(--gray-500, #6b7280); }
+
+.pl-ds--ok .pl-ds-icon { background: var(--success-color); }
+.pl-ds--ok .pl-ds-label { color: var(--success-dark); }
+.pl-ds--missing { background: var(--danger-soft); box-shadow: inset 0 0 0 1px var(--danger-border); }
+.pl-ds--missing .pl-ds-icon { background: var(--danger-color); }
+.pl-ds--missing .pl-ds-label { color: var(--danger-dark); }
+
+.pl-flag--warn { background: var(--warning-100); color: var(--warning-dark); }
+
+/* ---- Nueva reunión: tres campos y un botón ----------------------------- */
+
+.pl-newmeet {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    padding: 1rem;
+    border-radius: var(--radius-lg);
+    background: var(--white);
+    box-shadow: var(--shadow-xs);
+}
+.pl-field { display: flex; flex-direction: column; gap: 0.25rem; flex-grow: 1; min-width: 0; }
+.pl-field-label {
+    font-size: 0.73rem;
+    font-weight: 800;
+    color: var(--gray-500, #6b7280);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.pl-field input {
+    min-height: 46px;
+    padding: 0 0.75rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--gray-200);
+    background: var(--white);
+    font-family: inherit;
+    font-size: 1rem;             /* 16 px: menos que eso y iOS hace zoom al enfocar */
+    color: inherit;
+    width: 100%;
+}
+.pl-field input:focus-visible {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-glow);
+}
+.pl-field-row { display: flex; gap: 0.6rem; }
+.pl-field--sm { flex: 0 0 5.5rem; }
+
+/* El alcance de coordinación, dicho en el título de la sección: quien coordina
+   una etapa tiene que ver cuál sin abrir nada. */
+.pl-scope {
+    margin-left: auto;
+    padding: 0.12rem 0.5rem;
+    border-radius: var(--radius-full);
+    background: var(--gray-100);
+    color: var(--gray-600, #4b5563);
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: 0;
+}

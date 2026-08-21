@@ -263,7 +263,16 @@
            que solo se alcanza manteniendo pulsado, el toque lleva a "vino", que
            es lo que espera quien toca una fila ya marcada de forma especial.
            Mismo orden que sticpa_pl_next_state() en PHP. */
+        // En la lista de MONITORES el ciclo es verde <-> rojo y no existe el
+        // "sin marcar": se asume que vienen siempre, así que el toque solo pone
+        // y quita faltas. Mismo par de reglas que sticpa_pl_next_state() y
+        // sticpa_pl_next_state_monitor() en PHP.
+        var IS_MONITORS = root.hasAttribute('data-pl-monitores');
+
         function nextState(current) {
+            if (IS_MONITORS) {
+                return (current === 'no_unjustified') ? 'yes' : 'no_unjustified';
+            }
             switch (current) {
                 case '': return 'yes';
                 case 'yes': return 'no_unjustified';

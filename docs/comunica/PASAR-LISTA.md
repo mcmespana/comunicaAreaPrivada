@@ -6,6 +6,7 @@ se guarda y cómo se ve.
 
 - Campos y módulos del CRM → [`PASAR-LISTA-CAMPOS-CRM.md`](PASAR-LISTA-CAMPOS-CRM.md)
 - Fases, estado del piloto y melones futuros → [`PASAR-LISTA-ROADMAP.md`](PASAR-LISTA-ROADMAP.md)
+- Coordinación, monitores y reuniones → [`PASAR-LISTA-COORDINACION.md`](PASAR-LISTA-COORDINACION.md)
 
 ---
 

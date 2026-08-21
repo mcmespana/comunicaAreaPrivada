@@ -72,7 +72,7 @@ function sticpa_pl_icon($which)
  * Es un <button> y no un <div> con onclick: así lo alcanza el teclado y lo
  * anuncia el lector de pantalla sin tener que añadir roles a mano.
  */
-function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '')
+function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub = '')
 {
     $states = sticpa_pl_states();
     $state = sticpa_pl_is_state($state) ? $state : '';
@@ -113,6 +113,11 @@ function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '')
     $html .= '<span class="pl-avatar">' . esc_html($person['initials']) . '</span>';
     $html .= '<span class="pl-row-body">';
     $html .= '<span class="pl-name">' . esc_html($person['name']) . '</span>';
+    // Línea fija: los grupos de un monitor. Es lo que distingue a dos personas
+    // con el mismo nombre de pila y lo que explica por qué están en esta lista.
+    if ($sub !== '') {
+        $html .= '<span class="pl-rowsub">' . esc_html($sub) . '</span>';
+    }
     $html .= '<span class="pl-note" data-pl-state-note ' . $noteClass
         . ($note === '' ? ' hidden' : '') . '>' . esc_html($note) . '</span>';
     $html .= '</span>';

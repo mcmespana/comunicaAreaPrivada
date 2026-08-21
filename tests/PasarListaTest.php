@@ -241,6 +241,114 @@ final class PasarListaTest extends TestCase
         $this->assertSame('', $l['name']);
     }
 
+    // ---- Coordinación y monitores ---------------------------------------
+
+    /** En monitores el ciclo es verde <-> rojo: no existe el "sin marcar". */
+    public function test_el_ciclo_de_monitores_es_de_dos_estados()
+    {
+        $this->assertSame('no_unjustified', sticpa_pl_next_state_monitor('yes'));
+        $this->assertSame('yes', sticpa_pl_next_state_monitor('no_unjustified'));
+        // Y desde cualquier otro estado se va a la falta, no al vacío.
+        $this->assertSame('no_unjustified', sticpa_pl_next_state_monitor(''));
+        $this->assertSame('no_unjustified', sticpa_pl_next_state_monitor('partial'));
+    }
+
+    /** Sin etapa ni segmento se coordina TODO: es quien mira el conjunto. */
+    public function test_alcance_vacio_es_toda_la_delegacion()
+    {
+        $scope = array('etapa' => '', 'segmento' => '');
+        $this->assertTrue(sticpa_pl_scope_matches($scope, array('etapa' => 'MIC', 'segmento' => '')));
+        $this->assertTrue(sticpa_pl_scope_matches($scope, array('etapa' => 'COM', 'segmento' => 'com_3')));
+    }
+
+    /** Con etapa, solo esa etapa. */
+    public function test_alcance_por_etapa()
+    {
+        $scope = array('etapa' => 'COM', 'segmento' => '');
+        $this->assertTrue(sticpa_pl_scope_matches($scope, array('etapa' => 'COM', 'segmento' => 'com_1')));
+        $this->assertFalse(sticpa_pl_scope_matches($scope, array('etapa' => 'MIC', 'segmento' => '')));
+    }
+
+    /**
+     * Con segmento, un grupo SIN segmento no se cuela.
+     * Es la propiedad importante: si se colara, quien coordina COM II vería
+     * grupos que no le tocan y los daría por suyos.
+     */
+    public function test_alcance_por_segmento_no_cuela_grupos_sin_segmento()
+    {
+        $scope = array('etapa' => 'COM', 'segmento' => 'com_2');
+        $this->assertTrue(sticpa_pl_scope_matches($scope, array('etapa' => 'COM', 'segmento' => 'com_2')));
+        $this->assertFalse(sticpa_pl_scope_matches($scope, array('etapa' => 'COM', 'segmento' => 'com_1')));
+        $this->assertFalse(sticpa_pl_scope_matches($scope, array('etapa' => 'COM', 'segmento' => '')));
+    }
+
+    /** Los tres estados del certificado de delitos sexuales. */
+    public function test_estado_del_certificado_de_delitos()
+    {
+        // Automático: autorizó al MCM a pedirlo cada año.
+        $this->assertSame('auto', sticpa_pl_ds_state(array('ajmcm_aut_del_sex_c' => '1')));
+        // A mano, con archivo archivado.
+        $this->assertSame('uploaded', sticpa_pl_ds_state(array('ajmcm_aut_del_sex_c' => '0', 'ajmcm_cert_del_sex_c' => '1')));
+        // Ni una cosa ni la otra: falta, y es obligatorio por ley.
+        $this->assertSame('missing', sticpa_pl_ds_state(array()));
+        $this->assertSame('missing', sticpa_pl_ds_state(array('ajmcm_aut_del_sex_c' => '0', 'ajmcm_cert_del_sex_c' => '0')));
+    }
+
+    /**
+     * Las titulaciones: solo las que tiene, y avisando del descuadre de
+     * "titulado pero sin archivo", que es el que deja a nadie sabiendo si falta
+     * el papel o falta el curso.
+     */
+    public function test_titulaciones_solo_las_que_tiene_y_avisa_del_archivo()
+    {
+        // Los valores son los reales de la instancia.
+        $data = array(
+            'ajmcm_premonitores1_c' => 'finalizado',
+            'ajmcm_premonitores2_c' => 'finalizado',
+            'ajmcm_premonitores_year_c' => '2012',
+            'ajmcm_mat_c' => 'titulado',
+            'ajmcm_mat_year_c' => '2013',
+            'ajmcm_mat_file_c' => '1',
+            'ajmcm_dat_c' => 'titulado',
+            'ajmcm_dat_year_c' => '2021 - EADB',
+            'ajmcm_dat_file_c' => '0',        // titulado y SIN archivo
+            'ajmcm_fa_c' => 'no',
+            'ajmcm_alimentos_c' => '1',
+        );
+        $t = sticpa_pl_titulaciones($data);
+        $labels = array_map(function ($r) { return $r['label']; }, $t);
+
+        // FA no está: dice 'no'.
+        $this->assertNotContains('FA', $labels);
+        $this->assertContains('MAT', $labels);
+        $this->assertContains('DAT', $labels);
+        $this->assertContains('Premonitores I', $labels);
+        $this->assertContains('Manipulación de alimentos', $labels);
+
+        $byLabel = array();
+        foreach ($t as $row) { $byLabel[$row['label']] = $row; }
+
+        $this->assertFalse($byLabel['MAT']['gap']);
+        $this->assertTrue($byLabel['DAT']['gap'], 'DAT dice titulado y no hay archivo');
+        // El año del DAT es texto libre en el CRM y se enseña tal cual.
+        $this->assertSame('2021 - EADB', $byLabel['DAT']['year']);
+    }
+
+    /** Sin ninguna titulación, la lista está vacía y no se pinta la sección. */
+    public function test_titulaciones_vacias()
+    {
+        $this->assertSame(array(), sticpa_pl_titulaciones(array('ajmcm_mat_c' => 'no')));
+        $this->assertSame(array(), sticpa_pl_titulaciones(array()));
+    }
+
+    /** "Monitor/a desde" es una fecha en el CRM y solo se enseña el año. */
+    public function test_monitor_desde_solo_el_ano()
+    {
+        $this->assertSame('2012', sticpa_pl_monitor_since('2012-01-01'));
+        $this->assertSame('', sticpa_pl_monitor_since(''));
+        $this->assertSame('', sticpa_pl_monitor_since('vete a saber'));
+    }
+
     // ---- La tira del resumen -------------------------------------------
 
     /** Pasada, omitida, y el hueco que solo es hueco si la sesión ya pasó. */

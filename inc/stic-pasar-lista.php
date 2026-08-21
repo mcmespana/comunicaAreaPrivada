@@ -379,3 +379,174 @@ function sticpa_pl_list_mark($estado, $sessionStart, $nowTs = null)
     }
     return ((int) $sessionStart <= $nowTs) ? 'gap' : 'future';
 }
+
+// ===========================================================================
+// COORDINACIÓN Y MONITORES
+// ---------------------------------------------------------------------------
+// Diseño: docs/comunica/PASAR-LISTA-COORDINACION.md
+// ===========================================================================
+
+/**
+ * El ciclo del toque en la lista de MONITORES: verde ⇄ rojo.
+ *
+ * Al revés que en los chavales, aquí se asume que vienen siempre, así que no
+ * existe el "sin marcar": la pantalla arranca en verde y el toque solo sirve
+ * para poner una falta y quitarla. Parcial y justificada siguen estando en el
+ * gesto largo, que es donde viven las cosas poco frecuentes.
+ */
+function sticpa_pl_next_state_monitor($current)
+{
+    return ((string) $current === 'no_unjustified') ? 'yes' : 'no_unjustified';
+}
+
+/**
+ * ¿Entra este grupo en el alcance de coordinación?
+ *
+ * `$scope` es array('etapa' => 'COM'|'', 'segmento' => 'com_2'|''). Vacío del
+ * todo significa TODA la delegación: quien no tiene alcance marcado es quien
+ * mira el conjunto, y limitarle a nada sería justo lo contrario de lo que hace.
+ */
+function sticpa_pl_scope_matches($scope, $group)
+{
+    $etapa = isset($scope['etapa']) ? trim((string) $scope['etapa']) : '';
+    $segmento = isset($scope['segmento']) ? trim((string) $scope['segmento']) : '';
+
+    if ($etapa === '' && $segmento === '') {
+        return true;
+    }
+    if ($etapa !== '') {
+        $groupEtapa = isset($group['etapa']) ? (string) $group['etapa'] : '';
+        if (strcasecmp($groupEtapa, $etapa) !== 0) {
+            return false;
+        }
+    }
+    if ($segmento !== '') {
+        $groupSeg = isset($group['segmento']) ? trim((string) $group['segmento']) : '';
+        // Un grupo sin segmento NO se cuela en un alcance por segmento: si se
+        // colara, quien coordina COM II vería grupos que no le tocan y creería
+        // que son suyos.
+        if ($groupSeg === '' || strcasecmp($groupSeg, $segmento) !== 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * Estado del certificado de delitos sexuales de un monitor.
+ *
+ * Es lo primero de su ficha porque es una obligación legal y porque es lo que
+ * coordinación reclama. Tres estados, y el que importa es el tercero:
+ *   'auto'     autorizó al MCM a pedirlo cada año (ajmcm_aut_del_sex_c = 1)
+ *   'uploaded' lo subió a mano y está archivado
+ *   'missing'  no está — hay que reclamarlo
+ */
+function sticpa_pl_ds_state($data)
+{
+    $auto = isset($data['ajmcm_aut_del_sex_c']) ? (string) $data['ajmcm_aut_del_sex_c'] : '';
+    $file = isset($data['ajmcm_cert_del_sex_c']) ? (string) $data['ajmcm_cert_del_sex_c'] : '';
+
+    if ($auto === '1') {
+        return 'auto';
+    }
+    if ($file === '1') {
+        return 'uploaded';
+    }
+    return 'missing';
+}
+
+/**
+ * Las titulaciones de un monitor, ya resueltas para pintar.
+ *
+ * Devuelve una fila por titulación con:
+ *   'label'  cómo se llama
+ *   'has'    si la tiene
+ *   'year'   el año o lo que haya escrito (el del DAT es texto libre: "2021 - EADB")
+ *   'gap'    LA tiene pero NO hay archivo subido
+ *
+ * El `gap` es el descuadre típico y el motivo de que esto sea una función y no
+ * cuatro líneas en la plantilla: alguien marca "titulado" y no sube el título,
+ * y meses después nadie sabe si falta el papel o falta el curso.
+ */
+function sticpa_pl_titulaciones($data)
+{
+    $val = function ($key) use ($data) {
+        return isset($data[$key]) ? trim((string) $data[$key]) : '';
+    };
+    // Los enum de formación valen 'titulado' / 'finalizado' / 'no' / '' y los
+    // de archivo son booleanos. "Tiene" es cualquier cosa que no sea no/vacío.
+    $has = function ($v) {
+        $v = strtolower($v);
+        return ($v !== '' && $v !== 'no' && $v !== '0');
+    };
+
+    $rows = array(
+        array(
+            'label' => __('Premonitores I', 'sticpa'),
+            'has' => $has($val('ajmcm_premonitores1_c')),
+            'year' => $val('ajmcm_premonitores_year_c'),
+            'file' => null,
+        ),
+        array(
+            'label' => __('Premonitores II', 'sticpa'),
+            'has' => $has($val('ajmcm_premonitores2_c')),
+            'year' => $val('ajmcm_premonitores_year_c'),
+            'file' => null,
+        ),
+        array(
+            'label' => __('MAT', 'sticpa'),
+            'has' => $has($val('ajmcm_mat_c')),
+            'year' => $val('ajmcm_mat_year_c'),
+            'file' => $val('ajmcm_mat_file_c') === '1',
+        ),
+        array(
+            'label' => __('DAT', 'sticpa'),
+            'has' => $has($val('ajmcm_dat_c')),
+            'year' => $val('ajmcm_dat_year_c'),
+            'file' => $val('ajmcm_dat_file_c') === '1',
+        ),
+        array(
+            'label' => __('FA', 'sticpa'),
+            'has' => $has($val('ajmcm_fa_c')),
+            'year' => $val('ajmcm_fa_year_c'),
+            'file' => null,
+        ),
+        array(
+            'label' => __('Manipulación de alimentos', 'sticpa'),
+            'has' => $has($val('ajmcm_alimentos_c')),
+            'year' => '',
+            'file' => null,
+        ),
+    );
+
+    $out = array();
+    foreach ($rows as $row) {
+        // Solo se enseña lo que tiene: una lista con cuatro "no" es ruido, y lo
+        // que se pregunta es qué titulaciones tiene, no las que le faltan.
+        if (!$row['has']) {
+            continue;
+        }
+        $row['gap'] = ($row['file'] === false);
+        $out[] = $row;
+    }
+    return $out;
+}
+
+/**
+ * El año de "monitor/a desde", que en el CRM es una fecha completa.
+ *
+ * Se guarda como AAAA-01-01 y el 1 de enero nunca se enseña (ver el campo
+ * `yearOnly` de pages/single_stic_comunica_monitor.php): aquí se saca solo el
+ * año, que es el dato que significa algo.
+ */
+function sticpa_pl_monitor_since($raw)
+{
+    $raw = trim((string) $raw);
+    if ($raw === '') {
+        return '';
+    }
+    if (preg_match('/^(\d{4})/', $raw, $m)) {
+        return $m[1];
+    }
+    return '';
+}

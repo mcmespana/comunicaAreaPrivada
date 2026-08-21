@@ -128,7 +128,35 @@ el mismo móvil entra otra persona, no puede leer la anterior, y las cachés de
 los demás se borran), y al cerrar sesión se borra todo. Solo se guardan las
 pantallas de Pasar Lista, nunca un POST, nunca otra sección.
 
-### Fase 5 — más delegaciones
+### Fase 5 — coordinación y monitores ✅ hecha
+
+Ver [`PASAR-LISTA-COORDINACION.md`](PASAR-LISTA-COORDINACION.md) para el porqué
+de cada decisión. Lo construido:
+
+- **Alcance de coordinación** desde la relación `coordinacion-mic-com`: etapa,
+  segmento o toda la delegación. Quien no tiene alcance marcado ve el conjunto.
+- **Lista de monitores** con el defecto invertido (todos en verde) y el verde
+  escrito de forma explícita al guardar.
+- **Ficha del monitor**: certificado de delitos primero, asistencia con
+  denominador, titulaciones con el aviso de «titulado y sin archivo», contacto.
+  Sin familia y sin salud.
+- **Reuniones de programación**: evento aparte, y coordinación las crea desde la
+  pantalla con nombre, día, hora y duración.
+- Las dos secciones nuevas van **debajo** de los grupos en la misma pantalla, no
+  en una interfaz aparte: coordinación también tiene grupo.
+
+Pendiente de campos que no existen todavía:
+
+- `coordinacion-mic-com` en `relationship_type` → sin él, nadie coordina y todo
+  se comporta como para un monitor (ver, no editar). Es el defecto seguro.
+- `LIS_listas.ajmcm_tipo_c` → sin él, la lista de monitores de un sábado y la
+  del grupo se pisarían. **Esto sí bloquea** la marca de «lista de monitores
+  pasada»; las asistencias se guardan igual.
+- `ajmcm_GRUPOS.ajmcm_segmento_com_c` → sin él el alcance por segmento no
+  filtra. Se enciende con `add_filter('sticpa_pl_has_segmento', '__return_true')`
+  cuando exista, porque pedir un campo inexistente rompe la consulta entera.
+
+### Fase 6 — más delegaciones
 
 Se hará una **skill** para montar el curso de una delegación nueva (eventos,
 sesiones desde su calendario, inscripciones). El piloto de Castellón es la
@@ -223,7 +251,15 @@ claves que ya tiene el campo de la persona (`MIC` / `COM` / `LC`). Es un campo y
 quita la única dependencia frágil que tiene la fase 1. Mientras no exista, el
 prefijo se puede cambiar con el filtro `sticpa_pl_etapa_prefixes`.
 
-### 8. Verificar `CAMPOS.md` contra el CRM por MCP
+### 8. Seguimientos de monitores
+
+El melón de la siguiente iteración, ya escrito en
+[`PASAR-LISTA-COORDINACION.md`](PASAR-LISTA-COORDINACION.md) §7: incidencias
+puntuales, valoración de trimestre y notas de acompañamiento, con tres
+visibilidades distintas. **Antes de crear módulo hay que buscar si ya existe uno
+de valoraciones o notas** en SinergiaCRM.
+
+### 9. Verificar `CAMPOS.md` contra el CRM por MCP
 
 Algún día. Hoy `CAMPOS.md` es la fuente de la verdad y se mantiene a mano.
 

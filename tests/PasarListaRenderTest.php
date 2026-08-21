@@ -16,6 +16,8 @@ class FakeSCP
     public $calls = array();
     public $writes = array();
     public $relationships = array();
+    /** Cuando es distinto de null, el usuario coordina con este alcance. */
+    public $coordEtapa = null;
 
     /** Envuelve un array plano en la forma que devuelve la API. */
     private function nvl($fields, $links = array())
@@ -44,7 +46,21 @@ class FakeSCP
     {
         $this->calls[] = 'getRecordDetail:' . $module;
         $data = array('id' => $id, 'assigned_user_id' => 'deleg-castellon');
-        if (is_array($fields) && in_array('ajmcm_panuelo_c', $fields, true)) {
+        if (is_array($fields) && in_array('ajmcm_mat_c', $fields, true)) {
+            // Los valores tal como están en la instancia de verdad.
+            $data = array_merge($data, array(
+                'first_name' => 'David', 'last_name' => 'Soler', 'name' => 'David Soler',
+                'stic_age_c' => '30', 'phone_mobile' => '608 084 613',
+                'email1' => 'david@movimientoconsolacion.com',
+                'ajmcm_monitor_desde_c' => '2012-01-01', 'ajmcm_monitor_de_c' => 'com',
+                'ajmcm_aut_del_sex_c' => '1', 'ajmcm_cert_del_sex_c' => '1',
+                'ajmcm_premonitores1_c' => 'finalizado', 'ajmcm_premonitores2_c' => 'finalizado',
+                'ajmcm_premonitores_year_c' => '2012',
+                'ajmcm_mat_c' => 'titulado', 'ajmcm_mat_year_c' => '2013', 'ajmcm_mat_file_c' => '1',
+                'ajmcm_dat_c' => 'titulado', 'ajmcm_dat_year_c' => '2021 - EADB', 'ajmcm_dat_file_c' => '0',
+                'ajmcm_fa_c' => 'no', 'ajmcm_alimentos_c' => '1',
+            ));
+        } elseif (is_array($fields) && in_array('ajmcm_panuelo_c', $fields, true)) {
             $data = array_merge($data, array(
                 'first_name' => 'Solete', 'last_name' => 'Vilarroya', 'name' => 'Solete Vilarroya',
                 'birthdate' => '2012-04-18', 'stic_age_c' => '13',
@@ -104,6 +120,12 @@ class FakeSCP
         switch ($key) {
             // Personas del grupo: participantes y monitor, en UNA llamada.
             case 'ajmcm_GRUPOS:ajmcm_grupos_stic_contacts_relationships':
+                // Solo g1 tiene gente. Devolver la misma para todos los grupos
+                // haría que un alcance por etapa pareciese incluir monitores
+                // que no le tocan, y el test dejaría de comprobar nada.
+                if ($p['module_id'] !== 'g1') {
+                    return array();
+                }
                 return array(
                     $this->nvl(
                         array('id' => 'r1', 'relationship_type' => 'participante_mic_com', 'start_date' => '2025-09-01', 'end_date' => ''),
@@ -125,10 +147,19 @@ class FakeSCP
                 );
 
             case 'Contacts:stic_contacts_relationships_contacts':
-                return array($this->nvl(
+                $rels = array($this->nvl(
                     array('id' => 'r4', 'relationship_type' => 'monitor', 'end_date' => ''),
                     array(array('id' => 'g1'))
                 ));
+                if ($this->coordEtapa !== null) {
+                    $rels[] = $this->nvl(array(
+                        'id' => 'rc1',
+                        'relationship_type' => 'coordinacion-mic-com',
+                        'end_date' => '',
+                        'ajmcm_etapa_relacion_c' => $this->coordEtapa,
+                    ));
+                }
+                return $rels;
 
             case 'stic_Events:stic_sessions_stic_events':
                 return array(
@@ -745,6 +776,187 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringNotContainsString("key: 'm1'", $html);
         // Y al cerrar sesión se borra todo.
         $this->assertStringContainsString("type: 'sticpa:logout'", $html);
+    }
+
+    // ---- Coordinación: monitores, ficha y reuniones ---------------------
+
+    /** Sin relación de coordinación, la sección no existe en la home. */
+    public function test_la_home_no_enseña_coordinacion_a_un_monitor()
+    {
+        $html = $this->render('single_stic_pasar_lista');
+        $this->assertStringNotContainsString('Coordinación', $html);
+        $this->assertStringNotContainsString('single_stic_pasar_lista_monitores', $html);
+    }
+
+    /** Con ella, aparece DEBAJO de los grupos y dice el alcance. */
+    public function test_la_home_enseña_coordinacion_debajo_de_los_grupos()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $html = $this->render('single_stic_pasar_lista');
+
+        $this->assertStringContainsString('Coordinación', $html);
+        $this->assertStringContainsString('single_stic_pasar_lista_monitores', $html);
+        $this->assertStringContainsString('single_stic_pasar_lista_reuniones', $html);
+        // El alcance, visible sin abrir nada.
+        $this->assertStringContainsString('pl-scope', $html);
+        // Y debajo: los grupos van antes.
+        $this->assertLessThan(strpos($html, 'Coordinación'), strpos($html, 'Ver todos los grupos'));
+    }
+
+    /** Un monitor que entra a la pantalla de monitores no ve media pantalla. */
+    public function test_monitores_no_se_abre_sin_coordinar()
+    {
+        $html = $this->render('single_stic_pasar_lista_monitores');
+        $this->assertStringContainsString('es de coordinación', $html);
+        $this->assertStringNotContainsString('data-pl-form', $html);
+    }
+
+    /**
+     * La lista de monitores arranca TODO EN VERDE. Es lo contrario que en los
+     * chavales y es la propiedad que define esta pantalla.
+     */
+    public function test_monitores_arranca_todo_en_verde()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        $this->assertStringContainsString('data-pl-monitores', $html);
+        $this->assertStringContainsString('data-state="yes" data-contact="m1"', $html);
+        // Y la regla se dice en la pantalla, antes de guardar.
+        $this->assertStringContainsString('Marca solo a quien no vino', $html);
+        // Sin contador de "sin marcar": aquí no existe ese estado.
+        $this->assertStringNotContainsString('data-pl-count-none-wrap', $html);
+    }
+
+    /**
+     * Al guardar se escribe `yes` EXPLÍCITO para los no marcados. Si se dejaran
+     * vacíos, el porcentaje de un monitor que ha venido a todo saldría a cero.
+     */
+    public function test_monitores_escribe_el_verde_explicito()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_monitores'),
+            'pl_marks' => json_encode(array()),      // nadie marcado
+        );
+        $this->render('single_stic_pasar_lista_monitores');
+
+        $writes = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Attendances';
+        }));
+        $this->assertCount(1, $writes, 'un monitor en el grupo del doble');
+        $this->assertSame('yes', $writes[0]['data']['status']);
+    }
+
+    /** Y la falta marcada sí se escribe como falta. */
+    public function test_monitores_escribe_la_falta_marcada()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_monitores'),
+            'pl_marks' => json_encode(array('m1' => 'no_unjustified')),
+        );
+        $this->render('single_stic_pasar_lista_monitores');
+
+        $writes = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Attendances';
+        }));
+        $this->assertSame('no_unjustified', $writes[0]['data']['status']);
+    }
+
+    /** La ficha del monitor: certificado primero, y sin familia ni salud. */
+    public function test_ficha_del_monitor()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        // Lo primero es el certificado, porque es lo que se reclama.
+        $this->assertStringContainsString('Certificado de delitos sexuales', $html);
+        $this->assertLessThan(strpos($html, 'Titulaciones'), strpos($html, 'Certificado de delitos'));
+        $this->assertStringContainsString('Automático', $html);
+        // Titulaciones, con el descuadre del DAT sin archivo.
+        $this->assertStringContainsString('2021 - EADB', $html);
+        $this->assertStringContainsString('sin archivo', $html);
+        // FA dice 'no', así que no sale.
+        $this->assertStringNotContainsString('>FA', $html);
+        // Un monitor es un adulto: ni familia ni salud.
+        $this->assertStringNotContainsString('Salud', $html);
+        $this->assertStringNotContainsString('Alergias', $html);
+        // Y el año de "monitor desde", sin el 1 de enero.
+        $this->assertStringContainsString('2012', $html);
+        $this->assertStringNotContainsString('2012-01-01', $html);
+    }
+
+    /** No se abre la ficha de un monitor fuera del alcance cambiando la URL. */
+    public function test_ficha_de_monitor_fuera_del_alcance()
+    {
+        $this->scp->coordEtapa = 'MIC';   // el monitor del doble está en un grupo COM
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+        $this->assertStringContainsString('no está en los grupos de tu alcance', $html);
+    }
+
+    /** Reuniones: se crean con nombre, día, hora y duración. */
+    public function test_crear_una_reunion()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_POST = array(
+            'pl_nonce' => wp_create_nonce('pl_reuniones'),
+            'pl_reunion_name' => 'Programación 2.º trimestre',
+            'pl_reunion_date' => '2026-01-17',
+            'pl_reunion_time' => '19:00',
+            'pl_reunion_hours' => '2',
+        );
+        $html = $this->render('single_stic_pasar_lista_reuniones');
+
+        $this->assertStringContainsString('Reunión creada', $html);
+
+        // Se crea el evento de reuniones (no existía en el doble) y la sesión.
+        $events = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Events';
+        }));
+        $this->assertCount(1, $events);
+        $this->assertStringContainsString('Reuniones de programación', $events[0]['data']['name']);
+
+        $sessions = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Sessions';
+        }));
+        $this->assertCount(1, $sessions);
+        $this->assertSame('Programación 2.º trimestre', $sessions[0]['data']['name']);
+        // Hora LOCAL con formato Y-m-d H:i:s: en ISO con desplazamiento la API
+        // la ignora y pone la hora actual.
+        $this->assertSame('2026-01-17 19:00:00', $sessions[0]['data']['start_date']);
+        $this->assertSame('2026-01-17 21:00:00', $sessions[0]['data']['end_date']);
+    }
+
+    /** Un monitor no puede crear reuniones por POST. */
+    public function test_un_monitor_no_crea_reuniones()
+    {
+        $_POST = array(
+            'pl_nonce' => wp_create_nonce('pl_reuniones'),
+            'pl_reunion_name' => 'La mía',
+            'pl_reunion_date' => '2026-01-17',
+        );
+        $html = $this->render('single_stic_pasar_lista_reuniones');
+        $this->assertStringContainsString('es de coordinación', $html);
+        $this->assertSame(array(), $this->scp->writes);
+    }
+
+    /** Una fecha inválida no crea nada. */
+    public function test_reunion_con_fecha_invalida()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_POST = array(
+            'pl_nonce' => wp_create_nonce('pl_reuniones'),
+            'pl_reunion_name' => 'Sin fecha',
+            'pl_reunion_date' => 'mañana',
+        );
+        $html = $this->render('single_stic_pasar_lista_reuniones');
+        $this->assertStringContainsString('Revisa la fecha', $html);
+        $this->assertSame(array(), $this->scp->writes);
     }
 
     /**

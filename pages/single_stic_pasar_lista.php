@@ -176,6 +176,47 @@ $html .= '<span>' . esc_html__('Resumen y datos por revisar', 'sticpa') . '</spa
 $html .= sticpa_pl_icon('next');
 $html .= '</a>';
 
+// ---------------------------------------------------------------------------
+// Coordinación
+// ---------------------------------------------------------------------------
+
+/* DEBAJO de los grupos, y como dos secciones más de la MISMA pantalla. Un
+ * coordinador también tiene grupo (o no), así que no puede haber dos
+ * interfaces: lo que cambia es cuántas secciones se ven, no cuál es la
+ * pantalla. Y debajo porque lo frecuente es pasar lista de tu grupo —eso pasa
+ * cada sábado— y coordinar monitores pasa una vez al mes. Lo que se usa más va
+ * arriba, y el orden no cambia según quién entre. */
+$scope = sticpa_pl_coord_scope($objSCP);
+if ($scope !== null) {
+    $scopeLabel = ($scope['etapa'] !== '')
+        ? $scope['etapa']
+        : __('toda la delegación', 'sticpa');
+
+    $html .= '<div class="pl-etapa-title">'
+        . '<span class="pl-etapa-dot" style="background:var(--secondary-color)"></span>'
+        . esc_html__('Coordinación', 'sticpa')
+        . '<span class="pl-scope">' . esc_html($scopeLabel) . '</span>'
+        . '</div>';
+
+    $html .= '<div class="pl-list">';
+    $html .= '<a class="pl-group" href="?internalpage=single_stic_pasar_lista_monitores">';
+    $html .= '<span class="pl-group-body">';
+    $html .= '<span class="pl-name">' . esc_html__('Monitores', 'sticpa') . '</span>';
+    $html .= '<span class="pl-group-meta">' . esc_html__('Pasar lista del sábado', 'sticpa') . '</span>';
+    $html .= '</span>';
+    $html .= '<span class="pl-detail">' . sticpa_pl_icon('next') . '</span>';
+    $html .= '</a>';
+
+    $html .= '<a class="pl-group" href="?internalpage=single_stic_pasar_lista_reuniones">';
+    $html .= '<span class="pl-group-body">';
+    $html .= '<span class="pl-name">' . esc_html__('Reuniones', 'sticpa') . '</span>';
+    $html .= '<span class="pl-group-meta">' . esc_html__('Programación: crear y pasar lista', 'sticpa') . '</span>';
+    $html .= '</span>';
+    $html .= '<span class="pl-detail">' . sticpa_pl_icon('next') . '</span>';
+    $html .= '</a>';
+    $html .= '</div>';
+}
+
 if ($mainGroupId === '') {
     $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
         . esc_html__('No tienes ningún grupo asignado como monitor/a, así que no hay atajo. Puedes pasar lista de cualquier grupo desde la lista de arriba.', 'sticpa')
