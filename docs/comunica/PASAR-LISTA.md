@@ -293,9 +293,52 @@ prisa. Luego asistencia, familia, salud y datos.
 ### 6.5 Resumen de grupos (coordinación)
 
 Recuentos por etapa y segmento (MIC / COM I / COM II / COM III), estado de las
-listas de la semana, tabla de grupos con monitores, niños y asistencia media, y
-un bloque de **«datos por revisar»** con los grupos comodín y las personas sin
-grupo. Ese bloque es deliberado: es el gancho para que coordinación limpie.
+listas y «datos por revisar».
+
+**El historial de listas por grupo.** Esta era la duda de verdad: cómo se ve, de
+un vistazo, quién ha pasado la última lista y a quién le faltan listas de otros
+días. La respuesta es una **tira de marcas bajo cada grupo, una por sesión ya
+celebrada, la más reciente a la derecha**:
+
+| Marca | Significa |
+|---|---|
+| Verde lleno | Lista pasada |
+| Ámbar hueco | **Falta por pasar** |
+| Gris | Sin registro (se saltó a propósito) |
+
+Un grupo al día es una tira verde limpia. Un grupo dejado se ve como un tramo
+de huecos ámbar, y se ve *dónde* empezó a dejarse. Al lado, el número: «4 sin
+pasar». La pastilla de la derecha dice el estado de la **última** sesión, que es
+la pregunta frecuente; la tira contesta la de fondo. Eso hace innecesaria una
+pantalla aparte de «listas pendientes» por grupo.
+
+**El denominador se dice siempre.** Si estamos en febrero, el curso no lleva
+36,5 horas ni 24 sesiones: lleva las que han pasado. Así que:
+
+- El porcentaje se calcula **sobre las sesiones ya celebradas**, nunca sobre el
+  total del curso. Un 82 % en noviembre y un 82 % en mayo no son lo mismo, y sin
+  denominador parecen iguales.
+- Se escribe **«82 % de 12 sesiones»**, no «82 %» a secas.
+- `attendance_percentage` y `attended_hours` de la inscripción los calcula el
+  CRM sobre el evento completo, así que **no sirven para esto**: en mitad de
+  curso dan un número bajo que no significa nada malo. Se usan para el histórico
+  cerrado; el porcentaje vivo lo calcula la pantalla contando asistencias sobre
+  sesiones pasadas.
+- Igual con las horas: se enseñan «22 h de 24 h hasta hoy», no «22 h de 36,5 h».
+
+**Datos por revisar.** El bloque ámbar del final lista los problemas clásicos
+que en el CRM cuestan de ver y aquí están a un toque: participantes sin grupo
+asignado, monitores en «grupo por definir», participantes sin fecha de
+nacimiento, grupos sin código corto. Cada línea es un contador y **se abre**:
+toca «7 participantes sin grupo asignado» y sale la lista de esos siete.
+
+- **Coordinación edita, un monitor solo mira.** En la lista de participantes sin
+  grupo, un coordinador tiene el desplegable de grupo en cada fila y lo asigna
+  ahí mismo; un monitor ve la lista y a quién le falta, pero sin control de
+  edición. Es lo estándar y evita el clásico de que alguien arregle a mano lo
+  que no le toca.
+- No necesita pantalla propia de diseño: es la misma lista de participantes de
+  siempre con una fila de acción. Se construye en la fase 3.
 
 ### 6.6 Buscar un participante
 

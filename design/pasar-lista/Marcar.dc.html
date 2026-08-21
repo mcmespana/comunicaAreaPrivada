@@ -14,6 +14,13 @@
     .row { cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background 150ms cubic-bezier(0.4, 0, 0.2, 1); }
     .row:hover { background: #f9fafb; }
     .tap { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    @keyframes holdpulse {
+      0%, 62%  { transform: scale(0.62); opacity: 0; }
+      74%      { transform: scale(0.62); opacity: 0.55; }
+      100%     { transform: scale(1.32); opacity: 0; }
+    }
+    .holddot > span:first-child { animation: holdpulse 2.6s cubic-bezier(0.22, 0.61, 0.36, 1) infinite; }
+    @media (prefers-reduced-motion: reduce) { .holddot > span:first-child { animation: none; opacity: 0.35; } }
   </style>
 </helmet>
 
@@ -27,7 +34,7 @@
         <span style="font-size: 1.15rem; font-weight: 800; letter-spacing: -0.02em;">C1</span>
         <span style="font-size: 0.92rem; font-weight: 600; color: #4b5563;">Los Peques</span>
       </div>
-      <div style="font-size: 0.78rem; color: #6b7280;">David Soler · 1º ESO · 11 niños</div>
+      <div style="font-size: 0.78rem; color: #6b7280;">David Soler · 1º ESO · 11 participantes</div>
     </div>
     <div class="tap" style="display: inline-flex; align-items: center; gap: 7px; padding: 9px 13px; border-radius: 9999px; background: #ffffff; border: 1px solid #e5e7eb; flex-shrink: 0;">
       <span style="font-size: 0.82rem; font-weight: 700; color: #374151;">sáb 15</span>
@@ -69,18 +76,18 @@
           <!-- Circulo de estado. Vacio y punteado = por marcar, y se lee como
                un control que espera un toque. Lleno = marcado, con glifo y
                color propios para que no haga falta la etiqueta. -->
-          <div style="display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 9999px; background: {{ kid.circleBg }}; border: {{ kid.circleBorder }}; box-shadow: {{ kid.circleShadow }}; flex-shrink: 0;">
+          <div style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 9999px; background: {{ kid.circleBg }}; border: {{ kid.circleBorder }}; flex-shrink: 0;">
             <sc-if value="{{ kid.isYes }}" hint-placeholder-val="{{ true }}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px;"><path d="M20 6 9 17l-5-5"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" style="width: 19px; height: 19px;"><path d="M20 6 9 17l-5-5"/></svg>
             </sc-if>
             <sc-if value="{{ kid.isPartial }}" hint-placeholder-val="{{ false }}">
-              <svg viewBox="0 0 24 24" fill="#ffffff" style="width: 15px; height: 15px;"><path d="M12 2a10 10 0 0 1 0 20Z"/></svg>
+              <svg viewBox="0 0 24 24" fill="#ffffff" style="width: 17px; height: 17px;"><path d="M12 2a10 10 0 0 1 0 20Z"/></svg>
             </sc-if>
             <sc-if value="{{ kid.isJust }}" hint-placeholder-val="{{ false }}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round"><path d="M6 12h12"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" style="width: 17px; height: 17px;"><path d="M6 12h12"/></svg>
             </sc-if>
             <sc-if value="{{ kid.isNo }}" hint-placeholder-val="{{ false }}">
-              <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px;"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px;"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
             </sc-if>
           </div>
 
@@ -119,6 +126,16 @@
         </div>
         <span style="font-size: 0.74rem; font-weight: 600; color: #4b5563;">No vino</span>
       </div>
+
+      <!-- El gesto largo no se ve, asi que se anuncia: chip con el icono de
+           pulsacion y las ondas, junto a los dos estados que solo abre el. -->
+      <div class="hold" style="display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px 5px 8px; border-radius: 9999px; background: #ffffff; border: 1px dashed #cbd5e1;">
+        <span class="holddot" style="position: relative; display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; flex-shrink: 0;">
+          <span style="position: absolute; inset: 0; border-radius: 9999px; border: 1.5px solid #1c6fb3; opacity: 0.35;"></span>
+          <span style="width: 8px; height: 8px; border-radius: 9999px; background: #1c6fb3;"></span>
+        </span>
+        <span style="font-size: 0.74rem; font-weight: 700; color: #1c6fb3;">Mantén pulsado</span>
+      </div>
     </div>
 
     <div style="display: flex; align-items: flex-start; gap: 7px; padding: 10px 4px 0 4px;">
@@ -141,7 +158,7 @@
       </div>
       <div style="display: flex; align-items: center; gap: 6px;">
         <div style="width: 9px; height: 9px; border-radius: 9999px; background: #dc2626;"></div>
-        <span style="font-size: 0.82rem; font-weight: 700; color: #374151;">{{ countNo }} faltas</span>
+        <span style="font-size: 0.82rem; font-weight: 700; color: #374151;">{{ countNo }} ausencias</span>
       </div>
       <sc-if value="{{ hasNone }}" hint-placeholder-val="{{ true }}">
         <div style="display: flex; align-items: center; gap: 6px;">
@@ -221,6 +238,11 @@ class Component extends DCLogic {
 
       // El aviso solo a partir de 3 faltas SEGUIDAS.
       const warn = (k.seguidas || 0) >= 3;
+      // Los dos estados que solo se alcanzan manteniendo pulsado se dicen con
+      // palabras: ver "Parcial" escrito en una fila ensena que el gesto existe.
+      const notes = [];
+      if (st === 'partial' || st === 'no_justified') { notes.push(meta.label); }
+      if (warn) { notes.push(k.seguidas + ' ausencias seguidas'); }
 
       return {
         id: k.id,
@@ -234,9 +256,8 @@ class Component extends DCLogic {
         // Sin marcar: circulo vacio con borde punteado, que pide que lo toques.
         circleBg: st === '' ? 'transparent' : meta.color,
         circleBorder: st === '' ? '2px dashed #cbd5e1' : 'none',
-        circleShadow: st === '' ? 'none' : ('0 2px 6px ' + meta.color + '33'),
-        note: warn ? (k.seguidas + ' faltas seguidas') : '',
-        noteColor: '#b91c1c',
+        note: notes.join(' · '),
+        noteColor: warn ? '#b91c1c' : meta.ink,
         border: i === 0 ? 'none' : '1px solid #f3f4f6',
         nameColor: (st === 'no_unjustified' || st === 'no_justified') ? '#6b7280' : '#1f2937',
         avatarBg: st === '' ? '#f3f4f6' : meta.tint,

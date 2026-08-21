@@ -41,7 +41,10 @@ convivencia de Benigànim, Navidad, Magdalena y Sábado Santo.
 - [x] Claves de `stic_Attendances.status`: `yes`, `partial`, `no_justified`,
       `no_unjustified`
 - [ ] Confirmar las claves del desplegable `estado` de `LIS_listas`
-- [ ] Aclarar cuál es el campo del móvil del participante
+- [x] El móvil del participante es `phone_mobile` (confirmado)
+- [ ] Corregir `CAMPOS.md`: `phone_mobile` no es «No usar» — y subir el cambio
+      al repo `comunicaFormularios`
+- [ ] Crear el módulo `AVI_avisos` (spec en `PASAR-LISTA-CAMPOS-CRM.md` §6)
 - [ ] Poner `code` a los grupos de Castellón que se vayan a usar
 - [ ] Asignar grupo a los participantes y monitores del piloto
 
@@ -135,7 +138,24 @@ Los grupos sin evento ni asistencias no deberían aparecer en la navegación de
 Pasar Lista. Queda decidir si se ocultan por no tener evento asociado o hace
 falta marcarlos de alguna forma.
 
-### 5. Verificar `CAMPOS.md` contra el CRM por MCP
+### 5. El flujo de trabajo de correo de los avisos
+
+Cuando exista `AVI_avisos`, **hay que crear un flujo de trabajo en SuiteCRM**
+sobre ese módulo: al crear un aviso, correo a coordinación de la delegación. Es
+configuración del CRM, no código del área privada, pero sin él un aviso se queda
+solo en la ficha y nadie se entera.
+
+Depende de tener a los coordinadores en algún sitio
+(`PASAR-LISTA-CAMPOS-CRM.md` §7: se recomienda `stic_Contacts_Relationships` con
+`relationship_type = coordinador_mic` / `coordinador_com`).
+
+### 6. Qué es un «sector»
+
+Hablamos de coordinadores de etapa y de sector. En el CRM no hay hoy nada que
+agrupe delegaciones en sectores. Si un sector es un conjunto de delegaciones, va
+en `Accounts`, no en la persona. Pendiente de definir qué es.
+
+### 7. Verificar `CAMPOS.md` contra el CRM por MCP
 
 Algún día. Hoy `CAMPOS.md` es la fuente de la verdad y se mantiene a mano.
 

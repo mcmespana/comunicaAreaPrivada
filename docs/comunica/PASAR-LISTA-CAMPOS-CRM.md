@@ -18,7 +18,7 @@ No hace falta ningún otro módulo nuevo. Todo lo demás son campos.
 
 ---
 
-## 2. Lo único que hay que crear
+## 2. Lo que hay que crear
 
 ### 🔨 `ajmcm_GRUPOS` → `ajmcm_segmento_com_c`
 
@@ -181,47 +181,135 @@ no lo van a usar.
 
 ---
 
-## 6. Para más adelante (no ahora)
+## 6. Decidido, pendiente de crear
 
-### 🔨 Avisos de comportamiento — fase 3
+### 🔨 Avisos de comportamiento — módulo `AVI_avisos`
 
 Los «Aviso 1 / 2 / 3» de la app de AppSheet eran tres casillas en la persona
-que sumaban 0-3, más una explicación común.
+que sumaban 0-3, más una explicación común. **Se hace módulo**, decidido.
 
-**Recomendación: un módulo, no tres casillas.** Tres booleanos no guardan
-cuándo pasó ni quién lo puso, que es justo lo que hace falta cuando un aviso se
-discute con la familia. Un módulo `AVI_avisos` resuelve eso y además se limpia
-solo al cambiar de curso, porque los avisos quedan atados a su fecha en vez de
-acumularse para siempre en la persona.
+Tres booleanos no guardan cuándo pasó ni quién lo puso, que es justo lo que
+hace falta cuando un aviso se discute con la familia. Y no se pueden limpiar al
+cambiar de curso sin borrar la historia.
 
-| Campo | Uso |
-|---|---|
-| `avi_avisos_contacts` | El participante |
-| `fecha` | Cuándo (obligatorio: es el dato que faltaba) |
-| `puesto_por` → `Contacts` | Qué monitor lo pone |
-| `motivo` | Texto libre |
-| `avi_avisos_stic_sessions` | Opcional: la sesión en la que pasó |
-| `assigned_user_id` + `SecurityGroups` | Delegación |
+#### El «mucho a mucho»: no hay ninguno
 
-El contador «2 de 3» de la ficha sale de contar los registros del curso, y
-retirar un aviso es borrar un registro, no desmarcar una casilla.
+Esto es lo importante y es más simple de lo que parece:
 
-**Esto no bloquea nada.** El front de la ficha ya está diseñado (`Ficha.dc.html`,
-bloque «Avisos de comportamiento») y se puede construir sin campos detrás: se
-pinta vacío hasta que exista el módulo. Fase 3.
+| Relación | Cardinalidad | Cómo se monta |
+|---|---|---|
+| Participante → avisos | **uno a muchos** | Relación real `Contacts` 1:N `AVI_avisos`. Un participante tiene muchos avisos; **un aviso es de una sola persona.** |
+| Aviso → quién lo puso | muchos a uno | **Campo relate** a `Contacts`, no relación |
+| Aviso → sesión | muchos a uno | **Campo relate** a `stic_Sessions`, opcional |
 
-### ❓ El móvil del participante
+Solo la primera es una relación de verdad, porque es la única que se navega en
+las dos direcciones (desde la ficha quieres los avisos del chaval). Las otras
+dos son campos relate: nunca vas a pedir «los avisos que ha puesto Mercedes»
+desde la ficha de Mercedes, y un relate no crea tabla intermedia ni ensucia el
+detalle del contacto con dos paneles de avisos que significan cosas distintas.
 
-Tú comentaste que los del COM tienen teléfono propio para llamar y WhatsApp.
-En `CAMPOS.md` hay un conflicto que hay que aclarar:
+**Un `Contacts` 1:N `AVI_avisos` y dos relate. Ningún N:M.**
 
-- `phone_mobile` figura como **«No usar»**
-- `phone_other` figura como **«Contacto de emergencias»**
+#### Campos
 
-Pero en los datos reales `phone_mobile` **sí está relleno** (lo he visto en
-monitores). Así que: ¿cuál es el campo del móvil del participante? Si es
-`phone_mobile`, hay que corregir `CAMPOS.md`; si hay que crear uno nuevo,
-dímelo. Sin cerrar esto no puedo pintar el botón de llamar del participante.
+| Campo | Tipo | Obligatorio | Para qué |
+|---|---|---|---|
+| `name` | Texto | — | Que lo rellene el flujo o quede vacío; el título útil es el motivo |
+| `fecha` | Fecha | ✅ | **El dato que faltaba en AppSheet.** El día que pasó |
+| `motivo` | Área de texto | ✅ | Qué pasó, en palabras del monitor |
+| `avi_avisos_contacts` | Relación 1:N | ✅ | El participante |
+| `ajmcm_puesto_por_c` | Relate → `Contacts` | ✅ | El monitor que lo pone |
+| `ajmcm_sesion_c` | Relate → `stic_Sessions` | — | La sesión, si pasó en una |
+| `ajmcm_notificado_familia_c` | Casilla | — | **Si se ha hablado con la familia** |
+| `ajmcm_notificado_el_c` | Fecha | — | Cuándo se le dijo |
+| `assigned_user_id` + `SecurityGroups` | — | ✅ | Delegación |
 
-Y ojo: el botón de WhatsApp del menor tiene que respetar
-`ajmcm_menorwhatsapp_c`. Si no autoriza, no se pinta.
+**Sin campo de «nivel».** El 1, el 2 y el 3 salen de ordenar los avisos del
+curso por fecha. Si guardas el nivel a mano acabas con un participante que
+tiene «aviso 1» y «aviso 3» y ningún 2 porque alguien retiró el de en medio.
+Contando, retirar un aviso renumera los siguientes, que es lo que quieres.
+
+**Sin campo de «curso».** Sale del rango de fechas del curso.
+
+#### En pantalla: la escala sube de color
+
+El tercer aviso es la salida del grupo, así que se ve venir:
+
+| | Color | |
+|---|---|---|
+| Aviso 1 | ámbar `#f59e0b` | «ojo» |
+| Aviso 2 | naranja `#ea580c` | «esto va en serio» |
+| Aviso 3 | rojo `#dc2626` | expulsión |
+
+Los puntitos «2 de 3» de la cabecera usan los mismos colores, y el hueco del
+tercero va con borde rojo punteado. Debajo del segundo aviso, un aviso en rojo
+recuerda que el siguiente implica la salida y que hay que hablar con
+coordinación antes. Cada aviso lleva su chip de **Familia avisada / Familia sin
+avisar**, que es el dato que se pregunta siempre.
+
+#### ⏰ Recordatorio: el flujo de trabajo de correo
+
+**Queda pendiente crear un flujo de trabajo en el CRM** sobre `AVI_avisos` que,
+al crear un aviso, mande un correo a coordinación de la delegación. No es
+código del área privada, es configuración de SuiteCRM — pero sin él un aviso
+puede quedarse solo en la ficha. Anotado también en el roadmap.
+
+Para eso hace falta saber **quién es coordinación**, que es lo de abajo.
+
+---
+
+## 7. Los coordinadores de etapa: dónde van
+
+Hoy no hay sitio para «quién coordina el COM de Castellón», y hace falta para
+tres cosas distintas: mandarles el correo de los avisos, dejarles editar los
+«datos por revisar», y enseñarles el resumen de grupos.
+
+**Recomendación: una fila más en `stic_Contacts_Relationships`**, la misma
+tabla donde ya viven monitor, participante y grupo:
+
+```
+relationship_type = coordinador_mic | coordinador_com | coordinador_delegacion
+```
+
+Por qué ahí y no en otro sitio:
+
+- **Ya lleva vigencia.** Un coordinador lo es de un curso, no para siempre, y
+  esa tabla tiene fechas. Un campo en la persona no las tiene.
+- **Ya lleva delegación**, por el `assigned_user_id`. Sale gratis.
+- **El área privada ya la lee.** Es la misma consulta que saca los monitores de
+  un grupo; no hay código nuevo de datos.
+- Permite **varios coordinadores** por etapa sin inventar nada.
+
+Lo que **no** conviene:
+
+- `stic_relationship_type_c` en `Contacts` (el multienum): no tiene vigencia, no
+  distingue etapa, y es el campo del que sale el rol de login. Meterle
+  coordinadores lo convierte en dos cosas a la vez.
+- Un grupo de seguridad de SuiteCRM: vale para permisos, pero no sirve para
+  saber a quién escribir ni para separar MIC de COM.
+
+**Duda abierta: los «sectores».** Mencionas sectores además de etapas. En el CRM
+no existe hoy nada que agrupe delegaciones en sectores (`stic_professional_
+sector_c` es la profesión de la persona, otra cosa). Si un sector es un conjunto
+de delegaciones, lo natural sería un campo en la delegación (`Accounts`), no en
+la persona. Dime qué es exactamente un sector y lo cierro.
+
+---
+
+## 8. El móvil del participante: resuelto
+
+Los del COM tienen teléfono propio para llamar y WhatsApp. En `CAMPOS.md`
+figuraba `phone_mobile` como **«No usar»**, y en los datos reales sí estaba
+relleno — lo dejé como contradicción abierta.
+
+**Confirmado: `phone_mobile` SÍ se usa.** Es el móvil de la persona, y es el que
+pinta el botón de llamar y el de WhatsApp del participante. `phone_other` sigue
+siendo el contacto de emergencias.
+
+⚠️ **Hay que corregir `CAMPOS.md`** para que `phone_mobile` no diga «No usar», y
+—por la regla del `CLAUDE.md`— **subir ese mismo cambio al repo
+`comunicaFormularios`**, que escribe en el mismo campo.
+
+Y ojo: el botón de WhatsApp del menor respeta `ajmcm_menorwhatsapp_c`. Si no
+autoriza, no se pinta. El de llamar sí, porque autorizar WhatsApp y tener
+teléfono son cosas distintas.
