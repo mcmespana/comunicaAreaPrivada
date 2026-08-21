@@ -86,11 +86,47 @@ Pendiente:
   ficha, donde cuesta una consulta; en la lista costaría una por participante.
   Cuando el resumen recorra el curso, se puede alimentar de ahí.
 
-### Fase 4 — sin conexión
+### Fase 4 — sin conexión ✅ hecha
 
-Confirmado como importante, no opcional. Se pasa lista en patios y sótanos, y
-además la sesión de MCM App se mantiene siempre, así que entrar sin cobertura y
-que la pantalla funcione es parte de la experiencia esperada.
+Se pasa lista en patios y sótanos. Son dos problemas distintos y se han
+resuelto por separado:
+
+**1. La cobertura se cae mientras marcas** (el caso real de un sábado). Activo
+siempre, sin nada que encender:
+
+- **Borrador.** Lo marcado se guarda en el móvil a cada toque. Si la app se
+  cierra o se recarga, al volver está todo y la pantalla lo dice.
+- **Cola de envío.** Si al guardar no hay red, el envío se guarda y se reintenta
+  al recuperarla, a la misma URL y con los mismos campos que el formulario: no
+  hay una segunda ruta de guardado que pueda desincronizarse. Una entrada por
+  sesión y grupo, así que guardar dos veces sin cobertura manda la última, no
+  las dos.
+- **Aviso de estado** encima del botón: sin cobertura, guardado en el móvil,
+  enviando lo pendiente, ya enviado.
+
+**2. Abrir la pantalla ya sin cobertura.** Service worker, y **apagado por
+defecto**:
+
+```php
+add_filter('sticpa_pl_offline_enabled', '__return_true');
+```
+
+Se sirve en `/?sticpa_sw=1` (`inc/stic-pasar-lista-sw.php`) porque el alcance de
+un service worker no puede ser más amplio que su carpeta, y el área privada está
+fuera de la del plugin. Un parámetro no cambia la ruta, así que la ruta sigue
+siendo `/` y el alcance es todo el sitio — sin reglas de reescritura que haya que
+vaciar al activar.
+
+Está apagado por defecto porque un service worker manda sobre **todas** las
+peticiones del sitio, y esto se instala en WordPress que no controlamos (con sus
+cachés y sus CDN). Con el punto 1 activo, apagarlo solo cuesta el arranque en
+frío sin cobertura.
+
+**Privacidad.** Lo que se guarda son pantallas con nombres, teléfonos y datos de
+salud de menores, así que: la caché de páginas va **nombrada por usuario** (si en
+el mismo móvil entra otra persona, no puede leer la anterior, y las cachés de
+los demás se borran), y al cerrar sesión se borra todo. Solo se guardan las
+pantallas de Pasar Lista, nunca un POST, nunca otra sección.
 
 ### Fase 5 — más delegaciones
 

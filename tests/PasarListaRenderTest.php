@@ -673,6 +673,80 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame(array(), $this->scp->relationships);
     }
 
+    // ---- Fase 4: sin conexión, y el pulido del gesto -------------------
+
+    /**
+     * La pantalla de marcado lleva todo lo que el JS necesita para guardar sin
+     * cobertura: sesión, grupo y los textos. Si esto falta, el borrador no sabe
+     * de qué lista es y la cola no sabe qué reenviar.
+     */
+    public function test_marcar_lleva_los_datos_del_modo_sin_conexion()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertStringContainsString('data-session="s3"', $html);
+        $this->assertStringContainsString('data-group="g1"', $html);
+        // Los textos van en el HTML, no dentro del JS: así se traducen con el
+        // resto de la interfaz en vez de quedarse en castellano.
+        foreach (array('data-msg-draft', 'data-msg-offline', 'data-msg-queued', 'data-msg-sync', 'data-msg-sent') as $attr) {
+            $this->assertStringContainsString($attr, $html);
+        }
+        // Y el hueco donde se pinta el aviso.
+        $this->assertStringContainsString('data-pl-status', $html);
+    }
+
+    /** El overlay de carga del área privada, al enviar la lista. */
+    public function test_marcar_pinta_carga_al_enviar()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+        $this->assertStringContainsString('stic-loading-form', $html);
+        $this->assertStringContainsString('data-label-saving', $html);
+    }
+
+    /**
+     * El anillo del gesto largo se pinta SIEMPRE, no se inserta al empezar a
+     * pulsar: meter un nodo en medio de un gesto es lo que produce el tirón del
+     * primer fotograma.
+     */
+    public function test_el_anillo_del_gesto_largo_ya_esta_en_el_html()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+        $this->assertStringContainsString('pl-hold-ring-svg', $html);
+    }
+
+    /**
+     * El modo sin conexión completo está APAGADO por defecto: un service worker
+     * manda sobre todas las peticiones del sitio y esto se instala en
+     * WordPress que no controlamos. Se enciende con un filtro.
+     */
+    public function test_el_service_worker_no_se_registra_por_defecto()
+    {
+        $html = $this->render('single_stic_pasar_lista');
+        $this->assertStringNotContainsString('serviceWorker', $html);
+        $this->assertFalse(sticpa_pl_offline_enabled());
+    }
+
+    /** Encendido, se registra con alcance de sitio y con la clave de usuario. */
+    public function test_el_service_worker_se_registra_cuando_se_enciende()
+    {
+        $GLOBALS['__stic_filters']['sticpa_pl_offline_enabled'] = true;
+        $html = $this->render('single_stic_pasar_lista');
+
+        $this->assertStringContainsString('serviceWorker.register', $html);
+        $this->assertStringContainsString('sticpa_sw=1', $html);
+        // Alcance de sitio: si no, el service worker no puede controlar el área
+        // privada, que está fuera de la carpeta del plugin.
+        $this->assertStringContainsString("scope: '/'", $html);
+        // La caché va nombrada por usuario, y con un hash, no con el id del CRM.
+        $this->assertStringContainsString("type: 'sticpa:user'", $html);
+        $this->assertStringNotContainsString("key: 'm1'", $html);
+        // Y al cerrar sesión se borra todo.
+        $this->assertStringContainsString("type: 'sticpa:logout'", $html);
+    }
+
     /**
      * "Convivencia de familias del COM" NO es el evento de sesiones del COM.
      * Solo cuenta lo que hay antes del "|", que es la convención del proyecto.

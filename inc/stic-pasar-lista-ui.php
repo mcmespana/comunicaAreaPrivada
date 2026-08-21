@@ -77,26 +77,33 @@ function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '')
     $states = sticpa_pl_states();
     $state = sticpa_pl_is_state($state) ? $state : '';
 
-    // La nota bajo el nombre: el estado del gesto largo (que si no es invisible)
-    // y el aviso de ausencias seguidas, que solo sale si son SEGUIDAS.
+    $warn = '';
+    if ($streak >= sticpa_pl_streak_threshold()) {
+        $warn = sprintf(
+            /* translators: %d: número de ausencias consecutivas */
+            _n('%d ausencia seguida', '%d ausencias seguidas', $streak, 'sticpa'),
+            $streak
+        );
+    }
+
+    // La nota bajo el nombre: el estado del gesto largo (que si no, es invisible)
+    // y el aviso de ausencias seguidas, que solo sale si son SEGUIDAS. El JS la
+    // recompone al marcar, y por eso el aviso viaja también en `data-warn`.
     $notes = array();
     $noteClass = '';
     if ($state === 'partial' || $state === 'no_justified') {
         $notes[] = $states[$state]['label'];
         $noteClass = 'style="color:' . esc_attr($states[$state]['ink']) . '"';
     }
-    if ($streak >= sticpa_pl_streak_threshold()) {
-        $notes[] = sprintf(
-            /* translators: %d: número de ausencias consecutivas */
-            _n('%d ausencia seguida', '%d ausencias seguidas', $streak, 'sticpa'),
-            $streak
-        );
+    if ($warn !== '') {
+        $notes[] = $warn;
         $noteClass = 'style="color:var(--danger-dark)"';
     }
     $note = implode(' · ', $notes);
 
     $html = '<button type="button" class="pl-row" data-state="' . esc_attr($state) . '"'
         . ' data-contact="' . esc_attr($person['id']) . '"'
+        . ' data-warn="' . esc_attr($warn) . '"'
         . ' data-name="' . esc_attr($person['name']) . '"'
         . ' data-initials="' . esc_attr($person['initials']) . '"'
         . ' data-label-partial="' . esc_attr($states['partial']['label']) . '"'
@@ -110,7 +117,13 @@ function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '')
         . ($note === '' ? ' hidden' : '') . '>' . esc_html($note) . '</span>';
     $html .= '</span>';
 
-    $html .= '<span class="pl-mark">' . sticpa_pl_glyphs() . '</span>';
+    // El anillo del gesto largo va DENTRO del círculo, y se dibuja siempre: lo
+    // enseña y lo llena el CSS cuando la fila está en `is-holding`. Pintarlo
+    // desde el principio evita insertar nodos en medio de un gesto.
+    $html .= '<span class="pl-mark">' . sticpa_pl_glyphs()
+        . '<svg class="pl-hold-ring-svg" viewBox="0 0 44 44" aria-hidden="true">'
+        . '<circle cx="22" cy="22" r="20"/></svg>'
+        . '</span>';
     $html .= '</button>';
 
     // La flecha va FUERA del botón de marcar: dos controles anidados no se
@@ -179,7 +192,9 @@ function sticpa_pl_sheet_html($whenLabel = '')
     $html = '<div class="pl-sheet-veil" data-pl-veil></div>';
     $html .= '<div class="pl-sheet" data-pl-sheet role="dialog" aria-modal="true" aria-hidden="true"'
         . ' aria-label="' . esc_attr__('Estado de asistencia', 'sticpa') . '">';
-    $html .= '<div class="pl-sheet-grip" aria-hidden="true"></div>';
+    // El agarre no es solo decoración: es la zona por la que se arrastra, así que
+    // su área táctil es alta aunque la rayita se vea fina.
+    $html .= '<div class="pl-sheet-griparea" aria-hidden="true"><span class="pl-sheet-grip"></span></div>';
 
     $html .= '<div class="pl-sheet-who">'
         . '<span class="pl-avatar" data-pl-sheet-initials></span>'

@@ -143,7 +143,15 @@ foreach ($people['monitors'] as $m) {
 // Pintado
 // ---------------------------------------------------------------------------
 
-$html .= '<div data-pl-marcar>';
+$html .= '<div data-pl-marcar'
+    . ' data-session="' . esc_attr($session['id']) . '"'
+    . ' data-group="' . esc_attr($groupId) . '"'
+    . ' data-msg-draft="' . esc_attr__('Tienes marcas sin guardar de antes.', 'sticpa') . '"'
+    . ' data-msg-offline="' . esc_attr__('Sin cobertura. Puedes marcar: se guardará en el móvil.', 'sticpa') . '"'
+    . ' data-msg-queued="' . esc_attr__('Guardado en el móvil. Se enviará solo al volver la cobertura.', 'sticpa') . '"'
+    . ' data-msg-sync="' . esc_attr__('Enviando lo que quedó pendiente…', 'sticpa') . '"'
+    . ' data-msg-sent="' . esc_attr__('Lo pendiente ya está enviado.', 'sticpa') . '"'
+    . '>';
 
 // Cabecera: grupo, monitores y selector de sesión.
 $html .= '<div class="pl-head">';
@@ -206,7 +214,12 @@ if (empty($people['participants'])) {
     return;
 }
 
-$html .= '<form method="post" data-pl-form>';
+// `stic-loading-form` es lo que hace que js/stic-ui.js pinte el overlay de
+// carga al enviar: entre el tap y el primer pintado está toda la ida y vuelta
+// al CRM, y sin señal la lectura es "no ha hecho nada" y se toca otra vez.
+$html .= '<form method="post" class="stic-loading-form" data-pl-form'
+    . ' data-loading-text="' . esc_attr__('Guardando la lista…', 'sticpa') . '"'
+    . ' data-loading-sub="' . esc_attr__('Un momento', 'sticpa') . '">';
 $html .= wp_nonce_field('pl_save_' . $groupId, 'pl_nonce', true, false);
 $html .= '<input type="hidden" name="pl_marks" value="" data-pl-marks>';
 
@@ -233,6 +246,7 @@ $html .= '<button type="submit" name="pl_action" value="skip" class="pl-skip">'
 
 // Barra de guardado: contadores vivos y un solo botón.
 $html .= '<div class="pl-savebar">';
+$html .= '<p class="pl-status" data-pl-status hidden></p>';
 $html .= '<div class="pl-counts">';
 $html .= '<span class="pl-count"><span class="pl-count-dot pl-count-dot--yes"></span>'
     . '<span data-pl-count-yes>0</span>&nbsp;' . esc_html__('vinieron', 'sticpa') . '</span>';
@@ -244,7 +258,8 @@ $html .= '<span class="pl-count pl-count--none" data-pl-count-none-wrap hidden>'
 $html .= '</div>';
 $html .= '<button type="submit" name="pl_action" value="save" class="pl-save" data-pl-save'
     . ' data-label-full="' . esc_attr__('Guardar lista', 'sticpa') . '"'
-    . ' data-label-partial="' . esc_attr__('Guardar ({n} sin marcar)', 'sticpa') . '">'
+    . ' data-label-partial="' . esc_attr__('Guardar ({n} sin marcar)', 'sticpa') . '"'
+    . ' data-label-saving="' . esc_attr__('Guardando…', 'sticpa') . '">'
     . esc_html__('Guardar lista', 'sticpa') . '</button>';
 $html .= '</div>';
 

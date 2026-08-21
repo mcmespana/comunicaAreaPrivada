@@ -132,10 +132,46 @@
 .pl-row:first-child { border-top: 0; }
 .pl-row:active { background: var(--gray-50); }
 
-/* Mientras se mantiene pulsado, la fila se hunde un poco: es la señal de que
-   el gesto largo está en marcha y va a pasar algo. */
+/* Mientras se mantiene pulsado, la fila se hunde un poco. El hundido es la
+   respuesta INSTANTÁNEA al dedo; el anillo de abajo es la que dice cuánto
+   queda. Las dos juntas convierten un gesto invisible en uno que se ve. */
 .pl-row.is-holding { background: var(--gray-50); transform: scale(0.988); }
 .pl-row { transition: transform 160ms var(--ease-out), background 160ms linear; }
+
+/* El anillo del gesto largo: se dibuja alrededor del círculo de estado y se
+   completa en los 500 ms que dura el umbral. Es feedback CONTINUO durante el
+   gesto, no un premio al final: mientras se llena, ya sabes que va a pasar algo
+   y puedes soltar para cancelar.
+   Va con stroke-dashoffset en un SVG de 44 px: es repintado, pero de un
+   elemento diminuto y aislado, que es el caso en el que el repintado sale
+   gratis. Un conic-gradient animado aquí costaría mucho más. */
+.pl-hold-ring-svg {
+    position: absolute;
+    inset: -3px;
+    width: calc(100% + 6px);
+    height: calc(100% + 6px);
+    opacity: 0;
+    pointer-events: none;
+    transform: rotate(-90deg);      /* empieza arriba, como un reloj */
+}
+.pl-hold-ring-svg circle {
+    fill: none;
+    stroke: var(--primary-color);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    /* 2πr con r=20 en un viewBox de 44: 125.6 */
+    stroke-dasharray: 126;
+    stroke-dashoffset: 126;
+}
+.pl-row.is-holding .pl-hold-ring-svg { opacity: 1; }
+.pl-row.is-holding .pl-hold-ring-svg circle {
+    animation: pl-hold-fill 500ms linear forwards;
+}
+@keyframes pl-hold-fill { to { stroke-dashoffset: 0; } }
+
+/* El pellizco del círculo al cambiar de estado lo lanza el JS con la API de
+   animaciones (`animate()`), no una clase de aquí: reiniciar una animación de
+   CSS obliga a leer el diseño y eso pasaría en cada toque. */
 
 .pl-avatar {
     display: flex;
@@ -162,6 +198,7 @@
    control que espera un toque; lleno = marcado, con glifo y color propios,
    que es lo que hace innecesaria la etiqueta en cada fila. */
 .pl-mark {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -257,14 +294,18 @@
     height: 18px;
     flex-shrink: 0;
 }
+/* Late cuatro veces y para. Un aviso que late para siempre se convierte en
+   ruido de fondo y se deja de ver; y en cuanto el monitor usa el gesto una vez,
+   deja de latir del todo (body.pl-hold-seen). */
 .pl-hold-ring::before {
     content: '';
     position: absolute;
     inset: 0;
     border-radius: var(--radius-full);
     border: 1.5px solid var(--primary-color);
-    animation: pl-hold-pulse 2.6s cubic-bezier(0.22, 0.61, 0.36, 1) infinite;
+    animation: pl-hold-pulse 2.6s cubic-bezier(0.22, 0.61, 0.36, 1) 4;
 }
+body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
 .pl-hold-ring::after {
     content: '';
     width: 8px;
@@ -311,14 +352,22 @@
 
 /* ---- Barra de guardado -------------------------------------------------- */
 
+/* La barra flota sobre el contenido, que sigue pasando por debajo. En vez de
+   cortarla con una línea de 1 px, el contenido se DESVANECE al llegar a ella:
+   una línea dura dice "aquí se acaba"; el desvanecido dice "hay más, y esto
+   está encima". El desenfoque es de 8 px y fijo (nunca se anima), que es el
+   único uso barato del desenfoque. */
 .pl-savebar {
     position: sticky;
     bottom: 0;
     margin: 1.1rem -1rem 0;
-    padding: 0.8rem 1rem 1.2rem;
-    background: color-mix(in srgb, var(--gray-50) 94%, transparent);
+    padding: 1.4rem 1rem 1.2rem;
+    background: linear-gradient(
+        to bottom,
+        transparent 0,
+        color-mix(in srgb, var(--gray-50) 92%, transparent) 1.1rem,
+        color-mix(in srgb, var(--gray-50) 96%, transparent) 100%);
     backdrop-filter: blur(8px);
-    border-top: 1px solid var(--gray-200);
     display: flex;
     flex-direction: column;
     gap: 0.6rem;
@@ -360,17 +409,21 @@
 
 /* ---- Hoja de los cuatro estados ---------------------------------------- */
 
+/* El velo se oscurece A LA PAR que sube la hoja, no con su propia transición:
+   si cada uno va a su ritmo, se ven como dos cosas y no como una. */
 .pl-sheet-veil {
     position: fixed;
     inset: 0;
     background: rgba(17, 24, 39, 0.44);
     opacity: 0;
     pointer-events: none;
-    transition: opacity 200ms linear;
     z-index: 60;
 }
-.pl-sheet-veil.is-open { opacity: 1; pointer-events: auto; }
+.pl-sheet-veil.is-open { pointer-events: auto; }
 
+/* La hoja la mueve el muelle del JS, NO una transición de CSS: una transición
+   no se puede agarrar en pleno vuelo, y aquí lo importante es justo eso —poner
+   el dedo mientras se abre y que siga al dedo desde donde esté. */
 .pl-sheet {
     position: fixed;
     left: 0;
@@ -380,13 +433,21 @@
     background: var(--white);
     box-shadow: 0 -20px 44px rgba(21, 36, 71, 0.18);
     padding: 0.75rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom));
-    transform: translateY(101%);
-    transition: transform 260ms var(--ease-out);
+    transform: translate3d(0, 101%, 0);
     z-index: 61;
     max-height: 88vh;
     overflow-y: auto;
+    /* El arrastre vertical es nuestro; el navegador no se lo queda para hacer
+       scroll ni para el gesto de recargar tirando hacia abajo. */
+    touch-action: none;
+    overscroll-behavior: contain;
+    display: none;
 }
-.pl-sheet.is-open { transform: translateY(0); }
+.pl-sheet.is-open { display: block; }
+/* Mientras el dedo la lleva, se promociona a capa propia: el movimiento va en
+   el compositor y no toca el hilo principal. Fuera del arrastre se quita, que
+   dejar capas promocionadas de más es peor que no promocionar. */
+.pl-sheet.is-dragging { will-change: transform; }
 
 .pl-sheet-grip { width: 40px; height: 4px; margin: 0 auto 0.9rem; border-radius: var(--radius-full); background: var(--gray-200); }
 
@@ -568,15 +629,40 @@
 
 /* ---- Movimiento reducido ----------------------------------------------- */
 
+/* Movimiento reducido no es "sin feedback": es feedback sin desplazamiento. Se
+   quitan los recorridos y los rebotes, y se dejan el color y la opacidad, que
+   son los que hacen entender lo que ha pasado. El anillo del gesto largo SE
+   QUEDA: no es decoración, es la única señal de que el gesto avanza. */
 @media (prefers-reduced-motion: reduce) {
     .pl-mine,
     .pl-mine-avatar { animation: none; }
     .pl-mine-shine { display: none; }
     .pl-hold-ring::before { animation: none; opacity: 0.35; }
-    .pl-row,
-    .pl-sheet,
-    .pl-sheet-veil,
-    .pl-mark { transition: none; }
+    .pl-row { transition: background 120ms linear; }
+    .pl-row.is-holding { transform: none; }
+    .pl-mark { transition: background 120ms linear; }
+}
+
+/* Menos transparencia: el material se vuelve sólido. Un desenfoque es
+   agradable, pero si el sistema dice que estorba, estorba. */
+@media (prefers-reduced-transparency: reduce) {
+    .pl-savebar {
+        background: var(--gray-50);
+        backdrop-filter: none;
+    }
+    .pl-sheet-veil { background: rgba(17, 24, 39, 0.62); }
+}
+
+/* Más contraste: bordes definidos donde antes había solo una sombra suave, y el
+   círculo por marcar deja de ser punteado y gris claro. */
+@media (prefers-contrast: more) {
+    .pl-list,
+    .pl-att,
+    .pl-panuelo,
+    .pl-card { border: 1px solid var(--gray-400); }
+    .pl-mark { border-style: solid; border-color: var(--gray-500, #6b7280); }
+    .pl-savebar { background: var(--white); backdrop-filter: none; border-top: 2px solid var(--gray-400); }
+    .pl-hold-hint { border-style: solid; }
 }
 
 /* ---- Home: el atajo ----------------------------------------------------- */
@@ -934,4 +1020,46 @@ a.pl-group .pl-name { display: block; }
     font-size: 0.83rem;
     font-weight: 700;
     cursor: pointer;
+}
+
+/* ---- Aviso de estado de la barra de guardado ---------------------------- */
+
+/* Una línea, un motivo, siempre en el mismo sitio: encima del botón, donde ya
+   está mirando quien va a guardar. Cambia de color según lo que diga, pero no
+   se mueve ni aparece en otro lugar. */
+.pl-status {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.7rem;
+    border-radius: var(--radius-md);
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.35;
+    animation: pl-status-in 240ms var(--ease-out) both;
+}
+.pl-status[data-kind="draft"]   { background: var(--warning-soft); color: var(--warning-dark); }
+.pl-status[data-kind="offline"] { background: var(--gray-100); color: var(--gray-700, #374151); }
+.pl-status[data-kind="sync"]    { background: var(--primary-soft, #eaf4fb); color: var(--primary-color); }
+.pl-status[data-kind="ok"]      { background: var(--success-50); color: var(--success-dark); }
+
+@keyframes pl-status-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .pl-status { animation: none; } }
+
+/* El agarre de la hoja: la rayita se ve fina, pero el área por la que se puede
+   arrastrar es alta. Un asidero de 4 px es imposible de coger con el pulgar. */
+.pl-sheet-griparea {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    margin: -0.4rem 0 0.5rem;
+    cursor: grab;
+}
+.pl-sheet.is-dragging .pl-sheet-griparea { cursor: grabbing; }
+.pl-sheet-grip {
+    width: 40px;
+    height: 4px;
+    border-radius: var(--radius-full);
+    background: var(--gray-200);
 }

@@ -65,6 +65,7 @@ include plugin_dir_path(__FILE__) . 'inc/stic-events.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-crm.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-ui.php';
+include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-sw.php';
 
 add_action('admin_menu', 'sugar_crm_portal_create_menu');
 

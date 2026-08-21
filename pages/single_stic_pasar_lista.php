@@ -23,6 +23,11 @@ if (!empty($_REQUEST['refrescar'])) {
     sticpa_pl_flush($objSCP, 'all');
 }
 
+// El service worker se registra desde aquí, una sola vez: su alcance es todo el
+// sitio y el navegador lo recuerda. Devuelve cadena vacía si el modo sin
+// conexión no está encendido (ver inc/stic-pasar-lista-sw.php).
+$html .= sticpa_pl_sw_register_html();
+
 $groups = sticpa_pl_groups($objSCP);
 $myGroups = sticpa_pl_my_groups($objSCP);
 $events = sticpa_pl_etapa_events($objSCP);

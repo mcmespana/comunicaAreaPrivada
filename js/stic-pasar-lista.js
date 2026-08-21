@@ -1,295 +1,816 @@
 /**
  * PASAR LISTA — interacción de la pantalla de marcado.
- * ---------------------------------------------------------------------------
+ * ===========================================================================
  * Sin dependencias (ni jQuery): se carga solo en las pantallas de Pasar Lista y
  * tiene que arrancar rápido en la webview de MCM App.
  *
  * Lo que hace:
  *   · Tocar una fila cicla sin marcar → vino → no vino.
- *   · Mantener pulsado abre la hoja con los cuatro estados del CRM.
+ *   · Mantener pulsado abre la hoja con los cuatro estados, con un anillo que
+ *     se va llenando mientras aguantas: el gesto se VE avanzar.
+ *   · La hoja se arrastra con el dedo, con muelle e interrumpible.
  *   · "Han venido todos" marca todo de golpe.
  *   · Guardar manda TODA la lista en una sola petición.
+ *   · Lo marcado se guarda en el móvil y se reenvía solo si no hay cobertura.
  *
- * Nada se escribe hasta que se pulsa Guardar: es lo que permite marcar sin
- * cobertura y lo que evita dejar media lista escrita si algo falla a mitad.
+ * PRINCIPIOS DE MOVIMIENTO (los del diseño fluido de Apple, aplicados aquí):
+ *   1. Respuesta al PULSAR, no al soltar. Nada espera al `click`.
+ *   2. Feedback CONTINUO durante el gesto, no solo al final.
+ *   3. Todo es interrumpible: la hoja se puede agarrar en pleno vuelo y se
+ *      sigue desde donde está, nunca desde el valor de destino.
+ *   4. Al soltar, el movimiento CONTINÚA a la velocidad del dedo. Sin costura
+ *      entre arrastrar y animar.
+ *   5. Solo se animan `transform` y `opacity`, que son las que no repintan.
  *
  * Diseño: docs/comunica/PASAR-LISTA.md §6.3
  */
 (function () {
     'use strict';
 
-    var root = document.querySelector('[data-pl-marcar]');
-    if (!root) {
-        return;
-    }
+    /* =====================================================================
+     * Utilidades comunes
+     * ===================================================================== */
 
-    /* El ciclo del toque simple: solo los tres frecuentes. Desde un estado que
-       únicamente se alcanza manteniendo pulsado (parcial, justificada), el toque
-       lleva a "vino", que es lo que espera quien toca una fila ya marcada.
-       Mismo orden que sticpa_pl_next_state() en PHP: si cambia uno, cambia el
-       otro. */
-    function nextState(current) {
-        switch (current) {
-            case '': return 'yes';
-            case 'yes': return 'no_unjustified';
-            case 'no_unjustified': return '';
-            default: return 'yes';
-        }
-    }
+    var REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    var COUNTS = { yes: true, partial: true };   // cuentan como asistencia
-    var HOLD_MS = 500;                            // umbral del gesto largo
-    var HOLD_SLOP = 10;                           // px de movimiento que lo cancelan
+    /**
+     * Un muelle mínimo sobre requestAnimationFrame.
+     *
+     * Se escribe a mano en vez de traer una librería porque es la única
+     * animación de la pantalla que lo necesita y son treinta líneas. Los
+     * parámetros son los de Apple —amortiguación y "respuesta"— y no
+     * masa/rigidez/fricción, porque son los que se pueden razonar: la
+     * amortiguación decide si rebota y la respuesta, lo rápido que llega.
+     *
+     * Empieza SIEMPRE desde el valor actual y acepta una velocidad inicial:
+     * eso es lo que permite interrumpirlo y lo que hace que al soltar el dedo
+     * no se note el salto.
+     */
+    function spring(opts) {
+        var value = opts.from;
+        var velocity = opts.velocity || 0;
+        var target = opts.to;
+        var onUpdate = opts.onUpdate;
+        var onRest = opts.onRest;
 
-    var rows = Array.prototype.slice.call(root.querySelectorAll('.pl-row'));
-    var saveBtn = root.querySelector('[data-pl-save]');
-    var counts = {
-        yes: root.querySelector('[data-pl-count-yes]'),
-        no: root.querySelector('[data-pl-count-no]'),
-        none: root.querySelector('[data-pl-count-none]'),
-        noneWrap: root.querySelector('[data-pl-count-none-wrap]')
-    };
-    var sheet = document.querySelector('[data-pl-sheet]');
-    var veil = document.querySelector('[data-pl-veil]');
-    var form = root.querySelector('[data-pl-form]');
-    var marksInput = root.querySelector('[data-pl-marks]');
+        // damping 1 = sin rebote; 0.8 = un rebote pequeño (el de los cajones).
+        var damping = (opts.damping === undefined) ? 1 : opts.damping;
+        var response = (opts.response === undefined) ? 0.35 : opts.response;
 
-    // ---- Estado en memoria ------------------------------------------------
+        // De (amortiguación, respuesta) a los coeficientes del muelle.
+        var omega = (2 * Math.PI) / response;
+        var zeta = damping;
 
-    function getState(row) {
-        return row.getAttribute('data-state') || '';
-    }
+        var raf = null;
+        var last = null;
+        var stopped = false;
 
-    function setState(row, value) {
-        row.setAttribute('data-state', value);
-        var note = row.querySelector('[data-pl-state-note]');
-        if (note) {
-            // Los dos estados del gesto largo se dicen con palabras bajo el
-            // nombre: ver "Parcial" escrito en una fila enseña que existen.
-            var label = (value === 'partial' || value === 'no_justified')
-                ? (row.getAttribute('data-label-' + value) || '')
-                : '';
-            note.textContent = label;
-            note.hidden = (label === '');
-        }
-        refresh();
-    }
+        function step(now) {
+            if (stopped) { return; }
+            if (last === null) { last = now; }
+            // Paso de tiempo acotado: si la pestaña se queda atrás, un dt enorme
+            // haría explotar la integración y el elemento saltaría.
+            var dt = Math.min((now - last) / 1000, 1 / 30);
+            last = now;
 
-    function refresh() {
-        var nYes = 0, nNo = 0, nNone = 0;
-        rows.forEach(function (row) {
-            var s = getState(row);
-            if (s === '') { nNone++; } else if (COUNTS[s]) { nYes++; } else { nNo++; }
-        });
-        if (counts.yes) { counts.yes.textContent = nYes; }
-        if (counts.no) { counts.no.textContent = nNo; }
-        if (counts.none) { counts.none.textContent = nNone; }
-        if (counts.noneWrap) { counts.noneWrap.hidden = (nNone === 0); }
+            var distance = value - target;
+            var accel = (-omega * omega * distance) - (2 * zeta * omega * velocity);
+            velocity += accel * dt;
+            value += velocity * dt;
 
-        // Si queda gente sin marcar, el botón lo dice en vez de callárselo.
-        if (saveBtn) {
-            var tpl = nNone > 0
-                ? (saveBtn.getAttribute('data-label-partial') || 'Guardar ({n} sin marcar)')
-                : (saveBtn.getAttribute('data-label-full') || 'Guardar lista');
-            saveBtn.textContent = tpl.replace('{n}', nNone);
-        }
-    }
+            onUpdate(value);
 
-    // ---- Toque y gesto largo ---------------------------------------------
-
-    /* El gesto largo en web: pointerdown arranca un temporizador y lo cancelan
-       soltar, salirse o mover el dedo más de unos píxeles (para no confundirlo
-       con un scroll). Si el temporizador llega, se marca el evento como
-       consumido para que el click que viene detrás no cicle también.
-       El contextmenu se anula porque en Android el pulsado largo abre el menú
-       del navegador y se lleva el gesto. */
-    rows.forEach(function (row) {
-        var timer = null;
-        var startX = 0, startY = 0;
-        var consumed = false;
-
-        function cancel() {
-            if (timer) { clearTimeout(timer); timer = null; }
-            row.classList.remove('is-holding');
-        }
-
-        row.addEventListener('pointerdown', function (ev) {
-            if (ev.button && ev.button !== 0) { return; }
-            consumed = false;
-            startX = ev.clientX;
-            startY = ev.clientY;
-            row.classList.add('is-holding');
-            timer = setTimeout(function () {
-                timer = null;
-                consumed = true;
-                row.classList.remove('is-holding');
-                openSheet(row);
-            }, HOLD_MS);
-        });
-
-        row.addEventListener('pointermove', function (ev) {
-            if (!timer) { return; }
-            if (Math.abs(ev.clientX - startX) > HOLD_SLOP || Math.abs(ev.clientY - startY) > HOLD_SLOP) {
-                cancel();
-            }
-        });
-
-        row.addEventListener('pointerup', cancel);
-        row.addEventListener('pointercancel', function () { cancel(); consumed = true; });
-        row.addEventListener('pointerleave', cancel);
-
-        // En escritorio, el clic derecho abre la misma hoja: es el equivalente
-        // razonable del pulsado largo con ratón.
-        row.addEventListener('contextmenu', function (ev) {
-            ev.preventDefault();
-            cancel();
-            consumed = true;
-            openSheet(row);
-        });
-
-        row.addEventListener('click', function (ev) {
-            if (ev.target.closest('[data-pl-detail]')) {
-                return;     // la flecha abre la ficha, no marca
-            }
-            if (consumed) {
-                consumed = false;
+            // Descansa cuando ya no se distingue del destino ni se mueve.
+            if (Math.abs(value - target) < 0.4 && Math.abs(velocity) < 12) {
+                value = target;
+                onUpdate(value);
+                stopped = true;
+                if (onRest) { onRest(); }
                 return;
             }
-            setState(row, nextState(getState(row)));
-        });
+            raf = requestAnimationFrame(step);
+        }
 
-        // Teclado: espacio/enter ciclan, con la tecla de menú para los cuatro.
-        row.addEventListener('keydown', function (ev) {
-            if (ev.key === ' ' || ev.key === 'Enter') {
-                ev.preventDefault();
-                setState(row, nextState(getState(row)));
-            } else if (ev.key === 'ContextMenu' || (ev.shiftKey && ev.key === 'F10')) {
-                ev.preventDefault();
-                openSheet(row);
+        raf = requestAnimationFrame(step);
+
+        return {
+            /** Redirige sin cortar: la velocidad actual se conserva. */
+            retarget: function (next) { target = next; },
+            /** Para y devuelve dónde estaba, para poder seguir desde ahí. */
+            stop: function () {
+                stopped = true;
+                if (raf) { cancelAnimationFrame(raf); }
+                return { value: value, velocity: velocity };
+            },
+            get value() { return value; },
+            get velocity() { return velocity; }
+        };
+    }
+
+    /**
+     * Dónde acabaría algo que se suelta a esta velocidad.
+     *
+     * Es la proyección de inercia de iOS (decaimiento exponencial), no la
+     * fórmula de libro `v²/2a`. Sirve para decidir si un empujón corto pero
+     * rápido tiene que cerrar la hoja aunque el dedo apenas se haya movido:
+     * se mira a dónde IBA el gesto, no dónde acabó.
+     */
+    function project(velocity, decelerationRate) {
+        var d = decelerationRate || 0.998;
+        return (velocity / 1000) * d / (1 - d);
+    }
+
+    /** Resistencia progresiva al pasarse de un borde, en vez de tope seco. */
+    function rubberband(overshoot, dimension, constant) {
+        var c = constant || 0.55;
+        return (overshoot * dimension * c) / (dimension + c * Math.abs(overshoot));
+    }
+
+    /** Un golpecito háptico, donde exista. Nunca debe romper nada. */
+    function haptic(ms) {
+        if (!navigator.vibrate) { return; }
+        try { navigator.vibrate(ms); } catch (e) { /* da igual */ }
+    }
+
+    /* =====================================================================
+     * Persistencia local: borrador y cola de envío
+     * ---------------------------------------------------------------------
+     * Se pasa lista en patios y sótanos. Dos cosas distintas:
+     *
+     *   BORRADOR — lo marcado se guarda en el móvil a cada toque. Si la app se
+     *   cierra, se recarga o se va la luz, al volver está todo. Es la que
+     *   quita el miedo de "he pasado lista y se ha perdido".
+     *
+     *   COLA — si al guardar no hay cobertura, el envío se guarda y se reintenta
+     *   al recuperar red. El monitor se va a casa con la lista puesta.
+     *
+     * localStorage y no IndexedDB porque son cuatro kilobytes (una sesión, doce
+     * participantes) y el acceso es sincrónico, que es justo lo que quieres en
+     * el manejador de un toque.
+     * ===================================================================== */
+
+    var STORE_DRAFT = 'sticpa_pl_draft_';
+    var STORE_QUEUE = 'sticpa_pl_queue';
+    var STORE_HINT = 'sticpa_pl_hold_seen';
+
+    function lsGet(key) {
+        try { return window.localStorage.getItem(key); } catch (e) { return null; }
+    }
+    function lsSet(key, value) {
+        try { window.localStorage.setItem(key, value); return true; } catch (e) { return false; }
+    }
+    function lsDel(key) {
+        try { window.localStorage.removeItem(key); } catch (e) { /* nada */ }
+    }
+
+    function readJson(key, fallback) {
+        var raw = lsGet(key);
+        if (!raw) { return fallback; }
+        try {
+            var parsed = JSON.parse(raw);
+            return (parsed === null) ? fallback : parsed;
+        } catch (e) {
+            lsDel(key);     // basura: se tira, no se arrastra
+            return fallback;
+        }
+    }
+
+    /* ---- Cola de envíos pendientes -------------------------------------- */
+
+    function queueRead() {
+        var q = readJson(STORE_QUEUE, []);
+        return Array.isArray(q) ? q : [];
+    }
+
+    function queuePush(entry) {
+        var q = queueRead();
+        // Una entrada por sesión y grupo: si se guarda dos veces sin cobertura,
+        // manda la última. Reenviar las dos escribiría lo viejo encima.
+        q = q.filter(function (e) {
+            return !(e.session === entry.session && e.group === entry.group);
+        });
+        q.push(entry);
+        lsSet(STORE_QUEUE, JSON.stringify(q));
+    }
+
+    function queueRemove(entry) {
+        var q = queueRead().filter(function (e) {
+            return !(e.session === entry.session && e.group === entry.group);
+        });
+        if (q.length) { lsSet(STORE_QUEUE, JSON.stringify(q)); } else { lsDel(STORE_QUEUE); }
+    }
+
+    /**
+     * Intenta enviar lo que haya en la cola.
+     *
+     * Va a la MISMA url y con los mismos campos que el formulario, así que el
+     * servidor no distingue un reenvío de un envío normal: no hay una segunda
+     * ruta de guardado que pueda quedarse desincronizada de la primera.
+     */
+    function queueFlush(onDone) {
+        var q = queueRead();
+        if (!q.length || !navigator.onLine || !window.fetch) {
+            if (onDone) { onDone(0, q.length); }
+            return;
+        }
+        var pending = q.length;
+        var sent = 0;
+
+        q.forEach(function (entry) {
+            var body = new URLSearchParams();
+            body.set('pl_action', entry.action || 'save');
+            body.set('pl_nonce', entry.nonce || '');
+            body.set('pl_marks', entry.marks || '{}');
+
+            fetch(entry.url, {
+                method: 'POST',
+                body: body,
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+            }).then(function (res) {
+                // Un nonce caducado devuelve 200 con un aviso, no un error HTTP,
+                // así que esto solo distingue "ha llegado" de "no ha llegado".
+                if (res.ok) {
+                    queueRemove(entry);
+                    sent++;
+                }
+            }).catch(function () {
+                /* sigue en la cola para el próximo intento */
+            }).then(function () {
+                pending--;
+                if (pending === 0 && onDone) { onDone(sent, queueRead().length); }
+            });
+        });
+    }
+
+    /* =====================================================================
+     * Pantalla de marcado
+     * ===================================================================== */
+
+    var root = document.querySelector('[data-pl-marcar]');
+
+    if (root) {
+        initMarcar(root);
+    } else {
+        // Fuera de la pantalla de marcado, la cola sigue siendo asunto nuestro:
+        // si el monitor vuelve a entrar con cobertura, se envía lo pendiente.
+        if (navigator.onLine) { queueFlush(); }
+        window.addEventListener('online', function () { queueFlush(); });
+    }
+
+    function initMarcar(root) {
+        /* El ciclo del toque simple: solo los tres frecuentes. Desde un estado
+           que solo se alcanza manteniendo pulsado, el toque lleva a "vino", que
+           es lo que espera quien toca una fila ya marcada de forma especial.
+           Mismo orden que sticpa_pl_next_state() en PHP. */
+        function nextState(current) {
+            switch (current) {
+                case '': return 'yes';
+                case 'yes': return 'no_unjustified';
+                case 'no_unjustified': return '';
+                default: return 'yes';
             }
-        });
-    });
-
-    // ---- "Han venido todos" ----------------------------------------------
-
-    var allBtn = root.querySelector('[data-pl-all-present]');
-    if (allBtn) {
-        allBtn.addEventListener('click', function () {
-            rows.forEach(function (row) { setState(row, 'yes'); });
-        });
-    }
-
-    // ---- La hoja de los cuatro estados -----------------------------------
-
-    var sheetRow = null;
-
-    function openSheet(row) {
-        if (!sheet) { return; }
-        sheetRow = row;
-
-        var name = sheet.querySelector('[data-pl-sheet-name]');
-        var initials = sheet.querySelector('[data-pl-sheet-initials]');
-        if (name) { name.textContent = row.getAttribute('data-name') || ''; }
-        if (initials) { initials.textContent = row.getAttribute('data-initials') || ''; }
-
-        var current = getState(row);
-        Array.prototype.forEach.call(sheet.querySelectorAll('.pl-opt'), function (opt) {
-            opt.setAttribute('aria-checked', opt.getAttribute('data-value') === current ? 'true' : 'false');
-        });
-
-        sheet.classList.add('is-open');
-        if (veil) { veil.classList.add('is-open'); }
-        sheet.setAttribute('aria-hidden', 'false');
-
-        // Un golpecito háptico, donde exista: confirma que el gesto ha ido bien
-        // sin tener que mirar la pantalla.
-        if (navigator.vibrate) {
-            try { navigator.vibrate(12); } catch (e) { /* da igual */ }
         }
-    }
 
-    function closeSheet() {
-        if (!sheet) { return; }
-        sheet.classList.remove('is-open');
-        if (veil) { veil.classList.remove('is-open'); }
-        sheet.setAttribute('aria-hidden', 'true');
-        sheetRow = null;
-    }
+        var COUNTS = { yes: true, partial: true };
+        var HOLD_MS = 500;
+        var HOLD_SLOP = 10;
 
-    if (sheet) {
-        Array.prototype.forEach.call(sheet.querySelectorAll('.pl-opt'), function (opt) {
-            opt.addEventListener('click', function () {
-                if (sheetRow) { setState(sheetRow, opt.getAttribute('data-value') || ''); }
-                closeSheet();
-            });
-        });
-        var clear = sheet.querySelector('[data-pl-sheet-clear]');
-        if (clear) {
-            clear.addEventListener('click', function () {
-                if (sheetRow) { setState(sheetRow, ''); }
-                closeSheet();
-            });
+        var sessionId = root.getAttribute('data-session') || '';
+        var groupId = root.getAttribute('data-group') || '';
+        var draftKey = STORE_DRAFT + sessionId + '_' + groupId;
+
+        var rows = Array.prototype.slice.call(root.querySelectorAll('.pl-row'));
+        var saveBtn = root.querySelector('[data-pl-save]');
+        var form = root.querySelector('[data-pl-form]');
+        var marksInput = root.querySelector('[data-pl-marks]');
+        var status = root.querySelector('[data-pl-status]');
+        var counts = {
+            yes: root.querySelector('[data-pl-count-yes]'),
+            no: root.querySelector('[data-pl-count-no]'),
+            none: root.querySelector('[data-pl-count-none]'),
+            noneWrap: root.querySelector('[data-pl-count-none-wrap]')
+        };
+
+        var dirty = false;
+
+        /* ---- Estado en memoria ----------------------------------------- */
+
+        function getState(row) {
+            return row.getAttribute('data-state') || '';
         }
-    }
-    if (veil) { veil.addEventListener('click', closeSheet); }
-    document.addEventListener('keydown', function (ev) {
-        if (ev.key === 'Escape') { closeSheet(); }
-    });
 
-    // ---- Guardar ----------------------------------------------------------
-
-    /* Toda la lista en una petición. Los estados viajan en un campo oculto como
-       JSON en vez de un input por fila: así el guardado es uno, y el día que
-       haya modo sin conexión lo único que cambia es dónde se deja ese JSON
-       mientras no hay red. */
-    if (form) {
-        form.addEventListener('submit', function () {
+        function collect() {
             var marks = {};
             rows.forEach(function (row) {
                 var id = row.getAttribute('data-contact');
                 if (id) { marks[id] = getState(row); }
             });
-            if (marksInput) { marksInput.value = JSON.stringify(marks); }
-            if (saveBtn) { saveBtn.disabled = true; }
-        });
-    }
+            return marks;
+        }
 
-    refresh();
-}());
+        function setState(row, value, quiet) {
+            if (getState(row) === value) { return; }
+            row.setAttribute('data-state', value);
 
-/**
- * PASAR LISTA — ficha: el cambio de pañuelo.
- * ---------------------------------------------------------------------------
- * Dos toques y una confirmación. El pañuelo dice quién puede hacer qué en una
- * actividad, así que cambiarlo por un roce no puede ser posible; pero tampoco
- * puede costar entrar en el CRM, porque quien lo sabe es el monitor.
- *
- * Sin JS el formulario sigue funcionando: las opciones están en el HTML y solo
- * están ocultas, así que el peor caso es que se vean todas desde el principio.
- */
-(function () {
-    'use strict';
-
-    var form = document.querySelector('[data-pl-panuelo]');
-    if (!form) {
-        return;
-    }
-
-    var opts = form.querySelector('[data-pl-panuelo-opts]');
-    var edit = form.querySelector('[data-pl-panuelo-edit]');
-
-    if (edit && opts) {
-        edit.addEventListener('click', function () {
-            opts.hidden = !opts.hidden;
-            edit.setAttribute('aria-expanded', opts.hidden ? 'false' : 'true');
-        });
-    }
-
-    Array.prototype.forEach.call(form.querySelectorAll('[data-pl-confirm]'), function (btn) {
-        btn.addEventListener('click', function (ev) {
-            if (!window.confirm(btn.getAttribute('data-pl-confirm'))) {
-                ev.preventDefault();
+            // Un pellizco de escala en el círculo, en el instante del cambio: es
+            // la confirmación de que el toque ha hecho algo.
+            //
+            // Con la API de animaciones y NO reiniciando una clase de CSS: el
+            // truco de quitar la clase, leer offsetWidth y volver a ponerla
+            // obliga al navegador a recalcular el diseño del documento entero,
+            // y aquí pasaría en cada toque de cada fila. `animate()` hace lo
+            // mismo sin tocar el diseño y solo anima `transform`.
+            var mark = row.querySelector('.pl-mark');
+            if (mark && !REDUCED && mark.animate) {
+                try {
+                    mark.animate(
+                        [{ transform: 'scale(1)' }, { transform: 'scale(1.16)' }, { transform: 'scale(1)' }],
+                        { duration: 260, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' }
+                    );
+                } catch (e) { /* sin pellizco, pero la marca se pone igual */ }
             }
+
+            var note = row.querySelector('[data-pl-state-note]');
+            if (note) {
+                // Los dos estados del gesto largo se dicen con palabras bajo el
+                // nombre: ver "Parcial" escrito en una fila enseña que existen.
+                var label = (value === 'partial' || value === 'no_justified')
+                    ? (row.getAttribute('data-label-' + value) || '')
+                    : '';
+                var warn = row.getAttribute('data-warn') || '';
+                var text = [label, warn].filter(Boolean).join(' · ');
+                note.textContent = text;
+                note.hidden = (text === '');
+            }
+
+            if (!quiet) {
+                dirty = true;
+                saveDraft();
+            }
+            refresh();
+        }
+
+        function refresh() {
+            var nYes = 0, nNo = 0, nNone = 0;
+            rows.forEach(function (row) {
+                var s = getState(row);
+                if (s === '') { nNone++; } else if (COUNTS[s]) { nYes++; } else { nNo++; }
+            });
+            if (counts.yes) { counts.yes.textContent = nYes; }
+            if (counts.no) { counts.no.textContent = nNo; }
+            if (counts.none) { counts.none.textContent = nNone; }
+            if (counts.noneWrap) { counts.noneWrap.hidden = (nNone === 0); }
+
+            // Si queda gente sin marcar, el botón lo dice en vez de callárselo.
+            if (saveBtn && !saveBtn.disabled) {
+                var tpl = nNone > 0
+                    ? (saveBtn.getAttribute('data-label-partial') || 'Guardar ({n} sin marcar)')
+                    : (saveBtn.getAttribute('data-label-full') || 'Guardar lista');
+                saveBtn.textContent = tpl.replace('{n}', nNone);
+            }
+        }
+
+        /* ---- Borrador --------------------------------------------------- */
+
+        function saveDraft() {
+            if (!sessionId || !groupId) { return; }
+            lsSet(draftKey, JSON.stringify({ marks: collect(), ts: Date.now() }));
+        }
+
+        function restoreDraft() {
+            if (!sessionId || !groupId) { return; }
+            var draft = readJson(draftKey, null);
+            if (!draft || !draft.marks) { return; }
+
+            var server = collect();
+            var changed = 0;
+            rows.forEach(function (row) {
+                var id = row.getAttribute('data-contact');
+                if (!id || !(id in draft.marks)) { return; }
+                if (draft.marks[id] !== server[id]) {
+                    setState(row, draft.marks[id], true);
+                    changed++;
+                }
+            });
+
+            if (changed > 0) {
+                dirty = true;
+                say('draft', root.getAttribute('data-msg-draft') || '');
+            }
+        }
+
+        /** El aviso de estado de la barra: una línea, un motivo. */
+        function say(kind, text) {
+            if (!status || !text) { return; }
+            status.textContent = text;
+            status.setAttribute('data-kind', kind);
+            status.hidden = false;
+        }
+        function hush() {
+            if (status) { status.hidden = true; }
+        }
+
+        /* ---- Toque y gesto largo --------------------------------------- */
+
+        /* El gesto largo en web: `pointerdown` arranca un temporizador y lo
+           cancelan soltar, salirse o mover el dedo más de unos píxeles (para no
+           confundirlo con un scroll). Mientras corre, un anillo se va llenando
+           alrededor del círculo: el gesto se ve avanzar, que es la diferencia
+           entre "no sabía que se podía" y "ya sé cómo". Si el temporizador
+           llega, el `click` que viene detrás se ignora.
+           El `contextmenu` se anula porque en Android el pulsado largo abre el
+           menú del navegador y se lleva el gesto. */
+        rows.forEach(function (row) {
+            var timer = null;
+            var startX = 0, startY = 0;
+            var consumed = false;
+
+            function cancelHold() {
+                if (timer) { clearTimeout(timer); timer = null; }
+                row.classList.remove('is-holding');
+            }
+
+            row.addEventListener('pointerdown', function (ev) {
+                if (ev.button && ev.button !== 0) { return; }
+                consumed = false;
+                startX = ev.clientX;
+                startY = ev.clientY;
+                row.classList.add('is-holding');
+                timer = setTimeout(function () {
+                    timer = null;
+                    consumed = true;
+                    row.classList.remove('is-holding');
+                    openSheet(row);
+                }, HOLD_MS);
+            });
+
+            row.addEventListener('pointermove', function (ev) {
+                if (!timer) { return; }
+                if (Math.abs(ev.clientX - startX) > HOLD_SLOP || Math.abs(ev.clientY - startY) > HOLD_SLOP) {
+                    cancelHold();
+                }
+            });
+
+            row.addEventListener('pointerup', cancelHold);
+            row.addEventListener('pointercancel', function () { cancelHold(); consumed = true; });
+            row.addEventListener('pointerleave', cancelHold);
+
+            // En escritorio, el clic derecho abre la misma hoja.
+            row.addEventListener('contextmenu', function (ev) {
+                ev.preventDefault();
+                cancelHold();
+                consumed = true;
+                openSheet(row);
+            });
+
+            row.addEventListener('click', function (ev) {
+                if (ev.target.closest && ev.target.closest('[data-pl-detail]')) {
+                    return;     // la flecha abre la ficha, no marca
+                }
+                if (consumed) {
+                    consumed = false;
+                    return;
+                }
+                setState(row, nextState(getState(row)));
+            });
+
+            // Teclado: espacio y enter ciclan; la tecla de menú abre los cuatro.
+            row.addEventListener('keydown', function (ev) {
+                if (ev.key === ' ' || ev.key === 'Enter') {
+                    ev.preventDefault();
+                    setState(row, nextState(getState(row)));
+                } else if (ev.key === 'ContextMenu' || (ev.shiftKey && ev.key === 'F10')) {
+                    ev.preventDefault();
+                    openSheet(row);
+                }
+            });
         });
-    });
+
+        /* ---- "Han venido todos" ---------------------------------------- */
+
+        var allBtn = root.querySelector('[data-pl-all-present]');
+        if (allBtn) {
+            allBtn.addEventListener('click', function () {
+                // Escalonado mínimo: las filas se marcan en cascada de arriba
+                // abajo. Cuesta 20 ms por fila y convierte un cambio de golpe
+                // (que se lee como un parpadeo) en algo que se entiende.
+                rows.forEach(function (row, i) {
+                    if (REDUCED) {
+                        setState(row, 'yes', i > 0);
+                        return;
+                    }
+                    setTimeout(function () { setState(row, 'yes', i > 0); }, i * 20);
+                });
+                haptic(10);
+            });
+        }
+
+        /* ---- La hoja de los cuatro estados ----------------------------- */
+
+        var sheet = document.querySelector('[data-pl-sheet]');
+        var veil = document.querySelector('[data-pl-veil]');
+        var sheetRow = null;
+        var sheetSpring = null;
+        var sheetY = 0;             // 0 = abierta del todo; height = cerrada
+        var sheetHeight = 0;
+        var drag = null;
+
+        function renderSheet(y) {
+            sheetY = y;
+            // Solo transform y opacity: son las dos que el navegador puede mover
+            // sin repintar. Cualquier otra propiedad aquí costaría cuadros.
+            sheet.style.transform = 'translate3d(0,' + y + 'px,0)';
+            if (veil) {
+                var p = sheetHeight > 0 ? (1 - Math.min(Math.max(y / sheetHeight, 0), 1)) : 1;
+                veil.style.opacity = String(p);
+            }
+        }
+
+        function springTo(to, velocity, onRest) {
+            if (sheetSpring) { sheetSpring.stop(); }
+            if (REDUCED) {
+                renderSheet(to);
+                if (onRest) { onRest(); }
+                return;
+            }
+            sheetSpring = spring({
+                from: sheetY,
+                to: to,
+                velocity: velocity || 0,
+                // Los valores del cajón de iOS: un rebote pequeño, porque el
+                // gesto que lo mueve trae inercia. Sin gesto no rebotaría.
+                damping: 0.8,
+                response: 0.3,
+                onUpdate: renderSheet,
+                onRest: onRest
+            });
+        }
+
+        function openSheet(row) {
+            if (!sheet) { return; }
+            sheetRow = row;
+
+            var name = sheet.querySelector('[data-pl-sheet-name]');
+            var initials = sheet.querySelector('[data-pl-sheet-initials]');
+            if (name) { name.textContent = row.getAttribute('data-name') || ''; }
+            if (initials) { initials.textContent = row.getAttribute('data-initials') || ''; }
+
+            var current = getState(row);
+            Array.prototype.forEach.call(sheet.querySelectorAll('.pl-opt'), function (opt) {
+                opt.setAttribute('aria-checked', opt.getAttribute('data-value') === current ? 'true' : 'false');
+            });
+
+            // La hoja tiene que estar visible para poder medirla, y la medida se
+            // toma ANTES de escribir el transform: leer y escribir en el mismo
+            // cuadro es lo que produce el tirón del primer fotograma.
+            sheet.classList.add('is-open');
+            if (veil) { veil.classList.add('is-open'); }
+            sheet.setAttribute('aria-hidden', 'false');
+            sheetHeight = sheet.offsetHeight || 320;
+
+            renderSheet(sheetHeight);
+            springTo(0, 0);
+
+            // El háptico va en el mismo cuadro que el movimiento: si llega tarde,
+            // se percibe como dos cosas distintas en vez de una.
+            haptic(12);
+
+            // El chip de "mantén pulsado" deja de latir en cuanto se descubre el
+            // gesto: un aviso que ya no hace falta es ruido.
+            lsSet(STORE_HINT, '1');
+            document.body.classList.add('pl-hold-seen');
+        }
+
+        function closeSheet(velocity) {
+            if (!sheet || !sheet.classList.contains('is-open')) { return; }
+            springTo(sheetHeight, velocity || 0, function () {
+                sheet.classList.remove('is-open');
+                if (veil) { veil.classList.remove('is-open'); veil.style.opacity = ''; }
+                sheet.setAttribute('aria-hidden', 'true');
+                sheet.style.transform = '';
+                sheetRow = null;
+            });
+        }
+
+        if (sheet) {
+            /* Arrastrar la hoja. Lo importante no es que se pueda cerrar de un
+               gesto (eso ya lo hace el velo), es que se pueda AGARRAR mientras
+               se mueve: si el muelle está corriendo y pones el dedo, se para
+               donde está y sigue tu dedo desde ahí. Sin eso, la animación manda
+               sobre el usuario, que es justo lo contrario de lo que queremos. */
+            sheet.addEventListener('pointerdown', function (ev) {
+                // Los botones de la hoja no arrastran: pulsar "Vino" es pulsar.
+                if (ev.target.closest && ev.target.closest('button')) { return; }
+                if (ev.button && ev.button !== 0) { return; }
+
+                var live = sheetSpring ? sheetSpring.stop() : { value: sheetY, velocity: 0 };
+                sheetSpring = null;
+                sheet.setPointerCapture(ev.pointerId);
+
+                drag = {
+                    // El desplazamiento respecto a DONDE se ha agarrado: si se
+                    // salta al centro, la ilusión se rompe en el primer píxel.
+                    grabY: ev.clientY,
+                    startValue: live.value,
+                    history: [{ y: ev.clientY, t: performance.now() }]
+                };
+                sheet.classList.add('is-dragging');
+            });
+
+            sheet.addEventListener('pointermove', function (ev) {
+                if (!drag) { return; }
+                var raw = drag.startValue + (ev.clientY - drag.grabY);
+
+                // Hacia arriba no hay nada: en vez de tope seco, resistencia
+                // progresiva, que es cómo se comportan las cosas de verdad.
+                var y = (raw < 0) ? rubberband(raw, sheetHeight) : raw;
+                renderSheet(y);
+
+                drag.history.push({ y: ev.clientY, t: performance.now() });
+                if (drag.history.length > 6) { drag.history.shift(); }
+            });
+
+            function endDrag(ev) {
+                if (!drag) { return; }
+                sheet.classList.remove('is-dragging');
+                sheet.releasePointerCapture && sheet.releasePointerCapture(ev.pointerId);
+
+                // Velocidad de los últimos milímetros, no del gesto entero: es
+                // la que tenía el dedo al soltar.
+                var h = drag.history;
+                var first = h[0];
+                var last = h[h.length - 1];
+                var dt = Math.max(last.t - first.t, 1);
+                var velocity = ((last.y - first.y) / dt) * 1000;   // px/s
+
+                drag = null;
+
+                // A dónde IBA el gesto, no dónde ha acabado. Un empujón corto y
+                // rápido cierra; un arrastre largo y lento que se queda a medias,
+                // vuelve. Decidir por posición ignoraría el empujón.
+                var projected = sheetY + project(velocity);
+                if (projected > sheetHeight * 0.4) {
+                    closeSheet(velocity);
+                } else {
+                    springTo(0, velocity);
+                }
+            }
+
+            sheet.addEventListener('pointerup', endDrag);
+            sheet.addEventListener('pointercancel', endDrag);
+
+            Array.prototype.forEach.call(sheet.querySelectorAll('.pl-opt'), function (opt) {
+                opt.addEventListener('click', function () {
+                    if (sheetRow) { setState(sheetRow, opt.getAttribute('data-value') || ''); }
+                    haptic(8);
+                    closeSheet(0);
+                });
+            });
+            var clear = sheet.querySelector('[data-pl-sheet-clear]');
+            if (clear) {
+                clear.addEventListener('click', function () {
+                    if (sheetRow) { setState(sheetRow, ''); }
+                    closeSheet(0);
+                });
+            }
+        }
+
+        if (veil) {
+            veil.addEventListener('click', function () { closeSheet(0); });
+        }
+        document.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Escape') { closeSheet(0); }
+        });
+
+        /* ---- Guardar --------------------------------------------------- */
+
+        /* Toda la lista en una petición. Los estados viajan en un campo oculto
+           como JSON en vez de un input por fila: así el guardado es uno, y sin
+           cobertura ese mismo JSON es lo que se guarda en la cola. */
+        if (form) {
+            // Qué botón ha enviado el formulario. `ev.submitter` es lo correcto,
+            // pero si el navegador no lo trae, sin esto "Sin registro" se
+            // encolaría sin cobertura como si fuera un guardado normal.
+            var lastSubmitter = null;
+            form.addEventListener('click', function (ev) {
+                var btn = ev.target.closest && ev.target.closest('button[type="submit"]');
+                if (btn) { lastSubmitter = btn; }
+            }, true);
+
+            form.addEventListener('submit', function (ev) {
+                var marks = JSON.stringify(collect());
+                if (marksInput) { marksInput.value = marks; }
+
+                var submitter = ev.submitter || lastSubmitter;
+                var action = (submitter && submitter.getAttribute('value')) || 'save';
+
+                if (!navigator.onLine) {
+                    // Sin cobertura no se intenta y se falla: se guarda y se
+                    // dice. El monitor se va a casa con la lista puesta.
+                    ev.preventDefault();
+                    var nonceEl = form.querySelector('input[name="pl_nonce"]');
+                    queuePush({
+                        url: window.location.href,
+                        session: sessionId,
+                        group: groupId,
+                        action: action,
+                        nonce: nonceEl ? nonceEl.value : '',
+                        marks: marks,
+                        ts: Date.now()
+                    });
+                    saveDraft();
+                    // Ya está guardado (en el móvil), así que el aviso de salir
+                    // sin guardar sería mentira: un aviso que miente enseña a
+                    // ignorar todos los avisos.
+                    dirty = false;
+                    say('offline', root.getAttribute('data-msg-queued') || '');
+                    haptic(20);
+                    return;
+                }
+
+                // Con cobertura sí navega: el overlay de carga lo pone
+                // js/stic-ui.js por la clase stic-loading-form del formulario.
+                dirty = false;
+                lsDel(draftKey);
+                if (saveBtn) {
+                    saveBtn.disabled = true;
+                    saveBtn.textContent = saveBtn.getAttribute('data-label-saving') || 'Guardando…';
+                }
+            });
+        }
+
+        // Salir con marcas sin guardar avisa. El borrador ya las protege, pero
+        // el aviso es lo que evita que alguien crea que ha guardado.
+        window.addEventListener('beforeunload', function (ev) {
+            if (!dirty) { return; }
+            ev.preventDefault();
+            ev.returnValue = '';
+        });
+
+        /* ---- Cobertura ------------------------------------------------- */
+
+        function showConnectivity() {
+            if (!navigator.onLine) {
+                say('offline', root.getAttribute('data-msg-offline') || '');
+                return;
+            }
+            var pending = queueRead().length;
+            if (pending > 0) {
+                say('sync', root.getAttribute('data-msg-sync') || '');
+                queueFlush(function (sent) {
+                    if (sent > 0) {
+                        say('ok', root.getAttribute('data-msg-sent') || '');
+                        lsDel(draftKey);
+                    }
+                });
+            } else {
+                hush();
+            }
+        }
+
+        window.addEventListener('online', showConnectivity);
+        window.addEventListener('offline', showConnectivity);
+
+        /* ---- Arranque -------------------------------------------------- */
+
+        if (lsGet(STORE_HINT)) { document.body.classList.add('pl-hold-seen'); }
+        restoreDraft();
+        showConnectivity();
+        refresh();
+    }
+
+    /* =====================================================================
+     * Ficha: el cambio de pañuelo
+     * ---------------------------------------------------------------------
+     * Dos toques y una confirmación. El pañuelo dice quién puede hacer qué en
+     * una actividad, así que cambiarlo por un roce no puede ser posible; pero
+     * tampoco puede costar entrar en el CRM, porque quien lo sabe es el monitor.
+     *
+     * Sin JS el formulario sigue funcionando: las opciones están en el HTML y
+     * solo están ocultas, así que el peor caso es verlas todas desde el inicio.
+     * ===================================================================== */
+
+    var panuelo = document.querySelector('[data-pl-panuelo]');
+    if (panuelo) {
+        var opts = panuelo.querySelector('[data-pl-panuelo-opts]');
+        var edit = panuelo.querySelector('[data-pl-panuelo-edit]');
+
+        if (edit && opts) {
+            edit.setAttribute('aria-expanded', 'false');
+            edit.addEventListener('click', function () {
+                var open = opts.hidden;
+                opts.hidden = !open;
+                edit.setAttribute('aria-expanded', open ? 'true' : 'false');
+            });
+        }
+
+        Array.prototype.forEach.call(panuelo.querySelectorAll('[data-pl-confirm]'), function (btn) {
+            btn.addEventListener('click', function (ev) {
+                if (!window.confirm(btn.getAttribute('data-pl-confirm'))) {
+                    ev.preventDefault();
+                }
+            });
+        });
+    }
 }());

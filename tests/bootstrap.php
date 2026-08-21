@@ -113,6 +113,10 @@ if (!function_exists('_n')) {
     function _n($single, $plural, $number, $domain = null) { return ($number == 1) ? $single : $plural; }
 }
 if (!function_exists('esc_sql')) { function esc_sql($v) { return $v; } }
+if (!function_exists('esc_js')) { function esc_js($v) { return addslashes((string) $v); } }
+if (!function_exists('home_url')) { function home_url($path = '') { return 'https://example.test' . $path; } }
+if (!function_exists('status_header')) { function status_header($code) { return $code; } }
+if (!function_exists('plugin_dir_path')) { function plugin_dir_path($file) { return dirname($file) . '/'; } }
 if (!function_exists('date_i18n')) {
     function date_i18n($format, $ts = null) { return date($format, $ts === null ? time() : $ts); }
 }
@@ -154,3 +158,8 @@ require_once __DIR__ . '/../inc/stic-pasar-lista.php';
 // WordPress que las pantallas se pintan enteras y sin avisos.
 require_once __DIR__ . '/../inc/stic-pasar-lista-crm.php';
 require_once __DIR__ . '/../inc/stic-pasar-lista-ui.php';
+// El service worker: el archivo solo define funciones y un add_action (ya
+// stubeado). El modo sin conexión está apagado por defecto, así que en los
+// tests sticpa_pl_sw_register_html() devuelve cadena vacía, que es justo el
+// comportamiento que hay que comprobar.
+require_once __DIR__ . '/../inc/stic-pasar-lista-sw.php';

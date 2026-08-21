@@ -161,7 +161,44 @@ acostumbrados. Ponerlo:
 - Es la vía de escape cuando la caché de estructura se queda vieja porque
   coordinación acaba de mover a alguien de grupo.
 
-### 5.4 Pensando ya en el offline (fase 4)
+### 5.4 Sin conexión (fase 4, ya construida)
+
+Tres piezas, y la que importa es la primera:
+
+- **Nada se escribe hasta pulsar Guardar.** Marcar pasa entero en el navegador.
+  Eso es lo que hace posible todo lo demás sin rehacer nada: el guardado ya era
+  un único envío con toda la lista.
+- **Borrador en el móvil** a cada toque, y **cola de envío** si no hay red, con
+  su aviso en la barra de guardado.
+- **Service worker** para poder abrir la pantalla ya sin cobertura, apagado por
+  defecto (`sticpa_pl_offline_enabled`). La caché va nombrada por usuario y se
+  borra al cerrar sesión, porque lo que guarda son datos de menores.
+
+### 5.5 Movimiento: las reglas que se siguen
+
+No es decoración, y por eso están escritas:
+
+- **Respuesta al pulsar, no al soltar.** La fila se hunde en el `pointerdown`.
+- **Feedback continuo durante el gesto.** Mantener pulsado llena un anillo
+  alrededor del círculo en los 500 ms del umbral: el gesto se ve avanzar y se
+  puede soltar para cancelar. Sin eso, un gesto largo es invisible.
+- **La hoja de estados se arrastra**, y se puede agarrar en pleno vuelo: si el
+  muelle está corriendo y pones el dedo, se para donde está y sigue al dedo
+  desde ahí. Por eso la mueve un muelle en JS y no una transición de CSS, que no
+  se puede interrumpir.
+- **Al soltar, el movimiento sigue a la velocidad del dedo**, y se decide cerrar
+  o volver por **a dónde iba** el gesto (proyección de inercia), no por dónde
+  acabó: así un empujón corto y rápido cierra.
+- **Solo se animan `transform` y `opacity`.** El desenfoque de la barra es fijo
+  de 8 px y nunca se anima.
+- **`prefers-reduced-motion`, `prefers-reduced-transparency` y
+  `prefers-contrast`** están atendidos los tres. Movimiento reducido no es
+  quitar el feedback: es quitar el desplazamiento y dejar el color. El anillo del
+  gesto largo se queda, porque no es adorno.
+- **Nada late para siempre.** El chip de «mantén pulsado» late cuatro veces, y
+  deja de latir del todo en cuanto el monitor usa el gesto una vez.
+
+### 5.6 Notas antiguas sobre el offline
 
 Sin construirlo, el diseño de la fase 1 no debe cerrarse la puerta:
 
