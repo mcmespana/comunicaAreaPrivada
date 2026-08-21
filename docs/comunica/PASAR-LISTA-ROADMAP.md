@@ -48,23 +48,43 @@ convivencia de Benigànim, Navidad, Magdalena y Sábado Santo.
 - [ ] Poner `code` a los grupos de Castellón que se vayan a usar
 - [ ] Asignar grupo a los participantes y monitores del piloto
 
-### Fase 1 — pasar lista
+### Fase 1 — pasar lista ✅ hecha
 
-Home con el atajo, árbol etapa → grupo, pantalla de marcado, guardado en lote y
-escritura en `LIS_listas`. Con esto ya se puede jubilar el AppSheet en Castellón.
+Home con el atajo, árbol etapa → grupo, selector de sesión, pantalla de marcado,
+guardado en lote y escritura en `LIS_listas`. Con esto ya se puede jubilar el
+AppSheet en Castellón.
 
-### Fase 2 — la ficha y la familia
+Archivos: `inc/stic-pasar-lista.php` (lógica, con tests),
+`inc/stic-pasar-lista-crm.php` (consultas), `inc/stic-pasar-lista-ui.php` (HTML
+compartido), `pages/single_stic_pasar_lista*.php`, `css/pasar-lista.css`,
+`js/stic-pasar-lista.js`.
 
-Ficha del participante, contacto de familia con llamada y WhatsApp, teléfono
-propio del chaval en el COM, pañuelo editable con confirmación, enlace al
-detalle de asistencia por sesión.
+### Fase 2 — la ficha y la familia ✅ hecha
 
-### Fase 3 — coordinación
+Ficha del participante con los teléfonos primero (chaval, familia,
+emergencias), asistencia hasta hoy con denominador, salud en una tarjeta,
+permisos y pañuelo editable con confirmación.
 
-Resumen de grupos, recuentos por etapa y segmento, «datos por revisar», buscador
-de participantes. Y los **avisos de comportamiento**: el front va ya en la ficha
-de la fase 2, pintado en vacío; aquí se crea el módulo `AVI_avisos` que lo llena
-(ver `PASAR-LISTA-CAMPOS-CRM.md` §6).
+Falta de aquí: los **avisos de comportamiento**, que esperan a que exista
+`AVI_avisos`. No se pinta el bloque en vacío a propósito: una sección que no
+hace nada es peor que no enseñarla.
+
+### Fase 3 — coordinación ✅ casi
+
+Hecho: resumen con recuentos por etapa, la **tira de listas** por grupo (una
+marca por sesión celebrada, que enseña de un vistazo qué días faltan) y «datos
+por revisar» con los participantes sin grupo, que coordinación asigna desde ahí.
+
+Pendiente:
+
+- **Quién es coordinador/a.** `sticpa_pl_is_coordinator()` existe pero devuelve
+  false mientras no haya dónde guardarlo (§7 de `PASAR-LISTA-CAMPOS-CRM.md`). El
+  defecto es el correcto: sin ese dato se ve todo y no se edita nada.
+- Recuentos por **segmento** COM I/II/III: esperan a `ajmcm_segmento_com_c`.
+- Buscador de participantes.
+- El aviso de ausencias seguidas en la **pantalla de marcado**. Hoy sale en la
+  ficha, donde cuesta una consulta; en la lista costaría una por participante.
+  Cuando el resumen recorra el curso, se puede alimentar de ahí.
 
 ### Fase 4 — sin conexión
 
@@ -155,7 +175,19 @@ Hablamos de coordinadores de etapa y de sector. En el CRM no hay hoy nada que
 agrupe delegaciones en sectores. Si un sector es un conjunto de delegaciones, va
 en `Accounts`, no en la persona. Pendiente de definir qué es.
 
-### 7. Verificar `CAMPOS.md` contra el CRM por MCP
+### 7. Un campo de etapa en los eventos
+
+La etapa de un evento se saca hoy **del nombre** (`COM | Sesiones semanales
+2025-2026`), mirando solo lo que hay antes del `|`. Funciona porque la
+convención está fija, pero un evento mal nombrado desaparece de Pasar Lista sin
+decir por qué.
+
+Lo correcto sería un `ajmcm_etapa_c` en `stic_Events`, reutilizando las mismas
+claves que ya tiene el campo de la persona (`MIC` / `COM` / `LC`). Es un campo y
+quita la única dependencia frágil que tiene la fase 1. Mientras no exista, el
+prefijo se puede cambiar con el filtro `sticpa_pl_etapa_prefixes`.
+
+### 8. Verificar `CAMPOS.md` contra el CRM por MCP
 
 Algún día. Hoy `CAMPOS.md` es la fuente de la verdad y se mantiene a mano.
 

@@ -1242,3 +1242,177 @@ function sticpa_pl_phone($raw)
     }
     return array('display' => $raw, 'tel' => $digits, 'wa' => $wa);
 }
+
+// ---------------------------------------------------------------------------
+// Coordinación (fase 3)
+// ---------------------------------------------------------------------------
+
+/**
+ * ¿Es coordinador/a de etapa el usuario conectado?
+ *
+ * ⚠️ TODAVÍA NO HAY DÓNDE GUARDARLO. La recomendación está en
+ * PASAR-LISTA-CAMPOS-CRM.md §7: una fila en `stic_Contacts_Relationships` con
+ * `relationship_type = coordinador_mic` / `coordinador_com`, que ya lleva
+ * vigencia y delegación. Mientras esa clave no exista en el CRM, esto devuelve
+ * false y la pantalla se comporta como para un monitor: se VE todo, no se EDITA
+ * nada. Que por defecto no se pueda editar es lo correcto: el error seguro es
+ * el que no deja tocar.
+ *
+ * En cuanto exista la clave, basta con añadirla a sticpa_pl_rel_types() y esto
+ * empieza a funcionar sin tocar las pantallas.
+ */
+function sticpa_pl_is_coordinator($objSCP)
+{
+    $raw = isset($_SESSION['scp_relationship_raw']) ? (string) $_SESSION['scp_relationship_raw'] : '';
+    $v = function_exists('mb_strtolower') ? mb_strtolower($raw, 'UTF-8') : strtolower($raw);
+    $isCoord = ($v !== '' && strpos($v, 'coordinad') !== false);
+    return (bool) apply_filters('sticpa_pl_is_coordinator', $isCoord, $objSCP);
+}
+
+/**
+ * Todas las listas de un puñado de sesiones, indexadas por sesión y grupo.
+ *
+ * Una llamada por SESIÓN, no por sesión y grupo: cada llamada trae las listas de
+ * todos los grupos de esa sesión de golpe. Es lo que hace viable la tira del
+ * resumen, que si no serían grupos × sesiones consultas.
+ *
+ * Aun así son tantas llamadas como sesiones, así que el resumen las limita a las
+ * últimas ($limit) y lo dice en pantalla en vez de recortar en silencio.
+ */
+function sticpa_pl_listas_by_session($objSCP, $sessions, $limit = 12)
+{
+    $sessions = sticpa_pl_elapsed_sessions($sessions);
+    $sessions = array_slice($sessions, -1 * max(1, (int) $limit));
+
+    $out = array();
+    foreach ($sessions as $s) {
+        $rows = $objSCP->getRelatedElementsForLoggedUser(array(
+            'module_name' => 'stic_Sessions',
+            'module_id' => $s['id'],
+            'link_field_name' => 'lis_listas_stic_sessions',
+            'related_fields' => array('id', 'estado', 'n_asistieron', 'n_faltaron'),
+            'related_module_link_name_to_fields_array' => array(
+                array('name' => 'lis_listas_ajmcm_grupos', 'value' => array('id')),
+            ),
+            'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
+        ));
+
+        $bySession = array();
+        if (is_array($rows)) {
+            foreach ($rows as $row) {
+                $v = isset($row->name_value_list) ? $row->name_value_list : null;
+                if (!$v || empty($v->id->value)) {
+                    continue;
+                }
+                $gid = sticpa_pl_link_id($row);
+                if ($gid === '') {
+                    continue;
+                }
+                $bySession[$gid] = array(
+                    'id' => $v->id->value,
+                    'estado' => isset($v->estado->value) ? (string) $v->estado->value : '',
+                    'n_asistieron' => isset($v->n_asistieron->value) ? (int) $v->n_asistieron->value : 0,
+                    'n_faltaron' => isset($v->n_faltaron->value) ? (int) $v->n_faltaron->value : 0,
+                );
+            }
+        }
+        $out[$s['id']] = array('session' => $s, 'listas' => $bySession);
+    }
+    return $out;
+}
+
+/**
+ * Participantes de la delegación SIN grupo asignado.
+ *
+ * Una sola llamada: se piden las relaciones de la delegación con el enlace al
+ * grupo poblado, y las que vuelven sin grupo son las que faltan. Es el problema
+ * clásico que en el CRM cuesta ver y aquí está a un toque.
+ *
+ * Devuelve array de array('rel_id','contact_id','name','initials'): el
+ * `rel_id` es lo que hay que tocar para asignarle grupo, no el contacto.
+ */
+function sticpa_pl_participants_without_group($objSCP)
+{
+    $deleg = sticpa_pl_delegation($objSCP);
+    if (!$deleg) {
+        return array();
+    }
+
+    $rows = $objSCP->getRecordsModule(
+        'stic_Contacts_Relationships',
+        "stic_contacts_relationships.assigned_user_id = '" . sticpa_pl_safe_id($deleg) . "'",
+        array('id', 'relationship_type', 'end_date'),
+        array('grupo' => 'ajmcm_grupos_stic_contacts_relationships', 'persona' => 'stic_contacts_relationships_contacts')
+    );
+
+    $out = array();
+    if (!is_array($rows)) {
+        return $out;
+    }
+    $now = sticpa_pl_now();
+
+    foreach ($rows as $row) {
+        $v = isset($row->name_value_list) ? $row->name_value_list : null;
+        if (!$v || empty($v->id->value)) {
+            continue;
+        }
+        if (sticpa_pl_rel_role(isset($v->relationship_type->value) ? $v->relationship_type->value : '') !== 'participante') {
+            continue;
+        }
+        $end = isset($v->end_date->value) ? trim((string) $v->end_date->value) : '';
+        if ($end !== '') {
+            $endTs = strtotime($end . ' 23:59:59');
+            if ($endTs && $endTs < $now) {
+                continue;   // relación de un curso pasado: no falta nada
+            }
+        }
+        // getRecordsModule mete el enlace como un campo más con el nombre que se
+        // le pidió; si viene vacío, esta persona no tiene grupo.
+        $grupo = isset($v->grupo->value) ? trim((string) $v->grupo->value) : '';
+        if ($grupo !== '') {
+            continue;
+        }
+        $name = isset($v->persona->value) ? trim((string) $v->persona->value) : '';
+        $out[] = array(
+            'rel_id' => $v->id->value,
+            'name' => ($name !== '') ? $name : __('(sin nombre)', 'sticpa'),
+            'initials' => sticpa_pl_initials('', '', $name),
+        );
+    }
+    return $out;
+}
+
+/**
+ * Asigna un grupo a una relación persona-grupo existente.
+ *
+ * Se toca la RELACIÓN, no el contacto: el grupo de una persona es un dato con
+ * vigencia y vive en `stic_Contacts_Relationships`. Solo coordinación llega
+ * aquí; la pantalla ni pinta el control para un monitor, y esto lo vuelve a
+ * comprobar porque una pantalla que no pinta un botón no impide un POST.
+ */
+function sticpa_pl_assign_group($objSCP, $relId, $groupId)
+{
+    if (!sticpa_pl_is_coordinator($objSCP)) {
+        return false;
+    }
+    $relId = sticpa_pl_safe_id($relId);
+    $groupId = sticpa_pl_safe_id($groupId);
+    if ($relId === '' || $groupId === '') {
+        return false;
+    }
+    // El grupo tiene que ser de mi delegación: si no, esto sería una vía para
+    // mover personas a grupos de otra.
+    $groups = sticpa_pl_groups($objSCP);
+    if (!isset($groups[$groupId])) {
+        return false;
+    }
+
+    $ok = $objSCP->set_relationship(
+        'stic_Contacts_Relationships',
+        $relId,
+        'ajmcm_grupos_stic_contacts_relationships',
+        array($groupId)
+    );
+    sticpa_pl_flush($objSCP, 'all');
+    return (bool) $ok;
+}

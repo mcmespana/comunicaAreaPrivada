@@ -826,3 +826,112 @@ a.pl-group .pl-name { display: block; }
 .pl-att-body { display: flex; flex-direction: column; gap: 0.15rem; }
 .pl-att-main { font-size: 0.98rem; font-weight: 700; }
 .pl-att-meta { font-size: 0.79rem; color: var(--gray-500, #6b7280); }
+
+/* ---- Resumen de coordinación ------------------------------------------- */
+
+.pl-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; }
+.pl-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.9rem 0.75rem;
+    border-radius: var(--radius-lg);
+    background: var(--white);
+    box-shadow: var(--shadow-xs);
+}
+.pl-card-head {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: var(--gray-500, #6b7280);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.pl-card-num { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+.pl-card-meta { font-size: 0.72rem; font-weight: 500; color: var(--gray-400); }
+
+.pl-grouprow {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    padding: 0.8rem 0.9rem;
+    border-top: 1px solid var(--gray-100);
+    color: inherit;
+    text-decoration: none;
+}
+.pl-grouprow:first-child { border-top: 0; }
+.pl-grouprow-top { display: flex; align-items: center; gap: 0.75rem; }
+
+/* La tira: una marca por sesión celebrada, la más reciente a la derecha. Un
+   hueco es una lista que falta, y se ve DÓNDE empezó el tramo de huecos. */
+.pl-strip { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; }
+.pl-cell { width: 14px; height: 7px; border-radius: 2px; flex-shrink: 0; }
+.pl-cell--ok   { background: var(--success-color); }
+.pl-cell--gap  { background: var(--warning-100); box-shadow: inset 0 0 0 1px var(--warning-border); }
+.pl-cell--skip { background: var(--gray-200); }
+.pl-cell--future { background: transparent; box-shadow: inset 0 0 0 1px var(--gray-200); }
+
+.pl-strip-note { font-size: 0.7rem; font-weight: 700; color: var(--gray-400); padding-left: 0.45rem; }
+.pl-strip-note--gap { color: var(--warning-dark); }
+
+.pl-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.18rem 0.55rem;
+    border-radius: var(--radius-full);
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+}
+.pl-badge--ok   { background: var(--success-50); color: var(--success-dark); }
+.pl-badge--gap  { background: var(--warning-100); color: var(--warning-dark); }
+.pl-badge--skip { background: var(--gray-100); color: var(--gray-500, #6b7280); }
+
+/* Datos por revisar: ámbar, porque es una lista de cosas que hay que arreglar,
+   no un error. */
+.pl-review {
+    border-radius: var(--radius-lg);
+    background: var(--warning-soft);
+    border: 1px solid var(--warning-200);
+    overflow: hidden;
+}
+.pl-review-head {
+    padding: 0.75rem 0.9rem 0.4rem;
+    font-size: 0.83rem;
+    font-weight: 800;
+    color: var(--warning-darker);
+}
+.pl-review-row {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+    padding: 0.55rem 0.9rem;
+}
+.pl-review-name { font-size: 0.9rem; font-weight: 600; color: var(--warning-darker); flex-grow: 1; min-width: 8rem; }
+.pl-review-select {
+    min-height: 40px;
+    max-width: 11rem;
+    padding: 0 0.6rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--warning-border);
+    background: var(--white);
+    font-family: inherit;
+    font-size: 0.85rem;
+}
+.pl-review-btn {
+    min-height: 40px;
+    padding: 0 0.9rem;
+    border-radius: var(--radius-md);
+    border: 0;
+    background: var(--warning-dark);
+    color: var(--white);
+    font-family: inherit;
+    font-size: 0.83rem;
+    font-weight: 700;
+    cursor: pointer;
+}

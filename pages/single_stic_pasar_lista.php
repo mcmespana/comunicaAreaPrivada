@@ -164,6 +164,13 @@ $html .= '<span class="pl-all-groups-meta">' . esc_html(sprintf(
 $html .= sticpa_pl_icon('next');
 $html .= '</a>';
 
+// El resumen de coordinación: lo ve cualquier monitor (ver es útil para todos),
+// pero solo coordinación puede editar los datos por revisar.
+$html .= '<a class="pl-all-groups" href="?internalpage=single_stic_pasar_lista_resumen">';
+$html .= '<span>' . esc_html__('Resumen y datos por revisar', 'sticpa') . '</span>';
+$html .= sticpa_pl_icon('next');
+$html .= '</a>';
+
 if ($mainGroupId === '') {
     $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
         . esc_html__('No tienes ningún grupo asignado como monitor/a, así que no hay atajo. Puedes pasar lista de cualquier grupo desde la lista de arriba.', 'sticpa')

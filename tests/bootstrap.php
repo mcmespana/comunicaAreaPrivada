@@ -26,7 +26,18 @@ $GLOBALS['__stic_options'] = array(
 // --- Stubs de funciones de WordPress ---
 if (!function_exists('add_action'))  { function add_action(...$a) { return true; } }
 if (!function_exists('add_filter'))  { function add_filter(...$a) { return true; } }
-if (!function_exists('apply_filters')) { function apply_filters($tag, $value = null) { return $value; } }
+// apply_filters devuelve el valor tal cual, salvo que un test haya puesto un
+// valor forzado en $GLOBALS['__stic_filters'][$tag]. Es la forma sencilla de
+// probar el comportamiento con un filtro activo sin montar el sistema de hooks.
+if (!function_exists('apply_filters')) {
+    function apply_filters($tag, $value = null)
+    {
+        if (isset($GLOBALS['__stic_filters']) && array_key_exists($tag, $GLOBALS['__stic_filters'])) {
+            return $GLOBALS['__stic_filters'][$tag];
+        }
+        return $value;
+    }
+}
 if (!function_exists('do_action'))   { function do_action(...$a) {} }
 if (!function_exists('get_option'))  {
     function get_option($k, $default = false) {

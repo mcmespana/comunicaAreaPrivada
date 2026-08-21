@@ -73,6 +73,18 @@ class FakeSCP
                 $this->nvl(array('id' => 'g9', 'name' => 'Viejo', 'code' => 'V1', 'level' => 'COM', 'cursos_c' => '2019-2020')),
             );
         }
+        if ($module === 'stic_Contacts_Relationships') {
+            // getRecordsModule mete el enlace pedido como un campo más.
+            return array(
+                $this->nvl(array('id' => 'r1', 'relationship_type' => 'participante_mic_com', 'end_date' => '', 'grupo' => 'Los Peques', 'persona' => 'Solete Vilarroya')),
+                $this->nvl(array('id' => 'r7', 'relationship_type' => 'participante_mic_com', 'end_date' => '', 'grupo' => '', 'persona' => 'Sol Messeguer')),
+                $this->nvl(array('id' => 'r8', 'relationship_type' => 'participante_mic_com', 'end_date' => '', 'grupo' => '', 'persona' => 'Lucia Ripolles')),
+                // Monitor sin grupo: no sale en la lista de participantes.
+                $this->nvl(array('id' => 'r9', 'relationship_type' => 'monitor', 'end_date' => '', 'grupo' => '', 'persona' => 'Un Monitor')),
+                // Curso pasado: ya no falta nada.
+                $this->nvl(array('id' => 'r10', 'relationship_type' => 'participante_mic_com', 'end_date' => '2024-06-30', 'grupo' => '', 'persona' => 'Del Curso Pasado')),
+            );
+        }
         if ($module === 'stic_Events') {
             return array(
                 $this->nvl(array('id' => 'ev-com', 'name' => 'COM | Sesiones semanales 2025-2026')),
@@ -204,6 +216,7 @@ final class PasarListaRenderTest extends TestCase
         // Un sábado a las 17:00, en mitad de la sesión: el caso normal.
         $GLOBALS['__stic_pl_now'] = mktime(17, 0, 0, 11, 15, 2025);
         $GLOBALS['__stic_transients'] = array();
+        $GLOBALS['__stic_filters'] = array();
         $_SESSION = array(
             'scp_user_id' => 'm1',
             'scp_user_assigned_user_id' => 'deleg-castellon',
@@ -590,6 +603,74 @@ final class PasarListaRenderTest extends TestCase
         $html = $this->render('single_stic_pasar_lista_ficha');
         $this->assertStringContainsString('no está en el grupo', $html);
         $this->assertStringNotContainsString('Teléfonos', $html);
+    }
+
+    // ---- Resumen de coordinación ----------------------------------------
+
+    public function test_resumen_pinta_la_tira_de_listas()
+    {
+        $html = $this->render('single_stic_pasar_lista_resumen');
+
+        $this->assertStringContainsString('Resumen de grupos', $html);
+        // La tira: s3 pasada (verde), s1 y s2 sin pasar (huecos).
+        $this->assertStringContainsString('pl-cell--ok', $html);
+        $this->assertStringContainsString('pl-cell--gap', $html);
+        // Y el número de huecos, dicho con palabras.
+        $this->assertStringContainsString('sin pasar', $html);
+        // Cuántas sesiones entran en la tira, dicho en vez de recortado en silencio.
+        $this->assertStringContainsString('últimas', $html);
+    }
+
+    public function test_resumen_lista_los_participantes_sin_grupo()
+    {
+        $html = $this->render('single_stic_pasar_lista_resumen');
+
+        $this->assertStringContainsString('2 participantes sin grupo asignado', $html);
+        $this->assertStringContainsString('Sol Messeguer', $html);
+        $this->assertStringContainsString('Lucia Ripolles', $html);
+        // Un monitor sin grupo no es un participante sin grupo.
+        $this->assertStringNotContainsString('Un Monitor', $html);
+        // Una relación de un curso pasado no falta.
+        $this->assertStringNotContainsString('Del Curso Pasado', $html);
+    }
+
+    /**
+     * Un monitor VE los datos por revisar y no los edita. Es la regla que pidió
+     * el proyecto, y el defecto correcto: sin sitio donde guardar quién es
+     * coordinador, nadie edita.
+     */
+    public function test_un_monitor_ve_pero_no_edita()
+    {
+        $html = $this->render('single_stic_pasar_lista_resumen');
+        $this->assertStringContainsString('Sol Messeguer', $html);
+        $this->assertStringNotContainsString('pl-review-select', $html);
+        $this->assertStringContainsString('no editarlo', $html);
+    }
+
+    /** Coordinación sí tiene el desplegable y el botón de asignar. */
+    public function test_coordinacion_puede_asignar_grupo()
+    {
+        $GLOBALS['__stic_filters']['sticpa_pl_is_coordinator'] = true;
+
+        $html = $this->render('single_stic_pasar_lista_resumen');
+        $this->assertStringContainsString('pl-review-select', $html);
+        $this->assertStringContainsString('Asignar', $html);
+
+        unset($GLOBALS['__stic_filters']['sticpa_pl_is_coordinator']);
+    }
+
+    /** Un POST de asignación sin ser coordinación no escribe nada. */
+    public function test_un_monitor_no_puede_asignar_por_post()
+    {
+        $_POST = array(
+            'pl_assign_rel' => 'r7',
+            'pl_assign_group' => 'g1',
+            'pl_nonce' => wp_create_nonce('pl_resumen'),
+        );
+        $html = $this->render('single_stic_pasar_lista_resumen');
+
+        $this->assertStringContainsString('Solo coordinación', $html);
+        $this->assertSame(array(), $this->scp->relationships);
     }
 
     /**
