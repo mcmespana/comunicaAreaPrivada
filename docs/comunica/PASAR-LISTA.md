@@ -121,103 +121,172 @@ botón de llamar/WhatsApp. El móvil está en el contacto del familiar
 
 ---
 
-## 3. La decisión crítica: ¿dónde encaja el grupo en una sesión?
+## 3. Dónde encaja el grupo (corregido)
 
-**El grupo no está en el evento ni en la sesión.** Sale de las relaciones. Y
-"pasar lista" es exactamente "un grupo × un día". Hay tres formas de montarlo y
-esta es *la* decisión que hay que cerrar.
+> **Corrección de la versión anterior de este documento.** Recomendaba un
+> evento por grupo y decía que el evento único era frágil. Estaba equivocado:
+> multiplicado por delegaciones son 150 eventos y un jaleo de mantener, y las
+> consultas que yo daba por costosas son una llamada cada una. Lo que sigue es
+> el modelo bueno.
 
-### Opción A — Un evento por grupo y curso ⭐ recomendada
+### 3.1 Por qué no era difícil
 
-`C1 · Curso 2025-2026`, `MIC A · Curso 2025-2026`… Cada uno con sus sesiones
-(su día y su hora, que **son distintos por grupo**: hay grupos de viernes a las
-16:00 y de sábado a las 16:00).
+Las dos consultas que sostienen toda la pantalla ya funcionan contra la
+instancia real, comprobadas:
 
-- ✅ "Pasar lista" = una sesión, un grupo. Sin derivar nada.
-- ✅ `validated_attendances` de la sesión responde solo por ese grupo → el
-  indicador "¿he pasado lista?" es un campo, no un cálculo.
-- ✅ El `%` de asistencia por niño lo calcula el CRM sin ayuda.
-- ✅ El horario real de cada grupo se respeta.
-- ❌ Setup anual: un evento + asistente de sesiones por grupo (~1 min/grupo).
-- ❌ Cambiar a un niño de grupo a mitad de curso = cerrar una inscripción y
-  abrir otra (su histórico queda partido en dos, que es honesto pero incómodo).
-- ❌ El "resumen de grupos" agrega sobre N eventos.
+| Lo que necesito | Cómo | Coste |
+|---|---|---|
+| Niños **y** monitores de un grupo, con etapa, curso y vigencia | `get_relationships(ajmcm_GRUPOS, id, 'ajmcm_grupos_stic_contacts_relationships')` | **1 llamada** |
+| Inscripciones del evento con el id de contacto de cada una | `get_relationships(stic_Events, id, 'stic_registrations_stic_events')` | 1 llamada / 50 |
+| Asistencias de una sesión con su inscripción y su estado | `get_relationships(stic_Sessions, id, 'stic_attendances_stic_sessions')` | 1 llamada / 50 |
 
-### Opción B — Un evento global, el grupo solo en las relaciones
+Con eso la pantalla de marcado se monta uniendo en PHP: contacto → inscripción
+→ asistencia. **Tres consultas para un grupo entero**, no una por niño. Para
+una etapa de 126 niños son 3 páginas de 50, y todo eso se cachea por sesión.
 
-Un único `Actividades Semanales MIC-COM 2025-2026` (el que ya existe de prueba)
-con una sesión por sábado, y el grupo se resuelve por relaciones al pintar.
+Lo único que **de verdad** faltaba era una cosa pequeña, y es esta: si una
+sesión la comparten varios grupos, *no hay sitio donde anotar «esta lista está
+pasada»* ni «este grupo no se reunió». Eso no es un problema de arquitectura,
+es una tabla que falta. Y dijiste que módulos podemos crear.
 
-- ✅ 39 sesiones en total. Setup trivial.
-- ✅ Encaja con "a este evento no te inscribes, vas por ser socio".
-- ✅ Cambiar de grupo a mitad de curso no rompe nada: la asistencia sigue
-  colgando del niño.
-- ❌ "¿He pasado lista de mi grupo hoy?" hay que **derivarlo** (contar
-  asistencias marcadas de los niños de mi grupo en esa sesión vs. tamaño del
-  grupo). Frágil: un niño nuevo sin marcar deja la sesión "a medias" para siempre.
-- ❌ Grupos que se reúnen otro día comparten sesión con los del sábado.
-- ❌ Todos los niños necesitan inscripción al evento global (se puede crear
-  masivamente o al vuelo, ver 🔶3.1).
+### 3.2 El modelo
 
-### Opción C — Un evento por etapa (MIC / COM I / COM II)
+```
+Delegación ─┬─ Evento (etapa · curso) ── Sesiones ─┬─ Asistencias
+            │        │                             │      │
+            │        └── Inscripciones ────────────┘      │
+            │                                             │
+            └─ Grupos ── Relaciones con personas ── Personas
+                  └──────────── Listas ────────────────────┘
+                         (sesión × grupo × estado)
+```
 
-El punto medio, y el que replica la navegación de AppSheet.
+**Evento = delegación × etapa × curso.** `MIC · Castellón · 2025-2026`,
+`COM · Castellón · 2025-2026`. Del orden de **20 eventos al año** en toda la
+organización, no 150.
 
-- ✅ 3 eventos, horarios por etapa (que sí suelen coincidir).
-- ❌ Hereda el problema de B dentro de cada etapa: varios grupos por sesión.
+El criterio no es "una etapa" por dogma, es este: **un evento agrupa a quien
+comparte calendario.** Porque lo que se firma al pasar lista es una *sesión*, y
+una sesión tiene un día y una hora concretos. Los datos reales dan la razón a
+separar: en Onda el MIC se reúne los viernes de 17:00 a 18:15 y el COM los
+viernes de 15:45 a 17:00; en Vila-real hay grupos de sábado. Si metes ambos en
+el mismo evento, el selector de sesiones de un monitor de COM le enseña también
+los viernes del MIC.
 
-### Recomendación
+> Si en una delegación MIC y COM coinciden en día y hora (pasa: en un grupo de
+> Castellón los dos son viernes de 16:00 a 17:30), pueden compartir evento sin
+> problema. Y si dentro de un evento hubiera calendarios mezclados, existe la
+> salida nativa: `disabled_weekdays` en la inscripción excluye días de la
+> semana en la generación automática de asistencias. Es justo para lo que
+> SinergiaCRM lo puso.
 
-**Opción A**, por una razón práctica: es la única en la que el estado *"esta
-lista está pasada"* es un dato y no una inferencia. Todo el diseño de la
-pantalla (los avisos de "te faltan listas", el skip, el selector con checks)
-depende de saberlo con certeza. Y de propina el `%` por niño sale gratis.
+**El grupo sigue viniendo de las relaciones.** No se duplica en el evento ni en
+la sesión.
 
-El coste real es el setup anual, y es una tarea de coordinación de una tarde,
-una vez al año, con el asistente del CRM.
+**Módulo nuevo: `Listas`** (sesión × grupo). Es la pieza que faltaba:
 
-> El evento global de socio (`Actividades Semanales MIC-COM 2025-2026`) **no se
-> tira**: se queda para lo que es, la actividad a la que se pertenece por ser
-> socio, y para convivencias/campamentos con inscripción. Pasar lista semanal
-> es otra cosa y merece su propia estructura.
+| Campo | Tipo |
+|---|---|
+| `sesion` | relate a `stic_Sessions` |
+| `grupo` | relate a `ajmcm_GRUPOS` |
+| `estado` | enum: `pasada` · `omitida` (no hay registro = pendiente) |
+| `pasada_por` | relate a `Contacts` — quién la pasó |
+| `pasada_el` | datetime |
+| `n_asistieron` / `n_faltaron` | int — para el resumen sin recontar |
 
-🔶 **Decisión 3.1** — ¿Opción A, B o C? Todo lo demás depende de esto.
+Un registro por grupo y por semana: ~23 grupos × 39 semanas ≈ **900 al año**.
+Nada. Y a cambio resuelve de golpe el indicador de "te faltan listas", el
+*skip* de "no hubo reunión", quién la pasó (que importa cuando cubres a otro
+monitor) y el resumen de coordinación con una sola consulta.
 
-🔶 **Decisión 3.2** — Si A: ¿el evento del grupo lo crea coordinación a mano
-cada septiembre, o hacemos un script anual que lo genere leyendo los grupos
-activos? Recomiendo script: 150 grupos a mano no los monta nadie dos años
-seguidos.
+Es además lo que uno haría en cualquier esquema relacional: el **acto** de
+pasar lista es una entidad distinta de los **hechos** de asistencia.
+
+### 3.3 Lo que esto cuesta montar
+
+- **Una vez, en septiembre:** crear los ~20 eventos y sus sesiones (con el
+  asistente de sesiones periódicas del CRM, un formulario por evento) y dar de
+  alta las inscripciones de los participantes activos. Las inscripciones sí
+  conviene scriptarlas: leer los grupos de la delegación+etapa, sacar sus
+  miembros y crear la inscripción. El CRM genera solas las asistencias.
+- **Durante el curso:** nada. Un niño nuevo necesita su relación de grupo (que
+  ya se hace) y su inscripción al evento de su etapa.
+
+🔶 **Decisión 3.1** — ¿Confirmamos delegación × etapa? ¿O empezamos con
+Castellón solo, un evento MIC y otro COM, y lo extendemos?
+
+🔶 **Decisión 3.2** — El alta masiva de inscripciones: ¿script contra la API o
+importación CSV desde el CRM? El CSV es menos código pero hay que casar los ids
+a mano.
+
+### 3.4 Sobre el campo `grupo` en Contacts
+
+Lo propusiste como alternativa. Mi opinión, ahora que sé lo que cuestan las
+consultas: **para pasar lista no hace falta.** Sacar los miembros de un grupo ya
+es una llamada; añadir un campo denormalizado no la mejora.
+
+Donde sí ayudaría es al revés: en pantallas centradas en la persona (buscar un
+niño por nombre y ver su grupo en la propia tarjeta, sin ir a sus relaciones).
+Eso hoy costaría una llamada por niño, que es exactamente el patrón que hay que
+evitar en un listado.
+
+Si se hace, dos condiciones:
+
+1. **Es una caché, no la verdad.** La verdad sigue en las relaciones. Cualquier
+   duda, se resuelve mirando la relación.
+2. **Se recalcula al guardar la relación, no una vez al año.** Un flujo de
+   trabajo anual se queda obsoleto el primer día que alguien cambia de grupo a
+   mitad de curso, y entonces tienes dos respuestas distintas a la misma
+   pregunta, que es peor que no tener el campo. Si el flujo dispara en el
+   `after_save` de `stic_Contacts_Relationships`, no puede desviarse.
+
+🔶 **Decisión 3.4** — ¿Lo dejamos para cuando haya una pantalla que lo pida
+(buscador de niños), con recálculo al guardar?
 
 ---
 
-## 4. Qué habría que crear en el CRM
+## 4. Qué hay que crear en el CRM
 
-Poco, y todo pequeño. En `stic_Sessions`:
+### 4.1 Módulo `Listas`
 
-| Campo | Tipo | Para qué |
-|---|---|---|
-| `ajmcm_lista_estado_c` | enum: `pendiente` · `pasada` · `omitida` | El indicador de la pantalla y el **skip**. `validated_attendances` no distingue "no la he pasado" de "no hubo reunión" |
-| `ajmcm_lista_pasada_por_c` | relate a Contacts | Quién la pasó (útil cuando la pasa un monitor de otro grupo) |
-| `ajmcm_lista_pasada_el_c` | datetime | Cuándo |
+El de §3.2. Es lo único nuevo de verdad.
+
+### 4.2 Campos
 
 En `ajmcm_GRUPOS`, para que la app sepa qué día toca sin adivinarlo:
 
 | Campo | Tipo | Para qué |
 |---|---|---|
 | `ajmcm_dia_semana_c` | enum (lunes…domingo) | Día habitual de reunión |
-| `ajmcm_hora_inicio_c` | texto/hora | Hora de inicio (el aviso de "aún no ha empezado") |
-| `ajmcm_hora_fin_c` | texto/hora | |
+| `ajmcm_hora_inicio_c` | hora | El aviso de "aún no ha empezado" |
+| `ajmcm_hora_fin_c` | hora | |
 
-Y una limpieza que no es un campo: **poner `code` a todos los grupos**. La
-pantalla se lee muchísimo mejor con "C1 · David" que con "Grupo 3: Ana María y
-Quique".
+**Segmento dentro de COM** (anotado para más adelante, tal cual pediste):
 
-🔶 **Decisión 4.1** — Los avisos de comportamiento de AppSheet (Aviso 1/2/3 +
-explicación) ¿se traen? Necesitarían 4 campos en `Contacts`. Yo los dejaría
-para una fase 2: no son "pasar lista".
+| Campo | Tipo | Notas |
+|---|---|---|
+| `ajmcm_segmento_c` | enum: `com_1` · `com_2` · `com_3` | En `ajmcm_GRUPOS` y también en `stic_Contacts_Relationships`, igual que `ajmcm_etapa_relacion_c` |
 
-**No hace falta ningún módulo nuevo.** El modelo de SinergiaCRM ya da para
-todo esto; lo que falta son tres campos de estado.
+Importa más de lo que parece para esta pantalla: la app de AppSheet **ya navega
+por MIC / COM I / COM II**, no por MIC / COM. Sin el campo, ese primer nivel del
+árbol hay que deducirlo del curso escolar, que es texto libre ("1º ESO", "1-2
+ESO", "Jovenes") y no se puede agrupar de forma fiable. Mientras no exista, la
+pantalla agrupará por `level` (MIC / COM / LC) y el segmento se queda fuera.
+
+🔶 **Decisión 4.2** — ¿Los segmentos de COM comparten calendario entre sí? Si
+COM I se reúne el sábado y COM II el viernes, el evento pasa a ser
+delegación × segmento en vez de delegación × etapa.
+
+### 4.3 Limpieza (no es un campo, pero bloquea igual)
+
+- **`code` en todos los grupos.** "C1 · David" se lee; "Grupo 3: Ana María y
+  Quique" no cabe.
+- **Grupo asignado** a los participantes y monitores que hoy cuelgan de
+  `⚠️ Grupo monitoreado - POR DEFINIR!` y `⚠️ Grupo COM-LC - POR DEFINIR!`.
+
+🔶 **Decisión 4.4** — Los avisos de comportamiento de AppSheet (Aviso 1/2/3 +
+explicación) necesitan 4 campos en `Contacts`. Yo los dejaría para fase 3: no
+son "pasar lista".
 
 ---
 
@@ -446,14 +515,15 @@ etapa? Y ¿queda registrado quién la pasó? (para eso es `ajmcm_lista_pasada_po
 
 ## 8. Rendimiento
 
-Es el riesgo técnico real, no el diseño. Pintar un grupo de 14 niños con su
-asistencia puede convertirse en 40 llamadas a la API si se hace ingenuamente,
-y **el CRM va lento** (el proxy de monitores tiene el timeout en 120 s).
+Sigue siendo lo que hay que cuidar, pero ya está medido (§3.1): la pantalla de
+marcado son **tres consultas**, no una por niño. El riesgo no es el volumen,
+es escribir el código de forma ingenua — y **el CRM va lento** (el proxy de
+monitores tiene el timeout en 120 s).
 
 Reglas desde el minuto uno:
 
-- **Una llamada por colección**, nunca una por fila. Los niños de un grupo son
-  *una* consulta a `stic_Contacts_Relationships` con `fields` acotados.
+- **Una llamada por colección**, nunca una por fila. Los miembros de un grupo
+  salen de `get_relationships` sobre el grupo, no de una consulta por persona.
 - **Guardado en lote**: una sola petición con las 14 asistencias.
 - **Cachear** en sesión lo que no cambia en una tarde: árbol de grupos,
   monitores, sesiones del curso.
@@ -468,10 +538,15 @@ comprometerse con la pantalla.
 
 ## 9. Fases
 
-**Fase 0 — datos (antes de programar nada).**
-Cerrar la decisión 3.1. Poner `code` a los grupos. Asignar grupo a los
-participantes y monitores que están en los grupos comodín. Crear los tres
-campos de `stic_Sessions`.
+**Fase 0 — CRM y datos (antes de programar nada).**
+Cerrar la decisión 3.1. Crear el módulo `Listas` y los tres campos de día y
+hora en `ajmcm_GRUPOS`. Crear los eventos de la delegación piloto con sus
+sesiones y dar de alta las inscripciones. Poner `code` a los grupos y asignar
+grupo a los participantes y monitores que hoy cuelgan de los grupos comodín.
+
+Se puede hacer entero desde el CRM y la API, sin tocar el área privada, y al
+terminar ya se puede comprobar en el calendario de actividades que las
+asistencias salen bien. Es el hito que decide si el modelo aguanta.
 
 **Fase 1 — pasar lista.**
 Home con atajo + árbol de grupos + pantalla de marcado + guardado en lote.

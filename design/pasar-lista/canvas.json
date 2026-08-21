@@ -1,40 +1,84 @@
 {
   "artboards": [
-    { "file": "Main.dc.html", "title": "1 · Home de Pasar Lista", "x": 0, "y": 0, "w": 390, "h": 860 },
-    { "file": "Grupos.dc.html", "title": "2 · Etapas y grupos", "x": 510, "y": 0, "w": 390, "h": 860 },
-    { "file": "Marcar.dc.html", "title": "3 · Marcar asistencia", "x": 1020, "y": 0, "w": 390, "h": 900 },
-    { "file": "Ficha.dc.html", "title": "4 · Ficha del participante", "x": 1530, "y": 0, "w": 390, "h": 1040 },
-    { "file": "Resumen.dc.html", "title": "5 · Resumen (coordinación)", "x": 2040, "y": 0, "w": 390, "h": 980 }
+    {
+      "file": "Main.dc.html",
+      "title": "1 · Home de Pasar Lista",
+      "x": 0,
+      "y": 0,
+      "w": 390,
+      "h": 860
+    },
+    {
+      "file": "Grupos.dc.html",
+      "title": "2 · Etapas y grupos",
+      "x": 510,
+      "y": 0,
+      "w": 390,
+      "h": 860
+    },
+    {
+      "file": "Marcar.dc.html",
+      "title": "3 · Marcar asistencia",
+      "x": 1020,
+      "y": 0,
+      "w": 390,
+      "h": 900
+    },
+    {
+      "file": "Ficha.dc.html",
+      "title": "4 · Ficha del participante",
+      "x": 1530,
+      "y": 0,
+      "w": 390,
+      "h": 1040
+    },
+    {
+      "file": "Resumen.dc.html",
+      "title": "5 · Resumen (coordinación)",
+      "x": 2040,
+      "y": 0,
+      "w": 390,
+      "h": 980
+    }
   ],
   "annotations": [
     {
-      "id": "flujo",
+      "id": "modelo",
       "x": 0,
-      "y": -200,
+      "y": -250,
       "w": 900,
-      "text": "EL CAMINO CORTO\n\nEl 90% de las veces el monitor va a su grupo y a la sesión de hoy: eso son DOS toques desde la home del área privada.\nLa navegación por etapas (pantalla 2) es el camino largo, para cubrir a otro monitor.\n\nLa regla de qué sesión se propone y las decisiones abiertas están en docs/comunica/PASAR-LISTA.md"
+      "text": "EL MODELO (corregido)\n\nUN evento por delegacion y etapa (MIC Castellon 2025-26, COM Castellon 2025-26) — unas 20 al ano, no 150.\nLas sesiones son los dias reales de esa etapa. El grupo NO se duplica: sale de las relaciones con personas.\n\nLa unica pieza nueva es un modulo pequeno «Listas» = (sesion x grupo) + estado + quien la paso.\nEs lo que hace posible el aviso de «te faltan listas», el «no hubo reunion» y el resumen de coordinacion.\n\nMontar la pantalla de marcado son TRES consultas, no una por nino. Comprobado contra la instancia real.\nDetalle y decisiones abiertas: docs/comunica/PASAR-LISTA.md"
+    },
+    {
+      "id": "segmento",
+      "x": 510,
+      "y": -250,
+      "w": 390,
+      "text": "MIC / COM I / COM II necesita un campo de\nsegmento nuevo en grupos y en relaciones.\nMientras no exista, este primer nivel solo\npuede agrupar por MIC / COM / LC: el curso\nescolar es texto libre («1º ESO», «1-2 ESO»,\n«Jovenes») y no agrupa de forma fiable."
     },
     {
       "id": "marcar-nota",
       "x": 1020,
-      "y": -200,
+      "y": -250,
       "w": 390,
-      "text": "ESTA PANTALLA FUNCIONA\n\nToca una fila: sin marcar → vino → falta.\n«Han venido todos» rellena de golpe y luego\nquitas las dos faltas. El contador de abajo\nva vivo.\n\nNadie empieza marcado: no queremos guardar\ndatos que nadie ha mirado."
+      "text": "ESTA PANTALLA FUNCIONA\n\nToca una fila: sin marcar -> vino -> falta.\n«Han venido todos» rellena de golpe y luego\nquitas las dos faltas.\n\nSegunda pasada: fuera el % de cada nino (era\nruido mientras marcas, esta en la ficha), el\n«no hubo» baja al final porque es raro y no\ndebe competir con marcar, y el aviso de hora\npasa a ser una linea.\n\nNadie empieza marcado: no guardamos datos\nque nadie ha mirado."
     },
     {
       "id": "ficha-nota",
       "x": 1530,
-      "y": -200,
+      "y": -250,
       "w": 390,
-      "text": "Lo primero de la ficha son los dos botones\nde contactar, no los datos. Es lo que se\nnecesita con prisa.\n\nEl % de asistencia lo calcula ya el CRM en la\ninscripción; el detalle por sesión existe hoy\nen el calendario de actividades."
+      "text": "Lo primero son los dos botones de contactar,\nno los datos: es lo que se necesita con prisa.\n\nEl % de asistencia lo calcula ya el CRM en la\ninscripcion; el detalle por sesion existe hoy\nen el calendario de actividades."
     },
     {
       "id": "resumen-nota",
       "x": 2040,
-      "y": -200,
+      "y": -250,
       "w": 390,
-      "text": "«Datos por revisar» es deliberado: es el\ngancho para que coordinación limpie los\ngrupos comodín del CRM. Sin esa limpieza\nninguna de las otras cuatro pantallas\nfunciona bien."
+      "text": "«17 de 23 pasadas» sale de una sola consulta\nal modulo Listas. Sin ese modulo habria que\nrecontar asistencias grupo a grupo.\n\n«Datos por revisar» es el gancho para que\ncoordinacion limpie los grupos comodin del\nCRM. Sin esa limpieza ninguna de las otras\ncuatro pantallas funciona bien."
     }
   ],
-  "launch": { "view": "canvas" }
+  "launch": {
+    "view": "canvas"
+  }
 }

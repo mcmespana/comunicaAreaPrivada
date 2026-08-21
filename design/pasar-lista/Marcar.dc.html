@@ -32,21 +32,17 @@
     </div>
   </div>
 
-  <!-- Aviso: la sesión aún no ha empezado -->
-  <div style="margin: 0 20px 14px 20px; display: flex; align-items: flex-start; gap: 11px; padding: 13px 15px; border-radius: 1.1rem; background: #fffbeb; border: 1px solid #fde68a;">
-    <svg viewBox="0 0 24 24" fill="none" stroke="#a16207" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px;"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-    <div style="font-size: 0.83rem; color: #78350f; line-height: 1.45;">La sesión empieza a las <strong style="font-weight: 800;">17:00</strong> y aún no han llegado. ¿Seguro que quieres pasar lista ya?</div>
+  <!-- Aviso: la sesión aún no ha empezado. Una línea, no un bloque. -->
+  <div style="display: flex; align-items: center; gap: 8px; padding: 0 20px 12px 20px;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#a16207" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px; flex-shrink: 0;"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+    <div style="font-size: 0.79rem; color: #92400e;">Empieza a las <strong style="font-weight: 800;">17:00</strong> — aún no han llegado</div>
   </div>
 
-  <!-- Acciones rápidas -->
-  <div style="display: flex; gap: 10px; padding: 0 20px 14px 20px;">
-    <div class="tap" onClick="{{ allPresent }}" style="display: flex; align-items: center; justify-content: center; gap: 8px; flex-grow: 1; height: 46px; border-radius: 1.1rem; background: #e6fcf5; border: 1px solid #b2f2bb;">
+  <!-- Acción rápida: una sola, la frecuente -->
+  <div style="padding: 0 20px 14px 20px;">
+    <div class="tap" onClick="{{ allPresent }}" style="display: flex; align-items: center; justify-content: center; gap: 8px; height: 46px; border-radius: 1.1rem; background: #e6fcf5; border: 1px solid #b2f2bb;">
       <svg viewBox="0 0 24 24" fill="none" stroke="#076b4d" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px;"><path d="M20 6 9 17l-5-5"/></svg>
-      <span style="font-size: 0.86rem; font-weight: 700; color: #076b4d;">Han venido todos</span>
-    </div>
-    <div class="tap" style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 16px; height: 46px; border-radius: 1.1rem; background: #ffffff; border: 1px solid #e5e7eb;">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;"><path d="m5 4 10 8-10 8V4Z"/><path d="M19 5v14"/></svg>
-      <span style="font-size: 0.86rem; font-weight: 700; color: #4b5563;">No hubo</span>
+      <span style="font-size: 0.88rem; font-weight: 700; color: #076b4d;">Han venido todos</span>
     </div>
   </div>
 
@@ -60,14 +56,11 @@
             <span style="font-size: 0.85rem; font-weight: 800; color: {{ kid.avatarFg }}; letter-spacing: 0.02em;">{{ kid.initials }}</span>
           </div>
 
-          <div style="display: flex; flex-direction: column; gap: 3px; flex-grow: 1; min-width: 0;">
-            <div style="font-size: 0.98rem; font-weight: 700; letter-spacing: -0.01em; color: {{ kid.nameColor }};">{{ kid.name }}</div>
-            <div style="display: flex; align-items: center; gap: 7px;">
-              <span style="font-size: 0.76rem; color: #6b7280;">{{ kid.pct }}% asistencia</span>
-              <sc-if value="{{ kid.warn }}" hint-placeholder-val="{{ true }}">
-                <span style="display: inline-flex; align-items: center; padding: 0.1rem 0.45rem; border-radius: 9999px; background: #fef2f2; color: #b91c1c; font-size: 0.66rem; font-weight: 800;">3 faltas</span>
-              </sc-if>
-            </div>
+          <div style="display: flex; align-items: center; gap: 8px; flex-grow: 1; min-width: 0;">
+            <div style="font-size: 1rem; font-weight: 700; letter-spacing: -0.01em; color: {{ kid.nameColor }};">{{ kid.name }}</div>
+            <sc-if value="{{ kid.warn }}" hint-placeholder-val="{{ true }}">
+              <span style="display: inline-flex; align-items: center; padding: 0.1rem 0.45rem; border-radius: 9999px; background: #fef2f2; color: #b91c1c; font-size: 0.66rem; font-weight: 800; flex-shrink: 0;">3 faltas</span>
+            </sc-if>
           </div>
 
           <div style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 9999px; background: {{ kid.markBg }}; border: {{ kid.markBorder }}; flex-shrink: 0;">
@@ -79,7 +72,9 @@
             </sc-if>
           </div>
 
-          <svg viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; flex-shrink: 0;"><path d="m9 18 6-6-6-6"/></svg>
+          <div style="display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex-shrink: 0; margin-right: -8px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#c4cad3" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px;"><path d="m9 18 6-6-6-6"/></svg>
+          </div>
 
         </div>
       </sc-for>
@@ -87,7 +82,13 @@
 
     <div style="display: flex; align-items: center; gap: 7px; padding: 12px 4px 0 4px;">
       <svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px; flex-shrink: 0;"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-      <span style="font-size: 0.76rem; color: #6b7280; line-height: 1.4;">Toca la fila para marcar. Mantén pulsado para «parcial» o «falta justificada».</span>
+      <span style="font-size: 0.76rem; color: #6b7280; line-height: 1.4;">Toca la fila para marcar, la flecha para ver la ficha. Mantén pulsado para «parcial» o «falta justificada».</span>
+    </div>
+
+    <!-- «No hubo» vive aquí abajo: es raro y no debe competir con marcar -->
+    <div class="tap" style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; height: 44px; border-radius: 1.1rem; background: transparent; border: 1px dashed #d1d5db;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;"><path d="m5 4 10 8-10 8V4Z"/><path d="M19 5v14"/></svg>
+      <span style="font-size: 0.84rem; font-weight: 600; color: #6b7280;">Esta semana no hubo reunión</span>
     </div>
   </div>
 
