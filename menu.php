@@ -23,6 +23,12 @@ function getSticMenuElements()
         $menuElements['single_stic_comunica_monitor'] = __('Monitor/a', 'sticpa');
     }
 
+    // Pasar Lista: solo monitores, y solo cuando la persona es ella misma (un
+    // familiar mirando la ficha de su hijo no pasa lista de nadie).
+    if ($role === 'monitor' && $audience !== 'participante') {
+        $menuElements['single_stic_pasar_lista'] = __('Pasar lista', 'sticpa');
+    }
+
     // --- Secciones del área privada (las que ya había) ---
     $menuElements['list_stic_events'] = __('Eventos', 'sticpa');
     $menuElements['list_stic_registrations'] = __('Inscripciones', 'sticpa');
