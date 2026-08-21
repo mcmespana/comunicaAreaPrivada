@@ -43,8 +43,21 @@ class FakeSCP
     public function getRecordDetail($id, $module, $fields = null)
     {
         $this->calls[] = 'getRecordDetail:' . $module;
+        $data = array('id' => $id, 'assigned_user_id' => 'deleg-castellon');
+        if (is_array($fields) && in_array('ajmcm_panuelo_c', $fields, true)) {
+            $data = array_merge($data, array(
+                'first_name' => 'Solete', 'last_name' => 'Vilarroya', 'name' => 'Solete Vilarroya',
+                'birthdate' => '2012-04-18', 'stic_age_c' => '13',
+                'phone_mobile' => '600 111 222', 'phone_other' => '964 200 300',
+                'ajmcm_etapa_c' => 'COM', 'ajmcm_panuelo_c' => 'verde', 'ajmcm_tallas_c' => 'S',
+                'ajmcm_soloacasa_c' => '1', 'ajmcm_menorwhatsapp_c' => '0',
+                'ajmcm_cesionimagenes_interne_c' => '1',
+                'ajmcm_descripcion_allergies__c' => 'Frutos secos (anafilaxia)',
+                'ajmcm_descripcion_intoler_c' => '',
+            ));
+        }
         $out = new stdClass();
-        $out->entry_list = array($this->nvl(array('id' => $id, 'assigned_user_id' => 'deleg-castellon')));
+        $out->entry_list = array($this->nvl($data));
         return $out;
     }
 
@@ -126,6 +139,25 @@ class FakeSCP
                     $this->nvl(array('id' => 'a1', 'status' => 'yes'), array(array('id' => 'reg1'))),
                     $this->nvl(array('id' => 'a2', 'status' => ''), array(array('id' => 'reg2'))),
                 );
+
+            // Histórico de un participante: todas sus asistencias del curso.
+            case 'stic_Registrations:stic_attendances_stic_registrations':
+                return array(
+                    $this->nvl(array('id' => 'a1', 'status' => 'yes'), array(array('id' => 's1'))),
+                    $this->nvl(array('id' => 'a2', 'status' => 'no_unjustified'), array(array('id' => 's2'))),
+                    $this->nvl(array('id' => 'a3', 'status' => 'partial'), array(array('id' => 's3'))),
+                );
+
+            // Familia: la relación puede estar creada en cualquiera de los dos
+            // sentidos, así que el doble solo contesta por uno de los enlaces.
+            case 'Contacts:stic_personal_environment_contacts':
+                return array($this->nvl(
+                    array('id' => 'pe1', 'relationship_type' => 'madre', 'reference_contact' => '1', 'authorized_signer' => '1', 'end_date' => ''),
+                    array(
+                        array('id' => 'c1'),                                    // el propio participante: se descarta
+                        array('id' => 'fam1', 'first_name' => 'Solete', 'last_name' => 'Messeguer', 'phone_mobile' => '600 333 444'),
+                    )
+                ));
 
             case 'stic_Sessions:lis_listas_stic_sessions':
                 // Solo la sesión s3 tiene lista pasada: las anteriores están sin
@@ -464,6 +496,101 @@ final class PasarListaRenderTest extends TestCase
     }
 
     // ---- La etapa del evento --------------------------------------------
+
+    // ---- Ficha ----------------------------------------------------------
+
+    public function test_ficha_pone_los_telefonos_primero()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        // Es lo primero después de la cabecera: la ficha se abre para llamar.
+        $this->assertLessThan(strpos($html, 'Asistencia'), strpos($html, 'Teléfonos'));
+        $this->assertStringContainsString('tel:600111222', $html);
+        // La madre, marcada como referencia.
+        $this->assertStringContainsString('Solete Messeguer', $html);
+        $this->assertStringContainsString('REF', $html);
+        $this->assertStringContainsString('wa.me/34600333444', $html);
+    }
+
+    /**
+     * Sin permiso de WhatsApp del menor NO se pinta su botón de WhatsApp, pero
+     * sí el de llamar: son dos cosas distintas.
+     */
+    public function test_ficha_respeta_el_permiso_de_whatsapp_del_menor()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+        $this->assertStringNotContainsString('wa.me/34600111222', $html);
+        $this->assertStringContainsString('tel:600111222', $html);
+    }
+
+    /** El porcentaje se dice con denominador, y sobre sesiones celebradas. */
+    public function test_ficha_asistencia_con_denominador()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        // yes + partial cuentan: 2 de las 3 sesiones celebradas (s4 no ha llegado).
+        $this->assertStringContainsString('2 de 3 sesiones', $html);
+        $this->assertStringContainsString('67', $html);
+        $this->assertStringContainsString('hasta hoy', $html);
+    }
+
+    /** Solo los campos de salud con contenido: nada de etiquetas vacías. */
+    public function test_ficha_salud_solo_lo_que_tiene_contenido()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+        $this->assertStringContainsString('Alergias', $html);
+        $this->assertStringContainsString('Frutos secos', $html);
+        $this->assertStringNotContainsString('Intolerancias', $html);
+    }
+
+    /** El pañuelo va DESPUÉS de permisos, y cambiarlo pide confirmación. */
+    public function test_ficha_panuelo_va_abajo_y_pide_confirmacion()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertLessThan(strpos($html, 'Pañuelo'), strpos($html, 'Permisos'));
+        $this->assertStringContainsString('Verde', $html);
+        $this->assertStringContainsString('data-pl-confirm', $html);
+        // Las opciones salen ocultas: cambiarlo cuesta dos toques a propósito.
+        $this->assertStringContainsString('data-pl-panuelo-opts hidden', $html);
+    }
+
+    public function test_ficha_cambia_el_panuelo()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $_POST = array('pl_panuelo' => 'azul', 'pl_nonce' => wp_create_nonce('pl_ficha_c1'));
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringContainsString('Pañuelo actualizado', $html);
+        $writes = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'Contacts';
+        }));
+        $this->assertCount(1, $writes);
+        $this->assertSame('azul', $writes[0]['data']['ajmcm_panuelo_c']);
+    }
+
+    /** Un valor de pañuelo que no está en CAMPOS.md no se escribe. */
+    public function test_ficha_no_escribe_panuelos_inventados()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $_POST = array('pl_panuelo' => 'fucsia', 'pl_nonce' => wp_create_nonce('pl_ficha_c1'));
+        $this->render('single_stic_pasar_lista_ficha');
+        $this->assertSame(array(), $this->scp->writes);
+    }
+
+    /** Un participante de otro grupo no se abre cambiando la URL. */
+    public function test_ficha_de_alguien_que_no_es_del_grupo()
+    {
+        $_REQUEST = array('participante' => 'c-de-otro-sitio', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+        $this->assertStringContainsString('no está en el grupo', $html);
+        $this->assertStringNotContainsString('Teléfonos', $html);
+    }
 
     /**
      * "Convivencia de familias del COM" NO es el evento de sesiones del COM.

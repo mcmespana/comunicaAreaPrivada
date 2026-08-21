@@ -218,7 +218,9 @@ $html .= '<div class="pl-list">';
 foreach ($people['participants'] as $p) {
     $state = isset($attendances[$p['id']]['status']) ? $attendances[$p['id']]['status'] : '';
     $streak = isset($streaks[$p['id']]) ? (int) $streaks[$p['id']] : 0;
-    $html .= sticpa_pl_row_html($p, $state, $streak);
+    $fichaUrl = '?internalpage=single_stic_pasar_lista_ficha&participante=' . rawurlencode($p['id'])
+        . '&grupo=' . rawurlencode($groupId);
+    $html .= sticpa_pl_row_html($p, $state, $streak, $fichaUrl);
 }
 $html .= '</div>';
 

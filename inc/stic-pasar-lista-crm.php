@@ -968,3 +968,277 @@ function sticpa_pl_my_groups($objSCP)
     }
     return $ids;
 }
+
+// ---------------------------------------------------------------------------
+// Ficha del participante (fase 2)
+// ---------------------------------------------------------------------------
+
+/**
+ * Campos de la ficha que se piden al CRM.
+ *
+ * Todos salen de docs/comunica/CAMPOS.md, que es la fuente de la verdad. Se
+ * piden EXPLÍCITAMENTE: sin lista de campos, la API devuelve el módulo entero
+ * (unos 200 campos por contacto) y la pantalla se vuelve lenta y cara.
+ */
+function sticpa_pl_ficha_fields()
+{
+    return array(
+        'id', 'first_name', 'last_name', 'name',
+        'birthdate', 'stic_age_c',
+        'phone_mobile', 'phone_other', 'email1',
+        'ajmcm_etapa_c', 'ajmcm_nivel_com_c', 'ajmcm_panuelo_c', 'ajmcm_tallas_c',
+        // Permisos
+        'ajmcm_soloacasa_c', 'ajmcm_menorwhatsapp_c', 'ajmcm_cesionimagenes_interne_c', 'ajmcm_datossalud_c',
+        // Salud: los cinco campos que en pantalla van en UNA tarjeta
+        'ajmcm_descripcion_allergies__c', 'ajmcm_descripcion_intoler_c',
+        'ajmcm_descripcion_tratam_c', 'ajmcm_descripcion_enfermed_c',
+        'ajmcm_descripcion_otros_c',
+    );
+}
+
+/** Los valores del pañuelo, tal como están en CAMPOS.md, con su color. */
+function sticpa_pl_panuelos()
+{
+    return array(
+        'no' => array('label' => __('No', 'sticpa'), 'color' => '#9ca3af'),
+        'rojo' => array('label' => __('Rojo', 'sticpa'), 'color' => '#dc2626'),
+        'verde' => array('label' => __('Verde', 'sticpa'), 'color' => '#2f9e44'),
+        'azul' => array('label' => __('Azul', 'sticpa'), 'color' => '#1c6fb3'),
+        'amarillo' => array('label' => __('Amarillo', 'sticpa'), 'color' => '#f59e0b'),
+        'cruz' => array('label' => __('Cruz', 'sticpa'), 'color' => '#6c4b9e'),
+        'na' => array('label' => __('Desconocido', 'sticpa'), 'color' => '#d1d5db'),
+    );
+}
+
+/** La ficha de un participante, en una llamada y solo con lo que se usa. */
+function sticpa_pl_ficha($objSCP, $contactId)
+{
+    $contactId = sticpa_pl_safe_id($contactId);
+    if ($contactId === '') {
+        return null;
+    }
+    $detail = $objSCP->getRecordDetail($contactId, 'Contacts', sticpa_pl_ficha_fields());
+    if (empty($detail->entry_list[0]->name_value_list)) {
+        return null;
+    }
+    $v = $detail->entry_list[0]->name_value_list;
+
+    $out = array();
+    foreach (sticpa_pl_ficha_fields() as $f) {
+        $out[$f] = isset($v->$f->value) ? (string) $v->$f->value : '';
+    }
+    $out['initials'] = sticpa_pl_initials($out['first_name'], $out['last_name'], $out['name']);
+    if (trim($out['name']) === '') {
+        $out['name'] = trim($out['first_name'] . ' ' . $out['last_name']);
+    }
+    return $out;
+}
+
+/**
+ * TODAS las asistencias de un participante en un evento, en UNA llamada.
+ *
+ * Se piden desde la inscripción, no sesión por sesión: la inscripción tiene
+ * todas sus asistencias colgando, y con el enlace a la sesión poblado vuelve
+ * también de qué día es cada una. Devuelve array sessionId => clave de estado,
+ * que es justo lo que come sticpa_pl_attendance() y sticpa_pl_absence_streak().
+ */
+function sticpa_pl_contact_marks($objSCP, $registrationId)
+{
+    $registrationId = sticpa_pl_safe_id($registrationId);
+    if ($registrationId === '') {
+        return array();
+    }
+
+    $rows = $objSCP->getRelatedElementsForLoggedUser(array(
+        'module_name' => 'stic_Registrations',
+        'module_id' => $registrationId,
+        'link_field_name' => 'stic_attendances_stic_registrations',
+        'related_fields' => array('id', 'status'),
+        'related_module_link_name_to_fields_array' => array(
+            array('name' => 'stic_attendances_stic_sessions', 'value' => array('id')),
+        ),
+        'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
+    ));
+
+    $marks = array();
+    if (is_array($rows)) {
+        foreach ($rows as $row) {
+            $v = isset($row->name_value_list) ? $row->name_value_list : null;
+            if (!$v) {
+                continue;
+            }
+            $sid = sticpa_pl_link_id($row);
+            if ($sid === '') {
+                continue;
+            }
+            $status = isset($v->status->value) ? (string) $v->status->value : '';
+            $marks[$sid] = sticpa_pl_is_state($status) ? $status : '';
+        }
+    }
+    return $marks;
+}
+
+/**
+ * Cambia el pañuelo de un participante.
+ *
+ * Es la única escritura de la ficha, y va con confirmación en pantalla: es un
+ * dato que se usa para saber quién puede hacer qué en una actividad, así que
+ * cambiarlo por un toque accidental tiene consecuencias.
+ */
+function sticpa_pl_set_panuelo($objSCP, $contactId, $value)
+{
+    $contactId = sticpa_pl_safe_id($contactId);
+    $panuelos = sticpa_pl_panuelos();
+    if ($contactId === '' || !isset($panuelos[$value])) {
+        return false;
+    }
+    $ok = $objSCP->set_entry('Contacts', array('id' => $contactId, 'ajmcm_panuelo_c' => $value));
+    return (bool) $ok;
+}
+
+/**
+ * Todos los registros enlazados de una fila, de todos sus enlaces.
+ *
+ * sticpa_pl_link_id() devuelve el primero y vale cuando hay un solo enlace. En
+ * las familias hay DOS enlaces a Contacts, así que hace falta verlos todos.
+ */
+function sticpa_pl_link_records($row)
+{
+    $out = array();
+    $links = isset($row->link_list) ? $row->link_list : array();
+    foreach ((array) $links as $link) {
+        $name = isset($link->name) ? (string) $link->name : '';
+        if (!isset($link->records) || !is_array($link->records)) {
+            continue;
+        }
+        foreach ($link->records as $record) {
+            $lv = isset($record->link_value) ? $record->link_value : null;
+            if ($lv && !empty($lv->id->value)) {
+                $out[] = array('link' => $name, 'value' => $lv);
+            }
+        }
+    }
+    return $out;
+}
+
+/**
+ * La familia de un participante: quién es, cómo contactar y quién es la
+ * referencia.
+ *
+ * ⚠️ `stic_Personal_Environment` enlaza DOS veces con Contacts
+ * (`stic_personal_environment_contacts` y `..._contacts_1`) y los nombres no
+ * dicen cuál es el menor y cuál el familiar. En vez de adivinarlo —que es
+ * exactamente lo que prohíbe el CLAUDE.md— se piden los dos enlaces poblados y
+ * se descarta al propio participante: quien quede es el familiar. Funciona sin
+ * depender de cuál de los dos enlaces sea cuál.
+ *
+ * Se consulta desde los dos lados porque la relación puede estar creada en
+ * cualquiera de los dos sentidos.
+ */
+function sticpa_pl_family($objSCP, $contactId)
+{
+    $contactId = sticpa_pl_safe_id($contactId);
+    if ($contactId === '') {
+        return array();
+    }
+
+    $people = array();
+    $links = array('stic_personal_environment_contacts', 'stic_personal_environment_contacts_1');
+
+    foreach ($links as $link) {
+        $rows = $objSCP->getRelatedElementsForLoggedUser(array(
+            'module_name' => 'Contacts',
+            'module_id' => $contactId,
+            'link_field_name' => $link,
+            'related_fields' => array('id', 'relationship_type', 'reference_contact', 'authorized_signer', 'end_date'),
+            'related_module_link_name_to_fields_array' => array(
+                array('name' => 'stic_personal_environment_contacts', 'value' => array('id', 'first_name', 'last_name', 'name', 'phone_mobile')),
+                array('name' => 'stic_personal_environment_contacts_1', 'value' => array('id', 'first_name', 'last_name', 'name', 'phone_mobile')),
+            ),
+            'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
+        ));
+        if (!is_array($rows)) {
+            continue;
+        }
+
+        foreach ($rows as $row) {
+            $v = isset($row->name_value_list) ? $row->name_value_list : null;
+            if (!$v) {
+                continue;
+            }
+            // Una relación familiar terminada no se enseña como contacto actual.
+            $end = isset($v->end_date->value) ? trim((string) $v->end_date->value) : '';
+            if ($end !== '') {
+                $endTs = strtotime($end . ' 23:59:59');
+                if ($endTs && $endTs < sticpa_pl_now()) {
+                    continue;
+                }
+            }
+
+            foreach (sticpa_pl_link_records($row) as $rec) {
+                $lv = $rec['value'];
+                $id = (string) $lv->id->value;
+                if ($id === $contactId || isset($people[$id])) {
+                    continue;   // el propio participante, o ya lo tenemos
+                }
+                $first = isset($lv->first_name->value) ? trim((string) $lv->first_name->value) : '';
+                $last = isset($lv->last_name->value) ? trim((string) $lv->last_name->value) : '';
+                $full = trim($first . ' ' . $last);
+                if ($full === '' && isset($lv->name->value)) {
+                    $full = trim((string) $lv->name->value);
+                }
+                $people[$id] = array(
+                    'id' => $id,
+                    'name' => $full,
+                    'initials' => sticpa_pl_initials($first, $last, $full),
+                    'mobile' => isset($lv->phone_mobile->value) ? (string) $lv->phone_mobile->value : '',
+                    'relationship' => isset($v->relationship_type->value) ? (string) $v->relationship_type->value : '',
+                    'reference' => !empty($v->reference_contact->value) && $v->reference_contact->value !== '0',
+                    'signer' => !empty($v->authorized_signer->value) && $v->authorized_signer->value !== '0',
+                );
+            }
+        }
+    }
+
+    // La familia de referencia primero: es a quien se llama.
+    $people = array_values($people);
+    usort($people, 'sticpa_pl_cmp_family');
+    return $people;
+}
+
+/** La referencia va primero; luego quien firma; luego por nombre. */
+function sticpa_pl_cmp_family($a, $b)
+{
+    if ($a['reference'] !== $b['reference']) {
+        return $a['reference'] ? -1 : 1;
+    }
+    if ($a['signer'] !== $b['signer']) {
+        return $a['signer'] ? -1 : 1;
+    }
+    return strcmp($a['name'], $b['name']);
+}
+
+/**
+ * Un teléfono en formato para `tel:` y `wa.me`.
+ *
+ * WhatsApp quiere el número sin signos ni espacios y con prefijo de país; los
+ * teléfonos del CRM están escritos como cada uno quiso, así que se limpian. Si
+ * no hay prefijo se asume España, porque es donde están todas las delegaciones;
+ * es un supuesto y está dicho aquí para que se vea.
+ */
+function sticpa_pl_phone($raw)
+{
+    $raw = trim((string) $raw);
+    if ($raw === '') {
+        return null;
+    }
+    $digits = preg_replace('/[^0-9+]/', '', $raw);
+    if ($digits === '' || $digits === '+') {
+        return null;
+    }
+    $wa = ltrim($digits, '+');
+    if (strpos($digits, '+') !== 0 && strlen($wa) === 9) {
+        $wa = '34' . $wa;
+    }
+    return array('display' => $raw, 'tel' => $digits, 'wa' => $wa);
+}

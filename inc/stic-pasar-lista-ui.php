@@ -72,7 +72,7 @@ function sticpa_pl_icon($which)
  * Es un <button> y no un <div> con onclick: así lo alcanza el teclado y lo
  * anuncia el lector de pantalla sin tener que añadir roles a mano.
  */
-function sticpa_pl_row_html($person, $state, $streak = 0)
+function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '')
 {
     $states = sticpa_pl_states();
     $state = sticpa_pl_is_state($state) ? $state : '';
@@ -111,12 +111,20 @@ function sticpa_pl_row_html($person, $state, $streak = 0)
     $html .= '</span>';
 
     $html .= '<span class="pl-mark">' . sticpa_pl_glyphs() . '</span>';
-    // La ficha del participante llega en la fase 2; el botón ya está para que la
-    // fila no cambie de forma cuando exista.
-    $html .= '<span class="pl-detail" data-pl-detail>' . sticpa_pl_icon('next') . '</span>';
     $html .= '</button>';
 
-    return $html;
+    // La flecha va FUERA del botón de marcar: dos controles anidados no se
+    // pueden separar con el teclado, y aquí son dos acciones distintas.
+    if ($fichaUrl !== '') {
+        $html .= '<a class="pl-detail" data-pl-detail href="' . esc_url($fichaUrl) . '"'
+            . ' aria-label="' . esc_attr(sprintf(
+                /* translators: %s: nombre del participante */
+                __('Ver la ficha de %s', 'sticpa'),
+                $person['name']
+            )) . '">' . sticpa_pl_icon('next') . '</a>';
+    }
+
+    return '<div class="pl-rowwrap">' . $html . '</div>';
 }
 
 /**

@@ -659,3 +659,170 @@ a.pl-group .pl-name { display: block; }
 .pl-opt[data-value="partial"]        .pl-opt-check svg { stroke: var(--pl-partial); }
 .pl-opt[data-value="no_justified"]   .pl-opt-check svg { stroke: var(--warning-color); }
 .pl-opt[data-value="no_unjustified"] .pl-opt-check svg { stroke: var(--danger-color); }
+
+/* ---- Ficha del participante -------------------------------------------- */
+
+.pl-sec {
+    padding: 1.2rem 0.25rem 0.55rem;
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--gray-500, #6b7280);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.pl-list--data { padding: 0.2rem 0; }
+
+/* Teléfonos: el número a la izquierda y los dos botones a la derecha, cada uno
+   con sus 44 px. Con prisa no se acierta un icono de 20. */
+.pl-phone {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem 0.85rem;
+    border-top: 1px solid var(--gray-100);
+}
+.pl-phone:first-child { border-top: 0; }
+.pl-phone-who { display: flex; flex-direction: column; gap: 0.1rem; flex-grow: 1; min-width: 0; }
+.pl-phone-label { font-size: 0.88rem; font-weight: 700; }
+.pl-phone-num { font-size: 0.8rem; color: var(--gray-500, #6b7280); }
+
+.pl-phone-acts { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
+.pl-phone-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-full);
+    text-decoration: none;
+}
+.pl-phone-btn svg { width: 20px; height: 20px; }
+.pl-phone-btn--wa   { background: var(--success-50); color: var(--success-dark); }
+.pl-phone-btn--call { background: var(--primary-soft, #eaf4fb); color: var(--primary-color); }
+
+/* Salud y datos: etiqueta pequeña arriba, valor debajo y legible. El texto de
+   una alergia se lee entero, no se recorta con puntos suspensivos. */
+.pl-data {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.7rem 0.85rem;
+    border-top: 1px solid var(--gray-100);
+}
+.pl-data:first-child { border-top: 0; }
+.pl-data-label {
+    font-size: 0.73rem;
+    font-weight: 800;
+    color: var(--gray-400);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.pl-data-value { font-size: 0.92rem; line-height: 1.45; }
+
+.pl-flagrow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.8rem 0.85rem;
+    border-top: 1px solid var(--gray-100);
+    font-size: 0.9rem;
+    color: var(--gray-600, #4b5563);
+}
+.pl-flagrow:first-child { border-top: 0; }
+
+.pl-flag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.16rem 0.6rem;
+    border-radius: var(--radius-full);
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+}
+.pl-flag--yes { background: var(--success-50); color: var(--success-dark); }
+.pl-flag--no  { background: var(--gray-100); color: var(--gray-500, #6b7280); }
+
+/* Pañuelo: se ve el actual, y cambiarlo cuesta dos toques a propósito. */
+.pl-panuelo {
+    border-radius: var(--radius-lg);
+    background: var(--white);
+    box-shadow: var(--shadow-xs);
+    overflow: hidden;
+}
+.pl-panuelo-now { display: flex; align-items: center; gap: 0.7rem; padding: 0.8rem 0.85rem; }
+.pl-panuelo-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: var(--radius-full);
+    box-shadow: inset 0 0 0 1px rgba(21, 36, 71, 0.12);
+    flex-shrink: 0;
+}
+.pl-panuelo-label { font-size: 1rem; font-weight: 800; flex-grow: 1; }
+.pl-panuelo-edit {
+    min-height: 40px;
+    padding: 0 0.85rem;
+    border-radius: var(--radius-full);
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--gray-700, #374151);
+    cursor: pointer;
+}
+.pl-panuelo-opts { display: flex; flex-direction: column; border-top: 1px solid var(--gray-100); }
+.pl-panuelo-opt {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    min-height: 48px;
+    padding: 0 0.85rem;
+    background: none;
+    border: 0;
+    border-top: 1px solid var(--gray-100);
+    font-family: inherit;
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+}
+.pl-panuelo-opt:first-child { border-top: 0; }
+
+/* La fila de marcar y la flecha de la ficha son dos controles hermanos, no uno
+   dentro de otro: anidarlos deja la flecha inalcanzable con el teclado. */
+.pl-rowwrap {
+    display: flex;
+    align-items: center;
+    border-top: 1px solid var(--gray-100);
+}
+.pl-rowwrap:first-child { border-top: 0; }
+.pl-rowwrap .pl-row { border-top: 0; flex-grow: 1; min-width: 0; padding-right: 0; }
+.pl-rowwrap .pl-detail { text-decoration: none; }
+
+/* Asistencia de la ficha: el porcentaje grande, y a su lado SIEMPRE el
+   denominador. Un número solo, sin sobre-cuántas, no significa nada. */
+.pl-att {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.1rem;
+    border-radius: var(--radius-lg);
+    background: var(--white);
+    box-shadow: var(--shadow-xs);
+}
+.pl-att-pct {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    color: var(--primary-color);
+    flex-shrink: 0;
+}
+.pl-att-pct span { font-size: 1rem; font-weight: 700; }
+.pl-att-body { display: flex; flex-direction: column; gap: 0.15rem; }
+.pl-att-main { font-size: 0.98rem; font-weight: 700; }
+.pl-att-meta { font-size: 0.79rem; color: var(--gray-500, #6b7280); }

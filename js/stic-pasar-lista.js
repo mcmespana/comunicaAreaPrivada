@@ -256,3 +256,40 @@
 
     refresh();
 }());
+
+/**
+ * PASAR LISTA — ficha: el cambio de pañuelo.
+ * ---------------------------------------------------------------------------
+ * Dos toques y una confirmación. El pañuelo dice quién puede hacer qué en una
+ * actividad, así que cambiarlo por un roce no puede ser posible; pero tampoco
+ * puede costar entrar en el CRM, porque quien lo sabe es el monitor.
+ *
+ * Sin JS el formulario sigue funcionando: las opciones están en el HTML y solo
+ * están ocultas, así que el peor caso es que se vean todas desde el principio.
+ */
+(function () {
+    'use strict';
+
+    var form = document.querySelector('[data-pl-panuelo]');
+    if (!form) {
+        return;
+    }
+
+    var opts = form.querySelector('[data-pl-panuelo-opts]');
+    var edit = form.querySelector('[data-pl-panuelo-edit]');
+
+    if (edit && opts) {
+        edit.addEventListener('click', function () {
+            opts.hidden = !opts.hidden;
+            edit.setAttribute('aria-expanded', opts.hidden ? 'false' : 'true');
+        });
+    }
+
+    Array.prototype.forEach.call(form.querySelectorAll('[data-pl-confirm]'), function (btn) {
+        btn.addEventListener('click', function (ev) {
+            if (!window.confirm(btn.getAttribute('data-pl-confirm'))) {
+                ev.preventDefault();
+            }
+        });
+    });
+}());
