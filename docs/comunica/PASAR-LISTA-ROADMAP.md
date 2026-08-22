@@ -134,7 +134,7 @@ pantallas de Pasar Lista, nunca un POST, nunca otra sección.
 Ver [`PASAR-LISTA-COORDINACION.md`](PASAR-LISTA-COORDINACION.md) para el porqué
 de cada decisión. Lo construido:
 
-- **Alcance de coordinación** desde la relación `coordinacion-mic-com`: etapa,
+- **Alcance de coordinación** desde la relación `coordinacion_mic_com`: etapa,
   segmento o toda la delegación. Quien no tiene alcance marcado ve el conjunto.
 - **Lista de monitores** con el defecto invertido (todos en verde) y el verde
   escrito de forma explícita al guardar.
@@ -148,7 +148,7 @@ de cada decisión. Lo construido:
 
 Pendiente de campos que no existen todavía:
 
-- `coordinacion-mic-com` en `relationship_type` → sin él, nadie coordina y todo
+- `coordinacion_mic_com` en `relationship_type` → sin él, nadie coordina y todo
   se comporta como para un monitor (ver, no editar). Es el defecto seguro.
 - `LIS_listas.ajmcm_tipo_c` → sin él, la lista de monitores de un sábado y la
   del grupo se pisarían. **Esto sí bloquea** la marca de «lista de monitores

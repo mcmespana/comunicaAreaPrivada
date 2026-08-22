@@ -167,7 +167,7 @@ class FakeSCP
                 if ($this->coordEtapa !== null) {
                     $rels[] = $this->nvl(array(
                         'id' => 'rc1',
-                        'relationship_type' => 'coordinacion-mic-com',
+                        'relationship_type' => 'coordinacion_mic_com',
                         'end_date' => '',
                         'ajmcm_etapa_relacion_c' => $this->coordEtapa,
                     ));
@@ -175,7 +175,7 @@ class FakeSCP
                 if ($this->isAcomp) {
                     $rels[] = $this->nvl(array(
                         'id' => 'ra1',
-                        'relationship_type' => 'acompanamiento-mic-com',
+                        'relationship_type' => 'acompanamiento_mic_com',
                         'end_date' => '',
                     ));
                 }

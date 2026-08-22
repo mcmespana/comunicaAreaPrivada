@@ -1330,7 +1330,7 @@ function sticpa_pl_phone($raw)
 /**
  * ¿Coordina algo el usuario conectado?
  *
- * Sale de tener una relación `coordinacion-mic-com` vigente
+ * Sale de tener una relación `coordinacion_mic_com` vigente
  * (sticpa_pl_coord_scope). Mientras esa clave no exista en el CRM, nadie
  * coordina y las pantallas se comportan como para un monitor: se VE todo, no se
  * EDITA nada. Que por defecto no se pueda editar es lo correcto — el error
@@ -1520,7 +1520,7 @@ function sticpa_pl_assign_group($objSCP, $relId, $groupId)
 /** Clave interna de la relación de coordinación. Filtrable por si cambia. */
 function sticpa_pl_coord_rel_type()
 {
-    return (string) apply_filters('sticpa_pl_coord_rel_type', 'coordinacion-mic-com');
+    return (string) apply_filters('sticpa_pl_coord_rel_type', 'coordinacion_mic_com');
 }
 
 /** Valores de `LIS_listas.ajmcm_tipo_c`. La API no expone los enum. */
@@ -1983,7 +1983,7 @@ function sticpa_pl_seg_type_from_crm($raw)
  * ¿Acompaña el usuario conectado?
  *
  * Mismo sitio y misma mecánica que coordinación: una relación
- * `acompanamiento-mic-com` vigente. Coordinar y acompañar NO son jerárquicos:
+ * `acompanamiento_mic_com` vigente. Coordinar y acompañar NO son jerárquicos:
  * quien hace las dos cosas ve la unión, y quien solo coordina no ve
  * acompañamiento aunque coordine la delegación entera.
  */
