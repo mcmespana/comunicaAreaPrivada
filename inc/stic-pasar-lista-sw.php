@@ -14,17 +14,18 @@
  * ruta. Sin reglas nuevas, sin vaciar la caché de enlaces permanentes al
  * activar el plugin, y sin nada que se pueda quedar a medias en una migración.
  *
- * DESACTIVADO POR DEFECTO. Un service worker manda sobre TODAS las peticiones
- * del sitio, y este plugin vive en instalaciones de WordPress que no
- * controlamos (con sus cachés, sus CDN y sus plugins). Así que hay que
- * encenderlo a propósito:
+ * ACTIVADO. Un service worker manda sobre TODAS las peticiones del sitio, y este
+ * plugin vive en instalaciones de WordPress con sus cachés, sus CDN y sus
+ * plugins, así que si alguna vez se pelea con uno de ellos, se apaga sin tocar
+ * código:
  *
- *     add_filter('sticpa_pl_offline_enabled', '__return_true');
+ *     add_filter('sticpa_pl_offline_enabled', '__return_false');
  *
- * Mientras esté apagado, el borrador y la cola de envíos de
- * js/stic-pasar-lista.js siguen funcionando: cubren que se caiga la cobertura
- * mientras se marca, que es el caso real de un sábado. El service worker añade
- * lo otro: poder ABRIR la pantalla ya sin cobertura.
+ * Ojo: esto NO es lo que hace que se pueda marcar sin cobertura. El borrador y
+ * la cola de envíos de
+ * js/stic-pasar-lista.js funcionan igual con esto apagado y cubren el caso real
+ * de un sábado: que se caiga la cobertura mientras se marca. El service worker
+ * añade lo otro, poder ABRIR la pantalla ya sin cobertura.
  */
 
 if (!defined('ABSPATH')) {
@@ -34,7 +35,7 @@ if (!defined('ABSPATH')) {
 /** ¿Está encendido el modo sin conexión completo? Apagado por defecto. */
 function sticpa_pl_offline_enabled()
 {
-    return (bool) apply_filters('sticpa_pl_offline_enabled', false);
+    return (bool) apply_filters('sticpa_pl_offline_enabled', true);
 }
 
 /**

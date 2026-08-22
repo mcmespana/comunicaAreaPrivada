@@ -107,10 +107,19 @@ class FakeSCP
         }
         if ($module === 'stic_Events') {
             return array(
-                $this->nvl(array('id' => 'ev-com', 'name' => 'COM | Sesiones semanales 2025-2026')),
-                $this->nvl(array('id' => 'ev-mic', 'name' => 'MIC | Sesiones semanales 2025-2026')),
+                // Un solo evento para MIC y COM, y el nombre NO dice la etapa:
+                // así lo unico que puede resolverla es el campo de seleccion
+                // multiple, que es lo que se quiere comprobar.
+                $this->nvl(array(
+                    'id' => 'ev-todo',
+                    'name' => 'Sesiones semanales 2025-2026',
+                    'ajmcm_etapa_c' => '^MIC^,^COM^',
+                )),
+                // Sin campo relleno: cae en el nombre, que es lo que pasa con
+                // los eventos creados antes de que el campo existiera.
+                $this->nvl(array('id' => 'ev-lc', 'name' => 'LC | Sesiones semanales 2025-2026', 'ajmcm_etapa_c' => '')),
                 // Trampa: lleva "COM" pero no es el evento de la etapa.
-                $this->nvl(array('id' => 'ev-conv', 'name' => 'Convivencia de familias del COM 2025-2026')),
+                $this->nvl(array('id' => 'ev-conv', 'name' => 'Convivencia de familias del COM 2025-2026', 'ajmcm_etapa_c' => '')),
             );
         }
         return array();
@@ -776,12 +785,15 @@ final class PasarListaRenderTest extends TestCase
     }
 
     /**
-     * El modo sin conexión completo está APAGADO por defecto: un service worker
-     * manda sobre todas las peticiones del sitio y esto se instala en
-     * WordPress que no controlamos. Se enciende con un filtro.
+     * El modo sin conexión completo viene ENCENDIDO, y se puede apagar con un
+     * filtro: un service worker manda sobre todas las peticiones del sitio y
+     * esto se instala en WordPress con cachés y plugins que no controlamos.
      */
-    public function test_el_service_worker_no_se_registra_por_defecto()
+    public function test_el_service_worker_se_puede_apagar()
     {
+        $this->assertTrue(sticpa_pl_offline_enabled());
+
+        $GLOBALS['__stic_filters']['sticpa_pl_offline_enabled'] = false;
         $html = $this->render('single_stic_pasar_lista');
         $this->assertStringNotContainsString('serviceWorker', $html);
         $this->assertFalse(sticpa_pl_offline_enabled());
@@ -1130,12 +1142,13 @@ final class PasarListaRenderTest extends TestCase
     }
 
     /**
-     * Apagado por defecto: los nombres de campo no están verificados contra la
-     * instancia, así que nada se pinta ni se escribe hasta encenderlo.
+     * Encendidos, pero con salida de emergencia: los nombres de campo del módulo
+     * no están verificados contra la instancia, así que si fallan hay que poder
+     * apagar la sección sin tocar código ni dejar media pantalla rota.
      */
-    public function test_los_seguimientos_estan_apagados_por_defecto()
+    public function test_los_seguimientos_se_pueden_apagar()
     {
-        unset($GLOBALS['__stic_filters']['sticpa_pl_seguimientos_enabled']);
+        $GLOBALS['__stic_filters']['sticpa_pl_seguimientos_enabled'] = false;
         $this->scp->coordEtapa = 'COM';
         $this->seedSeguimientos();
         $_REQUEST = array('monitor' => 'm1');
@@ -1155,5 +1168,35 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame('COM', sticpa_pl_etapa_from_name('COM | Sesiones semanales 2025-2026'));
         $this->assertSame('MIC', sticpa_pl_etapa_from_name('MIC | Sesiones semanales 2025-2026'));
         $this->assertSame('', sticpa_pl_etapa_from_name('Convivencia de familias del COM 2025-2026'));
+    }
+
+    public function testEtapasDeSeleccionMultiple()
+    {
+        // El formato de SuiteCRM.
+        $this->assertSame(array('MIC', 'COM'), sticpa_pl_etapas_from_multi('^MIC^,^COM^'));
+        // Una sola, y en minusculas: el desplegable puede tener cualquier caja.
+        $this->assertSame(array('COM'), sticpa_pl_etapas_from_multi('^com^'));
+        // Lista pelada, array, y con espacios de mas.
+        $this->assertSame(array('MIC', 'COM'), sticpa_pl_etapas_from_multi('MIC, COM'));
+        $this->assertSame(array('MIC', 'LC'), sticpa_pl_etapas_from_multi(array('MIC', '^LC^')));
+        // Repetida: la pantalla no tiene por que enterarse.
+        $this->assertSame(array('COM'), sticpa_pl_etapas_from_multi('^COM^,^COM^'));
+        // Vacio y basura: nada, y sin avisos de PHP.
+        $this->assertSame(array(), sticpa_pl_etapas_from_multi(''));
+        $this->assertSame(array(), sticpa_pl_etapas_from_multi('^^'));
+        $this->assertSame(array(), sticpa_pl_etapas_from_multi('familias'));
+        $this->assertSame(array(), sticpa_pl_etapas_from_multi(null));
+    }
+
+    public function testEventoMultietapaSirveALasDosEtapas()
+    {
+        $events = sticpa_pl_etapa_events(new FakeSCP());
+        // El mismo evento bajo las dos claves, resuelto solo por el campo.
+        $this->assertSame('ev-todo', $events['MIC']['id']);
+        $this->assertSame('ev-todo', $events['COM']['id']);
+        // Y el que no tiene campo sigue saliendo por el nombre.
+        $this->assertSame('ev-lc', $events['LC']['id']);
+        // La trampa no entra por ninguna via.
+        $this->assertCount(3, $events);
     }
 }
