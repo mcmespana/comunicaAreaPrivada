@@ -22,11 +22,17 @@ if (!defined('ABSPATH')) {
 $pageSettings['fileName'] = basename(__FILE__, ".php");
 
 $scope = sticpa_pl_coord_scope($objSCP);
-if ($scope === null) {
+$isAcomp = sticpa_pl_is_acompanante($objSCP);
+
+// Acompañar da acceso a la ficha aunque no se coordine: es justo la gente que
+// tiene que poder leer los datos de los monitores.
+if ($scope === null && !$isAcomp) {
     $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
         . esc_html__('Esta pantalla es de coordinación.', 'sticpa') . '</span></p>';
     return;
 }
+
+$segRoles = sticpa_pl_seg_roles($scope !== null, $isAcomp);
 
 $monitorId = isset($_REQUEST['monitor']) ? sticpa_pl_safe_id($_REQUEST['monitor']) : '';
 if ($monitorId === '') {
@@ -51,6 +57,29 @@ if ($mine === null) {
     $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
         . esc_html__('Este monitor no está en los grupos de tu alcance.', 'sticpa') . '</span></p>';
     return;
+}
+
+// ---------------------------------------------------------------------------
+// Alta de un seguimiento
+// ---------------------------------------------------------------------------
+
+$segMsg = '';
+if (!empty($_POST['pl_seg_texto'])) {
+    if (!isset($_POST['pl_nonce']) || !wp_verify_nonce($_POST['pl_nonce'], 'pl_seg_' . $monitorId)) {
+        $segMsg = __('La sesión ha caducado. Vuelve a cargar la pantalla.', 'sticpa');
+    } else {
+        $ok = sticpa_pl_create_seguimiento(
+            $objSCP,
+            $monitorId,
+            isset($_POST['pl_seg_tipo']) ? $_POST['pl_seg_tipo'] : '',
+            $_POST['pl_seg_texto'],
+            isset($_POST['pl_seg_fecha']) ? $_POST['pl_seg_fecha'] : '',
+            $segRoles
+        );
+        $segMsg = $ok
+            ? __('Guardado.', 'sticpa')
+            : __('No se ha podido guardar.', 'sticpa');
+    }
 }
 
 $ficha = sticpa_pl_monitor_ficha($objSCP, $monitorId);
@@ -125,7 +154,10 @@ $html .= '</div>';
 // ---------------------------------------------------------------------------
 
 $events = sticpa_pl_etapa_events($objSCP);
-$etapaKey = ($scope['etapa'] !== '') ? $scope['etapa'] : '';
+// Quien solo acompaña no tiene alcance, así que no hay etapa de la que tirar:
+// se coge el primer evento que haya, que para las asistencias da igual porque
+// las sesiones son las mismas fechas.
+$etapaKey = ($scope !== null && $scope['etapa'] !== '') ? $scope['etapa'] : '';
 $event = ($etapaKey !== '' && isset($events[$etapaKey])) ? $events[$etapaKey] : null;
 if ($event === null) {
     foreach (array('COM', 'MIC', 'LC') as $e) {
@@ -235,7 +267,90 @@ if ($phone !== null || $email !== '') {
     $html .= '</div>';
 }
 
-// Los seguimientos de monitores (incidencias, valoración de trimestre y notas
-// de acompañamiento) van aquí cuando toque. No se pinta un bloque vacío: ver
-// una sección que no hace nada es peor que no verla.
-// Ver PASAR-LISTA-COORDINACION.md §7.
+// ---------------------------------------------------------------------------
+// Seguimientos
+// ---------------------------------------------------------------------------
+
+/* La sección solo existe si este usuario puede leer o escribir algo. No se
+ * pinta un bloque vacío: enseñar una sección que no hace nada insinúa que hay
+ * algo detrás, y aquí eso es peor que no enseñarla. */
+$segReadable = sticpa_pl_seg_readable($segRoles);
+$segWritable = sticpa_pl_seg_writable($segRoles);
+$segTipos = sticpa_pl_seg_tipos();
+
+if (sticpa_pl_seguimientos_enabled() && (!empty($segReadable) || !empty($segWritable))) {
+    $items = sticpa_pl_seguimientos($objSCP, $monitorId, $segRoles);
+
+    $html .= '<div class="pl-sec">' . esc_html__('Seguimientos', 'sticpa') . '</div>';
+
+    if ($segMsg !== '') {
+        $html .= '<p class="pl-notice"><span>' . esc_html($segMsg) . '</span></p>';
+    }
+
+    if (!empty($items)) {
+        $html .= '<div class="pl-list">';
+        foreach ($items as $it) {
+            $meta = $segTipos[$it['tipo']];
+            $html .= '<div class="pl-seg" style="border-left-color:' . esc_attr($meta['color']) . '">';
+            $html .= '<div class="pl-seg-head">';
+            $html .= '<span class="pl-seg-tipo" style="background:' . esc_attr($meta['color']) . '">'
+                . esc_html($meta['label']) . '</span>';
+            if ($it['ts'] > 0) {
+                $html .= '<span class="pl-seg-when">' . esc_html(date_i18n('j M Y', $it['ts'])) . '</span>';
+            }
+            if ($it['autor'] !== '') {
+                $html .= '<span class="pl-seg-who">' . esc_html($it['autor']) . '</span>';
+            }
+            $html .= '</div>';
+            $html .= '<div class="pl-seg-text">' . nl2br(esc_html($it['texto'])) . '</div>';
+            $html .= '</div>';
+        }
+        $html .= '</div>';
+    } elseif (!empty($segReadable)) {
+        $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
+            . esc_html__('Todavía no hay seguimientos de esta persona.', 'sticpa') . '</span></p>';
+    }
+
+    // El alta: solo los tipos que ESTE usuario puede escribir. Coordinación no
+    // ve la opción de acompañamiento, y el guardado lo vuelve a comprobar.
+    if (!empty($segWritable)) {
+        $html .= '<form method="post" class="pl-newmeet stic-loading-form"'
+            . ' data-loading-text="' . esc_attr__('Guardando…', 'sticpa') . '">';
+        $html .= wp_nonce_field('pl_seg_' . $monitorId, 'pl_nonce', true, false);
+
+        $html .= '<div class="pl-field-row">';
+        $html .= '<label class="pl-field">';
+        $html .= '<span class="pl-field-label">' . esc_html__('Tipo', 'sticpa') . '</span>';
+        $html .= '<select name="pl_seg_tipo">';
+        foreach ($segWritable as $key) {
+            $html .= '<option value="' . esc_attr($key) . '">'
+                . esc_html($segTipos[$key]['label']) . '</option>';
+        }
+        $html .= '</select>';
+        $html .= '</label>';
+
+        $html .= '<label class="pl-field pl-field--date">';
+        $html .= '<span class="pl-field-label">' . esc_html__('Día', 'sticpa') . '</span>';
+        // La fecha del HECHO, no la de hoy: se escribe el lunes lo del sábado.
+        // Por defecto hoy, que es el caso más frecuente.
+        $html .= '<input type="date" name="pl_seg_fecha" value="'
+            . esc_attr(date('Y-m-d', sticpa_pl_now())) . '">';
+        $html .= '</label>';
+        $html .= '</div>';
+
+        $html .= '<label class="pl-field">';
+        $html .= '<span class="pl-field-label">' . esc_html__('Qué pasó', 'sticpa') . '</span>';
+        $html .= '<textarea name="pl_seg_texto" rows="3" required'
+            . ' placeholder="' . esc_attr__('En dos líneas, para acordarse.', 'sticpa') . '"></textarea>';
+        $html .= '</label>';
+
+        $html .= '<button type="submit" class="pl-save">' . esc_html__('Guardar seguimiento', 'sticpa') . '</button>';
+
+        if (in_array('acompanamiento', $segWritable, true)) {
+            $html .= '<p class="pl-seg-warn">' . sticpa_pl_icon('info') . '<span>'
+                . esc_html__('Las notas de acompañamiento solo las ve quien acompaña. Ni coordinación ni la propia persona.', 'sticpa')
+                . '</span></p>';
+        }
+        $html .= '</form>';
+    }
+}

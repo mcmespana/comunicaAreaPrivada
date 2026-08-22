@@ -18,6 +18,10 @@ class FakeSCP
     public $relationships = array();
     /** Cuando es distinto de null, el usuario coordina con este alcance. */
     public $coordEtapa = null;
+    /** Cuando es true, el usuario acompaña. */
+    public $isAcomp = false;
+    /** Seguimientos que devuelve el CRM (claves ya del CRM: mcm_*). */
+    public $seguimientos = array();
 
     /** Envuelve un array plano en la forma que devuelve la API. */
     private function nvl($fields, $links = array())
@@ -159,6 +163,13 @@ class FakeSCP
                         'ajmcm_etapa_relacion_c' => $this->coordEtapa,
                     ));
                 }
+                if ($this->isAcomp) {
+                    $rels[] = $this->nvl(array(
+                        'id' => 'ra1',
+                        'relationship_type' => 'acompanamiento-mic-com',
+                        'end_date' => '',
+                    ));
+                }
                 return $rels;
 
             case 'stic_Events:stic_sessions_stic_events':
@@ -201,6 +212,21 @@ class FakeSCP
                         array('id' => 'fam1', 'first_name' => 'Solete', 'last_name' => 'Messeguer', 'phone_mobile' => '600 333 444'),
                     )
                 ));
+
+            // Seguimientos de una persona (stic_FollowUps).
+            case 'Contacts:stic_followups_contacts':
+                $out = array();
+                foreach ($this->seguimientos as $i => $seg) {
+                    $out[] = $this->nvl(array(
+                        'id' => 'seg' . $i,
+                        'name' => 'x',
+                        'description' => $seg['texto'],
+                        'type' => $seg['type'],
+                        'date_start' => '2026-01-10 12:00:00',
+                        'assigned_user_name' => 'MCM Castellón',
+                    ));
+                }
+                return $out;
 
             case 'stic_Sessions:lis_listas_stic_sessions':
                 // Solo la sesión s3 tiene lista pasada: las anteriores están sin
@@ -256,6 +282,7 @@ final class PasarListaRenderTest extends TestCase
         $_REQUEST = array();
         $_POST = array();
         $this->scp = new FakeSCP();
+        $GLOBALS['__stic_filters']['sticpa_pl_seguimientos_enabled'] = true;
     }
 
     protected function tearDown(): void
@@ -957,6 +984,166 @@ final class PasarListaRenderTest extends TestCase
         $html = $this->render('single_stic_pasar_lista_reuniones');
         $this->assertStringContainsString('Revisa la fecha', $html);
         $this->assertSame(array(), $this->scp->writes);
+    }
+
+    // ---- Seguimientos en la ficha del monitor ---------------------------
+
+    /**
+     * Quien mira es coordinación, y NO es el monitor de la ficha. Importa: si el
+     * usuario conectado fuera m1, saltaría la regla de "sobre uno mismo, nada" y
+     * el test pasaría por el motivo equivocado.
+     */
+    private function asOtherPerson()
+    {
+        $_SESSION['scp_user_id'] = 'coord1';
+    }
+
+    private function seedSeguimientos()
+    {
+        $this->scp->seguimientos = array(
+            array('type' => 'mcm_incidencia', 'texto' => 'Se fue antes sin avisar'),
+            array('type' => 'mcm_valoracion', 'texto' => 'Buen trimestre'),
+            array('type' => 'mcm_acompanamiento', 'texto' => 'ESTO ES PRIVADO'),
+        );
+    }
+
+    /**
+     * Coordinación NO ve las notas de acompañamiento. Es la propiedad que hay
+     * que romper para que esto sea un problema de verdad.
+     */
+    public function test_coordinacion_no_ve_acompanamiento_en_la_ficha()
+    {
+        $this->asOtherPerson();
+        $this->scp->coordEtapa = 'COM';
+        $this->seedSeguimientos();
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $this->assertStringContainsString('Se fue antes sin avisar', $html);
+        $this->assertStringContainsString('Buen trimestre', $html);
+        $this->assertStringNotContainsString('ESTO ES PRIVADO', $html);
+        // Y tampoco tiene la opción de escribirlo.
+        $this->assertStringNotContainsString('value="acompanamiento"', $html);
+    }
+
+    /** Quien acompaña sí las ve, y puede escribirlas. */
+    public function test_acompanamiento_ve_sus_notas()
+    {
+        $this->asOtherPerson();
+        $this->scp->isAcomp = true;
+        $this->seedSeguimientos();
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $this->assertStringContainsString('ESTO ES PRIVADO', $html);
+        $this->assertStringContainsString('value="acompanamiento"', $html);
+        // Y el aviso de privacidad se lee al escribir, no en un pie de página.
+        $this->assertStringContainsString('solo las ve quien acompaña', $html);
+    }
+
+    /** Un monitor sin papeles no ve la sección siquiera. */
+    public function test_un_monitor_no_ve_la_seccion_de_seguimientos()
+    {
+        $this->seedSeguimientos();
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+        // Sin coordinar ni acompañar, la ficha entera no se abre.
+        $this->assertStringContainsString('es de coordinación', $html);
+        $this->assertStringNotContainsString('Seguimientos', $html);
+    }
+
+    /** Coordinación no puede escribir acompañamiento aunque lo fuerce por POST. */
+    public function test_coordinacion_no_puede_escribir_acompanamiento_por_post()
+    {
+        $this->asOtherPerson();
+        $this->scp->coordEtapa = 'COM';
+        $_REQUEST = array('monitor' => 'm1');
+        $_POST = array(
+            'pl_nonce' => wp_create_nonce('pl_seg_m1'),
+            'pl_seg_tipo' => 'acompanamiento',
+            'pl_seg_texto' => 'Intento colarlo',
+            'pl_seg_fecha' => '2026-01-10',
+        );
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $this->assertStringContainsString('No se ha podido guardar', $html);
+        $this->assertSame(array(), $this->scp->writes);
+    }
+
+    /** Y sí puede escribir una incidencia. */
+    public function test_coordinacion_escribe_una_incidencia()
+    {
+        $this->asOtherPerson();
+        $this->scp->coordEtapa = 'COM';
+        $_REQUEST = array('monitor' => 'm1');
+        $_POST = array(
+            'pl_nonce' => wp_create_nonce('pl_seg_m1'),
+            'pl_seg_tipo' => 'incidencia',
+            'pl_seg_texto' => 'Llegó tarde tres sábados',
+            'pl_seg_fecha' => '2026-01-10',
+        );
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $this->assertStringContainsString('Guardado', $html);
+        $writes = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_FollowUps';
+        }));
+        $this->assertCount(1, $writes);
+        // La clave del CRM, no la nuestra.
+        $this->assertSame('mcm_incidencia', $writes[0]['data']['type']);
+        $this->assertSame('Llegó tarde tres sábados', $writes[0]['data']['description']);
+        // La fecha del HECHO, no la de hoy.
+        $this->assertStringContainsString('2026-01-10', $writes[0]['data']['date_start']);
+    }
+
+    /**
+     * NADIE escribe un seguimiento sobre sí mismo, ni coordinando. Si no se
+     * puede leer, escribirlo solo serviría para dejarlo invisible.
+     */
+    public function test_nadie_escribe_un_seguimiento_sobre_si_mismo()
+    {
+        $this->scp->coordEtapa = 'COM';
+        // El usuario conectado del doble es m1, y m1 es el monitor de la ficha.
+        $_REQUEST = array('monitor' => 'm1');
+        $_POST = array(
+            'pl_nonce' => wp_create_nonce('pl_seg_m1'),
+            'pl_seg_tipo' => 'incidencia',
+            'pl_seg_texto' => 'Me pongo una nota a mí mismo',
+            'pl_seg_fecha' => '2026-01-10',
+        );
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $this->assertStringContainsString('No se ha podido guardar', $html);
+        $this->assertSame(array(), $this->scp->writes);
+    }
+
+    /** Y tampoco los lee: la lista sale vacía aunque el CRM los devuelva. */
+    public function test_nadie_lee_seguimientos_sobre_si_mismo()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $this->seedSeguimientos();
+        $_REQUEST = array('monitor' => 'm1');    // m1 es el usuario conectado
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $this->assertStringNotContainsString('Se fue antes sin avisar', $html);
+        $this->assertStringNotContainsString('Buen trimestre', $html);
+    }
+
+    /**
+     * Apagado por defecto: los nombres de campo no están verificados contra la
+     * instancia, así que nada se pinta ni se escribe hasta encenderlo.
+     */
+    public function test_los_seguimientos_estan_apagados_por_defecto()
+    {
+        unset($GLOBALS['__stic_filters']['sticpa_pl_seguimientos_enabled']);
+        $this->scp->coordEtapa = 'COM';
+        $this->seedSeguimientos();
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $this->assertFalse(sticpa_pl_seguimientos_enabled());
+        $this->assertStringNotContainsString('Seguimientos', $html);
+        $this->assertStringNotContainsString('Se fue antes sin avisar', $html);
     }
 
     /**

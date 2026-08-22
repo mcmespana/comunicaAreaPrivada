@@ -349,6 +349,112 @@ final class PasarListaTest extends TestCase
         $this->assertSame('', sticpa_pl_monitor_since('vete a saber'));
     }
 
+    // ---- Seguimientos: quién ve qué -------------------------------------
+    //
+    // Es la parte más delicada del sistema: aquí un filtro mal puesto no enseña
+    // un dato de más, enseña a una persona lo que otra escribió sobre ella.
+
+    /** Un monitor sin papeles no ve NADA, ni suyo ni de nadie. */
+    public function test_un_monitor_no_ve_ningun_seguimiento()
+    {
+        $roles = sticpa_pl_seg_roles(false, false);
+        $this->assertSame(array(), $roles);
+        $this->assertSame(array(), sticpa_pl_seg_readable($roles));
+        $this->assertSame(array(), sticpa_pl_seg_writable($roles));
+    }
+
+    /** Coordinación ve incidencias y valoraciones, NO acompañamiento. */
+    public function test_coordinacion_no_ve_acompanamiento()
+    {
+        $roles = sticpa_pl_seg_roles(true, false);
+        $readable = sticpa_pl_seg_readable($roles);
+
+        $this->assertContains('incidencia', $readable);
+        $this->assertContains('valoracion', $readable);
+        $this->assertNotContains('acompanamiento', $readable, 'coordinar no da acceso a acompañamiento');
+
+        // Y tampoco puede escribirlo.
+        $this->assertNotContains('acompanamiento', sticpa_pl_seg_writable($roles));
+    }
+
+    /** Acompañamiento lo ve todo, y solo escribe lo suyo. */
+    public function test_acompanamiento_ve_todo_y_escribe_lo_suyo()
+    {
+        $roles = sticpa_pl_seg_roles(false, true);
+        $this->assertContains('acompanamiento', sticpa_pl_seg_readable($roles));
+        $this->assertContains('incidencia', sticpa_pl_seg_readable($roles));
+
+        $writable = sticpa_pl_seg_writable($roles);
+        $this->assertSame(array('acompanamiento'), $writable);
+    }
+
+    /** Las dos cosas a la vez es la unión, no una jerarquía. */
+    public function test_coordinar_y_acompanar_es_la_union()
+    {
+        $roles = sticpa_pl_seg_roles(true, true);
+        $writable = sticpa_pl_seg_writable($roles);
+        $this->assertContains('incidencia', $writable);
+        $this->assertContains('acompanamiento', $writable);
+        $this->assertCount(3, sticpa_pl_seg_readable($roles));
+    }
+
+    /** El filtro deja pasar solo los tipos permitidos. */
+    public function test_el_filtro_quita_lo_que_no_toca()
+    {
+        $items = array(
+            array('tipo' => 'incidencia'),
+            array('tipo' => 'valoracion'),
+            array('tipo' => 'acompanamiento'),
+        );
+        $coord = sticpa_pl_seg_filter($items, sticpa_pl_seg_roles(true, false));
+        $this->assertCount(2, $coord);
+        foreach ($coord as $it) {
+            $this->assertNotSame('acompanamiento', $it['tipo']);
+        }
+
+        $acomp = sticpa_pl_seg_filter($items, sticpa_pl_seg_roles(false, true));
+        $this->assertCount(3, $acomp);
+    }
+
+    /**
+     * SOBRE UNO MISMO, NADA. Ni siendo coordinador.
+     * Es la regla de encuadre: una valoración escrita para hablarla en persona
+     * deja de servir si se lee antes en una pantalla.
+     */
+    public function test_nadie_ve_seguimientos_de_si_mismo()
+    {
+        $items = array(array('tipo' => 'incidencia'), array('tipo' => 'valoracion'));
+
+        // Coordinador mirando a otro: ve.
+        $this->assertCount(2, sticpa_pl_seg_filter($items, array('coordinacion'), 'yo', 'otro'));
+        // Coordinador mirándose a sí mismo: nada.
+        $this->assertSame(array(), sticpa_pl_seg_filter($items, array('coordinacion'), 'yo', 'yo'));
+        // Y quien acompaña, tampoco.
+        $this->assertSame(array(), sticpa_pl_seg_filter($items, array('coordinacion', 'acompanamiento'), 'yo', 'yo'));
+    }
+
+    /** Un tipo que no conocemos NO se enseña: el defecto es ocultar. */
+    public function test_un_tipo_desconocido_no_se_enseña()
+    {
+        $items = array(
+            array('tipo' => 'incidencia'),
+            array('tipo' => 'zzz_lo_que_sea'),
+            array('tipo' => ''),
+        );
+        $out = sticpa_pl_seg_filter($items, sticpa_pl_seg_roles(true, true));
+        $this->assertCount(1, $out);
+        $this->assertSame('incidencia', $out[0]['tipo']);
+    }
+
+    /** Los trimestres van por curso escolar, no por año natural. */
+    public function test_trimestres_del_curso()
+    {
+        $this->assertSame(1, sticpa_pl_seg_trimestre(mktime(12, 0, 0, 10, 15, 2025)));
+        $this->assertSame(1, sticpa_pl_seg_trimestre(mktime(12, 0, 0, 12, 20, 2025)));
+        $this->assertSame(2, sticpa_pl_seg_trimestre(mktime(12, 0, 0, 2, 10, 2026)));
+        $this->assertSame(3, sticpa_pl_seg_trimestre(mktime(12, 0, 0, 5, 10, 2026)));
+    }
+
     // ---- La tira del resumen -------------------------------------------
 
     /** Pasada, omitida, y el hueco que solo es hueco si la sesión ya pasó. */

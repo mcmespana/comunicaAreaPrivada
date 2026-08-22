@@ -156,7 +156,11 @@ Pendiente de campos que no existen todavía:
   filtra. Se enciende con `add_filter('sticpa_pl_has_segmento', '__return_true')`
   cuando exista, porque pedir un campo inexistente rompe la consulta entera.
 
-### Fase 6 — más delegaciones
+### Fase 6 — seguimientos y acompañamiento ✅ hecha
+
+Ver [`PASAR-LISTA-SEGUIMIENTOS.md`](PASAR-LISTA-SEGUIMIENTOS.md).
+
+### Fase 7 — más delegaciones
 
 Se hará una **skill** para montar el curso de una delegación nueva (eventos,
 sesiones desde su calendario, inscripciones). El piloto de Castellón es la
@@ -251,13 +255,15 @@ claves que ya tiene el campo de la persona (`MIC` / `COM` / `LC`). Es un campo y
 quita la única dependencia frágil que tiene la fase 1. Mientras no exista, el
 prefijo se puede cambiar con el filtro `sticpa_pl_etapa_prefixes`.
 
-### 8. Seguimientos de monitores
+### 8. Seguimientos de monitores ✅ hecho
 
-El melón de la siguiente iteración, ya escrito en
-[`PASAR-LISTA-COORDINACION.md`](PASAR-LISTA-COORDINACION.md) §7: incidencias
-puntuales, valoración de trimestre y notas de acompañamiento, con tres
-visibilidades distintas. **Antes de crear módulo hay que buscar si ya existe uno
-de valoraciones o notas** en SinergiaCRM.
+Ver [`PASAR-LISTA-SEGUIMIENTOS.md`](PASAR-LISTA-SEGUIMIENTOS.md). Resumen: se usa
+`stic_FollowUps`, el módulo **Seguimientos** que SinergiaCRM ya trae — ni `Notes`
+modificado ni un módulo nuevo. Los tres tipos (incidencia, valoración de
+trimestre, acompañamiento) son tres valores de su lista `type`.
+
+Viene **apagado** (`sticpa_pl_seguimientos_enabled`) porque el usuario de la API
+no tiene acceso al módulo todavía y no he podido verificar los nombres de campo.
 
 ### 9. Verificar `CAMPOS.md` contra el CRM por MCP
 

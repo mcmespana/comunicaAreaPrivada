@@ -1170,3 +1170,71 @@ a.pl-group .pl-name { display: block; }
     text-transform: none;
     letter-spacing: 0;
 }
+
+/* ---- Seguimientos ------------------------------------------------------- */
+
+/* Cada seguimiento con el color de su tipo en el filete izquierdo: se distingue
+   una incidencia de una nota de acompañamiento sin leer la etiqueta. */
+.pl-seg {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.8rem 0.9rem;
+    border-top: 1px solid var(--gray-100);
+    border-left: 3px solid var(--gray-300);
+}
+.pl-seg:first-child { border-top: 0; }
+.pl-seg-head { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.pl-seg-tipo {
+    padding: 0.14rem 0.5rem;
+    border-radius: var(--radius-full);
+    color: var(--white);
+    font-size: 0.67rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.pl-seg-when { font-size: 0.76rem; font-weight: 700; color: var(--gray-600, #4b5563); }
+.pl-seg-who { font-size: 0.76rem; color: var(--gray-400); }
+.pl-seg-text { font-size: 0.92rem; line-height: 1.5; }
+
+/* El aviso de privacidad va pegado al formulario de acompañamiento, no en un
+   pie de página: se lee cuando se está escribiendo, que es cuando importa. */
+.pl-seg-warn {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+    margin: 0;
+    padding: 0.5rem 0.7rem;
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, #6c4b9e 10%, transparent);
+    color: #573c80;
+    font-size: 0.77rem;
+    line-height: 1.4;
+}
+.pl-seg-warn svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 0.15rem; }
+
+.pl-field textarea {
+    padding: 0.6rem 0.75rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--gray-200);
+    background: var(--white);
+    font-family: inherit;
+    font-size: 1rem;
+    line-height: 1.45;
+    color: inherit;
+    width: 100%;
+    resize: vertical;
+}
+.pl-field select {
+    min-height: 46px;
+    padding: 0 0.6rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--gray-200);
+    background: var(--white);
+    font-family: inherit;
+    font-size: 1rem;
+    color: inherit;
+    width: 100%;
+}
+.pl-field--date { flex: 0 0 9rem; }

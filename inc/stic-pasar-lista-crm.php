@@ -1840,3 +1840,278 @@ function sticpa_pl_save_monitors($objSCP, $sessionId, $monitors, $marks, $regMap
     sticpa_pl_flush($objSCP, 'state');
     return $result;
 }
+
+// ===========================================================================
+// SEGUIMIENTOS DE MONITORES — stic_FollowUps
+// ---------------------------------------------------------------------------
+// Diseño y por qué este módulo: docs/comunica/PASAR-LISTA-SEGUIMIENTOS.md
+// ===========================================================================
+
+/**
+ * APAGADO POR DEFECTO, y con motivo.
+ *
+ * El usuario de la API no tiene acceso a `stic_FollowUps` todavía (la instancia
+ * responde "The API user does not have access to this module"), así que los
+ * nombres de campo de abajo son la convención documentada y NO están
+ * comprobados contra la instancia. Encender algo cuyos nombres no he podido
+ * verificar es la forma segura de romper una pantalla en producción.
+ *
+ * En cuanto se dé el acceso: se comprueban los nombres, se corrigen con el
+ * filtro `sticpa_pl_seg_map` si hace falta, y se enciende con
+ *
+ *     add_filter('sticpa_pl_seguimientos_enabled', '__return_true');
+ */
+function sticpa_pl_seguimientos_enabled()
+{
+    return (bool) apply_filters('sticpa_pl_seguimientos_enabled', false);
+}
+
+/**
+ * TODOS los nombres técnicos del módulo, en un solo sitio.
+ *
+ * Están juntos a propósito: es lo único que no he podido verificar, y así
+ * corregirlo es cambiar un filtro en vez de buscar por seis archivos.
+ */
+function sticpa_pl_seg_map()
+{
+    return apply_filters('sticpa_pl_seg_map', array(
+        'module' => 'stic_FollowUps',
+        'link_contacts' => 'stic_followups_contacts',
+        'f_name' => 'name',
+        'f_text' => 'description',
+        'f_type' => 'type',
+        'f_date' => 'date_start',
+    ));
+}
+
+/**
+ * Las claves internas de nuestros tres tipos dentro de la lista de Seguimientos.
+ *
+ * Con prefijo `mcm_` para no chocar con los tipos que la entidad ya use en
+ * Seguimientos para otras cosas: es un módulo compartido, no nuestro.
+ */
+function sticpa_pl_seg_type_keys()
+{
+    return apply_filters('sticpa_pl_seg_type_keys', array(
+        'incidencia' => 'mcm_incidencia',
+        'valoracion' => 'mcm_valoracion',
+        'acompanamiento' => 'mcm_acompanamiento',
+    ));
+}
+
+/** De la clave del CRM a la nuestra. Lo que no reconozcamos no se enseña. */
+function sticpa_pl_seg_type_from_crm($raw)
+{
+    $raw = trim((string) $raw);
+    foreach (sticpa_pl_seg_type_keys() as $ours => $theirs) {
+        if ($raw === $theirs) {
+            return $ours;
+        }
+    }
+    return '';
+}
+
+/**
+ * ¿Acompaña el usuario conectado?
+ *
+ * Mismo sitio y misma mecánica que coordinación: una relación
+ * `acompanamiento-mic-com` vigente. Coordinar y acompañar NO son jerárquicos:
+ * quien hace las dos cosas ve la unión, y quien solo coordina no ve
+ * acompañamiento aunque coordine la delegación entera.
+ */
+function sticpa_pl_is_acompanante($objSCP)
+{
+    $userId = isset($_SESSION['scp_user_id']) ? $_SESSION['scp_user_id'] : '';
+    if (!$userId) {
+        return false;
+    }
+
+    $cacheKey = sticpa_pl_cache_key('acomp', $objSCP, $userId);
+    $ttl = sticpa_pl_ttl_structure();
+    if ($ttl > 0) {
+        $cached = get_transient($cacheKey);
+        if (is_array($cached) && array_key_exists('is', $cached)) {
+            return (bool) apply_filters('sticpa_pl_is_acompanante', $cached['is'], $objSCP);
+        }
+    }
+
+    $rels = $objSCP->getRelatedElementsForLoggedUser(array(
+        'module_name' => 'Contacts',
+        'module_id' => $userId,
+        'link_field_name' => 'stic_contacts_relationships_contacts',
+        'related_fields' => array('id', 'relationship_type', 'end_date'),
+        'related_module_link_name_to_fields_array' => array(),
+        'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
+    ));
+
+    $is = false;
+    $now = sticpa_pl_now();
+    if (is_array($rels)) {
+        foreach ($rels as $rel) {
+            $v = isset($rel->name_value_list) ? $rel->name_value_list : null;
+            if (!$v) {
+                continue;
+            }
+            $type = isset($v->relationship_type->value)
+                ? (function_exists('mb_strtolower')
+                    ? mb_strtolower((string) $v->relationship_type->value, 'UTF-8')
+                    : strtolower((string) $v->relationship_type->value))
+                : '';
+            // Tolerante con la ñ y con los acentos, que en una clave interna
+            // pueden estar de las dos formas.
+            if ($type === '' || (strpos($type, 'acompan') === false && strpos($type, 'acompañ') === false)) {
+                continue;
+            }
+            $end = isset($v->end_date->value) ? trim((string) $v->end_date->value) : '';
+            if ($end !== '') {
+                $endTs = strtotime($end . ' 23:59:59');
+                if ($endTs && $endTs < $now) {
+                    continue;
+                }
+            }
+            $is = true;
+            break;
+        }
+    }
+
+    if ($ttl > 0) {
+        set_transient($cacheKey, array('is' => $is), $ttl);
+    }
+    return (bool) apply_filters('sticpa_pl_is_acompanante', $is, $objSCP);
+}
+
+/**
+ * Los seguimientos de un monitor que ESTE usuario puede leer.
+ *
+ * Dos cierres: la consulta ya no tiene sentido si no hay ningún tipo permitido
+ * (se devuelve vacío sin llamar al CRM), y lo que vuelve pasa otra vez por
+ * sticpa_pl_seg_filter(). Redundante a propósito — el coste de un fallo aquí no
+ * es un dato de más.
+ */
+function sticpa_pl_seguimientos($objSCP, $monitorId, $roles)
+{
+    if (!sticpa_pl_seguimientos_enabled()) {
+        return array();
+    }
+    $monitorId = sticpa_pl_safe_id($monitorId);
+    if ($monitorId === '' || empty($roles)) {
+        return array();
+    }
+    $allowed = sticpa_pl_seg_readable($roles);
+    if (empty($allowed)) {
+        return array();      // ni se pregunta
+    }
+
+    $map = sticpa_pl_seg_map();
+    $rows = $objSCP->getRelatedElementsForLoggedUser(array(
+        'module_name' => 'Contacts',
+        'module_id' => $monitorId,
+        'link_field_name' => $map['link_contacts'],
+        'related_fields' => array('id', $map['f_name'], $map['f_text'], $map['f_type'], $map['f_date'], 'assigned_user_name', 'date_entered'),
+        'related_module_link_name_to_fields_array' => array(),
+        'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
+    ));
+
+    $out = array();
+    if (is_array($rows)) {
+        foreach ($rows as $row) {
+            $v = isset($row->name_value_list) ? $row->name_value_list : null;
+            if (!$v || empty($v->id->value)) {
+                continue;
+            }
+            $rawType = isset($v->{$map['f_type']}->value) ? (string) $v->{$map['f_type']}->value : '';
+            $tipo = sticpa_pl_seg_type_from_crm($rawType);
+            if ($tipo === '') {
+                continue;    // un tipo que no conocemos NO se enseña
+            }
+            $date = isset($v->{$map['f_date']}->value) ? (string) $v->{$map['f_date']}->value : '';
+            if ($date === '' && isset($v->date_entered->value)) {
+                $date = (string) $v->date_entered->value;
+            }
+            $out[] = array(
+                'id' => $v->id->value,
+                'tipo' => $tipo,
+                'titulo' => isset($v->{$map['f_name']}->value) ? (string) $v->{$map['f_name']}->value : '',
+                'texto' => isset($v->{$map['f_text']}->value) ? (string) $v->{$map['f_text']}->value : '',
+                'ts' => sticpa_pl_ts($date),
+                'autor' => isset($v->assigned_user_name->value) ? (string) $v->assigned_user_name->value : '',
+            );
+        }
+    }
+
+    // Segundo cierre, sobre lo que ha vuelto.
+    $viewer = isset($_SESSION['scp_user_id']) ? (string) $_SESSION['scp_user_id'] : '';
+    $out = sticpa_pl_seg_filter($out, $roles, $viewer, $monitorId);
+
+    // De más reciente a más antiguo: lo de la semana pasada es lo que se busca.
+    usort($out, 'sticpa_pl_cmp_seg');
+    return $out;
+}
+
+/** Orden de seguimientos: el más reciente primero. */
+function sticpa_pl_cmp_seg($a, $b)
+{
+    $x = isset($a['ts']) ? (int) $a['ts'] : 0;
+    $y = isset($b['ts']) ? (int) $b['ts'] : 0;
+    if ($x === $y) {
+        return 0;
+    }
+    return ($x > $y) ? -1 : 1;
+}
+
+/**
+ * Crea un seguimiento.
+ *
+ * Comprueba el permiso de ESCRITURA del tipo concreto, no solo que el usuario
+ * tenga algún papel: coordinación no puede escribir acompañamiento aunque pueda
+ * escribir incidencias, y una pantalla que no pinta una opción no impide un POST.
+ */
+function sticpa_pl_create_seguimiento($objSCP, $monitorId, $tipo, $texto, $date, $roles)
+{
+    if (!sticpa_pl_seguimientos_enabled()) {
+        return false;
+    }
+    $monitorId = sticpa_pl_safe_id($monitorId);
+    $tipo = (string) $tipo;
+    $texto = trim((string) $texto);
+
+    if ($monitorId === '' || $texto === '') {
+        return false;
+    }
+    if (!in_array($tipo, sticpa_pl_seg_writable($roles), true)) {
+        return false;
+    }
+    // Sobre uno mismo tampoco se escribe: si no se puede leer, escribir un
+    // seguimiento propio solo serviría para dejarlo invisible.
+    $viewer = isset($_SESSION['scp_user_id']) ? (string) $_SESSION['scp_user_id'] : '';
+    if ($viewer !== '' && $viewer === $monitorId) {
+        return false;
+    }
+
+    $keys = sticpa_pl_seg_type_keys();
+    $map = sticpa_pl_seg_map();
+    $tipos = sticpa_pl_seg_tipos();
+
+    $ts = strtotime((string) $date . ' 12:00:00');
+    if (!$ts) {
+        $ts = sticpa_pl_now();
+    }
+
+    $payload = array(
+        // El título lo pone el sistema: quien escribe teclea el texto, no un
+        // asunto. Un campo más es un campo que se deja vacío.
+        $map['f_name'] => $tipos[$tipo]['label'] . ' · ' . date('Y-m-d', $ts),
+        $map['f_type'] => $keys[$tipo],
+        $map['f_text'] => $texto,
+        $map['f_date'] => date('Y-m-d H:i:s', $ts),
+        'assigned_user_id' => sticpa_pl_delegation($objSCP),
+    );
+
+    $id = $objSCP->set_entry($map['module'], $payload);
+    if (!$id) {
+        return false;
+    }
+    $objSCP->set_relationship($map['module'], $id, $map['link_contacts'], array($monitorId));
+    sticpa_pl_flush($objSCP, 'state');
+    return true;
+}

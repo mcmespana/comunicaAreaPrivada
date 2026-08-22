@@ -550,3 +550,167 @@ function sticpa_pl_monitor_since($raw)
     }
     return '';
 }
+
+// ===========================================================================
+// SEGUIMIENTOS DE MONITORES
+// ---------------------------------------------------------------------------
+// Tres tipos de nota sobre un monitor, con TRES visibilidades distintas. Es la
+// parte más delicada de todo el sistema: aquí un filtro mal puesto no enseña un
+// dato de más, enseña a una persona lo que otra escribió sobre ella.
+//
+// Diseño: docs/comunica/PASAR-LISTA-SEGUIMIENTOS.md
+// ===========================================================================
+
+/**
+ * Los tres tipos de seguimiento, y quién puede leer y escribir cada uno.
+ *
+ * 'read' y 'write' son listas de papeles: 'coordinacion' | 'acompanamiento'.
+ * Nadie más lee nada, y eso incluye al propio monitor.
+ */
+function sticpa_pl_seg_tipos()
+{
+    return array(
+        'incidencia' => array(
+            'label' => __('Incidencia', 'sticpa'),
+            'help' => __('Algo concreto que pasó un día', 'sticpa'),
+            'read' => array('coordinacion', 'acompanamiento'),
+            'write' => array('coordinacion'),
+            'color' => '#f59e0b',
+        ),
+        'valoracion' => array(
+            'label' => __('Valoración de trimestre', 'sticpa'),
+            'help' => __('Cómo ha ido el trimestre', 'sticpa'),
+            'read' => array('coordinacion', 'acompanamiento'),
+            'write' => array('coordinacion'),
+            'color' => '#1c6fb3',
+        ),
+        'acompanamiento' => array(
+            'label' => __('Acompañamiento', 'sticpa'),
+            'help' => __('Solo lo ve quien acompaña', 'sticpa'),
+            // La única que NO ve coordinación. Es el motivo de que exista el
+            // papel de acompañamiento como algo separado.
+            'read' => array('acompanamiento'),
+            'write' => array('acompanamiento'),
+            'color' => '#6c4b9e',
+        ),
+    );
+}
+
+/**
+ * Los papeles del usuario, para decidir qué seguimientos puede ver.
+ *
+ * `$isCoord` y `$isAcomp` vienen de las relaciones del CRM. Se devuelve una
+ * lista y no un solo papel porque alguien puede ser las dos cosas, y entonces
+ * ve la unión — no hay jerarquía entre coordinar y acompañar.
+ */
+function sticpa_pl_seg_roles($isCoord, $isAcomp)
+{
+    $roles = array();
+    if ($isCoord) {
+        $roles[] = 'coordinacion';
+    }
+    if ($isAcomp) {
+        $roles[] = 'acompanamiento';
+    }
+    return $roles;
+}
+
+/**
+ * Los tipos que estos papeles pueden LEER.
+ *
+ * Sin papeles, la lista está vacía: un monitor no ve seguimientos, ni suyos ni
+ * de nadie. No es un descuido — una valoración escrita para hablarla en persona
+ * deja de servir si se lee antes en una pantalla.
+ */
+function sticpa_pl_seg_readable($roles)
+{
+    $out = array();
+    foreach (sticpa_pl_seg_tipos() as $key => $meta) {
+        foreach ((array) $roles as $role) {
+            if (in_array($role, $meta['read'], true)) {
+                $out[] = $key;
+                break;
+            }
+        }
+    }
+    return $out;
+}
+
+/** Los tipos que estos papeles pueden ESCRIBIR. */
+function sticpa_pl_seg_writable($roles)
+{
+    $out = array();
+    foreach (sticpa_pl_seg_tipos() as $key => $meta) {
+        foreach ((array) $roles as $role) {
+            if (in_array($role, $meta['write'], true)) {
+                $out[] = $key;
+                break;
+            }
+        }
+    }
+    return $out;
+}
+
+/**
+ * ¿Puede este usuario ver seguimientos DE SÍ MISMO? No.
+ *
+ * Está en una función propia y no como un `if` suelto porque es una regla de
+ * encuadre, no un detalle: se lee explícita en cada sitio donde se aplica, y si
+ * algún día se cambia, se cambia aquí y se ve en el histórico por qué.
+ */
+function sticpa_pl_seg_can_see_own()
+{
+    return false;
+}
+
+/**
+ * Filtra una lista de seguimientos a lo que este usuario puede ver.
+ *
+ * Es la última puerta y la que hay que probar: aunque la consulta al CRM ya pida
+ * solo lo permitido, esto se aplica igual sobre lo que vuelva. Dos cierres
+ * independientes, porque el coste de un fallo aquí no es un dato de más.
+ */
+function sticpa_pl_seg_filter($items, $roles, $viewerId = '', $subjectId = '')
+{
+    // Sobre uno mismo, nada, ni siquiera coordinando.
+    if ($viewerId !== '' && $subjectId !== '' && $viewerId === $subjectId
+        && !sticpa_pl_seg_can_see_own()) {
+        return array();
+    }
+
+    $allowed = sticpa_pl_seg_readable($roles);
+    if (empty($allowed)) {
+        return array();
+    }
+
+    $out = array();
+    foreach ((array) $items as $item) {
+        $tipo = isset($item['tipo']) ? (string) $item['tipo'] : '';
+        // Un tipo que no conocemos NO se enseña. Si alguien escribe a mano un
+        // valor raro en el CRM, el defecto es ocultarlo, no pintarlo.
+        if ($tipo !== '' && in_array($tipo, $allowed, true)) {
+            $out[] = $item;
+        }
+    }
+    return $out;
+}
+
+/**
+ * El trimestre del curso al que pertenece una fecha.
+ *
+ * Devuelve 1, 2 o 3, para agrupar las valoraciones. Los cortes son los del
+ * curso escolar y no los del año natural: 1.º de septiembre a Navidad, de
+ * Navidad a Semana Santa —aproximada por el 1 de abril, que no hace falta
+ * clavarla— y de ahí a final de curso.
+ */
+function sticpa_pl_seg_trimestre($ts)
+{
+    $month = (int) date('n', (int) $ts);
+    if ($month >= 9 && $month <= 12) {
+        return 1;
+    }
+    if ($month >= 1 && $month <= 3) {
+        return 2;
+    }
+    return 3;
+}
