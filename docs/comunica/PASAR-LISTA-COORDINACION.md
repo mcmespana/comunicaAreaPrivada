@@ -79,7 +79,7 @@ poderlo tocar desde aquí en vez de entrar al CRM.
 
 ## 2. Quién coordina qué
 
-La relación se llama **`coordinacion-mic-com`**, en
+La relación se llama **`coordinacion_mic_com`**, en
 `stic_Contacts_Relationships` (el por qué está en
 `PASAR-LISTA-CAMPOS-CRM.md` §7: esa tabla ya lleva vigencia y delegación).
 
@@ -175,7 +175,7 @@ Pocos, y ninguno nuevo en Personas.
 ### 🔨 `stic_Contacts_Relationships.relationship_type` → un valor más
 
 ```
-coordinacion-mic-com
+coordinacion_mic_com
 ```
 
 El alcance se lee de `ajmcm_etapa_relacion_c` (ya existe) y del segmento del

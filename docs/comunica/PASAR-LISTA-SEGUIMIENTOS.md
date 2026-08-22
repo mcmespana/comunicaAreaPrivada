@@ -140,10 +140,10 @@ Seguimientos para otras cosas.
 Un valor más en `stic_Contacts_Relationships.relationship_type`:
 
 ```
-acompanamiento-mic-com
+acompanamiento_mic_com
 ```
 
-Mismo sitio y misma mecánica que `coordinacion-mic-com`: lleva vigencia y
+Mismo sitio y misma mecánica que `coordinacion_mic_com`: lleva vigencia y
 delegación de serie.
 
 ### 4. Confirmar los nombres de campo
