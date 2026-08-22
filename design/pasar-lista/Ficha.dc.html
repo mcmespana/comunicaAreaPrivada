@@ -1,0 +1,275 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <style>
+    body { margin: 0; font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+    a { color: #1c6fb3; text-decoration: none; } a:hover { color: #155a92; }
+    .sec { font-size: 0.75rem; font-weight: 800; color: #6b7280; text-transform: uppercase; letter-spacing: 0.06em; padding-bottom: 9px; }
+    .card { border-radius: 1.1rem; background: #ffffff; box-shadow: 0 1px 2px rgba(21, 36, 71, 0.06); overflow: hidden; }
+    .div { height: 1px; background: #f3f4f6; }
+  </style>
+</helmet>
+
+<div style="width: 390px; min-height: 1330px; background: #f7f9fc; color: #1f2937; display: flex; flex-direction: column;">
+
+  <div style="display: flex; align-items: center; gap: 12px; padding: 22px 20px 16px 20px;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px; flex-shrink: 0;"><path d="m15 18-6-6 6-6"/></svg>
+    <div style="font-size: 0.95rem; font-weight: 700; color: #6b7280;">Ficha</div>
+  </div>
+
+  <!-- Identidad -->
+  <div style="padding: 0 20px 14px 20px; display: flex; align-items: center; gap: 15px;">
+    <div style="display: flex; align-items: center; justify-content: center; width: 66px; height: 66px; border-radius: 9999px; background: linear-gradient(135deg, #1c6fb3 0%, #6c4b9e 52%, #9d1e74 100%); flex-shrink: 0;">
+      <span style="font-size: 1.35rem; font-weight: 800; color: #ffffff; letter-spacing: 0.02em;">SV</span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0;">
+      <div style="font-size: 1.28rem; font-weight: 800; letter-spacing: -0.025em; line-height: 1.15;">Solete Vilarroya Messguer</div>
+      <div style="font-size: 0.83rem; color: #6b7280;"><strong style="font-weight: 800; color: #1f2937;">C1</strong> · Los Peques · COM I · 1º ESO · 13 años</div>
+    </div>
+  </div>
+
+  <!-- Contacto rápido con la familia -->
+  <div style="padding: 0 20px 20px 20px; display: flex; gap: 11px;">
+    <div style="display: flex; align-items: center; justify-content: center; gap: 9px; flex-grow: 1; height: 54px; border-radius: 1.1rem; background: #ffffff; border: 1px solid #e5e7eb; box-shadow: 0 1px 2px rgba(21, 36, 71, 0.06);">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#2f9e44" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span style="font-size: 0.92rem; font-weight: 700; color: #374151;">WhatsApp</span>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: center; gap: 9px; flex-grow: 1; height: 54px; border-radius: 1.1rem; background: #ffffff; border: 1px solid #e5e7eb; box-shadow: 0 1px 2px rgba(21, 36, 71, 0.06);">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#1c6fb3" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      <span style="font-size: 0.92rem; font-weight: 700; color: #374151;">Llamar</span>
+    </div>
+  </div>
+
+  <!-- Asistencia -->
+  <div style="padding: 0 20px 16px 20px;">
+    <div class="sec">Asistencia</div>
+    <div class="card" style="padding: 17px 16px; display: flex; flex-direction: column; gap: 13px;">
+      <div style="display: flex; align-items: baseline; justify-content: space-between;">
+        <div style="font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; color: #1c6fb3; line-height: 1;">79<span style="font-size: 1.1rem;">%</span></div>
+        <div style="font-size: 0.82rem; color: #6b7280; font-weight: 500;">29 h de 36,5 h</div>
+      </div>
+      <div style="height: 10px; border-radius: 9999px; background: #f3f4f6; overflow: hidden;">
+        <div style="width: 79%; height: 100%; border-radius: 9999px; background: linear-gradient(135deg, #1c6fb3 0%, #6c4b9e 100%);"></div>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+        <span style="font-size: 0.8rem; color: #6b7280;">19 sesiones de 24</span>
+        <span style="font-size: 0.8rem; font-weight: 700; color: #1c6fb3;">Ver por sesión →</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Teléfonos: el chaval y la familia, todos juntos -->
+  <div style="padding: 0 20px 16px 20px;">
+    <div class="sec">Teléfonos</div>
+    <div class="card">
+
+      <div style="display: flex; align-items: center; gap: 12px; padding: 13px 16px;">
+        <div style="display: flex; flex-direction: column; gap: 3px; flex-grow: 1; min-width: 0;">
+          <div style="display: flex; align-items: center; gap: 7px;">
+            <span style="font-size: 0.95rem; font-weight: 700;">Solete</span>
+            <span style="display: inline-flex; align-items: center; padding: 0.1rem 0.45rem; border-radius: 9999px; background: #eaf4fb; color: #1c6fb3; font-size: 0.63rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;">Ella</span>
+          </div>
+          <div style="font-size: 0.79rem; color: #6b7280;">641 22 09 87</div>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 9999px; background: #f4fbf7; flex-shrink: 0;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2f9e44" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 9999px; background: #eaf4fb; flex-shrink: 0;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#1c6fb3" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        </div>
+      </div>
+      <div class="div"></div>
+
+      <div style="display: flex; align-items: center; gap: 12px; padding: 13px 16px;">
+        <div style="display: flex; flex-direction: column; gap: 3px; flex-grow: 1; min-width: 0;">
+          <div style="display: flex; align-items: center; gap: 7px;">
+            <span style="font-size: 0.95rem; font-weight: 700;">Sol Meseguer</span>
+            <span style="display: inline-flex; align-items: center; padding: 0.1rem 0.45rem; border-radius: 9999px; background: #fbeaf5; color: #9d1e74; font-size: 0.63rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;">REF</span>
+          </div>
+          <div style="font-size: 0.79rem; color: #6b7280;">Madre · 622 14 87 03</div>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 9999px; background: #f4fbf7; flex-shrink: 0;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2f9e44" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 9999px; background: #eaf4fb; flex-shrink: 0;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#1c6fb3" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        </div>
+      </div>
+      <div class="div"></div>
+
+      <div style="display: flex; align-items: center; gap: 12px; padding: 13px 16px;">
+        <div style="display: flex; flex-direction: column; gap: 3px; flex-grow: 1; min-width: 0;">
+          <span style="font-size: 0.95rem; font-weight: 700;">Marc Vilarroya</span>
+          <div style="font-size: 0.79rem; color: #6b7280;">Padre · 649 30 21 55</div>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 9999px; background: #f4fbf7; flex-shrink: 0;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2f9e44" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 9999px; background: #eaf4fb; flex-shrink: 0;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#1c6fb3" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Avisos de comportamiento: un registro por aviso, con fecha y quién -->
+  <div style="padding: 0 20px 16px 20px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 9px;">
+      <div class="sec" style="padding-bottom: 0;">Avisos de comportamiento</div>
+      <!-- La escala sube de color: el tercero es la expulsion, y se ve venir
+           desde el primero sin tener que leer nada. -->
+      <div style="display: inline-flex; align-items: center; gap: 6px;">
+        <div style="width: 10px; height: 10px; border-radius: 9999px; background: #f59e0b;"></div>
+        <div style="width: 10px; height: 10px; border-radius: 9999px; background: #ea580c;"></div>
+        <div style="width: 10px; height: 10px; border-radius: 9999px; background: transparent; border: 1.5px dashed #dc2626;"></div>
+        <span style="font-size: 0.78rem; font-weight: 800; color: #c2410c; padding-left: 3px;">2 de 3</span>
+      </div>
+    </div>
+
+    <div class="card">
+
+      <!-- Aviso 1: ambar -->
+      <div style="display: flex; align-items: flex-start; gap: 11px; padding: 13px 16px; border-left: 3px solid #f59e0b;">
+        <div style="display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 9999px; background: #f59e0b; flex-shrink: 0; margin-top: 1px;">
+          <span style="font-size: 0.72rem; font-weight: 800; color: #ffffff;">1</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 3px; flex-grow: 1;">
+          <div style="font-size: 0.89rem; color: #1f2937; line-height: 1.4;">Se fue del local sin avisar a mitad de sesión</div>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="font-size: 0.73rem; color: #9ca3af;">8 nov · lo puso Mercedes</span>
+            <span style="display: inline-flex; align-items: center; gap: 4px; padding: 0.1rem 0.45rem; border-radius: 9999px; background: #e6fcf5;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#076b4d" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" style="width: 9px; height: 9px;"><path d="M20 6 9 17l-5-5"/></svg>
+              <span style="font-size: 0.66rem; font-weight: 800; color: #076b4d;">Familia avisada</span>
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="div"></div>
+
+      <!-- Aviso 2: naranja -->
+      <div style="display: flex; align-items: flex-start; gap: 11px; padding: 13px 16px; border-left: 3px solid #ea580c;">
+        <div style="display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 9999px; background: #ea580c; flex-shrink: 0; margin-top: 1px;">
+          <span style="font-size: 0.72rem; font-weight: 800; color: #ffffff;">2</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 3px; flex-grow: 1;">
+          <div style="font-size: 0.89rem; color: #1f2937; line-height: 1.4;">Faltas de respeto reiteradas a una compañera</div>
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <span style="font-size: 0.73rem; color: #9ca3af;">13 dic · lo puso David Soler</span>
+            <span style="display: inline-flex; align-items: center; gap: 4px; padding: 0.1rem 0.45rem; border-radius: 9999px; background: #fef3c7;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#92400e" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="width: 9px; height: 9px;"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              <span style="font-size: 0.66rem; font-weight: 800; color: #92400e;">Familia sin avisar</span>
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="div"></div>
+
+      <!-- El tercero es la expulsion: se dice antes de ponerlo, no despues. -->
+      <div style="display: flex; align-items: center; gap: 9px; padding: 11px 16px; background: #fef2f2;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px; flex-shrink: 0;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+        <span style="font-size: 0.79rem; color: #b91c1c; line-height: 1.4;">El <strong style="font-weight: 800;">tercer aviso</strong> implica la salida del grupo. Habla con coordinación antes.</span>
+      </div>
+      <div class="div"></div>
+
+      <div style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 16px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#c2410c" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px;"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+        <span style="font-size: 0.85rem; font-weight: 700; color: #c2410c;">Añadir un aviso</span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Salud: los cinco campos en UN bloque, solo lo que tenga contenido -->
+  <div style="padding: 0 20px 16px 20px;">
+    <div class="sec">Salud</div>
+    <div class="card" style="padding: 4px 0;">
+
+      <div style="display: flex; flex-direction: column; gap: 3px; padding: 12px 16px;">
+        <span style="font-size: 0.73rem; font-weight: 800; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em;">Alergias</span>
+        <span style="font-size: 0.92rem; color: #1f2937; line-height: 1.45;">Frutos secos (anafilaxia). Lleva Adrenalina autoinyectable en la mochila.</span>
+      </div>
+      <div class="div" style="margin: 0 16px;"></div>
+
+      <div style="display: flex; flex-direction: column; gap: 3px; padding: 12px 16px;">
+        <span style="font-size: 0.73rem; font-weight: 800; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em;">Intolerancias</span>
+        <span style="font-size: 0.92rem; color: #1f2937; line-height: 1.45;">Lactosa</span>
+      </div>
+      <div class="div" style="margin: 0 16px;"></div>
+
+      <div style="display: flex; flex-direction: column; gap: 3px; padding: 12px 16px;">
+        <span style="font-size: 0.73rem; font-weight: 800; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em;">Tratamientos</span>
+        <span style="font-size: 0.92rem; color: #1f2937; line-height: 1.45;">Ventolín antes de hacer deporte</span>
+      </div>
+
+    </div>
+    <div style="font-size: 0.73rem; color: #9ca3af; padding: 8px 4px 0 4px; line-height: 1.45;">Enfermedades y otras patologías no se pintan porque están vacías. Si no hubiera nada, el bloque diría «sin datos registrados».</div>
+  </div>
+
+  <!-- Permisos -->
+  <div style="padding: 0 20px 16px 20px;">
+    <div class="sec">Permisos</div>
+    <div class="card">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px;">
+        <span style="font-size: 0.9rem; color: #4b5563;">Puede irse solo a casa</span>
+        <span style="display: inline-flex; align-items: center; padding: 0.16rem 0.6rem; border-radius: 9999px; background: #e6fcf5; color: #076b4d; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;">Sí</span>
+      </div>
+      <div class="div"></div>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px;">
+        <span style="font-size: 0.9rem; color: #4b5563;">Cesión de imágenes</span>
+        <span style="display: inline-flex; align-items: center; padding: 0.16rem 0.6rem; border-radius: 9999px; background: #e6fcf5; color: #076b4d; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;">Sí</span>
+      </div>
+      <div class="div"></div>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px;">
+        <span style="font-size: 0.9rem; color: #4b5563;">WhatsApp del menor</span>
+        <span style="display: inline-flex; align-items: center; padding: 0.16rem 0.6rem; border-radius: 9999px; background: #e6fcf5; color: #076b4d; font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;">Sí</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pañuelo: dato de etapa, no de urgencia. Baja aqui, con los permisos
+       y los datos; editable con confirmacion porque lo cambia el monitor. -->
+  <div style="padding: 0 20px 16px 20px;">
+    <div class="sec">Pañuelo</div>
+    <div class="card" style="display: flex; align-items: center; gap: 12px; padding: 13px 16px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#2f9e44" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px; flex-shrink: 0;"><path d="M4 4h16l-8 16z"/></svg>
+      <span style="font-size: 1rem; font-weight: 800; color: #2f9e44; flex-grow: 1;">Verde</span>
+      <div style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 13px; border-radius: 9999px; background: #f7f9fc; border: 1px solid #e5e7eb;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#4b5563" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+        <span style="font-size: 0.8rem; font-weight: 700; color: #374151;">Cambiar</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Datos -->
+  <div style="padding: 0 20px 28px 20px;">
+    <div class="sec">Datos</div>
+    <div class="card">
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px;">
+        <span style="font-size: 0.9rem; color: #4b5563;">Nacimiento</span>
+        <span style="font-size: 0.9rem; font-weight: 700;">30 / 7 / 2013</span>
+      </div>
+      <div class="div"></div>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px;">
+        <span style="font-size: 0.9rem; color: #4b5563;">Centro educativo</span>
+        <span style="font-size: 0.9rem; font-weight: 700;">Rosa Molas</span>
+      </div>
+      <div class="div"></div>
+      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px;">
+        <span style="font-size: 0.9rem; color: #4b5563;">En el grupo desde</span>
+        <span style="font-size: 0.9rem; font-weight: 700;">septiembre 2024</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

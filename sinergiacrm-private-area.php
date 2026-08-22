@@ -60,6 +60,12 @@ include plugin_dir_path(__FILE__) . 'inc/stic-app-links.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-comunica-roles.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-calendar.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-events.php';
+// Pasar Lista: la lógica pura (curso, sesión que toca, porcentajes) va primero
+// porque las otras dos la usan.
+include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista.php';
+include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-crm.php';
+include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-ui.php';
+include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-sw.php';
 
 add_action('admin_menu', 'sugar_crm_portal_create_menu');
 
@@ -98,7 +104,8 @@ function dcms_insertar_js()
     $page = sticpa_current_internal_page();
     $isList = strpos($page, 'list_') === 0;
     $isCalendar = ($page === 'single_stic_activities_calendar');
-    $isSingleForm = (strpos($page, 'single_') === 0) && !$isCalendar;
+    $isPasarLista = (strpos($page, 'single_stic_pasar_lista') === 0);
+    $isSingleForm = (strpos($page, 'single_') === 0) && !$isCalendar && !$isPasarLista;
     $ibanPages = array(
         'single_stic_payment_form',
         'single_stic_tutor_profile',
@@ -156,6 +163,12 @@ function dcms_insertar_js()
     if (in_array($page, $cropperPages, true)) {
         wp_register_script('stic-cropper', plugin_dir_url(__FILE__) . 'js/stic-cropper.js', array(), $jsver('js/stic-cropper.js'), true);
         wp_enqueue_script('stic-cropper');
+    }
+    // Pasar Lista: ciclo de toque, gesto largo y guardado en lote. Sin jQuery,
+    // porque es la pantalla que tiene que abrir rápido en la webview.
+    if ($isPasarLista) {
+        wp_register_script('stic-pasar-lista', plugin_dir_url(__FILE__) . 'js/stic-pasar-lista.js', array(), $jsver('js/stic-pasar-lista.js'), true);
+        wp_enqueue_script('stic-pasar-lista');
     }
     // We use only one file for plugin literals, so although theoretically we should call this function twice (one efor each js), we only call it once.
     wp_localize_script('sugarcrm-own', 'stic_script_vars', getSticScriptVars());
@@ -1348,7 +1361,8 @@ function sugar_crm_portal_style_and_script()
         // archivos: dos saltos DNS+TLS delante del primer pintado.
         // Capa BASE consolidada (UI-15: ex stic-style + stic-modern-style, en ese orden).
         wp_enqueue_style('stic-base', plugins_url('css/stic-base.css', __FILE__), array(), $ver('css/stic-base.css'));
-        if (strpos($page, 'single_') === 0 && $page !== 'single_stic_activities_calendar') {
+        $isPasarListaPage = (strpos($page, 'single_stic_pasar_lista') === 0);
+        if (strpos($page, 'single_') === 0 && $page !== 'single_stic_activities_calendar' && !$isPasarListaPage) {
             wp_enqueue_style('stic-multiselect', plugins_url('css/selectize.css', __FILE__), array('stic-base'), $ver('css/selectize.css'));
         }
         if ($page === 'single_stic_activities_calendar') {
@@ -1361,6 +1375,11 @@ function sugar_crm_portal_style_and_script()
         }
         // custom-style.css is loaded LAST on purpose so it can override/enhance everything above
         wp_enqueue_style('custom-style', plugins_url('css/custom-style.css', __FILE__), array('stic-base'), $ver('css/custom-style.css'));
+        // Pasar Lista va DESPUÉS de custom-style porque usa sus tokens (§1) y
+        // añade el único color que no estaba: el verde azulado de "parcial".
+        if ($isPasarListaPage) {
+            wp_enqueue_style('stic-pasar-lista', plugins_url('css/pasar-lista.css', __FILE__), array('custom-style'), $ver('css/pasar-lista.css'));
+        }
 
         // Modo app (?app=1): esconder el header/footer del tema en la WebView.
         if (function_exists('sticpa_is_app_mode') && sticpa_is_app_mode()) {

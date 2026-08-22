@@ -1,0 +1,307 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <style>
+    body { margin: 0; font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+    a { color: #1c6fb3; text-decoration: none; } a:hover { color: #155a92; }
+    .row { cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background 150ms cubic-bezier(0.4, 0, 0.2, 1); }
+    .row:hover { background: #f9fafb; }
+    .tap { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    @keyframes holdpulse {
+      0%, 62%  { transform: scale(0.62); opacity: 0; }
+      74%      { transform: scale(0.62); opacity: 0.55; }
+      100%     { transform: scale(1.32); opacity: 0; }
+    }
+    .holddot > span:first-child { animation: holdpulse 2.6s cubic-bezier(0.22, 0.61, 0.36, 1) infinite; }
+    @media (prefers-reduced-motion: reduce) { .holddot > span:first-child { animation: none; opacity: 0.35; } }
+  </style>
+</helmet>
+
+<div style="width: 390px; min-height: 880px; background: #f7f9fc; color: #1f2937; display: flex; flex-direction: column;">
+
+  <!-- Cabecera + selector de sesión -->
+  <div style="display: flex; align-items: center; gap: 12px; padding: 22px 20px 12px 20px;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px; flex-shrink: 0;"><path d="m15 18-6-6 6-6"/></svg>
+    <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1; min-width: 0;">
+      <div style="display: flex; align-items: baseline; gap: 7px;">
+        <span style="font-size: 1.15rem; font-weight: 800; letter-spacing: -0.02em;">C1</span>
+        <span style="font-size: 0.92rem; font-weight: 600; color: #4b5563;">Los Peques</span>
+      </div>
+      <div style="font-size: 0.78rem; color: #6b7280;">David Soler · 1º ESO · 11 participantes</div>
+    </div>
+    <div class="tap" style="display: inline-flex; align-items: center; gap: 7px; padding: 9px 13px; border-radius: 9999px; background: #ffffff; border: 1px solid #e5e7eb; flex-shrink: 0;">
+      <span style="font-size: 0.82rem; font-weight: 700; color: #374151;">sáb 15</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px;"><path d="m6 9 6 6 6-6"/></svg>
+    </div>
+  </div>
+
+  <!-- Aviso: la sesión aún no ha empezado. Una línea. -->
+  <div style="display: flex; align-items: center; gap: 8px; padding: 0 20px 12px 20px;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#a16207" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px; flex-shrink: 0;"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+    <div style="font-size: 0.79rem; color: #92400e;">Empieza a las <strong style="font-weight: 800;">16:30</strong> — aún no han llegado</div>
+  </div>
+
+  <!-- Acción rápida -->
+  <div style="padding: 0 20px 14px 20px;">
+    <div class="tap" onClick="{{ allPresent }}" style="display: flex; align-items: center; justify-content: center; gap: 8px; height: 46px; border-radius: 1.1rem; background: #e6fcf5; border: 1px solid #b2f2bb;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#076b4d" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px;"><path d="M20 6 9 17l-5-5"/></svg>
+      <span style="font-size: 0.88rem; font-weight: 700; color: #076b4d;">Han venido todos</span>
+    </div>
+  </div>
+
+  <!-- Lista -->
+  <div style="padding: 0 20px; flex-grow: 1;">
+    <div style="border-radius: 1.1rem; background: #ffffff; box-shadow: 0 1px 2px rgba(21, 36, 71, 0.06); overflow: hidden;">
+      <sc-for list="{{ kids }}" as="kid" hint-placeholder-count="6">
+        <div class="row" onClick="{{ kid.cycle }}" style="display: flex; align-items: center; gap: 12px; padding: 11px 6px 11px 14px; border-top: {{ kid.border }}; background: {{ kid.rowBg }}; transform: {{ kid.rowScale }};">
+
+          <div style="display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 9999px; background: {{ kid.avatarBg }}; flex-shrink: 0;">
+            <span style="font-size: 0.82rem; font-weight: 800; color: {{ kid.avatarFg }}; letter-spacing: 0.02em;">{{ kid.initials }}</span>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1; min-width: 0;">
+            <div style="font-size: 0.99rem; font-weight: 700; letter-spacing: -0.01em; color: {{ kid.nameColor }};">{{ kid.name }}</div>
+            <sc-if value="{{ kid.note }}" hint-placeholder-val="{{ true }}">
+              <div style="font-size: 0.73rem; font-weight: 700; color: {{ kid.noteColor }};">{{ kid.note }}</div>
+            </sc-if>
+          </div>
+
+          <!-- Circulo de estado. Vacio y punteado = por marcar, y se lee como
+               un control que espera un toque. Lleno = marcado, con glifo y
+               color propios para que no haga falta la etiqueta. -->
+          <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 9999px; background: {{ kid.circleBg }}; border: {{ kid.circleBorder }}; flex-shrink: 0;">
+            <!-- El anillo del gesto largo: se llena en los 500 ms del umbral.
+                 Aqui se pinta a media vuelta en la fila que esta pulsada. -->
+            <sc-if value="{{ kid.holding }}" hint-placeholder-val="{{ false }}">
+              <svg viewBox="0 0 44 44" style="position: absolute; inset: -3px; width: 46px; height: 46px; transform: rotate(-90deg);">
+                <circle cx="22" cy="22" r="20" fill="none" stroke="#1c6fb3" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="126" stroke-dashoffset="46"></circle>
+              </svg>
+            </sc-if>
+            <sc-if value="{{ kid.isYes }}" hint-placeholder-val="{{ true }}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" style="width: 19px; height: 19px;"><path d="M20 6 9 17l-5-5"/></svg>
+            </sc-if>
+            <sc-if value="{{ kid.isPartial }}" hint-placeholder-val="{{ false }}">
+              <svg viewBox="0 0 24 24" fill="#ffffff" style="width: 17px; height: 17px;"><path d="M12 2a10 10 0 0 1 0 20Z"/></svg>
+            </sc-if>
+            <sc-if value="{{ kid.isJust }}" hint-placeholder-val="{{ false }}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" style="width: 17px; height: 17px;"><path d="M6 12h12"/></svg>
+            </sc-if>
+            <sc-if value="{{ kid.isNo }}" hint-placeholder-val="{{ false }}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px;"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </sc-if>
+          </div>
+
+          <div style="display: flex; align-items: center; justify-content: center; width: 40px; height: 44px; flex-shrink: 0;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#c4cad3" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px;"><path d="m9 18 6-6-6-6"/></svg>
+          </div>
+
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- Leyenda de los cuatro circulos. Va aqui abajo, no en cada fila:
+         el color y el glifo se aprenden una vez y luego la lista queda limpia. -->
+    <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 13px 4px 0 4px;">
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 9999px; background: #2f9e44;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" style="width: 11px; height: 11px;"><path d="M20 6 9 17l-5-5"/></svg>
+        </div>
+        <span style="font-size: 0.74rem; font-weight: 600; color: #4b5563;">Vino</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 9999px; background: #0d9488;">
+          <svg viewBox="0 0 24 24" fill="#ffffff" style="width: 10px; height: 10px;"><path d="M12 2a10 10 0 0 1 0 20Z"/></svg>
+        </div>
+        <span style="font-size: 0.74rem; font-weight: 600; color: #4b5563;">Parcial</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 9999px; background: #f59e0b;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" style="width: 10px; height: 10px;"><path d="M6 12h12"/></svg>
+        </div>
+        <span style="font-size: 0.74rem; font-weight: 600; color: #4b5563;">Justificada</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 9999px; background: #dc2626;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" style="width: 10px; height: 10px;"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        </div>
+        <span style="font-size: 0.74rem; font-weight: 600; color: #4b5563;">No vino</span>
+      </div>
+
+      <!-- El gesto largo no se ve, asi que se anuncia: chip con el icono de
+           pulsacion y las ondas, junto a los dos estados que solo abre el. -->
+      <div class="hold" style="display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px 5px 8px; border-radius: 9999px; background: #ffffff; border: 1px dashed #cbd5e1;">
+        <span class="holddot" style="position: relative; display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; flex-shrink: 0;">
+          <span style="position: absolute; inset: 0; border-radius: 9999px; border: 1.5px solid #1c6fb3; opacity: 0.35;"></span>
+          <span style="width: 8px; height: 8px; border-radius: 9999px; background: #1c6fb3;"></span>
+        </span>
+        <span style="font-size: 0.74rem; font-weight: 700; color: #1c6fb3;">Mantén pulsado</span>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: flex-start; gap: 7px; padding: 10px 4px 0 4px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px; flex-shrink: 0; margin-top: 2px;"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+      <span style="font-size: 0.76rem; color: #6b7280; line-height: 1.45;">Toca la fila para <strong style="font-weight: 700;">vino / no vino</strong>. Mantén pulsado para parcial o justificar. La flecha abre la ficha.</span>
+    </div>
+
+    <div class="tap" style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 14px; height: 44px; border-radius: 1.1rem; background: transparent; border: 1px dashed #d1d5db;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;"><path d="m5 4 10 8-10 8V4Z"/><path d="M19 5v14"/></svg>
+      <span style="font-size: 0.84rem; font-weight: 600; color: #6b7280;">Sin registro — no me avises más</span>
+    </div>
+  </div>
+
+  <!-- Barra de guardado -->
+  <!-- La barra flota: el contenido se desvanece al llegar a ella en vez de
+       cortarse con una linea de 1 px. -->
+  <div style="position: sticky; bottom: 0; margin-top: 18px; padding: 22px 20px 20px 20px; background: linear-gradient(to bottom, rgba(247,249,252,0) 0, rgba(247,249,252,0.92) 18px, rgba(247,249,252,0.97) 100%); display: flex; flex-direction: column; gap: 10px;">
+
+    <!-- Aviso de estado: sin cobertura, guardado en el movil, enviando. -->
+    <div style="display: flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 0.85rem; background: #f3f4f6;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px; flex-shrink: 0;"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><path d="M12 20h.01"/><path d="m2 2 20 20"/></svg>
+      <span style="font-size: 0.78rem; font-weight: 700; color: #374151;">Sin cobertura. Puedes marcar: se guardará en el móvil.</span>
+    </div>
+    <div style="display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap;">
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="width: 9px; height: 9px; border-radius: 9999px; background: #2f9e44;"></div>
+        <span style="font-size: 0.82rem; font-weight: 700; color: #374151;">{{ countYes }} vinieron</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="width: 9px; height: 9px; border-radius: 9999px; background: #dc2626;"></div>
+        <span style="font-size: 0.82rem; font-weight: 700; color: #374151;">{{ countNo }} ausencias</span>
+      </div>
+      <sc-if value="{{ hasNone }}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <div style="width: 9px; height: 9px; border-radius: 9999px; border: 2px solid #d1d5db;"></div>
+          <span style="font-size: 0.82rem; font-weight: 700; color: #92400e;">{{ countNone }} sin marcar</span>
+        </div>
+      </sc-if>
+    </div>
+    <div class="tap" style="display: flex; align-items: center; justify-content: center; height: 54px; border-radius: 1.1rem; background: linear-gradient(135deg, #1c6fb3 0%, #6c4b9e 52%, #9d1e74 100%); box-shadow: 0 10px 28px rgba(21, 36, 71, 0.10);">
+      <span style="font-size: 1rem; font-weight: 800; color: #ffffff; letter-spacing: -0.01em;">{{ saveLabel }}</span>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    // Claves reales del CRM: yes | partial | no_justified | no_unjustified | ''
+    this.state = {
+      marks: {
+        1: 'yes', 2: 'yes', 3: 'no_unjustified', 4: 'yes', 5: 'partial',
+        6: 'yes', 7: '', 8: 'yes', 9: 'no_justified', 10: 'yes', 11: ''
+      }
+    };
+  }
+
+  // El tap cicla solo los tres estados frecuentes. Parcial y justificada
+  // se ponen manteniendo pulsado: son minoritarios y merecen un gesto
+  // deliberado (justificar implica saber por que).
+  cycle(id) {
+    const order = ['', 'yes', 'no_unjustified'];
+    const cur = this.state.marks[id] || '';
+    const i = order.indexOf(cur);
+    const next = i === -1 ? '' : order[(i + 1) % 3];
+    this.setState({ marks: Object.assign({}, this.state.marks, { [id]: next }) });
+  }
+
+  renderVals() {
+    // Un color por estado, con glifo propio: el circulo se lee sin etiqueta.
+    // Parcial va en verde azulado (no en el verde de "vino") para que se
+    // distinga de un vistazo aunque las dos cuenten como asistencia.
+    const STATES = {
+      '':               { label: 'Sin marcar', color: '#d1d5db', tint: '#f3f4f6', ink: '#6b7280' },
+      'yes':            { label: 'Vino',       color: '#2f9e44', tint: '#e6fcf5', ink: '#076b4d' },
+      'partial':        { label: 'Parcial',    color: '#0d9488', tint: '#e6fffb', ink: '#0b6b62' },
+      'no_justified':   { label: 'Justificada',color: '#f59e0b', tint: '#fffbeb', ink: '#92400e' },
+      'no_unjustified': { label: 'No vino',    color: '#dc2626', tint: '#fef2f2', ink: '#b91c1c' }
+    };
+
+    const roster = [
+      { id: 1,  name: 'Solete Vilarroya', initials: 'SV' },
+      { id: 2,  name: 'Jaume Pascual',    initials: 'JP' },
+      { id: 3,  name: 'Lydia Godoy',      initials: 'LG', seguidas: 3 },
+      { id: 4,  name: 'Carla Machordom',  initials: 'CM' },
+      { id: 5,  name: 'Pablo Prada',      initials: 'PP' },
+      { id: 6,  name: 'Mateo Ronchera',   initials: 'MR' },
+      { id: 7,  name: 'Daniela Regis',    initials: 'DR' },
+      { id: 8,  name: 'Claudia Sos',      initials: 'CS' },
+      { id: 9,  name: 'Lucia Ripolles',   initials: 'LR' },
+      { id: 10, name: 'Izan Rivera',      initials: 'IR' },
+      { id: 11, name: 'Tania Rivera',     initials: 'TR' }
+    ];
+
+    const marks = this.state.marks;
+    let countYes = 0, countNo = 0, countNone = 0;
+
+    const kids = roster.map((k, i) => {
+      const st = marks[k.id] || '';
+      const meta = STATES[st] || STATES[''];
+      // Parcial cuenta como asistir, igual que en el CRM.
+      if (st === 'yes' || st === 'partial') { countYes++; }
+      else if (st === 'no_unjustified' || st === 'no_justified') { countNo++; }
+      else { countNone++; }
+
+      // El aviso solo a partir de 3 faltas SEGUIDAS.
+      const warn = (k.seguidas || 0) >= 3;
+      // Los dos estados que solo se alcanzan manteniendo pulsado se dicen con
+      // palabras: ver "Parcial" escrito en una fila ensena que el gesto existe.
+      const notes = [];
+      if (st === 'partial' || st === 'no_justified') { notes.push(meta.label); }
+      if (warn) { notes.push(k.seguidas + ' ausencias seguidas'); }
+
+      return {
+        id: k.id,
+        name: k.name,
+        initials: k.initials,
+        label: meta.label,
+        isYes: st === 'yes',
+        isPartial: st === 'partial',
+        isJust: st === 'no_justified',
+        isNo: st === 'no_unjustified',
+        // Sin marcar: circulo vacio con borde punteado, que pide que lo toques.
+        circleBg: st === '' ? 'transparent' : meta.color,
+        circleBorder: st === '' ? '2px dashed #cbd5e1' : 'none',
+        // La fila 7 se pinta en pleno gesto largo: es el estado que hay que
+        // poder ver, porque es el que antes no se veia.
+        holding: k.id === 7,
+        rowBg: k.id === 7 ? '#f9fafb' : 'transparent',
+        rowScale: k.id === 7 ? 'scale(0.988)' : 'none',
+        note: notes.join(' · '),
+        noteColor: warn ? '#b91c1c' : meta.ink,
+        border: i === 0 ? 'none' : '1px solid #f3f4f6',
+        nameColor: (st === 'no_unjustified' || st === 'no_justified') ? '#6b7280' : '#1f2937',
+        avatarBg: st === '' ? '#f3f4f6' : meta.tint,
+        avatarFg: st === '' ? '#6b7280' : meta.ink,
+        cycle: () => this.cycle(k.id)
+      };
+    });
+
+    return {
+      kids: kids,
+      countYes: countYes,
+      countNo: countNo,
+      countNone: countNone,
+      hasNone: countNone > 0,
+      // Si queda gente sin marcar, el boton lo dice en vez de callarselo.
+      saveLabel: countNone > 0 ? ('Guardar (' + countNone + ' sin marcar)') : 'Guardar lista',
+      allPresent: () => {
+        const all = {};
+        roster.forEach((k) => { all[k.id] = 'yes'; });
+        this.setState({ marks: all });
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>
