@@ -141,6 +141,15 @@ pasaste, y son las que pinta la pantalla de marcado:
 
 Sin valor = **sin marcar**, que no es lo mismo que una falta (§6.4 del diseño).
 
+**`stic_Attendances.description` — comprobado contra el CRM** (tipo `text`). Es
+donde va el **motivo** opcional que se escribe en la hoja de los cuatro estados
+(«avisó la madre por la mañana»). No estaba en `CAMPOS.md` porque ese documento
+cubre Personas: el módulo de asistencias no tiene ficha propia allí. Se verificó
+con `get_module_fields` antes de escribir en él, no se dio por bueno.
+
+El motivo solo se escribe **cuando cambia**: mandarlo igual en cada guardado
+llenaría el registro de auditoría del CRM de cambios que no son cambios.
+
 Ojo con esto: la API **no valida los enum**. Está comprobado — se le puede
 escribir un valor inventado y lo guarda. Así que las cuatro claves de arriba se
 tratan como constantes cerradas en el código, nunca como algo que se derive de

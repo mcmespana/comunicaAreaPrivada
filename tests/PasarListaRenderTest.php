@@ -340,6 +340,26 @@ final class PasarListaRenderTest extends TestCase
 
     // ---- Árbol de grupos -------------------------------------------------
 
+    /**
+     * El atajo lleva las dos piezas que contestan "¿qué toca?": la pastilla con
+     * el CUÁNDO en relativo y la cápsula de fecha del §11 del sistema de
+     * diseño, que es cómo se dice un día en toda el área privada.
+     */
+    public function test_home_atajo_con_pastilla_y_capsula_de_fecha()
+    {
+        $html = $this->render('single_stic_pasar_lista');
+
+        // La cápsula es el componente que ya existe, no otro inventado aquí.
+        $this->assertStringContainsString('stic-cell-badge pl-hero-date', $html);
+        $this->assertStringContainsString('<span class="stic-cell-badge-day">15</span>', $html);
+        // En el doble la lista de g1 ya está pasada, así que la pastilla lo dice
+        // y la línea de datos enseña el RESULTADO en vez de la hora: cuando ya
+        // está hecha, lo que se quiere saber es cómo fue.
+        $this->assertStringContainsString('<span class="pl-hero-when">Pasada</span>', $html);
+        $this->assertStringContainsString('2 vinieron, 0 ausencias', $html);
+        $this->assertStringContainsString('pl-hero--done', $html);
+    }
+
     public function test_arbol_pone_tu_grupo_primero_y_agrupa_por_etapa()
     {
         $html = $this->render('single_stic_pasar_lista_grupos');
@@ -355,6 +375,21 @@ final class PasarListaRenderTest extends TestCase
     }
 
     /** El grupo de otro curso no aparece: es el filtro de `cursos_c`. */
+    /**
+     * El árbol dice de qué grupo FALTA la lista, que es para lo que se abre. El
+     * círculo sale de una consulta por etapa, no por grupo.
+     */
+    public function test_arbol_pinta_el_estado_de_la_ultima_lista()
+    {
+        $html = $this->render('single_stic_pasar_lista_grupos');
+
+        $this->assertStringContainsString('pl-tree-legend', $html);
+        $this->assertStringContainsString('Pendiente', $html);
+        $this->assertStringContainsString('No hubo', $html);
+        // g1 pasó la última (s3): círculo verde.
+        $this->assertStringContainsString('pl-done pl-done--yes', $html);
+    }
+
     public function test_arbol_no_enseña_grupos_de_cursos_viejos()
     {
         $html = $this->render('single_stic_pasar_lista_grupos');
@@ -375,7 +410,10 @@ final class PasarListaRenderTest extends TestCase
         $_REQUEST = array('grupo' => 'g1', 'sesiones' => '1');
         $html = $this->render('single_stic_pasar_lista_grupos');
 
-        $this->assertStringContainsString('Elige la sesión', $html);
+        // El historial de listas: el selector rápido de sesión vive ahora en la
+        // cabecera de marcado (un <select> nativo); esta pantalla es la que
+        // enseña el ESTADO de cada lista, que en un desplegable no cabe.
+        $this->assertStringContainsString('Historial de listas', $html);
         // La lista de s3 está pasada con 2 y 0; las otras, sin pasar.
         $this->assertStringContainsString('2 vinieron', $html);
         $this->assertStringContainsString('Sin pasar', $html);
@@ -437,6 +475,11 @@ final class PasarListaRenderTest extends TestCase
     /**
      * La propiedad que importa del rendimiento: marcar NO hace una consulta por
      * participante. Si alguien añade un bucle con una llamada dentro, esto salta.
+     *
+     * Las asistencias se piden por SESIÓN: una para la sesión que se marca y
+     * hasta `umbral` más hacia atrás para las ausencias seguidas. Ese techo es
+     * el que se fija aquí, y lo importante es que no depende de cuánta gente
+     * haya en el grupo — que es justo lo que el test de abajo comprueba.
      */
     public function test_marcar_no_consulta_una_vez_por_participante()
     {
@@ -450,8 +493,13 @@ final class PasarListaRenderTest extends TestCase
             return $c === 'stic_Sessions:stic_attendances_stic_sessions';
         });
         $this->assertCount(1, $people, 'las personas del grupo salen en UNA llamada');
-        $this->assertCount(1, $att, 'las asistencias de la sesión salen en UNA llamada');
+        $this->assertLessThanOrEqual(
+            1 + sticpa_pl_streak_threshold(),
+            count($att),
+            'las asistencias se piden por sesión, no por participante'
+        );
     }
+
 
     /** Un grupo que no existe no pinta media pantalla: manda al árbol. */
     public function test_marcar_sin_grupo_valido_manda_al_arbol()
@@ -462,7 +510,97 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringNotContainsString('data-pl-marcar', $html);
     }
 
+    // ---- El selector de sesión: un <select> nativo ------------------------
+
+    /**
+     * En el móvil —el 99 % de los usos— el desplegable nativo es una rueda a
+     * pulgar y se abre en la misma pantalla. Antes esto era un viaje al árbol
+     * para volver con una fecha: tres toques de más cada sábado.
+     */
+    public function test_marcar_lleva_el_selector_de_sesion_nativo()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertStringContainsString('data-pl-session-jump', $html);
+        // Cada opción es "número · fecha corta": el número es como se habla de
+        // una sesión, la fecha es como se comprueba que es la buena.
+        $this->assertStringContainsString('3 · 15 Nov', $html);
+        $this->assertStringContainsString('1 · 1 Nov', $html);
+        // El valor de la opción ES la url: elegir es ir.
+        $this->assertStringContainsString('sesion=s2', $html);
+        // La sesión que aún no ha llegado no se ofrece: no se pasa lista del futuro.
+        $this->assertStringNotContainsString('sesion=s4', $html);
+    }
+
     // ---- Guardado --------------------------------------------------------
+
+    /**
+     * El motivo de la hoja de estados va al campo `description` de la
+     * asistencia, que es donde el CRM lo espera y donde se puede leer luego.
+     */
+    public function test_guardar_escribe_el_motivo_en_description()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => json_encode(array('c1' => 'no_justified')),
+            // JSON_UNESCAPED_UNICODE porque es lo que manda el navegador:
+            // JSON.stringify deja los acentos tal cual, sin escapes \uXXXX.
+            'pl_notes' => json_encode(array('c1' => 'Avisó la madre por la mañana'), JSON_UNESCAPED_UNICODE),
+        );
+        $this->render('single_stic_pasar_lista_marcar');
+
+        $attWrites = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Attendances';
+        }));
+        $this->assertCount(1, $attWrites);
+        $this->assertSame('Avisó la madre por la mañana', $attWrites[0]['data']['description']);
+    }
+
+    /**
+     * Y si el motivo NO cambia, no se manda: repetirlo en cada guardado llena
+     * el registro de auditoría del CRM de cambios que no son cambios.
+     */
+    public function test_guardar_no_reescribe_un_motivo_que_no_cambia()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => json_encode(array('c1' => 'yes')),
+            'pl_notes' => json_encode(array('c1' => '')),
+        );
+        $this->render('single_stic_pasar_lista_marcar');
+
+        $attWrites = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Attendances';
+        }));
+        $this->assertCount(1, $attWrites);
+        $this->assertArrayNotHasKey('description', $attWrites[0]['data']);
+    }
+
+    /** Un motivo de un contacto que no es del grupo no se escribe. */
+    public function test_guardar_ignora_motivos_de_fuera_del_grupo()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => json_encode(array('c1' => 'yes')),
+            'pl_notes' => json_encode(array('c99' => 'de otro grupo')),
+        );
+        $this->render('single_stic_pasar_lista_marcar');
+
+        foreach ($this->scp->writes as $w) {
+            if ($w['module'] === 'stic_Attendances') {
+                $this->assertNotSame('de otro grupo', isset($w['data']['description']) ? $w['data']['description'] : null);
+            }
+        }
+    }
+
+
 
     public function test_guardar_escribe_asistencias_y_la_lista()
     {
@@ -597,6 +735,36 @@ final class PasarListaRenderTest extends TestCase
      * Sin permiso de WhatsApp del menor NO se pinta su botón de WhatsApp, pero
      * sí el de llamar: son dos cosas distintas.
      */
+    /**
+     * El nombre es la cara de la ficha y va en su bloque, no apretado en la
+     * cabecera. Y encima de todo, los dos botones grandes: la ficha se abre
+     * para llamar a una casa, así que llamar es lo primero que se puede tocar.
+     */
+    public function test_ficha_identidad_y_contacto_rapido()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringContainsString('pl-ident-name', $html);
+        $this->assertStringContainsString('pl-ident-avatar', $html);
+        // Los botones grandes van ANTES de la lista de teléfonos.
+        $this->assertLessThan(strpos($html, 'Teléfonos'), strpos($html, 'pl-contact-btn'));
+        // Y apuntan al contacto de REFERENCIA de la familia, no al primero que salga.
+        $this->assertStringContainsString('Llamar a Solete Messeguer', $html);
+    }
+
+    /** El porcentaje también se ve sin leer números. */
+    public function test_ficha_asistencia_lleva_barra()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringContainsString('pl-att-fill', $html);
+        // El ancho es un dato, así que va en línea, y con su etiqueta accesible.
+        $this->assertMatchesRegularExpression('/pl-att-fill" style="width:\d+%/', $html);
+        $this->assertStringContainsString('de asistencia', $html);
+    }
+
     public function test_ficha_respeta_el_permiso_de_whatsapp_del_menor()
     {
         $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
@@ -686,6 +854,25 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('sin pasar', $html);
         // Cuántas sesiones entran en la tira, dicho en vez de recortado en silencio.
         $this->assertStringContainsString('últimas', $html);
+    }
+
+    /**
+     * La primera pregunta de coordinación: "¿pasaron lista el sábado?". Va
+     * arriba y con numerador Y denominador: "1" a secas no dice si van bien.
+     */
+    public function test_resumen_pinta_la_ultima_sesion_arriba()
+    {
+        $html = $this->render('single_stic_pasar_lista_resumen');
+
+        $this->assertStringContainsString('pl-lasthero', $html);
+        $this->assertStringContainsString('Última sesión', $html);
+        // Tres grupos en el doble y solo g1 pasó la última: 1 de 3, y el resto
+        // se dice en claro en vez de dejarlo a la resta.
+        $this->assertStringContainsString('1 de 3 listas', $html);
+        $this->assertStringContainsString('2 grupos sin pasarla todavía', $html);
+        $this->assertStringContainsString('33%', $html);
+        // Y va ANTES de las tiras por etapa, que es el orden en que se lee.
+        $this->assertLessThan(strpos($html, 'pl-strip'), strpos($html, 'pl-lasthero'));
     }
 
     public function test_resumen_lista_los_participantes_sin_grupo()

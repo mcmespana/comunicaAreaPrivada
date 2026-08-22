@@ -108,14 +108,31 @@ if (!empty($_POST['pl_action'])) {
                 }
             }
         }
+        // Los motivos viajan en su propio campo. Se sanean igual que las marcas:
+        // solo gente de ESTE grupo, y recortado a lo que cabe en el CRM.
+        $notes = array();
+        if (!empty($_POST['pl_notes'])) {
+            $decodedNotes = json_decode(wp_unslash($_POST['pl_notes']), true);
+            if (is_array($decodedNotes)) {
+                foreach ($decodedNotes as $cid => $txt) {
+                    $cid = sticpa_pl_safe_id($cid);
+                    if ($cid === '' || !is_string($txt)) {
+                        continue;
+                    }
+                    $notes[$cid] = sanitize_textarea_field(mb_substr($txt, 0, 255));
+                }
+            }
+        }
+
         $allowed = array();
         foreach ($people['participants'] as $p) {
             $allowed[$p['id']] = true;
         }
         $marks = array_intersect_key($marks, $allowed);
+        $notes = array_intersect_key($notes, $allowed);
 
         $omitida = ($_POST['pl_action'] === 'skip');
-        $saved = sticpa_pl_save($objSCP, $session['id'], $groupId, $marks, $omitida, $regMap);
+        $saved = sticpa_pl_save($objSCP, $session['id'], $groupId, $marks, $omitida, $regMap, $notes);
     }
 }
 
@@ -126,13 +143,16 @@ if (!empty($_POST['pl_action'])) {
 $attendances = sticpa_pl_session_attendances($objSCP, $session['id'], $regMap);
 $lista = sticpa_pl_lista($objSCP, $session['id'], $groupId);
 
-// Para el aviso de ausencias seguidas hace falta el histórico del participante,
-// que son las asistencias de TODAS las sesiones pasadas. Es una consulta por
-// sesión celebrada, así que en esta fase solo se calcula con lo que ya está en
-// la caché del estado: el aviso es una ayuda, no un dato que justifique 20
-// llamadas al abrir la pantalla. La fase 3 lo traerá del resumen, que ya
-// recorre el curso entero.
-$streaks = array();
+// El aviso de ausencias seguidas, que es lo que convierte la lista en algo más
+// que un registro: tres faltas seguidas merecen una llamada a casa, y quien lo
+// tiene que saber es el monitor que está marcando.
+//
+// Se calcula con las asistencias de las ÚLTIMAS `umbral` sesiones celebradas
+// —tres consultas, no una por participante— y el resultado se cachea con el TTL
+// de estado, así que solo la primera carga las paga. Más atrás no hace falta
+// mirar: el aviso salta AL llegar al umbral, y decir "5 seguidas" en vez de
+// "3 seguidas" no cambia lo que hay que hacer.
+$streaks = sticpa_pl_group_streaks($objSCP, $sessions, $session['id'], $regMap);
 
 $monitorNames = array();
 foreach ($people['monitors'] as $m) {
@@ -174,9 +194,11 @@ $sub[] = sprintf(
 );
 $html .= '<div class="pl-subtitle">' . esc_html(implode(' · ', $sub)) . '</div>';
 $html .= '</div>';
-$html .= '<a class="pl-session-pick" href="?internalpage=single_stic_pasar_lista_grupos&grupo='
-    . esc_attr($groupId) . '&sesiones=1">'
-    . esc_html(sticpa_pl_session_short($session)) . sticpa_pl_icon('down') . '</a>';
+// El selector de sesión es un desplegable NATIVO aquí mismo, no un viaje a otra
+// pantalla: en el móvil es una rueda a pulgar y ahorra tres toques por lista de
+// otro día. El historial con el estado de cada lista sigue en el árbol, que es
+// donde tiene sentido verlo entero.
+$html .= sticpa_pl_session_select_html($sessions, $session['id'], $groupId);
 $html .= '</div>';
 
 // Aviso de por qué esta sesión (solo si hay algo que decir).
@@ -222,6 +244,7 @@ $html .= '<form method="post" class="stic-loading-form" data-pl-form'
     . ' data-loading-sub="' . esc_attr__('Un momento', 'sticpa') . '">';
 $html .= wp_nonce_field('pl_save_' . $groupId, 'pl_nonce', true, false);
 $html .= '<input type="hidden" name="pl_marks" value="" data-pl-marks>';
+$html .= '<input type="hidden" name="pl_notes" value="" data-pl-notes>';
 
 // "Han venido todos": desmarcar dos ausentes es más rápido que marcar diez.
 $html .= '<button type="button" class="pl-all-present" data-pl-all-present>'
@@ -233,7 +256,10 @@ foreach ($people['participants'] as $p) {
     $streak = isset($streaks[$p['id']]) ? (int) $streaks[$p['id']] : 0;
     $fichaUrl = '?internalpage=single_stic_pasar_lista_ficha&participante=' . rawurlencode($p['id'])
         . '&grupo=' . rawurlencode($groupId);
-    $html .= sticpa_pl_row_html($p, $state, $streak, $fichaUrl);
+    // El motivo que ya tenga la asistencia, para que la hoja lo enseñe en vez
+    // de aparecer vacía sobre algo que ya estaba escrito.
+    $motive = isset($attendances[$p['id']]['description']) ? $attendances[$p['id']]['description'] : '';
+    $html .= sticpa_pl_row_html($p, $state, $streak, $fichaUrl, '', $motive);
 }
 $html .= '</div>';
 

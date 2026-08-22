@@ -152,6 +152,9 @@ function sticpa_pl_flush($objSCP = null, $scope = 'state')
         return;
     }
     delete_transient(sticpa_pl_cache_key('state', $objSCP));
+    // Las rachas de ausencias se calculan sobre las asistencias, así que
+    // caducan con ellas: guardar una lista puede romper o alargar una racha.
+    delete_transient(sticpa_pl_cache_key('streaks', $objSCP));
     if ($scope === 'all') {
         delete_transient(sticpa_pl_cache_key('structure', $objSCP));
         delete_transient(sticpa_pl_cache_key('sessions', $objSCP));
@@ -586,7 +589,10 @@ function sticpa_pl_session_attendances($objSCP, $sessionId, $regMap = array())
         'module_name' => 'stic_Sessions',
         'module_id' => $sessionId,
         'link_field_name' => 'stic_attendances_stic_sessions',
-        'related_fields' => array('id', 'status'),
+        // `description` es donde vive el motivo de la ausencia: se trae con el
+        // estado para que la hoja lo enseñe al abrirse en vez de aparecer vacía
+        // sobre un motivo que ya estaba escrito.
+        'related_fields' => array('id', 'status', 'description'),
         // La asistencia cuelga de la INSCRIPCIÓN: se trae su id y el contacto
         // se resuelve con $regMap, porque la API no puebla dos niveles.
         'related_module_link_name_to_fields_array' => array(
@@ -610,11 +616,99 @@ function sticpa_pl_session_attendances($objSCP, $sessionId, $regMap = array())
             $out[$regMap[$regId]] = array(
                 'id' => $v->id->value,
                 'status' => sticpa_pl_is_state($status) ? $status : '',
+                'description' => isset($v->description->value) ? (string) $v->description->value : '',
                 'registration_id' => $regId,
             );
         }
     }
     return $out;
+}
+
+/**
+ * Ausencias seguidas de cada participante, hasta la sesión que se está marcando.
+ *
+ * El aviso de "3 ausencias seguidas" es lo que hace que la lista sirva para
+ * algo más que registrar. El problema es el coste: el histórico completo de un
+ * participante es una consulta POR PARTICIPANTE, y once llamadas al abrir la
+ * pantalla más usada de la aplicación no se pagan con un aviso.
+ *
+ * Así que se da la vuelta a la consulta: en vez de preguntar por persona, se
+ * preguntan las asistencias de las últimas `umbral` SESIONES celebradas —tres
+ * llamadas, las mismas tanto para un grupo de 8 como de 30— y de ahí sale la
+ * racha de todos a la vez.
+ *
+ * Mirar solo hasta el umbral es a propósito: el aviso salta al llegar a tres, y
+ * saber que van cinco no cambia lo que hay que hacer. Se devuelve el umbral
+ * como techo, que es lo que la fila necesita para decidir si avisa.
+ *
+ * Una sesión SIN marcar corta la racha, igual que en sticpa_pl_absence_streak():
+ * un hueco en los datos no es una falta y no se acusa a nadie por él.
+ *
+ * La sesión que se está marcando se EXCLUYE: lo que se acaba de tocar en
+ * pantalla no puede contar en un aviso que se pinta a la vez.
+ */
+function sticpa_pl_group_streaks($objSCP, $sessions, $currentSessionId, $regMap = array())
+{
+    $threshold = sticpa_pl_streak_threshold();
+    if ($threshold < 1) {
+        return array();
+    }
+
+    // Solo lo ya celebrado y sin la sesión que se está marcando.
+    $elapsed = array();
+    foreach (sticpa_pl_elapsed_sessions($sessions) as $s) {
+        if ($s['id'] !== (string) $currentSessionId) {
+            $elapsed[] = $s;
+        }
+    }
+    // Las `umbral` últimas, de la más reciente hacia atrás.
+    $look = array_reverse(array_slice($elapsed, -1 * $threshold));
+    if (empty($look)) {
+        return array();
+    }
+
+    // La firma va DENTRO del valor y no en la clave: así la clave es fija y
+    // sticpa_pl_flush('state') la puede tirar al guardar, igual que el resto
+    // del estado. Con la firma en la clave, cada grupo dejaría su propia
+    // entrada y ninguna se invalidaría al guardar una lista.
+    $ids = array();
+    foreach ($look as $s) {
+        $ids[] = $s['id'];
+    }
+    $sig = md5(implode(',', $ids) . '|' . implode(',', array_keys((array) $regMap)));
+    $cacheKey = sticpa_pl_cache_key('streaks', $objSCP);
+    $ttl = sticpa_pl_ttl_state();
+    if ($ttl > 0) {
+        $cached = get_transient($cacheKey);
+        if (is_array($cached) && isset($cached['sig'], $cached['data']) && $cached['sig'] === $sig) {
+            return $cached['data'];
+        }
+    }
+
+    $states = sticpa_pl_states();
+    $streaks = array();
+    $closed = array();      // a quien ya se le ha cortado la racha no se le suma más
+
+    foreach ($look as $s) {
+        $att = sticpa_pl_session_attendances($objSCP, $s['id'], $regMap);
+        foreach ((array) $regMap as $contactId) {
+            if (isset($closed[$contactId])) {
+                continue;
+            }
+            $key = isset($att[$contactId]['status']) ? $att[$contactId]['status'] : '';
+            if (!sticpa_pl_is_state($key) || !$states[$key]['absence']) {
+                // Vino, o no hay dato: en los dos casos la racha se acaba aquí.
+                $closed[$contactId] = true;
+                continue;
+            }
+            $streaks[$contactId] = (isset($streaks[$contactId]) ? $streaks[$contactId] : 0) + 1;
+        }
+    }
+
+    if ($ttl > 0) {
+        set_transient($cacheKey, array('sig' => $sig, 'data' => $streaks), $ttl);
+    }
+    return $streaks;
 }
 
 /**
@@ -691,7 +785,7 @@ function sticpa_pl_link_id($row)
  *
  * Devuelve array('saved','failed','lista_id','counts').
  */
-function sticpa_pl_save($objSCP, $sessionId, $groupId, $marks, $omitida = false, $regMap = array())
+function sticpa_pl_save($objSCP, $sessionId, $groupId, $marks, $omitida = false, $regMap = array(), $notes = array())
 {
     $sessionId = (string) $sessionId;
     $groupId = (string) $groupId;
@@ -717,11 +811,23 @@ function sticpa_pl_save($objSCP, $sessionId, $groupId, $marks, $omitida = false,
                 $result['counts']['no']++;
             }
 
+            // El motivo. Solo se escribe si CAMBIA: mandarlo igual en cada
+            // guardado ensucia el registro de auditoría del CRM con cambios que
+            // no son cambios. Una cadena vacía sí se escribe cuando antes había
+            // algo, porque borrar el motivo es una acción deliberada.
+            $note = isset($notes[$contactId]) ? (string) $notes[$contactId] : '';
+
             if (isset($existing[$contactId]['id'])) {
-                $ok = $objSCP->set_entry('stic_Attendances', array(
+                $payloadAtt = array(
                     'id' => $existing[$contactId]['id'],
                     'status' => $key,
-                ));
+                );
+                $before = isset($existing[$contactId]['description'])
+                    ? (string) $existing[$contactId]['description'] : '';
+                if ($note !== $before) {
+                    $payloadAtt['description'] = $note;
+                }
+                $ok = $objSCP->set_entry('stic_Attendances', $payloadAtt);
                 if ($ok) {
                     $result['saved']++;
                 } else {
@@ -733,10 +839,14 @@ function sticpa_pl_save($objSCP, $sessionId, $groupId, $marks, $omitida = false,
             // No había asistencia para esta persona en esta sesión. Pasa cuando
             // se inscribe a alguien después de crear el evento: el CRM genera
             // las asistencias al crear la inscripción, no hacia atrás.
-            $newId = $objSCP->set_entry('stic_Attendances', array(
+            $newAtt = array(
                 'status' => $key,
                 'assigned_user_id' => sticpa_pl_delegation($objSCP),
-            ));
+            );
+            if ($note !== '') {
+                $newAtt['description'] = $note;
+            }
+            $newId = $objSCP->set_entry('stic_Attendances', $newAtt);
             if (!$newId) {
                 $result['failed']++;
                 continue;

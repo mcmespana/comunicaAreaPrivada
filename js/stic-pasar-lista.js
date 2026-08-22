@@ -221,6 +221,10 @@
             body.set('pl_action', entry.action || 'save');
             body.set('pl_nonce', entry.nonce || '');
             body.set('pl_marks', entry.marks || '{}');
+            // Los motivos van igual que en el envío normal. Una entrada de la
+            // cola de antes de que esto existiera no los trae, y entonces se
+            // manda vacío: se guardan los estados y no se pierde la lista.
+            body.set('pl_notes', entry.notes || '{}');
 
             fetch(entry.url, {
                 method: 'POST',
@@ -293,6 +297,7 @@
         var saveBtn = root.querySelector('[data-pl-save]');
         var form = root.querySelector('[data-pl-form]');
         var marksInput = root.querySelector('[data-pl-marks]');
+        var notesInput = root.querySelector('[data-pl-notes]');
         var status = root.querySelector('[data-pl-status]');
         var counts = {
             yes: root.querySelector('[data-pl-count-yes]'),
@@ -316,6 +321,21 @@
                 if (id) { marks[id] = getState(row); }
             });
             return marks;
+        }
+
+        /* Los motivos van en su propio campo y no dentro de `marks`.
+           A propósito: `marks` es el formato que ya está en los borradores y en
+           la cola de envío de los móviles, y cambiarlo dejaría sin entender lo
+           que hay guardado de antes. Un campo nuevo al lado no rompe nada, y un
+           borrador viejo simplemente vuelve sin motivos. */
+        function collectNotes() {
+            var notes = {};
+            rows.forEach(function (row) {
+                var id = row.getAttribute('data-contact');
+                var m = row.getAttribute('data-motive') || '';
+                if (id && m !== '') { notes[id] = m; }
+            });
+            return notes;
         }
 
         function setState(row, value, quiet) {
@@ -384,7 +404,7 @@
 
         function saveDraft() {
             if (!sessionId || !groupId) { return; }
-            lsSet(draftKey, JSON.stringify({ marks: collect(), ts: Date.now() }));
+            lsSet(draftKey, JSON.stringify({ marks: collect(), notes: collectNotes(), ts: Date.now() }));
         }
 
         function restoreDraft() {
@@ -393,10 +413,15 @@
             if (!draft || !draft.marks) { return; }
 
             var server = collect();
+            var notes = draft.notes || {};
             var changed = 0;
             rows.forEach(function (row) {
                 var id = row.getAttribute('data-contact');
                 if (!id || !(id in draft.marks)) { return; }
+                // El motivo se restaura ANTES del estado: setState() repinta la
+                // nota bajo el nombre, y si el motivo llega después se queda sin
+                // pintar hasta el siguiente toque.
+                if (id in notes) { row.setAttribute('data-motive', notes[id]); }
                 if (draft.marks[id] !== server[id]) {
                     setState(row, draft.marks[id], true);
                     changed++;
@@ -519,6 +544,7 @@
 
         var sheet = document.querySelector('[data-pl-sheet]');
         var veil = document.querySelector('[data-pl-veil]');
+        var motive = sheet ? sheet.querySelector('[data-pl-sheet-motive]') : null;
         var sheetRow = null;
         var sheetSpring = null;
         var sheetY = 0;             // 0 = abierta del todo; height = cerrada
@@ -556,6 +582,48 @@
             });
         }
 
+        /* Pasa lo escrito en el campo a la fila. Se llama al elegir un estado y
+           al cerrar la hoja de CUALQUIER forma —arrastrando, por el velo, con
+           Escape—: escribir un motivo y cerrar arrastrando es un gesto normal, y
+           perder lo escrito ahí sería la peor sorpresa de la pantalla. */
+        function commitMotive() {
+            if (!motive || !sheetRow) { return; }
+            var value = motive.value.trim().slice(0, 255);
+            if ((sheetRow.getAttribute('data-motive') || '') === value) { return; }
+            sheetRow.setAttribute('data-motive', value);
+            dirty = true;
+            saveDraft();
+        }
+
+        /* Al enfocar el motivo sube el teclado y se come media pantalla. La hoja
+           tiene `touch-action: none` —el arrastre vertical es nuestro— así que
+           el dedo NO puede desplazarla para alcanzar el campo: hay que hacerlo
+           por código. `scrollIntoView` sí funciona con touch-action puesto,
+           porque eso solo se lleva los gestos, no el desplazamiento por script.
+           Con un retardo pequeño porque el teclado tarda en aparecer y antes de
+           que esté la ventana todavía mide lo de antes. */
+        if (motive) {
+            motive.addEventListener('focus', function () {
+                setTimeout(function () {
+                    try {
+                        motive.scrollIntoView({ block: 'center', behavior: REDUCED ? 'auto' : 'smooth' });
+                    } catch (e) {
+                        motive.scrollIntoView(false);
+                    }
+                }, 250);
+            });
+            // Enter cierra la hoja: es lo que espera quien acaba de escribir el
+            // motivo, y así no hay que buscar dónde tocar para salir. La hoja se
+            // pinta FUERA del <form> de guardar a propósito, así que aquí Enter
+            // no puede enviar la lista por accidente.
+            motive.addEventListener('keydown', function (ev) {
+                if (ev.key === 'Enter') {
+                    ev.preventDefault();
+                    closeSheet(0);
+                }
+            });
+        }
+
         function openSheet(row) {
             if (!sheet) { return; }
             sheetRow = row;
@@ -569,6 +637,11 @@
             Array.prototype.forEach.call(sheet.querySelectorAll('.pl-opt'), function (opt) {
                 opt.setAttribute('aria-checked', opt.getAttribute('data-value') === current ? 'true' : 'false');
             });
+
+            // El motivo que ya tuviera, y el estado en la hoja para que el CSS
+            // sepa si el campo pinta algo (con "sin marcar" no pinta nada).
+            if (motive) { motive.value = row.getAttribute('data-motive') || ''; }
+            sheet.setAttribute('data-state', current);
 
             // La hoja tiene que estar visible para poder medirla, y la medida se
             // toma ANTES de escribir el transform: leer y escribir en el mismo
@@ -593,6 +666,10 @@
 
         function closeSheet(velocity) {
             if (!sheet || !sheet.classList.contains('is-open')) { return; }
+            commitMotive();
+            // El teclado del móvil se va con la hoja: si se queda abierto tapa
+            // media lista y hay que tocar fuera para quitarlo.
+            if (motive) { motive.blur(); }
             springTo(sheetHeight, velocity || 0, function () {
                 sheet.classList.remove('is-open');
                 if (veil) { veil.classList.remove('is-open'); veil.style.opacity = ''; }
@@ -610,7 +687,9 @@
                sobre el usuario, que es justo lo contrario de lo que queremos. */
             sheet.addEventListener('pointerdown', function (ev) {
                 // Los botones de la hoja no arrastran: pulsar "Vino" es pulsar.
-                if (ev.target.closest && ev.target.closest('button')) { return; }
+                // Y el campo del motivo tampoco: escribir en él es escribir, y
+                // arrastrar la hoja al mover el cursor sería intolerable.
+                if (ev.target.closest && ev.target.closest('button, input, label')) { return; }
                 if (ev.button && ev.button !== 0) { return; }
 
                 var live = sheetSpring ? sheetSpring.stop() : { value: sheetY, velocity: 0 };
@@ -671,7 +750,12 @@
 
             Array.prototype.forEach.call(sheet.querySelectorAll('.pl-opt'), function (opt) {
                 opt.addEventListener('click', function () {
-                    if (sheetRow) { setState(sheetRow, opt.getAttribute('data-value') || ''); }
+                    if (sheetRow) {
+                        // El motivo se recoge antes de cerrar: si se ha escrito
+                        // y luego se toca un estado, no se pierde lo escrito.
+                        commitMotive();
+                        setState(sheetRow, opt.getAttribute('data-value') || '');
+                    }
                     haptic(8);
                     closeSheet(0);
                 });
@@ -679,7 +763,13 @@
             var clear = sheet.querySelector('[data-pl-sheet-clear]');
             if (clear) {
                 clear.addEventListener('click', function () {
-                    if (sheetRow) { setState(sheetRow, ''); }
+                    if (sheetRow) {
+                        // Quitar la marca se lleva el motivo: un motivo sin
+                        // estado no significa nada y quedaría escrito a solas.
+                        sheetRow.setAttribute('data-motive', '');
+                        if (motive) { motive.value = ''; }
+                        setState(sheetRow, '');
+                    }
                     closeSheet(0);
                 });
             }
@@ -709,7 +799,9 @@
 
             form.addEventListener('submit', function (ev) {
                 var marks = JSON.stringify(collect());
+                var notes = JSON.stringify(collectNotes());
                 if (marksInput) { marksInput.value = marks; }
+                if (notesInput) { notesInput.value = notes; }
 
                 var submitter = ev.submitter || lastSubmitter;
                 var action = (submitter && submitter.getAttribute('value')) || 'save';
@@ -726,6 +818,7 @@
                         action: action,
                         nonce: nonceEl ? nonceEl.value : '',
                         marks: marks,
+                        notes: notes,
                         ts: Date.now()
                     });
                     saveDraft();
@@ -788,6 +881,27 @@
         showConnectivity();
         refresh();
     }
+
+    /* =====================================================================
+     * Selector de sesión: el <select> nativo navega al elegir
+     * ---------------------------------------------------------------------
+     * El valor de cada opción ES la URL de esa sesión, así que cambiar el
+     * desplegable es ir allí. Sin JS sigue siendo un <select> dentro de la
+     * página y no se pierde nada grave: se ve cuál está puesta, solo que no
+     * navega. Por eso no hay un botón "ir" al lado — sería un toque más en el
+     * caso normal para cubrir un caso que casi no existe en una webview.
+     * ===================================================================== */
+
+    Array.prototype.forEach.call(document.querySelectorAll('[data-pl-session-jump]'), function (sel) {
+        sel.addEventListener('change', function () {
+            var url = sel.value;
+            if (!url) { return; }
+            // El desplegable se queda en lo elegido mientras carga: volver al
+            // valor anterior durante la espera se lee como "no me ha hecho caso".
+            sel.disabled = true;
+            window.location.href = url;
+        });
+    });
 
     /* =====================================================================
      * Ficha: el cambio de pañuelo

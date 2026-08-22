@@ -75,15 +75,31 @@ $family = sticpa_pl_family($objSCP, $contactId);
 // Cabecera
 // ---------------------------------------------------------------------------
 
+/* La cabecera es solo la vuelta atrás y la palabra "Ficha": el nombre no va
+ * aquí, va en el bloque de identidad de debajo. Meterlo en la cabecera lo dejaba
+ * a 1,15 rem y compitiendo con la flecha; un nombre propio es la cara de esta
+ * pantalla y merece su sitio y su tamaño. */
 $html .= '<div class="pl-head">';
 $html .= '<a class="pl-back" href="?internalpage=single_stic_pasar_lista_marcar&grupo=' . esc_attr($groupId) . '"'
     . ' aria-label="' . esc_attr__('Volver a la lista', 'sticpa') . '">' . sticpa_pl_icon('back') . '</a>';
 $html .= '<div class="pl-head-titles">';
-$html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html($ficha['name']) . '</span></div>';
+$html .= '<div class="pl-subtitle">' . esc_html__('Ficha', 'sticpa') . '</div>';
+$html .= '</div>';
+$html .= '</div>';
 
+// Identidad: el avatar con el degradado de marca —la única "foto" que hay— y el
+// nombre entero. Debajo, en una línea gris y sin etiquetas, lo que sitúa a la
+// persona: grupo, etapa, curso y edad.
 $bits = array();
 if ($group !== null) {
     $bits[] = $group['code'] . ($group['name'] !== '' ? ' · ' . $group['name'] : '');
+    $groupEtapa = sticpa_pl_group_etapa($group['level']);
+    if ($groupEtapa !== '') {
+        $bits[] = $groupEtapa;
+    }
+    if ($group['cursos'] !== '') {
+        $bits[] = $group['cursos'];
+    }
 }
 if ($ficha['stic_age_c'] !== '') {
     $bits[] = sprintf(
@@ -92,8 +108,16 @@ if ($ficha['stic_age_c'] !== '') {
         $ficha['stic_age_c']
     );
 }
-$html .= '<div class="pl-subtitle">' . esc_html(implode(' · ', $bits)) . '</div>';
-$html .= '</div>';
+
+$html .= '<div class="pl-ident">';
+$html .= '<span class="pl-ident-avatar" aria-hidden="true">'
+    . esc_html(sticpa_pl_initials('', '', $ficha['name'])) . '</span>';
+$html .= '<span class="pl-ident-body">';
+$html .= '<span class="pl-ident-name">' . esc_html($ficha['name']) . '</span>';
+if (!empty($bits)) {
+    $html .= '<span class="pl-ident-meta">' . esc_html(implode(' · ', $bits)) . '</span>';
+}
+$html .= '</span>';
 $html .= '</div>';
 
 if ($panueloMsg !== '') {
@@ -131,6 +155,54 @@ $phoneCard = function ($label, $rawPhone, $whatsapp = true) {
     $out .= '</div></div>';
     return $out;
 };
+
+/* Contacto rápido. Los dos botones grandes ANTES de la lista de teléfonos,
+ * porque la ficha se abre casi siempre para lo mismo: llamar a una casa ya. El
+ * número al que apuntan es el de REFERENCIA de la familia —el que el CRM marca
+ * como tal— y si no hay, el primero que haya. Elegir a quién llamar es la lista
+ * de debajo; esto es el caso normal en un toque.
+ *
+ * Si no hay ningún teléfono de familia, los botones no se pintan: un botón
+ * grande que no hace nada es peor que no tenerlo. */
+$quick = null;
+foreach ($family as $rel) {
+    $p = sticpa_pl_phone($rel['mobile']);
+    if ($p === null) {
+        continue;
+    }
+    if ($rel['reference']) {
+        $quick = array('phone' => $p, 'who' => $rel['name']);
+        break;
+    }
+    if ($quick === null) {
+        $quick = array('phone' => $p, 'who' => $rel['name']);
+    }
+}
+
+if ($quick !== null) {
+    $html .= '<div class="pl-contact">';
+    $html .= '<a class="pl-contact-btn pl-contact-btn--wa" href="https://wa.me/'
+        . esc_attr($quick['phone']['wa']) . '" target="_blank" rel="noopener"'
+        . ' aria-label="' . esc_attr(sprintf(
+            /* translators: %s: a quién se escribe */
+            __('WhatsApp a %s', 'sticpa'),
+            $quick['who']
+        )) . '">'
+        . '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+        . '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
+        . '<span>' . esc_html__('WhatsApp', 'sticpa') . '</span></a>';
+    $html .= '<a class="pl-contact-btn pl-contact-btn--call" href="tel:'
+        . esc_attr($quick['phone']['tel']) . '"'
+        . ' aria-label="' . esc_attr(sprintf(
+            /* translators: %s: a quién se llama */
+            __('Llamar a %s', 'sticpa'),
+            $quick['who']
+        )) . '">'
+        . '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+        . '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2 4.2 2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.4 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.4 1.8.6 2.8.8a2 2 0 0 1 1.7 2Z"/></svg>'
+        . '<span>' . esc_html__('Llamar', 'sticpa') . '</span></a>';
+    $html .= '</div>';
+}
 
 $phoneCards = '';
 // El chaval primero si tiene móvil propio: en el COM lo tienen, y a veces es a
@@ -179,22 +251,34 @@ if (isset($events[$etapa])) {
         $att = sticpa_pl_attendance($sessions, $marks);
         $streak = sticpa_pl_absence_streak($sessions, $marks);
 
+        /* El porcentaje grande, y a su lado SIEMPRE el denominador: un 79 % de
+         * noviembre y uno de mayo se leen igual si no se dice sobre cuántas.
+         * La barra dice el mismo dato sin números, para el vistazo de un
+         * segundo; el ancho se pone en línea porque es un dato, no un estilo. */
+        $pct = max(0, min(100, (int) $att['pct']));
         $html .= '<div class="pl-sec">' . esc_html__('Asistencia', 'sticpa') . '</div>';
         $html .= '<div class="pl-att">';
-        $html .= '<div class="pl-att-pct">' . esc_html($att['pct']) . '<span>%</span></div>';
-        $html .= '<div class="pl-att-body">';
-        $html .= '<div class="pl-att-main">' . esc_html(sprintf(
-            /* translators: 1: sesiones a las que vino, 2: sesiones celebradas */
-            __('%1$d de %2$d sesiones', 'sticpa'),
-            $att['attended'],
-            $att['elapsed']
-        )) . '</div>';
-        $html .= '<div class="pl-att-meta">' . esc_html(sprintf(
+        $html .= '<div class="pl-att-top">';
+        $html .= '<span class="pl-att-pct">' . esc_html($att['pct']) . '<span>%</span></span>';
+        $html .= '<span class="pl-att-meta">' . esc_html(sprintf(
             /* translators: 1: horas asistidas, 2: horas celebradas */
-            __('%1$s h de %2$s h hasta hoy', 'sticpa'),
+            __('%1$s h de %2$s h', 'sticpa'),
             $att['hours'],
             $att['hours_total']
-        )) . '</div>';
+        )) . '</span>';
+        $html .= '</div>';
+        $html .= '<div class="pl-att-bar" role="img" aria-label="' . esc_attr(sprintf(
+            /* translators: %d: porcentaje de asistencia */
+            __('%d %% de asistencia', 'sticpa'),
+            $pct
+        )) . '"><div class="pl-att-fill" style="width:' . esc_attr($pct) . '%"></div></div>';
+        $html .= '<div class="pl-att-body">';
+        $html .= '<span class="pl-att-main">' . esc_html(sprintf(
+            /* translators: 1: sesiones a las que vino, 2: sesiones celebradas */
+            __('%1$d de %2$d sesiones hasta hoy', 'sticpa'),
+            $att['attended'],
+            $att['elapsed']
+        )) . '</span>';
         $html .= '</div>';
         $html .= '</div>';
 

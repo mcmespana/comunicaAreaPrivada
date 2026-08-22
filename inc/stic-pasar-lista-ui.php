@@ -57,6 +57,10 @@ function sticpa_pl_icon($which)
         'check' => '<path d="M20 6 9 17l-5-5"/>',
         'skip' => '<path d="m5 4 10 8-10 8V4Z"/><path d="M19 5v14"/>',
         'refresh' => '<path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/>',
+        // El triángulo de aviso: lo que reclama algo, no lo que informa. Se usa
+        // en el título de las listas pendientes y en nada decorativo.
+        'warn' => '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+        'pencil' => '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
     );
     if (!isset($icons[$which])) {
         return '';
@@ -72,7 +76,7 @@ function sticpa_pl_icon($which)
  * Es un <button> y no un <div> con onclick: así lo alcanza el teclado y lo
  * anuncia el lector de pantalla sin tener que añadir roles a mano.
  */
-function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub = '')
+function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub = '', $motive = '')
 {
     $states = sticpa_pl_states();
     $state = sticpa_pl_is_state($state) ? $state : '';
@@ -104,6 +108,7 @@ function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub =
     $html = '<button type="button" class="pl-row" data-state="' . esc_attr($state) . '"'
         . ' data-contact="' . esc_attr($person['id']) . '"'
         . ' data-warn="' . esc_attr($warn) . '"'
+        . ' data-motive="' . esc_attr($motive) . '"'
         . ' data-name="' . esc_attr($person['name']) . '"'
         . ' data-initials="' . esc_attr($person['initials']) . '"'
         . ' data-label-partial="' . esc_attr($states['partial']['label']) . '"'
@@ -219,11 +224,153 @@ function sticpa_pl_sheet_html($whenLabel = '')
             . '</button>';
     }
 
+    /* El motivo, opcional. Va al campo `description` de la asistencia, que es
+     * donde el CRM lo espera y donde se puede leer luego desde el propio CRM.
+     * Aquí abajo y no arriba: primero se dice QUÉ pasó (los cuatro estados) y
+     * solo después, si hace falta, POR QUÉ. Sin estado no se pinta (lo oculta
+     * el CSS): un motivo sin marca no significa nada. */
+    $html .= '<label class="pl-motive">'
+        . sticpa_pl_icon('pencil')
+        . '<input type="text" data-pl-sheet-motive maxlength="255" autocomplete="off"'
+        . ' placeholder="' . esc_attr__('Añadir un motivo (opcional)', 'sticpa') . '"'
+        . ' aria-label="' . esc_attr__('Motivo de la ausencia', 'sticpa') . '">'
+        . '</label>';
+
     $html .= '<button type="button" class="pl-sheet-clear" data-pl-sheet-clear>'
         . esc_html__('Quitar la marca', 'sticpa') . '</button>';
     $html .= '</div>';
 
     return $html;
+}
+
+/**
+ * La cápsula de fecha del área privada: día grande y mes debajo.
+ *
+ * Es el componente de `docs/design-system.md` §11 (`.stic-cell-badge`), el
+ * mismo que llevan los listados con `$listSettings['cardDate']`. Se reutiliza
+ * tal cual en vez de pintar otra cápsula: si cada pantalla se hace la suya, al
+ * mes hay tres formas distintas de decir "15 de noviembre".
+ *
+ * `$class` permite revestirla para el sitio donde va (sobre el degradado del
+ * atajo, por ejemplo, donde la marca sobre la marca no se leería).
+ */
+function sticpa_pl_date_capsule($ts, $class = '')
+{
+    $ts = (int) $ts;
+    if ($ts <= 0) {
+        return '';
+    }
+    return '<span class="stic-cell-badge' . ($class !== '' ? ' ' . esc_attr($class) : '') . '" aria-hidden="true">'
+        . '<span class="stic-cell-badge-day">' . esc_html(date_i18n('j', $ts)) . '</span>'
+        . '<span class="stic-cell-badge-mon">' . esc_html(date_i18n('M', $ts)) . '</span>'
+        . '</span>';
+}
+
+/**
+ * El CUÁNDO en relativo, para la pastilla del atajo: "Hoy", "Hace 3 días"…
+ *
+ * Va en relativo y no con la fecha porque la fecha ya está en la cápsula de al
+ * lado. Lo que la pastilla contesta es otra pregunta —"¿esto es lo de hoy o me
+ * he quedado atrás?"— y esa se contesta antes de leer el nombre del grupo.
+ */
+function sticpa_pl_when_pill($pick, $done = false)
+{
+    if ($done) {
+        return __('Pasada', 'sticpa');
+    }
+    $why = (is_array($pick) && !empty($pick['why'])) ? $pick['why'] : '';
+    switch ($why) {
+        case 'recent':
+            $days = isset($pick['days']) ? (int) $pick['days'] : 0;
+            return sprintf(
+                /* translators: %d: cuántos días hace de la sesión */
+                _n('Hace %d día', 'Hace %d días', $days, 'sticpa'),
+                $days
+            );
+        case 'future':
+            return __('Próxima', 'sticpa');
+        default:
+            return __('Hoy', 'sticpa');
+    }
+}
+
+/**
+ * El selector de sesión: un <select> NATIVO dentro de la pastilla de siempre.
+ *
+ * En el móvil —que es el 99 % de los usos— el desplegable nativo es lo mejor
+ * que hay: rueda a pulgar, se abre pegado al dedo y no cuesta ni una pantalla
+ * ni una consulta más. Antes esto era un viaje a otra pantalla para volver con
+ * una fecha, que en un sábado con prisa son cuatro toques de más.
+ *
+ * Cada opción lleva el NÚMERO de sesión delante de la fecha corta ("3 · 11 ago")
+ * porque el número es como se habla de ellas ("la tercera") y la fecha es como
+ * se comprueba que es la que toca. Las dos juntas caben de sobra.
+ */
+function sticpa_pl_session_select_html($sessions, $currentId, $groupId = '', $page = 'single_stic_pasar_lista_marcar')
+{
+    $groupId = (string) $groupId;
+    $elapsed = sticpa_pl_elapsed_sessions($sessions);
+    if (count($elapsed) < 2) {
+        // Con una sola sesión celebrada no hay nada que elegir: la pastilla
+        // diría "sáb 15" y al abrirla habría una sola línea. Se pinta el dato
+        // sin control, que es más honesto que un desplegable de un elemento.
+        $current = null;
+        foreach ($sessions as $s) {
+            if ($s['id'] === $currentId) {
+                $current = $s;
+                break;
+            }
+        }
+        if ($current === null) {
+            return '';
+        }
+        return '<span class="pl-session-pick"><span class="pl-session-pick-text">'
+            . esc_html(sticpa_pl_session_short($current)) . '</span></span>';
+    }
+
+    // El número de sesión es su posición en el CURSO, contando desde la
+    // primera: así "la 3" es la 3 para todo el mundo y no cambia según lo que
+    // se esté enseñando en pantalla.
+    $numbers = array();
+    $n = 0;
+    foreach ($sessions as $s) {
+        $n++;
+        $numbers[$s['id']] = $n;
+    }
+
+    // De la más reciente a la más antigua: se pasa lista de lo que acaba de
+    // pasar, y lo más probable está arriba sin tener que desplazar.
+    $elapsed = array_reverse($elapsed);
+    $currentLabel = '';
+
+    $out = '<span class="pl-session-pick pl-session-pick--select">';
+    $out .= '<select data-pl-session-jump'
+        . ' aria-label="' . esc_attr__('Elegir la sesión', 'sticpa') . '">';
+    foreach ($elapsed as $s) {
+        $num = isset($numbers[$s['id']]) ? $numbers[$s['id']] : 0;
+        // "3 · 11 ago": número de sesión y fecha corta, que es como se nombra
+        // una sesión al hablar y como se comprueba que es la buena.
+        $label = ($num > 0 ? $num . ' · ' : '') . sticpa_pl_session_short($s, true);
+        // Sin grupo (la lista de monitores) la url no lo lleva: es la misma
+        // pregunta —"¿de qué día?"— pero de una pantalla que no tiene grupo.
+        $url = '?internalpage=' . $page
+            . (($groupId !== '') ? '&grupo=' . rawurlencode($groupId) : '')
+            . '&sesion=' . rawurlencode($s['id']);
+        $selected = ($s['id'] === $currentId);
+        if ($selected) {
+            $currentLabel = $label;
+        }
+        $out .= '<option value="' . esc_url($url) . '"' . ($selected ? ' selected' : '') . '>'
+            . esc_html($label) . '</option>';
+    }
+    $out .= '</select>';
+    // El texto visible es el de la pastilla de siempre; el <select> va encima,
+    // transparente y a pantalla completa de la pastilla (ver el CSS).
+    $out .= '<span class="pl-session-pick-text">' . esc_html($currentLabel) . '</span>';
+    $out .= sticpa_pl_icon('down');
+    $out .= '</span>';
+
+    return $out;
 }
 
 /**
@@ -248,13 +395,20 @@ function sticpa_pl_session_label($session, $withTime = true)
     return $label;
 }
 
-/** Versión corta para la pastilla del selector: "sáb 15". */
-function sticpa_pl_session_short($session)
+/**
+ * Versión corta de una sesión.
+ *
+ * Con `$withMonth` sale "11 ago", que es lo que hace falta en el desplegable:
+ * un curso pasa por varios meses y "sáb 11" a secas se repite cuatro veces.
+ * Sin él sale "sáb 15", que es lo que cabe en la pastilla de la cabecera.
+ */
+function sticpa_pl_session_short($session, $withMonth = false)
 {
     if (empty($session['start'])) {
         return '';
     }
-    return date_i18n('D j', (int) $session['start']);
+    $ts = (int) $session['start'];
+    return $withMonth ? date_i18n('j M', $ts) : date_i18n('D j', $ts);
 }
 
 /**
