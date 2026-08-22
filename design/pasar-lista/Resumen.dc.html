@@ -1,0 +1,225 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <style>
+    body { margin: 0; font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+    a { color: #1c6fb3; text-decoration: none; } a:hover { color: #155a92; }
+    .card { border-radius: 1.1rem; background: #ffffff; box-shadow: 0 1px 2px rgba(21, 36, 71, 0.06); overflow: hidden; }
+    .sec { font-size: 0.75rem; font-weight: 800; color: #6b7280; text-transform: uppercase; letter-spacing: 0.06em; padding-bottom: 9px; }
+    .div { height: 1px; background: #f3f4f6; }
+  </style>
+</helmet>
+
+<div style="width: 390px; min-height: 1000px; background: #f7f9fc; color: #1f2937; display: flex; flex-direction: column;">
+
+  <!-- Cabecera -->
+  <div style="display: flex; align-items: center; gap: 12px; padding: 22px 20px 4px 20px;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px; flex-shrink: 0;"><path d="m15 18-6-6 6-6"/></svg>
+    <div style="font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em;">Resumen de grupos</div>
+  </div>
+  <div style="font-size: 0.84rem; color: #6b7280; padding: 0 20px 18px 54px;">MCM Castellón · curso 2025-2026</div>
+
+  <!-- Recuentos por etapa -->
+  <div style="padding: 0 20px 18px 20px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;">
+    <div class="card" style="box-shadow: 0 1px 2px rgba(21, 36, 71, 0.06); padding: 15px 12px; display: flex; flex-direction: column; gap: 6px;">
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="width: 8px; height: 8px; border-radius: 9999px; background: #dc2626;"></div>
+        <span style="font-size: 0.72rem; font-weight: 800; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">MIC</span>
+      </div>
+      <div style="font-size: 1.7rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1;">93</div>
+      <div style="font-size: 0.72rem; color: #9ca3af; font-weight: 500;">8 grupos · 12 mon.</div>
+    </div>
+    <div class="card" style="box-shadow: 0 1px 2px rgba(21, 36, 71, 0.06); padding: 15px 12px; display: flex; flex-direction: column; gap: 6px;">
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="width: 8px; height: 8px; border-radius: 9999px; background: #2f9e44;"></div>
+        <span style="font-size: 0.72rem; font-weight: 800; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">COM I</span>
+      </div>
+      <div style="font-size: 1.7rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1;">75</div>
+      <div style="font-size: 0.72rem; color: #9ca3af; font-weight: 500;">6 grupos · 9 mon.</div>
+    </div>
+    <div class="card" style="box-shadow: 0 1px 2px rgba(21, 36, 71, 0.06); padding: 15px 12px; display: flex; flex-direction: column; gap: 6px;">
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="width: 8px; height: 8px; border-radius: 9999px; background: #1c6fb3;"></div>
+        <span style="font-size: 0.72rem; font-weight: 800; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em;">COM II</span>
+      </div>
+      <div style="font-size: 1.7rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1;">51</div>
+      <div style="font-size: 0.72rem; color: #9ca3af; font-weight: 500;">5 grupos · 6 mon.</div>
+    </div>
+  </div>
+
+  <!-- Listas de la ultima sesion -->
+  <div style="padding: 0 20px 18px 20px;">
+    <div style="border-radius: 1.1rem; background: linear-gradient(135deg, #1c6fb3 0%, #6c4b9e 52%, #9d1e74 100%); padding: 17px 18px; display: flex; align-items: center; gap: 16px; box-shadow: 0 10px 28px rgba(21, 36, 71, 0.10);">
+      <div style="display: flex; flex-direction: column; gap: 3px; flex-grow: 1;">
+        <div style="font-size: 0.72rem; font-weight: 800; color: rgba(255,255,255,0.82); text-transform: uppercase; letter-spacing: 0.06em;">Última sesión · sáb 15 nov</div>
+        <div style="font-size: 1.4rem; font-weight: 800; color: #ffffff; letter-spacing: -0.02em; line-height: 1.15;">17 de 23 listas</div>
+        <div style="font-size: 0.76rem; color: rgba(255,255,255,0.82);">6 grupos sin pasarla todavía</div>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 9999px; background: rgba(255,255,255,0.18); flex-shrink: 0;">
+        <span style="font-size: 1.05rem; font-weight: 800; color: #ffffff;">74%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabla de grupos con el historial de listas -->
+  <div style="padding: 0 20px 18px 20px;">
+    <div style="display: flex; align-items: center; justify-content: space-between; padding-bottom: 9px;">
+      <div class="sec" style="padding-bottom: 0;">Grupos</div>
+      <div style="display: inline-flex; align-items: center; gap: 6px;">
+        <span style="font-size: 0.76rem; font-weight: 700; color: #1c6fb3;">Etapa: COM I</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#1c6fb3" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><path d="m6 9 6 6 6-6"/></svg>
+      </div>
+    </div>
+
+    <div class="card">
+      <sc-for list="{{ groups }}" as="g" hint-placeholder-count="5">
+        <div style="display: flex; flex-direction: column; gap: 9px; padding: 13px 16px; border-top: {{ g.border }};">
+
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="display: flex; flex-direction: column; gap: 3px; flex-grow: 1; min-width: 0;">
+              <div style="display: flex; align-items: baseline; gap: 8px;">
+                <span style="font-size: 0.98rem; font-weight: 800;">{{ g.code }}</span>
+                <span style="font-size: 0.79rem; color: #6b7280;">{{ g.monitors }}</span>
+              </div>
+              <div style="font-size: 0.74rem; color: #9ca3af;">{{ g.meta }}</div>
+            </div>
+            <div style="display: inline-flex; align-items: center; gap: 5px; padding: 0.2rem 0.6rem; border-radius: 9999px; background: {{ g.badgeBg }}; flex-shrink: 0;">
+              <span style="font-size: 0.68rem; font-weight: 800; color: {{ g.badgeFg }}; text-transform: uppercase; letter-spacing: 0.04em;">{{ g.badge }}</span>
+            </div>
+            <svg viewBox="0 0 24 24" fill="none" stroke="#c4cad3" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px; flex-shrink: 0;"><path d="m9 18 6-6-6-6"/></svg>
+          </div>
+
+          <!-- Historial de listas: una marca por sesión del curso, la más
+               reciente a la derecha. Un hueco es una lista que falta. -->
+          <div style="display: flex; align-items: center; gap: 3px;">
+            <sc-for list="{{ g.strip }}" as="s" hint-placeholder-count="12">
+              <div style="width: 14px; height: 7px; border-radius: 2px; background: {{ s.bg }}; border: {{ s.border }};"></div>
+            </sc-for>
+            <span style="font-size: 0.7rem; font-weight: 700; color: {{ g.gapFg }}; padding-left: 7px;">{{ g.gapText }}</span>
+          </div>
+
+        </div>
+      </sc-for>
+    </div>
+
+    <!-- Leyenda del historial -->
+    <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 11px 4px 0 4px;">
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="width: 14px; height: 7px; border-radius: 2px; background: #2f9e44;"></div>
+        <span style="font-size: 0.73rem; font-weight: 600; color: #4b5563;">Pasada</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="width: 14px; height: 7px; border-radius: 2px; background: #fef3c7; border: 1px solid #fbbf24;"></div>
+        <span style="font-size: 0.73rem; font-weight: 600; color: #4b5563;">Falta</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="width: 14px; height: 7px; border-radius: 2px; background: #e5e7eb;"></div>
+        <span style="font-size: 0.73rem; font-weight: 600; color: #4b5563;">Sin registro</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Datos por revisar -->
+  <div style="padding: 0 20px 28px 20px;">
+    <div class="sec">Datos por revisar</div>
+    <div style="border-radius: 1.1rem; background: #fffbeb; border: 1px solid #fde68a; overflow: hidden;">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 13px 16px;">
+        <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1;">
+          <div style="font-size: 0.89rem; color: #78350f;">Participantes sin grupo asignado</div>
+          <div style="font-size: 0.73rem; color: #a16207;">Toca para verlos y asignarles grupo</div>
+        </div>
+        <div style="font-size: 1rem; font-weight: 800; color: #92400e;">7</div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#a16207" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;"><path d="m9 18 6-6-6-6"/></svg>
+      </div>
+      <div style="height: 1px; background: #fde68a;"></div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 13px 16px;">
+        <div style="font-size: 0.89rem; color: #78350f; flex-grow: 1;">Monitores en «grupo por definir»</div>
+        <div style="font-size: 1rem; font-weight: 800; color: #92400e;">4</div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#a16207" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;"><path d="m9 18 6-6-6-6"/></svg>
+      </div>
+      <div style="height: 1px; background: #fde68a;"></div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 13px 16px;">
+        <div style="font-size: 0.89rem; color: #78350f; flex-grow: 1;">Participantes sin fecha de nacimiento</div>
+        <div style="font-size: 1rem; font-weight: 800; color: #92400e;">3</div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#a16207" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;"><path d="m9 18 6-6-6-6"/></svg>
+      </div>
+      <div style="height: 1px; background: #fde68a;"></div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 13px 16px;">
+        <div style="font-size: 0.89rem; color: #78350f; flex-grow: 1;">Grupos sin código corto</div>
+        <div style="font-size: 1rem; font-weight: 800; color: #92400e;">9</div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#a16207" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;"><path d="m9 18 6-6-6-6"/></svg>
+      </div>
+    </div>
+    <div style="display: flex; align-items: flex-start; gap: 7px; padding: 10px 4px 0 4px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 15px; height: 15px; flex-shrink: 0; margin-top: 2px;"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+      <span style="font-size: 0.76rem; color: #6b7280; line-height: 1.45;">Coordinación puede arreglarlo desde aquí. Un monitor lo ve, pero no lo edita.</span>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+
+<script data-dc-script data-props='{}'>
+class Component extends DCLogic {
+  renderVals() {
+    // Historial de listas del curso hasta HOY. Cada marca es una sesion ya
+    // celebrada: 'ok' pasada, 'gap' falta por pasar, 'skip' sin registro.
+    // Solo se pintan las sesiones que ya han ocurrido: en febrero el curso no
+    // tiene 24 sesiones detras, tiene las que van.
+    const raw = [
+      { code: 'C1', monitors: 'David Soler',  kids: 14, pct: 82,
+        strip: 'ok ok ok ok ok ok ok ok ok ok ok ok' },
+      { code: 'C2', monitors: 'Mercedes',     kids: 11, pct: 77,
+        strip: 'ok ok ok gap ok ok ok ok skip ok ok gap' },
+      { code: 'C3', monitors: 'Teresa, Jaime', kids: 15, pct: 91,
+        strip: 'ok ok ok ok ok ok ok ok ok ok ok ok' },
+      { code: 'C4', monitors: 'Sara',         kids: 12, pct: 68,
+        strip: 'ok ok gap gap ok skip skip gap gap gap gap gap' },
+      { code: 'C5', monitors: 'Marta',        kids: 11, pct: 88,
+        strip: 'ok ok ok ok ok skip ok ok ok ok ok ok' }
+    ];
+
+    const MARK = {
+      ok:   { bg: '#2f9e44', border: 'none' },
+      gap:  { bg: '#fef3c7', border: '1px solid #fbbf24' },
+      skip: { bg: '#e5e7eb', border: 'none' }
+    };
+
+    const groups = raw.map((g, i) => {
+      const cells = g.strip.split(' ');
+      const last = cells[cells.length - 1];
+      const gaps = cells.filter((c) => c === 'gap').length;
+
+      // La pastilla dice el estado de la ULTIMA sesion, que es la pregunta
+      // frecuente; el numero de huecos, la de fondo.
+      let badge = 'Al día', badgeBg = '#e6fcf5', badgeFg = '#076b4d';
+      if (last === 'gap')  { badge = 'Falta';        badgeBg = '#fef3c7'; badgeFg = '#92400e'; }
+      if (last === 'skip') { badge = 'Sin registro'; badgeBg = '#f3f4f6'; badgeFg = '#6b7280'; }
+
+      return {
+        code: g.code,
+        monitors: g.monitors,
+        // El porcentaje se dice SIEMPRE con el denominador delante: sin el,
+        // un 82% en noviembre y uno en mayo parecen lo mismo y no lo son.
+        meta: g.kids + ' participantes · ' + g.pct + '% de ' + cells.length + ' sesiones',
+        badge: badge, badgeBg: badgeBg, badgeFg: badgeFg,
+        gapText: gaps === 0 ? 'todas pasadas' : (gaps + (gaps === 1 ? ' sin pasar' : ' sin pasar')),
+        gapFg: gaps === 0 ? '#9ca3af' : '#92400e',
+        strip: cells.map((c) => MARK[c] || MARK.skip),
+        border: i === 0 ? 'none' : '1px solid #f3f4f6'
+      };
+    });
+
+    return { groups: groups };
+  }
+}
+</script>
+</body>
+</html>

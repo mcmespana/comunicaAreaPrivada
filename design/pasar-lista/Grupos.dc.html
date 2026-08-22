@@ -1,0 +1,160 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+  <style>
+    body { margin: 0; font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+    a { color: #1c6fb3; text-decoration: none; } a:hover { color: #155a92; }
+
+    /* Entrada de "tu grupo": el brillo cruza una sola vez y las iniciales
+       entran con un rebotito minimo. Nada en bucle: se ve al abrir y se calla. */
+    @keyframes mineShine { from { transform: translateX(-140%) skewX(-14deg); } to { transform: translateX(340%) skewX(-14deg); } }
+    @keyframes minePop {
+      0%   { transform: scale(0.72); opacity: 0; }
+      64%  { transform: scale(1.07); opacity: 1; }
+      100% { transform: scale(1);    opacity: 1; }
+    }
+    @keyframes mineRise { from { transform: translateY(7px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .mine { animation: mineRise 520ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+    .mine-shine { animation: mineShine 1150ms cubic-bezier(0.4, 0, 0.2, 1) 340ms both; }
+    .mine-avatar { animation: minePop 620ms cubic-bezier(0.34, 1.56, 0.64, 1) 180ms both; }
+    @media (prefers-reduced-motion: reduce) {
+      .mine, .mine-avatar { animation: none; }
+      .mine-shine { display: none; }
+    }
+  </style>
+</helmet>
+
+<div style="width: 390px; min-height: 844px; background: #f7f9fc; color: #1f2937; display: flex; flex-direction: column;">
+
+  <!-- Cabecera con vuelta atrás -->
+  <div style="display: flex; align-items: center; gap: 12px; padding: 22px 20px 14px 20px;">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#374151" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 22px; height: 22px; flex-shrink: 0;"><path d="m15 18-6-6 6-6"/></svg>
+    <div style="display: flex; align-items: center; gap: 9px; flex-grow: 1;">
+      <div style="width: 10px; height: 10px; border-radius: 9999px; background: #2f9e44;"></div>
+      <div style="font-size: 1.3rem; font-weight: 800; letter-spacing: -0.02em;">COM I</div>
+      <div style="display: inline-flex; align-items: center; padding: 0.16rem 0.6rem; border-radius: 9999px; background: #f3f4f6; color: #4b5563; font-size: 0.72rem; font-weight: 800;">5 grupos</div>
+    </div>
+  </div>
+
+  <!-- Buscador -->
+  <div style="padding: 0 20px 16px 20px;">
+    <div style="display: flex; align-items: center; gap: 11px; height: 48px; padding: 0 16px; border-radius: 1.1rem; background: #ffffff; border: 1px solid #e5e7eb;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      <span style="font-size: 0.92rem; color: #9ca3af;">Buscar grupo, monitor o niño…</span>
+    </div>
+  </div>
+
+  <!-- Leyenda -->
+  <div style="display: flex; align-items: center; gap: 16px; padding: 0 20px 12px 20px;">
+    <div style="display: flex; align-items: center; gap: 6px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#2f9e44" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><path d="M20 6 9 17l-5-5"/></svg>
+      <span style="font-size: 0.72rem; font-weight: 600; color: #6b7280;">Pasada</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 6px;">
+      <div style="width: 12px; height: 12px; border-radius: 9999px; border: 2px solid #d1d5db;"></div>
+      <span style="font-size: 0.72rem; font-weight: 600; color: #6b7280;">Pendiente</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 6px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><path d="m5 4 10 8-10 8V4Z"/><path d="M19 5v14"/></svg>
+      <span style="font-size: 0.72rem; font-weight: 600; color: #6b7280;">No hubo</span>
+    </div>
+  </div>
+
+  <!-- Grupos -->
+  <div style="padding: 0 20px; display: flex; flex-direction: column; gap: 10px;">
+
+    <!-- Tu grupo. Fuera la barrita azul y la pastilla en mayusculas: lo que
+         marca que el grupo es tuyo es un filete de degradado de marca alrededor
+         de toda la tarjeta, tus iniciales delante, y "Tu grupo" dicho en la
+         linea de datos en vez de gritado en una etiqueta. Al entrar, un brillo
+         recorre la tarjeta UNA vez: se nota, y no molesta despues. -->
+    <div class="mine" style="position: relative; border-radius: 1.15rem; padding: 1.5px; background: linear-gradient(118deg, #1c6fb3 0%, #6c4b9e 52%, #9d1e74 100%); box-shadow: 0 12px 30px rgba(28, 111, 179, 0.16);">
+      <div style="position: relative; border-radius: 1.02rem; background: #ffffff; padding: 14px 15px; display: flex; align-items: center; gap: 13px; overflow: hidden;">
+
+        <div class="mine-shine" style="position: absolute; top: 0; bottom: 0; width: 46%; background: linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(28,111,179,0.13) 45%, rgba(157,30,116,0.10) 62%, rgba(255,255,255,0) 100%); pointer-events: none;"></div>
+
+        <div class="mine-avatar" style="display: flex; align-items: center; justify-content: center; width: 42px; height: 42px; border-radius: 9999px; background: linear-gradient(135deg, #1c6fb3 0%, #6c4b9e 52%, #9d1e74 100%); flex-shrink: 0;">
+          <span style="font-size: 0.86rem; font-weight: 800; color: #ffffff; letter-spacing: 0.02em;">DS</span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 3px; flex-grow: 1; min-width: 0;">
+          <div style="display: flex; align-items: baseline; gap: 8px;">
+            <span style="font-size: 1.05rem; font-weight: 800; letter-spacing: -0.01em;">C1</span>
+            <span style="font-size: 0.9rem; font-weight: 600; color: #4b5563;">Los Peques</span>
+          </div>
+          <div style="font-size: 0.82rem; color: #6b7280;"><strong style="font-weight: 800; color: #1c6fb3;">Tu grupo</strong> · 1º ESO · 11 participantes</div>
+        </div>
+
+        <div style="display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 9999px; background: #2f9e44; flex-shrink: 0;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;"><path d="M20 6 9 17l-5-5"/></svg>
+        </div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px; flex-shrink: 0;"><path d="m9 18 6-6-6-6"/></svg>
+
+      </div>
+    </div>
+
+    <div style="border-radius: 1.1rem; background: #ffffff; box-shadow: 0 1px 2px rgba(21, 36, 71, 0.06); overflow: hidden;">
+
+      <div style="display: flex; align-items: center; gap: 14px; padding: 15px 16px;">
+        <div style="display: flex; flex-direction: column; gap: 3px; flex-grow: 1; min-width: 0;">
+          <div style="display: flex; align-items: baseline; gap: 8px;"><span style="font-size: 1.05rem; font-weight: 800; letter-spacing: -0.01em;">C2</span>
+            <span style="font-size: 0.9rem; font-weight: 600; color: #4b5563;">Els Valents</span></div>
+          <div style="font-size: 0.82rem; color: #6b7280;">Mercedes · 1º ESO · 10 participantes</div>
+        </div>
+        <div style="width: 20px; height: 20px; border-radius: 9999px; border: 2px solid #d1d5db; flex-shrink: 0;"></div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px; flex-shrink: 0;"><path d="m9 18 6-6-6-6"/></svg>
+      </div>
+      <div style="height: 1px; background: #f3f4f6;"></div>
+      <div style="display: flex; align-items: center; gap: 14px; padding: 15px 16px;">
+        <div style="display: flex; flex-direction: column; gap: 3px; flex-grow: 1; min-width: 0;">
+          <div style="display: flex; align-items: baseline; gap: 8px;"><span style="font-size: 1.05rem; font-weight: 800; letter-spacing: -0.01em;">C3</span></div>
+          <div style="font-size: 0.82rem; color: #6b7280;">Teresa, Jaime · 1º ESO · 12 participantes</div>
+        </div>
+        <div style="width: 20px; height: 20px; border-radius: 9999px; border: 2px solid #d1d5db; flex-shrink: 0;"></div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px; flex-shrink: 0;"><path d="m9 18 6-6-6-6"/></svg>
+      </div>
+      <div style="height: 1px; background: #f3f4f6;"></div>
+      <div style="display: flex; align-items: center; gap: 14px; padding: 15px 16px;">
+        <div style="display: flex; flex-direction: column; gap: 3px; flex-grow: 1; min-width: 0;">
+          <div style="display: flex; align-items: baseline; gap: 8px;"><span style="font-size: 1.05rem; font-weight: 800; letter-spacing: -0.01em;">Grupo de Sara</span></div>
+          <div style="font-size: 0.82rem; color: #6b7280;">Sara · 2º ESO · 11 participantes</div>
+        </div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px; flex-shrink: 0;"><path d="m5 4 10 8-10 8V4Z"/><path d="M19 5v14"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px; flex-shrink: 0;"><path d="m9 18 6-6-6-6"/></svg>
+      </div>
+      <div style="height: 1px; background: #f3f4f6;"></div>
+      <div style="display: flex; align-items: center; gap: 14px; padding: 15px 16px;">
+        <div style="display: flex; flex-direction: column; gap: 3px; flex-grow: 1; min-width: 0;">
+          <div style="display: flex; align-items: baseline; gap: 8px;"><span style="font-size: 1.05rem; font-weight: 800; letter-spacing: -0.01em;">C5</span>
+            <span style="font-size: 0.9rem; font-weight: 600; color: #4b5563;">La Colla</span></div>
+          <div style="font-size: 0.82rem; color: #6b7280;">Marta · 2º ESO · 9 participantes</div>
+        </div>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#2f9e44" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px; flex-shrink: 0;"><path d="M20 6 9 17l-5-5"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px; flex-shrink: 0;"><path d="m9 18 6-6-6-6"/></svg>
+      </div>
+
+    </div>
+
+    <!-- Sin grupo, el gancho para limpiar datos -->
+    <div style="border-radius: 1.1rem; background: #fffbeb; border: 1px dashed #fcd34d; padding: 14px 16px; display: flex; align-items: center; gap: 12px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#a16207" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px; flex-shrink: 0;"><path d="M18 21a8 8 0 0 0-12 0"/><circle cx="12" cy="11" r="4"/><circle cx="12" cy="12" r="10"/></svg>
+      <div style="display: flex; flex-direction: column; gap: 2px; flex-grow: 1;">
+        <div style="font-size: 0.9rem; font-weight: 700; color: #78350f;">7 participantes sin grupo asignado</div>
+        <div style="font-size: 0.76rem; color: #a16207;">No aparecen en ninguna lista</div>
+      </div>
+      <svg viewBox="0 0 24 24" fill="none" stroke="#a16207" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width: 17px; height: 17px; flex-shrink: 0;"><path d="m9 18 6-6-6-6"/></svg>
+    </div>
+
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

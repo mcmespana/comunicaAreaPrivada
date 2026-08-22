@@ -1,3 +1,7 @@
 /vendor/
 /.phpunit.cache/
 /node_modules/
+
+# Vistas previas del correo de cumpleaños: se generan al ejecutar el script y
+# en Actions se suben como artefacto, no hacen falta en el repo.
+/.github/scripts/cumples/vista-previa-*.html

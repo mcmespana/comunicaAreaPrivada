@@ -1,0 +1,1240 @@
+/* ==========================================================================
+   PASAR LISTA
+   --------------------------------------------------------------------------
+   Pantallas de asistencia del área privada. Se apoya en los tokens de
+   custom-style.css §1 (marca, sombras, radios, estados) y solo declara lo que
+   no existía: el verde azulado de "parcial", que es el único color nuevo.
+
+   Se accede desde MCM App, que es una webview: todo está pensado a una mano,
+   con áreas táctiles de 44 px como mínimo, y sin nada que dependa de :hover.
+
+   Diseño: docs/comunica/PASAR-LISTA.md §6
+   ========================================================================== */
+
+:root {
+    /* Parcial: cuenta como asistencia igual que "vino", pero tiene que
+       distinguirse de un vistazo, así que sale del verde puro. */
+    --pl-partial: #0d9488;
+    --pl-partial-soft: #e6fffb;
+    --pl-partial-dark: #0b6b62;
+}
+
+/* ---- Cabecera de pantalla ------------------------------------------------ */
+
+.pl-head {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.25rem 0 0.75rem;
+}
+
+.pl-back {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    margin-left: -0.7rem;              /* el icono se alinea con el texto, no la caja */
+    border-radius: var(--radius-full);
+    color: var(--gray-700, #374151);
+    flex-shrink: 0;
+}
+
+.pl-head-titles { min-width: 0; flex-grow: 1; }
+
+.pl-title {
+    display: flex;
+    align-items: baseline;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+}
+.pl-title-code { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.02em; }
+.pl-title-name { font-size: 0.92rem; font-weight: 600; color: var(--gray-600, #4b5563); }
+.pl-subtitle   { font-size: 0.78rem; color: var(--gray-500, #6b7280); }
+
+/* ---- Selector de sesión -------------------------------------------------- */
+
+.pl-session-pick {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 44px;
+    padding: 0 0.85rem;
+    border-radius: var(--radius-full);
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--gray-700, #374151);
+    flex-shrink: 0;
+}
+
+/* Aviso de una línea: la sesión no ha empezado, o es de otro día. */
+.pl-notice {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0 0 0.75rem;
+    font-size: 0.79rem;
+    color: var(--warning-dark);
+}
+.pl-notice svg { width: 15px; height: 15px; flex-shrink: 0; }
+.pl-notice strong { font-weight: 800; }
+
+/* ---- "Han venido todos" ------------------------------------------------- */
+
+.pl-all-present {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    min-height: 46px;
+    margin-bottom: 0.9rem;
+    border-radius: var(--radius-lg);
+    background: var(--success-50);
+    border: 1px solid var(--success-border);
+    color: var(--success-dark);
+    font-size: 0.88rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+}
+.pl-all-present svg { width: 17px; height: 17px; }
+
+/* ---- La lista ----------------------------------------------------------- */
+
+.pl-list {
+    border-radius: var(--radius-lg);
+    background: var(--white);
+    box-shadow: var(--shadow-xs);
+    overflow: hidden;
+}
+
+.pl-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    padding: 0.7rem 0.35rem 0.7rem 0.85rem;
+    background: none;
+    border: 0;
+    border-top: 1px solid var(--gray-100);
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    /* El navegador no se queda el gesto largo ni hace zoom al doble toque. */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
+}
+.pl-row:first-child { border-top: 0; }
+.pl-row:active { background: var(--gray-50); }
+
+/* Mientras se mantiene pulsado, la fila se hunde un poco. El hundido es la
+   respuesta INSTANTÁNEA al dedo; el anillo de abajo es la que dice cuánto
+   queda. Las dos juntas convierten un gesto invisible en uno que se ve. */
+.pl-row.is-holding { background: var(--gray-50); transform: scale(0.988); }
+.pl-row { transition: transform 160ms var(--ease-out), background 160ms linear; }
+
+/* El anillo del gesto largo: se dibuja alrededor del círculo de estado y se
+   completa en los 500 ms que dura el umbral. Es feedback CONTINUO durante el
+   gesto, no un premio al final: mientras se llena, ya sabes que va a pasar algo
+   y puedes soltar para cancelar.
+   Va con stroke-dashoffset en un SVG de 44 px: es repintado, pero de un
+   elemento diminuto y aislado, que es el caso en el que el repintado sale
+   gratis. Un conic-gradient animado aquí costaría mucho más. */
+.pl-hold-ring-svg {
+    position: absolute;
+    inset: -3px;
+    width: calc(100% + 6px);
+    height: calc(100% + 6px);
+    opacity: 0;
+    pointer-events: none;
+    transform: rotate(-90deg);      /* empieza arriba, como un reloj */
+}
+.pl-hold-ring-svg circle {
+    fill: none;
+    stroke: var(--primary-color);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    /* 2πr con r=20 en un viewBox de 44: 125.6 */
+    stroke-dasharray: 126;
+    stroke-dashoffset: 126;
+}
+.pl-row.is-holding .pl-hold-ring-svg { opacity: 1; }
+.pl-row.is-holding .pl-hold-ring-svg circle {
+    animation: pl-hold-fill 500ms linear forwards;
+}
+@keyframes pl-hold-fill { to { stroke-dashoffset: 0; } }
+
+/* El pellizco del círculo al cambiar de estado lo lanza el JS con la API de
+   animaciones (`animate()`), no una clase de aquí: reiniciar una animación de
+   CSS obliga a leer el diseño y eso pasaría en cada toque. */
+
+.pl-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-full);
+    background: var(--gray-100);
+    color: var(--gray-500, #6b7280);
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+}
+
+.pl-row-body { display: flex; flex-direction: column; gap: 0.1rem; flex-grow: 1; min-width: 0; }
+.pl-name { font-size: 0.99rem; font-weight: 700; letter-spacing: -0.01em; }
+.pl-row[data-state="no_unjustified"] .pl-name,
+.pl-row[data-state="no_justified"] .pl-name { color: var(--gray-500, #6b7280); }
+.pl-note { font-size: 0.73rem; font-weight: 700; }
+
+/* El círculo de estado. Vacío y punteado = por marcar, y así se lee como un
+   control que espera un toque; lleno = marcado, con glifo y color propios,
+   que es lo que hace innecesaria la etiqueta en cada fila. */
+.pl-mark {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-full);
+    background: transparent;
+    border: 2px dashed var(--gray-300);
+    flex-shrink: 0;
+    transition: background 180ms var(--ease-out), border-color 180ms linear;
+}
+.pl-mark svg { width: 19px; height: 19px; stroke: var(--white); fill: none; }
+.pl-mark .pl-glyph-half { fill: var(--white); stroke: none; width: 17px; height: 17px; }
+
+.pl-row[data-state="yes"]            .pl-mark { background: var(--success-color); border-color: transparent; border-style: solid; }
+.pl-row[data-state="partial"]        .pl-mark { background: var(--pl-partial);     border-color: transparent; border-style: solid; }
+.pl-row[data-state="no_justified"]   .pl-mark { background: var(--warning-color);  border-color: transparent; border-style: solid; }
+.pl-row[data-state="no_unjustified"] .pl-mark { background: var(--danger-color);   border-color: transparent; border-style: solid; }
+
+.pl-row[data-state="yes"]            .pl-avatar { background: var(--success-50);     color: var(--success-dark); }
+.pl-row[data-state="partial"]        .pl-avatar { background: var(--pl-partial-soft); color: var(--pl-partial-dark); }
+.pl-row[data-state="no_justified"]   .pl-avatar { background: var(--warning-soft);   color: var(--warning-dark); }
+.pl-row[data-state="no_unjustified"] .pl-avatar { background: var(--danger-soft);    color: var(--danger-dark); }
+
+/* Solo se pinta el glifo del estado actual. */
+.pl-mark > * { display: none; }
+.pl-row[data-state="yes"]            .pl-glyph-check { display: block; }
+.pl-row[data-state="partial"]        .pl-glyph-half  { display: block; }
+.pl-row[data-state="no_justified"]   .pl-glyph-dash  { display: block; }
+.pl-row[data-state="no_unjustified"] .pl-glyph-cross { display: block; }
+
+/* La ficha tiene su propio botón: marcar es lo frecuente y se queda con la
+   fila entera; abrir la ficha es lo raro y va aquí, con sus 44 px. */
+.pl-detail {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 44px;
+    color: var(--gray-300);
+    flex-shrink: 0;
+}
+.pl-detail svg { width: 17px; height: 17px; }
+
+/* ---- Leyenda ------------------------------------------------------------ */
+
+.pl-legend {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    flex-wrap: wrap;
+    padding: 0.8rem 0.25rem 0;
+}
+.pl-legend-item { display: flex; align-items: center; gap: 0.35rem; }
+.pl-legend-dot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+}
+.pl-legend-dot svg { width: 11px; height: 11px; stroke: var(--white); fill: none; }
+.pl-legend-dot .pl-glyph-half { fill: var(--white); stroke: none; width: 10px; height: 10px; }
+.pl-legend-label { font-size: 0.74rem; font-weight: 600; color: var(--gray-600, #4b5563); }
+
+.pl-legend-dot--yes     { background: var(--success-color); }
+.pl-legend-dot--partial { background: var(--pl-partial); }
+.pl-legend-dot--just    { background: var(--warning-color); }
+.pl-legend-dot--no      { background: var(--danger-color); }
+
+/* El chip que anuncia el gesto largo. Sin esto, "parcial" y "justificada" son
+   invisibles: nadie descubre solo que hay que mantener pulsado. */
+.pl-hold-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.3rem 0.7rem 0.3rem 0.5rem;
+    border-radius: var(--radius-full);
+    background: var(--white);
+    border: 1px dashed var(--gray-300);
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+.pl-hold-ring {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+/* Late cuatro veces y para. Un aviso que late para siempre se convierte en
+   ruido de fondo y se deja de ver; y en cuanto el monitor usa el gesto una vez,
+   deja de latir del todo (body.pl-hold-seen). */
+.pl-hold-ring::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius-full);
+    border: 1.5px solid var(--primary-color);
+    animation: pl-hold-pulse 2.6s cubic-bezier(0.22, 0.61, 0.36, 1) 4;
+}
+body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
+.pl-hold-ring::after {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-full);
+    background: var(--primary-color);
+}
+@keyframes pl-hold-pulse {
+    0%, 62%  { transform: scale(0.62); opacity: 0; }
+    74%      { transform: scale(0.62); opacity: 0.55; }
+    100%     { transform: scale(1.32); opacity: 0; }
+}
+
+.pl-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.45rem;
+    padding: 0.65rem 0.25rem 0;
+    font-size: 0.76rem;
+    color: var(--gray-500, #6b7280);
+    line-height: 1.45;
+}
+.pl-hint svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 0.15rem; }
+
+/* ---- Sin registro ------------------------------------------------------- */
+
+.pl-skip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    min-height: 44px;
+    margin-top: 0.9rem;
+    border-radius: var(--radius-lg);
+    background: transparent;
+    border: 1px dashed var(--gray-300);
+    color: var(--gray-500, #6b7280);
+    font-size: 0.84rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+/* ---- Barra de guardado -------------------------------------------------- */
+
+/* La barra flota sobre el contenido, que sigue pasando por debajo. En vez de
+   cortarla con una línea de 1 px, el contenido se DESVANECE al llegar a ella:
+   una línea dura dice "aquí se acaba"; el desvanecido dice "hay más, y esto
+   está encima". El desenfoque es de 8 px y fijo (nunca se anima), que es el
+   único uso barato del desenfoque. */
+.pl-savebar {
+    position: sticky;
+    bottom: 0;
+    margin: 1.1rem -1rem 0;
+    padding: 1.4rem 1rem 1.2rem;
+    background: linear-gradient(
+        to bottom,
+        transparent 0,
+        color-mix(in srgb, var(--gray-50) 92%, transparent) 1.1rem,
+        color-mix(in srgb, var(--gray-50) 96%, transparent) 100%);
+    backdrop-filter: blur(8px);
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    z-index: 5;
+}
+
+.pl-counts {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.9rem;
+    flex-wrap: wrap;
+}
+.pl-count { display: flex; align-items: center; gap: 0.35rem; font-size: 0.82rem; font-weight: 700; color: var(--gray-700, #374151); }
+.pl-count-dot { width: 9px; height: 9px; border-radius: var(--radius-full); }
+.pl-count-dot--yes  { background: var(--success-color); }
+.pl-count-dot--no   { background: var(--danger-color); }
+.pl-count-dot--none { border: 2px solid var(--gray-300); }
+.pl-count--none { color: var(--warning-dark); }
+
+.pl-save {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 54px;
+    border: 0;
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, var(--primary-color) 0%, #6c4b9e 52%, var(--secondary-color) 100%);
+    box-shadow: var(--shadow-md);
+    color: var(--white);
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    cursor: pointer;
+}
+.pl-save[disabled] { opacity: 0.55; cursor: default; }
+
+/* ---- Hoja de los cuatro estados ---------------------------------------- */
+
+/* El velo se oscurece A LA PAR que sube la hoja, no con su propia transición:
+   si cada uno va a su ritmo, se ven como dos cosas y no como una. */
+.pl-sheet-veil {
+    position: fixed;
+    inset: 0;
+    background: rgba(17, 24, 39, 0.44);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 60;
+}
+.pl-sheet-veil.is-open { pointer-events: auto; }
+
+/* La hoja la mueve el muelle del JS, NO una transición de CSS: una transición
+   no se puede agarrar en pleno vuelo, y aquí lo importante es justo eso —poner
+   el dedo mientras se abre y que siga al dedo desde donde esté. */
+.pl-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+    background: var(--white);
+    box-shadow: 0 -20px 44px rgba(21, 36, 71, 0.18);
+    padding: 0.75rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom));
+    transform: translate3d(0, 101%, 0);
+    z-index: 61;
+    max-height: 88vh;
+    overflow-y: auto;
+    /* El arrastre vertical es nuestro; el navegador no se lo queda para hacer
+       scroll ni para el gesto de recargar tirando hacia abajo. */
+    touch-action: none;
+    overscroll-behavior: contain;
+    display: none;
+}
+.pl-sheet.is-open { display: block; }
+/* Mientras el dedo la lleva, se promociona a capa propia: el movimiento va en
+   el compositor y no toca el hilo principal. Fuera del arrastre se quita, que
+   dejar capas promocionadas de más es peor que no promocionar. */
+.pl-sheet.is-dragging { will-change: transform; }
+
+.pl-sheet-grip { width: 40px; height: 4px; margin: 0 auto 0.9rem; border-radius: var(--radius-full); background: var(--gray-200); }
+
+.pl-sheet-who { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; }
+.pl-sheet-name { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.02em; }
+.pl-sheet-when { font-size: 0.79rem; color: var(--gray-500, #6b7280); }
+
+.pl-opt {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    width: 100%;
+    min-height: 56px;
+    margin-bottom: 0.5rem;
+    padding: 0 1rem;
+    border-radius: var(--radius-lg);
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.pl-opt[aria-checked="true"] { border-width: 2px; }
+.pl-opt[aria-checked="true"][data-value="yes"]            { border-color: var(--success-color); background: var(--success-50); }
+.pl-opt[aria-checked="true"][data-value="partial"]        { border-color: var(--pl-partial);    background: var(--pl-partial-soft); }
+.pl-opt[aria-checked="true"][data-value="no_justified"]   { border-color: var(--warning-color); background: var(--warning-soft); }
+.pl-opt[aria-checked="true"][data-value="no_unjustified"] { border-color: var(--danger-color);  background: var(--danger-soft); }
+
+.pl-opt-dot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+}
+.pl-opt-dot svg { width: 15px; height: 15px; stroke: var(--white); fill: none; }
+.pl-opt-dot .pl-glyph-half { fill: var(--white); stroke: none; width: 13px; height: 13px; }
+.pl-opt[data-value="yes"]            .pl-opt-dot { background: var(--success-color); }
+.pl-opt[data-value="partial"]        .pl-opt-dot { background: var(--pl-partial); }
+.pl-opt[data-value="no_justified"]   .pl-opt-dot { background: var(--warning-color); }
+.pl-opt[data-value="no_unjustified"] .pl-opt-dot { background: var(--danger-color); }
+
+.pl-opt-body { display: flex; flex-direction: column; gap: 0.05rem; flex-grow: 1; }
+.pl-opt-label { font-size: 0.98rem; font-weight: 700; }
+.pl-opt-desc  { font-size: 0.73rem; color: var(--gray-400); }
+.pl-opt-check { width: 19px; height: 19px; flex-shrink: 0; display: none; }
+.pl-opt[aria-checked="true"] .pl-opt-check { display: block; }
+
+.pl-sheet-clear {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 46px;
+    margin-top: 0.4rem;
+    background: none;
+    border: 0;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--gray-500, #6b7280);
+    cursor: pointer;
+}
+
+/* ---- Árbol de etapas y grupos ------------------------------------------ */
+
+.pl-etapa-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1.1rem 0.25rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--gray-500, #6b7280);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+.pl-etapa-dot { width: 8px; height: 8px; border-radius: var(--radius-full); }
+
+.pl-group {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    width: 100%;
+    padding: 0.9rem 1rem;
+    background: none;
+    border: 0;
+    border-top: 1px solid var(--gray-100);
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+.pl-group:first-child { border-top: 0; }
+.pl-group-body { display: flex; flex-direction: column; gap: 0.15rem; flex-grow: 1; min-width: 0; }
+.pl-group-meta { font-size: 0.82rem; color: var(--gray-500, #6b7280); }
+
+/* "Tu grupo": ni barrita azul ni pastilla en mayúsculas. Lo que dice que es
+   tuyo es un filete de degradado de marca alrededor de la tarjeta y tus
+   iniciales delante. Al entrar, un brillo la recorre UNA vez. */
+.pl-mine {
+    position: relative;
+    margin-bottom: 0.65rem;
+    padding: 1.5px;
+    border-radius: calc(var(--radius-lg) + 1.5px);
+    background: linear-gradient(118deg, var(--primary-color) 0%, #6c4b9e 52%, var(--secondary-color) 100%);
+    box-shadow: 0 12px 30px color-mix(in srgb, var(--primary-color) 16%, transparent);
+    animation: pl-mine-rise 520ms var(--ease-out) both;
+}
+.pl-mine-inner {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    width: 100%;
+    padding: 0.85rem 0.95rem;
+    border: 0;
+    border-radius: var(--radius-lg);
+    background: var(--white);
+    font-family: inherit;
+    text-align: left;
+    overflow: hidden;
+    cursor: pointer;
+}
+.pl-mine-shine {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 46%;
+    pointer-events: none;
+    background: linear-gradient(100deg,
+        transparent 0%,
+        color-mix(in srgb, var(--primary-color) 13%, transparent) 45%,
+        color-mix(in srgb, var(--secondary-color) 10%, transparent) 62%,
+        transparent 100%);
+    animation: pl-mine-shine 1150ms cubic-bezier(0.4, 0, 0.2, 1) 340ms both;
+}
+.pl-mine-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, var(--primary-color) 0%, #6c4b9e 52%, var(--secondary-color) 100%);
+    color: var(--white);
+    font-size: 0.86rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+    animation: pl-mine-pop 620ms var(--ease-spring) 180ms both;
+}
+.pl-mine-tag { font-weight: 800; color: var(--primary-color); }
+
+@keyframes pl-mine-rise  { from { transform: translateY(7px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes pl-mine-shine { from { transform: translateX(-140%) skewX(-14deg); } to { transform: translateX(340%) skewX(-14deg); } }
+@keyframes pl-mine-pop {
+    0%   { transform: scale(0.72); opacity: 0; }
+    64%  { transform: scale(1.07); opacity: 1; }
+    100% { transform: scale(1);    opacity: 1; }
+}
+
+/* Estado de la lista de un grupo, en el árbol. */
+.pl-done {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+}
+.pl-done--yes  { background: var(--success-color); }
+.pl-done--yes svg { width: 14px; height: 14px; stroke: var(--white); fill: none; }
+.pl-done--no   { border: 2px solid var(--gray-300); }
+.pl-done--skip { background: var(--gray-200); }
+
+/* ---- Movimiento reducido ----------------------------------------------- */
+
+/* Movimiento reducido no es "sin feedback": es feedback sin desplazamiento. Se
+   quitan los recorridos y los rebotes, y se dejan el color y la opacidad, que
+   son los que hacen entender lo que ha pasado. El anillo del gesto largo SE
+   QUEDA: no es decoración, es la única señal de que el gesto avanza. */
+@media (prefers-reduced-motion: reduce) {
+    .pl-mine,
+    .pl-mine-avatar { animation: none; }
+    .pl-mine-shine { display: none; }
+    .pl-hold-ring::before { animation: none; opacity: 0.35; }
+    .pl-row { transition: background 120ms linear; }
+    .pl-row.is-holding { transform: none; }
+    .pl-mark { transition: background 120ms linear; }
+}
+
+/* Menos transparencia: el material se vuelve sólido. Un desenfoque es
+   agradable, pero si el sistema dice que estorba, estorba. */
+@media (prefers-reduced-transparency: reduce) {
+    .pl-savebar {
+        background: var(--gray-50);
+        backdrop-filter: none;
+    }
+    .pl-sheet-veil { background: rgba(17, 24, 39, 0.62); }
+}
+
+/* Más contraste: bordes definidos donde antes había solo una sombra suave, y el
+   círculo por marcar deja de ser punteado y gris claro. */
+@media (prefers-contrast: more) {
+    .pl-list,
+    .pl-att,
+    .pl-panuelo,
+    .pl-card { border: 1px solid var(--gray-400); }
+    .pl-mark { border-style: solid; border-color: var(--gray-500, #6b7280); }
+    .pl-savebar { background: var(--white); backdrop-filter: none; border-top: 2px solid var(--gray-400); }
+    .pl-hold-hint { border-style: solid; }
+}
+
+/* ---- Home: el atajo ----------------------------------------------------- */
+
+/* La tarjeta grande del sábado. Lleva el degradado de marca porque es LA acción
+   de la pantalla, y en la home no compite con nada más. */
+.pl-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 1.35rem;
+    margin-bottom: 1.1rem;
+    border-radius: var(--radius-xl);
+    background: linear-gradient(135deg, var(--primary-color) 0%, #6c4b9e 52%, var(--secondary-color) 100%);
+    box-shadow: var(--shadow-lg);
+    color: var(--white);
+}
+/* Ya pasada: el degradado sobra, y el verde dice "hecho" sin leer nada. */
+.pl-hero--done {
+    background: linear-gradient(135deg, var(--success-dark) 0%, var(--success-color) 100%);
+    box-shadow: var(--shadow-md);
+}
+
+.pl-hero-when {
+    font-size: 0.75rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.82);
+}
+.pl-hero-group { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
+.pl-hero-meta { font-size: 0.83rem; color: rgba(255, 255, 255, 0.85); }
+
+.pl-hero-cta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 50px;
+    margin-top: 0.85rem;
+    border-radius: var(--radius-lg);
+    background: var(--white);
+    color: var(--primary-color);
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    text-decoration: none;
+}
+.pl-hero--done .pl-hero-cta { color: var(--success-dark); }
+.pl-hero-cta svg { width: 19px; height: 19px; }
+
+/* ---- Home: entrada al árbol -------------------------------------------- */
+
+.pl-all-groups {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-height: 56px;
+    margin-top: 1.1rem;
+    padding: 0 1rem;
+    border-radius: var(--radius-lg);
+    background: var(--white);
+    box-shadow: var(--shadow-xs);
+    color: var(--gray-700, #374151);
+    font-size: 0.95rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+.pl-all-groups-meta { margin-left: auto; font-size: 0.8rem; font-weight: 600; color: var(--gray-400); }
+.pl-all-groups svg { width: 17px; height: 17px; color: var(--gray-300); flex-shrink: 0; }
+
+/* Los enlaces que hacen de fila comparten el reset de los botones. */
+a.pl-group { text-decoration: none; color: inherit; }
+a.pl-group .pl-name { display: block; }
+
+/* El check de "estado elegido" en la hoja: hereda el color del estado, no el
+   negro por defecto del navegador (un path con fill negro sale como un borrón). */
+.pl-opt-check svg { width: 19px; height: 19px; fill: none; stroke-width: 3; }
+.pl-opt[data-value="yes"]            .pl-opt-check svg { stroke: var(--success-color); }
+.pl-opt[data-value="partial"]        .pl-opt-check svg { stroke: var(--pl-partial); }
+.pl-opt[data-value="no_justified"]   .pl-opt-check svg { stroke: var(--warning-color); }
+.pl-opt[data-value="no_unjustified"] .pl-opt-check svg { stroke: var(--danger-color); }
+
+/* ---- Ficha del participante -------------------------------------------- */
+
+.pl-sec {
+    padding: 1.2rem 0.25rem 0.55rem;
+    font-size: 0.75rem;
+    font-weight: 800;
+    color: var(--gray-500, #6b7280);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.pl-list--data { padding: 0.2rem 0; }
+
+/* Teléfonos: el número a la izquierda y los dos botones a la derecha, cada uno
+   con sus 44 px. Con prisa no se acierta un icono de 20. */
+.pl-phone {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.7rem 0.85rem;
+    border-top: 1px solid var(--gray-100);
+}
+.pl-phone:first-child { border-top: 0; }
+.pl-phone-who { display: flex; flex-direction: column; gap: 0.1rem; flex-grow: 1; min-width: 0; }
+.pl-phone-label { font-size: 0.88rem; font-weight: 700; }
+.pl-phone-num { font-size: 0.8rem; color: var(--gray-500, #6b7280); }
+
+.pl-phone-acts { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
+.pl-phone-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-full);
+    text-decoration: none;
+}
+.pl-phone-btn svg { width: 20px; height: 20px; }
+.pl-phone-btn--wa   { background: var(--success-50); color: var(--success-dark); }
+.pl-phone-btn--call { background: var(--primary-soft, #eaf4fb); color: var(--primary-color); }
+
+/* Salud y datos: etiqueta pequeña arriba, valor debajo y legible. El texto de
+   una alergia se lee entero, no se recorta con puntos suspensivos. */
+.pl-data {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.7rem 0.85rem;
+    border-top: 1px solid var(--gray-100);
+}
+.pl-data:first-child { border-top: 0; }
+.pl-data-label {
+    font-size: 0.73rem;
+    font-weight: 800;
+    color: var(--gray-400);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.pl-data-value { font-size: 0.92rem; line-height: 1.45; }
+
+.pl-flagrow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.8rem 0.85rem;
+    border-top: 1px solid var(--gray-100);
+    font-size: 0.9rem;
+    color: var(--gray-600, #4b5563);
+}
+.pl-flagrow:first-child { border-top: 0; }
+
+.pl-flag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.16rem 0.6rem;
+    border-radius: var(--radius-full);
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+}
+.pl-flag--yes { background: var(--success-50); color: var(--success-dark); }
+.pl-flag--no  { background: var(--gray-100); color: var(--gray-500, #6b7280); }
+
+/* Pañuelo: se ve el actual, y cambiarlo cuesta dos toques a propósito. */
+.pl-panuelo {
+    border-radius: var(--radius-lg);
+    background: var(--white);
+    box-shadow: var(--shadow-xs);
+    overflow: hidden;
+}
+.pl-panuelo-now { display: flex; align-items: center; gap: 0.7rem; padding: 0.8rem 0.85rem; }
+.pl-panuelo-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: var(--radius-full);
+    box-shadow: inset 0 0 0 1px rgba(21, 36, 71, 0.12);
+    flex-shrink: 0;
+}
+.pl-panuelo-label { font-size: 1rem; font-weight: 800; flex-grow: 1; }
+.pl-panuelo-edit {
+    min-height: 40px;
+    padding: 0 0.85rem;
+    border-radius: var(--radius-full);
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--gray-700, #374151);
+    cursor: pointer;
+}
+.pl-panuelo-opts { display: flex; flex-direction: column; border-top: 1px solid var(--gray-100); }
+.pl-panuelo-opt {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    min-height: 48px;
+    padding: 0 0.85rem;
+    background: none;
+    border: 0;
+    border-top: 1px solid var(--gray-100);
+    font-family: inherit;
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+}
+.pl-panuelo-opt:first-child { border-top: 0; }
+
+/* La fila de marcar y la flecha de la ficha son dos controles hermanos, no uno
+   dentro de otro: anidarlos deja la flecha inalcanzable con el teclado. */
+.pl-rowwrap {
+    display: flex;
+    align-items: center;
+    border-top: 1px solid var(--gray-100);
+}
+.pl-rowwrap:first-child { border-top: 0; }
+.pl-rowwrap .pl-row { border-top: 0; flex-grow: 1; min-width: 0; padding-right: 0; }
+.pl-rowwrap .pl-detail { text-decoration: none; }
+
+/* Asistencia de la ficha: el porcentaje grande, y a su lado SIEMPRE el
+   denominador. Un número solo, sin sobre-cuántas, no significa nada. */
+.pl-att {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.1rem;
+    border-radius: var(--radius-lg);
+    background: var(--white);
+    box-shadow: var(--shadow-xs);
+}
+.pl-att-pct {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    color: var(--primary-color);
+    flex-shrink: 0;
+}
+.pl-att-pct span { font-size: 1rem; font-weight: 700; }
+.pl-att-body { display: flex; flex-direction: column; gap: 0.15rem; }
+.pl-att-main { font-size: 0.98rem; font-weight: 700; }
+.pl-att-meta { font-size: 0.79rem; color: var(--gray-500, #6b7280); }
+
+/* ---- Resumen de coordinación ------------------------------------------- */
+
+.pl-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.6rem; }
+.pl-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.9rem 0.75rem;
+    border-radius: var(--radius-lg);
+    background: var(--white);
+    box-shadow: var(--shadow-xs);
+}
+.pl-card-head {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: var(--gray-500, #6b7280);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.pl-card-num { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+.pl-card-meta { font-size: 0.72rem; font-weight: 500; color: var(--gray-400); }
+
+.pl-grouprow {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    padding: 0.8rem 0.9rem;
+    border-top: 1px solid var(--gray-100);
+    color: inherit;
+    text-decoration: none;
+}
+.pl-grouprow:first-child { border-top: 0; }
+.pl-grouprow-top { display: flex; align-items: center; gap: 0.75rem; }
+
+/* La tira: una marca por sesión celebrada, la más reciente a la derecha. Un
+   hueco es una lista que falta, y se ve DÓNDE empezó el tramo de huecos. */
+.pl-strip { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; }
+.pl-cell { width: 14px; height: 7px; border-radius: 2px; flex-shrink: 0; }
+.pl-cell--ok   { background: var(--success-color); }
+.pl-cell--gap  { background: var(--warning-100); box-shadow: inset 0 0 0 1px var(--warning-border); }
+.pl-cell--skip { background: var(--gray-200); }
+.pl-cell--future { background: transparent; box-shadow: inset 0 0 0 1px var(--gray-200); }
+
+.pl-strip-note { font-size: 0.7rem; font-weight: 700; color: var(--gray-400); padding-left: 0.45rem; }
+.pl-strip-note--gap { color: var(--warning-dark); }
+
+.pl-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.18rem 0.55rem;
+    border-radius: var(--radius-full);
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+}
+.pl-badge--ok   { background: var(--success-50); color: var(--success-dark); }
+.pl-badge--gap  { background: var(--warning-100); color: var(--warning-dark); }
+.pl-badge--skip { background: var(--gray-100); color: var(--gray-500, #6b7280); }
+
+/* Datos por revisar: ámbar, porque es una lista de cosas que hay que arreglar,
+   no un error. */
+.pl-review {
+    border-radius: var(--radius-lg);
+    background: var(--warning-soft);
+    border: 1px solid var(--warning-200);
+    overflow: hidden;
+}
+.pl-review-head {
+    padding: 0.75rem 0.9rem 0.4rem;
+    font-size: 0.83rem;
+    font-weight: 800;
+    color: var(--warning-darker);
+}
+.pl-review-row {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex-wrap: wrap;
+    padding: 0.55rem 0.9rem;
+}
+.pl-review-name { font-size: 0.9rem; font-weight: 600; color: var(--warning-darker); flex-grow: 1; min-width: 8rem; }
+.pl-review-select {
+    min-height: 40px;
+    max-width: 11rem;
+    padding: 0 0.6rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--warning-border);
+    background: var(--white);
+    font-family: inherit;
+    font-size: 0.85rem;
+}
+.pl-review-btn {
+    min-height: 40px;
+    padding: 0 0.9rem;
+    border-radius: var(--radius-md);
+    border: 0;
+    background: var(--warning-dark);
+    color: var(--white);
+    font-family: inherit;
+    font-size: 0.83rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+/* ---- Aviso de estado de la barra de guardado ---------------------------- */
+
+/* Una línea, un motivo, siempre en el mismo sitio: encima del botón, donde ya
+   está mirando quien va a guardar. Cambia de color según lo que diga, pero no
+   se mueve ni aparece en otro lugar. */
+.pl-status {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.7rem;
+    border-radius: var(--radius-md);
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.35;
+    animation: pl-status-in 240ms var(--ease-out) both;
+}
+.pl-status[data-kind="draft"]   { background: var(--warning-soft); color: var(--warning-dark); }
+.pl-status[data-kind="offline"] { background: var(--gray-100); color: var(--gray-700, #374151); }
+.pl-status[data-kind="sync"]    { background: var(--primary-soft, #eaf4fb); color: var(--primary-color); }
+.pl-status[data-kind="ok"]      { background: var(--success-50); color: var(--success-dark); }
+
+@keyframes pl-status-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .pl-status { animation: none; } }
+
+/* El agarre de la hoja: la rayita se ve fina, pero el área por la que se puede
+   arrastrar es alta. Un asidero de 4 px es imposible de coger con el pulgar. */
+.pl-sheet-griparea {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    margin: -0.4rem 0 0.5rem;
+    cursor: grab;
+}
+.pl-sheet.is-dragging .pl-sheet-griparea { cursor: grabbing; }
+.pl-sheet-grip {
+    width: 40px;
+    height: 4px;
+    border-radius: var(--radius-full);
+    background: var(--gray-200);
+}
+
+/* ---- Monitores ---------------------------------------------------------- */
+
+/* La línea de los grupos de un monitor. Gris y pequeña: informa, no compite. */
+.pl-rowsub { font-size: 0.75rem; color: var(--gray-400); }
+
+/* La regla de esta pantalla, dicha antes de guardar y no después: aquí el
+   defecto es verde, que es lo contrario de la lista de participantes. */
+.pl-hint--rule {
+    padding: 0.55rem 0.75rem;
+    margin-bottom: 0.7rem;
+    border-radius: var(--radius-md);
+    background: var(--success-50);
+    color: var(--success-dark);
+    font-weight: 600;
+}
+.pl-hint--rule svg { color: var(--success-dark); }
+
+/* En la lista de monitores no hay "sin marcar", así que el círculo vacío no
+   aparece nunca; el punteado sobraría y confundiría. */
+[data-pl-monitores] .pl-mark { border-style: solid; }
+
+/* Certificado de delitos sexuales: se lee de un vistazo porque es lo que se
+   reclama. Verde entregado, rojo falta — sin ámbar intermedio, porque aquí no
+   hay medias tintas legales. */
+.pl-ds {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.9rem 1rem;
+    border-radius: var(--radius-lg);
+    background: var(--white);
+    box-shadow: var(--shadow-xs);
+}
+.pl-ds-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+}
+.pl-ds-icon svg { width: 17px; height: 17px; stroke: var(--white); fill: none; }
+.pl-ds-body { display: flex; flex-direction: column; gap: 0.1rem; }
+.pl-ds-label { font-size: 0.98rem; font-weight: 800; }
+.pl-ds-sub { font-size: 0.78rem; color: var(--gray-500, #6b7280); }
+
+.pl-ds--ok .pl-ds-icon { background: var(--success-color); }
+.pl-ds--ok .pl-ds-label { color: var(--success-dark); }
+.pl-ds--missing { background: var(--danger-soft); box-shadow: inset 0 0 0 1px var(--danger-border); }
+.pl-ds--missing .pl-ds-icon { background: var(--danger-color); }
+.pl-ds--missing .pl-ds-label { color: var(--danger-dark); }
+
+.pl-flag--warn { background: var(--warning-100); color: var(--warning-dark); }
+
+/* ---- Nueva reunión: tres campos y un botón ----------------------------- */
+
+.pl-newmeet {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    padding: 1rem;
+    border-radius: var(--radius-lg);
+    background: var(--white);
+    box-shadow: var(--shadow-xs);
+}
+.pl-field { display: flex; flex-direction: column; gap: 0.25rem; flex-grow: 1; min-width: 0; }
+.pl-field-label {
+    font-size: 0.73rem;
+    font-weight: 800;
+    color: var(--gray-500, #6b7280);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.pl-field input {
+    min-height: 46px;
+    padding: 0 0.75rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--gray-200);
+    background: var(--white);
+    font-family: inherit;
+    font-size: 1rem;             /* 16 px: menos que eso y iOS hace zoom al enfocar */
+    color: inherit;
+    width: 100%;
+}
+.pl-field input:focus-visible {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-glow);
+}
+.pl-field-row { display: flex; gap: 0.6rem; }
+.pl-field--sm { flex: 0 0 5.5rem; }
+
+/* El alcance de coordinación, dicho en el título de la sección: quien coordina
+   una etapa tiene que ver cuál sin abrir nada. */
+.pl-scope {
+    margin-left: auto;
+    padding: 0.12rem 0.5rem;
+    border-radius: var(--radius-full);
+    background: var(--gray-100);
+    color: var(--gray-600, #4b5563);
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+/* ---- Seguimientos ------------------------------------------------------- */
+
+/* Cada seguimiento con el color de su tipo en el filete izquierdo: se distingue
+   una incidencia de una nota de acompañamiento sin leer la etiqueta. */
+.pl-seg {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 0.8rem 0.9rem;
+    border-top: 1px solid var(--gray-100);
+    border-left: 3px solid var(--gray-300);
+}
+.pl-seg:first-child { border-top: 0; }
+.pl-seg-head { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.pl-seg-tipo {
+    padding: 0.14rem 0.5rem;
+    border-radius: var(--radius-full);
+    color: var(--white);
+    font-size: 0.67rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.pl-seg-when { font-size: 0.76rem; font-weight: 700; color: var(--gray-600, #4b5563); }
+.pl-seg-who { font-size: 0.76rem; color: var(--gray-400); }
+.pl-seg-text { font-size: 0.92rem; line-height: 1.5; }
+
+/* El aviso de privacidad va pegado al formulario de acompañamiento, no en un
+   pie de página: se lee cuando se está escribiendo, que es cuando importa. */
+.pl-seg-warn {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.4rem;
+    margin: 0;
+    padding: 0.5rem 0.7rem;
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, #6c4b9e 10%, transparent);
+    color: #573c80;
+    font-size: 0.77rem;
+    line-height: 1.4;
+}
+.pl-seg-warn svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 0.15rem; }
+
+.pl-field textarea {
+    padding: 0.6rem 0.75rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--gray-200);
+    background: var(--white);
+    font-family: inherit;
+    font-size: 1rem;
+    line-height: 1.45;
+    color: inherit;
+    width: 100%;
+    resize: vertical;
+}
+.pl-field select {
+    min-height: 46px;
+    padding: 0 0.6rem;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--gray-200);
+    background: var(--white);
+    font-family: inherit;
+    font-size: 1rem;
+    color: inherit;
+    width: 100%;
+}
+.pl-field--date { flex: 0 0 9rem; }

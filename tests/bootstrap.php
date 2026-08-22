@@ -26,7 +26,18 @@ $GLOBALS['__stic_options'] = array(
 // --- Stubs de funciones de WordPress ---
 if (!function_exists('add_action'))  { function add_action(...$a) { return true; } }
 if (!function_exists('add_filter'))  { function add_filter(...$a) { return true; } }
-if (!function_exists('apply_filters')) { function apply_filters($tag, $value = null) { return $value; } }
+// apply_filters devuelve el valor tal cual, salvo que un test haya puesto un
+// valor forzado en $GLOBALS['__stic_filters'][$tag]. Es la forma sencilla de
+// probar el comportamiento con un filtro activo sin montar el sistema de hooks.
+if (!function_exists('apply_filters')) {
+    function apply_filters($tag, $value = null)
+    {
+        if (isset($GLOBALS['__stic_filters']) && array_key_exists($tag, $GLOBALS['__stic_filters'])) {
+            return $GLOBALS['__stic_filters'][$tag];
+        }
+        return $value;
+    }
+}
 if (!function_exists('do_action'))   { function do_action(...$a) {} }
 if (!function_exists('get_option'))  {
     function get_option($k, $default = false) {
@@ -94,6 +105,37 @@ if (!function_exists('delete_transient')) {
     }
 }
 
+// --- Stubs añadidos para las pantallas de Pasar Lista ---
+// Se necesitan porque el test de render ejecuta las páginas de verdad
+// (pages/single_stic_pasar_lista*.php) contra un CRM falso, y esas páginas usan
+// plurales, fechas localizadas y nonces.
+if (!function_exists('_n')) {
+    function _n($single, $plural, $number, $domain = null) { return ($number == 1) ? $single : $plural; }
+}
+if (!function_exists('esc_sql')) { function esc_sql($v) { return $v; } }
+if (!function_exists('esc_js')) { function esc_js($v) { return addslashes((string) $v); } }
+if (!function_exists('home_url')) { function home_url($path = '') { return 'https://example.test' . $path; } }
+if (!function_exists('status_header')) { function status_header($code) { return $code; } }
+if (!function_exists('plugin_dir_path')) { function plugin_dir_path($file) { return dirname($file) . '/'; } }
+if (!function_exists('date_i18n')) {
+    function date_i18n($format, $ts = null) { return date($format, $ts === null ? time() : $ts); }
+}
+if (!function_exists('wp_date')) {
+    function wp_date($format, $ts = null) { return date($format, $ts === null ? time() : $ts); }
+}
+if (!function_exists('wp_unslash')) { function wp_unslash($v) { return is_string($v) ? stripslashes($v) : $v; } }
+if (!function_exists('wp_create_nonce')) { function wp_create_nonce($action = -1) { return 'nonce-' . md5((string) $action); } }
+if (!function_exists('wp_verify_nonce')) {
+    function wp_verify_nonce($nonce, $action = -1) { return $nonce === wp_create_nonce($action) ? 1 : false; }
+}
+if (!function_exists('wp_nonce_field')) {
+    function wp_nonce_field($action = -1, $name = '_wpnonce', $referer = true, $echo = true) {
+        $field = '<input type="hidden" name="' . $name . '" value="' . wp_create_nonce($action) . '">';
+        if ($echo) { echo $field; }
+        return $field;
+    }
+}
+
 // --- Código bajo prueba ---
 require_once __DIR__ . '/../inc/stic-theme.php';
 require_once __DIR__ . '/../inc/stic-magic-login.php';
@@ -106,3 +148,18 @@ require_once __DIR__ . '/../inc/stic-calendar.php';
 // stubeado arriba); el resto son definiciones de función, así que cargarlo
 // aquí no ejecuta nada que dependa de WordPress/SugarCRM real.
 require_once __DIR__ . '/../inc/stic-action.php';
+// stic-pasar-lista.php es la lógica de Pasar Lista SIN CRM: qué sesión se
+// ofrece, el denominador del porcentaje, las ausencias seguidas y el nombre del
+// grupo. Solo define funciones, así que se carga tal cual. La parte que habla
+// con el CRM está aparte (inc/stic-pasar-lista-crm.php) y no se testea aquí.
+require_once __DIR__ . '/../inc/stic-pasar-lista.php';
+// La capa de CRM y la de HTML también se cargan: el test de render ejecuta las
+// páginas contra un doble de $objSCP, que es la única forma de comprobar sin
+// WordPress que las pantallas se pintan enteras y sin avisos.
+require_once __DIR__ . '/../inc/stic-pasar-lista-crm.php';
+require_once __DIR__ . '/../inc/stic-pasar-lista-ui.php';
+// El service worker: el archivo solo define funciones y un add_action (ya
+// stubeado). El modo sin conexión está apagado por defecto, así que en los
+// tests sticpa_pl_sw_register_html() devuelve cadena vacía, que es justo el
+// comportamiento que hay que comprobar.
+require_once __DIR__ . '/../inc/stic-pasar-lista-sw.php';

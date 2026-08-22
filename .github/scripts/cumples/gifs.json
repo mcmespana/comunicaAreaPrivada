@@ -1,0 +1,160 @@
+{
+  "_ayuda": [
+    "Bolsa de GIFs para el correo de cumpleaños.",
+    "Los ficheros están en .github/assets/cumples/ (nuestros, versionados) y se",
+    "sirven por raw.githubusercontent.com: los clientes de correo los cargan sin",
+    "problema y no dependemos de que Giphy mantenga ningún enlace.",
+    "El script elige al azar con semilla = fecha + delegación, así que cada día",
+    "sale distinto pero dos ejecuciones del mismo día dan el mismo correo.",
+    "Para añadir uno: mete el .gif en esa carpeta y añade aquí su archivo, ancho,",
+    "alto y una descripción en 'alt' (se usa como texto alternativo del correo).",
+    "Para comprobar que ninguno se ha caído:  node enviar-cumples.mjs --verificar-gifs"
+  ],
+  "gifs": [
+    {
+      "url": "https://raw.githubusercontent.com/mcmespana/comunicaAreaPrivada/main/.github/assets/cumples/dos-chinchillas-con-gorritos-party.gif",
+      "ancho": 200,
+      "alto": 152,
+      "alt": "Dos chinchillas con gorritos: PARTY HARD"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mcmespana/comunicaAreaPrivada/main/.github/assets/cumples/gente-celebrando-y-tirando-confeti.gif",
+      "ancho": 200,
+      "alto": 168,
+      "alt": "Gente celebrando y tirando confeti"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mcmespana/comunicaAreaPrivada/main/.github/assets/cumples/hamsters-dibujados-con-un-globo.gif",
+      "ancho": 200,
+      "alto": 200,
+      "alt": "Hamsters dibujados con un globo de cumpleaños"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mcmespana/comunicaAreaPrivada/main/.github/assets/cumples/la-rana-gustavo-bailando-entre.gif",
+      "ancho": 200,
+      "alto": 200,
+      "alt": "La rana Gustavo bailando entre confeti"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mcmespana/comunicaAreaPrivada/main/.github/assets/cumples/peluches-de-fiesta-con-tarta.gif",
+      "ancho": 200,
+      "alto": 173,
+      "alt": "Peluches de fiesta con tarta y cupcakes"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mcmespana/comunicaAreaPrivada/main/.github/assets/cumples/pingu-dando-saltos-de-alegria.gif",
+      "ancho": 200,
+      "alto": 112,
+      "alt": "Pingu dando saltos de alegría"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mcmespana/comunicaAreaPrivada/main/.github/assets/cumples/tres-pinguinos-con-gorritos-felicitando.gif",
+      "ancho": 200,
+      "alto": 156,
+      "alt": "Tres pingüinos con gorritos felicitando"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mcmespana/comunicaAreaPrivada/main/.github/assets/cumples/un-chihuahua-tumbado-con-gorrito.gif",
+      "ancho": 200,
+      "alto": 122,
+      "alt": "Un chihuahua tumbado con gorrito de cumpleaños"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mcmespana/comunicaAreaPrivada/main/.github/assets/cumples/un-gato-dibujado-grita-hooray.gif",
+      "ancho": 200,
+      "alto": 200,
+      "alt": "Un gato dibujado grita HOORAY entre confeti"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mcmespana/comunicaAreaPrivada/main/.github/assets/cumples/un-gato-negro-con-gorrito.gif",
+      "ancho": 200,
+      "alto": 250,
+      "alt": "Un gato negro con gorrito verde: PARTY TIME"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mcmespana/comunicaAreaPrivada/main/.github/assets/cumples/un-hamster-con-gorrito-y.gif",
+      "ancho": 200,
+      "alto": 200,
+      "alt": "Un hámster con gorrito y confeti cayendo"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mcmespana/comunicaAreaPrivada/main/.github/assets/cumples/un-hamster-de-pie-junto.gif",
+      "ancho": 200,
+      "alto": 250,
+      "alt": "Un hámster de pie junto a un HAPPY BIRTHDAY"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mcmespana/comunicaAreaPrivada/main/.github/assets/cumples/un-hamster-zampandose-un-trozo.gif",
+      "ancho": 200,
+      "alto": 113,
+      "alt": "Un hámster zampándose un trozo de tarta"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mcmespana/comunicaAreaPrivada/main/.github/assets/cumples/un-hamsterillo-soplando-una-vela.gif",
+      "ancho": 200,
+      "alto": 200,
+      "alt": "Un hamsterillo soplando una vela"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mcmespana/comunicaAreaPrivada/main/.github/assets/cumples/un-perrete-dibujado-con-gorrito.gif",
+      "ancho": 200,
+      "alto": 200,
+      "alt": "Un perrete dibujado con gorrito de fiesta"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mcmespana/comunicaAreaPrivada/main/.github/assets/cumples/un-perrito-pomerania-con-gorrito.gif",
+      "ancho": 200,
+      "alto": 243,
+      "alt": "Un perrito pomerania con gorrito de cumpleaños"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mcmespana/comunicaAreaPrivada/main/.github/assets/cumples/un-perro-con-gorrito-aullando.gif",
+      "ancho": 200,
+      "alto": 113,
+      "alt": "Un perro con gorrito aullando de felicidad"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mcmespana/comunicaAreaPrivada/main/.github/assets/cumples/un-perro-con-gorrito-y.gif",
+      "ancho": 200,
+      "alto": 113,
+      "alt": "Un perro con gorrito y pañuelo bajo el cielo azul"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mcmespana/comunicaAreaPrivada/main/.github/assets/cumples/un-perro-dibujado-moviendo-el.gif",
+      "ancho": 200,
+      "alto": 200,
+      "alt": "Un perro dibujado moviendo el rabo junto a una tarta"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mcmespana/comunicaAreaPrivada/main/.github/assets/cumples/un-perro-dibujado-sujetando-una.gif",
+      "ancho": 200,
+      "alto": 200,
+      "alt": "Un perro dibujado sujetando una tarta"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mcmespana/comunicaAreaPrivada/main/.github/assets/cumples/un-pinguino-dibujado-con-gorrito.gif",
+      "ancho": 200,
+      "alto": 141,
+      "alt": "Un pingüino dibujado con gorrito dando saltos"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mcmespana/comunicaAreaPrivada/main/.github/assets/cumples/un-pomerania-con-gorrito-de.gif",
+      "ancho": 200,
+      "alto": 200,
+      "alt": "Un pomerania con gorrito de rayas"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mcmespana/comunicaAreaPrivada/main/.github/assets/cumples/un-ratoncito-volando-con-globos.gif",
+      "ancho": 200,
+      "alto": 200,
+      "alt": "Un ratoncito volando con globos de colores"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/mcmespana/comunicaAreaPrivada/main/.github/assets/cumples/una-chica-con-gorro-de.gif",
+      "ancho": 200,
+      "alto": 150,
+      "alt": "Una chica con gorro de fiesta abrazando a un gatito"
+    }
+  ],
+  "base_url": "https://raw.githubusercontent.com/mcmespana/comunicaAreaPrivada/main/.github/assets/cumples"
+}
