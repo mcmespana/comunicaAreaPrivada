@@ -104,11 +104,12 @@ siempre, sin nada que encender:
 - **Aviso de estado** encima del botón: sin cobertura, guardado en el móvil,
   enviando lo pendiente, ya enviado.
 
-**2. Abrir la pantalla ya sin cobertura.** Service worker, y **apagado por
-defecto**:
+**2. Abrir la pantalla ya sin cobertura.** Service worker, **encendido**. Si
+alguna vez se pelea con la caché o el CDN de una instalación, se apaga sin tocar
+código:
 
 ```php
-add_filter('sticpa_pl_offline_enabled', '__return_true');
+add_filter('sticpa_pl_offline_enabled', '__return_false');
 ```
 
 Se sirve en `/?sticpa_sw=1` (`inc/stic-pasar-lista-sw.php`) porque el alcance de
@@ -117,10 +118,10 @@ fuera de la del plugin. Un parámetro no cambia la ruta, así que la ruta sigue
 siendo `/` y el alcance es todo el sitio — sin reglas de reescritura que haya que
 vaciar al activar.
 
-Está apagado por defecto porque un service worker manda sobre **todas** las
-peticiones del sitio, y esto se instala en WordPress que no controlamos (con sus
-cachés y sus CDN). Con el punto 1 activo, apagarlo solo cuesta el arranque en
-frío sin cobertura.
+Se deja apagable porque un service worker manda sobre **todas** las peticiones
+del sitio, y esto se instala en WordPress que no controlamos (con sus cachés y
+sus CDN). Con el punto 1 activo, apagarlo solo cuesta el arranque en frío sin
+cobertura.
 
 **Privacidad.** Lo que se guarda son pantallas con nombres, teléfonos y datos de
 salud de menores, así que: la caché de páginas va **nombrada por usuario** (si en
@@ -152,9 +153,13 @@ Pendiente de campos que no existen todavía:
 - `LIS_listas.ajmcm_tipo_c` → sin él, la lista de monitores de un sábado y la
   del grupo se pisarían. **Esto sí bloquea** la marca de «lista de monitores
   pasada»; las asistencias se guardan igual.
-- `ajmcm_GRUPOS.ajmcm_segmento_com_c` → sin él el alcance por segmento no
-  filtra. Se enciende con `add_filter('sticpa_pl_has_segmento', '__return_true')`
-  cuando exista, porque pedir un campo inexistente rompe la consulta entera.
+- `ajmcm_GRUPOS.ajmcm_segmento_com_c` → el alcance por segmento. Creado y
+  **encendido**. Se deja el interruptor (`sticpa_pl_has_segmento`) porque pedir
+  un campo que no existe rompe la consulta ENTERA y deja la pantalla en blanco:
+  si una instancia se queda sin él, hay salida sin tocar código.
+- `stic_Events.ajmcm_etapa_c` (selección múltiple) → a qué etapas sirve cada
+  evento. Con él, un mismo evento puede ser de MIC y de COM. Sustituye a deducir
+  la etapa del nombre, que era el punto débil que quedaba.
 
 ### Fase 6 — seguimientos y acompañamiento ✅ hecha
 
@@ -243,17 +248,20 @@ Hablamos de coordinadores de etapa y de sector. En el CRM no hay hoy nada que
 agrupe delegaciones en sectores. Si un sector es un conjunto de delegaciones, va
 en `Accounts`, no en la persona. Pendiente de definir qué es.
 
-### 7. Un campo de etapa en los eventos
+### 7. Un campo de etapa en los eventos ✅ resuelto
 
-La etapa de un evento se saca hoy **del nombre** (`COM | Sesiones semanales
-2025-2026`), mirando solo lo que hay antes del `|`. Funciona porque la
-convención está fija, pero un evento mal nombrado desaparece de Pasar Lista sin
-decir por qué.
+La etapa de un evento se sacaba **del nombre** (`COM | Sesiones semanales
+2025-2026`), mirando solo lo que hay antes del `|`. Funcionaba porque la
+convención estaba fija, pero un evento mal nombrado desaparecía de Pasar Lista
+sin decir por qué. Era la única dependencia frágil de la fase 1.
 
-Lo correcto sería un `ajmcm_etapa_c` en `stic_Events`, reutilizando las mismas
-claves que ya tiene el campo de la persona (`MIC` / `COM` / `LC`). Es un campo y
-quita la única dependencia frágil que tiene la fase 1. Mientras no exista, el
-prefijo se puede cambiar con el filtro `sticpa_pl_etapa_prefixes`.
+Ahora manda `stic_Events.ajmcm_etapa_c`, de **selección múltiple** con las mismas
+claves que el campo de la persona (`MIC` / `COM` / `LC`). Que sea múltiple es lo
+que permite UN evento para MIC y COM a la vez, que es el caso normal cuando el
+sábado es el mismo para todos: aparece en las dos etapas y comparte sesiones.
+
+El nombre sigue siendo la red de seguridad, solo para eventos con el campo vacío,
+y el prefijo se puede cambiar con el filtro `sticpa_pl_etapa_prefixes`.
 
 ### 8. Seguimientos de monitores ✅ hecho
 
@@ -262,8 +270,12 @@ Ver [`PASAR-LISTA-SEGUIMIENTOS.md`](PASAR-LISTA-SEGUIMIENTOS.md). Resumen: se us
 modificado ni un módulo nuevo. Los tres tipos (incidencia, valoración de
 trimestre, acompañamiento) son tres valores de su lista `type`.
 
-Viene **apagado** (`sticpa_pl_seguimientos_enabled`) porque el usuario de la API
-no tiene acceso al módulo todavía y no he podido verificar los nombres de campo.
+Viene **encendido** (`sticpa_pl_seguimientos_enabled`). Los nombres de campo del
+módulo son la convención documentada y **no los pude verificar contra la
+instancia** (respondía «does not have access to this module»); si algo sale vacío
+o el guardado falla, se corrige con el filtro `sticpa_pl_seg_map` y, mientras se
+averigua, se apaga con `add_filter('sticpa_pl_seguimientos_enabled',
+'__return_false')`.
 
 ### 9. Verificar `CAMPOS.md` contra el CRM por MCP
 

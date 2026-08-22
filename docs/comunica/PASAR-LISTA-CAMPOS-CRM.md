@@ -60,6 +60,29 @@ conviene dejarlo escrito, porque si no dentro de un año nadie se acuerda.
 
 ---
 
+### Eventos (`stic_Events`)
+
+| Campo | Tipo | Para qué |
+|---|---|---|
+| `ajmcm_etapa_c` | **selección múltiple** (`MIC`, `COM`, `LC`) | A qué etapas sirve el evento de sesiones semanales |
+
+Es de selección **múltiple** a propósito: en una delegación pequeña el sábado es
+el mismo para MIC y para COM, y entonces hay UN evento marcado con las dos. El
+evento aparece en las dos etapas y comparte sesiones, que es exactamente lo que
+pasa en la realidad.
+
+Antes la etapa se deducía de lo que había antes del `|` en el nombre del evento,
+y eso se rompía en cuanto alguien renombraba un evento. Ahora **manda el campo**;
+el nombre solo se mira si el campo está vacío, para los eventos creados antes de
+que existiera. Ver `sticpa_pl_event_etapa_field()` y
+`sticpa_pl_etapas_from_multi()`.
+
+> Ojo: en `Contacts` ya existe un `ajmcm_etapa_c` (la etapa de la persona). Son
+> campos distintos en módulos distintos y el nombre repetido es a propósito, para
+> que se lea igual en los dos sitios.
+
+---
+
 ## 3. Lo que YA EXISTE y no hay que crear
 
 Esto es la mitad del valor de este documento: evitar que se creen campos
