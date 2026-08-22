@@ -794,9 +794,10 @@ function sticpa_pl_save($objSCP, $sessionId, $groupId, $marks, $omitida = false,
  * convención de nombres está fijada (ver el roadmap), pero un evento mal
  * nombrado desaparece de Pasar Lista sin decir por qué.
  *
- * Lo correcto sería un campo `ajmcm_etapa_c` en `stic_Events`; está anotado como
- * mejora. Mientras no exista, esto es filtrable para que una delegación con otra
- * convención pueda arreglarlo sin tocar código.
+ * YA NO ES EL CAMINO PRINCIPAL: la etapa se lee del campo del evento (ver
+ * `sticpa_pl_event_etapa_field()`). Esto queda como red de seguridad para los
+ * eventos a los que nadie haya rellenado el campo todavía, y sigue siendo
+ * filtrable para una delegación con otra convención de nombres.
  */
 function sticpa_pl_etapa_prefixes()
 {
@@ -805,6 +806,62 @@ function sticpa_pl_etapa_prefixes()
         'COM' => array('com'),
         'LC' => array('lc'),
     ));
+}
+
+/**
+ * El campo de `stic_Events` que dice a qué etapas sirve el evento.
+ *
+ * Es de SELECCIÓN MÚLTIPLE: un mismo evento puede ser de MIC y de COM a la vez,
+ * y entonces aparece en las dos etapas. Es lo normal en una delegación pequeña,
+ * donde los sábados son los mismos para todos.
+ */
+function sticpa_pl_event_etapa_field()
+{
+    return apply_filters('sticpa_pl_event_etapa_field', 'ajmcm_etapa_c');
+}
+
+/**
+ * Las etapas de un campo de selección múltiple, normalizadas a MIC/COM/LC.
+ *
+ * SuiteCRM guarda los multiselect como `^MIC^,^COM^`. La API los devuelve así
+ * tal cual unas veces y como array otras, según el módulo, así que se aceptan
+ * las dos formas y también la lista separada por comas a secas.
+ *
+ * Las claves se comparan contra el mismo mapa que los prefijos del nombre, de
+ * modo que da igual si en el desplegable están como `MIC` o como `mic`.
+ */
+function sticpa_pl_etapas_from_multi($raw)
+{
+    if (is_object($raw)) {
+        $raw = (array) $raw;
+    }
+    $parts = is_array($raw)
+        ? $raw
+        : explode(',', str_replace('^', '', (string) $raw));
+
+    $map = array();
+    foreach (sticpa_pl_etapa_prefixes() as $etapa => $needles) {
+        $map[strtolower($etapa)] = $etapa;
+        foreach ((array) $needles as $needle) {
+            if ($needle !== '') {
+                $map[strtolower($needle)] = $etapa;
+            }
+        }
+    }
+
+    $out = array();
+    foreach ($parts as $part) {
+        $key = strtolower(trim(str_replace('^', '', (string) $part)));
+        if ($key === '' || !isset($map[$key])) {
+            continue;
+        }
+        // Sin duplicados y en el orden en que vienen: si alguien marca MIC y COM
+        // dos veces, la pantalla no tiene por qué enterarse.
+        if (!in_array($map[$key], $out, true)) {
+            $out[] = $map[$key];
+        }
+    }
+    return $out;
 }
 
 /**
@@ -830,11 +887,12 @@ function sticpa_pl_etapa_events($objSCP)
         return array();
     }
     $course = sticpa_pl_course_for();
+    $etapaField = sticpa_pl_event_etapa_field();
 
     $rows = $objSCP->getRecordsModule(
         'stic_Events',
         "stic_events.assigned_user_id = '" . sticpa_pl_safe_id($deleg) . "'",
-        array('id', 'name', 'start_date', 'end_date')
+        array('id', 'name', 'start_date', 'end_date', $etapaField)
     );
 
     $out = array();
@@ -849,14 +907,26 @@ function sticpa_pl_etapa_events($objSCP)
             if (strpos($name, $course['label']) === false) {
                 continue;   // otro curso
             }
-            $etapa = sticpa_pl_etapa_from_name($name);
-            if ($etapa === '') {
-                continue;
+
+            // El campo manda. El nombre solo se mira si el campo está vacío,
+            // que es lo que pasa con los eventos creados antes de que existiera.
+            $etapas = isset($v->$etapaField->value)
+                ? sticpa_pl_etapas_from_multi($v->$etapaField->value)
+                : array();
+            if (empty($etapas)) {
+                $fromName = sticpa_pl_etapa_from_name($name);
+                if ($fromName === '') {
+                    continue;
+                }
+                $etapas = array($fromName);
             }
-            // Si hubiera dos del mismo curso y etapa, gana el primero y se deja
-            // constancia: es un problema de datos, no de la pantalla.
-            if (!isset($out[$etapa])) {
-                $out[$etapa] = array('id' => $id, 'name' => $name);
+
+            foreach ($etapas as $etapa) {
+                // Si hubiera dos del mismo curso y etapa, gana el primero: es un
+                // problema de datos, no de la pantalla.
+                if (!isset($out[$etapa])) {
+                    $out[$etapa] = array('id' => $id, 'name' => $name);
+                }
             }
         }
     }
@@ -1273,17 +1343,17 @@ function sticpa_pl_is_coordinator($objSCP)
 }
 
 /**
- * ¿Existe ya el campo de segmento en Grupos?
+ * ¿Existe el campo de segmento en Grupos?
  *
- * Mientras no se cree, pedirlo haría fallar la consulta entera y dejaría la
- * pantalla en blanco. Así que se declara aquí y se enciende con un filtro el día
- * que exista:
+ * ENCENDIDO: el campo está creado. Se deja el interruptor porque pedir un campo
+ * que no existe hace fallar la consulta ENTERA y deja la pantalla en blanco, así
+ * que si una instancia se queda sin él hay una salida que no es tocar código:
  *
- *     add_filter('sticpa_pl_has_segmento', '__return_true');
+ *     add_filter('sticpa_pl_has_segmento', '__return_false');
  */
 function sticpa_pl_has_segmento()
 {
-    return (bool) apply_filters('sticpa_pl_has_segmento', false);
+    return (bool) apply_filters('sticpa_pl_has_segmento', true);
 }
 
 /**
@@ -1848,22 +1918,20 @@ function sticpa_pl_save_monitors($objSCP, $sessionId, $monitors, $marks, $regMap
 // ===========================================================================
 
 /**
- * APAGADO POR DEFECTO, y con motivo.
+ * ENCENDIDO. El acceso del usuario de la API a `stic_FollowUps` está dado.
  *
- * El usuario de la API no tiene acceso a `stic_FollowUps` todavía (la instancia
- * responde "The API user does not have access to this module"), así que los
- * nombres de campo de abajo son la convención documentada y NO están
- * comprobados contra la instancia. Encender algo cuyos nombres no he podido
- * verificar es la forma segura de romper una pantalla en producción.
+ * OJO CON UNA COSA: los nombres de campo de `sticpa_pl_seg_map()` son la
+ * convención documentada del módulo y no los pude comprobar contra la instancia
+ * (cuando lo intenté, la API respondía "does not have access to this module").
+ * Si al abrir la ficha de un monitor los seguimientos salen vacíos o el guardado
+ * falla, el problema es un nombre, y se corrige SIN TOCAR CÓDIGO con el filtro
+ * `sticpa_pl_seg_map`. Y si hay que apagarlo mientras se averigua:
  *
- * En cuanto se dé el acceso: se comprueban los nombres, se corrigen con el
- * filtro `sticpa_pl_seg_map` si hace falta, y se enciende con
- *
- *     add_filter('sticpa_pl_seguimientos_enabled', '__return_true');
+ *     add_filter('sticpa_pl_seguimientos_enabled', '__return_false');
  */
 function sticpa_pl_seguimientos_enabled()
 {
-    return (bool) apply_filters('sticpa_pl_seguimientos_enabled', false);
+    return (bool) apply_filters('sticpa_pl_seguimientos_enabled', true);
 }
 
 /**

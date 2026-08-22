@@ -171,8 +171,8 @@ Tres piezas, y la que importa es la primera:
   un único envío con toda la lista.
 - **Borrador en el móvil** a cada toque, y **cola de envío** si no hay red, con
   su aviso en la barra de guardado.
-- **Service worker** para poder abrir la pantalla ya sin cobertura, apagado por
-  defecto (`sticpa_pl_offline_enabled`). La caché va nombrada por usuario y se
+- **Service worker** para poder abrir la pantalla ya sin cobertura, encendido y
+  apagable con un filtro (`sticpa_pl_offline_enabled`). La caché va nombrada por usuario y se
   borra al cerrar sesión, porque lo que guarda son datos de menores.
 
 ### 5.5 Movimiento: las reglas que se siguen
