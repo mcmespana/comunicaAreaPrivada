@@ -1078,6 +1078,179 @@ a.pl-group .pl-name { display: block; }
 .pl-flag--yes { background: var(--success-50); color: var(--success-dark); }
 .pl-flag--no  { background: var(--gray-100); color: var(--gray-500, #6b7280); }
 
+/* ---- Avisos de comportamiento ------------------------------------------ */
+
+/* Una cabecera de sección con algo a la derecha. El título sigue siendo
+   `.pl-sec`, así que se le quita el hueco de abajo y lo pone la fila. */
+.pl-sec-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 1.2rem 0.25rem 0.55rem;
+}
+.pl-sec-row .pl-sec { padding: 0; min-width: 0; }
+
+/* La escala: un punto por aviso puesto y un hueco punteado por los que quedan.
+   Es el mismo dato que el «2 de 3» de al lado, pero se ve sin leer — y el rojo
+   del hueco final es lo que hace que el tercero se vea venir desde el primero. */
+.pl-avi-scale { display: inline-flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
+.pl-avi-pip {
+    width: 10px;
+    height: 10px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+}
+/* El hueco del último va con borde rojo punteado: es el que no quieres llenar. */
+.pl-avi-pip--free {
+    background: transparent;
+    border: 1.5px dashed var(--gray-300);
+}
+.pl-avi-pip--last { border-color: #dc2626; }
+/* El COLOR DE TEXTO sale de un token, no del hex de la escala: los hex fijos
+   son para los RELLENOS (los puntitos, los círculos), y como texto un naranja
+   oscuro se queda en 3,6:1 sobre la superficie oscura. `--warning-dark` es el
+   par de texto de este estado y se aclara solo en oscuro (§44.4). */
+.pl-avi-count {
+    padding-left: 0.2rem;
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: var(--warning-dark);
+}
+
+/* Cada aviso, con el filete de su nivel a la izquierda: se distingue un primer
+   aviso de un tercero sin leer el número. */
+.pl-avi {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.7rem;
+    padding: 0.8rem 1rem;
+    border-top: 1px solid var(--gray-100);
+    border-left: 3px solid var(--gray-300);
+}
+.pl-avi:first-child { border-top: 0; }
+
+.pl-avi-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    margin-top: 1px;
+    border-radius: var(--radius-full);
+    /* El color lo pone el PHP (`sticpa_pl_aviso_ink()`) según el relleno: sobre
+       el ámbar del primer aviso el blanco se queda en 2,2:1 y hace falta tinta
+       oscura. Relleno fijo, tinta fija: iguales en claro y en oscuro. */
+    font-size: 0.72rem;
+    font-weight: 800;
+    flex-shrink: 0;
+}
+
+.pl-avi-body { display: flex; flex-direction: column; gap: 0.2rem; flex-grow: 1; min-width: 0; }
+/* El motivo se lee ENTERO: es lo que se le va a contar a una familia, y no se
+   recorta con puntos suspensivos. */
+.pl-avi-text { font-size: 0.89rem; line-height: 1.4; }
+.pl-avi-meta { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.pl-avi-when { font-size: 0.73rem; color: var(--gray-400); }
+
+/* El chip de la familia: es el dato que se pregunta siempre, así que va en cada
+   aviso y no en un resumen arriba. */
+.pl-avi-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: var(--radius-full);
+    font-size: 0.66rem;
+    font-weight: 800;
+}
+.pl-avi-chip svg { width: 9px; height: 9px; flex-shrink: 0; }
+.pl-avi-chip--yes { background: var(--success-50); color: var(--success-dark); }
+.pl-avi-chip--no  { background: var(--warning-100); color: var(--warning-dark); }
+
+/* El recordatorio de que el siguiente es la salida. Va DEBAJO del último aviso
+   y antes del botón de añadir: se dice antes de poner el tercero, no después. */
+.pl-avi-warn {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.7rem 1rem;
+    border-top: 1px solid var(--gray-100);
+    background: var(--danger-soft);
+    font-size: 0.79rem;
+    line-height: 1.4;
+    color: var(--danger-dark);
+}
+.pl-avi-warn svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 0.1rem; }
+.pl-avi-warn strong { font-weight: 800; }
+
+.pl-avi-empty {
+    padding: 0.8rem 1rem;
+    font-size: 0.85rem;
+    color: var(--gray-500, #6b7280);
+}
+
+/* Añadir: naranja, no azul. No es una acción cualquiera de la ficha, es poner
+   un aviso — y el color lo dice antes de leer. */
+.pl-avi-add {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    width: 100%;
+    min-height: 46px;
+    padding: 0 1rem;
+    background: none;
+    border: 0;
+    border-top: 1px solid var(--gray-100);
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--warning-dark);      /* mismo motivo que .pl-avi-count */
+    cursor: pointer;
+}
+.pl-avi-add svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+/* El formulario sale oculto y lo abre el botón: poner un aviso no puede ser un
+   roce, igual que el pañuelo. */
+.pl-avi-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    padding: 0.9rem 1rem 1rem;
+    border-top: 1px solid var(--gray-100);
+    background: var(--surface-2);
+}
+.pl-avi-check {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-size: 0.87rem;
+    color: var(--gray-700, #374151);
+}
+.pl-avi-check input {
+    width: 22px;
+    height: 22px;
+    margin: 0;
+    flex-shrink: 0;
+    accent-color: var(--primary-color);
+}
+.pl-avi-submit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 46px;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: #c2410c;
+    color: var(--pl-on-brand);
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
 /* Pañuelo: se ve el actual, y cambiarlo cuesta dos toques a propósito. */
 .pl-panuelo {
     border-radius: var(--radius-lg);

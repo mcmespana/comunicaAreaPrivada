@@ -927,13 +927,41 @@
                 edit.setAttribute('aria-expanded', open ? 'true' : 'false');
             });
         }
+    }
 
-        Array.prototype.forEach.call(panuelo.querySelectorAll('[data-pl-confirm]'), function (btn) {
-            btn.addEventListener('click', function (ev) {
-                if (!window.confirm(btn.getAttribute('data-pl-confirm'))) {
-                    ev.preventDefault();
-                }
-            });
+    /* La confirmación es de DOCUMENTO y no de cada formulario: la usan el
+       pañuelo y los avisos, y dos manejadores iguales acaban siendo dos
+       comportamientos distintos en cuanto alguien toca uno. */
+    document.addEventListener('click', function (ev) {
+        var btn = ev.target.closest && ev.target.closest('[data-pl-confirm]');
+        if (!btn) { return; }
+        if (!window.confirm(btn.getAttribute('data-pl-confirm'))) {
+            ev.preventDefault();
+        }
+    });
+
+    /* =====================================================================
+     * Ficha: poner un aviso de comportamiento
+     * ---------------------------------------------------------------------
+     * El formulario sale oculto y lo abre el botón, igual que el pañuelo:
+     * poner un aviso no puede ser un roce. Sin JS se ve el formulario desde
+     * el principio, que es el peor caso aceptable — se puede usar.
+     * ===================================================================== */
+
+    var avisoAdd = document.querySelector('[data-pl-aviso-add]');
+    var avisoForm = document.querySelector('[data-pl-aviso-form]');
+    if (avisoAdd && avisoForm) {
+        avisoAdd.setAttribute('aria-expanded', 'false');
+        avisoAdd.addEventListener('click', function () {
+            var open = avisoForm.hidden;
+            avisoForm.hidden = !open;
+            avisoAdd.setAttribute('aria-expanded', open ? 'true' : 'false');
+            if (open) {
+                // El foco va al motivo: es el único campo obligatorio y el
+                // único por el que se abre esto.
+                var ta = avisoForm.querySelector('textarea');
+                if (ta) { ta.focus(); }
+            }
         });
     }
 }());

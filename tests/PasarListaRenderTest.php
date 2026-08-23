@@ -223,6 +223,35 @@ class FakeSCP
                 ));
 
             // Seguimientos de una persona (stic_FollowUps).
+            // Avisos de comportamiento. El módulo se crea a mano en el CRM, así
+            // que el doble es la única forma de probar la pantalla hasta que
+            // exista. Dos avisos de este curso y uno del curso pasado, que NO
+            // tiene que contar: el recuento «de 3» es del curso.
+            case 'Contacts:avi_avisos_contacts':
+                if ($p['module_id'] !== 'c1') {
+                    return array();
+                }
+                return array(
+                    // A propósito en orden inverso: el número sale de ordenar
+                    // por fecha, no del orden en que los devuelve el CRM.
+                    $this->nvl(array(
+                        'id' => 'av2', 'fecha' => '2025-12-13', 'motivo' => 'Faltas de respeto a una compañera',
+                        'ajmcm_puesto_por_c' => 'David Soler',
+                        'ajmcm_notificado_familia_c' => '0', 'ajmcm_notificado_el_c' => '',
+                    )),
+                    $this->nvl(array(
+                        'id' => 'av1', 'fecha' => '2025-11-08', 'motivo' => 'Se fue del local sin avisar',
+                        'ajmcm_puesto_por_c' => 'Mercedes',
+                        'ajmcm_notificado_familia_c' => '1', 'ajmcm_notificado_el_c' => '2025-11-09',
+                    )),
+                    // Curso 2024-2025: es historia, no cuenta.
+                    $this->nvl(array(
+                        'id' => 'av0', 'fecha' => '2025-02-10', 'motivo' => 'Del curso pasado',
+                        'ajmcm_puesto_por_c' => 'Alguien',
+                        'ajmcm_notificado_familia_c' => '1', 'ajmcm_notificado_el_c' => '',
+                    )),
+                );
+
             case 'Contacts:stic_followups_contacts':
                 $out = array();
                 foreach ($this->seguimientos as $i => $seg) {
@@ -763,6 +792,162 @@ final class PasarListaRenderTest extends TestCase
         // El ancho es un dato, así que va en línea, y con su etiqueta accesible.
         $this->assertMatchesRegularExpression('/pl-att-fill" style="width:\d+%/', $html);
         $this->assertStringContainsString('de asistencia', $html);
+    }
+
+    // ---- Avisos de comportamiento ----------------------------------------
+
+    /**
+     * Un registro por aviso, con su fecha y quién lo puso: es justo lo que las
+     * tres casillas de AppSheet no guardaban.
+     */
+    public function test_ficha_pinta_los_avisos_numerados_y_en_orden()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringContainsString('Avisos de comportamiento', $html);
+        // El número sale de ordenar por FECHA, no del orden del CRM: el doble
+        // los devuelve al revés a propósito.
+        $this->assertLessThan(
+            strpos($html, 'Faltas de respeto'),
+            strpos($html, 'Se fue del local'),
+            'el aviso más antiguo va primero'
+        );
+        // Y con el color de su nivel: ámbar el 1, naranja el 2.
+        $this->assertStringContainsString('#f59e0b', $html);
+        $this->assertStringContainsString('#c2410c', $html);
+        // Sobre el ámbar el número va en tinta oscura (con blanco eran 2,2:1);
+        // sobre el naranja, blanco. Relleno fijo, tinta fija.
+        $this->assertStringContainsString('background:#f59e0b;color:#451a03', $html);
+        $this->assertStringContainsString('background:#c2410c;color:#fff', $html);
+        // El quién y el cuándo, en la línea gris.
+        $this->assertStringContainsString('lo puso Mercedes', $html);
+        // El chip de la familia, uno de cada.
+        $this->assertStringContainsString('Familia avisada', $html);
+        $this->assertStringContainsString('Familia sin avisar', $html);
+    }
+
+    /** El recuento es DEL CURSO: un aviso del curso pasado no suma. */
+    public function test_ficha_avisos_no_cuenta_los_de_otro_curso()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringContainsString('2 de 3', $html);
+        $this->assertStringNotContainsString('Del curso pasado', $html);
+    }
+
+    /**
+     * Con dos de tres puestos, se avisa ANTES de poner el tercero: decirlo
+     * después no sirve de nada.
+     */
+    public function test_ficha_avisos_avisa_de_que_el_tercero_es_la_salida()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringContainsString('implica la salida del grupo', $html);
+        $this->assertStringContainsString('pl-avi-warn', $html);
+        // Va DEBAJO del último aviso y ANTES del botón de añadir.
+        $this->assertLessThan(strpos($html, 'Añadir un aviso'), strpos($html, 'pl-avi-warn'));
+    }
+
+    /** El formulario sale oculto y con confirmación: poner un aviso no es un roce. */
+    public function test_ficha_avisos_formulario_oculto_y_con_confirmacion()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringContainsString('data-pl-aviso-form hidden', $html);
+        $this->assertStringContainsString('data-pl-confirm', $html);
+    }
+
+    public function test_ficha_registra_un_aviso()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $_POST = array(
+            'pl_nonce' => wp_create_nonce('pl_ficha_c1'),
+            'pl_aviso_motivo' => 'Tiró una silla',
+            'pl_aviso_fecha' => '2025-11-15',
+            'pl_aviso_notificado' => '1',
+        );
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringContainsString('Aviso registrado', $html);
+        $writes = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'AVI_avisos';
+        }));
+        $this->assertCount(1, $writes);
+        $this->assertSame('Tiró una silla', $writes[0]['data']['motivo']);
+        $this->assertSame('2025-11-15', $writes[0]['data']['fecha']);
+        $this->assertSame('1', $writes[0]['data']['ajmcm_notificado_familia_c']);
+        // Marcar "ya he hablado con la familia" pone también el CUÁNDO: sin él
+        // el chip diría "avisada" sin poder decir desde cuándo.
+        $this->assertArrayHasKey('ajmcm_notificado_el_c', $writes[0]['data']);
+        // Y queda relacionado con la persona, que es la única relación real.
+        $rels = array_values(array_filter($this->scp->relationships, function ($r) {
+            return $r['link'] === 'avi_avisos_contacts';
+        }));
+        $this->assertCount(1, $rels);
+        $this->assertSame(array('c1'), $rels[0]['ids']);
+    }
+
+    /** Sin motivo no hay aviso: un aviso vacío no le sirve a nadie. */
+    public function test_ficha_no_registra_un_aviso_sin_motivo()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $_POST = array(
+            'pl_nonce' => wp_create_nonce('pl_ficha_c1'),
+            'pl_aviso_motivo' => '   ',
+        );
+        $this->render('single_stic_pasar_lista_ficha');
+
+        $writes = array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'AVI_avisos';
+        });
+        $this->assertCount(0, $writes);
+    }
+
+    /** Sin nonce no se escribe: un enlace de fuera no pone avisos a nadie. */
+    public function test_ficha_no_registra_un_aviso_sin_nonce()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $_POST = array('pl_aviso_motivo' => 'Sin nonce');
+        $this->render('single_stic_pasar_lista_ficha');
+
+        $writes = array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'AVI_avisos';
+        });
+        $this->assertCount(0, $writes);
+    }
+
+    /** Una fecha en el futuro se recorta a hoy: el dedo falla en un móvil. */
+    public function test_ficha_un_aviso_no_se_pone_en_el_futuro()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $_POST = array(
+            'pl_nonce' => wp_create_nonce('pl_ficha_c1'),
+            'pl_aviso_motivo' => 'Algo',
+            'pl_aviso_fecha' => '2099-01-01',
+        );
+        $this->render('single_stic_pasar_lista_ficha');
+
+        $writes = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'AVI_avisos';
+        }));
+        $this->assertCount(1, $writes);
+        $this->assertSame('2025-11-15', $writes[0]['data']['fecha']);
+    }
+
+    /** Apagado el módulo, la sección no existe y no se consulta. */
+    public function test_ficha_sin_modulo_de_avisos_no_pinta_la_seccion()
+    {
+        $GLOBALS['__stic_filters']['sticpa_pl_avisos_enabled'] = false;
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringNotContainsString('Avisos de comportamiento', $html);
+        $this->assertNotContains('Contacts:avi_avisos_contacts', $this->scp->calls);
     }
 
     public function test_ficha_respeta_el_permiso_de_whatsapp_del_menor()

@@ -1268,6 +1268,272 @@ function sticpa_pl_contact_marks($objSCP, $registrationId)
     return $marks;
 }
 
+// ---------------------------------------------------------------------------
+// Avisos de comportamiento (AVI_avisos)
+// ---------------------------------------------------------------------------
+
+/**
+ * Los nombres del módulo de avisos, en UN sitio.
+ *
+ * El módulo se crea a mano en SuiteCRM, así que hasta que exista esto es lo
+ * único que hay que tocar si algún nombre acaba siendo distinto. Salen de
+ * `docs/comunica/PASAR-LISTA-CAMPOS-CRM.md` §6, que es la especificación con la
+ * que se va a crear.
+ *
+ * ⚠️ `f_puesto_por_id` es el ÚNICO nombre que no está en la especificación: un
+ * campo relate de SuiteCRM guarda el id en un campo aparte, y cómo se llame
+ * depende del `id_name` que le ponga quien cree el campo. Se escriben los dos
+ * (el relate y el id) porque la API IGNORA las claves que no conoce, así que la
+ * que exista es la que entra y la otra no hace nada. En cuanto el módulo esté,
+ * se confirma con `get_module_fields` y se deja solo la buena.
+ */
+function sticpa_pl_avi_map()
+{
+    return apply_filters('sticpa_pl_avi_map', array(
+        'module' => 'AVI_avisos',
+        'link_contacts' => 'avi_avisos_contacts',
+        'f_name' => 'name',
+        'f_date' => 'fecha',
+        'f_motivo' => 'motivo',
+        'f_puesto_por' => 'ajmcm_puesto_por_c',
+        'f_puesto_por_id' => 'ajmcm_puesto_por_c_id',
+        'f_sesion' => 'ajmcm_sesion_c',
+        'f_notificado' => 'ajmcm_notificado_familia_c',
+        'f_notificado_el' => 'ajmcm_notificado_el_c',
+    ));
+}
+
+/**
+ * Si el módulo de avisos está disponible.
+ *
+ * Se puede apagar por delegación con el filtro. Mientras el módulo no exista en
+ * el CRM, `sticpa_pl_avisos()` vuelve vacío por sí solo (la API no encuentra el
+ * enlace y no devuelve filas), así que la ficha no se rompe: simplemente no
+ * enseña la sección. Poner el filtro en `false` ahorra además la consulta.
+ */
+function sticpa_pl_avisos_enabled()
+{
+    return (bool) apply_filters('sticpa_pl_avisos_enabled', true);
+}
+
+/**
+ * Cuántos avisos hacen falta para salir del grupo. Filtrable por delegación.
+ */
+function sticpa_pl_avisos_limite()
+{
+    return max(1, (int) apply_filters('sticpa_pl_avisos_limite', 3));
+}
+
+/**
+ * El color de cada aviso según su NÚMERO. La escala sube: el tercero es la
+ * salida del grupo y se tiene que ver venir desde el primero.
+ *
+ * Son hex fijos y a propósito: no son colores de marca ni de estado, son una
+ * escala de gravedad propia de esta sección, y tienen que ser los mismos en
+ * claro y en oscuro para que "el naranja" signifique siempre lo mismo.
+ * (`docs/comunica/PASAR-LISTA-CAMPOS-CRM.md` §6.)
+ */
+function sticpa_pl_aviso_color($num)
+{
+    // El naranja del 2 es #c2410c y no el #ea580c de la especificación: con
+    // #ea580c el número blanco de dentro del círculo se quedaba en 3,6:1, por
+    // debajo del AA que necesita un texto pequeño. #c2410c lo sube a 5,2:1 y a
+    // ojo es el mismo naranja. La progresión ámbar → naranja → rojo no cambia.
+    $escala = apply_filters('sticpa_pl_aviso_escala', array('#f59e0b', '#c2410c', '#dc2626'));
+    $num = (int) $num;
+    if ($num < 1) {
+        return $escala[0];
+    }
+    // Por encima del último tramo se queda en el último: un cuarto aviso no
+    // necesita un color nuevo, ya está en lo más grave.
+    $i = min($num, count($escala)) - 1;
+    return $escala[$i];
+}
+
+/**
+ * El color del NÚMERO que va dentro del círculo de un aviso.
+ *
+ * Sobre el ámbar el blanco se queda en 2,2:1 —ilegible—, así que ahí el número
+ * va en marrón oscuro (7,0:1). Sobre el naranja y el rojo, blanco (5,2:1). El relleno
+ * es un hex fijo, así que el texto de encima también: los dos tienen que ser
+ * iguales en claro y en oscuro.
+ */
+function sticpa_pl_aviso_ink($num)
+{
+    // Solo el primer tramo es claro; del segundo en adelante el relleno ya es
+    // oscuro y aguanta el blanco.
+    return ((int) $num <= 1) ? '#451a03' : '#fff';
+}
+
+/**
+ * Los avisos de un participante EN EL CURSO ACTUAL, numerados.
+ *
+ * El número (1, 2, 3) NO se guarda: sale de ordenar por fecha y contar. Es lo
+ * que hace que retirar el aviso de en medio renumere los siguientes en vez de
+ * dejar un participante con un «1» y un «3» y ningún «2».
+ *
+ * El curso se filtra por fecha, que es también por lo que el módulo no lleva
+ * campo de curso: al cambiar de curso los avisos no se borran, se quedan atrás.
+ */
+function sticpa_pl_avisos($objSCP, $contactId)
+{
+    if (!sticpa_pl_avisos_enabled()) {
+        return array();
+    }
+    $contactId = sticpa_pl_safe_id($contactId);
+    if ($contactId === '') {
+        return array();
+    }
+
+    $map = sticpa_pl_avi_map();
+    $rows = $objSCP->getRelatedElementsForLoggedUser(array(
+        'module_name' => 'Contacts',
+        'module_id' => $contactId,
+        'link_field_name' => $map['link_contacts'],
+        'related_fields' => array(
+            'id',
+            $map['f_name'],
+            $map['f_date'],
+            $map['f_motivo'],
+            $map['f_puesto_por'],
+            $map['f_notificado'],
+            $map['f_notificado_el'],
+            'date_entered',
+        ),
+        'related_module_link_name_to_fields_array' => array(),
+        'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
+    ));
+
+    $course = sticpa_pl_course_for();
+    $out = array();
+    if (is_array($rows)) {
+        foreach ($rows as $row) {
+            $v = isset($row->name_value_list) ? $row->name_value_list : null;
+            if (!$v || empty($v->id->value)) {
+                continue;
+            }
+            // La fecha es obligatoria en el módulo, pero si viniera vacía se
+            // cae a la de creación antes que descartar el aviso: un aviso sin
+            // fecha sigue siendo un aviso, y esconderlo es lo peor que se
+            // puede hacer con él.
+            $raw = isset($v->{$map['f_date']}->value) ? (string) $v->{$map['f_date']}->value : '';
+            if ($raw === '' && isset($v->date_entered->value)) {
+                $raw = (string) $v->date_entered->value;
+            }
+            $ts = sticpa_pl_ts($raw);
+            if (!$ts) {
+                continue;
+            }
+            if ($ts < $course['start'] || $ts > $course['end']) {
+                continue;   // de otro curso: es historia, no el recuento de hoy
+            }
+
+            $notif = isset($v->{$map['f_notificado']}->value) ? (string) $v->{$map['f_notificado']}->value : '';
+            $out[] = array(
+                'id' => $v->id->value,
+                'ts' => $ts,
+                'motivo' => isset($v->{$map['f_motivo']}->value) ? trim((string) $v->{$map['f_motivo']}->value) : '',
+                'puesto_por' => isset($v->{$map['f_puesto_por']}->value) ? trim((string) $v->{$map['f_puesto_por']}->value) : '',
+                'notificado' => ($notif === '1' || $notif === 'on' || $notif === 'true'),
+                'notificado_el' => isset($v->{$map['f_notificado_el']}->value) ? (string) $v->{$map['f_notificado_el']}->value : '',
+            );
+        }
+    }
+
+    // Por fecha ascendente: el 1 es el más antiguo del curso.
+    usort($out, function ($a, $b) {
+        if ($a['ts'] === $b['ts']) {
+            return strcmp($a['id'], $b['id']);   // orden estable
+        }
+        return ($a['ts'] < $b['ts']) ? -1 : 1;
+    });
+
+    $n = 0;
+    foreach ($out as $i => $row) {
+        $n++;
+        $out[$i]['num'] = $n;
+        $out[$i]['color'] = sticpa_pl_aviso_color($n);
+        $out[$i]['ink'] = sticpa_pl_aviso_ink($n);
+    }
+
+    return $out;
+}
+
+/**
+ * Pone un aviso a un participante.
+ *
+ * `$sessionId` es opcional: un aviso puede venir de una sesión concreta o de
+ * cualquier otro momento (una salida, un grupo de WhatsApp), y forzar una
+ * sesión obligaría a inventarse una.
+ */
+function sticpa_pl_create_aviso($objSCP, $contactId, $motivo, $date = '', $notificado = false, $sessionId = '')
+{
+    if (!sticpa_pl_avisos_enabled()) {
+        return false;
+    }
+    $contactId = sticpa_pl_safe_id($contactId);
+    $motivo = trim((string) $motivo);
+    if ($contactId === '' || $motivo === '') {
+        return false;   // un aviso sin motivo no sirve de nada a nadie
+    }
+
+    $map = sticpa_pl_avi_map();
+    $ts = strtotime((string) $date . ' 12:00:00');
+    if (!$ts) {
+        $ts = sticpa_pl_now();
+    }
+    // Un aviso no se pone en el futuro: la fecha viene de un <input type=date>
+    // y un dedo en el móvil acierta el mes de al lado con facilidad.
+    $now = sticpa_pl_now();
+    if ($ts > $now) {
+        $ts = $now;
+    }
+
+    $who = isset($_SESSION['scp_user_id']) ? (string) $_SESSION['scp_user_id'] : '';
+    $whoName = isset($_SESSION['scp_user_contact_name']) ? (string) $_SESSION['scp_user_contact_name'] : '';
+
+    $payload = array(
+        // El título lo pone el sistema: quien escribe teclea el motivo, no un
+        // asunto. La especificación ya dice que `name` puede quedar vacío, pero
+        // un registro sin título es ilegible en las listas del CRM.
+        $map['f_name'] => sprintf(
+            /* translators: %s: fecha del aviso */
+            __('Aviso · %s', 'sticpa'),
+            date('Y-m-d', $ts)
+        ),
+        $map['f_date'] => date('Y-m-d', $ts),
+        $map['f_motivo'] => $motivo,
+        $map['f_notificado'] => $notificado ? '1' : '0',
+        'assigned_user_id' => sticpa_pl_delegation($objSCP),
+    );
+    if ($notificado) {
+        // Si se marca que ya se ha hablado con la familia, el «cuándo» es hoy:
+        // es cuando se está diciendo. Sin esto el chip diría "avisada" sin
+        // poder decir desde cuándo, que es la mitad del dato.
+        $payload[$map['f_notificado_el']] = date('Y-m-d', $now);
+    }
+    if ($who !== '') {
+        // Los dos nombres del relate: la API ignora la clave que no exista.
+        $payload[$map['f_puesto_por_id']] = $who;
+        if ($whoName !== '') {
+            $payload[$map['f_puesto_por']] = $whoName;
+        }
+    }
+    $sessionId = sticpa_pl_safe_id($sessionId);
+    if ($sessionId !== '') {
+        $payload[$map['f_sesion']] = $sessionId;
+    }
+
+    $id = $objSCP->set_entry($map['module'], $payload);
+    if (!$id) {
+        return false;
+    }
+    // La única relación de verdad del módulo: el aviso es de UNA persona.
+    $objSCP->set_relationship($map['module'], $id, $map['link_contacts'], array($contactId));
+    sticpa_pl_flush($objSCP, 'state');
+    return true;
+}
+
 /**
  * Cambia el pañuelo de un participante.
  *

@@ -220,6 +220,16 @@ no lo van a usar.
 Los «Aviso 1 / 2 / 3» de la app de AppSheet eran tres casillas en la persona
 que sumaban 0-3, más una explicación común. **Se hace módulo**, decidido.
 
+> **Estado: el área privada ya está montada contra esta especificación.** La
+> ficha lee, numera y pinta los avisos, y tiene el formulario para poner uno.
+> Falta crear el módulo en SuiteCRM. Mientras no exista, la API no encuentra el
+> enlace y `sticpa_pl_avisos()` vuelve vacío: la sección sale con «Ningún aviso
+> este curso» y la ficha no se rompe. Con el filtro
+> `sticpa_pl_avisos_enabled` en `false` la sección desaparece y no se consulta.
+>
+> Todos los nombres del módulo están en **`sticpa_pl_avi_map()`**, en un solo
+> sitio: si alguno acaba llamándose distinto, se toca ahí y nada más.
+
 Tres booleanos no guardan cuándo pasó ni quién lo puso, que es justo lo que
 hace falta cuando un aviso se discute con la familia. Y no se pueden limpiar al
 cambiar de curso sin borrar la historia.
@@ -251,6 +261,7 @@ detalle del contacto con dos paneles de avisos que significan cosas distintas.
 | `motivo` | Área de texto | ✅ | Qué pasó, en palabras del monitor |
 | `avi_avisos_contacts` | Relación 1:N | ✅ | El participante |
 | `ajmcm_puesto_por_c` | Relate → `Contacts` | ✅ | El monitor que lo pone |
+| `ajmcm_puesto_por_c_id` | (el `id_name` del relate) | — | ⚠️ **A confirmar al crear el módulo.** Un relate de SuiteCRM guarda el id en un campo aparte, y cómo se llame depende de lo que ponga quien cree el campo. El código escribe los dos nombres y la API ignora el que no exista, así que funciona igual; en cuanto el módulo esté, se mira con `get_module_fields` y se deja solo el bueno en `sticpa_pl_avi_map()` |
 | `ajmcm_sesion_c` | Relate → `stic_Sessions` | — | La sesión, si pasó en una |
 | `ajmcm_notificado_familia_c` | Casilla | — | **Si se ha hablado con la familia** |
 | `ajmcm_notificado_el_c` | Fecha | — | Cuándo se le dijo |
@@ -270,8 +281,27 @@ El tercer aviso es la salida del grupo, así que se ve venir:
 | | Color | |
 |---|---|---|
 | Aviso 1 | ámbar `#f59e0b` | «ojo» |
-| Aviso 2 | naranja `#ea580c` | «esto va en serio» |
+| Aviso 2 | naranja `#c2410c` | «esto va en serio» |
 | Aviso 3 | rojo `#dc2626` | expulsión |
+
+> **Dos cambios respecto a lo que decía antes esta tabla, los dos por
+> contraste** (medidos, no estimados):
+>
+> - El naranja del aviso 2 era `#ea580c`. Con el número blanco dentro del
+>   círculo se quedaba en **3,6:1**, por debajo del 4,5:1 que necesita un texto
+>   pequeño. `#c2410c` lo sube a **5,2:1** y a ojo es el mismo naranja.
+> - El número del aviso 1 **no va en blanco**: sobre el ámbar daba 2,2:1. Va en
+>   `#451a03` (7,0:1). Lo decide `sticpa_pl_aviso_ink()`, no el CSS, porque
+>   depende del relleno.
+>
+> Los hex de la escala son **rellenos** y por eso son fijos e iguales en claro y
+> en oscuro: «el naranja» tiene que significar siempre lo mismo. El texto
+> naranja de la cabecera («2 de 3») y del botón de añadir NO son fijos: salen de
+> `--warning-dark`, que es el par de texto de este estado y se aclara solo en
+> oscuro (§44.4 del sistema de diseño). Mezclarlo era dejar el botón en 3,5:1.
+>
+> La escala se puede cambiar sin tocar código con el filtro
+> `sticpa_pl_aviso_escala`, y el límite de 3 con `sticpa_pl_avisos_limite`.
 
 Los puntitos «2 de 3» de la cabecera usan los mismos colores, y el hueco del
 tercero va con borde rojo punteado. Debajo del segundo aviso, un aviso en rojo
