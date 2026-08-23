@@ -223,10 +223,11 @@ class FakeSCP
                 ));
 
             // Seguimientos de una persona (stic_FollowUps).
-            // Avisos de comportamiento. El módulo se crea a mano en el CRM, así
-            // que el doble es la única forma de probar la pantalla hasta que
-            // exista. Dos avisos de este curso y uno del curso pasado, que NO
-            // tiene que contar: el recuento «de 3» es del curso.
+            // Avisos de comportamiento. Módulo verificado contra el CRM con
+            // get_module_fields: existe, y `ajmcm_notificado_el_c` de la
+            // especificación NO se creó (solo el booleano). Dos avisos de este
+            // curso y uno del curso pasado, que NO tiene que contar: el
+            // recuento «de 3» es del curso.
             case 'Contacts:avi_avisos_contacts':
                 if ($p['module_id'] !== 'c1') {
                     return array();
@@ -237,18 +238,18 @@ class FakeSCP
                     $this->nvl(array(
                         'id' => 'av2', 'fecha' => '2025-12-13', 'motivo' => 'Faltas de respeto a una compañera',
                         'ajmcm_puesto_por_c' => 'David Soler',
-                        'ajmcm_notificado_familia_c' => '0', 'ajmcm_notificado_el_c' => '',
+                        'ajmcm_notificado_familia_c' => '0',
                     )),
                     $this->nvl(array(
                         'id' => 'av1', 'fecha' => '2025-11-08', 'motivo' => 'Se fue del local sin avisar',
                         'ajmcm_puesto_por_c' => 'Mercedes',
-                        'ajmcm_notificado_familia_c' => '1', 'ajmcm_notificado_el_c' => '2025-11-09',
+                        'ajmcm_notificado_familia_c' => '1',
                     )),
                     // Curso 2024-2025: es historia, no cuenta.
                     $this->nvl(array(
                         'id' => 'av0', 'fecha' => '2025-02-10', 'motivo' => 'Del curso pasado',
                         'ajmcm_puesto_por_c' => 'Alguien',
-                        'ajmcm_notificado_familia_c' => '1', 'ajmcm_notificado_el_c' => '',
+                        'ajmcm_notificado_familia_c' => '1',
                     )),
                 );
 
@@ -881,15 +882,20 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame('Tiró una silla', $writes[0]['data']['motivo']);
         $this->assertSame('2025-11-15', $writes[0]['data']['fecha']);
         $this->assertSame('1', $writes[0]['data']['ajmcm_notificado_familia_c']);
-        // Marcar "ya he hablado con la familia" pone también el CUÁNDO: sin él
-        // el chip diría "avisada" sin poder decir desde cuándo.
-        $this->assertArrayHasKey('ajmcm_notificado_el_c', $writes[0]['data']);
+        // `ajmcm_notificado_el_c` (cuándo se avisó) NO se escribe: verificado
+        // contra el CRM que ese campo de la especificación no se creó, solo el
+        // booleano. Escribir una clave que no existe la ignora la API en
+        // silencio, así que aquí se comprueba que el código ni lo intenta.
+        $this->assertArrayNotHasKey('ajmcm_notificado_el_c', $writes[0]['data']);
         // Y queda relacionado con la persona, que es la única relación real.
         $rels = array_values(array_filter($this->scp->relationships, function ($r) {
             return $r['link'] === 'avi_avisos_contacts';
         }));
         $this->assertCount(1, $rels);
         $this->assertSame(array('c1'), $rels[0]['ids']);
+        // Y el campo que fija la relación con el monitor es `contact_id_c`
+        // (confirmado con get_module_fields), no una suposición.
+        $this->assertSame('m1', $writes[0]['data']['contact_id_c']);
     }
 
     /** Sin motivo no hay aviso: un aviso vacío no le sirve a nadie. */
