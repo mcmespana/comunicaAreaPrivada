@@ -2,11 +2,15 @@
 
 **Qué falta y por qué merece la pena.** Documento de decisión.
 
-> **Estado: el rellenador ya está hecho** — es la tarea `recuentos-grupos` del
-> [Guardián Nocturno](GUARDIAN-NOCTURNO.md), que pasa cada noche a la 1:30.
-> Se eligió la **opción B** (§4). Lo que falta es **crear los cuatro campos** de
-> §3 en `ajmcm_GRUPOS`; hasta entonces la tarea no escribe y dice qué falta.
-> El lado de leerlos en el área privada (§5) sigue sin hacer.
+> **Estado: los cuatro campos ya existen, verificados con `get_module_fields`
+> (23/08)** — `ajmcm_n_participantes_c` (entero), `ajmcm_n_monitores_c`
+> (entero), `ajmcm_monitores_c` (texto 255) y `ajmcm_recuento_al_c`
+> (fecha y hora), con los nombres exactos de §3. El rellenador ya está hecho —
+> es la tarea `recuentos-grupos` del [Guardián Nocturno](GUARDIAN-NOCTURNO.md),
+> que pasa cada noche a la 1:30 (opción B, §4) — y en cuanto ese workflow se
+> mergee escribirá de verdad la primera noche. **Lo que sigue sin hacer es el
+> lado de leerlos en el área privada (§5)**: el árbol y el resumen todavía no
+> los usan.
 
 Relacionado: [`PASAR-LISTA.md`](PASAR-LISTA.md) (diseño) ·
 [`PASAR-LISTA-CAMPOS-CRM.md`](PASAR-LISTA-CAMPOS-CRM.md) (campos) ·
