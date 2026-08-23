@@ -293,8 +293,33 @@ pantalla y no una falta.
 - **El aviso de faltas seguidas solo si son consecutivas.** Tres faltas
   repartidas en el curso no dicen nada; tres seguidas sí. El umbral es
   `seguidas >= 3`.
+  Se calcula **por sesión, no por persona**: se piden las asistencias de las
+  últimas 3 sesiones celebradas (`sticpa_pl_group_streaks()`), que son tres
+  llamadas tanto para un grupo de 8 como de 30. Preguntar el histórico de cada
+  participante serían once llamadas al abrir la pantalla más usada, y un aviso
+  no se paga con eso. El resultado se cachea con el TTL de estado y se tira al
+  guardar, porque guardar una lista puede romper o alargar una racha.
+  No se mira más atrás del umbral a propósito: el aviso salta al llegar a tres,
+  y saber que van cinco no cambia lo que hay que hacer.
 - **Sin porcentajes por niño en esta pantalla.** Era ruido mientras marcas; su
   sitio es la ficha. Se queda solo el aviso de faltas seguidas, que sí es señal.
+- **El selector de otra fecha es un `<select>` NATIVO** en la cabecera, no un
+  viaje a otra pantalla. Se decidió así porque el 99 % de los usos es móvil: el
+  desplegable nativo es una rueda a pulgar, se abre pegado al dedo, tiene
+  búsqueda por teclado y no cuesta ni una pantalla ni una consulta más. Antes
+  había que ir al árbol, elegir el día y volver: cuatro toques para pasar la
+  lista del sábado pasado.
+  Cada opción es **«número · fecha corta»** — `3 · 15 nov` — porque el número es
+  como se habla de una sesión («la tercera») y la fecha es como se comprueba que
+  es la que toca; las dos juntas caben de sobra. El número es la posición en el
+  curso, así que «la 3» es la 3 para todo el mundo y no cambia según lo que haya
+  en pantalla. Van de la más reciente a la más antigua, y **las que aún no han
+  llegado no se ofrecen**: no se pasa lista del futuro.
+  Con **una sola** sesión celebrada no se pinta desplegable, solo el dato: un
+  control con una única opción es un control que engaña.
+  El **historial con el estado de cada lista** sigue en el árbol
+  (`?grupo=…&sesiones=1`), que es donde tiene sentido verlo entero — eso no cabe
+  en un desplegable.
 - **Guardar es explícito**, con la barra fija abajo y el contador vivo encima.
 - **«Sin registro»** al final, discreto: marca la sesión de ese grupo como
   omitida y **deja de avisar**. Cubre tanto «no hubo reunión» como «se me olvidó

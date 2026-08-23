@@ -77,25 +77,50 @@ if ($mainGroupId !== '') {
         $estados = sticpa_pl_lista_estados();
         $done = ($lista !== null && $lista['estado'] === $estados['pasada']);
 
+        // El recuento de participantes sale de la misma consulta que ya usa la
+        // pantalla de marcado, y está cacheada con el TTL de estructura: en la
+        // home no cuesta una llamada nueva salvo la primera vez del día.
+        $heroPeople = sticpa_pl_group_people($objSCP, $mainGroupId);
+
         $html .= '<div class="pl-hero' . ($done ? ' pl-hero--done' : '') . '">';
-        $html .= '<div class="pl-hero-when">' . esc_html(sticpa_pl_session_label($session)) . '</div>';
+
+        // Arriba, dos cosas y en este orden: a la izquierda el CUÁNDO en
+        // relativo («Hoy») y el grupo; a la derecha la cápsula de fecha del
+        // §11 del sistema de diseño, que es cómo se dice un día en toda el
+        // área. La pastilla contesta "¿voy a tiempo?" y la cápsula "¿qué día?".
+        $html .= '<div class="pl-hero-top">';
+        $html .= '<div class="pl-hero-main">';
+        $html .= '<span class="pl-hero-when">' . esc_html(sticpa_pl_when_pill($pick, $done)) . '</span>';
         $html .= '<div class="pl-hero-group">' . esc_html($group['code'])
             . ($group['name'] !== '' ? ' · ' . esc_html($group['name']) : '') . '</div>';
 
+        // La línea de datos: sin etiquetas, separada por puntos. Curso, hora y
+        // cuánta gente hay, que es lo que se comprueba de un vistazo antes de
+        // entrar. Cuando ya está pasada, el recuento sustituye a la hora: lo
+        // que se quiere saber entonces es el resultado, no cuándo empezaba.
+        $meta = array();
+        if ($group['cursos'] !== '') {
+            $meta[] = $group['cursos'];
+        }
         if ($done) {
-            $html .= '<div class="pl-hero-meta">' . esc_html(sprintf(
+            $meta[] = sprintf(
                 /* translators: 1: cuántos vinieron, 2: cuántas ausencias */
-                __('Ya pasada · %1$d vinieron, %2$d ausencias', 'sticpa'),
+                __('%1$d vinieron, %2$d ausencias', 'sticpa'),
                 $lista['n_asistieron'],
                 $lista['n_faltaron']
-            )) . '</div>';
-        } elseif ($pick['why'] === 'today_before') {
-            $html .= '<div class="pl-hero-meta">' . esc_html(sprintf(
-                /* translators: %s: hora de inicio de la sesión */
-                __('Empieza a las %s', 'sticpa'),
-                date_i18n('H:i', (int) $session['start'])
-            )) . '</div>';
+            );
+        } else {
+            $meta[] = date_i18n('H:i', (int) $session['start']);
+            $meta[] = sprintf(
+                /* translators: %d: número de participantes del grupo */
+                _n('%d participante', '%d participantes', count($heroPeople['participants']), 'sticpa'),
+                count($heroPeople['participants'])
+            );
         }
+        $html .= '<div class="pl-hero-meta">' . esc_html(implode(' · ', $meta)) . '</div>';
+        $html .= '</div>';
+        $html .= sticpa_pl_date_capsule($session['start'], 'pl-hero-date');
+        $html .= '</div>';
 
         $html .= '<a class="pl-hero-cta" href="?internalpage=single_stic_pasar_lista_marcar&grupo='
             . esc_attr($mainGroupId) . '&sesion=' . esc_attr($session['id']) . '">'
@@ -136,20 +161,31 @@ foreach ($myGroups as $gid) {
 }
 
 if (!empty($pending)) {
-    $html .= '<div class="pl-etapa-title">'
-        . '<span class="pl-etapa-dot" style="background:var(--warning-color)"></span>'
-        . esc_html__('Te falta pasar', 'sticpa') . '</div>';
-    $html .= '<div class="pl-list">';
+    // Esto no es una sección más del árbol: es una deuda. Va en ámbar, con el
+    // triángulo de aviso en el título y con el número por delante —«Te faltan
+    // 2 listas» dice de un golpe cuánto hay que hacer—, y cada fila lleva su
+    // propio botón «Recuperar» en vez de una flecha: la acción no es mirar,
+    // es arreglar.
+    $html .= '<div class="pl-etapa-title pl-etapa-title--warn">'
+        . sticpa_pl_icon('warn')
+        . esc_html(sprintf(
+            /* translators: %d: número de listas sin pasar */
+            _n('Te falta %d lista', 'Te faltan %d listas', count($pending), 'sticpa'),
+            count($pending)
+        )) . '</div>';
+    $html .= '<div class="pl-pending">';
     foreach ($pending as $row) {
-        $html .= '<a class="pl-group" href="?internalpage=single_stic_pasar_lista_marcar&grupo='
+        $html .= '<a class="pl-pending-row" href="?internalpage=single_stic_pasar_lista_marcar&grupo='
             . esc_attr($row['id']) . '&sesion=' . esc_attr($row['session']['id']) . '">';
-        $html .= '<span class="pl-group-body">';
-        $html .= '<span class="pl-name">' . esc_html($row['group']['code'])
+        $html .= '<span class="pl-pending-body">';
+        // La fecha primero y el grupo debajo: lo que falta es un DÍA, y el
+        // grupo es el detalle de qué día.
+        $html .= '<span class="pl-pending-when">'
+            . esc_html(sticpa_pl_session_label($row['session'], false)) . '</span>';
+        $html .= '<span class="pl-pending-group">' . esc_html($row['group']['code'])
             . ($row['group']['name'] !== '' ? ' · ' . esc_html($row['group']['name']) : '') . '</span>';
-        $html .= '<span class="pl-group-meta">' . esc_html(sticpa_pl_session_label($row['session'], false)) . '</span>';
         $html .= '</span>';
-        $html .= '<span class="pl-done pl-done--no"></span>';
-        $html .= '<span class="pl-detail">' . sticpa_pl_icon('next') . '</span>';
+        $html .= '<span class="pl-pending-cta">' . esc_html__('Recuperar', 'sticpa') . '</span>';
         $html .= '</a>';
     }
     $html .= '</div>';

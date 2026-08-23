@@ -45,7 +45,7 @@ if ($wantSessions && $groupId !== '' && isset($groups[$groupId])) {
         $html .= '<span class="pl-title-name">' . esc_html($group['name']) . '</span>';
     }
     $html .= '</div>';
-    $html .= '<div class="pl-subtitle">' . esc_html__('Elige la sesión', 'sticpa') . '</div>';
+    $html .= '<div class="pl-subtitle">' . esc_html__('Historial de listas', 'sticpa') . '</div>';
     $html .= '</div>';
 
     // Solo las sesiones ya celebradas, de la más reciente a la más antigua: se
@@ -142,6 +142,67 @@ foreach ($groups as $id => $g) {
 // El color del punto de cada etapa: los mismos del resumen.
 $etapaDots = array('MIC' => 'var(--danger-color)', 'COM' => 'var(--success-color)', 'LC' => 'var(--primary-color)');
 
+/* El estado de la ÚLTIMA lista de cada grupo. Sin esto el árbol es una lista de
+ * nombres y no dice lo único que se quiere saber al entrar: de qué grupo falta.
+ *
+ * Es UNA consulta por etapa, no una por grupo: `sticpa_pl_listas_by_session()`
+ * con límite 1 trae las listas de todos los grupos de esa sesión de golpe. Tres
+ * etapas, tres llamadas, y las mismas tanto para 5 grupos como para 30. */
+$lastMarks = array();
+foreach ($events as $etapaKey => $event) {
+    // Los grupos de ESTA etapa, los tuyos incluidos: "tu grupo" se pinta aparte
+    // y arriba, pero el círculo de estado es el mismo dato y lo necesita igual.
+    $etapaIds = array();
+    foreach ($groups as $gid => $g) {
+        if (sticpa_pl_group_etapa($g['level']) === $etapaKey) {
+            $etapaIds[] = $gid;
+        }
+    }
+    if (empty($etapaIds)) {
+        continue;
+    }
+    $grid = sticpa_pl_listas_by_session($objSCP, sticpa_pl_event_sessions($objSCP, $event['id']), 1);
+    foreach ($grid as $cell) {
+        foreach ($etapaIds as $gid) {
+            $lista = isset($cell['listas'][$gid]) ? $cell['listas'][$gid] : null;
+            $lastMarks[$gid] = sticpa_pl_list_mark(
+                ($lista !== null) ? $lista['estado'] : '',
+                $cell['session']['start']
+            );
+        }
+    }
+}
+
+/** El círculo de estado de un grupo, con el mismo glifo que la leyenda. */
+$doneMark = function ($gid) use ($lastMarks) {
+    $mark = isset($lastMarks[$gid]) ? $lastMarks[$gid] : '';
+    if ($mark === 'ok') {
+        return '<span class="pl-done pl-done--yes">' . sticpa_pl_glyph('check') . '</span>';
+    }
+    if ($mark === 'skip') {
+        return '<span class="pl-done pl-done--skip">' . sticpa_pl_icon('skip') . '</span>';
+    }
+    if ($mark === 'gap') {
+        return '<span class="pl-done pl-done--no"></span>';
+    }
+    return '';      // sin sesiones celebradas todavía: no hay nada que decir
+};
+
+// La leyenda, arriba y una sola vez. Los tres estados que puede tener el
+// círculo, con el mismo glifo y el mismo color que en la fila.
+if (!empty($lastMarks)) {
+    $html .= '<div class="pl-tree-legend">';
+    $html .= '<span class="pl-legend-item"><span class="pl-done pl-done--yes">'
+        . sticpa_pl_glyph('check') . '</span><span class="pl-legend-label">'
+        . esc_html__('Pasada', 'sticpa') . '</span></span>';
+    $html .= '<span class="pl-legend-item"><span class="pl-done pl-done--no"></span>'
+        . '<span class="pl-legend-label">' . esc_html__('Pendiente', 'sticpa') . '</span></span>';
+    $html .= '<span class="pl-legend-item"><span class="pl-done pl-done--skip">'
+        . sticpa_pl_icon('skip') . '</span><span class="pl-legend-label">'
+        . esc_html__('No hubo', 'sticpa') . '</span></span>';
+    $html .= '</div>';
+}
+
 /** El nombre del monitor no está aquí (haría una consulta por grupo), así que
  *  la línea secundaria dice lo que sí sabemos sin coste: la etapa y el curso. */
 $groupMeta = function ($g) {
@@ -174,6 +235,7 @@ foreach ($mine as $id => $g) {
     $html .= '<span class="pl-group-meta"><span class="pl-mine-tag">' . esc_html__('Tu grupo', 'sticpa') . '</span>'
         . ($groupMeta($g) !== '' ? ' · ' . esc_html($groupMeta($g)) : '') . '</span>';
     $html .= '</span>';
+    $html .= $doneMark($id);
     $html .= '<span class="pl-detail">' . sticpa_pl_icon('next') . '</span>';
     $html .= '</a>';
     $html .= '</div>';
@@ -203,6 +265,7 @@ foreach (array('MIC', 'COM', 'LC', '?') as $etapa) {
             $html .= '<span class="pl-group-meta">' . esc_html($groupMeta($g)) . '</span>';
         }
         $html .= '</span>';
+        $html .= $doneMark($id);
         $html .= '<span class="pl-detail">' . sticpa_pl_icon('next') . '</span>';
         $html .= '</a>';
     }

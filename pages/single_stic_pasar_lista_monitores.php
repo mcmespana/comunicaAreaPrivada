@@ -169,8 +169,10 @@ $html .= '</div>';
 $html .= '<div class="pl-subtitle">' . esc_html(sticpa_pl_session_label($session)) . '</div>';
 $html .= '</div>';
 if (!$isReunion) {
-    $html .= '<a class="pl-session-pick" href="?internalpage=single_stic_pasar_lista_monitores&sesiones=1">'
-        . esc_html(sticpa_pl_session_short($session)) . sticpa_pl_icon('down') . '</a>';
+    // El mismo desplegable nativo que la lista de participantes: la pregunta
+    // "¿de qué día?" se contesta igual en las dos pantallas, y una interacción
+    // que cambia de forma según la pantalla se aprende dos veces.
+    $html .= sticpa_pl_session_select_html($sessions, $session['id'], '', 'single_stic_pasar_lista_monitores');
 }
 $html .= '</div>';
 

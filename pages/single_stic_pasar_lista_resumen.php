@@ -113,6 +113,15 @@ $html .= '</div>';
 
 $estados = sticpa_pl_lista_estados();
 
+/* La tira se pinta en un buffer y no directamente, porque la tarjeta de "la
+ * última sesión" va ENCIMA y sale de estos mismos datos. Recorrer dos veces
+ * costaría el doble de consultas; pintar en orden inverso al que se lee, un
+ * bloque desordenado. Así se recorre una vez y se emite en el orden bueno. */
+$stripHtml = '';
+$lastDone = 0;      // listas de la última sesión que ya están (pasada o sin registro)
+$lastTotal = 0;     // grupos que deberían tenerla
+$lastDates = array();
+
 foreach (array('MIC', 'COM', 'LC') as $etapa) {
     if (empty($byEtapa[$etapa]) || !isset($events[$etapa])) {
         continue;
@@ -123,10 +132,10 @@ foreach (array('MIC', 'COM', 'LC') as $etapa) {
         continue;
     }
 
-    $html .= '<div class="pl-etapa-title">'
+    $stripHtml .= '<div class="pl-etapa-title">'
         . '<span class="pl-etapa-dot" style="background:' . esc_attr($etapaColors[$etapa]) . '"></span>'
         . esc_html($etapa) . '</div>';
-    $html .= '<div class="pl-list">';
+    $stripHtml .= '<div class="pl-list">';
 
     foreach ($byEtapa[$etapa] as $gid => $g) {
         $cells = '';
@@ -157,17 +166,17 @@ foreach (array('MIC', 'COM', 'LC') as $etapa) {
             $badgeClass = 'pl-badge--skip';
         }
 
-        $html .= '<a class="pl-grouprow" href="?internalpage=single_stic_pasar_lista_marcar&grupo=' . esc_attr($gid) . '">';
-        $html .= '<div class="pl-grouprow-top">';
-        $html .= '<span class="pl-group-body">';
-        $html .= '<span class="pl-title"><span class="pl-title-code">' . esc_html($g['code']) . '</span>';
+        $stripHtml .= '<a class="pl-grouprow" href="?internalpage=single_stic_pasar_lista_marcar&grupo=' . esc_attr($gid) . '">';
+        $stripHtml .= '<div class="pl-grouprow-top">';
+        $stripHtml .= '<span class="pl-group-body">';
+        $stripHtml .= '<span class="pl-title"><span class="pl-title-code">' . esc_html($g['code']) . '</span>';
         if ($g['name'] !== '') {
-            $html .= '<span class="pl-title-name">' . esc_html($g['name']) . '</span>';
+            $stripHtml .= '<span class="pl-title-name">' . esc_html($g['name']) . '</span>';
         }
-        $html .= '</span></span>';
-        $html .= '<span class="pl-badge ' . esc_attr($badgeClass) . '">' . esc_html($badge) . '</span>';
-        $html .= '</div>';
-        $html .= '<div class="pl-strip">' . $cells
+        $stripHtml .= '</span></span>';
+        $stripHtml .= '<span class="pl-badge ' . esc_attr($badgeClass) . '">' . esc_html($badge) . '</span>';
+        $stripHtml .= '</div>';
+        $stripHtml .= '<div class="pl-strip">' . $cells
             . '<span class="pl-strip-note' . ($gaps > 0 ? ' pl-strip-note--gap' : '') . '">'
             . esc_html($gaps === 0
                 ? __('todas pasadas', 'sticpa')
@@ -177,10 +186,69 @@ foreach (array('MIC', 'COM', 'LC') as $etapa) {
                     $gaps
                 ))
             . '</span></div>';
-        $html .= '</a>';
+        $stripHtml .= '</a>';
+
+        /* La última sesión de ESTA etapa: `$lastMark` acaba de quedarse con la
+         * marca de la celda más a la derecha, que es justo esa. "Hecha" incluye
+         * el "sin registro": una lista que alguien ha cerrado a conciencia no
+         * es una que falte. */
+        if ($lastMark !== '') {
+            $lastTotal++;
+            if ($lastMark === 'ok' || $lastMark === 'skip') {
+                $lastDone++;
+            }
+        }
     }
+    $stripHtml .= '</div>';
+
+    // La fecha de la última sesión celebrada de la etapa, para poder decir en
+    // la tarjeta de arriba de qué día se está hablando.
+    $lastCell = end($grid);
+    if (is_array($lastCell) && !empty($lastCell['session']['start'])) {
+        $lastDates[(int) $lastCell['session']['start']] = true;
+    }
+}
+
+/* La pregunta con la que se abre esta pantalla: "¿pasaron lista el sábado?".
+ * Va arriba porque es la primera que se hace, y con numerador Y denominador:
+ * "17" a secas no dice si van bien o mal.
+ *
+ * Si las etapas tienen su última sesión en días distintos, la tarjeta no se
+ * inventa una fecha común: dice "última sesión de cada etapa". Poner una sola
+ * fecha sería mentir sobre la mitad del recuento. */
+if ($lastTotal > 0) {
+    $pct = (int) round(($lastDone / $lastTotal) * 100);
+    $when = (count($lastDates) === 1)
+        ? sprintf(
+            /* translators: %s: fecha corta de la última sesión */
+            __('Última sesión · %s', 'sticpa'),
+            date_i18n('D j M', (int) key($lastDates))
+        )
+        : __('Última sesión de cada etapa', 'sticpa');
+
+    $html .= '<div class="pl-lasthero">';
+    $html .= '<div class="pl-lasthero-body">';
+    $html .= '<span class="pl-lasthero-when">' . esc_html($when) . '</span>';
+    $html .= '<span class="pl-lasthero-num">' . esc_html(sprintf(
+        /* translators: 1: listas hechas, 2: listas que tocaban */
+        __('%1$d de %2$d listas', 'sticpa'),
+        $lastDone,
+        $lastTotal
+    )) . '</span>';
+    $missing = $lastTotal - $lastDone;
+    $html .= '<span class="pl-lasthero-meta">' . esc_html($missing === 0
+        ? __('todas pasadas', 'sticpa')
+        : sprintf(
+            /* translators: %d: grupos que no la han pasado */
+            _n('%d grupo sin pasarla todavía', '%d grupos sin pasarla todavía', $missing, 'sticpa'),
+            $missing
+        )) . '</span>';
+    $html .= '</div>';
+    $html .= '<span class="pl-lasthero-pct">' . esc_html($pct) . '%</span>';
     $html .= '</div>';
 }
+
+$html .= $stripHtml;
 
 // La leyenda de la tira, una sola vez.
 $html .= '<div class="pl-legend">';
