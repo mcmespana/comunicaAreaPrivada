@@ -175,6 +175,21 @@ plantilla.
 
 ## Melones pendientes
 
+### 0. Recuentos y nombres de monitor en la ficha del grupo
+
+El árbol dice `MIC · 2025-2026` donde el diseño dice
+`Mercedes · 1º ESO · 10 participantes`, y las tarjetas del resumen ponen de
+número grande *cuántos grupos* hay en vez de *cuántos chavales*. No es un
+descuido: saber cuánta gente hay en un grupo es una llamada a la API **por
+grupo**, y en el árbol serían más de veinte cada sábado.
+
+Tiene plan cerrado y con los pros y contras medidos, en su propio documento:
+**[`PASAR-LISTA-RECUENTOS.md`](PASAR-LISTA-RECUENTOS.md)**. En corto: cuatro
+campos en `ajmcm_GRUPOS` (que entran gratis en la consulta que ya se hace) y un
+script nuestro por API que los rellene de noche. Lo primero que hay que
+averiguar es si hay acceso a ficheros de la instancia de SinergiaCRM, porque eso
+decide el camino.
+
 ### 1. Pasar lista de un evento, no de una sesión semanal
 
 > «Me voy de convivencia, tengo inscripciones hechas y quiero pasar lista del

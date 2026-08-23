@@ -74,5 +74,6 @@ contexto**. Reglas:
 | Pasar Lista — diseño funcional | `docs/comunica/PASAR-LISTA.md` |
 | Pasar Lista — campos del CRM | `docs/comunica/PASAR-LISTA-CAMPOS-CRM.md` |
 | Pasar Lista — fases y futuro | `docs/comunica/PASAR-LISTA-ROADMAP.md` |
+| Pasar Lista — recuentos y monitores (pendiente, con plan) | `docs/comunica/PASAR-LISTA-RECUENTOS.md` |
 | Contrato con MCM App (webview) | `docs/comunica/CONTRATO-APP-WEBVIEW.md` |
 | Sistema de diseño | `docs/design-system.md` |
