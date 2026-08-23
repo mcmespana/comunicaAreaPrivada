@@ -1,7 +1,16 @@
 # Recuentos y monitores en la ficha del grupo
 
-**Qué falta y por qué merece la pena.** Documento de decisión: aquí no hay nada
-implementado todavía. Cuando se haga, esto es el plan.
+**Qué falta y por qué merece la pena.** Documento de decisión.
+
+> **Estado: los cuatro campos ya existen, verificados con `get_module_fields`
+> (23/08)** — `ajmcm_n_participantes_c` (entero), `ajmcm_n_monitores_c`
+> (entero), `ajmcm_monitores_c` (texto 255) y `ajmcm_recuento_al_c`
+> (fecha y hora), con los nombres exactos de §3. El rellenador ya está hecho —
+> es la tarea `recuentos-grupos` del [Guardián Nocturno](GUARDIAN-NOCTURNO.md),
+> que pasa cada noche a la 1:30 (opción B, §4) — y en cuanto ese workflow se
+> mergee escribirá de verdad la primera noche. **Lo que sigue sin hacer es el
+> lado de leerlos en el área privada (§5)**: el árbol y el resumen todavía no
+> los usan.
 
 Relacionado: [`PASAR-LISTA.md`](PASAR-LISTA.md) (diseño) ·
 [`PASAR-LISTA-CAMPOS-CRM.md`](PASAR-LISTA-CAMPOS-CRM.md) (campos) ·
@@ -85,8 +94,11 @@ Cuatro cosas que importan de esta tabla:
    lo monta la pantalla, que es la que sabe en qué idioma está y cuánto sitio
    tiene. Guardar la frase ya montada es guardar una decisión de presentación en
    la base de datos, y luego no se puede cambiar sin reescribir 150 registros.
-2. **No hay campo de curso.** Un grupo ya es de un curso (`cursos_c`), así que
-   el recuento del registro es el de su curso. No hace falta otra dimensión.
+2. **No hay campo de año académico.** El recuento es «cuánta gente hay en este
+   grupo AHORA», que es lo que quieren las pantallas. El histórico por curso ya
+   lo da la vigencia de las relaciones, y guardarlo aquí otra vez sería tener el
+   mismo dato en dos sitios. (`cursos_c`, ojo, es el curso ESCOLAR del grupo —
+   «1º ESO», «Adultos» — no el año.)
 3. **`ajmcm_recuento_al_c` no es opcional.** Es lo que permite que la pantalla
    diga «10 participantes» con confianza, o se calle si el dato es viejo (ver §6).
 4. **Van en el grupo y no en un módulo nuevo.** Un módulo de recuentos sería

@@ -85,12 +85,16 @@ class FakeSCP
     {
         $this->calls[] = 'getRecordsModule:' . $module;
         if ($module === 'ajmcm_GRUPOS') {
+            // `cursos_c` lleva el CURSO ESCOLAR, que es lo que hay en el CRM de
+            // verdad: "1º ESO", "Adultos", "6º Primària"… NO el año académico.
+            // Este doble decía "2025-2026" y por eso los tests daban por bueno
+            // un filtro que en producción escondía 19 de los 27 grupos.
             return array(
-                $this->nvl(array('id' => 'g1', 'name' => 'Los Peques', 'code' => 'C1', 'level' => 'COM', 'cursos_c' => '2025-2026')),
-                $this->nvl(array('id' => 'g2', 'name' => 'C2', 'code' => 'C2', 'level' => 'COM', 'cursos_c' => '2025-2026')),
-                $this->nvl(array('id' => 'g3', 'name' => 'Los Micos', 'code' => 'M1', 'level' => 'MIC', 'cursos_c' => '2025-2026')),
-                // De otro curso: no debe salir.
-                $this->nvl(array('id' => 'g9', 'name' => 'Viejo', 'code' => 'V1', 'level' => 'COM', 'cursos_c' => '2019-2020')),
+                $this->nvl(array('id' => 'g1', 'name' => 'Los Peques', 'code' => 'C1', 'level' => 'COM', 'cursos_c' => '1º ESO')),
+                $this->nvl(array('id' => 'g2', 'name' => 'C2', 'code' => 'C2', 'level' => 'COM', 'cursos_c' => '2º ESO')),
+                $this->nvl(array('id' => 'g3', 'name' => 'Los Micos', 'code' => 'M1', 'level' => 'MIC', 'cursos_c' => '5º Primaria')),
+                // Sin curso escolar puesto: pasa igual, como en el CRM.
+                $this->nvl(array('id' => 'g9', 'name' => 'Ruah', 'code' => '', 'level' => 'LC')),
             );
         }
         if ($module === 'stic_Contacts_Relationships') {
@@ -223,10 +227,11 @@ class FakeSCP
                 ));
 
             // Seguimientos de una persona (stic_FollowUps).
-            // Avisos de comportamiento. El módulo se crea a mano en el CRM, así
-            // que el doble es la única forma de probar la pantalla hasta que
-            // exista. Dos avisos de este curso y uno del curso pasado, que NO
-            // tiene que contar: el recuento «de 3» es del curso.
+            // Avisos de comportamiento. Módulo verificado contra el CRM con
+            // get_module_fields: existe, y `ajmcm_notificado_el_c` de la
+            // especificación NO se creó (solo el booleano). Dos avisos de este
+            // curso y uno del curso pasado, que NO tiene que contar: el
+            // recuento «de 3» es del curso.
             case 'Contacts:avi_avisos_contacts':
                 if ($p['module_id'] !== 'c1') {
                     return array();
@@ -237,18 +242,18 @@ class FakeSCP
                     $this->nvl(array(
                         'id' => 'av2', 'fecha' => '2025-12-13', 'motivo' => 'Faltas de respeto a una compañera',
                         'ajmcm_puesto_por_c' => 'David Soler',
-                        'ajmcm_notificado_familia_c' => '0', 'ajmcm_notificado_el_c' => '',
+                        'ajmcm_notificado_familia_c' => '0',
                     )),
                     $this->nvl(array(
                         'id' => 'av1', 'fecha' => '2025-11-08', 'motivo' => 'Se fue del local sin avisar',
                         'ajmcm_puesto_por_c' => 'Mercedes',
-                        'ajmcm_notificado_familia_c' => '1', 'ajmcm_notificado_el_c' => '2025-11-09',
+                        'ajmcm_notificado_familia_c' => '1',
                     )),
                     // Curso 2024-2025: es historia, no cuenta.
                     $this->nvl(array(
                         'id' => 'av0', 'fecha' => '2025-02-10', 'motivo' => 'Del curso pasado',
                         'ajmcm_puesto_por_c' => 'Alguien',
-                        'ajmcm_notificado_familia_c' => '1', 'ajmcm_notificado_el_c' => '',
+                        'ajmcm_notificado_familia_c' => '1',
                     )),
                 );
 
@@ -419,11 +424,34 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('pl-done pl-done--yes', $html);
     }
 
-    public function test_arbol_no_enseña_grupos_de_cursos_viejos()
+    /**
+     * El árbol enseña TODOS los grupos de la delegación: con curso escolar
+     * puesto y sin él.
+     *
+     * Antes había aquí un filtro que descartaba el grupo si su `cursos_c` no
+     * contenía el año académico ("2025-2026"). Pero ese campo lleva el curso
+     * ESCOLAR ("1º ESO"), así que el filtro escondía todos los grupos que lo
+     * tuvieran puesto: en Castellón, 19 de 27. El registro del grupo no tiene
+     * ningún campo con el año, así que no hay nada que filtrar aquí; el año lo
+     * pone la vigencia de las relaciones de cada persona.
+     */
+    public function test_arbol_enseña_todos_los_grupos_de_la_delegacion()
     {
         $html = $this->render('single_stic_pasar_lista_grupos');
-        $this->assertStringNotContainsString('Viejo', $html);
-        $this->assertStringNotContainsString('V1', $html);
+
+        $this->assertStringContainsString('C1', $html);
+        $this->assertStringContainsString('C2', $html);
+        $this->assertStringContainsString('M1', $html);
+        // El que no tiene curso escolar puesto también sale.
+        $this->assertStringContainsString('Ruah', $html);
+    }
+
+    /** Y el curso escolar se enseña como dato, que es para lo que sirve. */
+    public function test_arbol_enseña_el_curso_escolar_del_grupo()
+    {
+        $html = $this->render('single_stic_pasar_lista_grupos');
+        $this->assertStringContainsString('1º ESO', $html);
+        $this->assertStringContainsString('5º Primaria', $html);
     }
 
     /** El nombre igual al código no se repite: "C2", no "C2 · C2". */
@@ -881,15 +909,20 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame('Tiró una silla', $writes[0]['data']['motivo']);
         $this->assertSame('2025-11-15', $writes[0]['data']['fecha']);
         $this->assertSame('1', $writes[0]['data']['ajmcm_notificado_familia_c']);
-        // Marcar "ya he hablado con la familia" pone también el CUÁNDO: sin él
-        // el chip diría "avisada" sin poder decir desde cuándo.
-        $this->assertArrayHasKey('ajmcm_notificado_el_c', $writes[0]['data']);
+        // `ajmcm_notificado_el_c` (cuándo se avisó) NO se escribe: verificado
+        // contra el CRM que ese campo de la especificación no se creó, solo el
+        // booleano. Escribir una clave que no existe la ignora la API en
+        // silencio, así que aquí se comprueba que el código ni lo intenta.
+        $this->assertArrayNotHasKey('ajmcm_notificado_el_c', $writes[0]['data']);
         // Y queda relacionado con la persona, que es la única relación real.
         $rels = array_values(array_filter($this->scp->relationships, function ($r) {
             return $r['link'] === 'avi_avisos_contacts';
         }));
         $this->assertCount(1, $rels);
         $this->assertSame(array('c1'), $rels[0]['ids']);
+        // Y el campo que fija la relación con el monitor es `contact_id_c`
+        // (confirmado con get_module_fields), no una suposición.
+        $this->assertSame('m1', $writes[0]['data']['contact_id_c']);
     }
 
     /** Sin motivo no hay aviso: un aviso vacío no le sirve a nadie. */
@@ -1051,11 +1084,11 @@ final class PasarListaRenderTest extends TestCase
 
         $this->assertStringContainsString('pl-lasthero', $html);
         $this->assertStringContainsString('Última sesión', $html);
-        // Tres grupos en el doble y solo g1 pasó la última: 1 de 3, y el resto
-        // se dice en claro en vez de dejarlo a la resta.
-        $this->assertStringContainsString('1 de 3 listas', $html);
-        $this->assertStringContainsString('2 grupos sin pasarla todavía', $html);
-        $this->assertStringContainsString('33%', $html);
+        // Cuatro grupos en el doble y solo g1 pasó la última: 1 de 4, y el
+        // resto se dice en claro en vez de dejarlo a la resta.
+        $this->assertStringContainsString('1 de 4 listas', $html);
+        $this->assertStringContainsString('3 grupos sin pasarla todavía', $html);
+        $this->assertStringContainsString('25%', $html);
         // Y va ANTES de las tiras por etapa, que es el orden en que se lee.
         $this->assertLessThan(strpos($html, 'pl-strip'), strpos($html, 'pl-lasthero'));
     }

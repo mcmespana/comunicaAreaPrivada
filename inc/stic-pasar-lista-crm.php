@@ -166,11 +166,18 @@ function sticpa_pl_flush($objSCP = null, $scope = 'state')
 // ---------------------------------------------------------------------------
 
 /**
- * Los grupos de la delegación en el curso actual, con etapa y código.
+ * Los grupos de la delegación, con etapa, curso escolar y código.
  *
- * Se filtra por `assigned_user_id` porque es lo que marca la delegación. Los
- * grupos históricos (~150 en el CRM) se quedan fuera por `cursos_c`: un grupo
- * sin el curso actual no sale en Pasar Lista.
+ * Se filtra por `assigned_user_id`, que es lo que marca la delegación, y por
+ * nada más: el registro del grupo no tiene ningún campo que diga de qué año
+ * académico es, así que no hay por dónde filtrarlo aquí. Lo que sí tiene año es
+ * la RELACIÓN de cada persona con el grupo (`start_date` / `end_date`), y de eso
+ * se encarga sticpa_pl_group_people().
+ *
+ * Si algún día molestan los grupos que ya no tienen a nadie, el recuento que
+ * deja cada noche el Guardián (`ajmcm_n_participantes_c`) permite esconderlos
+ * sin una consulta por grupo. Hoy no molestan: en Castellón los 27 grupos de la
+ * delegación son los del curso.
  */
 function sticpa_pl_groups($objSCP)
 {
@@ -188,7 +195,6 @@ function sticpa_pl_groups($objSCP)
         return array();
     }
 
-    $course = sticpa_pl_course_for();
     $query = "ajmcm_grupos.assigned_user_id = '" . sticpa_pl_safe_id($deleg) . "'";
 
     // `ajmcm_segmento_com_c` puede no existir todavía. La API devuelve un error
@@ -208,12 +214,12 @@ function sticpa_pl_groups($objSCP)
             if (!$id) {
                 continue;
             }
+            // `cursos_c` es el CURSO ESCOLAR del grupo ("1º ESO", "Adultos"),
+            // que es lo que se enseña en la línea de datos. NO es el año
+            // académico: aquí no se filtra por él porque no hay ningún campo del
+            // grupo que lo lleve. Qué gente está este curso lo dice la vigencia
+            // de sus relaciones, y eso lo resuelve sticpa_pl_group_people().
             $cursos = isset($v->cursos_c->value) ? (string) $v->cursos_c->value : '';
-            // Un grupo sin curso puesto se deja pasar: es mejor que se vea y se
-            // arregle desde "datos por revisar" que desaparecer sin explicación.
-            if ($cursos !== '' && strpos($cursos, $course['label']) === false) {
-                continue;
-            }
             $label = sticpa_pl_group_label(
                 isset($v->code->value) ? $v->code->value : '',
                 isset($v->name->value) ? $v->name->value : ''
@@ -1275,17 +1281,19 @@ function sticpa_pl_contact_marks($objSCP, $registrationId)
 /**
  * Los nombres del módulo de avisos, en UN sitio.
  *
- * El módulo se crea a mano en SuiteCRM, así que hasta que exista esto es lo
- * único que hay que tocar si algún nombre acaba siendo distinto. Salen de
- * `docs/comunica/PASAR-LISTA-CAMPOS-CRM.md` §6, que es la especificación con la
- * que se va a crear.
+ * Verificado contra el CRM con `get_module_fields` (el módulo ya está creado).
+ * Dos cosas salieron distintas de la especificación de
+ * `docs/comunica/PASAR-LISTA-CAMPOS-CRM.md` §6:
  *
- * ⚠️ `f_puesto_por_id` es el ÚNICO nombre que no está en la especificación: un
- * campo relate de SuiteCRM guarda el id en un campo aparte, y cómo se llame
- * depende del `id_name` que le ponga quien cree el campo. Se escriben los dos
- * (el relate y el id) porque la API IGNORA las claves que no conoce, así que la
- * que exista es la que entra y la otra no hace nada. En cuanto el módulo esté,
- * se confirma con `get_module_fields` y se deja solo la buena.
+ * - `f_puesto_por_id`: el campo relate `ajmcm_puesto_por_c` guarda el id en un
+ *   campo aparte, y Studio lo llamó `contact_id_c` (mismo patrón que
+ *   `stic_sessions_id_c` para el relate `ajmcm_sesion_c`) — no
+ *   `ajmcm_puesto_por_c_id`, que era la suposición razonable antes de mirarlo.
+ * - `ajmcm_notificado_el_c` (cuándo se avisó a la familia) **no se creó**. Solo
+ *   existe el booleano `ajmcm_notificado_familia_c`. El código ya no lee ni
+ *   escribe una fecha que no existe (ver `sticpa_pl_create_aviso()` y
+ *   `sticpa_pl_avisos()`); si algún día se crea el campo, se añade aquí y en
+ *   esas dos funciones, y ya.
  */
 function sticpa_pl_avi_map()
 {
@@ -1296,10 +1304,9 @@ function sticpa_pl_avi_map()
         'f_date' => 'fecha',
         'f_motivo' => 'motivo',
         'f_puesto_por' => 'ajmcm_puesto_por_c',
-        'f_puesto_por_id' => 'ajmcm_puesto_por_c_id',
+        'f_puesto_por_id' => 'contact_id_c',
         'f_sesion' => 'ajmcm_sesion_c',
         'f_notificado' => 'ajmcm_notificado_familia_c',
-        'f_notificado_el' => 'ajmcm_notificado_el_c',
     ));
 }
 
@@ -1397,7 +1404,6 @@ function sticpa_pl_avisos($objSCP, $contactId)
             $map['f_motivo'],
             $map['f_puesto_por'],
             $map['f_notificado'],
-            $map['f_notificado_el'],
             'date_entered',
         ),
         'related_module_link_name_to_fields_array' => array(),
@@ -1435,7 +1441,6 @@ function sticpa_pl_avisos($objSCP, $contactId)
                 'motivo' => isset($v->{$map['f_motivo']}->value) ? trim((string) $v->{$map['f_motivo']}->value) : '',
                 'puesto_por' => isset($v->{$map['f_puesto_por']}->value) ? trim((string) $v->{$map['f_puesto_por']}->value) : '',
                 'notificado' => ($notif === '1' || $notif === 'on' || $notif === 'true'),
-                'notificado_el' => isset($v->{$map['f_notificado_el']}->value) ? (string) $v->{$map['f_notificado_el']}->value : '',
             );
         }
     }
@@ -1490,7 +1495,6 @@ function sticpa_pl_create_aviso($objSCP, $contactId, $motivo, $date = '', $notif
     }
 
     $who = isset($_SESSION['scp_user_id']) ? (string) $_SESSION['scp_user_id'] : '';
-    $whoName = isset($_SESSION['scp_user_contact_name']) ? (string) $_SESSION['scp_user_contact_name'] : '';
 
     $payload = array(
         // El título lo pone el sistema: quien escribe teclea el motivo, no un
@@ -1503,21 +1507,19 @@ function sticpa_pl_create_aviso($objSCP, $contactId, $motivo, $date = '', $notif
         ),
         $map['f_date'] => date('Y-m-d', $ts),
         $map['f_motivo'] => $motivo,
+        // El «cuándo se avisó a la familia» no se guarda: el campo de fecha de
+        // la especificación (`ajmcm_notificado_el_c`) no se creó en el módulo.
+        // Solo queda el booleano, verificado contra el CRM con
+        // `get_module_fields`. Si algún día se crea ese campo, se añade a
+        // `sticpa_pl_avi_map()` y se escribe aquí igual que la fecha del aviso.
         $map['f_notificado'] => $notificado ? '1' : '0',
         'assigned_user_id' => sticpa_pl_delegation($objSCP),
     );
-    if ($notificado) {
-        // Si se marca que ya se ha hablado con la familia, el «cuándo» es hoy:
-        // es cuando se está diciendo. Sin esto el chip diría "avisada" sin
-        // poder decir desde cuándo, que es la mitad del dato.
-        $payload[$map['f_notificado_el']] = date('Y-m-d', $now);
-    }
     if ($who !== '') {
-        // Los dos nombres del relate: la API ignora la clave que no exista.
+        // `contact_id_c` es el campo real que fija la relación (confirmado
+        // contra el CRM); `ajmcm_puesto_por_c` es solo el nombre para mostrar,
+        // que SuiteCRM resuelve solo a partir del id — no hace falta escribirlo.
         $payload[$map['f_puesto_por_id']] = $who;
-        if ($whoName !== '') {
-            $payload[$map['f_puesto_por']] = $whoName;
-        }
     }
     $sessionId = sticpa_pl_safe_id($sessionId);
     if ($sessionId !== '') {
