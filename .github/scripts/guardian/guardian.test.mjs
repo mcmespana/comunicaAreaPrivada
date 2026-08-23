@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 
 import {
   horaEnMadrid, tocaAhora, estaVigente, clasificarRelaciones,
-  formatearMonitores, camposQueCambian, cursoDe, revisarDatos,
+  formatearMonitores, camposQueCambian, revisarDatos,
 } from './logica.mjs';
 import { aMarkdown, aTexto, hayFallos, mereceAviso, titular, estadoDe } from './informe.mjs';
 import { CAMPOS } from './tareas/recuentos-grupos.mjs';
@@ -196,22 +196,6 @@ test('el CRM devuelve textos y nosotros números: eso NO es un cambio', () => {
 // Revisión de datos
 // ─────────────────────────────────────────────────────────────────────────────
 
-test('el curso va de septiembre a agosto', () => {
-  assert.equal(cursoDe(new Date('2026-08-23T12:00:00Z')), '2025-2026');
-  assert.equal(cursoDe(new Date('2026-09-01T12:00:00Z')), '2026-2027');
-});
-
-test('detecta los grupos que Pasar Lista no ve por el filtro de cursos_c', () => {
-  const grupos = [
-    { id: 'g1', code: 'C1', cursos_c: '1º ESO' },        // invisible: no lleva "2025-2026"
-    { id: 'g2', code: 'C2', cursos_c: '' },              // se ve (el filtro deja pasar los vacíos)
-    { id: 'g3', code: 'C3', cursos_c: '2025-2026' },     // se ve
-  ];
-  const recuentos = new Map([['g1', { nParticipantes: 5, nMonitores: 1 }]]);
-  const r = revisarDatos(grupos, recuentos, { curso: '2025-2026' });
-  assert.deepEqual(r.invisiblesEnPasarLista, ['C1']);
-});
-
 test('avisa de grupos con chavales y sin monitor, y de los vacíos', () => {
   const grupos = [{ id: 'g1', code: 'C1' }, { id: 'g2', code: 'C2' }, { id: 'g3', name: 'Sin código' }];
   const recuentos = new Map([
@@ -219,7 +203,7 @@ test('avisa de grupos con chavales y sin monitor, y de los vacíos', () => {
     ['g2', { nParticipantes: 0, nMonitores: 0 }],
     ['g3', { nParticipantes: 4, nMonitores: 1 }],
   ]);
-  const r = revisarDatos(grupos, recuentos, { curso: '2025-2026' });
+  const r = revisarDatos(grupos, recuentos);
   assert.deepEqual(r.sinMonitor, ['C1']);
   assert.deepEqual(r.sinNadie, ['C2']);
   assert.deepEqual(r.sinCodigo, ['Sin código']);
@@ -253,7 +237,7 @@ test('sin fallos ni avisos, no se manda correo', () => {
 });
 
 test('un aviso sin fallo también merece correo, pero el job no sale rojo', () => {
-  const resultados = [{ clave: 'a', titulo: 'A', resumen: 'ojo', problemas: ['12 grupos invisibles'] }];
+  const resultados = [{ clave: 'a', titulo: 'A', resumen: 'ojo', problemas: ['3 grupos sin monitor'] }];
   assert.equal(mereceAviso(resultados), true);
   assert.equal(hayFallos(resultados), false);
   assert.equal(estadoDe(resultados[0]), 'aviso');

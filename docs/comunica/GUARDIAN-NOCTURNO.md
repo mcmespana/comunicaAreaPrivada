@@ -15,7 +15,7 @@ que el área privada no puede permitirse en caliente, y **canta si algo va mal**
 | Tarea | Clave | Escribe | Qué hace |
 |---|---|---|---|
 | Recuentos y monitores de cada grupo | `recuentos-grupos` | sí | Lleva al grupo cuánta gente tiene y quiénes son sus monitores. El por qué, en [`PASAR-LISTA-RECUENTOS.md`](PASAR-LISTA-RECUENTOS.md) |
-| Datos que hacen falta revisar | `revision-datos` | no | Mira y avisa de lo que rompe Pasar Lista: grupos que no se ven, grupos con chavales y sin monitor, grupos sin código |
+| Datos que hacen falta revisar | `revision-datos` | no | Mira y avisa de lo que rompe una lista del sábado: grupos con chavales y sin monitor, grupos sin nadie, grupos sin código corto |
 
 Está pensado para crecer: la idea es que todo lo que sea «pasar por el CRM de
 madrugada» viva aquí en vez de en cinco workflows distintos.
@@ -134,31 +134,3 @@ Y contra la instancia de verdad, sin escribir nada:
 
 *Actions → Guardián Nocturno → Run workflow*, marcando **dry_run**. Dice
 exactamente qué cambiaría y no toca un solo registro.
-
-## 7. Lo que encontró el primer día
-
-La tarea de revisión saltó con esto, y **sigue sin arreglar**:
-
-> Los grupos cuyo `cursos_c` no contenga el curso académico no los ve Pasar
-> Lista.
-
-`sticpa_pl_groups()` filtra así:
-
-```php
-if ($cursos !== '' && strpos($cursos, $course['label']) === false) { continue; }
-```
-
-…donde `$course['label']` es `"2025-2026"`. Pero en el CRM `cursos_c` lleva el
-**curso escolar** (`"1º ESO"`, `"Adultos"`, `"Bachiller"`), no el año académico:
-comprobado, **ningún** grupo de los 105 contiene `"2025-2026"`. Así que el filtro
-descarta todos los grupos que tengan ese campo puesto y solo sobreviven los que
-lo tienen vacío.
-
-Tampoco hay otro campo con el año académico: `ajmcm_curso_escolar_c` de la
-relación también es el curso escolar (`1_eso`). El año sale únicamente de la
-**vigencia** (`start_date` / `end_date`) de la relación, que es lo que ya usa
-`sticpa_pl_group_people()`.
-
-Conclusión: ese filtro por curso en el grupo no puede funcionar, porque un grupo
-no «es» de un año académico — lo son sus miembros. Está pendiente de decidir qué
-se hace; mientras, el guardián lo canta cada noche.

@@ -193,27 +193,15 @@ export function camposQueCambian(grupo, calculado, { sello, campos }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * El curso académico al que pertenece una fecha: de septiembre a agosto.
- * Misma regla que `sticpa_pl_course_for()` en PHP.
- */
-export function cursoDe(fecha = new Date()) {
-  const anio = fecha.getFullYear();
-  const mes = fecha.getMonth() + 1;
-  const inicio = mes >= 9 ? anio : anio - 1;
-  return `${inicio}-${inicio + 1}`;
-}
-
-/**
  * Problemas de datos que merece la pena cantar cada noche.
  *
  * `recuentos` es lo ya calculado por la tarea de recuentos, así que esto no
  * cuesta ni una llamada más.
  */
-export function revisarDatos(grupos, recuentos, { curso }) {
+export function revisarDatos(grupos, recuentos) {
   const sinCodigo = [];
   const sinMonitor = [];
   const sinNadie = [];
-  const invisiblesEnPasarLista = [];
 
   for (const g of grupos ?? []) {
     const r = recuentos.get(g.id);
@@ -222,14 +210,7 @@ export function revisarDatos(grupos, recuentos, { curso }) {
     if (String(g.code ?? '').trim() === '') sinCodigo.push(etiqueta);
     if (r && r.nMonitores === 0 && r.nParticipantes > 0) sinMonitor.push(etiqueta);
     if (r && r.nMonitores === 0 && r.nParticipantes === 0) sinNadie.push(etiqueta);
-
-    // El filtro de `sticpa_pl_groups()` descarta el grupo si `cursos_c` no está
-    // vacío y NO contiene el curso académico ("2025-2026"). Pero en el CRM ese
-    // campo lleva el curso ESCOLAR ("1º ESO", "Adultos"), así que ningún grupo
-    // con el campo puesto pasa el filtro y Pasar Lista no lo ve.
-    const cursos = String(g.cursos_c ?? '').trim();
-    if (cursos !== '' && !cursos.includes(curso)) invisiblesEnPasarLista.push(etiqueta);
   }
 
-  return { sinCodigo, sinMonitor, sinNadie, invisiblesEnPasarLista };
+  return { sinCodigo, sinMonitor, sinNadie };
 }

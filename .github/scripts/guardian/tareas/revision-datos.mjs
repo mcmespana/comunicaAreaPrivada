@@ -10,41 +10,30 @@
  * a secas), se apaña con lo que puede y lo dice.
  */
 
-import { revisarDatos, cursoDe } from '../logica.mjs';
+import { revisarDatos } from '../logica.mjs';
 
 export const clave = 'revision-datos';
 export const titulo = 'Datos que hacen falta revisar';
 
 export async function ejecutar(ctx) {
-  const { hoy, log } = ctx;
+  const { log } = ctx;
 
   const grupos = await ctx.grupos();
   const recuentos = ctx.compartido('recuentos') ?? new Map();
-  const curso = cursoDe(hoy);
 
   if (recuentos.size === 0) {
     log('sin recuentos en memoria: solo se revisa lo que se puede ver en el propio grupo');
   }
 
-  const { sinCodigo, sinMonitor, sinNadie, invisiblesEnPasarLista } = revisarDatos(grupos, recuentos, { curso });
+  const { sinCodigo, sinMonitor, sinNadie } = revisarDatos(grupos, recuentos);
 
   const detalles = [];
   const problemas = [];
 
-  // Este es el gordo, y por eso va como PROBLEMA y no como detalle: un grupo
-  // que Pasar Lista no ve es un grupo del que nadie puede pasar lista.
-  if (invisiblesEnPasarLista.length) {
-    problemas.push(
-      `${plural(invisiblesEnPasarLista.length, 'grupo', 'grupos')} NO ${invisiblesEnPasarLista.length === 1 ? 'lo ve' : 'los ve'} Pasar Lista porque su campo `
-      + `"cursos_c" no contiene "${curso}". En el CRM ese campo lleva el curso escolar `
-      + `("1º ESO", "Adultos"), no el año académico, así que el filtro de `
-      + `sticpa_pl_groups() los descarta a todos. Grupos: `
-      + `${resumirLista(invisiblesEnPasarLista)}`,
-    );
-  }
-
+  // Un grupo con chavales y sin monitor va como PROBLEMA y no como detalle: es
+  // una lista que nadie va a pasar el sábado.
   if (sinMonitor.length) {
-    detalles.push(`${plural(sinMonitor.length, 'grupo', 'grupos')} con participantes y SIN monitor vigente: ${resumirLista(sinMonitor)}`);
+    problemas.push(`${plural(sinMonitor.length, 'grupo', 'grupos')} con participantes y SIN monitor vigente: ${resumirLista(sinMonitor)}`);
   }
   if (sinNadie.length) {
     detalles.push(`${plural(sinNadie.length, 'grupo', 'grupos')} sin nadie (ni monitores ni participantes vigentes): ${resumirLista(sinNadie)}`);

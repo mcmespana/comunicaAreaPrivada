@@ -90,8 +90,11 @@ Cuatro cosas que importan de esta tabla:
    lo monta la pantalla, que es la que sabe en qué idioma está y cuánto sitio
    tiene. Guardar la frase ya montada es guardar una decisión de presentación en
    la base de datos, y luego no se puede cambiar sin reescribir 150 registros.
-2. **No hay campo de curso.** Un grupo ya es de un curso (`cursos_c`), así que
-   el recuento del registro es el de su curso. No hace falta otra dimensión.
+2. **No hay campo de año académico.** El recuento es «cuánta gente hay en este
+   grupo AHORA», que es lo que quieren las pantallas. El histórico por curso ya
+   lo da la vigencia de las relaciones, y guardarlo aquí otra vez sería tener el
+   mismo dato en dos sitios. (`cursos_c`, ojo, es el curso ESCOLAR del grupo —
+   «1º ESO», «Adultos» — no el año.)
 3. **`ajmcm_recuento_al_c` no es opcional.** Es lo que permite que la pantalla
    diga «10 participantes» con confianza, o se calle si el dato es viejo (ver §6).
 4. **Van en el grupo y no en un módulo nuevo.** Un módulo de recuentos sería

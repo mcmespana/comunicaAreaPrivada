@@ -85,12 +85,16 @@ class FakeSCP
     {
         $this->calls[] = 'getRecordsModule:' . $module;
         if ($module === 'ajmcm_GRUPOS') {
+            // `cursos_c` lleva el CURSO ESCOLAR, que es lo que hay en el CRM de
+            // verdad: "1º ESO", "Adultos", "6º Primària"… NO el año académico.
+            // Este doble decía "2025-2026" y por eso los tests daban por bueno
+            // un filtro que en producción escondía 19 de los 27 grupos.
             return array(
-                $this->nvl(array('id' => 'g1', 'name' => 'Los Peques', 'code' => 'C1', 'level' => 'COM', 'cursos_c' => '2025-2026')),
-                $this->nvl(array('id' => 'g2', 'name' => 'C2', 'code' => 'C2', 'level' => 'COM', 'cursos_c' => '2025-2026')),
-                $this->nvl(array('id' => 'g3', 'name' => 'Los Micos', 'code' => 'M1', 'level' => 'MIC', 'cursos_c' => '2025-2026')),
-                // De otro curso: no debe salir.
-                $this->nvl(array('id' => 'g9', 'name' => 'Viejo', 'code' => 'V1', 'level' => 'COM', 'cursos_c' => '2019-2020')),
+                $this->nvl(array('id' => 'g1', 'name' => 'Los Peques', 'code' => 'C1', 'level' => 'COM', 'cursos_c' => '1º ESO')),
+                $this->nvl(array('id' => 'g2', 'name' => 'C2', 'code' => 'C2', 'level' => 'COM', 'cursos_c' => '2º ESO')),
+                $this->nvl(array('id' => 'g3', 'name' => 'Los Micos', 'code' => 'M1', 'level' => 'MIC', 'cursos_c' => '5º Primaria')),
+                // Sin curso escolar puesto: pasa igual, como en el CRM.
+                $this->nvl(array('id' => 'g9', 'name' => 'Ruah', 'code' => '', 'level' => 'LC')),
             );
         }
         if ($module === 'stic_Contacts_Relationships') {
@@ -419,11 +423,34 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('pl-done pl-done--yes', $html);
     }
 
-    public function test_arbol_no_enseña_grupos_de_cursos_viejos()
+    /**
+     * El árbol enseña TODOS los grupos de la delegación: con curso escolar
+     * puesto y sin él.
+     *
+     * Antes había aquí un filtro que descartaba el grupo si su `cursos_c` no
+     * contenía el año académico ("2025-2026"). Pero ese campo lleva el curso
+     * ESCOLAR ("1º ESO"), así que el filtro escondía todos los grupos que lo
+     * tuvieran puesto: en Castellón, 19 de 27. El registro del grupo no tiene
+     * ningún campo con el año, así que no hay nada que filtrar aquí; el año lo
+     * pone la vigencia de las relaciones de cada persona.
+     */
+    public function test_arbol_enseña_todos_los_grupos_de_la_delegacion()
     {
         $html = $this->render('single_stic_pasar_lista_grupos');
-        $this->assertStringNotContainsString('Viejo', $html);
-        $this->assertStringNotContainsString('V1', $html);
+
+        $this->assertStringContainsString('C1', $html);
+        $this->assertStringContainsString('C2', $html);
+        $this->assertStringContainsString('M1', $html);
+        // El que no tiene curso escolar puesto también sale.
+        $this->assertStringContainsString('Ruah', $html);
+    }
+
+    /** Y el curso escolar se enseña como dato, que es para lo que sirve. */
+    public function test_arbol_enseña_el_curso_escolar_del_grupo()
+    {
+        $html = $this->render('single_stic_pasar_lista_grupos');
+        $this->assertStringContainsString('1º ESO', $html);
+        $this->assertStringContainsString('5º Primaria', $html);
     }
 
     /** El nombre igual al código no se repite: "C2", no "C2 · C2". */
@@ -1051,11 +1078,11 @@ final class PasarListaRenderTest extends TestCase
 
         $this->assertStringContainsString('pl-lasthero', $html);
         $this->assertStringContainsString('Última sesión', $html);
-        // Tres grupos en el doble y solo g1 pasó la última: 1 de 3, y el resto
-        // se dice en claro en vez de dejarlo a la resta.
-        $this->assertStringContainsString('1 de 3 listas', $html);
-        $this->assertStringContainsString('2 grupos sin pasarla todavía', $html);
-        $this->assertStringContainsString('33%', $html);
+        // Cuatro grupos en el doble y solo g1 pasó la última: 1 de 4, y el
+        // resto se dice en claro en vez de dejarlo a la resta.
+        $this->assertStringContainsString('1 de 4 listas', $html);
+        $this->assertStringContainsString('3 grupos sin pasarla todavía', $html);
+        $this->assertStringContainsString('25%', $html);
         // Y va ANTES de las tiras por etapa, que es el orden en que se lee.
         $this->assertLessThan(strpos($html, 'pl-strip'), strpos($html, 'pl-lasthero'));
     }

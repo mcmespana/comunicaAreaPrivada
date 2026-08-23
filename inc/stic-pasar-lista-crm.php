@@ -166,11 +166,18 @@ function sticpa_pl_flush($objSCP = null, $scope = 'state')
 // ---------------------------------------------------------------------------
 
 /**
- * Los grupos de la delegación en el curso actual, con etapa y código.
+ * Los grupos de la delegación, con etapa, curso escolar y código.
  *
- * Se filtra por `assigned_user_id` porque es lo que marca la delegación. Los
- * grupos históricos (~150 en el CRM) se quedan fuera por `cursos_c`: un grupo
- * sin el curso actual no sale en Pasar Lista.
+ * Se filtra por `assigned_user_id`, que es lo que marca la delegación, y por
+ * nada más: el registro del grupo no tiene ningún campo que diga de qué año
+ * académico es, así que no hay por dónde filtrarlo aquí. Lo que sí tiene año es
+ * la RELACIÓN de cada persona con el grupo (`start_date` / `end_date`), y de eso
+ * se encarga sticpa_pl_group_people().
+ *
+ * Si algún día molestan los grupos que ya no tienen a nadie, el recuento que
+ * deja cada noche el Guardián (`ajmcm_n_participantes_c`) permite esconderlos
+ * sin una consulta por grupo. Hoy no molestan: en Castellón los 27 grupos de la
+ * delegación son los del curso.
  */
 function sticpa_pl_groups($objSCP)
 {
@@ -188,7 +195,6 @@ function sticpa_pl_groups($objSCP)
         return array();
     }
 
-    $course = sticpa_pl_course_for();
     $query = "ajmcm_grupos.assigned_user_id = '" . sticpa_pl_safe_id($deleg) . "'";
 
     // `ajmcm_segmento_com_c` puede no existir todavía. La API devuelve un error
@@ -208,12 +214,12 @@ function sticpa_pl_groups($objSCP)
             if (!$id) {
                 continue;
             }
+            // `cursos_c` es el CURSO ESCOLAR del grupo ("1º ESO", "Adultos"),
+            // que es lo que se enseña en la línea de datos. NO es el año
+            // académico: aquí no se filtra por él porque no hay ningún campo del
+            // grupo que lo lleve. Qué gente está este curso lo dice la vigencia
+            // de sus relaciones, y eso lo resuelve sticpa_pl_group_people().
             $cursos = isset($v->cursos_c->value) ? (string) $v->cursos_c->value : '';
-            // Un grupo sin curso puesto se deja pasar: es mejor que se vea y se
-            // arregle desde "datos por revisar" que desaparecer sin explicación.
-            if ($cursos !== '' && strpos($cursos, $course['label']) === false) {
-                continue;
-            }
             $label = sticpa_pl_group_label(
                 isset($v->code->value) ? $v->code->value : '',
                 isset($v->name->value) ? $v->name->value : ''
