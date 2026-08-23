@@ -76,4 +76,5 @@ contexto**. Reglas:
 | Pasar Lista — fases y futuro | `docs/comunica/PASAR-LISTA-ROADMAP.md` |
 | Pasar Lista — recuentos y monitores (pendiente, con plan) | `docs/comunica/PASAR-LISTA-RECUENTOS.md` |
 | Contrato con MCM App (webview) | `docs/comunica/CONTRATO-APP-WEBVIEW.md` |
+| Guardián Nocturno del CRM (mantenimiento de madrugada) | `docs/comunica/GUARDIAN-NOCTURNO.md` |
 | Sistema de diseño | `docs/design-system.md` |

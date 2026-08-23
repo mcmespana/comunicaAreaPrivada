@@ -1,7 +1,12 @@
 # Recuentos y monitores en la ficha del grupo
 
-**Qué falta y por qué merece la pena.** Documento de decisión: aquí no hay nada
-implementado todavía. Cuando se haga, esto es el plan.
+**Qué falta y por qué merece la pena.** Documento de decisión.
+
+> **Estado: el rellenador ya está hecho** — es la tarea `recuentos-grupos` del
+> [Guardián Nocturno](GUARDIAN-NOCTURNO.md), que pasa cada noche a la 1:30.
+> Se eligió la **opción B** (§4). Lo que falta es **crear los cuatro campos** de
+> §3 en `ajmcm_GRUPOS`; hasta entonces la tarea no escribe y dice qué falta.
+> El lado de leerlos en el área privada (§5) sigue sin hacer.
 
 Relacionado: [`PASAR-LISTA.md`](PASAR-LISTA.md) (diseño) ·
 [`PASAR-LISTA-CAMPOS-CRM.md`](PASAR-LISTA-CAMPOS-CRM.md) (campos) ·

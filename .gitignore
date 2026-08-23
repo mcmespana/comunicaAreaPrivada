@@ -5,3 +5,7 @@
 # Vistas previas del correo de cumpleaños: se generan al ejecutar el script y
 # en Actions se suben como artefacto, no hacen falta en el repo.
 /.github/scripts/cumples/vista-previa-*.html
+
+# El informe de la última pasada del Guardián: se genera en cada ejecución y
+# sube como artefacto del job, no al repo.
+.github/scripts/guardian/informe-ultimo.json
