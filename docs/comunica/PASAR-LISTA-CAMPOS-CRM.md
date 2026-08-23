@@ -213,19 +213,25 @@ no lo van a usar.
 
 ---
 
-## 6. Decidido, pendiente de crear
-
-### 🔨 Avisos de comportamiento — módulo `AVI_avisos`
+## 6. Avisos de comportamiento — módulo `AVI_avisos` ✅ creado y verificado
 
 Los «Aviso 1 / 2 / 3» de la app de AppSheet eran tres casillas en la persona
 que sumaban 0-3, más una explicación común. **Se hace módulo**, decidido.
 
-> **Estado: el área privada ya está montada contra esta especificación.** La
-> ficha lee, numera y pinta los avisos, y tiene el formulario para poner uno.
-> Falta crear el módulo en SuiteCRM. Mientras no exista, la API no encuentra el
-> enlace y `sticpa_pl_avisos()` vuelve vacío: la sección sale con «Ningún aviso
-> este curso» y la ficha no se rompe. Con el filtro
-> `sticpa_pl_avisos_enabled` en `false` la sección desaparece y no se consulta.
+> **Estado: el módulo existe y el área privada escribe en él.** Verificado
+> contra el CRM con `get_module_fields` (23/08). Dos diferencias con lo que
+> decía esta especificación al escribirse, las dos ya corregidas en el código:
+>
+> - El campo con el id del relate `ajmcm_puesto_por_c` **no se llama**
+>   `ajmcm_puesto_por_c_id` (la suposición razonable de antes de mirarlo), sino
+>   **`contact_id_c`** — mismo patrón que `stic_sessions_id_c` para el relate
+>   `ajmcm_sesion_c`.
+> - **`ajmcm_notificado_el_c` no se creó.** Solo existe el booleano
+>   `ajmcm_notificado_familia_c`; el «cuándo se avisó» no se guarda. El código
+>   ya no lo lee ni lo escribe (antes lo intentaba, y la API lo ignoraba en
+>   silencio sin decir nada). Si algún día se crea, se añade a
+>   `sticpa_pl_avi_map()` y a las dos funciones que lo usan
+>   (`sticpa_pl_avisos()` / `sticpa_pl_create_aviso()`) — nada más.
 >
 > Todos los nombres del módulo están en **`sticpa_pl_avi_map()`**, en un solo
 > sitio: si alguno acaba llamándose distinto, se toca ahí y nada más.
@@ -260,11 +266,12 @@ detalle del contacto con dos paneles de avisos que significan cosas distintas.
 | `fecha` | Fecha | ✅ | **El dato que faltaba en AppSheet.** El día que pasó |
 | `motivo` | Área de texto | ✅ | Qué pasó, en palabras del monitor |
 | `avi_avisos_contacts` | Relación 1:N | ✅ | El participante |
-| `ajmcm_puesto_por_c` | Relate → `Contacts` | ✅ | El monitor que lo pone |
-| `ajmcm_puesto_por_c_id` | (el `id_name` del relate) | — | ⚠️ **A confirmar al crear el módulo.** Un relate de SuiteCRM guarda el id en un campo aparte, y cómo se llame depende de lo que ponga quien cree el campo. El código escribe los dos nombres y la API ignora el que no exista, así que funciona igual; en cuanto el módulo esté, se mira con `get_module_fields` y se deja solo el bueno en `sticpa_pl_avi_map()` |
+| `ajmcm_puesto_por_c` | Relate → `Contacts` | ✅ | El monitor que lo pone (nombre a mostrar; se resuelve solo) |
+| `contact_id_c` | id | — | ✅ **Confirmado.** El id real del relate anterior — es el que hay que escribir para fijar la relación |
 | `ajmcm_sesion_c` | Relate → `stic_Sessions` | — | La sesión, si pasó en una |
+| `stic_sessions_id_c` | id | — | El id real del relate anterior, por el mismo motivo que `contact_id_c` |
 | `ajmcm_notificado_familia_c` | Casilla | — | **Si se ha hablado con la familia** |
-| `ajmcm_notificado_el_c` | Fecha | — | Cuándo se le dijo |
+| ~~`ajmcm_notificado_el_c`~~ | Fecha | — | ❌ **No se creó.** El «cuándo se le dijo» no se guarda; solo el booleano de arriba |
 | `assigned_user_id` + `SecurityGroups` | — | ✅ | Delegación |
 
 **Sin campo de «nivel».** El 1, el 2 y el 3 salen de ordenar los avisos del
