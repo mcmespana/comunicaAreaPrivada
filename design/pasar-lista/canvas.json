@@ -69,7 +69,7 @@
       "x": 1020,
       "y": -270,
       "w": 390,
-      "text": "ESTA PANTALLA FUNCIONA — toca las filas\n\nEl tap cicla solo los 3 estados frecuentes:\nsin marcar -> Vino -> No. Parcial y justificada\nse ponen manteniendo pulsado (artboard 4):\nson minoritarios y merecen un gesto deliberado.\n\nPastilla con color Y etiqueta, no solo un icono:\na un metro se lee «No», no un aspa roja.\n\nEl aviso de faltas solo aparece a partir de 3\nSEGUIDAS, como pediste.\n\nSi queda gente sin marcar, el boton de guardar\nlo dice: «Guardar (2 sin marcar)». No se guarda\nnada a escondidas.\n\nLos colores son los de sticpa_calendar_palette():\nverde, teal, ambar y rojo. Mismo idioma que el\ncalendario que ya existe."
+      "text": "ESTA PANTALLA FUNCIONA — toca las filas\n\nEl tap cicla solo los 3 estados frecuentes:\nsin marcar -> Vino -> No. Parcial y justificada\nse ponen manteniendo pulsado (artboard 4):\nson minoritarios y merecen un gesto deliberado.\n\nEl estado es un CIRCULO de color con su glifo,\nno una pastilla con texto: la etiqueta en cada\nfila ensuciaba la lista, y el color y el glifo se\naprenden una vez con la leyenda de abajo.\nLos dos estados del gesto largo si se dicen con\npalabras bajo el nombre: ver «Parcial» escrito\nen una fila ensena que el gesto existe.\n\nEl aviso de faltas solo aparece a partir de 3\nSEGUIDAS, como pediste.\n\nSi queda gente sin marcar, el boton de guardar\nlo dice: «Guardar (2 sin marcar)». No se guarda\nnada a escondidas.\n\nLos colores son los de sticpa_calendar_palette():\nverde, teal, ambar y rojo. Mismo idioma que el\ncalendario que ya existe."
     },
     {
       "id": "estados-nota",
@@ -83,7 +83,7 @@
       "x": 2040,
       "y": -270,
       "w": 390,
-      "text": "Lo primero, contactar. Luego el dato.\n\nSALUD en UN bloque, como pediste: los cinco\ncampos del CRM juntos y solo los que tienen\ncontenido. Vacio = no se pinta.\n\nPANUELO arriba, destacado y editable con\nconfirmacion. Es importante y el monitor es\nquien lo sabe.\n\nTELEFONOS todos juntos: el del chaval (COM) y\nlos de la familia. El boton de WhatsApp del\nmenor respeta ajmcm_menorwhatsapp_c: si no\nautoriza, no se pinta.\n\nAVISOS DE COMPORTAMIENTO: un registro por\naviso con fecha y quien lo puso. Sin cablear a\ncampos todavia — ver la nota de abajo.\n\nSexo fuera. Edad dentro (stic_age_c)."
+      "text": "Lo primero, contactar. Luego el dato.\n\nSALUD en UN bloque, como pediste: los cinco\ncampos del CRM juntos y solo los que tienen\ncontenido. Vacio = no se pinta.\n\nPANUELO arriba, destacado y editable con\nconfirmacion. Es importante y el monitor es\nquien lo sabe.\n\nTELEFONOS todos juntos: el del chaval (COM) y\nlos de la familia. El boton de WhatsApp del\nmenor respeta ajmcm_menorwhatsapp_c: si no\nautoriza, no se pinta.\n\nAVISOS DE COMPORTAMIENTO: un registro por\naviso con fecha y quien lo puso. YA CABLEADO\ncontra AVI_avisos (falta crear el modulo en el\nCRM; hasta entonces la seccion sale vacia y no\nse rompe nada).\n\nSexo fuera. Edad dentro (stic_age_c)."
     },
     {
       "id": "resumen-nota",
@@ -104,7 +104,7 @@
       "x": 2040,
       "y": 700,
       "w": 390,
-      "text": "TU PREGUNTA: ¿3 checkboxes o un modulo\npara los avisos?\n\nUn modulo, y creo que lo has visto igual.\nCon 3 checkboxes no sabes CUANDO se puso\ncada aviso, ni QUIEN lo puso, ni por que\n(solo hay un campo de explicacion para los\ntres), no puedes retirar el del medio, y al\ncambiar de curso se quedan pegados para\nsiempre.\n\nUn registro por aviso resuelve todo eso: el\nrecuento «2 de 3» es contar registros del\ncurso, se archiva solo filtrando por fecha, y\nse puede retirar uno sin tocar los otros.\n\nEl front esta pintado asi pero SIN cablear.\nCuando digas, montamos el modulo."
+      "text": "TU PREGUNTA: ¿3 checkboxes o un modulo\npara los avisos?\n\nUn modulo, y creo que lo has visto igual.\nCon 3 checkboxes no sabes CUANDO se puso\ncada aviso, ni QUIEN lo puso, ni por que\n(solo hay un campo de explicacion para los\ntres), no puedes retirar el del medio, y al\ncambiar de curso se quedan pegados para\nsiempre.\n\nUn registro por aviso resuelve todo eso: el\nrecuento «2 de 3» es contar registros del\ncurso, se archiva solo filtrando por fecha, y\nse puede retirar uno sin tocar los otros.\n\nHECHO: el front esta montado y escribe. Falta\ncrear el modulo AVI_avisos en SuiteCRM.\nLos nombres estan todos en sticpa_pl_avi_map()."
     }
   ],
   "launch": {

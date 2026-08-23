@@ -62,6 +62,28 @@ if (!empty($_POST['pl_panuelo'])) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Poner un aviso de comportamiento
+// ---------------------------------------------------------------------------
+
+$avisoMsg = '';
+if (isset($_POST['pl_aviso_motivo'])) {
+    if (!isset($_POST['pl_nonce']) || !wp_verify_nonce($_POST['pl_nonce'], 'pl_ficha_' . $contactId)) {
+        $avisoMsg = __('La sesión ha caducado. Vuelve a cargar la pantalla.', 'sticpa');
+    } else {
+        $ok = sticpa_pl_create_aviso(
+            $objSCP,
+            $contactId,
+            sanitize_textarea_field(wp_unslash($_POST['pl_aviso_motivo'])),
+            isset($_POST['pl_aviso_fecha']) ? $_POST['pl_aviso_fecha'] : '',
+            !empty($_POST['pl_aviso_notificado'])
+        );
+        $avisoMsg = $ok
+            ? __('Aviso registrado.', 'sticpa')
+            : __('No se ha podido registrar el aviso. Revisa que hayas escrito el motivo.', 'sticpa');
+    }
+}
+
 $ficha = sticpa_pl_ficha($objSCP, $contactId);
 if ($ficha === null) {
     $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
@@ -75,15 +97,31 @@ $family = sticpa_pl_family($objSCP, $contactId);
 // Cabecera
 // ---------------------------------------------------------------------------
 
+/* La cabecera es solo la vuelta atrás y la palabra "Ficha": el nombre no va
+ * aquí, va en el bloque de identidad de debajo. Meterlo en la cabecera lo dejaba
+ * a 1,15 rem y compitiendo con la flecha; un nombre propio es la cara de esta
+ * pantalla y merece su sitio y su tamaño. */
 $html .= '<div class="pl-head">';
 $html .= '<a class="pl-back" href="?internalpage=single_stic_pasar_lista_marcar&grupo=' . esc_attr($groupId) . '"'
     . ' aria-label="' . esc_attr__('Volver a la lista', 'sticpa') . '">' . sticpa_pl_icon('back') . '</a>';
 $html .= '<div class="pl-head-titles">';
-$html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html($ficha['name']) . '</span></div>';
+$html .= '<div class="pl-subtitle">' . esc_html__('Ficha', 'sticpa') . '</div>';
+$html .= '</div>';
+$html .= '</div>';
 
+// Identidad: el avatar con el degradado de marca —la única "foto" que hay— y el
+// nombre entero. Debajo, en una línea gris y sin etiquetas, lo que sitúa a la
+// persona: grupo, etapa, curso y edad.
 $bits = array();
 if ($group !== null) {
     $bits[] = $group['code'] . ($group['name'] !== '' ? ' · ' . $group['name'] : '');
+    $groupEtapa = sticpa_pl_group_etapa($group['level']);
+    if ($groupEtapa !== '') {
+        $bits[] = $groupEtapa;
+    }
+    if ($group['cursos'] !== '') {
+        $bits[] = $group['cursos'];
+    }
 }
 if ($ficha['stic_age_c'] !== '') {
     $bits[] = sprintf(
@@ -92,12 +130,23 @@ if ($ficha['stic_age_c'] !== '') {
         $ficha['stic_age_c']
     );
 }
-$html .= '<div class="pl-subtitle">' . esc_html(implode(' · ', $bits)) . '</div>';
-$html .= '</div>';
+
+$html .= '<div class="pl-ident">';
+$html .= '<span class="pl-ident-avatar" aria-hidden="true">'
+    . esc_html(sticpa_pl_initials('', '', $ficha['name'])) . '</span>';
+$html .= '<span class="pl-ident-body">';
+$html .= '<span class="pl-ident-name">' . esc_html($ficha['name']) . '</span>';
+if (!empty($bits)) {
+    $html .= '<span class="pl-ident-meta">' . esc_html(implode(' · ', $bits)) . '</span>';
+}
+$html .= '</span>';
 $html .= '</div>';
 
 if ($panueloMsg !== '') {
     $html .= '<p class="pl-notice"><span>' . esc_html($panueloMsg) . '</span></p>';
+}
+if ($avisoMsg !== '') {
+    $html .= '<p class="pl-notice"><span>' . esc_html($avisoMsg) . '</span></p>';
 }
 
 // ---------------------------------------------------------------------------
@@ -131,6 +180,54 @@ $phoneCard = function ($label, $rawPhone, $whatsapp = true) {
     $out .= '</div></div>';
     return $out;
 };
+
+/* Contacto rápido. Los dos botones grandes ANTES de la lista de teléfonos,
+ * porque la ficha se abre casi siempre para lo mismo: llamar a una casa ya. El
+ * número al que apuntan es el de REFERENCIA de la familia —el que el CRM marca
+ * como tal— y si no hay, el primero que haya. Elegir a quién llamar es la lista
+ * de debajo; esto es el caso normal en un toque.
+ *
+ * Si no hay ningún teléfono de familia, los botones no se pintan: un botón
+ * grande que no hace nada es peor que no tenerlo. */
+$quick = null;
+foreach ($family as $rel) {
+    $p = sticpa_pl_phone($rel['mobile']);
+    if ($p === null) {
+        continue;
+    }
+    if ($rel['reference']) {
+        $quick = array('phone' => $p, 'who' => $rel['name']);
+        break;
+    }
+    if ($quick === null) {
+        $quick = array('phone' => $p, 'who' => $rel['name']);
+    }
+}
+
+if ($quick !== null) {
+    $html .= '<div class="pl-contact">';
+    $html .= '<a class="pl-contact-btn pl-contact-btn--wa" href="https://wa.me/'
+        . esc_attr($quick['phone']['wa']) . '" target="_blank" rel="noopener"'
+        . ' aria-label="' . esc_attr(sprintf(
+            /* translators: %s: a quién se escribe */
+            __('WhatsApp a %s', 'sticpa'),
+            $quick['who']
+        )) . '">'
+        . '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+        . '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
+        . '<span>' . esc_html__('WhatsApp', 'sticpa') . '</span></a>';
+    $html .= '<a class="pl-contact-btn pl-contact-btn--call" href="tel:'
+        . esc_attr($quick['phone']['tel']) . '"'
+        . ' aria-label="' . esc_attr(sprintf(
+            /* translators: %s: a quién se llama */
+            __('Llamar a %s', 'sticpa'),
+            $quick['who']
+        )) . '">'
+        . '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+        . '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2 4.2 2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.4 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.4 1.8.6 2.8.8a2 2 0 0 1 1.7 2Z"/></svg>'
+        . '<span>' . esc_html__('Llamar', 'sticpa') . '</span></a>';
+    $html .= '</div>';
+}
 
 $phoneCards = '';
 // El chaval primero si tiene móvil propio: en el COM lo tienen, y a veces es a
@@ -179,22 +276,34 @@ if (isset($events[$etapa])) {
         $att = sticpa_pl_attendance($sessions, $marks);
         $streak = sticpa_pl_absence_streak($sessions, $marks);
 
+        /* El porcentaje grande, y a su lado SIEMPRE el denominador: un 79 % de
+         * noviembre y uno de mayo se leen igual si no se dice sobre cuántas.
+         * La barra dice el mismo dato sin números, para el vistazo de un
+         * segundo; el ancho se pone en línea porque es un dato, no un estilo. */
+        $pct = max(0, min(100, (int) $att['pct']));
         $html .= '<div class="pl-sec">' . esc_html__('Asistencia', 'sticpa') . '</div>';
         $html .= '<div class="pl-att">';
-        $html .= '<div class="pl-att-pct">' . esc_html($att['pct']) . '<span>%</span></div>';
-        $html .= '<div class="pl-att-body">';
-        $html .= '<div class="pl-att-main">' . esc_html(sprintf(
-            /* translators: 1: sesiones a las que vino, 2: sesiones celebradas */
-            __('%1$d de %2$d sesiones', 'sticpa'),
-            $att['attended'],
-            $att['elapsed']
-        )) . '</div>';
-        $html .= '<div class="pl-att-meta">' . esc_html(sprintf(
+        $html .= '<div class="pl-att-top">';
+        $html .= '<span class="pl-att-pct">' . esc_html($att['pct']) . '<span>%</span></span>';
+        $html .= '<span class="pl-att-meta">' . esc_html(sprintf(
             /* translators: 1: horas asistidas, 2: horas celebradas */
-            __('%1$s h de %2$s h hasta hoy', 'sticpa'),
+            __('%1$s h de %2$s h', 'sticpa'),
             $att['hours'],
             $att['hours_total']
-        )) . '</div>';
+        )) . '</span>';
+        $html .= '</div>';
+        $html .= '<div class="pl-att-bar" role="img" aria-label="' . esc_attr(sprintf(
+            /* translators: %d: porcentaje de asistencia */
+            __('%d %% de asistencia', 'sticpa'),
+            $pct
+        )) . '"><div class="pl-att-fill" style="width:' . esc_attr($pct) . '%"></div></div>';
+        $html .= '<div class="pl-att-body">';
+        $html .= '<span class="pl-att-main">' . esc_html(sprintf(
+            /* translators: 1: sesiones a las que vino, 2: sesiones celebradas */
+            __('%1$d de %2$d sesiones hasta hoy', 'sticpa'),
+            $att['attended'],
+            $att['elapsed']
+        )) . '</span>';
         $html .= '</div>';
         $html .= '</div>';
 
@@ -209,6 +318,158 @@ if (isset($events[$etapa])) {
                 )) . '</span></p>';
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// Avisos de comportamiento
+// ---------------------------------------------------------------------------
+
+/* Un registro por aviso, con fecha y quién lo puso. El número (1, 2, 3) no está
+ * guardado: sale de ordenar por fecha, así que retirar el de en medio renumera
+ * los siguientes en vez de dejar un «1» y un «3» sin «2».
+ *
+ * El bloque se pinta aunque no haya ninguno: el monitor tiene que poder poner
+ * el primero, y una sección que solo aparece cuando ya hay un problema no se
+ * encuentra el día que hace falta. */
+if (sticpa_pl_avisos_enabled()) {
+    $avisos = sticpa_pl_avisos($objSCP, $contactId);
+    $limite = sticpa_pl_avisos_limite();
+    $puestos = count($avisos);
+
+    $html .= '<div class="pl-sec-row">';
+    $html .= '<div class="pl-sec">' . esc_html__('Avisos de comportamiento', 'sticpa') . '</div>';
+    if ($puestos > 0) {
+        // La escala: un punto por aviso puesto y un hueco por los que quedan.
+        $html .= '<div class="pl-avi-scale">';
+        for ($i = 1; $i <= max($limite, $puestos); $i++) {
+            if ($i <= $puestos) {
+                $html .= '<span class="pl-avi-pip" style="background:'
+                    . esc_attr(sticpa_pl_aviso_color($i)) . '"></span>';
+            } else {
+                // El hueco del ÚLTIMO va en rojo: es el que no quieres llenar.
+                $html .= '<span class="pl-avi-pip pl-avi-pip--free'
+                    . ($i === $limite ? ' pl-avi-pip--last' : '') . '"></span>';
+            }
+        }
+        $html .= '<span class="pl-avi-count">' . esc_html(sprintf(
+            /* translators: 1: avisos puestos, 2: avisos que implican la salida */
+            __('%1$d de %2$d', 'sticpa'),
+            $puestos,
+            $limite
+        )) . '</span>';
+        $html .= '</div>';
+    }
+    $html .= '</div>';
+
+    $html .= '<div class="pl-list">';
+
+    if ($puestos === 0) {
+        $html .= '<p class="pl-avi-empty">' . esc_html__('Ningún aviso este curso.', 'sticpa') . '</p>';
+    }
+
+    foreach ($avisos as $aviso) {
+        $html .= '<div class="pl-avi" style="border-left-color:' . esc_attr($aviso['color']) . '">';
+        // El número se anuncia entero al lector de pantalla: "2" a secas dentro
+        // de un círculo no dice de qué es.
+        $html .= '<span class="pl-avi-num" style="background:' . esc_attr($aviso['color'])
+            . ';color:' . esc_attr($aviso['ink']) . '"'
+            . ' aria-label="' . esc_attr(sprintf(
+                /* translators: 1: número del aviso, 2: avisos que implican la salida */
+                __('Aviso %1$d de %2$d', 'sticpa'),
+                $aviso['num'],
+                $limite
+            )) . '">' . esc_html($aviso['num']) . '</span>';
+        $html .= '<span class="pl-avi-body">';
+        $html .= '<span class="pl-avi-text">' . esc_html($aviso['motivo']) . '</span>';
+        $html .= '<span class="pl-avi-meta">';
+
+        // "8 nov · lo puso Mercedes": el cuándo y el quién, que es exactamente
+        // lo que las tres casillas de AppSheet no guardaban.
+        $when = date_i18n('j M', $aviso['ts']);
+        $html .= '<span class="pl-avi-when">' . esc_html($aviso['puesto_por'] !== ''
+            ? sprintf(
+                /* translators: 1: fecha corta, 2: quién puso el aviso */
+                __('%1$s · lo puso %2$s', 'sticpa'),
+                $when,
+                $aviso['puesto_por']
+            )
+            : $when) . '</span>';
+
+        if ($aviso['notificado']) {
+            $html .= '<span class="pl-avi-chip pl-avi-chip--yes">' . sticpa_pl_glyph('check')
+                . esc_html__('Familia avisada', 'sticpa') . '</span>';
+        } else {
+            $html .= '<span class="pl-avi-chip pl-avi-chip--no">' . sticpa_pl_icon('clock')
+                . esc_html__('Familia sin avisar', 'sticpa') . '</span>';
+        }
+
+        $html .= '</span></span></div>';
+    }
+
+    /* El recordatorio de que el siguiente es la salida: DEBAJO del último aviso
+     * y ANTES del botón de añadir. Se dice antes de poner el tercero, no
+     * después, que es cuando ya no sirve de nada. */
+    if ($puestos >= $limite) {
+        $html .= '<p class="pl-avi-warn">' . sticpa_pl_icon('warn') . '<span>' . sprintf(
+            /* translators: %s: "el límite" en negrita */
+            esc_html__('Ya está en %s. Esto implica la salida del grupo: hablad en coordinación antes de hacer nada.', 'sticpa'),
+            '<strong>' . esc_html(sprintf(
+                /* translators: %d: número de avisos */
+                _n('%d aviso', '%d avisos', $puestos, 'sticpa'),
+                $puestos
+            )) . '</strong>'
+        ) . '</span></p>';
+    } elseif ($puestos === $limite - 1) {
+        $html .= '<p class="pl-avi-warn">' . sticpa_pl_icon('warn') . '<span>' . sprintf(
+            /* translators: %s: "el tercer aviso" en negrita */
+            esc_html__('%s implica la salida del grupo. Habla con coordinación antes.', 'sticpa'),
+            '<strong>' . esc_html(sprintf(
+                /* translators: %d: el número del aviso que implica la salida */
+                __('El aviso %d', 'sticpa'),
+                $limite
+            )) . '</strong>'
+        ) . '</span></p>';
+    }
+
+    // Añadir: el botón enseña el formulario, que sale oculto. Poner un aviso no
+    // puede ser un roce — la misma regla que el pañuelo.
+    $html .= '<button type="button" class="pl-avi-add" data-pl-aviso-add>'
+        . '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"'
+        . ' stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+        . '<path d="M5 12h14"/><path d="M12 5v14"/></svg>'
+        . esc_html__('Añadir un aviso', 'sticpa') . '</button>';
+
+    $html .= '<form method="post" class="pl-avi-form" data-pl-aviso-form hidden>';
+    $html .= wp_nonce_field('pl_ficha_' . $contactId, 'pl_nonce', true, false);
+    $html .= '<div class="pl-field">';
+    $html .= '<label class="pl-field-label" for="pl-aviso-motivo">'
+        . esc_html__('Qué ha pasado', 'sticpa') . '</label>';
+    $html .= '<textarea id="pl-aviso-motivo" name="pl_aviso_motivo" rows="3" required'
+        . ' placeholder="' . esc_attr__('En tus palabras. Lo va a leer coordinación y quizá la familia.', 'sticpa')
+        . '"></textarea>';
+    $html .= '</div>';
+    $html .= '<div class="pl-field-row">';
+    $html .= '<div class="pl-field pl-field--date">';
+    $html .= '<label class="pl-field-label" for="pl-aviso-fecha">'
+        . esc_html__('Cuándo', 'sticpa') . '</label>';
+    // Por defecto hoy, y no se puede poner en el futuro.
+    $html .= '<input type="date" id="pl-aviso-fecha" name="pl_aviso_fecha"'
+        . ' value="' . esc_attr(date('Y-m-d', sticpa_pl_now())) . '"'
+        . ' max="' . esc_attr(date('Y-m-d', sticpa_pl_now())) . '">';
+    $html .= '</div>';
+    $html .= '</div>';
+    $html .= '<label class="pl-avi-check">'
+        . '<input type="checkbox" name="pl_aviso_notificado" value="1">'
+        . '<span>' . esc_html__('Ya he hablado con la familia', 'sticpa') . '</span></label>';
+    $html .= '<button type="submit" class="pl-avi-submit" data-pl-confirm="'
+        . esc_attr(sprintf(
+            /* translators: %s: nombre del participante */
+            __('¿Poner un aviso a %s? Coordinación lo verá.', 'sticpa'),
+            $ficha['name']
+        )) . '">' . esc_html__('Registrar el aviso', 'sticpa') . '</button>';
+    $html .= '</form>';
+
+    $html .= '</div>';
 }
 
 // ---------------------------------------------------------------------------

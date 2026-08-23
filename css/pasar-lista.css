@@ -17,6 +17,36 @@
     --pl-partial: #0d9488;
     --pl-partial-soft: #e6fffb;
     --pl-partial-dark: #0b6b62;
+
+    /* Texto ENCIMA de un relleno de marca. No es `--white`: `--white` es un
+       token de SUPERFICIE y en oscuro vale #16171a, así que usarlo para el
+       texto del atajo o del botón de guardar los dejaba en negro sobre el
+       degradado —ilegible— justo en el tema en el que más se nota.
+       Los degradados de marca se fijan con los hex originales (§44.5 del
+       sistema de diseño), así que el texto que va encima también es fijo. Es
+       lo que hacen ya las ~40 reglas de custom-style.css que pintan sobre
+       `--grad-brand`. */
+    --pl-on-brand: #fff;
+
+    /* "Ya pasada": verde fijo, por lo mismo. Con los tokens de estado el
+       degradado se invertía en oscuro (`--success-dark` es ahí el verde CLARO
+       del texto, no un verde oscuro de fondo: §44.4), y la tarjeta salía menta
+       claro con letra negra en vez de verde con letra blanca. */
+    --pl-grad-done: linear-gradient(135deg, #14663a 0%, #2f9e44 100%);
+}
+
+/* `hidden` contra las clases: el atributo lo pinta el navegador con
+   `display: none`, y CUALQUIER clase de aquí que declare `display` le gana por
+   especificidad. Pasaba con el aviso de la barra, con "0 sin marcar" y con las
+   opciones de pañuelo: se veían siempre, y del todo si el JS no llegaba a
+   arrancar. Se arregla de raíz para todo lo que empieza por .pl- en vez de ir
+   caso por caso.
+   `!important` porque tiene que poder con reglas de más especificidad que esta
+   (`.pl-sheet .pl-opt`, y las que vengan): "oculto" no es negociable. */
+/* Acotado a los anfitriones del plugin (§1.4: el CSS del plugin no se escapa).
+   Sin el ancla, un `.pl-…` del tema de WordPress entraría por aquí. */
+:is(.stic-container, .stic-tab-content, .stic-auth-shell) :is([class^="pl-"], [class*=" pl-"])[hidden] {
+    display: none !important;
 }
 
 /* ---- Cabecera de pantalla ------------------------------------------------ */
@@ -68,6 +98,35 @@
     color: var(--gray-700, #374151);
     flex-shrink: 0;
 }
+
+/* El selector de sesión es un <select> NATIVO envuelto en la misma pastilla.
+   A propósito: en el móvil el desplegable nativo es una rueda a pulgar con
+   búsqueda por teclado, y no cuesta ni una pantalla ni una consulta más. Antes
+   esto era un viaje a otra pantalla para volver con una fecha.
+   El <select> se estira sobre toda la pastilla y va transparente: se ve nuestra
+   pastilla, pero el que abre el desplegable y recibe el foco es el nativo. */
+.pl-session-pick--select { position: relative; padding-right: 0.6rem; }
+.pl-session-pick--select select {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    font-family: inherit;
+    font-size: 1rem;             /* 16 px: menos que eso y iOS hace zoom al abrir */
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+}
+.pl-session-pick--select:focus-within {
+    border-color: var(--primary-color);
+    box-shadow: var(--shadow-glow);
+}
+.pl-session-pick-text { pointer-events: none; }
+.pl-session-pick svg { width: 15px; height: 15px; color: var(--gray-500, #6b7280); flex-shrink: 0; }
 
 /* Aviso de una línea: la sesión no ha empezado, o es de otro día. */
 .pl-notice {
@@ -349,6 +408,9 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     font-family: inherit;
     cursor: pointer;
 }
+/* Sin esto el SVG se estira a lo que le pide el viewBox y se come el botón: los
+   iconos de sticpa_pl_icon() no traen tamaño, lo pone quien los usa. */
+.pl-skip svg { width: 16px; height: 16px; flex-shrink: 0; }
 
 /* ---- Barra de guardado -------------------------------------------------- */
 
@@ -365,8 +427,8 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     background: linear-gradient(
         to bottom,
         transparent 0,
-        color-mix(in srgb, var(--gray-50) 92%, transparent) 1.1rem,
-        color-mix(in srgb, var(--gray-50) 96%, transparent) 100%);
+        color-mix(in srgb, var(--surface-2) 92%, transparent) 1.1rem,
+        color-mix(in srgb, var(--surface-2) 96%, transparent) 100%);
     backdrop-filter: blur(8px);
     display: flex;
     flex-direction: column;
@@ -396,9 +458,9 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     min-height: 54px;
     border: 0;
     border-radius: var(--radius-lg);
-    background: linear-gradient(135deg, var(--primary-color) 0%, #6c4b9e 52%, var(--secondary-color) 100%);
+    background: var(--grad-brand);
     box-shadow: var(--shadow-md);
-    color: var(--white);
+    color: var(--pl-on-brand);
     font-family: inherit;
     font-size: 1rem;
     font-weight: 800;
@@ -449,8 +511,6 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
    dejar capas promocionadas de más es peor que no promocionar. */
 .pl-sheet.is-dragging { will-change: transform; }
 
-.pl-sheet-grip { width: 40px; height: 4px; margin: 0 auto 0.9rem; border-radius: var(--radius-full); background: var(--gray-200); }
-
 .pl-sheet-who { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; }
 .pl-sheet-name { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.02em; }
 .pl-sheet-when { font-size: 0.79rem; color: var(--gray-500, #6b7280); }
@@ -497,6 +557,39 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
 .pl-opt-desc  { font-size: 0.73rem; color: var(--gray-400); }
 .pl-opt-check { width: 19px; height: 19px; flex-shrink: 0; display: none; }
 .pl-opt[aria-checked="true"] .pl-opt-check { display: block; }
+
+/* El motivo: opcional y en su sitio, debajo de los cuatro estados. Va al campo
+   `description` de la asistencia, que es donde el CRM lo espera. Sin etiqueta
+   flotante ni asterisco: el marcador de posición ya dice que se puede dejar
+   vacío, y una etiqueta más en una hoja de móvil es una línea que sobra. */
+.pl-motive {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0.6rem 0 0.2rem;
+    padding: 0 0.9rem;
+    border-radius: var(--radius-lg);
+    background: var(--surface-2);
+    border: 1px solid var(--gray-200);
+}
+.pl-motive svg { width: 17px; height: 17px; color: var(--gray-400); flex-shrink: 0; }
+.pl-motive input {
+    flex-grow: 1;
+    min-width: 0;
+    min-height: 48px;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-family: inherit;
+    font-size: 1rem;             /* 16 px: menos que eso y iOS hace zoom al enfocar */
+    color: inherit;
+}
+.pl-motive input::placeholder { color: var(--gray-400); }
+.pl-motive:focus-within { border-color: var(--primary-color); box-shadow: var(--shadow-glow); }
+
+/* Solo tiene sentido cuando hay un estado puesto: quitar la marca borra el
+   motivo, así que con "sin marcar" el campo no pinta nada. */
+.pl-sheet[data-state=""] .pl-motive { display: none; }
 
 .pl-sheet-clear {
     display: flex;
@@ -555,7 +648,7 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     margin-bottom: 0.65rem;
     padding: 1.5px;
     border-radius: calc(var(--radius-lg) + 1.5px);
-    background: linear-gradient(118deg, var(--primary-color) 0%, #6c4b9e 52%, var(--secondary-color) 100%);
+    background: var(--grad-brand);
     box-shadow: 0 12px 30px color-mix(in srgb, var(--primary-color) 16%, transparent);
     animation: pl-mine-rise 520ms var(--ease-out) both;
 }
@@ -594,8 +687,8 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     width: 42px;
     height: 42px;
     border-radius: var(--radius-full);
-    background: linear-gradient(135deg, var(--primary-color) 0%, #6c4b9e 52%, var(--secondary-color) 100%);
-    color: var(--white);
+    background: var(--grad-brand);
+    color: var(--pl-on-brand);
     font-size: 0.86rem;
     font-weight: 800;
     letter-spacing: 0.02em;
@@ -627,6 +720,24 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
 .pl-done--no   { border: 2px solid var(--gray-300); }
 .pl-done--skip { background: var(--gray-200); }
 
+/* La leyenda del árbol: los mismos tres estados que el círculo de cada grupo.
+   Va arriba y una sola vez, igual que la leyenda de la lista de marcado. */
+.pl-tree-legend {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 0 0.25rem 0.7rem;
+}
+.pl-tree-legend .pl-done { width: 16px; height: 16px; }
+.pl-tree-legend .pl-done svg { width: 10px; height: 10px; }
+.pl-tree-legend .pl-done--no { border-width: 2px; }
+.pl-tree-legend .pl-done--skip svg { width: 11px; height: 11px; stroke: var(--gray-500, #6b7280); }
+
+/* El círculo "sin registro" lleva el mismo glifo de saltar que el botón: si el
+   icono cambia entre la acción y su resultado, no se reconoce. */
+.pl-done--skip svg { width: 13px; height: 13px; stroke: var(--gray-500, #6b7280); fill: none; }
+
 /* ---- Movimiento reducido ----------------------------------------------- */
 
 /* Movimiento reducido no es "sin feedback": es feedback sin desplazamiento. Se
@@ -647,7 +758,7 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
    agradable, pero si el sistema dice que estorba, estorba. */
 @media (prefers-reduced-transparency: reduce) {
     .pl-savebar {
-        background: var(--gray-50);
+        background: var(--surface-2);
         backdrop-filter: none;
     }
     .pl-sheet-veil { background: rgba(17, 24, 39, 0.62); }
@@ -676,24 +787,55 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     padding: 1.35rem;
     margin-bottom: 1.1rem;
     border-radius: var(--radius-xl);
-    background: linear-gradient(135deg, var(--primary-color) 0%, #6c4b9e 52%, var(--secondary-color) 100%);
+    background: var(--grad-brand);
     box-shadow: var(--shadow-lg);
-    color: var(--white);
+    color: var(--pl-on-brand);
 }
-/* Ya pasada: el degradado sobra, y el verde dice "hecho" sin leer nada. */
+/* Ya pasada: el degradado de marca sobra, y el verde dice "hecho" sin leer nada. */
 .pl-hero--done {
-    background: linear-gradient(135deg, var(--success-dark) 0%, var(--success-color) 100%);
+    background: var(--pl-grad-done);
     box-shadow: var(--shadow-md);
 }
 
+/* La cabecera del atajo: a la izquierda el CUÁNDO en relativo y el grupo; a la
+   derecha la cápsula de fecha de §11, que es el componente que ya existe para
+   "qué día es esto" en todo el área. Aquí va sobre el degradado, así que se
+   reviste de blanco translúcido en vez de llevar la marca encima de la marca. */
+.pl-hero-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+.pl-hero-main { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+
+/* Pastilla, no línea de texto: "Hoy" es la respuesta a la pregunta con la que
+   se abre la pantalla y merece leerse antes que el nombre del grupo. */
 .pl-hero-when {
-    font-size: 0.75rem;
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+    padding: 0.16rem 0.6rem;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.22);
+    font-size: 0.7rem;
     font-weight: 800;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: rgba(255, 255, 255, 0.82);
+    letter-spacing: 0.04em;
+    color: var(--pl-on-brand);
 }
-.pl-hero-group { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
+/* En la tarjeta ya pasada el fondo es verde: el mismo velo blanco funciona. */
+.pl-hero .stic-cell-badge.pl-hero-date {
+    width: 58px;
+    padding: 0.5rem 0;
+    border-radius: var(--radius-lg);
+    background: rgba(255, 255, 255, 0.18);
+    box-shadow: none;
+    flex-shrink: 0;
+}
+.pl-hero .pl-hero-date .stic-cell-badge-day { font-size: 1.4rem; }
+.pl-hero .pl-hero-date .stic-cell-badge-mon { font-size: 0.62rem; letter-spacing: 0.06em; }
+.pl-hero-group { font-size: 1.55rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
 .pl-hero-meta { font-size: 0.83rem; color: rgba(255, 255, 255, 0.85); }
 
 .pl-hero-cta {
@@ -713,6 +855,50 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
 }
 .pl-hero--done .pl-hero-cta { color: var(--success-dark); }
 .pl-hero-cta svg { width: 19px; height: 19px; }
+
+/* ---- Home: lo que falta por pasar --------------------------------------- */
+
+/* Ámbar y con su propio botón por fila. No es una fila más de la lista blanca:
+   es una deuda, y se lee como tal antes de leer qué grupo es. El botón dice
+   "Recuperar" y no una flecha, porque la acción no es "ver" sino "arreglar". */
+.pl-pending {
+    border-radius: var(--radius-lg);
+    background: var(--warning-soft);
+    border: 1px solid var(--warning-200);
+    overflow: hidden;
+}
+.pl-pending-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.8rem 1rem;
+    border-top: 1px solid var(--warning-200);
+    color: inherit;
+    text-decoration: none;
+}
+.pl-pending-row:first-child { border-top: 0; }
+.pl-pending-body { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.pl-pending-when { font-size: 0.95rem; font-weight: 700; color: var(--warning-darker); }
+.pl-pending-group { font-size: 0.78rem; color: var(--warning-dark); }
+.pl-pending-cta {
+    display: inline-flex;
+    align-items: center;
+    min-height: 38px;
+    padding: 0 0.9rem;
+    border-radius: var(--radius-full);
+    background: var(--white);
+    border: 1px solid var(--warning-border);
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--warning-dark);
+    flex-shrink: 0;
+}
+
+/* El título de la deuda lleva el triángulo de aviso, no el punto de color de
+   una etapa: no es una sección más del árbol, es algo que reclama. */
+.pl-etapa-title--warn { color: var(--warning-darker); }
+.pl-etapa-title svg { width: 16px; height: 16px; flex-shrink: 0; }
 
 /* ---- Home: entrada al árbol -------------------------------------------- */
 
@@ -734,8 +920,13 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
 .pl-all-groups-meta { margin-left: auto; font-size: 0.8rem; font-weight: 600; color: var(--gray-400); }
 .pl-all-groups svg { width: 17px; height: 17px; color: var(--gray-300); flex-shrink: 0; }
 
-/* Los enlaces que hacen de fila comparten el reset de los botones. */
-a.pl-group { text-decoration: none; color: inherit; }
+/* Los enlaces que hacen de fila comparten el reset de los botones. Van juntos
+   a propósito: cada vez que una fila nueva se hace con un <a> y se olvida esto,
+   sale azul y subrayada dentro de una tarjeta. */
+a.pl-group,
+a.pl-mine-inner,
+a.pl-grouprow,
+a.pl-pending-row { text-decoration: none; color: inherit; }
 a.pl-group .pl-name { display: block; }
 
 /* El check de "estado elegido" en la hoja: hereda el color del estado, no el
@@ -758,6 +949,61 @@ a.pl-group .pl-name { display: block; }
 }
 
 .pl-list--data { padding: 0.2rem 0; }
+
+/* La identidad: la cara de la pantalla. El avatar lleva el degradado de marca
+   porque es la única foto que hay, y el nombre entero se lee en dos líneas si
+   hace falta — un nombre recortado con puntos suspensivos no sirve para llamar
+   a una casa. Debajo, en una línea gris y sin etiquetas: grupo, etapa, curso,
+   edad. */
+.pl-ident {
+    display: flex;
+    align-items: center;
+    gap: 0.95rem;
+    padding: 0 0.25rem 0.9rem;
+}
+.pl-ident-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 66px;
+    height: 66px;
+    border-radius: var(--radius-full);
+    background: var(--grad-brand);
+    color: var(--pl-on-brand);
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+}
+.pl-ident-body { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+.pl-ident-name { font-size: 1.28rem; font-weight: 800; letter-spacing: -0.025em; line-height: 1.15; }
+.pl-ident-meta { font-size: 0.83rem; color: var(--gray-500, #6b7280); line-height: 1.35; }
+.pl-ident-meta strong { font-weight: 800; color: var(--gray-900); }
+
+/* Contacto rápido: los dos botones grandes ANTES de cualquier dato. La ficha se
+   abre con prisa para llamar a una casa, así que la acción va primero y la
+   lista de teléfonos queda debajo para cuando haya que elegir a quién. */
+.pl-contact { display: flex; gap: 0.7rem; padding: 0 0 0.5rem; }
+.pl-contact-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 54px;
+    border-radius: var(--radius-lg);
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    box-shadow: var(--shadow-xs);
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--gray-700, #374151);
+    text-decoration: none;
+}
+.pl-contact-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
+.pl-contact-btn--wa svg   { color: var(--success-color); }
+.pl-contact-btn--call svg { color: var(--primary-color); }
 
 /* Teléfonos: el número a la izquierda y los dos botones a la derecha, cada uno
    con sus 44 px. Con prisa no se acierta un icono de 20. */
@@ -785,7 +1031,7 @@ a.pl-group .pl-name { display: block; }
 }
 .pl-phone-btn svg { width: 20px; height: 20px; }
 .pl-phone-btn--wa   { background: var(--success-50); color: var(--success-dark); }
-.pl-phone-btn--call { background: var(--primary-soft, #eaf4fb); color: var(--primary-color); }
+.pl-phone-btn--call { background: var(--primary-50); color: var(--primary-color); }
 
 /* Salud y datos: etiqueta pequeña arriba, valor debajo y legible. El texto de
    una alergia se lee entero, no se recorta con puntos suspensivos. */
@@ -831,6 +1077,179 @@ a.pl-group .pl-name { display: block; }
 }
 .pl-flag--yes { background: var(--success-50); color: var(--success-dark); }
 .pl-flag--no  { background: var(--gray-100); color: var(--gray-500, #6b7280); }
+
+/* ---- Avisos de comportamiento ------------------------------------------ */
+
+/* Una cabecera de sección con algo a la derecha. El título sigue siendo
+   `.pl-sec`, así que se le quita el hueco de abajo y lo pone la fila. */
+.pl-sec-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 1.2rem 0.25rem 0.55rem;
+}
+.pl-sec-row .pl-sec { padding: 0; min-width: 0; }
+
+/* La escala: un punto por aviso puesto y un hueco punteado por los que quedan.
+   Es el mismo dato que el «2 de 3» de al lado, pero se ve sin leer — y el rojo
+   del hueco final es lo que hace que el tercero se vea venir desde el primero. */
+.pl-avi-scale { display: inline-flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
+.pl-avi-pip {
+    width: 10px;
+    height: 10px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+}
+/* El hueco del último va con borde rojo punteado: es el que no quieres llenar. */
+.pl-avi-pip--free {
+    background: transparent;
+    border: 1.5px dashed var(--gray-300);
+}
+.pl-avi-pip--last { border-color: #dc2626; }
+/* El COLOR DE TEXTO sale de un token, no del hex de la escala: los hex fijos
+   son para los RELLENOS (los puntitos, los círculos), y como texto un naranja
+   oscuro se queda en 3,6:1 sobre la superficie oscura. `--warning-dark` es el
+   par de texto de este estado y se aclara solo en oscuro (§44.4). */
+.pl-avi-count {
+    padding-left: 0.2rem;
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: var(--warning-dark);
+}
+
+/* Cada aviso, con el filete de su nivel a la izquierda: se distingue un primer
+   aviso de un tercero sin leer el número. */
+.pl-avi {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.7rem;
+    padding: 0.8rem 1rem;
+    border-top: 1px solid var(--gray-100);
+    border-left: 3px solid var(--gray-300);
+}
+.pl-avi:first-child { border-top: 0; }
+
+.pl-avi-num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    margin-top: 1px;
+    border-radius: var(--radius-full);
+    /* El color lo pone el PHP (`sticpa_pl_aviso_ink()`) según el relleno: sobre
+       el ámbar del primer aviso el blanco se queda en 2,2:1 y hace falta tinta
+       oscura. Relleno fijo, tinta fija: iguales en claro y en oscuro. */
+    font-size: 0.72rem;
+    font-weight: 800;
+    flex-shrink: 0;
+}
+
+.pl-avi-body { display: flex; flex-direction: column; gap: 0.2rem; flex-grow: 1; min-width: 0; }
+/* El motivo se lee ENTERO: es lo que se le va a contar a una familia, y no se
+   recorta con puntos suspensivos. */
+.pl-avi-text { font-size: 0.89rem; line-height: 1.4; }
+.pl-avi-meta { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.pl-avi-when { font-size: 0.73rem; color: var(--gray-400); }
+
+/* El chip de la familia: es el dato que se pregunta siempre, así que va en cada
+   aviso y no en un resumen arriba. */
+.pl-avi-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: var(--radius-full);
+    font-size: 0.66rem;
+    font-weight: 800;
+}
+.pl-avi-chip svg { width: 9px; height: 9px; flex-shrink: 0; }
+.pl-avi-chip--yes { background: var(--success-50); color: var(--success-dark); }
+.pl-avi-chip--no  { background: var(--warning-100); color: var(--warning-dark); }
+
+/* El recordatorio de que el siguiente es la salida. Va DEBAJO del último aviso
+   y antes del botón de añadir: se dice antes de poner el tercero, no después. */
+.pl-avi-warn {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.7rem 1rem;
+    border-top: 1px solid var(--gray-100);
+    background: var(--danger-soft);
+    font-size: 0.79rem;
+    line-height: 1.4;
+    color: var(--danger-dark);
+}
+.pl-avi-warn svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 0.1rem; }
+.pl-avi-warn strong { font-weight: 800; }
+
+.pl-avi-empty {
+    padding: 0.8rem 1rem;
+    font-size: 0.85rem;
+    color: var(--gray-500, #6b7280);
+}
+
+/* Añadir: naranja, no azul. No es una acción cualquiera de la ficha, es poner
+   un aviso — y el color lo dice antes de leer. */
+.pl-avi-add {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    width: 100%;
+    min-height: 46px;
+    padding: 0 1rem;
+    background: none;
+    border: 0;
+    border-top: 1px solid var(--gray-100);
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--warning-dark);      /* mismo motivo que .pl-avi-count */
+    cursor: pointer;
+}
+.pl-avi-add svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+/* El formulario sale oculto y lo abre el botón: poner un aviso no puede ser un
+   roce, igual que el pañuelo. */
+.pl-avi-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    padding: 0.9rem 1rem 1rem;
+    border-top: 1px solid var(--gray-100);
+    background: var(--surface-2);
+}
+.pl-avi-check {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-size: 0.87rem;
+    color: var(--gray-700, #374151);
+}
+.pl-avi-check input {
+    width: 22px;
+    height: 22px;
+    margin: 0;
+    flex-shrink: 0;
+    accent-color: var(--primary-color);
+}
+.pl-avi-submit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 46px;
+    border: 0;
+    border-radius: var(--radius-md);
+    background: #c2410c;
+    color: var(--pl-on-brand);
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+}
 
 /* Pañuelo: se ve el actual, y cambiarlo cuesta dos toques a propósito. */
 .pl-panuelo {
@@ -893,12 +1312,28 @@ a.pl-group .pl-name { display: block; }
    denominador. Un número solo, sin sobre-cuántas, no significa nada. */
 .pl-att {
     display: flex;
-    align-items: center;
-    gap: 1rem;
+    flex-direction: column;
+    gap: 0.7rem;
     padding: 1rem 1.1rem;
     border-radius: var(--radius-lg);
     background: var(--white);
     box-shadow: var(--shadow-xs);
+}
+.pl-att-top { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; }
+
+/* La barra dice de un vistazo lo que el porcentaje dice con números. Es el
+   MISMO dato dos veces a propósito: el número para quien lo va a apuntar, la
+   barra para quien solo pasa por aquí. */
+.pl-att-bar {
+    height: 10px;
+    border-radius: var(--radius-full);
+    background: var(--gray-100);
+    overflow: hidden;
+}
+.pl-att-fill {
+    height: 100%;
+    border-radius: var(--radius-full);
+    background: var(--grad-brand);
 }
 .pl-att-pct {
     font-size: 2rem;
@@ -909,9 +1344,9 @@ a.pl-group .pl-name { display: block; }
     flex-shrink: 0;
 }
 .pl-att-pct span { font-size: 1rem; font-weight: 700; }
-.pl-att-body { display: flex; flex-direction: column; gap: 0.15rem; }
-.pl-att-main { font-size: 0.98rem; font-weight: 700; }
-.pl-att-meta { font-size: 0.79rem; color: var(--gray-500, #6b7280); }
+.pl-att-body { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; }
+.pl-att-main { font-size: 0.8rem; color: var(--gray-500, #6b7280); }
+.pl-att-meta { font-size: 0.82rem; color: var(--gray-500, #6b7280); font-weight: 500; }
 
 /* ---- Resumen de coordinación ------------------------------------------- */
 
@@ -937,6 +1372,44 @@ a.pl-group .pl-name { display: block; }
 }
 .pl-card-num { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
 .pl-card-meta { font-size: 0.72rem; font-weight: 500; color: var(--gray-400); }
+
+/* La pregunta con la que coordinación abre esta pantalla: "¿pasaron lista el
+   sábado?". Va arriba, con el degradado de marca, y con el numerador Y el
+   denominador — "17" a secas no dice si van bien o mal. El anillo de la derecha
+   es el mismo dato en porcentaje, para el vistazo de dos segundos. */
+.pl-lasthero {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1.1rem;
+    padding: 1.05rem 1.1rem;
+    border-radius: var(--radius-lg);
+    background: var(--grad-brand);
+    box-shadow: var(--shadow-md);
+    color: var(--pl-on-brand);
+}
+.pl-lasthero-body { display: flex; flex-direction: column; gap: 0.2rem; flex-grow: 1; min-width: 0; }
+.pl-lasthero-when {
+    font-size: 0.72rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.82);
+}
+.pl-lasthero-num { font-size: 1.4rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
+.pl-lasthero-meta { font-size: 0.76rem; color: rgba(255, 255, 255, 0.82); }
+.pl-lasthero-pct {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.18);
+    font-size: 1.05rem;
+    font-weight: 800;
+    flex-shrink: 0;
+}
 
 .pl-grouprow {
     display: flex;
@@ -1040,7 +1513,7 @@ a.pl-group .pl-name { display: block; }
 }
 .pl-status[data-kind="draft"]   { background: var(--warning-soft); color: var(--warning-dark); }
 .pl-status[data-kind="offline"] { background: var(--gray-100); color: var(--gray-700, #374151); }
-.pl-status[data-kind="sync"]    { background: var(--primary-soft, #eaf4fb); color: var(--primary-color); }
+.pl-status[data-kind="sync"]    { background: var(--primary-50); color: var(--primary-color); }
 .pl-status[data-kind="ok"]      { background: var(--success-50); color: var(--success-dark); }
 
 @keyframes pl-status-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
@@ -1188,7 +1661,10 @@ a.pl-group .pl-name { display: block; }
 .pl-seg-tipo {
     padding: 0.14rem 0.5rem;
     border-radius: var(--radius-full);
-    color: var(--white);
+    /* El fondo de esta pastilla lo pone el PHP con un hex FIJO (el color del
+       tipo de seguimiento), así que el texto también tiene que ser fijo: con
+       `--white` salía casi negro sobre el azul y el violeta en tema oscuro. */
+    color: var(--pl-on-brand);
     font-size: 0.67rem;
     font-weight: 800;
     text-transform: uppercase;
@@ -1207,7 +1683,7 @@ a.pl-group .pl-name { display: block; }
     margin: 0;
     padding: 0.5rem 0.7rem;
     border-radius: var(--radius-md);
-    background: color-mix(in srgb, #6c4b9e 10%, transparent);
+    background: color-mix(in srgb, var(--accent-color) 10%, transparent);
     color: #573c80;
     font-size: 0.77rem;
     line-height: 1.4;

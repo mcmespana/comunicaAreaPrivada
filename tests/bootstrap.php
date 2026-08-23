@@ -65,6 +65,7 @@ if (!function_exists('get_post'))    { function get_post($p = null) { return nul
 if (!function_exists('has_shortcode')) { function has_shortcode($c, $tag) { return false; } }
 if (!function_exists('wp_json_encode')) { function wp_json_encode($d, $f = 0, $depth = 512) { return json_encode($d, $f, $depth); } }
 if (!function_exists('sanitize_text_field')) { function sanitize_text_field($t) { return is_string($t) ? trim($t) : $t; } }
+if (!function_exists('sanitize_textarea_field')) { function sanitize_textarea_field($t) { return is_string($t) ? trim($t) : $t; } }
 
 // --- Transients (los usa el código OTP) ---
 // Implementación en memoria con caducidad real. El reloj se puede adelantar con
