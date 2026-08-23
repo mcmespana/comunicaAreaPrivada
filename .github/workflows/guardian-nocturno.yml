@@ -1,0 +1,128 @@
+name: Guardián Nocturno del CRM
+
+# Cada noche pasa por SinergiaCRM, hace el mantenimiento que el área privada no
+# puede permitirse en caliente, y canta si algo va mal.
+#
+# Hoy: recuentos y monitores de cada grupo, y revisión de los datos que rompen
+# Pasar Lista. Para añadir tareas, mira la cabecera de
+# .github/scripts/guardian/guardian.mjs — está pensado para crecer.
+#
+# ── Por qué DOS horas de cron ────────────────────────────────────────────────
+# El cron de GitHub es siempre UTC y España cambia de hora dos veces al año:
+#   verano (CEST, UTC+2) -> la 01:30 de Madrid son las 23:30 UTC del día antes
+#   invierno (CET, UTC+1) -> la 01:30 de Madrid son las 00:30 UTC
+# Se lanza a las dos y el propio script comprueba la hora real en Europe/Madrid
+# y se sale sin hacer nada si no es la 1:30. Así siempre pasa a la 1:30 de aquí
+# sin tocar nada en marzo y en octubre. Es el mismo truco que cumples-monitores.
+#
+# Aviso conocido de GitHub: los crons de Actions no son puntuales; en horas de
+# carga se retrasan varios minutos. El script acepta hasta 90 minutos de margen,
+# así que un retraso no se salta la noche.
+#
+# ── Cómo canta si falla ──────────────────────────────────────────────────────
+#   1. El job sale ROJO y GitHub manda su propio correo al dueño del repo
+#      (Settings → Notifications → "Actions"), que es el aviso que no depende
+#      de que hayamos configurado nada.
+#   2. El resumen de la ejecución lleva el informe entero en una tabla: se abre
+#      la ejecución y se ve qué pasó sin bucear en el log.
+#   3. Si están puestos los secretos RESEND_API_KEY y GUARDIAN_AVISOS_TO, manda
+#      un correo con el informe. Solo cuando hay algo que contar: un correo
+#      diario diciendo "todo bien" se deja de leer en una semana, y entonces el
+#      que importa también se pierde.
+#   4. El informe crudo queda como artefacto 30 días.
+#
+# ⚠️ GitHub DESACTIVA los crons de un repo sin actividad durante 60 días y avisa
+# por correo. Si el guardián deja de pasar sin más, mira eso primero.
+
+on:
+  schedule:
+    - cron: '30 23 * * *'   # 01:30 en Madrid en horario de verano
+    - cron: '30 0 * * *'    # 01:30 en Madrid en horario de invierno
+  workflow_dispatch:
+    inputs:
+      tareas:
+        description: 'Tareas a ejecutar (claves separadas por comas). Vacío = todas.'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Consultar y calcular, pero NO escribir en el CRM.'
+        type: boolean
+        required: false
+        default: false
+      avisar_siempre:
+        description: 'Mandar el correo aunque todo haya ido bien.'
+        type: boolean
+        required: false
+        default: false
+
+# Que dos pasadas no se pisen escribiendo los mismos grupos.
+concurrency:
+  group: guardian-nocturno
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  guardia:
+    name: Pasar por el CRM
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Descargar el código del repo
+        uses: actions/checkout@v4
+
+      # El runner ya trae Node 20; se fija para que no cambie sin avisar.
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Antes de tocar el CRM: si la lógica está rota, mejor no escribir nada.
+      # Se apunta al fichero y no a la carpeta porque la forma con carpeta no se
+      # resuelve igual en todas las versiones de Node.
+      - name: Tests de la lógica
+        run: node --test .github/scripts/guardian/guardian.test.mjs
+
+      - name: Guardia
+        env:
+          CRM_URL: ${{ secrets.CRM_URL }}
+          CRM_CLIENT_ID: ${{ secrets.CRM_CLIENT_ID }}
+          CRM_CLIENT_SECRET: ${{ secrets.CRM_CLIENT_SECRET }}
+          # Opcionales: sin ellos no se manda correo, y el informe lo dice en
+          # claro en vez de dejar creer que salió.
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          GUARDIAN_AVISOS_TO: ${{ secrets.GUARDIAN_AVISOS_TO }}
+          GUARDIAN_FROM: ${{ secrets.GUARDIAN_FROM }}
+          # Lo que viene del formulario se pasa por el entorno, NUNCA
+          # interpolado en el shell: así un valor con comillas o con `;` no
+          # puede acabar ejecutándose como comando.
+          IN_TAREAS: ${{ inputs.tareas }}
+          IN_DRY_RUN: ${{ inputs.dry_run }}
+          IN_AVISAR_SIEMPRE: ${{ inputs.avisar_siempre }}
+          EVENTO: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          args=()
+          # Ojo: aquí no vale `[ -n "$X" ] && args+=(...)`. Con `set -e`, la
+          # línea entera devuelve 1 cuando la condición es falsa y el job
+          # abortaría. Con `if` no pasa.
+          if [ -n "${IN_TAREAS:-}" ]; then args+=("--tareas=$IN_TAREAS"); fi
+          if [ "${IN_DRY_RUN:-}" = "true" ]; then args+=("--dry-run"); fi
+          if [ "${IN_AVISAR_SIEMPRE:-}" = "true" ]; then args+=("--avisar-siempre"); fi
+          # En ejecución manual se salta la guarda de la hora: si has pulsado el
+          # botón a las 16:30, es que lo quieres ahora.
+          if [ "$EVENTO" = "workflow_dispatch" ]; then args+=("--forzar-hora"); fi
+          node .github/scripts/guardian/guardian.mjs ${args[@]+"${args[@]}"}
+
+      # El informe crudo, para poder mirar con calma qué grupo cambió. Se sube
+      # siempre: cuando falla es cuando más falta hace.
+      - name: Guardar el informe
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: guardian-informe
+          path: .github/scripts/guardian/informe-ultimo.json
+          if-no-files-found: ignore
+          retention-days: 30
