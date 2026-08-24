@@ -59,6 +59,15 @@
     --pl-amber: #d8a25a;
 }
 
+/* NOTA DE TOKENS: las tarjetas de estas pantallas van sobre `--surface`, que
+   en claro es #ffffff (el de los artboards) y en oscuro el gris de tarjeta.
+   Antes iban sobre `--white`, que es lo que parece pero no lo es: es un token
+   de superficie que en oscuro vale #16171a, MÁS oscuro que la propia página,
+   así que las dieciocho tarjetas salían como agujeros. `--white` solo se usa
+   ya como "lo contrario de --warning-dark". Para lo que va ENCIMA de un
+   relleno de color (los checks de los círculos, el texto del degradado) está
+   `--pl-on-brand`, que es blanco fijo en los dos temas. */
+
 /* ---- §0.b Los <button> de Pasar Lista contra el tema de WordPress -------
    TODOS los botones de estas pantallas son <button> de verdad (accesibilidad:
    se pulsan con teclado y los lee un lector de pantalla). El problema es que
@@ -174,7 +183,7 @@
     min-height: 44px;
     padding: 0 0.85rem;
     border-radius: var(--radius-full);
-    background: var(--white);
+    background: var(--surface);
     border: 1px solid var(--gray-200);
     font-size: 0.82rem;
     font-weight: 700;
@@ -255,7 +264,7 @@
 
 .pl-list {
     border-radius: var(--radius-lg);
-    background: var(--white);
+    background: var(--surface);
     box-shadow: var(--shadow-xs);
     overflow: hidden;
 }
@@ -361,8 +370,8 @@
     flex-shrink: 0;
     transition: background 180ms var(--ease-out), border-color 180ms linear;
 }
-.pl-mark svg { width: 19px; height: 19px; stroke: var(--white); fill: none; }
-.pl-mark .pl-glyph-half { fill: var(--white); stroke: none; width: 17px; height: 17px; }
+.pl-mark svg { width: 19px; height: 19px; stroke: var(--pl-on-brand); fill: none; }
+.pl-mark .pl-glyph-half { fill: var(--pl-on-brand); stroke: none; width: 17px; height: 17px; }
 
 .pl-row[data-state="yes"]            .pl-mark { background: var(--success-color); border-color: transparent; border-style: solid; }
 .pl-row[data-state="partial"]        .pl-mark { background: var(--pl-partial);     border-color: transparent; border-style: solid; }
@@ -413,8 +422,8 @@
     border-radius: var(--radius-full);
     flex-shrink: 0;
 }
-.pl-legend-dot svg { width: 11px; height: 11px; stroke: var(--white); fill: none; }
-.pl-legend-dot .pl-glyph-half { fill: var(--white); stroke: none; width: 10px; height: 10px; }
+.pl-legend-dot svg { width: 11px; height: 11px; stroke: var(--pl-on-brand); fill: none; }
+.pl-legend-dot .pl-glyph-half { fill: var(--pl-on-brand); stroke: none; width: 10px; height: 10px; }
 .pl-legend-label { font-size: 0.74rem; font-weight: 600; color: var(--gray-600); }
 
 .pl-legend-dot--yes     { background: var(--success-color); }
@@ -430,7 +439,7 @@
     gap: 0.45rem;
     padding: 0.3rem 0.7rem 0.3rem 0.5rem;
     border-radius: var(--radius-full);
-    background: var(--white);
+    background: var(--surface);
     border: 1px dashed var(--gray-300);
     font-size: 0.74rem;
     font-weight: 700;
@@ -588,7 +597,7 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     right: 0;
     bottom: 0;
     border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
-    background: var(--white);
+    background: var(--surface);
     box-shadow: 0 -20px 44px rgba(21, 36, 71, 0.18);
     padding: 0.75rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom));
     transform: translate3d(0, 101%, 0);
@@ -620,7 +629,7 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     margin-bottom: 0.5rem;
     padding: 0 1rem !important;
     border-radius: var(--radius-lg);
-    background: var(--white) !important;
+    background: var(--surface) !important;
     border: 1px solid var(--gray-200) !important;
     font-family: inherit !important;
     text-align: left !important;
@@ -641,8 +650,8 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     border-radius: var(--radius-full);
     flex-shrink: 0;
 }
-.pl-opt-dot svg { width: 15px; height: 15px; stroke: var(--white); fill: none; }
-.pl-opt-dot .pl-glyph-half { fill: var(--white); stroke: none; width: 13px; height: 13px; }
+.pl-opt-dot svg { width: 15px; height: 15px; stroke: var(--pl-on-brand); fill: none; }
+.pl-opt-dot .pl-glyph-half { fill: var(--pl-on-brand); stroke: none; width: 13px; height: 13px; }
 .pl-opt[data-value="yes"]            .pl-opt-dot { background: var(--success-color) !important; }
 .pl-opt[data-value="partial"]        .pl-opt-dot { background: var(--pl-partial) !important; }
 .pl-opt[data-value="no_justified"]   .pl-opt-dot { background: var(--warning-color) !important; }
@@ -757,7 +766,7 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     padding: 0.85rem 0.95rem;
     border: 0;
     border-radius: var(--radius-lg);
-    background: var(--white);
+    background: var(--surface);
     font-family: inherit;
     text-align: left;
     overflow: hidden;
@@ -812,7 +821,7 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     flex-shrink: 0;
 }
 .pl-done--yes  { background: var(--success-color); }
-.pl-done--yes svg { width: 14px; height: 14px; stroke: var(--white); fill: none; }
+.pl-done--yes svg { width: 14px; height: 14px; stroke: var(--pl-on-brand); fill: none; }
 .pl-done--no   { border: 2px solid var(--gray-300); }
 .pl-done--skip { background: var(--gray-200); }
 
@@ -1066,7 +1075,7 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     .pl-panuelo,
     .pl-card { border: 1px solid var(--gray-400); }
     .pl-mark { border-style: solid; border-color: var(--gray-500); }
-    .pl-savebar { background: var(--white); backdrop-filter: none; border-top: 2px solid var(--gray-400); }
+    .pl-savebar { background: var(--surface); backdrop-filter: none; border-top: 2px solid var(--gray-400); }
     .pl-hold-hint { border-style: solid; }
 }
 
@@ -1181,7 +1190,7 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     min-height: 38px;
     padding: 0 0.9rem;
     border-radius: var(--radius-full);
-    background: var(--white);
+    background: var(--surface);
     border: 1px solid var(--warning-border);
     font-size: 0.8rem;
     font-weight: 700;
@@ -1294,7 +1303,7 @@ a.pl-group .pl-name { display: block; }
     min-width: 0;
     min-height: 54px;
     border-radius: var(--radius-lg);
-    background: var(--white);
+    background: var(--surface);
     border: 1px solid var(--gray-200);
     box-shadow: var(--shadow-xs);
     font-size: 0.92rem;
@@ -1555,7 +1564,7 @@ a.pl-group .pl-name { display: block; }
 /* Pañuelo: se ve el actual, y cambiarlo cuesta dos toques a propósito. */
 .pl-panuelo {
     border-radius: var(--radius-lg);
-    background: var(--white);
+    background: var(--surface);
     box-shadow: var(--shadow-xs);
     overflow: hidden;
 }
@@ -1617,7 +1626,7 @@ a.pl-group .pl-name { display: block; }
     gap: 0.7rem;
     padding: 1rem 1.1rem;
     border-radius: var(--radius-lg);
-    background: var(--white);
+    background: var(--surface);
     box-shadow: var(--shadow-xs);
 }
 .pl-att-top { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; }
@@ -1658,7 +1667,7 @@ a.pl-group .pl-name { display: block; }
     gap: 0.35rem;
     padding: 0.9rem 0.75rem;
     border-radius: var(--radius-lg);
-    background: var(--white);
+    background: var(--surface);
     box-shadow: var(--shadow-xs);
 }
 .pl-card-head {
@@ -1779,7 +1788,7 @@ a.pl-group .pl-name { display: block; }
     padding: 0 0.6rem;
     border-radius: var(--radius-md);
     border: 1px solid var(--warning-border);
-    background: var(--white);
+    background: var(--surface);
     font-family: inherit;
     font-size: 0.85rem;
 }
@@ -1868,7 +1877,7 @@ a.pl-group .pl-name { display: block; }
     gap: 0.8rem;
     padding: 0.9rem 1rem;
     border-radius: var(--radius-lg);
-    background: var(--white);
+    background: var(--surface);
     box-shadow: var(--shadow-xs);
 }
 .pl-ds-icon {
@@ -1880,7 +1889,7 @@ a.pl-group .pl-name { display: block; }
     border-radius: var(--radius-full);
     flex-shrink: 0;
 }
-.pl-ds-icon svg { width: 17px; height: 17px; stroke: var(--white); fill: none; }
+.pl-ds-icon svg { width: 17px; height: 17px; stroke: var(--pl-on-brand); fill: none; }
 .pl-ds-body { display: flex; flex-direction: column; gap: 0.1rem; }
 .pl-ds-label { font-size: 0.98rem; font-weight: 800; }
 .pl-ds-sub { font-size: 0.78rem; color: var(--gray-500); }
@@ -1901,7 +1910,7 @@ a.pl-group .pl-name { display: block; }
     gap: 0.7rem;
     padding: 1rem;
     border-radius: var(--radius-lg);
-    background: var(--white);
+    background: var(--surface);
     box-shadow: var(--shadow-xs);
 }
 .pl-field { display: flex; flex-direction: column; gap: 0.25rem; flex-grow: 1; min-width: 0; }
@@ -1917,7 +1926,7 @@ a.pl-group .pl-name { display: block; }
     padding: 0 0.75rem;
     border-radius: var(--radius-md);
     border: 1px solid var(--gray-200);
-    background: var(--white);
+    background: var(--surface);
     font-family: inherit;
     font-size: 1rem;             /* 16 px: menos que eso y iOS hace zoom al enfocar */
     color: inherit;
@@ -1995,7 +2004,7 @@ a.pl-group .pl-name { display: block; }
     padding: 0.6rem 0.75rem;
     border-radius: var(--radius-md);
     border: 1px solid var(--gray-200);
-    background: var(--white);
+    background: var(--surface);
     font-family: inherit;
     font-size: 1rem;
     line-height: 1.45;
@@ -2008,7 +2017,7 @@ a.pl-group .pl-name { display: block; }
     padding: 0 0.6rem;
     border-radius: var(--radius-md);
     border: 1px solid var(--gray-200);
-    background: var(--white);
+    background: var(--surface);
     font-family: inherit;
     font-size: 1rem;
     color: inherit;
