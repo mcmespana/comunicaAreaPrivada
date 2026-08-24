@@ -199,19 +199,33 @@ Para comprobar que ninguno se ha caído:
 node .github/scripts/cumples/enviar-cumples.mjs --verificar-gifs
 ```
 
-## Por qué dos crons
+## La hora: un solo cron y sin candado
 
-El cron de GitHub es siempre UTC y España cambia de hora dos veces al año:
+Un cron, a las **06:00 UTC**. En Madrid eso son las **07:00 en invierno y las
+08:00 en verano**, porque el cron de GitHub es siempre UTC y España cambia de
+hora dos veces al año. Esa hora que baila **se acepta a propósito**: lo que
+importa es que salga todos los días, no clavar el minuto.
 
-- verano (CEST, UTC+2) → las 07:00 de Madrid son las **05:00 UTC**
-- invierno (CET, UTC+1) → las 07:00 de Madrid son las **06:00 UTC**
+### Por qué se quitó el candado de la hora
 
-Se lanza a las dos y el script comprueba la hora real en `Europe/Madrid`: si no
-son las 7, sale sin hacer nada. Así no hay que tocar nada en marzo ni en octubre.
+Antes había **dos** crons (05:00 y 06:00 UTC) y el script descartaba el que no
+cayera a las 7 en punto de Madrid, para que la hora fuera la misma todo el año.
+Parecía más fino y era una trampa:
 
-Aviso conocido de GitHub: los crons de Actions no son puntuales al minuto y en
-horas de mucha carga pueden retrasarse unos minutos. Para un "feliz cumple" da
-igual, pero que no sorprenda ver el correo a las 7:09.
+Los crons de Actions **llegan tarde**. En este repo se vieron 05:21, 05:23 y
+05:27 tres días seguidos, con el cron puesto a las 05:00. Con media hora de
+retraso, la ejecución buena caía a las 06:0x UTC (08:0x aquí), la descartaba el
+candado — **y el señuelo de las 06:00, retrasado igual, también**. Los dos se
+iban sin hacer nada: cero correos ese día, y el job **en verde**. Un cumpleaños
+perdido sin que nadie se entere.
+
+Con un solo cron no hay nada que descartar y no hace falta candado: un retraso
+solo hace que el correo salga más tarde **ese mismo día**. Un «feliz cumple» a
+las 8:20 en vez de a las 7 no le importa a nadie; uno que no llega, sí.
+
+> El **día** sí se sigue tomando en `Europe/Madrid`, no en UTC. Si se tomara en
+> UTC, una ejecución de madrugada en invierno miraría todavía la fecha de ayer y
+> felicitaría a los de ayer.
 
 ## Detalles del correo
 

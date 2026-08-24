@@ -7,22 +7,25 @@ name: Cumpleaños de monitores
 # .github/scripts/cumples/delegaciones.json. Ahora mismo solo Castellón.
 # Para sumar otra: pon "activa": true y su correo en "destinatarios".
 #
-# ── Por qué DOS horas de cron ────────────────────────────────────────────────
-# El cron de GitHub es siempre UTC y España cambia de hora dos veces al año:
-#   verano (CEST, UTC+2) -> las 07:00 de Madrid son las 05:00 UTC
-#   invierno (CET, UTC+1) -> las 07:00 de Madrid son las 06:00 UTC
-# Se lanza a las dos y el propio script comprueba la hora real en Europe/Madrid
-# y se sale sin hacer nada si no son las 7. Así siempre sale a las 7 en punto de
-# aquí, sin tocar nada en marzo y en octubre.
+# ── UN solo cron, y por qué ──────────────────────────────────────────────────
+# El cron de GitHub es siempre UTC y España cambia de hora dos veces al año, así
+# que a las 06:00 UTC aquí son las 07:00 en invierno y las 08:00 en verano.
+# Eso se acepta: la hora exacta da igual, lo que NO da igual es que salga.
 #
-# Aviso conocido de GitHub: los crons de Actions no son puntuales al minuto; en
-# horas de mucha carga pueden retrasarse unos minutos. Para un "feliz cumple" da
-# igual, pero que no sorprenda ver el correo a las 7:09.
+# Antes había dos crons (05:00 y 06:00 UTC) y el script descartaba el que no
+# cayera a las 7 en punto de Madrid, para clavar la hora todo el año. Salía mal:
+# los crons de Actions llegan tarde —en este repo se han visto 05:21, 05:23 y
+# 05:27 tres días seguidos— y con media hora de retraso la ejecución buena caía
+# a las 06:0x UTC, la descartaba el candado, y el señuelo de las 06:00 también.
+# Los dos se iban sin hacer nada: cero correos ese día y el job en verde. Un
+# cumpleaños perdido en silencio es peor que un correo a las 8 en vez de a las 7.
+#
+# Con un solo cron no hay nada que descartar y no hace falta candado: un retraso
+# solo hace que el correo salga más tarde ESE MISMO DÍA.
 
 on:
   schedule:
-    - cron: '0 5 * * *'   # 07:00 en Madrid en horario de verano
-    - cron: '0 6 * * *'   # 07:00 en Madrid en horario de invierno
+    - cron: '0 6 * * *'   # 07:00 en Madrid en invierno, 08:00 en verano. Da igual: sale.
   workflow_dispatch:
     inputs:
       delegaciones:
@@ -95,7 +98,6 @@ jobs:
           IN_DESTINATARIO: ${{ inputs.destinatario }}
           IN_DRY_RUN: ${{ inputs.dry_run }}
           IN_DEMO: ${{ inputs.demo }}
-          EVENTO: ${{ github.event_name }}
         run: |
           set -euo pipefail
           args=()
@@ -107,9 +109,6 @@ jobs:
           if [ -n "$IN_DESTINATARIO" ]; then args+=("--destinatario=$IN_DESTINATARIO"); fi
           if [ "$IN_DRY_RUN" = "true" ]; then args+=("--dry-run"); fi
           if [ "$IN_DEMO" = "true" ]; then args+=("--demo"); fi
-          # En ejecución manual siempre se salta el candado de la hora: si has
-          # pulsado el botón a las 16:30, es que lo quieres ahora.
-          if [ "$EVENTO" = "workflow_dispatch" ]; then args+=("--forzar-hora"); fi
           node .github/scripts/cumples/enviar-cumples.mjs ${args[@]+"${args[@]}"}
 
       # Así se puede abrir el correo tal cual salió sin tener que buscarlo en la

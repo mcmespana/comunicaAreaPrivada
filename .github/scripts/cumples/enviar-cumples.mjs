@@ -3,12 +3,21 @@
  * Felicitación diaria de cumpleaños de monitores.
  *
  * Qué hace, por orden:
- *   1. Comprueba que en Madrid son las 7 (GitHub solo programa crons en UTC y
- *      España cambia de hora; ver la nota del workflow).
- *   2. Pide un token al API V8 de SinergiaCRM (OAuth2 client_credentials).
- *   3. Baja las relaciones de tipo "monitor" activas de Relaciones con Personas.
- *   4. Baja las personas cuya fecha de nacimiento cae hoy (filtro LIKE '%-MM-DD').
- *   5. Cruza ambas listas por delegación y manda un correo con Resend.
+ *   1. Pide un token al API V8 de SinergiaCRM (OAuth2 client_credentials).
+ *   2. Baja las relaciones de tipo "monitor" activas de Relaciones con Personas.
+ *   3. Baja las personas cuya fecha de nacimiento cae hoy (filtro LIKE '%-MM-DD').
+ *   4. Cruza ambas listas por delegación y manda un correo con Resend.
+ *
+ * NO comprueba la hora, y es a propósito. Antes había un candado que exigía que
+ * en Madrid fueran las 7 en punto, porque el workflow lanzaba DOS crons (uno
+ * para cada horario) y había que descartar el que no tocaba. El problema es que
+ * los crons de GitHub llegan tarde —se han visto retrasos de 20-27 minutos de
+ * forma habitual— y con un retraso de media hora los DOS se descartaban: cero
+ * correos ese día, y el job en verde. Un cumpleaños que se pierde en silencio.
+ * Ahora hay UN solo cron, así que no hay nada que descartar: la hora local baila
+ * una hora entre verano e invierno y da igual, y un retraso solo hace que el
+ * correo salga más tarde ESE MISMO DÍA. Sale todos los días, que es lo que
+ * importa.
  *
  * Uso:
  *   node enviar-cumples.mjs                        # lo que hace el cron
@@ -39,9 +48,6 @@ import {
 } from './felicitacion.mjs';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
-
-/** Hora local (Europe/Madrid) a la que debe salir el correo. */
-const HORA_DE_ENVIO = 7;
 
 /**
  * Remitente por defecto. Es el dominio ya verificado en Resend para Comunica
@@ -290,20 +296,14 @@ async function principal() {
     aviso('MODO DEMO: los nombres, fechas y edades son INVENTADOS. No se consulta el CRM.');
   }
   const seco = banderas.has('dry-run') || modoDemo;
-  const forzarHora = banderas.has('forzar-hora') || modoDemo || Boolean(valores.fecha);
 
+  // El día se sigue tomando en Madrid: a las 00:30 de aquí en invierno, en UTC
+  // es todavía ayer, y felicitaríamos a los de ayer.
   const ahora = ahoraEnMadrid();
   const hoy = valores.fecha ?? ahora.fecha;
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(hoy)) {
     throw new Error(`--fecha tiene que ser YYYY-MM-DD, no "${hoy}"`);
-  }
-
-  // El cron dispara a las 05:00 y 06:00 UTC para cubrir el horario de verano y
-  // el de invierno; solo una de las dos cae a las 7 en Madrid, y es la que pasa.
-  if (!forzarHora && ahora.hora !== HORA_DE_ENVIO) {
-    log(`En Madrid son las ${ahora.hora}:00, no las ${HORA_DE_ENVIO}:00. No toca; salgo sin hacer nada.`);
-    return 0;
   }
 
   const delegaciones = delegacionesActivas(
