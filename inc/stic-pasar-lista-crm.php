@@ -331,6 +331,109 @@ function sticpa_pl_groups($objSCP)
 }
 
 /**
+ * TODAS las relaciones vigentes de la delegación, en UNA sola llamada.
+ *
+ * POR QUÉ EXISTE. Antes cada grupo pedía sus personas con `get_relationships` y
+ * el enlace a Contacts poblado. En esta instancia ese enlace **no vuelve**: la
+ * llamada responde 200, las relaciones llegan, y el enlace pedido en
+ * `related_module_link_name_to_fields_array` no aparece por ningún lado. El
+ * resultado era una lista vacía en un grupo que sí tiene gente.
+ *
+ * El camino que SÍ funciona aquí es `get_entry_list` con
+ * `link_name_to_fields_array` — el mismo que usa `list_stic_job_offers.php`
+ * desde siempre en producción. Así que se pide por ahí.
+ *
+ * Y se pide UNA VEZ para toda la delegación en vez de una por grupo: son las
+ * mismas relaciones, y el árbol de Castellón tiene 28 grupos. Una llamada
+ * cacheada 12 h contra veintiocho por pantalla.
+ *
+ * La vigencia se filtra EN SQL: sin eso vendrían todas las relaciones que ha
+ * tenido la delegación en su vida.
+ *
+ * Devuelve array de filas: rel_id, role, group_id, group_name, contact_id,
+ * name, first, last, y los campos de la ficha que usa la lista de marcado.
+ */
+function sticpa_pl_all_relationships($objSCP)
+{
+    $deleg = sticpa_pl_delegation($objSCP);
+    if (!$deleg) {
+        return array();
+    }
+
+    $cacheKey = sticpa_pl_cache_key('rels', $objSCP);
+    $ttl = sticpa_pl_ttl_structure();
+    if ($ttl > 0) {
+        $cached = get_transient($cacheKey);
+        if (is_array($cached)) {
+            return $cached;
+        }
+    }
+
+    $rows = $objSCP->getRecordsModule(
+        'stic_Contacts_Relationships',
+        "stic_contacts_relationships.assigned_user_id = '" . sticpa_pl_safe_id($deleg) . "'"
+        . " AND (stic_contacts_relationships.end_date IS NULL"
+        . " OR stic_contacts_relationships.end_date = ''"
+        . " OR stic_contacts_relationships.end_date >= CURDATE())",
+        array('id', 'relationship_type', 'start_date', 'end_date'),
+        array(
+            'grupo' => array(
+                'relationshipName' => 'ajmcm_grupos_stic_contacts_relationships',
+                'fields' => array('id', 'name'),
+            ),
+            'persona' => array(
+                'relationshipName' => 'stic_contacts_relationships_contacts',
+                'fields' => array('id', 'name', 'first_name', 'last_name', 'birthdate', 'stic_age_c', 'phone_mobile'),
+            ),
+        )
+    );
+
+    $out = array();
+    if (is_array($rows)) {
+        foreach ($rows as $row) {
+            $v = isset($row->name_value_list) ? $row->name_value_list : null;
+            if (!$v || empty($v->id->value)) {
+                continue;
+            }
+            $role = sticpa_pl_rel_role(isset($v->relationship_type->value) ? $v->relationship_type->value : '');
+            if ($role === '') {
+                continue;
+            }
+            $lv = isset($v->persona_link) ? $v->persona_link : null;
+            $first = ($lv && isset($lv->first_name->value)) ? trim((string) $lv->first_name->value) : '';
+            $last = ($lv && isset($lv->last_name->value)) ? trim((string) $lv->last_name->value) : '';
+            $full = isset($v->persona->value) ? trim((string) $v->persona->value) : '';
+            if ($full === '') {
+                $full = trim($first . ' ' . $last);
+            }
+
+            $out[] = array(
+                'rel_id' => (string) $v->id->value,
+                'role' => $role,
+                'group_id' => isset($v->grupo_id->value) ? (string) $v->grupo_id->value : '',
+                'group_name' => isset($v->grupo->value) ? (string) $v->grupo->value : '',
+                'person' => array(
+                    'id' => isset($v->persona_id->value) ? (string) $v->persona_id->value : '',
+                    'name' => $full,
+                    'first' => $first,
+                    'last' => $last,
+                    'sort' => sticpa_pl_sort_key($last, $first),
+                    'initials' => sticpa_pl_initials($first, $last, $full),
+                    'age' => ($lv && isset($lv->stic_age_c->value)) ? (string) $lv->stic_age_c->value : '',
+                    'birthdate' => ($lv && isset($lv->birthdate->value)) ? (string) $lv->birthdate->value : '',
+                    'mobile' => ($lv && isset($lv->phone_mobile->value)) ? (string) $lv->phone_mobile->value : '',
+                ),
+            );
+        }
+    }
+
+    if ($ttl > 0) {
+        set_transient($cacheKey, $out, $ttl);
+    }
+    return $out;
+}
+
+/**
  * Participantes y monitores de un grupo, en UNA sola llamada.
  *
  * Es la consulta que hace viable el modelo de un evento por etapa: la
@@ -348,60 +451,23 @@ function sticpa_pl_group_people($objSCP, $groupId)
         return array('participants' => array(), 'monitors' => array());
     }
 
-    $cacheKey = sticpa_pl_cache_key('people', $objSCP, $groupId);
-    $ttl = sticpa_pl_ttl_structure();
-    if ($ttl > 0) {
-        $cached = get_transient($cacheKey);
-        if (is_array($cached)) {
-            return $cached;
-        }
-    }
-
-    $rels = $objSCP->getRelatedElementsForLoggedUser(array(
-        'module_name' => 'ajmcm_GRUPOS',
-        'module_id' => $groupId,
-        'link_field_name' => 'ajmcm_grupos_stic_contacts_relationships',
-        'related_fields' => array('id', 'relationship_type', 'start_date', 'end_date'),
-        // El enlace a Contacts poblado: aquí está el ahorro de llamadas.
-        'related_module_link_name_to_fields_array' => array(
-            array(
-                'name' => 'stic_contacts_relationships_contacts',
-                'value' => array('id', 'first_name', 'last_name', 'name', 'birthdate', 'stic_age_c', 'phone_mobile'),
-            ),
-        ),
-        'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
-    ));
-
     $out = array('participants' => array(), 'monitors' => array());
-    $now = sticpa_pl_now();
 
-    if (is_array($rels)) {
-        foreach ($rels as $rel) {
-            $rv = isset($rel->name_value_list) ? $rel->name_value_list : null;
-            if (!$rv) {
-                continue;
-            }
-            $role = sticpa_pl_rel_role(isset($rv->relationship_type->value) ? $rv->relationship_type->value : '');
-            if ($role === '') {
-                continue;
-            }
-            // Vigencia: una relación terminada no sale en la lista de hoy, pero
-            // sigue existiendo para el histórico (por eso no se borra).
-            $end = isset($rv->end_date->value) ? trim((string) $rv->end_date->value) : '';
-            if ($end !== '') {
-                $endTs = strtotime($end . ' 23:59:59');
-                if ($endTs && $endTs < $now) {
-                    continue;
-                }
-            }
-
-            $person = sticpa_pl_person_from_rel($rel);
-            if ($person === null) {
-                continue;
-            }
-            $bucket = ($role === 'monitor') ? 'monitors' : 'participants';
-            $out[$bucket][$person['id']] = $person;
+    // Sale del mapa comun de la delegacion: ni una llamada propia. Antes esto
+    // era una llamada POR GRUPO con el enlace a Contacts poblado, y en esta
+    // instancia ese enlace no vuelve — de ahi el "0 participantes" en un grupo
+    // con gente. Ver sticpa_pl_all_relationships().
+    foreach (sticpa_pl_all_relationships($objSCP) as $rel) {
+        if ($rel['group_id'] !== $groupId) {
+            continue;
         }
+        if ($rel['person']['id'] === '') {
+            continue;
+        }
+        $bucket = ($rel['role'] === 'monitor') ? 'monitors' : 'participants';
+        // Indexado por id: si alguien tuviera dos relaciones vigentes con el
+        // mismo grupo, sale una vez.
+        $out[$bucket][$rel['person']['id']] = $rel['person'];
     }
 
     // Alfabético por apellido, que es como se lee una lista de clase.
@@ -410,9 +476,6 @@ function sticpa_pl_group_people($objSCP, $groupId)
         usort($out[$b], 'sticpa_pl_cmp_person');
     }
 
-    if ($ttl > 0) {
-        set_transient($cacheKey, $out, $ttl);
-    }
     return $out;
 }
 
@@ -1191,61 +1254,26 @@ function sticpa_pl_group_etapa($level)
  */
 function sticpa_pl_my_groups($objSCP)
 {
-    $userId = isset($_SESSION['scp_user_id']) ? $_SESSION['scp_user_id'] : '';
-    if (!$userId) {
+    $userId = isset($_SESSION['scp_user_id']) ? (string) $_SESSION['scp_user_id'] : '';
+    if ($userId === '') {
         return array();
     }
 
-    $cacheKey = sticpa_pl_cache_key('mygroups', $objSCP, $userId);
-    $ttl = sticpa_pl_ttl_structure();
-    if ($ttl > 0) {
-        $cached = get_transient($cacheKey);
-        if (is_array($cached)) {
-            return $cached;
-        }
-    }
-
-    $rels = $objSCP->getRelatedElementsForLoggedUser(array(
-        'module_name' => 'Contacts',
-        'module_id' => $userId,
-        'link_field_name' => 'stic_contacts_relationships_contacts',
-        'related_fields' => array('id', 'relationship_type', 'end_date'),
-        'related_module_link_name_to_fields_array' => array(
-            array('name' => 'ajmcm_grupos_stic_contacts_relationships', 'value' => array('id')),
-        ),
-        'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
-    ));
-
+    // Del mapa comun, no de una consulta propia: era otra de las que dependian
+    // del enlace anidado de `get_relationships`, y por eso la portada decia "no
+    // tienes ningun grupo asignado" a un monitor con su relacion vigente.
+    //
+    // Devuelve TODOS sus grupos, no el primero: se puede ser monitor de varios.
     $ids = array();
-    $now = sticpa_pl_now();
-    if (is_array($rels)) {
-        foreach ($rels as $rel) {
-            $v = isset($rel->name_value_list) ? $rel->name_value_list : null;
-            if (!$v) {
-                continue;
-            }
-            if (sticpa_pl_rel_role(isset($v->relationship_type->value) ? $v->relationship_type->value : '') !== 'monitor') {
-                continue;
-            }
-            $end = isset($v->end_date->value) ? trim((string) $v->end_date->value) : '';
-            if ($end !== '') {
-                $endTs = strtotime($end . ' 23:59:59');
-                if ($endTs && $endTs < $now) {
-                    continue;
-                }
-            }
-            $gid = sticpa_pl_link_id($rel);
-            if ($gid !== '') {
-                $ids[$gid] = true;
-            }
+    foreach (sticpa_pl_all_relationships($objSCP) as $rel) {
+        if ($rel['role'] !== 'monitor' || $rel['person']['id'] !== $userId) {
+            continue;
+        }
+        if ($rel['group_id'] !== '') {
+            $ids[$rel['group_id']] = true;
         }
     }
-    $ids = array_keys($ids);
-
-    if ($ttl > 0) {
-        set_transient($cacheKey, $ids, $ttl);
-    }
-    return $ids;
+    return array_keys($ids);
 }
 
 // ---------------------------------------------------------------------------
@@ -1888,85 +1916,26 @@ function sticpa_pl_listas_by_session($objSCP, $sessions, $limit = 12)
  */
 function sticpa_pl_participants_without_group($objSCP)
 {
-    $deleg = sticpa_pl_delegation($objSCP);
-    if (!$deleg) {
-        return array();
-    }
-
-    $cacheKey = sticpa_pl_cache_key('nogroup', $objSCP);
-    $ttl = sticpa_pl_ttl_structure();
-    if ($ttl > 0) {
-        $cached = get_transient($cacheKey);
-        if (is_array($cached)) {
-            return $cached;
-        }
-    }
-
-    // La vigencia se filtra EN SQL y no solo en PHP. Sin esto se pedían todas
-    // las relaciones que ha tenido la delegación en su vida —participantes,
-    // monitores, familias, coordinación, de todos los cursos— con dos enlaces
-    // poblados cada una. En Castellón eso es una respuesta enorme para acabar
-    // enseñando siete nombres, y es lo que dejaba la pantalla colgada.
-    $rows = $objSCP->getRecordsModule(
-        'stic_Contacts_Relationships',
-        "stic_contacts_relationships.assigned_user_id = '" . sticpa_pl_safe_id($deleg) . "'"
-        . " AND (stic_contacts_relationships.end_date IS NULL"
-        . " OR stic_contacts_relationships.end_date = ''"
-        . " OR stic_contacts_relationships.end_date >= CURDATE())",
-        array('id', 'relationship_type', 'end_date'),
-        array(
-            // La forma que espera parseRelationshipFields(). Antes se pasaba el
-            // nombre del enlace a pelo y en PHP 8 eso es un TypeError fatal:
-            // la pantalla de resumen no se colgaba, se moría.
-            'grupo' => array(
-                'relationshipName' => 'ajmcm_grupos_stic_contacts_relationships',
-                'fields' => array('id', 'name'),
-            ),
-            'persona' => array(
-                'relationshipName' => 'stic_contacts_relationships_contacts',
-                'fields' => array('id', 'name', 'first_name', 'last_name'),
-            ),
-        )
-    );
-
     $out = array();
-    if (!is_array($rows)) {
-        return $out;
-    }
-    $now = sticpa_pl_now();
-
-    foreach ($rows as $row) {
-        $v = isset($row->name_value_list) ? $row->name_value_list : null;
-        if (!$v || empty($v->id->value)) {
+    // Del mapa comun: antes esta funcion hacia su propia consulta a TODAS las
+    // relaciones de la delegacion, la misma que ya hace el mapa. Y ademas
+    // pasaba el nombre del enlace a pelo, lo que en PHP 8 era un TypeError
+    // fatal que se llevaba la pantalla de resumen entera.
+    foreach (sticpa_pl_all_relationships($objSCP) as $rel) {
+        if ($rel['role'] !== 'participante' || $rel['group_id'] !== '') {
             continue;
         }
-        if (sticpa_pl_rel_role(isset($v->relationship_type->value) ? $v->relationship_type->value : '') !== 'participante') {
-            continue;
-        }
-        $end = isset($v->end_date->value) ? trim((string) $v->end_date->value) : '';
-        if ($end !== '') {
-            $endTs = strtotime($end . ' 23:59:59');
-            if ($endTs && $endTs < $now) {
-                continue;   // relación de un curso pasado: no falta nada
-            }
-        }
-        // getRecordsModule mete el enlace como un campo más con el nombre que se
-        // le pidió; si viene vacío, esta persona no tiene grupo.
-        $grupo = isset($v->grupo->value) ? trim((string) $v->grupo->value) : '';
-        if ($grupo !== '') {
-            continue;
-        }
-        $name = isset($v->persona->value) ? trim((string) $v->persona->value) : '';
+        $name = $rel['person']['name'];
         $out[] = array(
-            'rel_id' => $v->id->value,
+            'rel_id' => $rel['rel_id'],
             'name' => ($name !== '') ? $name : __('(sin nombre)', 'sticpa'),
-            'initials' => sticpa_pl_initials('', '', $name),
+            'initials' => $rel['person']['initials'],
         );
     }
 
-    if ($ttl > 0) {
-        set_transient($cacheKey, $out, $ttl);
-    }
+    usort($out, function ($a, $b) {
+        return strcmp($a['name'], $b['name']);
+    });
     return $out;
 }
 
