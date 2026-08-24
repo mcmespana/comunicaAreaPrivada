@@ -210,6 +210,20 @@ hay forma de leerlo para copiarlo al secreto de GitHub, y acabaríamos sacándol
 por pantalla en algún sitio. Sin la constante, el endpoint contesta **501** y el
 informe del Guardián dice exactamente qué falta.
 
+### Y si toco el CRM a mediodía y lo quiero ver YA
+
+El calentado nocturno no es lo único que invalida la caché: **el botón de
+refrescar** de la cabecera de Pasar Lista (el icono circular, arriba a la
+derecha) hace lo mismo para tu delegación al momento — tira las dos familias y
+la pantalla se vuelve a pintar con lo que hay en el CRM ahora.
+
+Está en la portada, en el árbol de grupos y en el resumen. Y si un grupo sale
+**sin participantes**, la propia pantalla de marcar ofrece *"Ya lo he arreglado,
+vuelve a mirar"*, que es el mismo refresco sin salir de ahí.
+
+Por debajo es `?refrescar=1` en cualquiera de esas URL, así que también se puede
+poner a mano en la barra del navegador.
+
 ### Por qué está firmado, y no con un token en la URL
 
 - **HMAC del cuerpo**, no del path: así no se puede cambiar la lista de
