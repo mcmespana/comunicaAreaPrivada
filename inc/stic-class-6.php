@@ -632,10 +632,26 @@ class SugarRestApiCall
                     $linkName = (string) $spec;
                 }
 
+                $found = self::firstLinked($links, $linkName);
                 $record->name_value_list->$keyField = (object) array(
                     'name' => $keyField,
-                    'value' => self::firstLinkedName($links, $linkName),
+                    'value' => $found['name'],
                 );
+                // Y el ID del registro enlazado, en `<campo>_id`. Hace falta
+                // para INDEXAR por el enlace (agrupar relaciones por grupo, por
+                // ejemplo): con el nombre solo, dos grupos que se llamen igual
+                // son indistinguibles, y el nombre no sirve para navegar.
+                $idKey = $keyField . '_id';
+                $record->name_value_list->$idKey = (object) array(
+                    'name' => $idKey,
+                    'value' => $found['id'],
+                );
+                // Y el registro enlazado ENTERO en `<campo>_link`, con la misma
+                // forma que el resto (`->campo->value`). Sin esto, quien quiera
+                // un campo que no sea el nombre —los apellidos para ordenar, la
+                // edad, el móvil— tendría que pedir el contacto otra vez.
+                $linkKey = $keyField . '_link';
+                $record->name_value_list->$linkKey = $found['record'];
             }
         }
 
@@ -643,14 +659,18 @@ class SugarRestApiCall
     }
 
     /**
-     * El nombre del primer registro del enlace que se llame $linkName.
+     * El primer registro del enlace que se llame $linkName: su id y su nombre.
      *
-     * Devuelve '' si el enlace no está o no trae registros — que es un resultado
-     * legítimo, no un fallo. Si el registro no trae `name`, se compone con
-     * nombre y apellidos, que es lo que pasa con Contacts.
+     * Devuelve los dos vacíos si el enlace no está o no trae registros — que es
+     * un resultado legítimo, no un fallo: es justo lo que dice «este
+     * participante no tiene grupo». Si el registro no trae `name`, el nombre se
+     * compone con nombre y apellidos, que es lo que pasa con Contacts.
+     *
+     * @return array{id: string, name: string, record: object|null}
      */
-    private static function firstLinkedName($links, $linkName)
+    private static function firstLinked($links, $linkName)
     {
+        $empty = array('id' => '', 'name' => '', 'record' => null);
         foreach ($links as $link) {
             if (!is_object($link) || empty($link->records) || !is_array($link->records)) {
                 continue;
@@ -665,18 +685,19 @@ class SugarRestApiCall
                 if (!$lv) {
                     continue;
                 }
-                if (isset($lv->name->value) && trim((string) $lv->name->value) !== '') {
-                    return (string) $lv->name->value;
+                $id = isset($lv->id->value) ? trim((string) $lv->id->value) : '';
+                $name = isset($lv->name->value) ? trim((string) $lv->name->value) : '';
+                if ($name === '') {
+                    $first = isset($lv->first_name->value) ? trim((string) $lv->first_name->value) : '';
+                    $last = isset($lv->last_name->value) ? trim((string) $lv->last_name->value) : '';
+                    $name = trim($first . ' ' . $last);
                 }
-                $first = isset($lv->first_name->value) ? trim((string) $lv->first_name->value) : '';
-                $last = isset($lv->last_name->value) ? trim((string) $lv->last_name->value) : '';
-                $full = trim($first . ' ' . $last);
-                if ($full !== '') {
-                    return $full;
+                if ($id !== '' || $name !== '') {
+                    return array('id' => $id, 'name' => $name, 'record' => $lv);
                 }
             }
         }
-        return '';
+        return $empty;
     }
 
     // Portal login using the permanent access token (custom field ajmcm_pa_token_c).
