@@ -52,6 +52,40 @@ class FakeSCP
     }
 
     /**
+     * La forma REAL de `get_entry_list` con `link_name_to_fields_array`, pasada
+     * por el aplanado del plugin. Cada fila del array de entrada lleva
+     * 'fields' y, opcionalmente, un array por cada enlace ('grupo', 'persona').
+     */
+    private function entryListShape($rows, $relationshipFields)
+    {
+        $entries = array();
+        $relationshipList = array();
+
+        foreach ($rows as $row) {
+            $entries[] = $this->nvl($row['fields']);
+
+            $linkList = array();
+            foreach (array('grupo', 'persona') as $which) {
+                if (empty($row[$which]) || !is_array($relationshipFields) || !isset($relationshipFields[$which])) {
+                    continue;
+                }
+                $spec = $relationshipFields[$which];
+                $lv = new stdClass();
+                foreach ($row[$which] as $k => $v) {
+                    $lv->$k = (object) array('name' => $k, 'value' => $v);
+                }
+                $link = new stdClass();
+                $link->name = is_array($spec) ? $spec['relationshipName'] : (string) $spec;
+                $link->records = array((object) array('link_value' => $lv));
+                $linkList[] = $link;
+            }
+            $relationshipList[] = (object) array('link_list' => $linkList);
+        }
+
+        return SugarRestApiCall::flattenRelationshipFields($entries, $relationshipList, $relationshipFields);
+    }
+
+    /**
      * Devuelve las filas con la forma REAL de `get_relationships` de la v4.1:
      * `entry_list` pelado y los enlaces aparte en `relationship_list`, y las
      * junta con el MISMO ensamblado que usa el plugin de verdad. Asi, si
@@ -144,16 +178,51 @@ class FakeSCP
             );
         }
         if ($module === 'stic_Contacts_Relationships') {
-            // getRecordsModule mete el enlace pedido como un campo más.
-            return array(
-                $this->nvl(array('id' => 'r1', 'relationship_type' => 'participante_mic_com', 'end_date' => '', 'grupo' => 'Los Peques', 'persona' => 'Solete Vilarroya')),
-                $this->nvl(array('id' => 'r7', 'relationship_type' => 'participante_mic_com', 'end_date' => '', 'grupo' => '', 'persona' => 'Sol Messeguer')),
-                $this->nvl(array('id' => 'r8', 'relationship_type' => 'participante_mic_com', 'end_date' => '', 'grupo' => '', 'persona' => 'Lucia Ripolles')),
+            // La forma REAL de get_entry_list con `link_name_to_fields_array`:
+            // los enlaces vienen en `relationship_list`, aparte, y el plugin los
+            // aplana. Se pasa por el aplanado de verdad para que estos tests
+            // comprueben el contrato y no una version inventada.
+            //
+            // La vigencia la filtra el SQL, asi que el doble NO devuelve
+            // relaciones caducadas: devolverlas seria mentir sobre la consulta.
+            return $this->entryListShape(array(
+                array(
+                    'fields' => array('id' => 'r1', 'relationship_type' => 'participante_mic_com', 'start_date' => '2025-09-01', 'end_date' => ''),
+                    'grupo' => array('id' => 'g1', 'name' => 'Los Peques'),
+                    'persona' => array('id' => 'c1', 'name' => 'Solete Vilarroya', 'first_name' => 'Solete', 'last_name' => 'Vilarroya', 'stic_age_c' => '13', 'phone_mobile' => '600111222'),
+                ),
+                array(
+                    'fields' => array('id' => 'r2', 'relationship_type' => 'participante_mic_com', 'start_date' => '2025-09-01', 'end_date' => ''),
+                    'grupo' => array('id' => 'g1', 'name' => 'Los Peques'),
+                    'persona' => array('id' => 'c2', 'name' => 'Jaume Pascual', 'first_name' => 'Jaume', 'last_name' => 'Pascual', 'stic_age_c' => '13'),
+                ),
+                // El monitor del grupo g1: David Soler, que es quien esta en sesion.
+                array(
+                    'fields' => array('id' => 'r4', 'relationship_type' => 'monitor', 'end_date' => ''),
+                    'grupo' => array('id' => 'g1', 'name' => 'Los Peques'),
+                    'persona' => array('id' => 'm1', 'name' => 'David Soler', 'first_name' => 'David', 'last_name' => 'Soler'),
+                ),
+                // El rol `grupo` de los +18: cuenta como participante.
+                array(
+                    'fields' => array('id' => 'r5', 'relationship_type' => 'grupo', 'end_date' => ''),
+                    'grupo' => array('id' => 'g1', 'name' => 'Los Peques'),
+                    'persona' => array('id' => 'c3', 'name' => 'Marta Adulta', 'first_name' => 'Marta', 'last_name' => 'Adulta'),
+                ),
+                // Sin grupo: son los de "datos por revisar".
+                array(
+                    'fields' => array('id' => 'r7', 'relationship_type' => 'participante_mic_com', 'end_date' => ''),
+                    'persona' => array('id' => 'c7', 'name' => 'Sol Messeguer', 'first_name' => 'Sol', 'last_name' => 'Messeguer'),
+                ),
+                array(
+                    'fields' => array('id' => 'r8', 'relationship_type' => 'participante_mic_com', 'end_date' => ''),
+                    'persona' => array('id' => 'c8', 'name' => 'Lucia Ripolles', 'first_name' => 'Lucia', 'last_name' => 'Ripolles'),
+                ),
                 // Monitor sin grupo: no sale en la lista de participantes.
-                $this->nvl(array('id' => 'r9', 'relationship_type' => 'monitor', 'end_date' => '', 'grupo' => '', 'persona' => 'Un Monitor')),
-                // Curso pasado: ya no falta nada.
-                $this->nvl(array('id' => 'r10', 'relationship_type' => 'participante_mic_com', 'end_date' => '2024-06-30', 'grupo' => '', 'persona' => 'Del Curso Pasado')),
-            );
+                array(
+                    'fields' => array('id' => 'r9', 'relationship_type' => 'monitor', 'end_date' => ''),
+                    'persona' => array('id' => 'm9', 'name' => 'Un Monitor', 'first_name' => 'Un', 'last_name' => 'Monitor'),
+                ),
+            ), $rel);
         }
         if ($module === 'stic_Events') {
             return array(
@@ -599,13 +668,19 @@ final class PasarListaRenderTest extends TestCase
         $_REQUEST = array('grupo' => 'g1');
         $this->render('single_stic_pasar_lista_marcar');
 
-        $people = array_filter($this->scp->calls, function ($c) {
+        // Las personas ya NO se piden por grupo: salen del mapa comun de la
+        // delegacion, que es una sola llamada para las 28 filas del arbol.
+        $porGrupo = array_filter($this->scp->calls, function ($c) {
             return $c === 'ajmcm_GRUPOS:ajmcm_grupos_stic_contacts_relationships';
+        });
+        $mapa = array_filter($this->scp->calls, function ($c) {
+            return $c === 'getRecordsModule:stic_Contacts_Relationships';
         });
         $att = array_filter($this->scp->calls, function ($c) {
             return $c === 'stic_Sessions:stic_attendances_stic_sessions';
         });
-        $this->assertCount(1, $people, 'las personas del grupo salen en UNA llamada');
+        $this->assertCount(0, $porGrupo, 'ya no se pide una vez por grupo');
+        $this->assertLessThanOrEqual(1, count($mapa), 'el mapa de relaciones se pide UNA vez');
         $this->assertLessThanOrEqual(
             1 + sticpa_pl_streak_threshold(),
             count($att),
@@ -1761,5 +1836,93 @@ final class PasarListaRenderTest extends TestCase
         $antes = sticpa_pl_cache_key('streaks', $this->scp);
         sticpa_pl_flush($this->scp, 'state');
         $this->assertNotSame($antes, sticpa_pl_cache_key('streaks', $this->scp));
+    }
+
+    // -----------------------------------------------------------------------
+    // El mapa comun de relaciones (una llamada para toda la delegacion)
+    // -----------------------------------------------------------------------
+
+    /**
+     * EL BUG GRAVE, fijado donde de verdad ocurria: un grupo con gente decia
+     * "0 participantes". La causa final no era solo donde vienen los enlaces,
+     * es que `get_relationships` NO los devuelve en esta instancia. Ahora las
+     * personas salen de `get_entry_list`, que es la via probada.
+     */
+    public function testUnGrupoConGenteNoSaleVacio()
+    {
+        $people = sticpa_pl_group_people($this->scp, 'g1');
+
+        $nombres = array_column($people['participants'], 'name');
+        $this->assertContains('Solete Vilarroya', $nombres);
+        $this->assertContains('Jaume Pascual', $nombres);
+        // El rol `grupo` de los +18 cuenta como participante.
+        $this->assertContains('Marta Adulta', $nombres);
+        // Y el monitor va en su cubo, no con los participantes.
+        $this->assertSame(array('David Soler'), array_column($people['monitors'], 'name'));
+    }
+
+    /** Los datos de la persona llegan enteros, no solo el nombre. */
+    public function testLaPersonaLlegaConSusDatos()
+    {
+        $people = sticpa_pl_group_people($this->scp, 'g1');
+        $solete = null;
+        foreach ($people['participants'] as $p) {
+            if ($p['name'] === 'Solete Vilarroya') { $solete = $p; }
+        }
+        $this->assertNotNull($solete);
+        $this->assertSame('c1', $solete['id']);
+        $this->assertSame('13', $solete['age']);
+        $this->assertSame('600111222', $solete['mobile']);
+        $this->assertSame('SV', $solete['initials']);
+    }
+
+    /** Un grupo sin nadie sigue devolviendo la forma, no un aviso. */
+    public function testUnGrupoSinGenteDevuelveLosDosCubosVacios()
+    {
+        $people = sticpa_pl_group_people($this->scp, 'g3');
+        $this->assertSame(array(), $people['participants']);
+        $this->assertSame(array(), $people['monitors']);
+    }
+
+    /** "Tu grupo": el monitor en sesion es m1, y su grupo es g1. */
+    public function testMisGruposSaleDelMapa()
+    {
+        $_SESSION['scp_user_id'] = 'm1';
+        $this->assertSame(array('g1'), sticpa_pl_my_groups($this->scp));
+    }
+
+    /** Y quien no es monitor de nada no tiene atajo, sin inventarse uno. */
+    public function testSinRelacionDeMonitorNoHayGrupos()
+    {
+        $_SESSION['scp_user_id'] = 'nadie';
+        $this->assertSame(array(), sticpa_pl_my_groups($this->scp));
+    }
+
+    /** Los que no tienen grupo, para "datos por revisar". */
+    public function testParticipantesSinGrupo()
+    {
+        $sin = sticpa_pl_participants_without_group($this->scp);
+        $nombres = array_column($sin, 'name');
+
+        $this->assertContains('Sol Messeguer', $nombres);
+        $this->assertContains('Lucia Ripolles', $nombres);
+        // Un MONITOR sin grupo no es un participante sin grupo.
+        $this->assertNotContains('Un Monitor', $nombres);
+        // Ni los que si tienen grupo.
+        $this->assertNotContains('Solete Vilarroya', $nombres);
+    }
+
+    /**
+     * Lo que se prometio: UNA llamada para toda la delegacion, no una por
+     * grupo. Se pintan las 4 filas del arbol y se cuenta.
+     */
+    public function testElArbolNoPideLasPersonasGrupoAGrupo()
+    {
+        $this->render('single_stic_pasar_lista_grupos');
+
+        $mapa = array_filter($this->scp->calls, function ($c) {
+            return $c === 'getRecordsModule:stic_Contacts_Relationships';
+        });
+        $this->assertLessThanOrEqual(1, count($mapa));
     }
 }
