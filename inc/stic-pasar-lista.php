@@ -823,3 +823,116 @@ function sticpa_pl_group_meta($group, $now = null)
 
     return $bits;
 }
+
+/**
+ * Las etiquetas de los segmentos del COM, y el orden en que se enseñan.
+ *
+ * `ajmcm_segmento_com_c` guarda `com_1`/`com_2`/`com_3`; en pantalla son COM I,
+ * COM II y COM III. Un segmento es una división DENTRO del COM que agrupa
+ * cursos (COM I son los dos primeros de la ESO), y se mantiene a mano.
+ */
+function sticpa_pl_segmento_labels()
+{
+    return apply_filters('sticpa_pl_segmento_labels', array(
+        'com_1' => 'COM I',
+        'com_2' => 'COM II',
+        'com_3' => 'COM III',
+    ));
+}
+
+/**
+ * Los grupos repartidos en las secciones del artboard `Main`: la navegación de
+ * «Pasar lista de otro grupo» — MIC, COM I, COM II, COM III, LC.
+ *
+ * POR QUÉ ASÍ y no una lista de veintiocho: el artboard entra al árbol POR
+ * SECCIÓN, y esa es la diferencia entre elegir entre cuatro cosas y leer
+ * veintiocho. El árbol completo sigue existiendo, pero como destino, no como
+ * puerta.
+ *
+ * Cada sección lleva el número de participantes cuando hay recuentos frescos
+ * (es el 93 / 48 / 37 / 22 del artboard) y, si no, cuántos grupos tiene: un
+ * número que no se puede calcular no se inventa, se cambia por el que sí.
+ *
+ * @param array $groups  Tal como los devuelve sticpa_pl_groups().
+ * @param int|null $now
+ * @return array Lista ordenada de secciones.
+ */
+function sticpa_pl_group_buckets($groups, $now = null)
+{
+    $segmentos = sticpa_pl_segmento_labels();
+
+    // El orden es el del artboard, y es el del recorrido de un chaval por el
+    // movimiento: primero los pequeños.
+    $order = array(array('key' => 'MIC', 'label' => 'MIC', 'etapa' => 'MIC', 'segmento' => ''));
+    foreach ($segmentos as $seg => $label) {
+        $order[] = array('key' => 'COM:' . $seg, 'label' => $label, 'etapa' => 'COM', 'segmento' => $seg);
+    }
+    // El COM sin segmento puesto: existe y hay que poder llegar a él, o esos
+    // grupos desaparecen de la navegación sin decir por qué.
+    $order[] = array('key' => 'COM', 'label' => 'COM', 'etapa' => 'COM', 'segmento' => '');
+    $order[] = array('key' => 'LC', 'label' => 'LC', 'etapa' => 'LC', 'segmento' => '');
+    $order[] = array('key' => '?', 'label' => __('Sin etapa', 'sticpa'), 'etapa' => '', 'segmento' => '');
+
+    $buckets = array();
+    foreach ($order as $b) {
+        $b['groups'] = 0;
+        $b['participants'] = 0;
+        $b['fresh'] = false;
+        $b['ids'] = array();
+        $buckets[$b['key']] = $b;
+    }
+
+    foreach ($groups as $id => $g) {
+        $etapa = isset($g['etapa']) ? (string) $g['etapa'] : '';
+        $seg = isset($g['segmento']) ? trim((string) $g['segmento']) : '';
+
+        if ($etapa === 'COM' && $seg !== '' && isset($buckets['COM:' . $seg])) {
+            $key = 'COM:' . $seg;
+        } elseif ($etapa !== '' && isset($buckets[$etapa])) {
+            $key = $etapa;
+        } else {
+            $key = '?';
+        }
+
+        $buckets[$key]['groups']++;
+        $buckets[$key]['ids'][] = $id;
+
+        $n = isset($g['n_participantes']) ? (int) $g['n_participantes'] : -1;
+        $al = isset($g['recuento_al']) ? $g['recuento_al'] : '';
+        if ($n >= 0 && sticpa_pl_recuento_fresco($al, $now)) {
+            $buckets[$key]['participants'] += $n;
+            $buckets[$key]['fresh'] = true;
+        }
+    }
+
+    // Las secciones vacías no se pintan: una fila «COM III · 0» no ayuda a
+    // nadie a llegar a ningún sitio.
+    return array_values(array_filter($buckets, function ($b) {
+        return $b['groups'] > 0;
+    }));
+}
+
+/** ¿Cae este grupo dentro de la sección indicada? */
+function sticpa_pl_group_in_bucket($group, $bucketKey)
+{
+    $bucketKey = (string) $bucketKey;
+    if ($bucketKey === '') {
+        return true;
+    }
+    $etapa = isset($group['etapa']) ? (string) $group['etapa'] : '';
+    $seg = isset($group['segmento']) ? trim((string) $group['segmento']) : '';
+
+    if (strpos($bucketKey, ':') !== false) {
+        list($wantEtapa, $wantSeg) = explode(':', $bucketKey, 2);
+        return ($etapa === $wantEtapa && $seg === $wantSeg);
+    }
+    if ($bucketKey === '?') {
+        return ($etapa === '');
+    }
+    // Una etapa a secas NO se lleva los grupos que tienen segmento: esos ya
+    // tienen su propia sección, y saldrían dos veces.
+    if ($bucketKey === 'COM') {
+        return ($etapa === 'COM' && $seg === '');
+    }
+    return ($etapa === $bucketKey);
+}

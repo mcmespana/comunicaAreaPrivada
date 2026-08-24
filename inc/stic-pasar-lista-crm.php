@@ -369,13 +369,32 @@ function sticpa_pl_all_relationships($objSCP)
         }
     }
 
+    // Se piden LAS DOS COSAS a la vez, y luego se usa la que haya venido:
+    //
+    //  a) los campos planos del propio registro (`..._ida` para el id y
+    //     `..._name` para el nombre). Son los que la API V8 devuelve poblados.
+    //  b) los enlaces anidados con `link_name_to_fields_array`.
+    //
+    // Se piden juntos a proposito y no uno detras del otro: es la MISMA
+    // llamada, no cuesta nada, y asi la pantalla funciona sin depender de cual
+    // de las dos formas soporte la instancia. Ya se perdio una tarde
+    // averiguando que `get_relationships` no devuelve (b).
+    $fields = array(
+        'id', 'name', 'relationship_type', 'start_date', 'end_date',
+        'stic_contacts_relationships_contactscontacts_ida',
+        'stic_contacts_relationships_contacts_name',
+        'ajmcm_grupos_stic_contacts_relationshipsajmcm_grupos_ida',
+        'ajmcm_grupos_stic_contacts_relationships_name',
+    );
+
+    // La vigencia se filtra en PHP y NO en SQL. En SQL era mas barato, pero si
+    // la consulta no le gusta al CRM la respuesta vuelve VACIA y la pantalla
+    // dice "no hay nadie" sin distinguirlo de que de verdad no haya nadie. Un
+    // filtro que puede fallar en silencio no vale para esto.
     $rows = $objSCP->getRecordsModule(
         'stic_Contacts_Relationships',
-        "stic_contacts_relationships.assigned_user_id = '" . sticpa_pl_safe_id($deleg) . "'"
-        . " AND (stic_contacts_relationships.end_date IS NULL"
-        . " OR stic_contacts_relationships.end_date = ''"
-        . " OR stic_contacts_relationships.end_date >= CURDATE())",
-        array('id', 'relationship_type', 'start_date', 'end_date'),
+        "stic_contacts_relationships.assigned_user_id = '" . sticpa_pl_safe_id($deleg) . "'",
+        $fields,
         array(
             'grupo' => array(
                 'relationshipName' => 'ajmcm_grupos_stic_contacts_relationships',
@@ -389,6 +408,8 @@ function sticpa_pl_all_relationships($objSCP)
     );
 
     $out = array();
+    $now = sticpa_pl_now();
+
     if (is_array($rows)) {
         foreach ($rows as $row) {
             $v = isset($row->name_value_list) ? $row->name_value_list : null;
@@ -399,30 +420,27 @@ function sticpa_pl_all_relationships($objSCP)
             if ($role === '') {
                 continue;
             }
-            $lv = isset($v->persona_link) ? $v->persona_link : null;
-            $first = ($lv && isset($lv->first_name->value)) ? trim((string) $lv->first_name->value) : '';
-            $last = ($lv && isset($lv->last_name->value)) ? trim((string) $lv->last_name->value) : '';
-            $full = isset($v->persona->value) ? trim((string) $v->persona->value) : '';
-            if ($full === '') {
-                $full = trim($first . ' ' . $last);
+            // Vigencia. Una relacion terminada es historia, no un dato de hoy.
+            $endRaw = isset($v->end_date->value) ? trim((string) $v->end_date->value) : '';
+            if ($endRaw !== '') {
+                $endTs = strtotime($endRaw . ' 23:59:59');
+                if ($endTs && $endTs < $now) {
+                    continue;
+                }
             }
 
             $out[] = array(
                 'rel_id' => (string) $v->id->value,
                 'role' => $role,
-                'group_id' => isset($v->grupo_id->value) ? (string) $v->grupo_id->value : '',
-                'group_name' => isset($v->grupo->value) ? (string) $v->grupo->value : '',
-                'person' => array(
-                    'id' => isset($v->persona_id->value) ? (string) $v->persona_id->value : '',
-                    'name' => $full,
-                    'first' => $first,
-                    'last' => $last,
-                    'sort' => sticpa_pl_sort_key($last, $first),
-                    'initials' => sticpa_pl_initials($first, $last, $full),
-                    'age' => ($lv && isset($lv->stic_age_c->value)) ? (string) $lv->stic_age_c->value : '',
-                    'birthdate' => ($lv && isset($lv->birthdate->value)) ? (string) $lv->birthdate->value : '',
-                    'mobile' => ($lv && isset($lv->phone_mobile->value)) ? (string) $lv->phone_mobile->value : '',
-                ),
+                'group_id' => sticpa_pl_nvl_first($v, array(
+                    'grupo_id',
+                    'ajmcm_grupos_stic_contacts_relationshipsajmcm_grupos_ida',
+                )),
+                'group_name' => sticpa_pl_nvl_first($v, array(
+                    'grupo',
+                    'ajmcm_grupos_stic_contacts_relationships_name',
+                )),
+                'person' => sticpa_pl_person_from_rel_row($v),
             );
         }
     }
@@ -431,6 +449,77 @@ function sticpa_pl_all_relationships($objSCP)
         set_transient($cacheKey, $out, $ttl);
     }
     return $out;
+}
+
+/**
+ * El primer valor no vacio de una lista de campos de `name_value_list`.
+ *
+ * Existe porque el mismo dato puede llegar por dos nombres distintos segun la
+ * forma que soporte la instancia (el enlace aplanado o el campo plano del
+ * registro), y probar en orden es mas claro que un `??` de tres pisos.
+ */
+function sticpa_pl_nvl_first($v, $keys)
+{
+    foreach ((array) $keys as $k) {
+        if (isset($v->$k->value)) {
+            $val = trim((string) $v->$k->value);
+            if ($val !== '') {
+                return $val;
+            }
+        }
+    }
+    return '';
+}
+
+/**
+ * La persona de una fila de relacion, de donde se pueda sacar.
+ *
+ * Por orden de preferencia: el enlace anidado (trae edad y movil), el campo
+ * plano `..._name`, y como ultimo recurso el NOMBRE DE LA PROPIA RELACION, que
+ * en este CRM es «Solete Vilarroya Messguer - Participante MIC-COM». Es feo
+ * partirlo por el guion, pero un nombre es infinitamente mejor que una fila en
+ * blanco: sin el, el monitor no puede pasar lista.
+ */
+function sticpa_pl_person_from_rel_row($v)
+{
+    $lv = isset($v->persona_link) ? $v->persona_link : null;
+
+    $id = sticpa_pl_nvl_first($v, array(
+        'persona_id',
+        'stic_contacts_relationships_contactscontacts_ida',
+    ));
+
+    $first = ($lv && isset($lv->first_name->value)) ? trim((string) $lv->first_name->value) : '';
+    $last = ($lv && isset($lv->last_name->value)) ? trim((string) $lv->last_name->value) : '';
+
+    $full = sticpa_pl_nvl_first($v, array(
+        'persona',
+        'stic_contacts_relationships_contacts_name',
+    ));
+    if ($full === '') {
+        $full = trim($first . ' ' . $last);
+    }
+    if ($full === '') {
+        // El nombre de la relacion: «Persona - Papel». Se parte por el ultimo
+        // guion rodeado de espacios para no romper un apellido con guion.
+        $relName = isset($v->name->value) ? trim((string) $v->name->value) : '';
+        $cut = strrpos($relName, ' - ');
+        $full = ($cut !== false) ? trim(substr($relName, 0, $cut)) : $relName;
+    }
+
+    return array(
+        'id' => $id,
+        'name' => $full,
+        'first' => $first,
+        'last' => $last,
+        'sort' => ($last !== '' || $first !== '')
+            ? sticpa_pl_sort_key($last, $first)
+            : sticpa_pl_sort_key($full, ''),
+        'initials' => sticpa_pl_initials($first, $last, $full),
+        'age' => ($lv && isset($lv->stic_age_c->value)) ? (string) $lv->stic_age_c->value : '',
+        'birthdate' => ($lv && isset($lv->birthdate->value)) ? (string) $lv->birthdate->value : '',
+        'mobile' => ($lv && isset($lv->phone_mobile->value)) ? (string) $lv->phone_mobile->value : '',
+    );
 }
 
 /**
@@ -453,21 +542,23 @@ function sticpa_pl_group_people($objSCP, $groupId)
 
     $out = array('participants' => array(), 'monitors' => array());
 
-    // Sale del mapa comun de la delegacion: ni una llamada propia. Antes esto
-    // era una llamada POR GRUPO con el enlace a Contacts poblado, y en esta
-    // instancia ese enlace no vuelve — de ahi el "0 participantes" en un grupo
-    // con gente. Ver sticpa_pl_all_relationships().
+    // Camino normal: del mapa comun de la delegacion, sin una llamada propia.
     foreach (sticpa_pl_all_relationships($objSCP) as $rel) {
-        if ($rel['group_id'] !== $groupId) {
-            continue;
-        }
-        if ($rel['person']['id'] === '') {
+        if ($rel['group_id'] !== $groupId || $rel['person']['id'] === '') {
             continue;
         }
         $bucket = ($rel['role'] === 'monitor') ? 'monitors' : 'participants';
-        // Indexado por id: si alguien tuviera dos relaciones vigentes con el
-        // mismo grupo, sale una vez.
+        // Indexado por id: dos relaciones vigentes con el mismo grupo salen una.
         $out[$bucket][$rel['person']['id']] = $rel['person'];
+    }
+
+    // RESPALDO. Si el mapa no ha sacado a nadie de este grupo, se pregunta por
+    // el grupo directamente. Cuesta 1+N llamadas —lo que hace el resto del
+    // plugin desde siempre— y por eso es el respaldo y no el camino; pero una
+    // lista vacia en un grupo con gente deja a un monitor sin poder pasar
+    // lista un sabado, y eso no se puede permitir por ahorrar llamadas.
+    if (empty($out['participants']) && empty($out['monitors'])) {
+        $out = sticpa_pl_group_people_direct($objSCP, $groupId);
     }
 
     // Alfabético por apellido, que es como se lee una lista de clase.
@@ -477,6 +568,128 @@ function sticpa_pl_group_people($objSCP, $groupId)
     }
 
     return $out;
+}
+
+/**
+ * Las personas de un grupo preguntando POR EL GRUPO, una persona por llamada.
+ *
+ * Es el respaldo de sticpa_pl_group_people(). Usa solo lo que esta instancia ha
+ * demostrado que soporta: `get_relationships` devolviendo los REGISTROS (sin
+ * enlaces anidados), que es lo que hace todo el plugin desde siempre.
+ *
+ * El tope existe para que un grupo con los datos mal (cientos de relaciones sin
+ * cerrar) no convierta una pantalla en cien llamadas. Si se llega al tope se
+ * dice en pantalla: una lista recortada en silencio es peor que una lista corta
+ * que avisa de que lo esta.
+ */
+function sticpa_pl_group_people_direct($objSCP, $groupId)
+{
+    $out = array('participants' => array(), 'monitors' => array(), 'truncated' => false);
+
+    $rels = $objSCP->getRelatedElementsForLoggedUser(array(
+        'module_name' => 'ajmcm_GRUPOS',
+        'module_id' => sticpa_pl_safe_id($groupId),
+        'link_field_name' => 'ajmcm_grupos_stic_contacts_relationships',
+        'related_fields' => array('id', 'name', 'relationship_type', 'start_date', 'end_date'),
+        'related_module_link_name_to_fields_array' => array(),
+        'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
+    ));
+    if (!is_array($rels)) {
+        return $out;
+    }
+
+    $max = (int) apply_filters('sticpa_pl_max_people_per_group', 40);
+    $now = sticpa_pl_now();
+    $seen = 0;
+
+    foreach ($rels as $rel) {
+        $v = isset($rel->name_value_list) ? $rel->name_value_list : null;
+        if (!$v || empty($v->id->value)) {
+            continue;
+        }
+        $role = sticpa_pl_rel_role(isset($v->relationship_type->value) ? $v->relationship_type->value : '');
+        if ($role === '') {
+            continue;
+        }
+        $endRaw = isset($v->end_date->value) ? trim((string) $v->end_date->value) : '';
+        if ($endRaw !== '') {
+            $endTs = strtotime($endRaw . ' 23:59:59');
+            if ($endTs && $endTs < $now) {
+                continue;
+            }
+        }
+        if ($seen >= $max) {
+            $out['truncated'] = true;
+            break;
+        }
+        $seen++;
+
+        // El contacto de esta relacion. Una llamada, y aqui SI hace falta:
+        // es la unica forma de tener el id con el que se guarda la asistencia.
+        $person = sticpa_pl_contact_of_relationship($objSCP, (string) $v->id->value, $v);
+        if ($person === null || $person['id'] === '') {
+            continue;
+        }
+        $bucket = ($role === 'monitor') ? 'monitors' : 'participants';
+        $out[$bucket][$person['id']] = $person;
+    }
+
+    return $out;
+}
+
+/**
+ * El contacto de una relación, con sus datos de lista.
+ *
+ * $relRow es la fila de la relación, que se pasa para poder caer en su `name`
+ * («Solete Vilarroya Messguer - Participante MIC-COM») si el contacto viniera
+ * sin nombre: un nombre imperfecto es mejor que una fila en blanco.
+ */
+function sticpa_pl_contact_of_relationship($objSCP, $relId, $relRow = null)
+{
+    $rows = $objSCP->getRelatedElementsForLoggedUser(array(
+        'module_name' => 'stic_Contacts_Relationships',
+        'module_id' => sticpa_pl_safe_id($relId),
+        'link_field_name' => 'stic_contacts_relationships_contacts',
+        'related_fields' => array('id', 'name', 'first_name', 'last_name', 'birthdate', 'stic_age_c', 'phone_mobile'),
+        'related_module_link_name_to_fields_array' => array(),
+        'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
+    ));
+    if (!is_array($rows)) {
+        return null;
+    }
+
+    foreach ($rows as $row) {
+        $c = isset($row->name_value_list) ? $row->name_value_list : null;
+        if (!$c || empty($c->id->value)) {
+            continue;
+        }
+        $first = isset($c->first_name->value) ? trim((string) $c->first_name->value) : '';
+        $last = isset($c->last_name->value) ? trim((string) $c->last_name->value) : '';
+        $full = trim($first . ' ' . $last);
+        if ($full === '' && isset($c->name->value)) {
+            $full = trim((string) $c->name->value);
+        }
+        if ($full === '' && $relRow !== null && isset($relRow->name->value)) {
+            $relName = trim((string) $relRow->name->value);
+            $cut = strrpos($relName, ' - ');
+            $full = ($cut !== false) ? trim(substr($relName, 0, $cut)) : $relName;
+        }
+
+        return array(
+            'id' => (string) $c->id->value,
+            'name' => $full,
+            'first' => $first,
+            'last' => $last,
+            'sort' => ($last !== '' || $first !== '')
+                ? sticpa_pl_sort_key($last, $first)
+                : sticpa_pl_sort_key($full, ''),
+            'initials' => sticpa_pl_initials($first, $last, $full),
+            'age' => isset($c->stic_age_c->value) ? (string) $c->stic_age_c->value : '',
+            'birthdate' => isset($c->birthdate->value) ? (string) $c->birthdate->value : '',
+            'mobile' => isset($c->phone_mobile->value) ? (string) $c->phone_mobile->value : '',
+        );
+    }
+    return null;
 }
 
 /** Orden de personas: apellido y luego nombre. */
