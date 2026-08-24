@@ -383,3 +383,61 @@ siendo el contacto de emergencias.
 Y ojo: el botón de WhatsApp del menor respeta `ajmcm_menorwhatsapp_c`. Si no
 autoriza, no se pinta. El de llamar sí, porque autorizar WhatsApp y tener
 teléfono son cosas distintas.
+
+---
+
+## 9. Los enlaces anidados de la API: la trampa que se repitió cinco veces
+
+Este apartado existe porque el mismo error se repitió en cinco funciones
+distintas y costó varias vueltas. Si vas a leer una sola cosa antes de tocar la
+capa de CRM, lee esta.
+
+### Qué se asumió mal
+
+La API v4.1 deja pedir, en la misma llamada, los registros relacionados **y** un
+enlace poblado dentro de cada uno (`related_module_link_name_to_fields_array` en
+`get_relationships`, `link_name_to_fields_array` en `get_entry_list`). Es un
+parámetro documentado, así que se construyó Pasar Lista encima.
+
+**En esta instancia, `get_relationships` no lo devuelve.** Ni error ni aviso:
+responde 200, los registros llegan, y el enlace pedido no aparece. El síntoma
+siempre es el mismo y siempre parece otra cosa: una lista vacía, un grupo con
+«0 participantes», un «no tienes ningún grupo asignado», una lista duplicada en
+cada guardado.
+
+Y la pista estaba en el repo desde el principio: **todo el código que funciona en
+producción desde años pasa ese array VACÍO** y hace N+1 llamadas. Eso no era
+«nadie se molestó», era «aquí no funciona».
+
+### Lo que sí funciona, por orden de preferencia
+
+1. **El campo plano del propio registro.** Cada enlace tiene su columna con el
+   id: `..._ida` (y a veces `..._name` con el nombre). Salen en
+   `get_module_fields` filtrando por `ida`. Es lo más barato: no cuesta ninguna
+   llamada extra, solo pedir el campo.
+2. **`get_entry_list` con `link_name_to_fields_array`** (o sea
+   `getRecordsModule()` con su cuarto parámetro). Esta vía SÍ funciona — la usa
+   `list_stic_job_offers.php` en producción desde siempre.
+3. **Preguntar por el enlace**, una llamada por registro. Es el último recurso y
+   solo para uno o dos registros, nunca en un bucle sobre un grupo entero.
+
+### La regla
+
+> Pide **siempre** el campo plano `..._ida` junto al enlace anidado, y resuelve
+> con el primero que venga. Nunca dependas solo del enlace.
+
+`SugarRestApiCall::flattenRelationshipFields()` hace eso por ti y, además,
+resuelve **qué bloque es de qué campo**: primero por nombre y, si la API no
+nombra los bloques, **por posición**. Eso último importa mucho: pidiendo dos
+enlaces sin nombre, la versión anterior daba el primer bloque a los dos campos,
+así que «el grupo» se quedaba con el id de «la persona». Con eso, la consulta de
+una sola llamada se daba por fallida y todo caía a los respaldos de 1+N — que es
+lo que hacía la pantalla lenta.
+
+### El coste, medido
+
+`tests/CosteLlamadasTest.php` cuenta las llamadas de cada pantalla y las imprime.
+No falla nunca a propósito: es una medida, para que el número no suba sin que
+nadie se dé cuenta. Con los enlaces resolviéndose bien, la portada baja de 13 a
+6 llamadas y la de marcado de 14 a 9 — y eso con un grupo de prueba de cuatro
+personas; con doce, el respaldo es 1+N y la diferencia es mucho mayor.

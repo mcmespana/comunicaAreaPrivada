@@ -2255,7 +2255,15 @@ function sticpa_pl_family($objSCP, $contactId)
             'module_name' => 'Contacts',
             'module_id' => $contactId,
             'link_field_name' => $link,
-            'related_fields' => array('id', 'relationship_type', 'reference_contact', 'authorized_signer', 'end_date'),
+            // Los campos planos de los DOS enlaces, ademas de los anidados: la
+            // relacion familiar puede estar creada en cualquiera de los dos
+            // sentidos. Sin esto el bloque de telefonos de la familia salia
+            // VACIO en todas las fichas, sin decir nada.
+            'related_fields' => array(
+                'id', 'relationship_type', 'reference_contact', 'authorized_signer', 'end_date',
+                'stic_personal_environment_contactscontacts_ida',
+                'stic_personal_environment_contacts_1contacts_idb',
+            ),
             'related_module_link_name_to_fields_array' => array(
                 array('name' => 'stic_personal_environment_contacts', 'value' => array('id', 'first_name', 'last_name', 'name', 'phone_mobile')),
                 array('name' => 'stic_personal_environment_contacts_1', 'value' => array('id', 'first_name', 'last_name', 'name', 'phone_mobile')),
@@ -2570,7 +2578,14 @@ function sticpa_pl_coord_scope($objSCP)
         'module_name' => 'Contacts',
         'module_id' => $userId,
         'link_field_name' => 'stic_contacts_relationships_contacts',
-        'related_fields' => array('id', 'relationship_type', 'end_date', 'ajmcm_etapa_relacion_c'),
+        // El campo plano del grupo ademas del enlace. SIN ESTO el segmento del
+        // alcance salia SIEMPRE vacio, y un coordinador de COM II veia la
+        // delegacion entera en vez de su segmento. No es solo comodidad: es
+        // quien puede editar los datos de quien.
+        'related_fields' => array(
+            'id', 'relationship_type', 'end_date', 'ajmcm_etapa_relacion_c',
+            'ajmcm_grupos_stic_contacts_relationshipsajmcm_grupos_ida',
+        ),
         'related_module_link_name_to_fields_array' => array(
             array('name' => 'ajmcm_grupos_stic_contacts_relationships', 'value' => array('id')),
         ),
@@ -2610,6 +2625,12 @@ function sticpa_pl_coord_scope($objSCP)
             // colgando la relación de un grupo COM II.
             $segmento = '';
             $gid = sticpa_pl_link_id($rel);
+            if ($gid === '') {
+                $gid = sticpa_pl_nvl_first($v, array('ajmcm_grupos_stic_contacts_relationshipsajmcm_grupos_ida'));
+            }
+            if ($gid === '') {
+                $gid = sticpa_pl_group_of_relationship($objSCP, (string) $v->id->value);
+            }
             if ($gid !== '') {
                 $groups = sticpa_pl_groups($objSCP);
                 if (isset($groups[$gid]['segmento'])) {

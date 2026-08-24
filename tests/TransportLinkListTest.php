@@ -209,6 +209,93 @@ class TransportLinkListTest extends TestCase
         );
         $this->assertSame('Solete Vilarroya', $out[0]->name_value_list->persona->value);
     }
+
+    /** Un bloque de enlace SIN nombre, con un registro dentro. */
+    private function unnamedLink($recordName, $recordId)
+    {
+        $lv = new stdClass();
+        $lv->id = (object) array('name' => 'id', 'value' => $recordId);
+        $lv->name = (object) array('name' => 'name', 'value' => $recordName);
+        $link = new stdClass();
+        // A proposito SIN ->name: es lo que hace la instancia real.
+        $link->records = array((object) array('link_value' => $lv));
+        return $link;
+    }
+
+    /**
+     * EL BUG QUE LO EXPLICABA TODO. Pidiendo DOS enlaces, si la API no dice de
+     * cual es cada bloque, se cogia el PRIMERO para los dos campos: «grupo» se
+     * quedaba con el id de la PERSONA. No coincidia con ningun grupo, la
+     * consulta de una sola llamada se daba por fallida, y todo caia a los
+     * respaldos de 1+N llamadas. De ahi la lentitud.
+     *
+     * Sin nombres, el orden de `link_list` es el orden en que se pidieron.
+     */
+    public function testDosEnlacesSinNombreSeResuelvenPorPosicion()
+    {
+        $out = SugarRestApiCall::flattenRelationshipFields(
+            array($this->entry('r1')),
+            array((object) array('link_list' => array(
+                $this->unnamedLink('C1', 'g1'),
+                $this->unnamedLink('Solete Vilarroya', 'c1'),
+            ))),
+            array(
+                'grupo' => array('relationshipName' => 'ajmcm_grupos_stic_contacts_relationships'),
+                'persona' => array('relationshipName' => 'stic_contacts_relationships_contacts'),
+            )
+        );
+
+        $v = $out[0]->name_value_list;
+        $this->assertSame('g1', $v->grupo_id->value, 'el grupo NO puede llevarse el id de la persona');
+        $this->assertSame('C1', $v->grupo->value);
+        $this->assertSame('c1', $v->persona_id->value);
+        $this->assertSame('Solete Vilarroya', $v->persona->value);
+    }
+
+    /** Con nombres, manda el nombre y el orden da igual. */
+    public function testConNombresElOrdenDaIgual()
+    {
+        $out = SugarRestApiCall::flattenRelationshipFields(
+            array($this->entry('r1')),
+            array((object) array('link_list' => array(
+                // Al reves de como se piden.
+                $this->namedLink('stic_contacts_relationships_contacts', 'Solete Vilarroya'),
+                $this->namedLink('ajmcm_grupos_stic_contacts_relationships', 'C1'),
+            ))),
+            array(
+                'grupo' => array('relationshipName' => 'ajmcm_grupos_stic_contacts_relationships'),
+                'persona' => array('relationshipName' => 'stic_contacts_relationships_contacts'),
+            )
+        );
+
+        $v = $out[0]->name_value_list;
+        $this->assertSame('C1', $v->grupo->value);
+        $this->assertSame('Solete Vilarroya', $v->persona->value);
+    }
+
+    /**
+     * Y si hay nombres pero el nuestro no esta, el campo se queda VACIO: no se
+     * cae a la posicion. Colgarle a un campo el valor de otro enlace es
+     * exactamente el fallo que se acaba de arreglar.
+     */
+    public function testConNombresElQueNoEstaSeQuedaVacio()
+    {
+        $out = SugarRestApiCall::flattenRelationshipFields(
+            array($this->entry('r1')),
+            array((object) array('link_list' => array(
+                $this->namedLink('stic_contacts_relationships_contacts', 'Solete Vilarroya'),
+            ))),
+            array(
+                'grupo' => array('relationshipName' => 'ajmcm_grupos_stic_contacts_relationships'),
+                'persona' => array('relationshipName' => 'stic_contacts_relationships_contacts'),
+            )
+        );
+
+        $v = $out[0]->name_value_list;
+        $this->assertSame('', $v->grupo->value);
+        $this->assertSame('', $v->grupo_id->value);
+        $this->assertSame('Solete Vilarroya', $v->persona->value);
+    }
 }
 
 /**
