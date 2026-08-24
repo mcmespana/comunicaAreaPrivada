@@ -293,7 +293,11 @@ if (!empty($buckets)) {
         // El número: participantes si hay recuentos frescos —es el 93/48/37/22
         // del artboard— y si no, cuántos grupos. Un número que no se puede
         // calcular no se inventa: se cambia por el que sí, y se dice cuál es.
-        if ($b['fresh']) {
+        // Con el total a CERO se enseñan los grupos, no el cero. El cero es
+        // verdad (esa sección no tiene participantes con relación vigente),
+        // pero una fila «MIC · 0» al lado de nueve grupos se lee como una
+        // avería, y el dato útil para entrar ahí es cuántos grupos hay.
+        if ($b['fresh'] && $b['participants'] > 0) {
             $html .= '<span class="pl-bucket-count" title="'
                 . esc_attr__('Participantes', 'sticpa') . '">'
                 . esc_html((string) $b['participants']) . '</span>';
