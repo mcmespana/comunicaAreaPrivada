@@ -22,6 +22,10 @@ if (!defined('ABSPATH')) {
 
 $pageSettings['fileName'] = basename(__FILE__, ".php");
 
+// El botón de refrescar de la cabecera. Tiene que ir ANTES de la primera
+// lectura: si no, se pinta con la caché vieja y hay que pulsarlo dos veces.
+sticpa_pl_maybe_refresh($objSCP);
+
 $groupId = isset($_REQUEST['grupo']) ? sticpa_pl_safe_id($_REQUEST['grupo']) : '';
 $sessionId = isset($_REQUEST['sesion']) ? sticpa_pl_safe_id($_REQUEST['sesion']) : '';
 
@@ -246,6 +250,14 @@ if (empty($people['participants'])) {
     $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
         . esc_html__('Este grupo no tiene participantes con relación vigente. Revisa las relaciones en el CRM.', 'sticpa')
         . '</span></p>';
+    // Y una salida: el caso normal es que se acabe de arreglar la relación en el
+    // CRM y haga falta volver a preguntar. Sin este enlace hay que salir a la
+    // portada, refrescar allí y volver a entrar — o esperar 12 horas a que
+    // caduque la caché, que es lo que pasaba.
+    $html .= '<p><a class="pl-session-pick" href="?internalpage=single_stic_pasar_lista_marcar&grupo='
+        . rawurlencode($groupId) . '&sesion=' . rawurlencode($session['id']) . '&refrescar=1">'
+        . sticpa_pl_icon('refresh') . '<span>'
+        . esc_html__('Ya lo he arreglado, vuelve a mirar', 'sticpa') . '</span></a></p>';
     $html .= '</div>';
     return;
 }

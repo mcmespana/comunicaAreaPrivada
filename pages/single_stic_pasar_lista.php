@@ -19,9 +19,7 @@ if (!defined('ABSPATH')) {
 $pageSettings['fileName'] = basename(__FILE__, ".php");
 
 // El botón de refrescar de cualquier pantalla de Pasar Lista cae aquí.
-if (!empty($_REQUEST['refrescar'])) {
-    sticpa_pl_flush($objSCP, 'all');
-}
+sticpa_pl_maybe_refresh($objSCP);
 
 // El service worker se registra desde aquí, una sola vez: su alcance es todo el
 // sitio y el navegador lo recuerda. Devuelve cadena vacía si el modo sin

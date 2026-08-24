@@ -251,6 +251,30 @@ function sticpa_pl_flush($objSCP = null, $scope = 'state')
     }
 }
 
+/**
+ * El botón de refrescar de cualquier pantalla: `?refrescar=1`.
+ *
+ * Va aquí y no repetido en cada página porque ya pasó: el botón estaba pintado
+ * en las cuatro pantallas y el `flush` solo en dos, así que en el árbol de
+ * grupos —justo donde más se toca, porque es donde se ve que falta alguien— el
+ * botón no hacía NADA. Un botón que no hace nada es peor que no tenerlo: se
+ * pulsa, no cambia, y se concluye que el dato del CRM está mal.
+ *
+ * Tira las DOS familias ('all'), que es lo que hace falta cuando alguien acaba
+ * de tocar el CRM y quiere verlo ya: los grupos y las personas son 'struct', y
+ * con un flush de 'state' se seguirían viendo los de antes hasta 12 horas.
+ *
+ * @return bool true si se ha refrescado (para que la pantalla lo pueda decir).
+ */
+function sticpa_pl_maybe_refresh($objSCP)
+{
+    if (empty($_REQUEST['refrescar'])) {
+        return false;
+    }
+    sticpa_pl_flush($objSCP, 'all');
+    return true;
+}
+
 // ---------------------------------------------------------------------------
 // Lectura: estructura
 // ---------------------------------------------------------------------------
