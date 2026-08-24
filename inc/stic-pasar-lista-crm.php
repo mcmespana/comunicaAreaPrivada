@@ -97,8 +97,33 @@ function sticpa_pl_rel_role($raw)
  * de "lo mío": un monitor solo ve lo de su delegación. Se guarda en sesión
  * porque no cambia mientras dure el login.
  */
+/**
+ * Fija (o consulta) la delegación a mano, sin sesión.
+ *
+ * La usa el calentador de caché: lo llama el Guardián Nocturno desde GitHub
+ * Actions, donde no hay ni login ni `$_SESSION`, y tiene que poder decir "ahora
+ * trabaja como si fueras de Castellón". Con `null` solo consulta; con `''` se
+ * quita. Un estático y no una global para que no se pueda tocar desde fuera por
+ * accidente.
+ */
+function sticpa_pl_delegation_forced($set = null)
+{
+    static $forced = '';
+    if ($set !== null) {
+        $forced = (string) $set;
+    }
+    return $forced;
+}
+
 function sticpa_pl_delegation($objSCP)
 {
+    // Puesta a mano (calentador de caché): manda sobre todo lo demás. Va
+    // primero para que ni siquiera se mire la sesión, que en ese contexto es de
+    // otro o no existe.
+    $forced = sticpa_pl_delegation_forced();
+    if ($forced !== '') {
+        return $forced;
+    }
     // El login ya la guarda (inc/stic-magic-login.php): no hay que preguntarla.
     if (!empty($_SESSION['scp_user_assigned_user_id'])) {
         return $_SESSION['scp_user_assigned_user_id'];
@@ -152,7 +177,14 @@ function sticpa_pl_cache_family($what)
     // Lo que se invalida al guardar una lista. El resto es estructura, que es
     // el defecto seguro: colarse en 'state' haría que un dato de estructura se
     // borrase cada cinco minutos y se volviera a pedir al CRM.
-    $state = array('state', 'streaks');
+    //
+    // 'listas' y 'attrange' son los cargadores de colección: LAS LISTAS y LAS
+    // ASISTENCIAS de toda la delegación. Son estado puro —cambian justo cuando
+    // alguien guarda—, pero al llamarse así caían en 'struct' por el defecto, y
+    // `sticpa_pl_flush($objSCP, 'state')` de después de guardar no las tiraba.
+    // Se salvaba por el TTL de cinco minutos, o sea que la lista que acababas
+    // de pasar tardaba hasta cinco minutos en aparecer.
+    $state = array('state', 'streaks', 'listas', 'attrange');
     return in_array((string) $what, $state, true) ? 'state' : 'struct';
 }
 
@@ -1185,6 +1217,105 @@ function sticpa_pl_session_attendances($objSCP, $sessionId, $regMap = array())
  * La sesión que se está marcando se EXCLUYE: lo que se acaba de tocar en
  * pantalla no puede contar en un aviso que se pinta a la vez.
  */
+/**
+ * Las asistencias de VARIAS sesiones en UNA llamada, por rango de fechas.
+ *
+ * Las rachas de ausencias mira las tres últimas sesiones celebradas, y eso eran
+ * tres llamadas al CRM en la pantalla más usada de la aplicación. Son la misma
+ * tabla y fechas contiguas: `start_date` de `stic_Attendances` es una columna de
+ * verdad, así que se piden por rango y se reparten aquí.
+ *
+ * Devuelve [sessionId][contactId] => array('id','status',…), o un array vacío
+ * si no se puede: quien llame tiene que poder distinguirlo y reintentar por
+ * sesión, porque un filtro de fechas que el CRM no digiera devuelve vacío sin
+ * decir nada (la lección de §9 de PASAR-LISTA-CAMPOS-CRM.md).
+ */
+function sticpa_pl_attendances_for_sessions($objSCP, $sessions, $regMap)
+{
+    $deleg = sticpa_pl_delegation($objSCP);
+    if (!$deleg || empty($sessions) || empty($regMap)) {
+        return array();
+    }
+
+    $starts = array();
+    $ids = array();
+    foreach ($sessions as $s) {
+        if (!empty($s['start'])) {
+            $starts[] = (int) $s['start'];
+        }
+        $ids[(string) $s['id']] = true;
+    }
+    if (empty($starts)) {
+        return array();
+    }
+
+    // El rango se abre un día por cada lado: la asistencia lleva la hora de la
+    // sesión, y un desfase de zona horaria no puede dejar fuera un sábado.
+    $from = date('Y-m-d H:i:s', min($starts) - DAY_IN_SECONDS);
+    $to = date('Y-m-d H:i:s', max($starts) + DAY_IN_SECONDS);
+
+    $cacheKey = sticpa_pl_cache_key('attrange', $objSCP, $from . '|' . $to . '|' . md5(implode(',', array_keys($ids))));
+    $ttl = sticpa_pl_ttl_state();
+    if ($ttl > 0) {
+        $cached = get_transient($cacheKey);
+        if (is_array($cached)) {
+            return $cached;
+        }
+    }
+
+    $rows = $objSCP->getRecordsModule(
+        'stic_Attendances',
+        "stic_attendances.assigned_user_id = '" . sticpa_pl_safe_id($deleg) . "'"
+        . " AND stic_attendances.start_date >= '" . esc_sql($from) . "'"
+        . " AND stic_attendances.start_date <= '" . esc_sql($to) . "'",
+        array(
+            'id', 'status', 'description',
+            'stic_attendances_stic_sessionsstic_sessions_ida',
+            'stic_attendances_stic_registrationsstic_registrations_ida',
+        ),
+        array(
+            'sesion' => array(
+                'relationshipName' => 'stic_attendances_stic_sessions',
+                'fields' => array('id', 'name'),
+            ),
+            'inscripcion' => array(
+                'relationshipName' => 'stic_attendances_stic_registrations',
+                'fields' => array('id', 'name'),
+            ),
+        )
+    );
+
+    $out = array();
+    if (is_array($rows)) {
+        foreach ($rows as $row) {
+            $v = isset($row->name_value_list) ? $row->name_value_list : null;
+            if (!$v || empty($v->id->value)) {
+                continue;
+            }
+            $sid = sticpa_pl_nvl_first($v, array('sesion_id', 'stic_attendances_stic_sessionsstic_sessions_ida'));
+            if ($sid === '' || !isset($ids[$sid])) {
+                continue;   // del rango, pero de otra sesión: no es de este grupo de fechas
+            }
+            $regId = sticpa_pl_nvl_first($v, array('inscripcion_id', 'stic_attendances_stic_registrationsstic_registrations_ida'));
+            if ($regId === '' || !isset($regMap[$regId])) {
+                continue;
+            }
+            $status = isset($v->status->value) ? (string) $v->status->value : '';
+            $out[$sid][$regMap[$regId]] = array(
+                'id' => (string) $v->id->value,
+                'status' => sticpa_pl_is_state($status) ? $status : '',
+                'description' => isset($v->description->value) ? (string) $v->description->value : '',
+                'registration_id' => $regId,
+            );
+        }
+    }
+
+    if ($ttl > 0 && !empty($out)) {
+        set_transient($cacheKey, $out, $ttl);
+    }
+    return $out;
+}
+
 function sticpa_pl_group_streaks($objSCP, $sessions, $currentSessionId, $regMap = array())
 {
     $threshold = sticpa_pl_streak_threshold();
@@ -1227,8 +1358,16 @@ function sticpa_pl_group_streaks($objSCP, $sessions, $currentSessionId, $regMap 
     $streaks = array();
     $closed = array();      // a quien ya se le ha cortado la racha no se le suma más
 
+    // UNA llamada para las tres sesiones. Si el rango de fechas no devuelve
+    // nada, se cae a preguntar sesión por sesión: un filtro que el CRM no
+    // digiera devuelve vacío sin decir nada, y una racha que desaparece en
+    // silencio se lleva por delante el aviso de "3 ausencias seguidas".
+    $porSesion = sticpa_pl_attendances_for_sessions($objSCP, $look, $regMap);
+
     foreach ($look as $s) {
-        $att = sticpa_pl_session_attendances($objSCP, $s['id'], $regMap);
+        $att = isset($porSesion[$s['id']])
+            ? $porSesion[$s['id']]
+            : (empty($porSesion) ? sticpa_pl_session_attendances($objSCP, $s['id'], $regMap) : array());
         foreach ((array) $regMap as $contactId) {
             if (isset($closed[$contactId])) {
                 continue;
@@ -1256,6 +1395,88 @@ function sticpa_pl_group_streaks($objSCP, $sessions, $currentSessionId, $regMap 
  * lista", que en un modelo de un evento compartido por todos los grupos no se
  * puede deducir de las asistencias.
  */
+/**
+ * TODAS las listas de la delegación, en UNA llamada, indexadas por sesión y grupo.
+ *
+ * POR QUÉ EXISTE. El resumen pedía las listas SESIÓN POR SESIÓN: doce sesiones
+ * por tres etapas son hasta treinta y seis llamadas al CRM para pintar una
+ * pantalla, y cada llamada cuesta medio segundo largo. Medido: la pantalla
+ * tardaba casi nueve segundos. La pantalla de marcado pedía otra por su cuenta.
+ *
+ * Son todas la misma tabla. Se pide una vez, filtrada por delegación, y de aquí
+ * salen `sticpa_pl_lista()` y `sticpa_pl_listas_by_session()` sin gastar nada.
+ *
+ * El tamaño está acotado por la propia realidad: un curso son 24 sesiones y una
+ * delegación grande 28 grupos, y solo existen las listas que alguien ha pasado.
+ *
+ * @return array [sessionId][groupId] => array('id','estado','pasada_el',…)
+ */
+function sticpa_pl_all_listas($objSCP)
+{
+    $deleg = sticpa_pl_delegation($objSCP);
+    if (!$deleg) {
+        return array();
+    }
+
+    $cacheKey = sticpa_pl_cache_key('listas', $objSCP);
+    $ttl = sticpa_pl_ttl_state();
+    if ($ttl > 0) {
+        $cached = get_transient($cacheKey);
+        if (is_array($cached)) {
+            return $cached;
+        }
+    }
+
+    $rows = $objSCP->getRecordsModule(
+        'LIS_listas',
+        "lis_listas.assigned_user_id = '" . sticpa_pl_safe_id($deleg) . "'",
+        array(
+            'id', 'estado', 'pasada_el', 'n_asistieron', 'n_faltaron',
+            'lis_listas_stic_sessionsstic_sessions_ida',
+            'lis_listas_ajmcm_gruposajmcm_grupos_ida',
+        ),
+        array(
+            'sesion' => array(
+                'relationshipName' => 'lis_listas_stic_sessions',
+                'fields' => array('id', 'name'),
+            ),
+            'grupo' => array(
+                'relationshipName' => 'lis_listas_ajmcm_grupos',
+                'fields' => array('id', 'name'),
+            ),
+        )
+    );
+
+    $out = array();
+    if (is_array($rows)) {
+        foreach ($rows as $row) {
+            $v = isset($row->name_value_list) ? $row->name_value_list : null;
+            if (!$v || empty($v->id->value)) {
+                continue;
+            }
+            $sid = sticpa_pl_nvl_first($v, array('sesion_id', 'lis_listas_stic_sessionsstic_sessions_ida'));
+            $gid = sticpa_pl_nvl_first($v, array('grupo_id', 'lis_listas_ajmcm_gruposajmcm_grupos_ida'));
+            // Sin sesión o sin grupo no se puede colocar, y colocarla mal es
+            // peor que no tenerla: diría que un grupo pasó una lista que no es.
+            if ($sid === '' || $gid === '') {
+                continue;
+            }
+            $out[$sid][$gid] = array(
+                'id' => (string) $v->id->value,
+                'estado' => isset($v->estado->value) ? (string) $v->estado->value : '',
+                'pasada_el' => isset($v->pasada_el->value) ? (string) $v->pasada_el->value : '',
+                'n_asistieron' => isset($v->n_asistieron->value) ? (int) $v->n_asistieron->value : 0,
+                'n_faltaron' => isset($v->n_faltaron->value) ? (int) $v->n_faltaron->value : 0,
+            );
+        }
+    }
+
+    if ($ttl > 0) {
+        set_transient($cacheKey, $out, $ttl);
+    }
+    return $out;
+}
+
 /** El id del grupo de una lista, preguntando por su enlace. */
 function sticpa_pl_group_of_lista($objSCP, $listaId)
 {
@@ -1281,54 +1502,16 @@ function sticpa_pl_group_of_lista($objSCP, $listaId)
 
 function sticpa_pl_lista($objSCP, $sessionId, $groupId)
 {
-    $rows = $objSCP->getRelatedElementsForLoggedUser(array(
-        'module_name' => 'stic_Sessions',
-        'module_id' => (string) $sessionId,
-        'link_field_name' => 'lis_listas_stic_sessions',
-        // El campo plano del grupo, ademas del enlace anidado. AQUI ESTABAN LOS
-        // DUPLICADOS: si no se sabe de que grupo es cada lista, la de este
-        // grupo NUNCA se encuentra, y cada guardado creaba OTRA. Por eso
-        // aparecieron dos «Omitida» del mismo grupo y la misma sesion.
-        'related_fields' => array(
-            'id', 'estado', 'pasada_el', 'n_asistieron', 'n_faltaron',
-            'lis_listas_ajmcm_gruposajmcm_grupos_ida',
-        ),
-        'related_module_link_name_to_fields_array' => array(
-            array('name' => 'lis_listas_ajmcm_grupos', 'value' => array('id')),
-        ),
-        'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
-    ));
-
-    if (!is_array($rows)) {
+    $sessionId = (string) $sessionId;
+    $groupId = (string) $groupId;
+    if ($sessionId === '' || $groupId === '') {
         return null;
     }
-    foreach ($rows as $row) {
-        $v = isset($row->name_value_list) ? $row->name_value_list : null;
-        if (!$v || empty($v->id->value)) {
-            continue;
-        }
-        $gid = sticpa_pl_link_id($row);
-        if ($gid === '') {
-            $gid = sticpa_pl_nvl_first($v, array('lis_listas_ajmcm_gruposajmcm_grupos_ida'));
-        }
-        if ($gid === '') {
-            // Sin saber de que grupo es, se pregunta. Es UNA llamada y solo
-            // ocurre cuando la instancia no resuelve ninguna de las dos formas;
-            // el precio de no preguntarlo es duplicar la lista en cada guardado.
-            $gid = sticpa_pl_group_of_lista($objSCP, (string) $v->id->value);
-        }
-        if ($gid !== (string) $groupId) {
-            continue;
-        }
-        return array(
-            'id' => $v->id->value,
-            'estado' => isset($v->estado->value) ? (string) $v->estado->value : '',
-            'pasada_el' => isset($v->pasada_el->value) ? (string) $v->pasada_el->value : '',
-            'n_asistieron' => isset($v->n_asistieron->value) ? (int) $v->n_asistieron->value : 0,
-            'n_faltaron' => isset($v->n_faltaron->value) ? (int) $v->n_faltaron->value : 0,
-        );
-    }
-    return null;
+
+    // Del cargador comun: cero llamadas propias. Antes era una por sesion y
+    // grupo, y la pantalla de marcado la pedia en cada carga.
+    $all = sticpa_pl_all_listas($objSCP);
+    return isset($all[$sessionId][$groupId]) ? $all[$sessionId][$groupId] : null;
 }
 
 /** Primer id que aparece en el bloque de enlaces de un registro. */
@@ -2404,45 +2587,21 @@ function sticpa_pl_listas_by_session($objSCP, $sessions, $limit = 12)
     $sessions = sticpa_pl_elapsed_sessions($sessions);
     $sessions = array_slice($sessions, -1 * max(1, (int) $limit));
 
+    // UNA sola carga para todas las sesiones. Antes esto era una llamada POR
+    // SESION: doce sesiones por tres etapas son hasta treinta y seis llamadas
+    // para pintar el resumen, y ahi se iban casi nueve segundos.
+    $all = sticpa_pl_all_listas($objSCP);
+
+    // Se conserva la forma de antes —cada celda con su sesión y sus listas—
+    // porque el árbol y el resumen la recorren así: lo que cambia es de dónde
+    // salen los datos, no lo que reciben.
     $out = array();
     foreach ($sessions as $s) {
-        $rows = $objSCP->getRelatedElementsForLoggedUser(array(
-            'module_name' => 'stic_Sessions',
-            'module_id' => $s['id'],
-            'link_field_name' => 'lis_listas_stic_sessions',
-            'related_fields' => array(
-                'id', 'estado', 'n_asistieron', 'n_faltaron',
-                'lis_listas_ajmcm_gruposajmcm_grupos_ida',
-            ),
-            'related_module_link_name_to_fields_array' => array(
-                array('name' => 'lis_listas_ajmcm_grupos', 'value' => array('id')),
-            ),
-            'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
-        ));
-
-        $bySession = array();
-        if (is_array($rows)) {
-            foreach ($rows as $row) {
-                $v = isset($row->name_value_list) ? $row->name_value_list : null;
-                if (!$v || empty($v->id->value)) {
-                    continue;
-                }
-                $gid = sticpa_pl_link_id($row);
-                if ($gid === '') {
-                    $gid = sticpa_pl_nvl_first($v, array('lis_listas_ajmcm_gruposajmcm_grupos_ida'));
-                }
-                if ($gid === '') {
-                    continue;
-                }
-                $bySession[$gid] = array(
-                    'id' => $v->id->value,
-                    'estado' => isset($v->estado->value) ? (string) $v->estado->value : '',
-                    'n_asistieron' => isset($v->n_asistieron->value) ? (int) $v->n_asistieron->value : 0,
-                    'n_faltaron' => isset($v->n_faltaron->value) ? (int) $v->n_faltaron->value : 0,
-                );
-            }
-        }
-        $out[$s['id']] = array('session' => $s, 'listas' => $bySession);
+        $sid = (string) $s['id'];
+        $out[$sid] = array(
+            'session' => $s,
+            'listas' => isset($all[$sid]) ? $all[$sid] : array(),
+        );
     }
     return $out;
 }

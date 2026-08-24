@@ -65,7 +65,10 @@ class FakeSCP
             $entries[] = $this->nvl($row['fields']);
 
             $linkList = array();
-            foreach (array('grupo', 'persona') as $which) {
+            // Cualquier clave de enlace, no solo grupo/persona: el cargador de
+            // listas pide 'sesion' y 'grupo', y el de inscripciones 'evento'.
+            $claves = is_array($relationshipFields) ? array_keys($relationshipFields) : array();
+            foreach ($claves as $which) {
                 if (empty($row[$which]) || !is_array($relationshipFields) || !isset($relationshipFields[$which])) {
                     continue;
                 }
@@ -232,6 +235,41 @@ class FakeSCP
                 array(
                     'fields' => array('id' => 'r9', 'relationship_type' => 'monitor', 'end_date' => ''),
                     'persona' => array('id' => 'm9', 'name' => 'Un Monitor', 'first_name' => 'Un', 'last_name' => 'Monitor'),
+                ),
+            ), $rel);
+        }
+        if ($module === 'stic_Attendances') {
+            // El cargador por rango de fechas: UNA llamada para las tres
+            // sesiones que mira la racha.
+            return $this->entryListShape(array(
+                array(
+                    'fields' => array('id' => 'a1', 'status' => 'yes'),
+                    'sesion' => array('id' => 's1', 'name' => 'S1'),
+                    'inscripcion' => array('id' => 'reg1', 'name' => 'R1'),
+                ),
+                array(
+                    'fields' => array('id' => 'a2', 'status' => 'no_unjustified'),
+                    'sesion' => array('id' => 's2', 'name' => 'S2'),
+                    'inscripcion' => array('id' => 'reg1', 'name' => 'R1'),
+                ),
+                array(
+                    'fields' => array('id' => 'a3', 'status' => 'no_unjustified'),
+                    'sesion' => array('id' => 's3', 'name' => 'S3'),
+                    'inscripcion' => array('id' => 'reg1', 'name' => 'R1'),
+                ),
+            ), $rel);
+        }
+        if ($module === 'LIS_listas') {
+            // El cargador comun de listas: UNA llamada para toda la delegacion.
+            // Solo la sesion s3 tiene lista pasada, igual que antes.
+            return $this->entryListShape(array(
+                array(
+                    'fields' => array(
+                        'id' => 'l1', 'estado' => 'pasada', 'pasada_el' => '2025-11-15 18:05:00',
+                        'n_asistieron' => 2, 'n_faltaron' => 0,
+                    ),
+                    'sesion' => array('id' => 's3', 'name' => 'Sesion 3'),
+                    'grupo' => array('id' => 'g1', 'name' => 'Los Peques'),
                 ),
             ), $rel);
         }
