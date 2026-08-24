@@ -41,9 +41,36 @@ class FakeSCP
                 }
                 $link->records[] = (object) array('link_value' => $lv);
             }
-            $row->link_list = array($link);
+            // OJO: los enlaces NO se cuelgan del registro. La API v4.1 los
+            // devuelve en `relationship_list`, HERMANO de `entry_list`, y este
+            // doble antes mentia colgandolos aqui: por eso los tests pasaban
+            // en verde mientras la pantalla salia vacia en produccion. Se
+            // guardan aparte y apiShape() los coloca donde el CRM los pone.
+            $row->__links = array($link);
         }
         return $row;
+    }
+
+    /**
+     * Devuelve las filas con la forma REAL de `get_relationships` de la v4.1:
+     * `entry_list` pelado y los enlaces aparte en `relationship_list`, y las
+     * junta con el MISMO ensamblado que usa el plugin de verdad. Asi, si
+     * alguien vuelve a tirar `relationship_list` a la basura, estos tests
+     * se ponen rojos en vez de seguir mintiendo.
+     */
+    private function apiShape($rows)
+    {
+        $entries = array();
+        $relationshipList = array();
+        foreach ($rows as $row) {
+            $links = isset($row->__links) ? $row->__links : null;
+            unset($row->__links);
+            $entries[] = $row;
+            $relationshipList[] = ($links === null)
+                ? new stdClass()
+                : (object) array('link_list' => $links);
+        }
+        return SugarRestApiCall::attachLinkList($entries, $relationshipList);
     }
 
     public function getRecordDetail($id, $module, $fields = null)
@@ -143,7 +170,7 @@ class FakeSCP
                 if ($p['module_id'] !== 'g1') {
                     return array();
                 }
-                return array(
+                return $this->apiShape(array(
                     $this->nvl(
                         array('id' => 'r1', 'relationship_type' => 'participante_mic_com', 'start_date' => '2025-09-01', 'end_date' => ''),
                         array(array('id' => 'c1', 'first_name' => 'Solete', 'last_name' => 'Vilarroya', 'stic_age_c' => '13', 'phone_mobile' => '600111222'))
@@ -163,12 +190,12 @@ class FakeSCP
                     ),
                     // `grupo`: el papel de los +18 en su grupo de referencia. No
                     // lleva "participante_mic_com" pero cuenta igual como
-                    // participante del grupo — es el bug que se corrige aquí.
+                    // participante del grupo.
                     $this->nvl(
                         array('id' => 'r5', 'relationship_type' => 'grupo', 'end_date' => ''),
                         array(array('id' => 'c3', 'first_name' => 'Marta', 'last_name' => 'Adulta'))
                     ),
-                );
+                ));
 
             case 'Contacts:stic_contacts_relationships_contacts':
                 $rels = array($this->nvl(
@@ -190,48 +217,48 @@ class FakeSCP
                         'end_date' => '',
                     ));
                 }
-                return $rels;
+                return $this->apiShape($rels);
 
             case 'stic_Events:stic_sessions_stic_events':
-                return array(
+                return $this->apiShape(array(
                     $this->nvl(array('id' => 's1', 'start_date' => '2025-11-01 16:30:00', 'end_date' => '2025-11-01 18:00:00')),
                     $this->nvl(array('id' => 's2', 'start_date' => '2025-11-08 16:30:00', 'end_date' => '2025-11-08 18:00:00')),
                     $this->nvl(array('id' => 's3', 'start_date' => '2025-11-15 16:30:00', 'end_date' => '2025-11-15 18:00:00')),
                     $this->nvl(array('id' => 's4', 'start_date' => '2025-11-22 16:30:00', 'end_date' => '2025-11-22 18:00:00')),
-                );
+                ));
 
             case 'stic_Events:stic_registrations_stic_events':
-                return array(
+                return $this->apiShape(array(
                     $this->nvl(array('id' => 'reg1', 'status' => 'confirmed'), array(array('id' => 'c1'))),
                     $this->nvl(array('id' => 'reg2', 'status' => 'confirmed'), array(array('id' => 'c2'))),
                     // Cancelada: su asistencia no debe aparecer.
                     $this->nvl(array('id' => 'reg9', 'status' => 'cancelled'), array(array('id' => 'c9'))),
-                );
+                ));
 
             case 'stic_Sessions:stic_attendances_stic_sessions':
-                return array(
+                return $this->apiShape(array(
                     $this->nvl(array('id' => 'a1', 'status' => 'yes'), array(array('id' => 'reg1'))),
                     $this->nvl(array('id' => 'a2', 'status' => ''), array(array('id' => 'reg2'))),
-                );
+                ));
 
             // Histórico de un participante: todas sus asistencias del curso.
             case 'stic_Registrations:stic_attendances_stic_registrations':
-                return array(
+                return $this->apiShape(array(
                     $this->nvl(array('id' => 'a1', 'status' => 'yes'), array(array('id' => 's1'))),
                     $this->nvl(array('id' => 'a2', 'status' => 'no_unjustified'), array(array('id' => 's2'))),
                     $this->nvl(array('id' => 'a3', 'status' => 'partial'), array(array('id' => 's3'))),
-                );
+                ));
 
             // Familia: la relación puede estar creada en cualquiera de los dos
             // sentidos, así que el doble solo contesta por uno de los enlaces.
             case 'Contacts:stic_personal_environment_contacts':
-                return array($this->nvl(
+                return $this->apiShape(array($this->nvl(
                     array('id' => 'pe1', 'relationship_type' => 'madre', 'reference_contact' => '1', 'authorized_signer' => '1', 'end_date' => ''),
                     array(
                         array('id' => 'c1'),                                    // el propio participante: se descarta
                         array('id' => 'fam1', 'first_name' => 'Solete', 'last_name' => 'Messeguer', 'phone_mobile' => '600 333 444'),
                     )
-                ));
+                )));
 
             // Seguimientos de una persona (stic_FollowUps).
             // Avisos de comportamiento. Módulo verificado contra el CRM con
@@ -243,7 +270,7 @@ class FakeSCP
                 if ($p['module_id'] !== 'c1') {
                     return array();
                 }
-                return array(
+                return $this->apiShape(array(
                     // A propósito en orden inverso: el número sale de ordenar
                     // por fecha, no del orden en que los devuelve el CRM.
                     $this->nvl(array(
@@ -262,7 +289,7 @@ class FakeSCP
                         'ajmcm_puesto_por_c' => 'Alguien',
                         'ajmcm_notificado_familia_c' => '1',
                     )),
-                );
+                ));
 
             case 'Contacts:stic_followups_contacts':
                 $out = array();
@@ -276,7 +303,7 @@ class FakeSCP
                         'assigned_user_name' => 'MCM Castellón',
                     ));
                 }
-                return $out;
+                return $this->apiShape($out);
 
             case 'stic_Sessions:lis_listas_stic_sessions':
                 // Solo la sesión s3 tiene lista pasada: las anteriores están sin
@@ -284,10 +311,10 @@ class FakeSCP
                 if ($p['module_id'] !== 's3') {
                     return array();
                 }
-                return array($this->nvl(
+                return $this->apiShape(array($this->nvl(
                     array('id' => 'l1', 'estado' => 'pasada', 'pasada_el' => '2025-11-15 18:05:00', 'n_asistieron' => 2, 'n_faltaron' => 0),
                     array(array('id' => 'g1'))
-                ));
+                )));
         }
         return array();
     }

@@ -714,3 +714,39 @@ function sticpa_pl_seg_trimestre($ts)
     }
     return 3;
 }
+
+/**
+ * Orden de los grupos dentro de su etapa: por CÓDIGO, y en orden natural.
+ *
+ * El árbol agrupaba por etapa pero dentro de la etapa salían en el orden en que
+ * los devolviera el CRM, o sea M4.3, M5.3, M6.2, M4.1… Buscar tu grupo en una
+ * lista de veintisiete sin orden es leerla entera.
+ *
+ * Natural y no alfabético porque los códigos llevan números: alfabéticamente
+ * «M4.10» va ANTES de «M4.2», que no es lo que espera nadie. Con strnatcasecmp
+ * el 2 va antes del 10.
+ *
+ * Sin código se ordena por nombre, y los que no tienen ni código ni nombre caen
+ * al final: un grupo a medio rellenar no debe encabezar la lista.
+ */
+function sticpa_pl_cmp_group($a, $b)
+{
+    $ca = isset($a['code']) ? trim((string) $a['code']) : '';
+    $cb = isset($b['code']) ? trim((string) $b['code']) : '';
+    $na = isset($a['name']) ? trim((string) $a['name']) : '';
+    $nb = isset($b['name']) ? trim((string) $b['name']) : '';
+
+    $keyA = ($ca !== '') ? $ca : $na;
+    $keyB = ($cb !== '') ? $cb : $nb;
+
+    if (($keyA === '') !== ($keyB === '')) {
+        return ($keyA === '') ? 1 : -1;   // el vacío, al final
+    }
+    $cmp = strnatcasecmp($keyA, $keyB);
+    if ($cmp !== 0) {
+        return $cmp;
+    }
+    // Mismo código en dos grupos: se desempata por nombre para que el orden sea
+    // estable entre peticiones y no baile de una carga a otra.
+    return strnatcasecmp($na, $nb);
+}
