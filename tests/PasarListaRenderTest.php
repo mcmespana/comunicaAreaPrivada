@@ -161,6 +161,13 @@ class FakeSCP
                         array('id' => 'r4', 'relationship_type' => 'monitor', 'end_date' => ''),
                         array(array('id' => 'm1', 'first_name' => 'David', 'last_name' => 'Soler'))
                     ),
+                    // `grupo`: el papel de los +18 en su grupo de referencia. No
+                    // lleva "participante_mic_com" pero cuenta igual como
+                    // participante del grupo — es el bug que se corrige aquí.
+                    $this->nvl(
+                        array('id' => 'r5', 'relationship_type' => 'grupo', 'end_date' => ''),
+                        array(array('id' => 'c3', 'first_name' => 'Marta', 'last_name' => 'Adulta'))
+                    ),
                 );
 
             case 'Contacts:stic_contacts_relationships_contacts':
@@ -489,6 +496,9 @@ final class PasarListaRenderTest extends TestCase
         // c1 viene con 'yes' del CRM; c2 sin marcar.
         $this->assertStringContainsString('data-state="yes" data-contact="c1"', $html);
         $this->assertStringContainsString('data-state="" data-contact="c2"', $html);
+        // c3 es `grupo` (un +18 en su grupo de referencia): también es
+        // participante de la lista, aunque no lleve "participante_mic_com".
+        $this->assertStringContainsString('data-contact="c3"', $html);
         // El monitor sale en la cabecera, no en la lista de marcar.
         $this->assertStringContainsString('David Soler', $html);
         $this->assertStringNotContainsString('data-contact="m1"', $html);
