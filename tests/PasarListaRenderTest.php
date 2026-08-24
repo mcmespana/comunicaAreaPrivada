@@ -2045,4 +2045,74 @@ final class PasarListaRenderTest extends TestCase
 
         $this->assertStringNotContainsString('No tienes ningún grupo asignado', $html);
     }
+
+    // -----------------------------------------------------------------------
+    // El guardado
+    // -----------------------------------------------------------------------
+
+    /**
+     * Guardar SIN marcar a nadie no escribe nada. Antes escribia la lista con
+     * "0 vinieron, 0 ausencias": una afirmacion falsa en el CRM —«esta pasada y
+     * no vino nadie»— provocada por un roce en el boton.
+     */
+    public function testGuardarSinMarcasNoEscribeNada()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => '{}',
+        );
+
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $listas = array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'LIS_listas';
+        });
+        $this->assertCount(0, $listas, 'no se puede escribir una lista sin marcas');
+        $this->assertStringContainsString('No has marcado a nadie', $html);
+    }
+
+    /** Con una marca si se escribe, y con el recuento de verdad. */
+    public function testGuardarConUnaMarcaEscribeLaLista()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => '{"c1":"yes"}',
+        );
+
+        $this->render('single_stic_pasar_lista_marcar');
+
+        $listas = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'LIS_listas';
+        }));
+        $this->assertCount(1, $listas);
+        $this->assertSame(1, $listas[0]['data']['n_asistieron']);
+        $this->assertSame(0, $listas[0]['data']['n_faltaron']);
+        $this->assertSame('pasada', $listas[0]['data']['estado']);
+    }
+
+    /**
+     * «Sin registro» SI escribe con cero marcas: ahi el cero es la afirmacion
+     * («no hubo sesion»), no un descuido.
+     */
+    public function testSinRegistroEscribeOmitidaConCero()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'skip',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => '{}',
+        );
+
+        $this->render('single_stic_pasar_lista_marcar');
+
+        $listas = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'LIS_listas';
+        }));
+        $this->assertCount(1, $listas);
+        $this->assertSame('omitida', $listas[0]['data']['estado']);
+    }
 }

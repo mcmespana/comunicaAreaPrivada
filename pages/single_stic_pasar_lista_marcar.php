@@ -132,7 +132,21 @@ if (!empty($_POST['pl_action'])) {
         $notes = array_intersect_key($notes, $allowed);
 
         $omitida = ($_POST['pl_action'] === 'skip');
-        $saved = sticpa_pl_save($objSCP, $session['id'], $groupId, $marks, $omitida, $regMap, $notes);
+
+        // GUARDAR SIN NADA MARCADO NO ESCRIBE NADA. Antes escribia la lista con
+        // «0 vinieron, 0 ausencias», o sea afirmaba en el CRM que la lista de
+        // ese sabado esta pasada y que no vino nadie. Un roce en el boton
+        // dejaba un dato falso que nadie iba a revisar.
+        //
+        // «Sin registro» (skip) si escribe con cero marcas: ahi el cero es la
+        // afirmacion, no un descuido.
+        if (!$omitida && empty($marks)) {
+            $html .= '<p class="pl-notice">' . sticpa_pl_icon('info') . '<span>'
+                . esc_html__('No has marcado a nadie, así que no se ha guardado nada. Marca al menos a una persona, o usa «Sin registro» si no hubo sesión.', 'sticpa')
+                . '</span></p>';
+        } else {
+            $saved = sticpa_pl_save($objSCP, $session['id'], $groupId, $marks, $omitida, $regMap, $notes);
+        }
     }
 }
 

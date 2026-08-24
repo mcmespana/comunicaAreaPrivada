@@ -863,15 +863,34 @@ function sticpa_pl_group_buckets($groups, $now = null)
 
     // El orden es el del artboard, y es el del recorrido de un chaval por el
     // movimiento: primero los pequeños.
-    $order = array(array('key' => 'MIC', 'label' => 'MIC', 'etapa' => 'MIC', 'segmento' => ''));
+    // El color de cada seccion, del artboard: MIC rojo, y el COM recorre
+    // verde -> violeta -> magenta, que es el orden en que se crece dentro del
+    // COM. Todos verdes (el color de la etapa) hacia indistinguibles tres
+    // secciones que son justo lo que hay que distinguir.
+    $dots = array(
+        'MIC' => 'var(--danger-color)',
+        'com_1' => 'var(--success-color)',
+        'com_2' => '#7c3aed',
+        'com_3' => '#be185d',
+        'COM' => 'var(--success-color)',
+        'LC' => 'var(--primary-color)',
+    );
+
+    $order = array(array('key' => 'MIC', 'label' => 'MIC', 'etapa' => 'MIC', 'segmento' => '', 'dot' => $dots['MIC']));
     foreach ($segmentos as $seg => $label) {
-        $order[] = array('key' => 'COM:' . $seg, 'label' => $label, 'etapa' => 'COM', 'segmento' => $seg);
+        $order[] = array(
+            'key' => 'COM:' . $seg,
+            'label' => $label,
+            'etapa' => 'COM',
+            'segmento' => $seg,
+            'dot' => isset($dots[$seg]) ? $dots[$seg] : $dots['COM'],
+        );
     }
     // El COM sin segmento puesto: existe y hay que poder llegar a él, o esos
     // grupos desaparecen de la navegación sin decir por qué.
-    $order[] = array('key' => 'COM', 'label' => 'COM', 'etapa' => 'COM', 'segmento' => '');
-    $order[] = array('key' => 'LC', 'label' => 'LC', 'etapa' => 'LC', 'segmento' => '');
-    $order[] = array('key' => '?', 'label' => __('Sin etapa', 'sticpa'), 'etapa' => '', 'segmento' => '');
+    $order[] = array('key' => 'COM', 'label' => 'COM', 'etapa' => 'COM', 'segmento' => '', 'dot' => $dots['COM']);
+    $order[] = array('key' => 'LC', 'label' => 'LC', 'etapa' => 'LC', 'segmento' => '', 'dot' => $dots['LC']);
+    $order[] = array('key' => '?', 'label' => __('Sin etapa', 'sticpa'), 'etapa' => '', 'segmento' => '', 'dot' => 'var(--gray-300, #d1d5db)');
 
     $buckets = array();
     foreach ($order as $b) {
@@ -935,4 +954,39 @@ function sticpa_pl_group_in_bucket($group, $bucketKey)
         return ($etapa === 'COM' && $seg === '');
     }
     return ($etapa === $bucketKey);
+}
+
+/**
+ * El nombre como se lee en una lista: nombre y PRIMER apellido.
+ *
+ * «Solete Vilarroya Messguerr» ocupa dos líneas en un móvil y el segundo
+ * apellido no distingue a nadie dentro de un grupo de doce. Se queda fuera
+ * hasta que haga falta de verdad (dos personas con el mismo nombre y primer
+ * apellido en el mismo grupo, que es cuando el dato empieza a servir).
+ *
+ * Solo se recorta el APELLIDO: un nombre compuesto («José María») se respeta
+ * entero, porque ahí las dos palabras son el nombre.
+ */
+function sticpa_pl_short_name($first, $last, $full = '')
+{
+    $first = trim((string) $first);
+    $last = trim((string) $last);
+
+    if ($first === '' && $last === '') {
+        // Sin nombre y apellidos separados: se parte el completo y se queda con
+        // las dos primeras palabras, que es lo mismo en el caso normal.
+        $parts = preg_split('/\s+/', trim((string) $full));
+        if (!is_array($parts) || empty($parts[0])) {
+            return trim((string) $full);
+        }
+        return implode(' ', array_slice($parts, 0, 2));
+    }
+
+    if ($last !== '') {
+        $lastParts = preg_split('/\s+/', $last);
+        if (is_array($lastParts) && !empty($lastParts[0])) {
+            $last = $lastParts[0];
+        }
+    }
+    return trim($first . ' ' . $last);
 }
