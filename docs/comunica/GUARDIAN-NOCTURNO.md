@@ -16,6 +16,7 @@ privada no puede permitirse en caliente, y **canta si algo va mal**.
 |---|---|---|---|
 | Recuentos y monitores de cada grupo | `recuentos-grupos` | sí | Lleva al grupo cuánta gente tiene y quiénes son sus monitores. El por qué, en [`PASAR-LISTA-RECUENTOS.md`](PASAR-LISTA-RECUENTOS.md) |
 | Datos que hacen falta revisar | `revision-datos` | no | Mira y avisa de lo que rompe una lista del sábado: grupos con chavales y sin monitor, grupos sin nadie, grupos sin código corto |
+| Caché del área privada | `calentar-cache` | no (en el CRM) | Deja la caché de Pasar Lista hecha, para que el primero que entre el sábado no pague las llamadas. Ver §5 |
 
 Está pensado para crecer: la idea es que todo lo que sea «pasar por el CRM de
 madrugada» viva aquí en vez de en cinco workflows distintos.
@@ -100,6 +101,8 @@ otros 104.
 | `GUARDIAN_AVISOS_TO` | no | A quién avisar. Varios, separados por comas |
 | `RESEND_API_KEY` | no | Ya está puesto para los cumpleaños |
 | `GUARDIAN_FROM` | no | Por defecto `Guardián MCM <comunica@movimientoconsolacion.com>` |
+| `AREA_PRIVADA_URL` | no | La base del área privada, p. ej. `https://comunica.movimientoconsolacion.com`. Sin barra final |
+| `AREA_PRIVADA_CALENTAR_SECRET` | no | El secreto compartido con `wp-config.php`. Ver §5 |
 
 Los tres primeros ya existen (los usa el workflow de cumpleaños). **El único que
 hay que crear es `GUARDIAN_AVISOS_TO`**; sin él todo funciona igual, pero el
@@ -138,7 +141,87 @@ El día se sigue leyendo en `Europe/Madrid` de todas formas — es lo correcto
 independientemente del cron que haya, y está cubierto con tests en las dos
 estaciones.
 
-## 5. Añadir una tarea
+## 5. Dejar la caché del área privada calentita
+
+Las pantallas de Pasar Lista son rápidas con la caché caliente y lentas con la
+caché fría, y quien la calienta es **siempre el primero que entra**: el monitor
+que abre la app el sábado a las cuatro y cuarto. Ese pago no tiene por qué ser
+suyo. El Guardián ya está pasando por el CRM de madrugada, así que al terminar
+avisa al área privada y esta se la deja hecha.
+
+### Cómo va
+
+La tarea `calentar-cache` va **la última** a propósito: cuando corre, los
+recuentos y los monitores ya están escritos en los grupos, así que lo que se
+cachea es el estado bueno.
+
+Hace **una** petición firmada:
+
+```
+POST https://…/wp-json/comunica/v1/pasar-lista/calentar
+X-Comunica-Firma: sha256=<HMAC-SHA256 del cuerpo con el secreto compartido>
+
+{"ts": 1763000000, "delegaciones": ["<id de usuario de la delegación>", …]}
+```
+
+El trabajo lo hace WordPress, que es quien tiene la caché — desde un runner de
+GitHub no se puede escribir en sus transients. El código está en
+[`inc/stic-pasar-lista-warm.php`](../../inc/stic-pasar-lista-warm.php).
+
+**Las delegaciones salen de los grupos**, que la pasada ya tiene cacheados
+(`assigned_user_id` de cada grupo), así que esta tarea **no cuesta ni una llamada
+más al CRM** desde el Guardián. Sí cuesta las que hace el área privada al
+rellenar: a las dos de la mañana salen gratis.
+
+### Qué se calienta
+
+Solo la familia **`struct`**: grupos, relaciones, eventos, sesiones e
+inscripciones. Son las caras y las que no cambian de un día para otro.
+
+La familia **`state`** (las listas de cada sesión, las asistencias, las ausencias
+seguidas) **no** se calienta: su TTL son cinco minutos porque tiene que reflejar
+lo que se acaba de guardar, así que calentarla a las dos de la mañana no sirve de
+nada — a las 2:05 ya está fría.
+
+### El TTL, que es la parte que se olvida
+
+El TTL normal de la estructura son **12 horas**. Calentada a la 1:30, caducaría a
+las 13:30 — **antes** de las sesiones del sábado, que son por la tarde, y el
+calentado no habría servido para nada. Mientras calienta se sube a **26 horas**
+con el filtro `sticpa_pl_ttl_structure`, que cubre hasta la pasada de la noche
+siguiente con margen. Al terminar se quita: una página normal sigue escribiendo
+con el TTL de siempre.
+
+### Cómo se configura
+
+Hacen falta **tres cosas**, y las tres son opcionales: sin ellas la tarea se
+salta y **lo dice en el informe** en vez de callárselo.
+
+1. Un secreto largo al azar, p. ej. `openssl rand -hex 32`.
+2. En `wp-config.php` del sitio:
+   ```php
+   define('STICPA_PL_WARM_SECRET', 'el-secreto-de-32-bytes-en-hex');
+   ```
+3. En los secretos del repo: `AREA_PRIVADA_CALENTAR_SECRET` con **el mismo
+   valor**, y `AREA_PRIVADA_URL` con la base del sitio.
+
+El secreto **no se autogenera**. Uno generado solo y guardado en `wp_options` no
+hay forma de leerlo para copiarlo al secreto de GitHub, y acabaríamos sacándolo
+por pantalla en algún sitio. Sin la constante, el endpoint contesta **501** y el
+informe del Guardián dice exactamente qué falta.
+
+### Por qué está firmado, y no con un token en la URL
+
+- **HMAC del cuerpo**, no del path: así no se puede cambiar la lista de
+  delegaciones de una petición capturada. Cambiarla es justo el ataque —
+  calentar, y por tanto **invalidar**, la caché de otra delegación.
+- **`ts` dentro del cuerpo** y margen de cinco minutos: sin eso, quien capture
+  una petición válida la puede repetir para siempre.
+- Se compara con `hash_equals()`, que no se puede medir por tiempos.
+- Un token en la URL acabaría en los logs de acceso del servidor. Una cabecera,
+  no.
+
+## 6. Añadir una tarea
 
 1. Crea `.github/scripts/guardian/tareas/lo-tuyo.mjs` exportando `clave`,
    `titulo` y `async ejecutar(ctx)`.
@@ -188,7 +271,7 @@ completo, el informe tiene que decir «completo».
   logs de GitHub. El nombre de pila de un monitor, vale; un teléfono o un dato
   de salud de un menor, nunca.
 
-## 6. Probarlo sin tocar el CRM
+## 7. Probarlo sin tocar el CRM
 
 Los tests cubren toda la lógica —vigencia, recuento, el diff, qué modo toca cada
 día, el informe— sin red:
@@ -204,3 +287,24 @@ exactamente qué cambiaría y no toca un solo registro. Ahí también se elige e
 **modo** (por defecto la completa, que es la segura): lanzarlo con `soft` y
 `dry_run` es la forma de comprobar que el atajo del suave funciona contra el CRM
 real sin arriesgar nada.
+
+En seco el calentado **no se llama**: se dice cuántas delegaciones se habrían
+calentado y ahí se queda. Para probar solo el calentado, sin recuentos:
+
+*Run workflow* con `tareas` = `calentar-cache`. También se puede a mano desde una
+terminal, que es la forma de ver el error del área privada tal cual:
+
+```bash
+BASE=https://comunica.movimientoconsolacion.com
+SECRETO=el-mismo-que-en-wp-config
+CUERPO="{\"ts\":$(date +%s),\"delegaciones\":[\"<id de la delegación>\"]}"
+FIRMA=$(printf '%s' "$CUERPO" | openssl dgst -sha256 -hmac "$SECRETO" -r | cut -d' ' -f1)
+
+curl -sS -X POST "$BASE/wp-json/comunica/v1/pasar-lista/calentar" \
+  -H 'Content-Type: application/json' \
+  -H "X-Comunica-Firma: sha256=$FIRMA" \
+  --data "$CUERPO"
+```
+
+Ojo con el cuerpo: se firma **tal cual se manda**. Si lo vuelves a serializar (o
+lo tocas a mano después de firmar) la firma no cuadra y sale un 403.

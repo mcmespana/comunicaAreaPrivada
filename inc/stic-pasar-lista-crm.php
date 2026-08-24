@@ -97,8 +97,33 @@ function sticpa_pl_rel_role($raw)
  * de "lo mío": un monitor solo ve lo de su delegación. Se guarda en sesión
  * porque no cambia mientras dure el login.
  */
+/**
+ * Fija (o consulta) la delegación a mano, sin sesión.
+ *
+ * La usa el calentador de caché: lo llama el Guardián Nocturno desde GitHub
+ * Actions, donde no hay ni login ni `$_SESSION`, y tiene que poder decir "ahora
+ * trabaja como si fueras de Castellón". Con `null` solo consulta; con `''` se
+ * quita. Un estático y no una global para que no se pueda tocar desde fuera por
+ * accidente.
+ */
+function sticpa_pl_delegation_forced($set = null)
+{
+    static $forced = '';
+    if ($set !== null) {
+        $forced = (string) $set;
+    }
+    return $forced;
+}
+
 function sticpa_pl_delegation($objSCP)
 {
+    // Puesta a mano (calentador de caché): manda sobre todo lo demás. Va
+    // primero para que ni siquiera se mire la sesión, que en ese contexto es de
+    // otro o no existe.
+    $forced = sticpa_pl_delegation_forced();
+    if ($forced !== '') {
+        return $forced;
+    }
     // El login ya la guarda (inc/stic-magic-login.php): no hay que preguntarla.
     if (!empty($_SESSION['scp_user_assigned_user_id'])) {
         return $_SESSION['scp_user_assigned_user_id'];
@@ -152,7 +177,14 @@ function sticpa_pl_cache_family($what)
     // Lo que se invalida al guardar una lista. El resto es estructura, que es
     // el defecto seguro: colarse en 'state' haría que un dato de estructura se
     // borrase cada cinco minutos y se volviera a pedir al CRM.
-    $state = array('state', 'streaks');
+    //
+    // 'listas' y 'attrange' son los cargadores de colección: LAS LISTAS y LAS
+    // ASISTENCIAS de toda la delegación. Son estado puro —cambian justo cuando
+    // alguien guarda—, pero al llamarse así caían en 'struct' por el defecto, y
+    // `sticpa_pl_flush($objSCP, 'state')` de después de guardar no las tiraba.
+    // Se salvaba por el TTL de cinco minutos, o sea que la lista que acababas
+    // de pasar tardaba hasta cinco minutos en aparecer.
+    $state = array('state', 'streaks', 'listas', 'attrange');
     return in_array((string) $what, $state, true) ? 'state' : 'struct';
 }
 
