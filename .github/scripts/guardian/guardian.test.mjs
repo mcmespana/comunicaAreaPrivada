@@ -95,6 +95,14 @@ test('separa participantes de monitores y coge los nombres', () => {
   assert.deepEqual(r.nombresMonitores, ['David Soler Balado']);
 });
 
+test('`grupo` (el papel de los +18 en su grupo de referencia) cuenta como participante', () => {
+  const rels = [
+    { relationship_type: 'grupo', end_date: '', stic_contacts_relationships_contactscontacts_ida: 'a1', stic_contacts_relationships_contacts_name: 'Adulto Uno' },
+    { relationship_type: 'participante_mic_com', end_date: '', stic_contacts_relationships_contactscontacts_ida: 'c1', stic_contacts_relationships_contacts_name: 'Sol Meseguer' },
+  ];
+  assert.equal(clasificarRelaciones(rels, HOY).nParticipantes, 2);
+});
+
 test('la misma persona con dos relaciones vigentes cuenta UNA vez', () => {
   // Pasa cuando alguien rehace una relación a mano sin cerrar la anterior. Sin
   // esto un grupo de 11 saldría de 12.

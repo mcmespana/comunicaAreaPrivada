@@ -50,11 +50,17 @@ function sticpa_pl_lista_estados()
     ));
 }
 
-/** Valores de `relationship_type` que nos interesan de las relaciones. */
+/**
+ * Valores de `relationship_type` que nos interesan de las relaciones.
+ *
+ * `grupo` es el papel de los +18 en su grupo de referencia (COM y en adelante):
+ * no son "participante_mic_com" pero sí cuentan como participantes del grupo a
+ * todos los efectos de la lista y del recuento.
+ */
 function sticpa_pl_rel_types()
 {
     return apply_filters('sticpa_pl_rel_types', array(
-        'participante' => array('participante_mic_com'),
+        'participante' => array('participante_mic_com', 'grupo'),
         'monitor' => array('monitor'),
     ));
 }
