@@ -28,11 +28,94 @@
        `--grad-brand`. */
     --pl-on-brand: #fff;
 
-    /* "Ya pasada": verde fijo, por lo mismo. Con los tokens de estado el
-       degradado se invertía en oscuro (`--success-dark` es ahí el verde CLARO
-       del texto, no un verde oscuro de fondo: §44.4), y la tarjeta salía menta
-       claro con letra negra en vez de verde con letra blanca. */
-    --pl-grad-done: linear-gradient(135deg, #14663a 0%, #2f9e44 100%);
+    /* El azul de marca SIN tematizar. Hace pareja con `--pl-on-brand`: encima
+       de un degradado de marca (que se fija con los hex originales) el fondo
+       es blanco de verdad y la letra el azul de verdad. `--primary-color` no
+       sirve porque en oscuro se aclara a #3f95d6 para leerse sobre oscuro, y
+       ahí va sobre blanco: 3,2:1, por debajo del AA. */
+    --pl-brand-fixed: #1c6fb3;
+
+    /* El ámbar del «sin marcar». En claro es el del artboard `Marcar`. */
+    --pl-amber: var(--warning-dark);
+}
+
+/* ---- Los tokens de esta hoja en OSCURO ----------------------------------
+   Mismo selector que custom-style.css §44.a: el esquema ya resuelto se estampa
+   en `data-stic-scheme` (OJO: no es `data-theme`; había reglas escritas con
+   `[data-theme]` que no aplicaban NUNCA). Aquí solo se redefinen tokens: las
+   reglas de abajo usan var(--…) y no se tocan. */
+:root[data-stic-scheme="dark"] :is(.stic-container, .stic-auth-shell),
+.stic-container[data-stic-scheme="dark"] {
+    /* El verde azulado sube para leerse sobre oscuro, y su "soft" —que es un
+       FONDO— pasa a ser un teal oscuro en vez del menta claro de claro, que
+       sobre la página oscura era una mancha blanca. */
+    --pl-partial: #2dd4bf;
+    --pl-partial-soft: color-mix(in srgb, #14b8a6 20%, #1c1d21);
+    --pl-partial-dark: #5eead4;
+    /* El ámbar del «sin marcar»: en oscuro `--warning-dark` es #fcd34d, un
+       amarillo tan vivo que era lo más luminoso de la pantalla y se comía la
+       atención que necesitan los nombres. Se baja de tono sin dejar de ser
+       ámbar: sigue siendo un aviso, deja de gritar. */
+    --pl-amber: #d8a25a;
+}
+
+/* ---- §0.b Los <button> de Pasar Lista contra el tema de WordPress -------
+   TODOS los botones de estas pantallas son <button> de verdad (accesibilidad:
+   se pulsan con teclado y los lee un lector de pantalla). El problema es que
+   los temas de WP estilan `.entry-content button`, que tiene MÁS especificidad
+   que una clase: sin esto el botón hereda el relleno del tema —ámbar sólido,
+   letra blanca, padding de caja— y se lleva por delante el componente. Es lo
+   que hacía que "Han venido todos" saliera con letra blanca sobre verde claro
+   y que "Sin registro" fuera una barra ámbar en vez del contorno discontinuo
+   del artboard `Marcar`.
+   El remedio es el mismo que custom-style.css §7 usa para .stic-pass-toggle:
+   neutralizar aquí con `!important` lo que el tema pinta, y que cada
+   componente vuelva a declarar lo suyo también con `!important`. */
+.pl-all-present,
+.pl-skip,
+.pl-save,
+.pl-opt,
+.pl-row,
+.pl-sheet-clear,
+.pl-avi-add,
+.pl-avi-submit,
+.pl-panuelo-edit,
+.pl-panuelo-opt {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    font: inherit !important;
+    letter-spacing: inherit !important;
+    text-transform: none !important;
+    text-shadow: none !important;
+    min-width: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    color: inherit !important;
+    text-align: inherit;
+}
+.pl-all-present::after,
+.pl-all-present::before,
+.pl-skip::after,
+.pl-skip::before,
+.pl-save::after,
+.pl-save::before,
+.pl-opt::after,
+.pl-opt::before,
+.pl-row::after,
+.pl-row::before,
+.pl-sheet-clear::after,
+.pl-sheet-clear::before,
+.pl-avi-add::after,
+.pl-avi-add::before,
+.pl-avi-submit::after,
+.pl-avi-submit::before,
+.pl-panuelo-edit::after,
+.pl-panuelo-edit::before,
+.pl-panuelo-opt::after,
+.pl-panuelo-opt::before {
+    content: none !important;
+    display: none !important;
 }
 
 /* `hidden` contra las clases: el atributo lo pinta el navegador con
@@ -66,7 +149,7 @@
     height: 44px;
     margin-left: -0.7rem;              /* el icono se alinea con el texto, no la caja */
     border-radius: var(--radius-full);
-    color: var(--gray-700, #374151);
+    color: var(--gray-700);
     flex-shrink: 0;
 }
 
@@ -79,8 +162,8 @@
     flex-wrap: wrap;
 }
 .pl-title-code { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.02em; }
-.pl-title-name { font-size: 0.92rem; font-weight: 600; color: var(--gray-600, #4b5563); }
-.pl-subtitle   { font-size: 0.78rem; color: var(--gray-500, #6b7280); }
+.pl-title-name { font-size: 0.92rem; font-weight: 600; color: var(--gray-600); }
+.pl-subtitle   { font-size: 0.78rem; color: var(--gray-500); }
 
 /* ---- Selector de sesión -------------------------------------------------- */
 
@@ -95,7 +178,7 @@
     border: 1px solid var(--gray-200);
     font-size: 0.82rem;
     font-weight: 700;
-    color: var(--gray-700, #374151);
+    color: var(--gray-700);
     flex-shrink: 0;
 }
 
@@ -126,7 +209,7 @@
     box-shadow: var(--shadow-glow);
 }
 .pl-session-pick-text { pointer-events: none; }
-.pl-session-pick svg { width: 15px; height: 15px; color: var(--gray-500, #6b7280); flex-shrink: 0; }
+.pl-session-pick svg { width: 15px; height: 15px; color: var(--gray-500); flex-shrink: 0; }
 
 /* Aviso de una línea: la sesión no ha empezado, o es de otro día. */
 .pl-notice {
@@ -151,19 +234,22 @@
     min-height: 46px;
     margin-bottom: 0.9rem;
     border-radius: var(--radius-lg);
-    /* Verde claro de fondo y verde OSCURO de letra, fijos en los dos temas.
-       Salían de `--success-50` / `--success-dark`, que en oscuro se invierten
-       (allí `--success-dark` es el verde CLARO del texto): el resultado era
-       letra clara sobre fondo claro, o sea invisible. */
-    background: #dcfce7;
-    border: 1px solid #86efac;
-    color: #15803d;
-    font-size: 0.88rem;
-    font-weight: 700;
-    font-family: inherit;
+    /* Los tres tokens de verde del sistema, que son EXACTAMENTE los del
+       artboard `Marcar` en claro (#e6fcf5 / #b2f2bb / #076b4d) y forman pareja
+       correcta también en oscuro: allí `--success-50` es un verde oscuro de
+       fondo y `--success-dark` el verde claro de la letra. Estaban a hex fijo
+       por un diagnóstico equivocado —lo que hacía la letra blanca era el tema
+       de WP, que se neutraliza en §0.b— y eso dejaba en oscuro un fondo claro
+       sobre la página oscura. */
+    background: var(--success-50) !important;
+    border: 1px solid var(--success-border) !important;
+    color: var(--success-dark) !important;
+    font-size: 0.88rem !important;
+    font-weight: 700 !important;
+    font-family: inherit !important;
     cursor: pointer;
 }
-.pl-all-present svg { width: 17px; height: 17px; }
+.pl-all-present svg { width: 17px; height: 17px; stroke: currentColor; fill: none; }
 
 /* ---- La lista ----------------------------------------------------------- */
 
@@ -179,12 +265,12 @@
     align-items: center;
     gap: 0.75rem;
     width: 100%;
-    padding: 0.7rem 0.35rem 0.7rem 0.85rem;
-    background: none;
-    border: 0;
-    border-top: 1px solid var(--gray-100);
-    font-family: inherit;
-    text-align: left;
+    padding: 0.7rem 0.35rem 0.7rem 0.85rem !important;
+    background: none !important;
+    border: 0 !important;
+    border-top: 1px solid var(--gray-100) !important;
+    font-family: inherit !important;
+    text-align: left !important;
     cursor: pointer;
     /* El navegador no se queda el gesto largo ni hace zoom al doble toque. */
     touch-action: manipulation;
@@ -192,8 +278,8 @@
     -webkit-touch-callout: none;
     user-select: none;
 }
-.pl-row:first-child { border-top: 0; }
-.pl-row:active { background: var(--gray-50); }
+.pl-row:first-child { border-top: 0 !important; }
+.pl-row:active { background: var(--gray-50) !important; }
 
 /* Mientras se mantiene pulsado, la fila se hunde un poco. El hundido es la
    respuesta INSTANTÁNEA al dedo; el anillo de abajo es la que dice cuánto
@@ -244,19 +330,19 @@
     height: 40px;
     border-radius: var(--radius-full);
     background: var(--gray-100);
-    color: var(--gray-500, #6b7280);
+    color: var(--gray-500);
     font-size: 0.82rem;
     font-weight: 800;
     letter-spacing: 0.02em;
     flex-shrink: 0;
 }
 
-.pl-row-body { display: flex; flex-direction: column; gap: 0.1rem; flex-grow: 1; min-width: 0; }
+.pl-row-body { display: flex; flex-direction: column; gap: 0.1rem; flex-grow: 1; min-width: 0 !important; }
 /* El color se fija: la fila es un <button>, que no hereda el color del texto
    de la página, así que sin esto el nombre dependía del navegador. */
-.pl-name { font-size: 0.99rem; font-weight: 700; letter-spacing: -0.01em; color: var(--text-color, #1f2937); }
+.pl-name { font-size: 0.99rem; font-weight: 700; letter-spacing: -0.01em; color: var(--gray-800); }
 .pl-row[data-state="no_unjustified"] .pl-name,
-.pl-row[data-state="no_justified"] .pl-name { color: var(--gray-500, #6b7280); }
+.pl-row[data-state="no_justified"] .pl-name { color: var(--gray-500); }
 .pl-note { font-size: 0.73rem; font-weight: 700; }
 
 /* El círculo de estado. Vacío y punteado = por marcar, y así se lee como un
@@ -329,7 +415,7 @@
 }
 .pl-legend-dot svg { width: 11px; height: 11px; stroke: var(--white); fill: none; }
 .pl-legend-dot .pl-glyph-half { fill: var(--white); stroke: none; width: 10px; height: 10px; }
-.pl-legend-label { font-size: 0.74rem; font-weight: 600; color: var(--gray-600, #4b5563); }
+.pl-legend-label { font-size: 0.74rem; font-weight: 600; color: var(--gray-600); }
 
 .pl-legend-dot--yes     { background: var(--success-color); }
 .pl-legend-dot--partial { background: var(--pl-partial); }
@@ -390,7 +476,7 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     gap: 0.45rem;
     padding: 0.65rem 0.25rem 0;
     font-size: 0.76rem;
-    color: var(--gray-500, #6b7280);
+    color: var(--gray-500);
     line-height: 1.45;
 }
 .pl-hint svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 0.15rem; }
@@ -406,12 +492,12 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     min-height: 44px;
     margin-top: 0.9rem;
     border-radius: var(--radius-lg);
-    background: transparent;
-    border: 1px dashed var(--gray-300);
-    color: var(--gray-500, #6b7280);
-    font-size: 0.84rem;
-    font-weight: 600;
-    font-family: inherit;
+    background: transparent !important;
+    border: 1px dashed var(--gray-300) !important;
+    color: var(--gray-500) !important;
+    font-size: 0.84rem !important;
+    font-weight: 600 !important;
+    font-family: inherit !important;
     cursor: pointer;
 }
 /* Sin esto el SVG se estira a lo que le pide el viewBox y se come el botón: los
@@ -449,22 +535,16 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     gap: 0.9rem;
     flex-wrap: wrap;
 }
-.pl-count { display: flex; align-items: center; gap: 0.35rem; font-size: 0.82rem; font-weight: 700; color: var(--gray-700, #374151); }
+.pl-count { display: flex; align-items: center; gap: 0.35rem; font-size: 0.82rem; font-weight: 700; color: var(--gray-700); }
 .pl-count-dot { width: 9px; height: 9px; border-radius: var(--radius-full); }
 .pl-count-dot--yes  { background: var(--success-color); }
 .pl-count-dot--no   { background: var(--danger-color); }
 .pl-count-dot--none { border: 2px solid var(--gray-300); }
-/* El ámbar del «sin marcar», BAJADO de tono. Salía de `--warning-dark`, que en
-   oscuro es un amarillo muy vivo: era lo más luminoso de la pantalla y se
-   comía la atención que necesitan los nombres y los círculos. Sigue siendo
-   ámbar —es un aviso— pero deja de gritar, y se fija en los dos temas para que
-   no dependa de un token que se invierte. */
-.pl-count--none { color: #b45309; }
-:root:not([data-theme="light"]) .pl-count--none { color: #d8a25a; }
-@media (prefers-color-scheme: light) {
-    :root:not([data-theme="dark"]) .pl-count--none { color: #b45309; }
-}
-:root[data-theme="dark"] .pl-count--none { color: #d8a25a; }
+/* El ámbar del «sin marcar» sale de `--pl-amber`, que es el del artboard en
+   claro y una versión bajada de tono en oscuro. Antes eran cuatro reglas con
+   hex a pelo y selectores `[data-theme]`, que en esta área NO existen (el
+   atributo es `data-stic-scheme`): las tres de oscuro no aplicaban nunca. */
+.pl-count--none { color: var(--pl-amber); }
 
 .pl-save {
     display: flex;
@@ -472,18 +552,18 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     justify-content: center;
     width: 100%;
     min-height: 54px;
-    border: 0;
+    border: 0 !important;
     border-radius: var(--radius-lg);
-    background: var(--grad-brand);
-    box-shadow: var(--shadow-md);
-    color: var(--pl-on-brand);
-    font-family: inherit;
-    font-size: 1rem;
-    font-weight: 800;
-    letter-spacing: -0.01em;
+    background: var(--grad-brand) !important;
+    box-shadow: var(--shadow-md) !important;
+    color: var(--pl-on-brand) !important;
+    font-family: inherit !important;
+    font-size: 1rem !important;
+    font-weight: 800 !important;
+    letter-spacing: -0.01em !important;
     cursor: pointer;
 }
-.pl-save[disabled] { opacity: 0.55; cursor: default; }
+.pl-save[disabled] { opacity: 0.55 !important; cursor: default; }
 
 /* ---- Hoja de los cuatro estados ---------------------------------------- */
 
@@ -529,7 +609,7 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
 
 .pl-sheet-who { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 1rem; }
 .pl-sheet-name { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.02em; }
-.pl-sheet-when { font-size: 0.79rem; color: var(--gray-500, #6b7280); }
+.pl-sheet-when { font-size: 0.79rem; color: var(--gray-500); }
 
 .pl-opt {
     display: flex;
@@ -538,19 +618,19 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     width: 100%;
     min-height: 56px;
     margin-bottom: 0.5rem;
-    padding: 0 1rem;
+    padding: 0 1rem !important;
     border-radius: var(--radius-lg);
-    background: var(--white);
-    border: 1px solid var(--gray-200);
-    font-family: inherit;
-    text-align: left;
+    background: var(--white) !important;
+    border: 1px solid var(--gray-200) !important;
+    font-family: inherit !important;
+    text-align: left !important;
     cursor: pointer;
 }
-.pl-opt[aria-checked="true"] { border-width: 2px; }
-.pl-opt[aria-checked="true"][data-value="yes"]            { border-color: var(--success-color); background: var(--success-50); }
-.pl-opt[aria-checked="true"][data-value="partial"]        { border-color: var(--pl-partial);    background: var(--pl-partial-soft); }
-.pl-opt[aria-checked="true"][data-value="no_justified"]   { border-color: var(--warning-color); background: var(--warning-soft); }
-.pl-opt[aria-checked="true"][data-value="no_unjustified"] { border-color: var(--danger-color);  background: var(--danger-soft); }
+.pl-opt[aria-checked="true"] { border-width: 2px !important; }
+.pl-opt[aria-checked="true"][data-value="yes"]            { border-color: var(--success-color) !important; background: var(--success-50) !important; }
+.pl-opt[aria-checked="true"][data-value="partial"]        { border-color: var(--pl-partial) !important;    background: var(--pl-partial-soft) !important; }
+.pl-opt[aria-checked="true"][data-value="no_justified"]   { border-color: var(--warning-color) !important; background: var(--warning-soft) !important; }
+.pl-opt[aria-checked="true"][data-value="no_unjustified"] { border-color: var(--danger-color) !important;  background: var(--danger-soft) !important; }
 
 .pl-opt-dot {
     display: flex;
@@ -563,14 +643,14 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
 }
 .pl-opt-dot svg { width: 15px; height: 15px; stroke: var(--white); fill: none; }
 .pl-opt-dot .pl-glyph-half { fill: var(--white); stroke: none; width: 13px; height: 13px; }
-.pl-opt[data-value="yes"]            .pl-opt-dot { background: var(--success-color); }
-.pl-opt[data-value="partial"]        .pl-opt-dot { background: var(--pl-partial); }
-.pl-opt[data-value="no_justified"]   .pl-opt-dot { background: var(--warning-color); }
-.pl-opt[data-value="no_unjustified"] .pl-opt-dot { background: var(--danger-color); }
+.pl-opt[data-value="yes"]            .pl-opt-dot { background: var(--success-color) !important; }
+.pl-opt[data-value="partial"]        .pl-opt-dot { background: var(--pl-partial) !important; }
+.pl-opt[data-value="no_justified"]   .pl-opt-dot { background: var(--warning-color) !important; }
+.pl-opt[data-value="no_unjustified"] .pl-opt-dot { background: var(--danger-color) !important; }
 
 .pl-opt-body { display: flex; flex-direction: column; gap: 0.05rem; flex-grow: 1; }
-.pl-opt-label { font-size: 0.98rem; font-weight: 700; }
-.pl-opt-desc  { font-size: 0.73rem; color: var(--gray-400); }
+.pl-opt-label { font-size: 0.98rem !important; font-weight: 700 !important; }
+.pl-opt-desc  { font-size: 0.73rem !important; color: var(--gray-400) !important; }
 .pl-opt-check { width: 19px; height: 19px; flex-shrink: 0; display: none; }
 .pl-opt[aria-checked="true"] .pl-opt-check { display: block; }
 
@@ -614,12 +694,12 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     width: 100%;
     min-height: 46px;
     margin-top: 0.4rem;
-    background: none;
-    border: 0;
-    font-family: inherit;
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--gray-500, #6b7280);
+    background: none !important;
+    border: 0 !important;
+    font-family: inherit !important;
+    font-size: 0.9rem !important;
+    font-weight: 600 !important;
+    color: var(--gray-500) !important;
     cursor: pointer;
 }
 
@@ -632,7 +712,7 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     padding: 1.1rem 0.25rem 0.6rem;
     font-size: 0.75rem;
     font-weight: 800;
-    color: var(--gray-500, #6b7280);
+    color: var(--gray-500);
     text-transform: uppercase;
     letter-spacing: 0.06em;
 }
@@ -654,7 +734,7 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
 }
 .pl-group:first-child { border-top: 0; }
 .pl-group-body { display: flex; flex-direction: column; gap: 0.15rem; flex-grow: 1; min-width: 0; }
-.pl-group-meta { font-size: 0.82rem; color: var(--gray-500, #6b7280); }
+.pl-group-meta { font-size: 0.82rem; color: var(--gray-500); }
 
 /* "Tu grupo": ni barrita azul ni pastilla en mayúsculas. Lo que dice que es
    tuyo es un filete de degradado de marca alrededor de la tarjeta y tus
@@ -741,24 +821,38 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
 /* La barra vertical de degradado a la izquierda del titulo, del artboard
    `Main`. Es lo que hace que «Pasar lista» se lea como el titulo de la
    seccion y no como una linea de texto mas. */
+/* El título de la home es MÁS GRANDE que el de una pantalla de grupo: 1.45rem
+   en el artboard `Main` contra 1.15rem en `Grupos`. `.pl-title-code` vale el
+   segundo, así que aquí se sube. Es lo que hacía que el título "no saliera
+   igual": el mismo texto, la mitad de presencia. */
+.pl-title-code--main { font-size: 1.45rem; }
+/* La barrita de marca: 4 × 26 px con las tres paradas del degradado. */
 .pl-title-code--main::before {
     content: '';
     display: inline-block;
     width: 4px;
-    height: 1.05em;
-    margin-right: 0.5rem;
-    border-radius: 999px;
+    height: 26px;
+    margin-right: 0.6rem;
+    border-radius: var(--radius-full);
     background: var(--grad-brand);
-    vertical-align: -0.12em;
+    vertical-align: -0.18em;
 }
+/* El subtítulo cuelga del TEXTO, no del borde: se alinea pasada la barrita,
+   como en el artboard. */
+.pl-title-code--main ~ *, .pl-title:has(.pl-title-code--main) + .pl-subtitle {
+    padding-left: 14px;
+}
+.pl-title:has(.pl-title-code--main) + .pl-subtitle { font-size: 0.85rem; }
 /* La tarjeta que agrupa las secciones. Va aparte de `.pl-list` porque esa es
    para filas de GRUPO, que son mas altas y llevan dos lineas. */
 .pl-buckets {
     margin-bottom: 0.9rem;
-    border-radius: 14px;
+    /* Radio, superficie y sombra del artboard `Main`: tarjeta con sombra fina,
+       SIN borde. El borde de 1 px la hacía parecer una tabla. */
+    border-radius: var(--radius-lg);
     overflow: hidden;
-    background: var(--surface-1, #fff);
-    border: 1px solid var(--border-color, #e5e7eb);
+    background: var(--surface);
+    box-shadow: var(--shadow-xs);
 }
 
 /* ---- «Pasar lista de otro grupo»: las secciones del artboard `Main` -----
@@ -768,16 +862,28 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
 .pl-bucket {
     display: flex;
     align-items: center;
-    gap: 0.65rem;
-    /* 52 px de alto: sigue siendo objetivo tactil holgado y entran las cinco
+    /* Medidas exactas del artboard: `padding: 15px 16px; gap: 14px`, que dan
+       unos 50 px de alto —objetivo táctil holgado— y dejan entrar las cinco
        secciones sin scroll, que es la gracia de tenerlas. */
-    min-height: 52px;
-    padding: 0 0.9rem;
+    gap: 14px;
+    padding: 15px 16px;
     text-decoration: none;
-    border-bottom: 1px solid var(--border-color, #e5e7eb);
+    position: relative;
 }
-.pl-bucket:last-child { border-bottom: 0; }
-.pl-bucket:hover { background: var(--surface-2, #f7f9fc); }
+/* La divisoria arranca DESPUÉS del punto de color (40 px), no de lado a lado:
+   así las filas se leen como una lista y no como una tabla. Va como
+   pseudo-elemento y solo entre filas, para no dejar una línea colgando al
+   final de la tarjeta ni un borde que cruce por debajo del punto. */
+.pl-bucket + .pl-bucket::before {
+    content: '';
+    position: absolute;
+    left: 40px;
+    right: 0;
+    top: 0;
+    height: 1px;
+    background: var(--gray-100);
+}
+.pl-bucket:hover { background: var(--gray-50); }
 
 /* El nombre de la sección va en COLOR DE TEXTO, no de enlace: la fila entera
    es un enlace, así que heredaba el azul y las cinco secciones salían en azul
@@ -785,25 +891,23 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
 .pl-bucket-name {
     flex: 1 1 auto;
     min-width: 0;
-    color: var(--text-color, #1f2937);
-    font-weight: 650;
-    font-size: 0.98rem;
-    letter-spacing: -0.01em;
+    color: var(--gray-800);
+    font-weight: 700;
+    font-size: 1rem;
 }
 .pl-bucket .pl-etapa-dot { flex: 0 0 auto; }
 /* La flecha, discreta: la fila ya se lee como pulsable por el nombre. */
-.pl-bucket .pl-detail svg { width: 16px; height: 16px; stroke: var(--text-muted, #9ca3af); }
+.pl-bucket .pl-detail svg { width: 17px; height: 17px; stroke: var(--gray-400); }
 
 /* La pastilla del número. Cifras tabulares para que no baile entre filas. */
 .pl-bucket-count {
     flex: 0 0 auto;
-    min-width: 2.2rem;
-    padding: 0.14rem 0.5rem;
-    border-radius: 999px;
-    background: var(--surface-2, #f1f5f9);
-    color: var(--text-muted, #6b7280);
-    font-size: 0.82rem;
-    font-weight: 600;
+    padding: 0.16rem 0.6rem;
+    border-radius: var(--radius-full);
+    background: var(--gray-100);
+    color: var(--gray-600);
+    font-size: 0.75rem;
+    font-weight: 800;
     text-align: center;
     font-variant-numeric: tabular-nums;
 }
@@ -816,8 +920,8 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     margin-left: 0.5rem;
     padding: 0.14rem 0.5rem;
     border-radius: 999px;
-    background: var(--surface-2, #f1f5f9);
-    color: var(--text-muted, #6b7280);
+    background: var(--surface-2);
+    color: var(--gray-500);
     font-size: 0.78rem;
     font-weight: 600;
     white-space: nowrap;
@@ -834,17 +938,17 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     margin: 1rem 0 0.5rem;
     padding: 0.9rem 1rem;
     border-radius: 14px;
-    border: 1.5px dashed var(--warning-color, #d97706);
-    background: var(--warning-50, rgba(217, 119, 6, 0.07));
+    border: 1.5px dashed var(--warning-color);
+    background: var(--warning-soft);
     text-decoration: none;
     color: inherit;
 }
-.pl-orphans:hover { background: var(--warning-50, rgba(217, 119, 6, 0.12)); }
+.pl-orphans:hover { background: var(--warning-soft); }
 .pl-orphans-icon { flex: 0 0 auto; display: inline-flex; }
 .pl-orphans-icon svg {
     width: 22px;
     height: 22px;
-    stroke: var(--warning-dark, #b45309);
+    stroke: var(--warning-dark);
     fill: none;
     stroke-width: 1.8;
 }
@@ -852,9 +956,9 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
 .pl-orphans-title {
     font-weight: 650;
     font-size: 0.95rem;
-    color: var(--warning-dark, #b45309);
+    color: var(--warning-dark);
 }
-.pl-orphans-sub { font-size: 0.85rem; color: var(--text-muted, #6b7280); }
+.pl-orphans-sub { font-size: 0.85rem; color: var(--gray-500); }
 
 /* ---- El buscador del árbol ---------------------------------------------
    Del artboard `Grupos`. Va pegado arriba al hacer scroll: con veintiocho
@@ -869,8 +973,8 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     margin: 0 0 0.6rem;
     padding: 0 0.85rem;
     border-radius: 999px;
-    background: var(--surface-1, #fff);
-    border: 1px solid var(--border-color, #e5e7eb);
+    background: var(--surface);
+    border: 1px solid var(--gray-200);
     /* La sombra despega el campo del contenido que pasa por debajo. */
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
 }
@@ -878,7 +982,7 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     width: 17px;
     height: 17px;
     flex: 0 0 auto;
-    stroke: var(--text-muted, #6b7280);
+    stroke: var(--gray-500);
     fill: none;
     stroke-width: 2.2;
     stroke-linecap: round;
@@ -894,14 +998,14 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     font: inherit;
     /* 16px reales: por debajo, iOS hace zoom al enfocar y descoloca todo. */
     font-size: 1rem;
-    color: var(--text-color, #1f2937);
+    color: var(--gray-800);
     box-shadow: none;
 }
 .pl-search input:focus { outline: none; }
 /* El foco se marca en el contenedor, que es lo que se ve como un control. */
 .pl-search:focus-within {
-    border-color: var(--primary-color, #2563eb);
-    box-shadow: 0 0 0 3px var(--primary-50, rgba(37, 99, 235, 0.12));
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px var(--primary-50);
 }
 /* Fuera la cruz nativa de WebKit: choca con el redondeo y con la lupa. */
 .pl-search input::-webkit-search-cancel-button { -webkit-appearance: none; }
@@ -909,7 +1013,7 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
 .pl-search-empty {
     margin: 0.4rem 0.25rem 0.8rem;
     font-size: 0.9rem;
-    color: var(--text-muted, #6b7280);
+    color: var(--gray-500);
 }
 
 .pl-tree-legend {
@@ -922,11 +1026,11 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
 .pl-tree-legend .pl-done { width: 16px; height: 16px; }
 .pl-tree-legend .pl-done svg { width: 10px; height: 10px; }
 .pl-tree-legend .pl-done--no { border-width: 2px; }
-.pl-tree-legend .pl-done--skip svg { width: 11px; height: 11px; stroke: var(--gray-500, #6b7280); }
+.pl-tree-legend .pl-done--skip svg { width: 11px; height: 11px; stroke: var(--gray-500); }
 
 /* El círculo "sin registro" lleva el mismo glifo de saltar que el botón: si el
    icono cambia entre la acción y su resultado, no se reconoce. */
-.pl-done--skip svg { width: 13px; height: 13px; stroke: var(--gray-500, #6b7280); fill: none; }
+.pl-done--skip svg { width: 13px; height: 13px; stroke: var(--gray-500); fill: none; }
 
 /* ---- Movimiento reducido ----------------------------------------------- */
 
@@ -961,7 +1065,7 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     .pl-att,
     .pl-panuelo,
     .pl-card { border: 1px solid var(--gray-400); }
-    .pl-mark { border-style: solid; border-color: var(--gray-500, #6b7280); }
+    .pl-mark { border-style: solid; border-color: var(--gray-500); }
     .pl-savebar { background: var(--white); backdrop-filter: none; border-top: 2px solid var(--gray-400); }
     .pl-hold-hint { border-style: solid; }
 }
@@ -981,11 +1085,11 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     box-shadow: var(--shadow-lg);
     color: var(--pl-on-brand);
 }
-/* Ya pasada: el degradado de marca sobra, y el verde dice "hecho" sin leer nada. */
-.pl-hero--done {
-    background: var(--pl-grad-done);
-    box-shadow: var(--shadow-md);
-}
+/* Ya pasada: SIGUE con el degradado de marca. Antes se ponía verde entera, y
+   eso no está en ningún artboard: en el diseño la tarjeta del sábado es
+   siempre la de marca, y "ya pasada" se cuenta en la pastilla de arriba
+   (`.pl-hero-when`) y en el texto del botón ("Revisar la lista"), no
+   repintando los 200 px más grandes de la pantalla. */
 
 /* La cabecera del atajo: a la izquierda el CUÁNDO en relativo y el grupo; a la
    derecha la cápsula de fecha de §11, que es el componente que ya existe para
@@ -1033,17 +1137,17 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    min-height: 50px;
+    min-height: 54px;
     margin-top: 0.85rem;
     border-radius: var(--radius-lg);
-    background: var(--white);
-    color: var(--primary-color);
+    background: #fff;
+    color: var(--pl-brand-fixed);
     font-size: 1rem;
     font-weight: 800;
+    box-shadow: var(--shadow-sm);
     letter-spacing: -0.01em;
     text-decoration: none;
 }
-.pl-hero--done .pl-hero-cta { color: var(--success-dark); }
 .pl-hero-cta svg { width: 19px; height: 19px; }
 
 /* ---- Home: lo que falta por pasar --------------------------------------- */
@@ -1096,19 +1200,26 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    min-height: 56px;
+    /* 48 px, superficie y BORDE fino: es la acción de pie de página del
+       artboard `Main`, no una tarjeta. `--white` no vale como fondo: es un
+       token de superficie que en oscuro es #16171a, más oscuro que la propia
+       página, y la fila salía como un agujero. */
+    min-height: 48px;
     margin-top: 1.1rem;
     padding: 0 1rem;
     border-radius: var(--radius-lg);
-    background: var(--white);
-    box-shadow: var(--shadow-xs);
-    color: var(--gray-700, #374151);
-    font-size: 0.95rem;
+    background: var(--surface);
+    border: 1px solid var(--gray-200);
+    color: var(--gray-700);
+    font-size: 0.92rem;
     font-weight: 700;
     text-decoration: none;
 }
+/* El «Resumen de grupos» va CENTRADO y sin flecha, como en el artboard: no es
+   navegar más adentro del árbol, es cambiar de pantalla. */
+.pl-all-groups--center { justify-content: center; gap: 0.55rem; }
 .pl-all-groups-meta { margin-left: auto; font-size: 0.8rem; font-weight: 600; color: var(--gray-400); }
-.pl-all-groups svg { width: 17px; height: 17px; color: var(--gray-300); flex-shrink: 0; }
+.pl-all-groups svg { width: 18px; height: 18px; color: var(--gray-600); flex-shrink: 0; }
 
 /* Los enlaces que hacen de fila comparten el reset de los botones. Van juntos
    a propósito: cada vez que una fila nueva se hace con un <a> y se olvida esto,
@@ -1131,9 +1242,9 @@ a.pl-group .pl-name { display: block; }
 
 .pl-sec {
     padding: 1.2rem 0.25rem 0.55rem;
-    font-size: 0.75rem;
+    font-size: 0.78rem;
     font-weight: 800;
-    color: var(--gray-500, #6b7280);
+    color: var(--gray-500);
     text-transform: uppercase;
     letter-spacing: 0.06em;
 }
@@ -1167,7 +1278,7 @@ a.pl-group .pl-name { display: block; }
 }
 .pl-ident-body { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
 .pl-ident-name { font-size: 1.28rem; font-weight: 800; letter-spacing: -0.025em; line-height: 1.15; }
-.pl-ident-meta { font-size: 0.83rem; color: var(--gray-500, #6b7280); line-height: 1.35; }
+.pl-ident-meta { font-size: 0.83rem; color: var(--gray-500); line-height: 1.35; }
 .pl-ident-meta strong { font-weight: 800; color: var(--gray-900); }
 
 /* Contacto rápido: los dos botones grandes ANTES de cualquier dato. La ficha se
@@ -1188,7 +1299,7 @@ a.pl-group .pl-name { display: block; }
     box-shadow: var(--shadow-xs);
     font-size: 0.92rem;
     font-weight: 700;
-    color: var(--gray-700, #374151);
+    color: var(--gray-700);
     text-decoration: none;
 }
 .pl-contact-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
@@ -1207,7 +1318,7 @@ a.pl-group .pl-name { display: block; }
 .pl-phone:first-child { border-top: 0; }
 .pl-phone-who { display: flex; flex-direction: column; gap: 0.1rem; flex-grow: 1; min-width: 0; }
 .pl-phone-label { font-size: 0.88rem; font-weight: 700; }
-.pl-phone-num { font-size: 0.8rem; color: var(--gray-500, #6b7280); }
+.pl-phone-num { font-size: 0.8rem; color: var(--gray-500); }
 
 .pl-phone-acts { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
 .pl-phone-btn {
@@ -1250,7 +1361,7 @@ a.pl-group .pl-name { display: block; }
     padding: 0.8rem 0.85rem;
     border-top: 1px solid var(--gray-100);
     font-size: 0.9rem;
-    color: var(--gray-600, #4b5563);
+    color: var(--gray-600);
 }
 .pl-flagrow:first-child { border-top: 0; }
 
@@ -1266,7 +1377,7 @@ a.pl-group .pl-name { display: block; }
     flex-shrink: 0;
 }
 .pl-flag--yes { background: var(--success-50); color: var(--success-dark); }
-.pl-flag--no  { background: var(--gray-100); color: var(--gray-500, #6b7280); }
+.pl-flag--no  { background: var(--gray-100); color: var(--gray-500); }
 
 /* ---- Avisos de comportamiento ------------------------------------------ */
 
@@ -1296,7 +1407,7 @@ a.pl-group .pl-name { display: block; }
     background: transparent;
     border: 1.5px dashed var(--gray-300);
 }
-.pl-avi-pip--last { border-color: #dc2626; }
+.pl-avi-pip--last { border-color: var(--danger-color); }
 /* El COLOR DE TEXTO sale de un token, no del hex de la escala: los hex fijos
    son para los RELLENOS (los puntitos, los círculos), y como texto un naranja
    oscuro se queda en 3,6:1 sobre la superficie oscura. `--warning-dark` es el
@@ -1377,7 +1488,7 @@ a.pl-group .pl-name { display: block; }
 .pl-avi-empty {
     padding: 0.8rem 1rem;
     font-size: 0.85rem;
-    color: var(--gray-500, #6b7280);
+    color: var(--gray-500);
 }
 
 /* Añadir: naranja, no azul. No es una acción cualquiera de la ficha, es poner
@@ -1416,7 +1527,7 @@ a.pl-group .pl-name { display: block; }
     align-items: center;
     gap: 0.55rem;
     font-size: 0.87rem;
-    color: var(--gray-700, #374151);
+    color: var(--gray-700);
 }
 .pl-avi-check input {
     width: 22px;
@@ -1431,13 +1542,13 @@ a.pl-group .pl-name { display: block; }
     justify-content: center;
     width: 100%;
     min-height: 46px;
-    border: 0;
+    border: 0 !important;
     border-radius: var(--radius-md);
-    background: #c2410c;
-    color: var(--pl-on-brand);
-    font-family: inherit;
-    font-size: 0.9rem;
-    font-weight: 700;
+    background: #c2410c !important;
+    color: var(--pl-on-brand) !important;
+    font-family: inherit !important;
+    font-size: 0.9rem !important;
+    font-weight: 700 !important;
     cursor: pointer;
 }
 
@@ -1459,14 +1570,14 @@ a.pl-group .pl-name { display: block; }
 .pl-panuelo-label { font-size: 1rem; font-weight: 800; flex-grow: 1; }
 .pl-panuelo-edit {
     min-height: 40px;
-    padding: 0 0.85rem;
+    padding: 0 0.85rem !important;
     border-radius: var(--radius-full);
-    background: var(--gray-50);
-    border: 1px solid var(--gray-200);
-    font-family: inherit;
-    font-size: 0.8rem;
-    font-weight: 700;
-    color: var(--gray-700, #374151);
+    background: var(--gray-50) !important;
+    border: 1px solid var(--gray-200) !important;
+    font-family: inherit !important;
+    font-size: 0.8rem !important;
+    font-weight: 700 !important;
+    color: var(--gray-700) !important;
     cursor: pointer;
 }
 .pl-panuelo-opts { display: flex; flex-direction: column; border-top: 1px solid var(--gray-100); }
@@ -1475,17 +1586,17 @@ a.pl-group .pl-name { display: block; }
     align-items: center;
     gap: 0.7rem;
     min-height: 48px;
-    padding: 0 0.85rem;
-    background: none;
-    border: 0;
-    border-top: 1px solid var(--gray-100);
-    font-family: inherit;
-    font-size: 0.92rem;
-    font-weight: 600;
-    text-align: left;
+    padding: 0 0.85rem !important;
+    background: none !important;
+    border: 0 !important;
+    border-top: 1px solid var(--gray-100) !important;
+    font-family: inherit !important;
+    font-size: 0.92rem !important;
+    font-weight: 600 !important;
+    text-align: left !important;
     cursor: pointer;
 }
-.pl-panuelo-opt:first-child { border-top: 0; }
+.pl-panuelo-opt:first-child { border-top: 0 !important; }
 
 /* La fila de marcar y la flecha de la ficha son dos controles hermanos, no uno
    dentro de otro: anidarlos deja la flecha inalcanzable con el teclado. */
@@ -1495,7 +1606,7 @@ a.pl-group .pl-name { display: block; }
     border-top: 1px solid var(--gray-100);
 }
 .pl-rowwrap:first-child { border-top: 0; }
-.pl-rowwrap .pl-row { border-top: 0; flex-grow: 1; min-width: 0; padding-right: 0; }
+.pl-rowwrap .pl-row { border-top: 0 !important; flex-grow: 1; min-width: 0 !important; padding-right: 0; }
 .pl-rowwrap .pl-detail { text-decoration: none; }
 
 /* Asistencia de la ficha: el porcentaje grande, y a su lado SIEMPRE el
@@ -1535,8 +1646,8 @@ a.pl-group .pl-name { display: block; }
 }
 .pl-att-pct span { font-size: 1rem; font-weight: 700; }
 .pl-att-body { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; }
-.pl-att-main { font-size: 0.8rem; color: var(--gray-500, #6b7280); }
-.pl-att-meta { font-size: 0.82rem; color: var(--gray-500, #6b7280); font-weight: 500; }
+.pl-att-main { font-size: 0.8rem; color: var(--gray-500); }
+.pl-att-meta { font-size: 0.82rem; color: var(--gray-500); font-weight: 500; }
 
 /* ---- Resumen de coordinación ------------------------------------------- */
 
@@ -1556,7 +1667,7 @@ a.pl-group .pl-name { display: block; }
     gap: 0.35rem;
     font-size: 0.72rem;
     font-weight: 800;
-    color: var(--gray-500, #6b7280);
+    color: var(--gray-500);
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
@@ -1638,7 +1749,7 @@ a.pl-group .pl-name { display: block; }
 }
 .pl-badge--ok   { background: var(--success-50); color: var(--success-dark); }
 .pl-badge--gap  { background: var(--warning-100); color: var(--warning-dark); }
-.pl-badge--skip { background: var(--gray-100); color: var(--gray-500, #6b7280); }
+.pl-badge--skip { background: var(--gray-100); color: var(--gray-500); }
 
 /* Datos por revisar: ámbar, porque es una lista de cosas que hay que arreglar,
    no un error. */
@@ -1702,7 +1813,7 @@ a.pl-group .pl-name { display: block; }
     animation: pl-status-in 240ms var(--ease-out) both;
 }
 .pl-status[data-kind="draft"]   { background: var(--warning-soft); color: var(--warning-dark); }
-.pl-status[data-kind="offline"] { background: var(--gray-100); color: var(--gray-700, #374151); }
+.pl-status[data-kind="offline"] { background: var(--gray-100); color: var(--gray-700); }
 .pl-status[data-kind="sync"]    { background: var(--primary-50); color: var(--primary-color); }
 .pl-status[data-kind="ok"]      { background: var(--success-50); color: var(--success-dark); }
 
@@ -1772,7 +1883,7 @@ a.pl-group .pl-name { display: block; }
 .pl-ds-icon svg { width: 17px; height: 17px; stroke: var(--white); fill: none; }
 .pl-ds-body { display: flex; flex-direction: column; gap: 0.1rem; }
 .pl-ds-label { font-size: 0.98rem; font-weight: 800; }
-.pl-ds-sub { font-size: 0.78rem; color: var(--gray-500, #6b7280); }
+.pl-ds-sub { font-size: 0.78rem; color: var(--gray-500); }
 
 .pl-ds--ok .pl-ds-icon { background: var(--success-color); }
 .pl-ds--ok .pl-ds-label { color: var(--success-dark); }
@@ -1797,7 +1908,7 @@ a.pl-group .pl-name { display: block; }
 .pl-field-label {
     font-size: 0.73rem;
     font-weight: 800;
-    color: var(--gray-500, #6b7280);
+    color: var(--gray-500);
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
@@ -1827,7 +1938,7 @@ a.pl-group .pl-name { display: block; }
     padding: 0.12rem 0.5rem;
     border-radius: var(--radius-full);
     background: var(--gray-100);
-    color: var(--gray-600, #4b5563);
+    color: var(--gray-600);
     font-size: 0.68rem;
     font-weight: 700;
     text-transform: none;
@@ -1860,7 +1971,7 @@ a.pl-group .pl-name { display: block; }
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
-.pl-seg-when { font-size: 0.76rem; font-weight: 700; color: var(--gray-600, #4b5563); }
+.pl-seg-when { font-size: 0.76rem; font-weight: 700; color: var(--gray-600); }
 .pl-seg-who { font-size: 0.76rem; color: var(--gray-400); }
 .pl-seg-text { font-size: 0.92rem; line-height: 1.5; }
 
@@ -1874,7 +1985,7 @@ a.pl-group .pl-name { display: block; }
     padding: 0.5rem 0.7rem;
     border-radius: var(--radius-md);
     background: color-mix(in srgb, var(--accent-color) 10%, transparent);
-    color: #573c80;
+    color: var(--accent-color);
     font-size: 0.77rem;
     line-height: 1.4;
 }

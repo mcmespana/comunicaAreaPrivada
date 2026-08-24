@@ -323,10 +323,10 @@ $html .= '</a>';
 
 // El resumen de coordinación: lo ve cualquier monitor (ver es útil para todos),
 // pero solo coordinación puede editar los datos por revisar.
-$html .= '<a class="pl-all-groups" href="?internalpage=single_stic_pasar_lista_resumen">';
+$html .= '<a class="pl-all-groups pl-all-groups--center"'
+    . ' href="?internalpage=single_stic_pasar_lista_resumen">';
 $html .= sticpa_pl_icon('chart');
 $html .= '<span>' . esc_html__('Resumen de grupos', 'sticpa') . '</span>';
-$html .= sticpa_pl_icon('next');
 $html .= '</a>';
 
 // ---------------------------------------------------------------------------
