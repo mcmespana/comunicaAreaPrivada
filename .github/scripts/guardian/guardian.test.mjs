@@ -10,7 +10,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  horaEnMadrid, tocaAhora, estaVigente, clasificarRelaciones,
+  estaVigente, clasificarRelaciones,
   formatearMonitores, camposQueCambian, revisarDatos,
   diaEnMadrid, modoDeLaNoche, ventanaDesde, gruposTocados, CAMPO_GRUPO_EN_RELACION,
 } from './logica.mjs';
@@ -70,38 +70,10 @@ test('de las relaciones tocadas salen ids de grupo, y las sin grupo se cuentan a
   assert.deepEqual(gruposTocados(undefined).ids.size, 0);
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// La hora
-// ─────────────────────────────────────────────────────────────────────────────
-
-test('la hora de Madrid tiene en cuenta el cambio de hora', () => {
-  // Enero: CET (UTC+1). 00:30 UTC son las 01:30 de aquí.
-  assert.deepEqual(horaEnMadrid(new Date('2026-01-15T00:30:00Z')), { hora: 1, minuto: 30 });
-  // Julio: CEST (UTC+2). Las 01:30 de aquí son las 23:30 UTC del día anterior.
-  assert.deepEqual(horaEnMadrid(new Date('2026-07-14T23:30:00Z')), { hora: 1, minuto: 30 });
-});
-
-test('de los dos crons solo pasa el que cae a la 1:30 de Madrid', () => {
-  // Invierno: el bueno es 00:30 UTC; 23:30 UTC serían las 00:30 de aquí.
-  assert.equal(tocaAhora({ horaObjetivo: 1, ahora: new Date('2026-01-15T00:30:00Z') }), true);
-  // Verano: el bueno es 23:30 UTC; 00:30 UTC serían las 02:30 de aquí.
-  assert.equal(tocaAhora({ horaObjetivo: 1, ahora: new Date('2026-07-14T23:30:00Z') }), true);
-});
-
-test('a mediodía no toca', () => {
-  assert.equal(tocaAhora({ horaObjetivo: 1, ahora: new Date('2026-01-15T12:00:00Z') }), false);
-});
-
-test('aguanta el retraso de los crons de GitHub sin saltarse la noche', () => {
-  // GitHub avisa de que los crons se retrasan en horas de carga. Con 40 minutos
-  // de retraso la pasada TIENE que hacerse igual.
-  assert.equal(tocaAhora({ horaObjetivo: 1, ahora: new Date('2026-01-15T01:10:00Z') }), true);
-});
-
-test('la ventana se mide de forma circular, no restando a pelo', () => {
-  // Objetivo medianoche y son las 23:40: 20 minutos de distancia, no 1400.
-  assert.equal(tocaAhora({ horaObjetivo: 0, ahora: new Date('2026-01-15T22:40:00Z'), margenMin: 30 }), true);
-});
+// Ya no hay tests de la guarda de la hora porque ya no hay guarda: un solo cron,
+// nada que descartar, y un retraso solo hace que la pasada sea más tarde esa
+// misma noche. Lo que SÍ se sigue probando es el día (justo arriba), que es lo
+// único de la fecha que decide algo.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Vigencia y recuento

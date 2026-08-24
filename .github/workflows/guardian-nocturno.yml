@@ -19,20 +19,23 @@ name: Guardián Nocturno del CRM
 #   (un `end_date` que llega no modifica el registro).
 # El completo del viernes y del sábado es la red que recoge lo que el suave no
 # puede ver, y cae justo antes del sábado, que es cuando se miran los números.
-# El día se decide EN MADRID, no en UTC: a la 1:30 de un viernes de verano en
-# UTC es jueves, y la pasada completa caería en el día que no toca.
+# El día se decide EN MADRID, no en UTC.
 #
-# ── Por qué DOS horas de cron ────────────────────────────────────────────────
-# El cron de GitHub es siempre UTC y España cambia de hora dos veces al año:
-#   verano (CEST, UTC+2) -> la 01:30 de Madrid son las 23:30 UTC del día antes
-#   invierno (CET, UTC+1) -> la 01:30 de Madrid son las 00:30 UTC
-# Se lanza a las dos y el propio script comprueba la hora real en Europe/Madrid
-# y se sale sin hacer nada si no es la 1:30. Así siempre pasa a la 1:30 de aquí
-# sin tocar nada en marzo y en octubre. Es el mismo truco que cumples-monitores.
+# ── UN solo cron, y sin guarda de la hora ────────────────────────────────────
+# 00:30 UTC: la 01:30 de Madrid en invierno y las 02:30 en verano. Esa hora que
+# baila se acepta — de madrugada no hay nadie esperando.
 #
-# Aviso conocido de GitHub: los crons de Actions no son puntuales; en horas de
-# carga se retrasan varios minutos. El script acepta hasta 90 minutos de margen,
-# así que un retraso no se salta la noche.
+# Antes había dos crons (23:30 y 00:30 UTC) para clavar la 1:30 todo el año, y
+# el script descartaba el que no cayera cerca. Eso solo puede hacer daño: los
+# crons de Actions llegan tarde (en cumples-monitores se vieron 21-27 minutos de
+# retraso tres días seguidos), y con retraso suficiente se descartan las DOS
+# ejecuciones y la noche se salta entera, con el job en verde. Con un cron no
+# hay nada que descartar y un retraso solo hace que pase más tarde esa noche.
+#
+# Un efecto bueno de elegir 00:30 UTC: en las dos estaciones cae en el MISMO día
+# de calendario que en Madrid (01:30 y 02:30 de la madrugada), así que el día que
+# ve la lógica de suave/completo es el mismo que pone el cron. Con las 23:30 UTC
+# no era así — en UTC era jueves y aquí ya viernes.
 #
 # ── Cómo canta si falla ──────────────────────────────────────────────────────
 #   1. El job sale ROJO y GitHub manda su propio correo al dueño del repo
@@ -51,8 +54,7 @@ name: Guardián Nocturno del CRM
 
 on:
   schedule:
-    - cron: '30 23 * * *'   # 01:30 en Madrid en horario de verano
-    - cron: '30 0 * * *'    # 01:30 en Madrid en horario de invierno
+    - cron: '30 0 * * *'    # 01:30 en Madrid en invierno, 02:30 en verano. Da igual: pasa.
   workflow_dispatch:
     inputs:
       modo:
@@ -123,7 +125,6 @@ jobs:
           IN_MODO: ${{ inputs.modo }}
           IN_DRY_RUN: ${{ inputs.dry_run }}
           IN_AVISAR_SIEMPRE: ${{ inputs.avisar_siempre }}
-          EVENTO: ${{ github.event_name }}
         run: |
           set -euo pipefail
           args=()
@@ -137,9 +138,6 @@ jobs:
           if [ -n "${IN_MODO:-}" ]; then args+=("--modo=$IN_MODO"); fi
           if [ "${IN_DRY_RUN:-}" = "true" ]; then args+=("--dry-run"); fi
           if [ "${IN_AVISAR_SIEMPRE:-}" = "true" ]; then args+=("--avisar-siempre"); fi
-          # En ejecución manual se salta la guarda de la hora: si has pulsado el
-          # botón a las 16:30, es que lo quieres ahora.
-          if [ "$EVENTO" = "workflow_dispatch" ]; then args+=("--forzar-hora"); fi
           node .github/scripts/guardian/guardian.mjs ${args[@]+"${args[@]}"}
 
       # El informe crudo, para poder mirar con calma qué grupo cambió. Se sube

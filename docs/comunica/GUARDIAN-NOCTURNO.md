@@ -1,7 +1,7 @@
 # Guardián Nocturno del CRM
 
-Cada noche a la **1:30 de Madrid** pasa por SinergiaCRM, hace el mantenimiento
-que el área privada no puede permitirse en caliente, y **canta si algo va mal**.
+Cada noche de madrugada pasa por SinergiaCRM, hace el mantenimiento que el área
+privada no puede permitirse en caliente, y **canta si algo va mal**.
 
 - Workflow: [`.github/workflows/guardian-nocturno.yml`](../../.github/workflows/guardian-nocturno.yml)
 - Código: [`.github/scripts/guardian/`](../../.github/scripts/guardian/)
@@ -44,11 +44,12 @@ motivos de fondo, no por descuido:
 El completo del viernes y del sábado es la red que recoge las dos cosas, y cae
 justo antes del sábado, que es cuando se miran los números.
 
-**El día se decide en Madrid, no en UTC.** A la 1:30 de un viernes de verano, en
-UTC son las 23:30 del **jueves**: con el día del runner, la pasada completa del
-viernes caería en jueves media parte del año. Es el mismo motivo por el que la
-hora se mira en `Europe/Madrid` (§4), y está cubierto con tests en las dos
-estaciones.
+**El día se decide en Madrid, no en UTC**, y no depende del cron que haya puesto.
+Con el cron actual (00:30 UTC) los dos días coinciden, pero si algún día se mueve
+la hora a antes de medianoche UTC dejarían de coincidir —a la 1:30 de un viernes
+de verano en UTC son las 23:30 del **jueves**— y la pasada completa del viernes
+caería en jueves media parte del año. Leerlo en `Europe/Madrid` es correcto
+pase lo que pase, y está cubierto con tests en las dos estaciones.
 
 **Si el suave se rompe, degrada a completo.** Una optimización que falla tiene
 que caer al camino seguro, no dejar los números sin tocar: si la consulta
@@ -104,23 +105,38 @@ Los tres primeros ya existen (los usa el workflow de cumpleaños). **El único q
 hay que crear es `GUARDIAN_AVISOS_TO`**; sin él todo funciona igual, pero el
 aviso se queda en el resumen del job y en el correo de GitHub.
 
-## 4. La hora, y por qué son dos crons
+## 4. La hora: un cron y sin candado
 
-El cron de GitHub es **siempre UTC** y España cambia de hora dos veces al año:
+**Un** cron, a las **00:30 UTC**. En Madrid eso es la **01:30 en invierno y las
+02:30 en verano**, porque el cron de GitHub es siempre UTC y España cambia de
+hora dos veces al año. Esa hora que baila se acepta: de madrugada no hay nadie
+esperando, y lo que importa es que pase.
 
-- verano (CEST, UTC+2) → la 01:30 de Madrid son las **23:30 UTC** del día antes
-- invierno (CET, UTC+1) → la 01:30 de Madrid son las **00:30 UTC**
+### Por qué se quitó el candado de la hora
 
-Se lanza a las dos horas y el propio script mira la hora real en `Europe/Madrid`
-y se sale sin hacer nada si no es la 1:30. Así siempre pasa a la 1:30 de aquí sin
-tener que tocar nada en marzo y en octubre. Es el mismo truco que
-`cumples-monitores.yml`, a propósito: dos workflows con dos soluciones distintas
-para el mismo problema es una de las dos mal.
+Antes había **dos** crons (23:30 y 00:30 UTC) y el script descartaba el que no
+cayera cerca de la 1:30, para clavar la hora todo el año. Un candado así solo
+puede hacer daño: los crons de Actions **llegan tarde** —en `cumples-monitores`
+se vieron retrasos de 21-27 minutos tres días seguidos— y con retraso suficiente
+se descartan **las dos** ejecuciones y la noche se salta entera, con el job en
+verde. Ahí se perdió el argumento de clavar la hora.
 
-Los crons de Actions **no son puntuales** (en horas de carga se retrasan). El
-script acepta hasta 90 minutos de margen, así que un retraso no se salta la
-noche. En ejecución manual la guarda se ignora: si has pulsado el botón, lo
-quieres ahora.
+Con un cron no hay nada que descartar y no hace falta candado: un retraso solo
+hace que la pasada sea más tarde **esa misma noche**.
+
+> Mismo criterio que `cumples-monitores.yml`, a propósito: dos workflows con dos
+> soluciones distintas para el mismo problema es una de las dos mal.
+
+### Un efecto bueno de elegir las 00:30 UTC
+
+En las dos estaciones cae en el **mismo día de calendario** que en Madrid (01:30
+y 02:30 de la madrugada). Así el día que ve la lógica de suave/completo es el
+mismo que pone el cron. Con las 23:30 UTC no era así: en UTC era jueves y aquí ya
+viernes, y había que tenerlo en la cabeza para no equivocarse.
+
+El día se sigue leyendo en `Europe/Madrid` de todas formas — es lo correcto
+independientemente del cron que haya, y está cubierto con tests en las dos
+estaciones.
 
 ## 5. Añadir una tarea
 
@@ -174,8 +190,8 @@ completo, el informe tiene que decir «completo».
 
 ## 6. Probarlo sin tocar el CRM
 
-Los tests cubren toda la lógica —vigencia, recuento, el diff, la guarda de la
-hora, el informe— sin red:
+Los tests cubren toda la lógica —vigencia, recuento, el diff, qué modo toca cada
+día, el informe— sin red:
 
 ```bash
 node --test .github/scripts/guardian/guardian.test.mjs
