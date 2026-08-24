@@ -9,6 +9,8 @@
  *   · recuentos-grupos  — lleva al grupo cuánta gente tiene y quiénes son sus
  *                         monitores (docs/comunica/PASAR-LISTA-RECUENTOS.md)
  *   · revision-datos    — mira y avisa de lo que rompe Pasar Lista
+ *   · calentar-cache    — deja hecha la caché del área privada, para que el
+ *                         primero que entre el sábado no la pague
  *
  * ── Añadir una tarea ───────────────────────────────────────────────────────
  * Crea `tareas/lo-tuyo.mjs` exportando `clave`, `titulo` y
@@ -52,10 +54,13 @@ import { modoDeLaNoche, MODOS } from './logica.mjs';
 import { aMarkdown, aTexto, aHtml, hayFallos, mereceAviso, titular } from './informe.mjs';
 import * as recuentosGrupos from './tareas/recuentos-grupos.mjs';
 import * as revisionDatos from './tareas/revision-datos.mjs';
+import * as calentarCache from './tareas/calentar-cache.mjs';
 import { appendFile, writeFile } from 'node:fs/promises';
 
-/** El registro de tareas. El orden importa: `revision-datos` usa lo que calcula la primera. */
-const TAREAS = [recuentosGrupos, revisionDatos];
+/** El registro de tareas. El orden importa: `revision-datos` usa lo que calcula
+ * la primera, y `calentar-cache` va LA ÚLTIMA para que la caché del área privada
+ * se rellene con los recuentos ya escritos y no con los de antes de la pasada. */
+const TAREAS = [recuentosGrupos, revisionDatos, calentarCache];
 
 const CAMPOS_GRUPO = ['id', 'name', 'code', 'level', 'cursos_c', 'assigned_user_id',
   'ajmcm_n_participantes_c', 'ajmcm_n_monitores_c', 'ajmcm_monitores_c', 'ajmcm_recuento_al_c'];

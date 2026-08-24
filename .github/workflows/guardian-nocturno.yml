@@ -3,8 +3,9 @@ name: Guardián Nocturno del CRM
 # Cada noche pasa por SinergiaCRM, hace el mantenimiento que el área privada no
 # puede permitirse en caliente, y canta si algo va mal.
 #
-# Hoy: recuentos y monitores de cada grupo, y revisión de los datos que rompen
-# Pasar Lista. Para añadir tareas, mira la cabecera de
+# Hoy: recuentos y monitores de cada grupo, revisión de los datos que rompen
+# Pasar Lista, y dejar la caché del área privada hecha para que el primero que
+# entre el sábado no la pague. Para añadir tareas, mira la cabecera de
 # .github/scripts/guardian/guardian.mjs — está pensado para crecer.
 #
 # ── Dos modos, y por qué ─────────────────────────────────────────────────────
@@ -118,6 +119,11 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           GUARDIAN_AVISOS_TO: ${{ secrets.GUARDIAN_AVISOS_TO }}
           GUARDIAN_FROM: ${{ secrets.GUARDIAN_FROM }}
+          # Calentar la caché del área privada al terminar. También opcionales:
+          # sin ellos la tarea se salta y lo dice en el informe. El secreto tiene
+          # que ser el MISMO que STICPA_PL_WARM_SECRET en wp-config.php.
+          AREA_PRIVADA_URL: ${{ secrets.AREA_PRIVADA_URL }}
+          AREA_PRIVADA_CALENTAR_SECRET: ${{ secrets.AREA_PRIVADA_CALENTAR_SECRET }}
           # Lo que viene del formulario se pasa por el entorno, NUNCA
           # interpolado en el shell: así un valor con comillas o con `;` no
           # puede acabar ejecutándose como comando.

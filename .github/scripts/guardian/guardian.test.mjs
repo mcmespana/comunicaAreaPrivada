@@ -13,9 +13,11 @@ import {
   estaVigente, clasificarRelaciones,
   formatearMonitores, camposQueCambian, revisarDatos,
   diaEnMadrid, modoDeLaNoche, ventanaDesde, gruposTocados, CAMPO_GRUPO_EN_RELACION,
+  delegacionesDe,
 } from './logica.mjs';
 import { aMarkdown, aTexto, hayFallos, mereceAviso, titular, estadoDe } from './informe.mjs';
 import { CAMPOS } from './tareas/recuentos-grupos.mjs';
+import * as calentarCache from './tareas/calentar-cache.mjs';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Suave o completo
@@ -320,4 +322,61 @@ test('el texto del correo lleva el enlace a la ejecución', () => {
   const txt = aTexto({ resultados, contexto: { ...CTX, enlaceEjecucion: 'https://github.com/x/y/actions/runs/1' } });
   assert.match(txt, /actions\/runs\/1/);
   assert.match(txt, /roto/);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Calentar la caché del área privada
+// ─────────────────────────────────────────────────────────────────────────────
+
+test('las delegaciones salen de los grupos, sin repetir y ordenadas', () => {
+  const grupos = [
+    { id: 'g1', assigned_user_id: 'cas' },
+    { id: 'g2', assigned_user_id: 'cas' },
+    { id: 'g3', assigned_user_id: 'ali' },
+  ];
+  assert.deepEqual(delegacionesDe(grupos), ['ali', 'cas']);
+});
+
+test('un grupo sin delegación no inventa una delegación vacía', () => {
+  // Pasa de verdad: un grupo creado a mano en el CRM sin asignar. Si colara
+  // como '' el área privada calentaría una caché de nadie.
+  const grupos = [{ id: 'g1', assigned_user_id: '' }, { id: 'g2' }, { id: 'g3', assigned_user_id: '  cas  ' }];
+  assert.deepEqual(delegacionesDe(grupos), ['cas']);
+});
+
+test('sin grupos no hay delegaciones y no revienta', () => {
+  assert.deepEqual(delegacionesDe([]), []);
+  assert.deepEqual(delegacionesDe(null), []);
+});
+
+test('sin configurar, calentar-cache lo dice en vez de fallar', async () => {
+  const previo = { url: process.env.AREA_PRIVADA_URL, sec: process.env.AREA_PRIVADA_CALENTAR_SECRET };
+  delete process.env.AREA_PRIVADA_URL;
+  delete process.env.AREA_PRIVADA_CALENTAR_SECRET;
+  try {
+    const r = await calentarCache.ejecutar({ log: () => {}, secoDePrueba: false, grupos: async () => [] });
+    assert.match(r.resumen, /sin configurar/);
+    assert.deepEqual(r.problemas, []);
+    assert.match(r.detalles.join(' '), /AREA_PRIVADA_URL/);
+  } finally {
+    if (previo.url !== undefined) process.env.AREA_PRIVADA_URL = previo.url;
+    if (previo.sec !== undefined) process.env.AREA_PRIVADA_CALENTAR_SECRET = previo.sec;
+  }
+});
+
+test('en seco no se llama al área privada', async () => {
+  process.env.AREA_PRIVADA_URL = 'https://ejemplo.test';
+  process.env.AREA_PRIVADA_CALENTAR_SECRET = 'secreto';
+  try {
+    const r = await calentarCache.ejecutar({
+      log: () => {},
+      secoDePrueba: true,
+      // Si intentara llamar, `fetch` a ejemplo.test fallaría y el test se caería.
+      grupos: async () => [{ id: 'g1', assigned_user_id: 'cas' }],
+    });
+    assert.match(r.resumen, /en seco/);
+  } finally {
+    delete process.env.AREA_PRIVADA_URL;
+    delete process.env.AREA_PRIVADA_CALENTAR_SECRET;
+  }
 });

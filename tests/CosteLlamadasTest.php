@@ -59,9 +59,46 @@ class CosteLlamadasTest extends TestCase
                 $this->render($page);
                 $n = count($this->scp->calls);
                 $lineas[] = sprintf('%-34s %3d llamadas', str_replace('single_stic_pasar_lista', 'PL', $page), $n);
+                $cuenta = array_count_values($this->scp->calls);
+                arsort($cuenta);
+                foreach ($cuenta as $q => $veces) {
+                    $lineas[] = sprintf('      %2dx %s', $veces, $q);
+                }
             }
         }
         fwrite(STDERR, "\n" . implode("\n", $lineas) . "\n");
         $this->assertTrue(true);
+    }
+
+    /**
+     * TOPES. Aqui si se falla: son los numeros que costo bajar y no pueden
+     * subir sin que alguien lo vea.
+     *
+     * El margen sobre el numero real es de una o dos llamadas, no del doble: un
+     * tope holgado no protege de nada. Si un cambio los pasa, o esta justificado
+     * y se sube el tope a mano, o es una regresion de rendimiento.
+     */
+    public function testElCosteNoSePasaDeLosTopes()
+    {
+        $topes = array(
+            'single_stic_pasar_lista' => array(array(), 8),
+            'single_stic_pasar_lista_grupos' => array(array(), 8),
+            'single_stic_pasar_lista_marcar' => array(array('grupo' => 'g1'), 10),
+            'single_stic_pasar_lista_resumen' => array(array(), 9),
+        );
+
+        foreach ($topes as $page => $spec) {
+            list($req, $tope) = $spec;
+            $this->setUp();
+            $_REQUEST = $req;
+            $this->render($page);
+            $n = count($this->scp->calls);
+            $this->assertLessThanOrEqual(
+                $tope,
+                $n,
+                $page . ' hace ' . $n . ' llamadas al CRM (tope ' . $tope . '). '
+                    . 'Cada una cuesta medio segundo largo en movil.'
+            );
+        }
     }
 }

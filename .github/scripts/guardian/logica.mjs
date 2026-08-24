@@ -302,3 +302,20 @@ function numeroGuardado(grupo, campo) {
   const n = Number(bruto);
   return Number.isFinite(n) ? n : null;
 }
+
+/**
+ * Las delegaciones que salen de una lista de grupos, sin repetir y ordenadas.
+ *
+ * De cada grupo cuelga su delegación en `assigned_user_id`: es de donde el CRM
+ * saca el grupo de seguridad, así que es también la clave por la que el área
+ * privada cachea. Se ordenan para que dos pasadas con los mismos datos manden
+ * exactamente la misma petición (y el informe se lea igual).
+ */
+export function delegacionesDe(grupos) {
+  const vistas = new Set();
+  for (const g of grupos ?? []) {
+    const id = String(g?.assigned_user_id ?? '').trim();
+    if (id !== '') vistas.add(id);
+  }
+  return [...vistas].sort();
+}

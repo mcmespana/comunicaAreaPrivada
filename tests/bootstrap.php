@@ -25,15 +25,49 @@ $GLOBALS['__stic_options'] = array(
 
 // --- Stubs de funciones de WordPress ---
 if (!function_exists('add_action'))  { function add_action(...$a) { return true; } }
-if (!function_exists('add_filter'))  { function add_filter(...$a) { return true; } }
-// apply_filters devuelve el valor tal cual, salvo que un test haya puesto un
-// valor forzado en $GLOBALS['__stic_filters'][$tag]. Es la forma sencilla de
-// probar el comportamiento con un filtro activo sin montar el sistema de hooks.
+// Los filtros de verdad: add_filter/remove_filter registran y apply_filters los
+// ejecuta. Hacía falta porque el calentador de caché SUBE el TTL de la
+// estructura con `add_filter` mientras calienta, y con un add_filter de mentira
+// eso no se podía comprobar — o sea que la parte más fácil de que no funcione
+// en silencio era justo la que no se probaba.
+$GLOBALS['__stic_hooks'] = array();
+if (!function_exists('add_filter')) {
+    function add_filter($tag, $cb, $priority = 10, $args = 1)
+    {
+        $GLOBALS['__stic_hooks'][$tag][] = array('cb' => $cb, 'p' => (int) $priority);
+        return true;
+    }
+}
+if (!function_exists('remove_filter')) {
+    function remove_filter($tag, $cb, $priority = 10)
+    {
+        if (empty($GLOBALS['__stic_hooks'][$tag])) {
+            return false;
+        }
+        foreach ($GLOBALS['__stic_hooks'][$tag] as $i => $h) {
+            if ($h['cb'] === $cb && $h['p'] === (int) $priority) {
+                unset($GLOBALS['__stic_hooks'][$tag][$i]);
+                return true;
+            }
+        }
+        return false;
+    }
+}
+// apply_filters ejecuta los filtros registrados, salvo que un test haya puesto
+// un valor forzado en $GLOBALS['__stic_filters'][$tag]: eso sigue mandando, que
+// es la forma corta de probar el comportamiento con un filtro activo.
 if (!function_exists('apply_filters')) {
     function apply_filters($tag, $value = null)
     {
         if (isset($GLOBALS['__stic_filters']) && array_key_exists($tag, $GLOBALS['__stic_filters'])) {
             return $GLOBALS['__stic_filters'][$tag];
+        }
+        if (!empty($GLOBALS['__stic_hooks'][$tag])) {
+            $hooks = $GLOBALS['__stic_hooks'][$tag];
+            usort($hooks, function ($a, $b) { return $a['p'] - $b['p']; });
+            foreach ($hooks as $h) {
+                $value = call_user_func($h['cb'], $value);
+            }
         }
         return $value;
     }
@@ -170,3 +204,8 @@ require_once __DIR__ . '/../inc/stic-pasar-lista-ui.php';
 // tests sticpa_pl_sw_register_html() devuelve cadena vacía, que es justo el
 // comportamiento que hay que comprobar.
 require_once __DIR__ . '/../inc/stic-pasar-lista-sw.php';
+// El calentador de caché. El archivo solo define funciones y un add_action (ya
+// stubeado); el endpoint REST no se registra de verdad porque register_rest_route
+// no existe aquí, y no hace falta: lo que se testea son las piezas (la firma, el
+// sello de tiempo y el calentado), no el enrutado de WordPress.
+require_once __DIR__ . '/../inc/stic-pasar-lista-warm.php';
