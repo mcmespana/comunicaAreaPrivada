@@ -964,4 +964,76 @@
             }
         });
     }
+
+    /* =====================================================================
+     * Árbol de grupos: el buscador
+     * ---------------------------------------------------------------------
+     * Filtra lo que YA está pintado: ni una consulta, ni una recarga. Con
+     * veintiocho grupos, encontrar el tuyo era leer la lista entera.
+     *
+     * Se busca sobre el texto de la fila entera (código, nombre, curso y
+     * monitores), sin acentos y sin mayúsculas, porque nadie escribe «Emaús»
+     * con tilde en un buscador. Las cabeceras de etapa se esconden cuando se
+     * quedan sin filas: una cabecera «COM» sola es peor que nada.
+     * ===================================================================== */
+
+    var filterInput = document.querySelector('[data-pl-filter]');
+    if (filterInput) {
+        var emptyMsg = document.querySelector('[data-pl-filter-empty]');
+
+        // Se guardan las filas y su texto normalizado UNA vez: normalizar en
+        // cada pulsación es trabajo repetido sobre algo que no cambia.
+        var rows = [];
+        Array.prototype.forEach.call(
+            document.querySelectorAll('.pl-list .pl-group, .pl-mine'),
+            function (el) { rows.push({ el: el, hay: norm(el.textContent) }); }
+        );
+
+        function norm(str) {
+            str = String(str).toLowerCase();
+            // Quita los diacríticos: «Emaús» encuentra «emaus» y al revés.
+            if (str.normalize) {
+                str = str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            }
+            return str.replace(/\s+/g, ' ').trim();
+        }
+
+        function apply() {
+            var q = norm(filterInput.value);
+            var shown = 0;
+            rows.forEach(function (row) {
+                var hit = (q === '' || row.hay.indexOf(q) !== -1);
+                // `hidden` y no display: así el CSS de la fila no compite.
+                row.el.hidden = !hit;
+                if (hit) { shown++; }
+            });
+
+            // Cabeceras de etapa y sus listas: fuera si no queda nada dentro.
+            Array.prototype.forEach.call(
+                document.querySelectorAll('.pl-list'),
+                function (list) {
+                    var any = !!list.querySelector('.pl-group:not([hidden])');
+                    list.hidden = !any;
+                    // El título va justo ANTES de la lista en el HTML.
+                    var title = list.previousElementSibling;
+                    if (title && title.classList.contains('pl-etapa-title')) {
+                        title.hidden = !any;
+                    }
+                }
+            );
+
+            if (emptyMsg) { emptyMsg.hidden = (shown > 0); }
+        }
+
+        filterInput.addEventListener('input', apply);
+        // Escape limpia y devuelve la lista entera, que es lo que se espera de
+        // un campo de búsqueda en cualquier sitio.
+        filterInput.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Escape' && filterInput.value !== '') {
+                ev.preventDefault();
+                filterInput.value = '';
+                apply();
+            }
+        });
+    }
 }());

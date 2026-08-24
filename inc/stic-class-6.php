@@ -495,7 +495,47 @@ class SugarRestApiCall
         $get_entry_list_result = $this->call("get_relationships", $get_relationship_params, $this->url);
         $workarray = $get_entry_list_result->entry_list ?? null;
 
-        return $workarray;
+        return self::attachLinkList($workarray, $get_entry_list_result->relationship_list ?? null);
+    }
+
+    /**
+     * Pega los enlaces anidados dentro de cada registro, como `->link_list`.
+     *
+     * POR QUÉ EXISTE ESTO. `get_relationships` de la API v4.1 NO devuelve los
+     * enlaces dentro de cada registro: los devuelve en `relationship_list`, un
+     * HERMANO de `entry_list` indexado en paralelo (mismo orden, misma
+     * posición). Quien solo se queda con `entry_list` —que es lo que hacía este
+     * método— tira a la basura todo lo que se pidió en
+     * `related_module_link_name_to_fields_array`, y encima sin error: la llamada
+     * responde 200 y los registros llegan, solo que pelados. El síntoma es una
+     * lista vacía donde el CRM sí tiene datos.
+     *
+     * Se junta aquí, en el transporte, y no en cada pantalla, porque la forma
+     * de la respuesta de la API es asunto de esta clase: quien la use encuentra
+     * el enlace donde es natural buscarlo, en `$registro->link_list`.
+     *
+     * Es estática y pública para poder probarla sin sesión ni red.
+     *
+     * @param array|null $entryList        `entry_list` tal cual llega.
+     * @param array|null $relationshipList `relationship_list` tal cual llega.
+     * @return array|null El mismo `entry_list`, con `link_list` donde lo haya.
+     */
+    public static function attachLinkList($entryList, $relationshipList)
+    {
+        if (!is_array($entryList) || empty($relationshipList) || !is_array($relationshipList)) {
+            return $entryList;
+        }
+        foreach ($entryList as $i => $record) {
+            // Los registros son objetos, así que se modifican en su sitio. Se
+            // exige que la posición exista: si las dos listas no vinieran
+            // alineadas, colgarle a alguien los datos de otro sería peor que
+            // no tener datos.
+            if (!is_object($record) || !isset($relationshipList[$i]->link_list)) {
+                continue;
+            }
+            $record->link_list = $relationshipList[$i]->link_list;
+        }
+        return $entryList;
     }
 
     // get record details from any module
@@ -539,20 +579,125 @@ class SugarRestApiCall
             'max_results' => 0,
         );
         $getEntryListResult = $this->call("get_entry_list", $getEntryList, $this->url);
-        // If there is any relationship field, we include it in the main result list
-        if (is_array($relationshipFields)) {
-            foreach ($relationshipFields as $keyField => $relationshipField) {
-                if (isset($getEntryListResult->entry_list)) {
-                    foreach ($getEntryListResult->entry_list as $index => $record) {
-                        $getEntryListResult->entry_list[$index]->name_value_list->$keyField->name = $keyField;
-                        $getEntryListResult->entry_list[$index]->name_value_list->$keyField->value = $getEntryListResult->relationship_list[$index]->link_list[0]->records[0]->link_value->name->value;
-                    }
-                }
-            } 
+
+        return self::flattenRelationshipFields(
+            $getEntryListResult->entry_list ?? null,
+            $getEntryListResult->relationship_list ?? null,
+            $relationshipFields
+        );
+    }
+
+    /**
+     * Mete cada enlace pedido en `name_value_list` como si fuera un campo más.
+     *
+     * DOS COSAS QUE ANTES ESTABAN MAL, y las dos daban datos silenciosamente
+     * equivocados en vez de un error:
+     *
+     * 1. Se leía SIEMPRE `link_list[0]`, o sea el primer enlace, para todos los
+     *    campos pedidos. Con dos relaciones («el grupo» y «la persona»), las dos
+     *    recibían el valor de la misma. Ahora se busca el enlace POR NOMBRE.
+     * 2. Se accedía a `relationship_list[$index]->link_list[0]->records[0]->…`
+     *    sin comprobar nada. Un registro sin ese enlace —lo normal: es justo lo
+     *    que se quiere detectar, «este participante no tiene grupo»— reventaba
+     *    en avisos de PHP encadenados. Ahora esa ausencia es una cadena vacía,
+     *    que es el dato correcto.
+     *
+     * @param array|null $entryList
+     * @param array|null $relationshipList
+     * @param array|null $relationshipFields  clave => array('relationshipName' => …)
+     * @return array|null
+     */
+    public static function flattenRelationshipFields($entryList, $relationshipList, $relationshipFields)
+    {
+        if (!is_array($entryList) || !is_array($relationshipFields) || empty($relationshipFields)) {
+            return $entryList;
         }
 
-        return $getEntryListResult->entry_list ?? null;
+        foreach ($entryList as $index => $record) {
+            if (!is_object($record) || !isset($record->name_value_list)) {
+                continue;
+            }
+            $links = isset($relationshipList[$index]->link_list) && is_array($relationshipList[$index]->link_list)
+                ? $relationshipList[$index]->link_list
+                : array();
 
+            foreach ($relationshipFields as $keyField => $spec) {
+                // Se tolera tanto la forma documentada (array con
+                // 'relationshipName') como que se pase el nombre del enlace a
+                // pelo: antes, un string aquí era un TypeError fatal en PHP 8 y
+                // se llevaba la página entera por delante.
+                if (is_array($spec)) {
+                    $linkName = isset($spec['relationshipName']) ? (string) $spec['relationshipName'] : '';
+                } else {
+                    $linkName = (string) $spec;
+                }
+
+                $found = self::firstLinked($links, $linkName);
+                $record->name_value_list->$keyField = (object) array(
+                    'name' => $keyField,
+                    'value' => $found['name'],
+                );
+                // Y el ID del registro enlazado, en `<campo>_id`. Hace falta
+                // para INDEXAR por el enlace (agrupar relaciones por grupo, por
+                // ejemplo): con el nombre solo, dos grupos que se llamen igual
+                // son indistinguibles, y el nombre no sirve para navegar.
+                $idKey = $keyField . '_id';
+                $record->name_value_list->$idKey = (object) array(
+                    'name' => $idKey,
+                    'value' => $found['id'],
+                );
+                // Y el registro enlazado ENTERO en `<campo>_link`, con la misma
+                // forma que el resto (`->campo->value`). Sin esto, quien quiera
+                // un campo que no sea el nombre —los apellidos para ordenar, la
+                // edad, el móvil— tendría que pedir el contacto otra vez.
+                $linkKey = $keyField . '_link';
+                $record->name_value_list->$linkKey = $found['record'];
+            }
+        }
+
+        return $entryList;
+    }
+
+    /**
+     * El primer registro del enlace que se llame $linkName: su id y su nombre.
+     *
+     * Devuelve los dos vacíos si el enlace no está o no trae registros — que es
+     * un resultado legítimo, no un fallo: es justo lo que dice «este
+     * participante no tiene grupo». Si el registro no trae `name`, el nombre se
+     * compone con nombre y apellidos, que es lo que pasa con Contacts.
+     *
+     * @return array{id: string, name: string, record: object|null}
+     */
+    private static function firstLinked($links, $linkName)
+    {
+        $empty = array('id' => '', 'name' => '', 'record' => null);
+        foreach ($links as $link) {
+            if (!is_object($link) || empty($link->records) || !is_array($link->records)) {
+                continue;
+            }
+            // Cuando la API dice de qué enlace es, se exige que coincida. Si no
+            // lo dice y solo se pidió uno, vale el que haya.
+            if ($linkName !== '' && isset($link->name) && (string) $link->name !== $linkName) {
+                continue;
+            }
+            foreach ($link->records as $rec) {
+                $lv = isset($rec->link_value) ? $rec->link_value : null;
+                if (!$lv) {
+                    continue;
+                }
+                $id = isset($lv->id->value) ? trim((string) $lv->id->value) : '';
+                $name = isset($lv->name->value) ? trim((string) $lv->name->value) : '';
+                if ($name === '') {
+                    $first = isset($lv->first_name->value) ? trim((string) $lv->first_name->value) : '';
+                    $last = isset($lv->last_name->value) ? trim((string) $lv->last_name->value) : '';
+                    $name = trim($first . ' ' . $last);
+                }
+                if ($id !== '' || $name !== '') {
+                    return array('id' => $id, 'name' => $name, 'record' => $lv);
+                }
+            }
+        }
+        return $empty;
     }
 
     // Portal login using the permanent access token (custom field ajmcm_pa_token_c).
