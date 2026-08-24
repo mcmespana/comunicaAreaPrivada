@@ -3,53 +3,18 @@
  * ---------------------------------------------------------------------------
  * Todo lo que se puede decidir con datos ya traídos vive aquí, en funciones
  * puras. Es lo que permite que `guardian.test.mjs` pruebe las reglas de verdad
- * —la vigencia, el recuento, el diff, la guarda de la hora— sin tocar el CRM.
+ * —la vigencia, el recuento, el diff, qué modo toca— sin tocar el CRM.
  *
  * Si añades una tarea nueva: la parte que piensa, aquí; la que llama al CRM, en
  * su fichero de `tareas/`.
- */
-
-// ─────────────────────────────────────────────────────────────────────────────
-// La hora de aquí
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Hora y minuto en Europe/Madrid para un instante dado.
  *
- * El cron de GitHub es SIEMPRE UTC y España cambia de hora dos veces al año, así
- * que el workflow se lanza a dos horas distintas y esto es lo que decide cuál de
- * las dos es la buena. Se usa `Intl` y no una resta de horas a mano porque el
- * cambio de hora no cae el mismo día cada año.
+ * NO hay guarda de la hora, y es a propósito. Antes el workflow lanzaba dos
+ * crons (uno por horario) y aquí se descartaba el que no cayera cerca de la
+ * 1:30. Con un solo cron no hay nada que descartar, y una guarda de la hora solo
+ * puede hacer daño: si el cron llega tarde —y los de Actions llegan tarde—
+ * significa no pasar esa noche. Lo único que se mira de la fecha es el DÍA, para
+ * saber si toca pasada suave o completa.
  */
-export function horaEnMadrid(fecha = new Date()) {
-  const partes = new Intl.DateTimeFormat('es-ES', {
-    timeZone: 'Europe/Madrid',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).formatToParts(fecha);
-
-  const dato = (tipo) => Number(partes.find((p) => p.type === tipo)?.value ?? '0');
-  return { hora: dato('hour'), minuto: dato('minute') };
-}
-
-/**
- * ¿Toca ejecutar ahora?
- *
- * Se acepta una ventana porque los crons de GitHub Actions **no son puntuales**:
- * en horas de carga se retrasan varios minutos. Sin margen, un retraso de seis
- * minutos significaría no pasar esa noche.
- */
-export function tocaAhora({ horaObjetivo, ahora = new Date(), margenMin = 90 }) {
-  const { hora, minuto } = horaEnMadrid(ahora);
-  const minutosAhora = hora * 60 + minuto;
-  const objetivo = horaObjetivo * 60;
-  // Distancia circular: a la 01:30 con objetivo 00:00 la diferencia son 90
-  // minutos, no 1350.
-  const bruta = Math.abs(minutosAhora - objetivo);
-  const distancia = Math.min(bruta, 1440 - bruta);
-  return distancia <= margenMin;
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Los dos modos: suave y completo

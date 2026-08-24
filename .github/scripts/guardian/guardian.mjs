@@ -38,9 +38,7 @@
  *   node .github/scripts/guardian/guardian.mjs [opciones]
  *     --tareas=a,b        solo esas (por defecto, todas)
  *     --dry-run           consulta y calcula, pero no escribe en el CRM
- *     --forzar-hora       ignora la guarda de la hora (lo pone el botón manual)
  *     --avisar-siempre    manda el correo aunque todo haya ido bien
- *     --hora-objetivo=1   la hora de Madrid a la que toca (por defecto, 1)
  *     --modo=auto         auto | soft | full. `auto` (por defecto) mira el día:
  *                         completo viernes y sábado, suave el resto
  *     --ventana-dias=3    los días hacia atrás que mira el modo suave
@@ -50,7 +48,7 @@
  */
 
 import { abrirCrm, fetchConReintentos } from './crm.mjs';
-import { tocaAhora, modoDeLaNoche, MODOS } from './logica.mjs';
+import { modoDeLaNoche, MODOS } from './logica.mjs';
 import { aMarkdown, aTexto, aHtml, hayFallos, mereceAviso, titular } from './informe.mjs';
 import * as recuentosGrupos from './tareas/recuentos-grupos.mjs';
 import * as revisionDatos from './tareas/revision-datos.mjs';
@@ -64,17 +62,14 @@ const CAMPOS_GRUPO = ['id', 'name', 'code', 'level', 'cursos_c', 'assigned_user_
 
 function parsearArgs(argv) {
   const o = {
-    tareas: [], dryRun: false, forzarHora: false, avisarSiempre: false,
-    horaObjetivo: 1, modo: 'auto', ventanaDias: 3,
+    tareas: [], dryRun: false, avisarSiempre: false,
+    modo: 'auto', ventanaDias: 3,
   };
   for (const a of argv.slice(2)) {
     if (a === '--dry-run') o.dryRun = true;
-    else if (a === '--forzar-hora') o.forzarHora = true;
     else if (a === '--avisar-siempre') o.avisarSiempre = true;
     else if (a.startsWith('--tareas=')) {
       o.tareas = a.slice('--tareas='.length).split(',').map((s) => s.trim()).filter(Boolean);
-    } else if (a.startsWith('--hora-objetivo=')) {
-      o.horaObjetivo = Number(a.slice('--hora-objetivo='.length)) || 0;
     } else if (a.startsWith('--modo=')) {
       o.modo = a.slice('--modo='.length).trim();
     } else if (a.startsWith('--ventana-dias=')) {
@@ -100,14 +95,9 @@ async function principal() {
   const hoy = new Date();
   const log = (t) => console.log(`   ${t}`);
 
-  // ── La guarda de la hora ───────────────────────────────────────────────
-  // El cron de GitHub es UTC y España cambia de hora dos veces al año, así que
-  // el workflow se lanza a DOS horas y aquí se descarta la que no toca. En
-  // ejecución manual no se mira: si has pulsado el botón, lo quieres ahora.
-  if (!opciones.forzarHora && !tocaAhora({ horaObjetivo: opciones.horaObjetivo, ahora: hoy })) {
-    console.log(`No es la hora (objetivo ${opciones.horaObjetivo}:30 en Madrid). No se hace nada.`);
-    return 0;
-  }
+  // Aquí no hay guarda de la hora: un solo cron, así que no hay ninguna
+  // ejecución que descartar, y descartar por hora solo podría hacer que un cron
+  // retrasado se saltara la noche entera. Ver la cabecera de logica.mjs.
 
   // ── Suave o completo ───────────────────────────────────────────────────
   // `auto` decide por el día de la semana EN MADRID: completo el viernes y el
