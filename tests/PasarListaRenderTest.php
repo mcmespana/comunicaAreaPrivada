@@ -297,10 +297,15 @@ class FakeSCP
                 ));
 
             case 'Contacts:stic_contacts_relationships_contacts':
-                $rels = array($this->nvl(
-                    array('id' => 'r4', 'relationship_type' => 'monitor', 'end_date' => ''),
-                    array(array('id' => 'g1'))
-                ));
+                $rels = array();
+                // La relacion de monitor es de m1, no de todo el mundo: sin
+                // esto el doble le daba un grupo a cualquiera que preguntase.
+                if ($p['module_id'] === 'm1') {
+                    $rels[] = $this->nvl(
+                        array('id' => 'r4', 'relationship_type' => 'monitor', 'end_date' => ''),
+                        array(array('id' => 'g1'))
+                    );
+                }
                 if ($this->coordEtapa !== null) {
                     $rels[] = $this->nvl(array(
                         'id' => 'rc1',
@@ -331,6 +336,12 @@ class FakeSCP
                     return array();
                 }
                 return array($this->nvl($map[$rid]));
+
+            // El respaldo de "mis grupos": el grupo de una relacion.
+            case 'stic_Contacts_Relationships:ajmcm_grupos_stic_contacts_relationships':
+                return ($p['module_id'] === 'r4')
+                    ? array($this->nvl(array('id' => 'g1', 'name' => 'Los Peques')))
+                    : array();
 
             case 'stic_Events:stic_sessions_stic_events':
                 return $this->apiShape(array(
@@ -2009,5 +2020,29 @@ final class PasarListaRenderTest extends TestCase
         $v->name = (object) array('name' => 'name', 'value' => 'Ana Perez-Gil - Participante MIC-COM');
         $person = sticpa_pl_person_from_rel_row($v);
         $this->assertSame('Ana Perez-Gil', $person['name']);
+    }
+
+    /**
+     * Sin enlaces anidados, "Tu grupo" tambien tiene que salir: si no, la
+     * portada le dice "no tienes ningun grupo asignado" a un monitor con su
+     * relacion vigente, y el atajo del sabado desaparece.
+     */
+    public function testSinEnlacesMisGruposSigueSaliendo()
+    {
+        $this->scp->sinEnlaces = true;
+        $_SESSION['scp_user_id'] = 'm1';
+
+        $this->assertSame(array('g1'), sticpa_pl_my_groups($this->scp));
+    }
+
+    /** Y la portada pinta el atajo en vez del aviso de que no hay grupo. */
+    public function testSinEnlacesLaPortadaPintaElAtajo()
+    {
+        $this->scp->sinEnlaces = true;
+        $_SESSION['scp_user_id'] = 'm1';
+
+        $html = $this->render('single_stic_pasar_lista');
+
+        $this->assertStringNotContainsString('No tienes ningún grupo asignado', $html);
     }
 }

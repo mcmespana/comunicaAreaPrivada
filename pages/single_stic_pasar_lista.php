@@ -44,10 +44,28 @@ foreach ($myGroups as $gid) {
     }
 }
 
+/* La sesión del atajo se resuelve ANTES de la cabecera porque el artboard pone
+ * la FECHA del sábado como subtítulo («Sábado 15 de noviembre»), no el curso.
+ * Es el dato que contesta «¿de qué día estoy hablando?», que es la primera
+ * pregunta al abrir la pantalla. No cuesta nada: las sesiones están cacheadas y
+ * el atajo las iba a pedir igual tres líneas más abajo. */
+$heroPick = null;
+if ($mainGroupId !== '') {
+    $heroEtapa = sticpa_pl_group_etapa($groups[$mainGroupId]['level']);
+    $heroEvent = isset($events[$heroEtapa]) ? $events[$heroEtapa] : null;
+    if ($heroEvent !== null) {
+        $heroPick = sticpa_pl_pick_session(sticpa_pl_event_sessions($objSCP, $heroEvent['id']));
+    }
+}
+
 $html .= '<div class="pl-head">';
 $html .= '<div class="pl-head-titles">';
 $html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html__('Pasar lista', 'sticpa') . '</span></div>';
-$html .= '<div class="pl-subtitle">' . esc_html($course['label']) . '</div>';
+$html .= '<div class="pl-subtitle">' . esc_html(
+    ($heroPick !== null)
+        ? sticpa_pl_session_label($heroPick['session'], false)
+        : $course['label']
+) . '</div>';
 $html .= '</div>';
 $html .= '<a class="pl-session-pick" href="?internalpage=single_stic_pasar_lista&refrescar=1"'
     . ' aria-label="' . esc_attr__('Refrescar datos', 'sticpa') . '">' . sticpa_pl_icon('refresh') . '</a>';
@@ -66,10 +84,8 @@ if (empty($groups)) {
 
 if ($mainGroupId !== '') {
     $group = $groups[$mainGroupId];
-    $etapa = sticpa_pl_group_etapa($group['level']);
-    $event = isset($events[$etapa]) ? $events[$etapa] : null;
-    $sessions = ($event !== null) ? sticpa_pl_event_sessions($objSCP, $event['id']) : array();
-    $pick = sticpa_pl_pick_session($sessions);
+    // Ya resuelta arriba para el subtítulo: no se vuelve a pedir.
+    $pick = $heroPick;
 
     if ($pick !== null) {
         $session = $pick['session'];
@@ -110,7 +126,13 @@ if ($mainGroupId !== '') {
                 $lista['n_faltaron']
             );
         } else {
-            $meta[] = date_i18n('H:i', (int) $session['start']);
+            // El artboard pone el RANGO, «16:30 – 18:00»: lo que se quiere
+            // saber antes de entrar es cuánto dura, no solo cuándo empieza.
+            $hora = date_i18n('H:i', (int) $session['start']);
+            if (!empty($session['end']) && (int) $session['end'] > (int) $session['start']) {
+                $hora .= ' – ' . date_i18n('H:i', (int) $session['end']);
+            }
+            $meta[] = $hora;
             $meta[] = sprintf(
                 /* translators: %d: número de participantes del grupo */
                 _n('%d participante', '%d participantes', count($heroPeople['participants']), 'sticpa'),

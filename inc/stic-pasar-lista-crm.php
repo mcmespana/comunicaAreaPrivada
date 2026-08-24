@@ -1472,11 +1472,17 @@ function sticpa_pl_my_groups($objSCP)
         return array();
     }
 
-    // Del mapa comun, no de una consulta propia: era otra de las que dependian
-    // del enlace anidado de `get_relationships`, y por eso la portada decia "no
-    // tienes ningun grupo asignado" a un monitor con su relacion vigente.
-    //
-    // Devuelve TODOS sus grupos, no el primero: se puede ser monitor de varios.
+    $cacheKey = sticpa_pl_cache_key('mygroups', $objSCP, $userId);
+    $ttl = sticpa_pl_ttl_structure();
+    if ($ttl > 0) {
+        $cached = get_transient($cacheKey);
+        if (is_array($cached)) {
+            return $cached;
+        }
+    }
+
+    // Camino normal: del mapa comun. Devuelve TODOS sus grupos, no el primero:
+    // se puede ser monitor de varios.
     $ids = array();
     foreach (sticpa_pl_all_relationships($objSCP) as $rel) {
         if ($rel['role'] !== 'monitor' || $rel['person']['id'] !== $userId) {
@@ -1486,7 +1492,108 @@ function sticpa_pl_my_groups($objSCP)
             $ids[$rel['group_id']] = true;
         }
     }
-    return array_keys($ids);
+
+    // RESPALDO, por lo mismo que en las personas de un grupo: si los enlaces no
+    // vienen, el mapa no sabe de quien es cada relacion. Se pregunta por MIS
+    // relaciones —esa llamada si funciona, es la que ya usa el alcance de
+    // coordinacion— y luego el grupo de cada una. Son una o dos relaciones de
+    // monitor por persona, asi que el coste es de una o dos llamadas.
+    //
+    // Sin esto la portada dice "no tienes ningun grupo asignado como monitor/a"
+    // a un monitor con su relacion vigente, y el atajo del sabado desaparece.
+    if (empty($ids)) {
+        $ids = sticpa_pl_my_groups_direct($objSCP, $userId);
+    }
+
+    $ids = array_keys($ids);
+    if ($ttl > 0) {
+        set_transient($cacheKey, $ids, $ttl);
+    }
+    return $ids;
+}
+
+/**
+ * Mis grupos preguntando por MIS relaciones, y el grupo de cada una.
+ *
+ * Devuelve un mapa id => true, para que quien llame lo trate igual que el
+ * camino normal.
+ */
+function sticpa_pl_my_groups_direct($objSCP, $userId)
+{
+    $ids = array();
+
+    $rels = $objSCP->getRelatedElementsForLoggedUser(array(
+        'module_name' => 'Contacts',
+        'module_id' => sticpa_pl_safe_id($userId),
+        'link_field_name' => 'stic_contacts_relationships_contacts',
+        // Se piden tambien los campos planos del grupo: si la instancia los
+        // resuelve, no hace falta la segunda llamada.
+        'related_fields' => array(
+            'id', 'relationship_type', 'end_date',
+            'ajmcm_grupos_stic_contacts_relationshipsajmcm_grupos_ida',
+        ),
+        'related_module_link_name_to_fields_array' => array(),
+        'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
+    ));
+    if (!is_array($rels)) {
+        return $ids;
+    }
+
+    $now = sticpa_pl_now();
+    $asked = 0;
+    $maxAsk = (int) apply_filters('sticpa_pl_max_my_groups_lookups', 6);
+
+    foreach ($rels as $rel) {
+        $v = isset($rel->name_value_list) ? $rel->name_value_list : null;
+        if (!$v || empty($v->id->value)) {
+            continue;
+        }
+        if (sticpa_pl_rel_role(isset($v->relationship_type->value) ? $v->relationship_type->value : '') !== 'monitor') {
+            continue;
+        }
+        $endRaw = isset($v->end_date->value) ? trim((string) $v->end_date->value) : '';
+        if ($endRaw !== '') {
+            $endTs = strtotime($endRaw . ' 23:59:59');
+            if ($endTs && $endTs < $now) {
+                continue;
+            }
+        }
+
+        // Primero el campo plano; si no, una llamada por relacion.
+        $gid = sticpa_pl_nvl_first($v, array('ajmcm_grupos_stic_contacts_relationshipsajmcm_grupos_ida'));
+        if ($gid === '' && $asked < $maxAsk) {
+            $asked++;
+            $gid = sticpa_pl_group_of_relationship($objSCP, (string) $v->id->value);
+        }
+        if ($gid !== '') {
+            $ids[$gid] = true;
+        }
+    }
+
+    return $ids;
+}
+
+/** El id del grupo al que apunta una relación, o '' si no apunta a ninguno. */
+function sticpa_pl_group_of_relationship($objSCP, $relId)
+{
+    $rows = $objSCP->getRelatedElementsForLoggedUser(array(
+        'module_name' => 'stic_Contacts_Relationships',
+        'module_id' => sticpa_pl_safe_id($relId),
+        'link_field_name' => 'ajmcm_grupos_stic_contacts_relationships',
+        'related_fields' => array('id', 'name'),
+        'related_module_link_name_to_fields_array' => array(),
+        'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
+    ));
+    if (!is_array($rows)) {
+        return '';
+    }
+    foreach ($rows as $row) {
+        $g = isset($row->name_value_list) ? $row->name_value_list : null;
+        if ($g && !empty($g->id->value)) {
+            return (string) $g->id->value;
+        }
+    }
+    return '';
 }
 
 // ---------------------------------------------------------------------------

@@ -98,11 +98,55 @@ foreach (array('MIC', 'COM', 'LC') as $etapa) {
     if (empty($byEtapa[$etapa])) {
         continue;
     }
+    /* El artboard `Resumen` pone el número de PARTICIPANTES como número grande
+     * y «8 grupos · 12 mon.» debajo. El número grande era el de grupos, que ya
+     * está en la línea de abajo: dos veces el mismo dato y ninguno el que se
+     * busca al abrir el resumen. Los participantes y los monitores salen del
+     * recuento nocturno, así que no cuestan una consulta.
+     *
+     * Si no hay recuentos frescos en esa etapa, el número grande vuelve a ser
+     * el de grupos y la línea de abajo NO lo repite: un número inventado no, y
+     * el mismo dato dos veces tampoco. */
+    $nGrupos = count($byEtapa[$etapa]);
+    $nPart = 0;
+    $nMon = 0;
+    $fresco = false;
+    foreach ($byEtapa[$etapa] as $g) {
+        if (!sticpa_pl_recuento_fresco(isset($g['recuento_al']) ? $g['recuento_al'] : '')) {
+            continue;
+        }
+        if (isset($g['n_participantes']) && (int) $g['n_participantes'] >= 0) {
+            $nPart += (int) $g['n_participantes'];
+            $fresco = true;
+        }
+        if (isset($g['n_monitores']) && (int) $g['n_monitores'] >= 0) {
+            $nMon += (int) $g['n_monitores'];
+        }
+    }
+
     $html .= '<div class="pl-card">';
     $html .= '<div class="pl-card-head"><span class="pl-etapa-dot" style="background:'
         . esc_attr($etapaColors[$etapa]) . '"></span>' . esc_html($etapa) . '</div>';
-    $html .= '<div class="pl-card-num">' . esc_html(count($byEtapa[$etapa])) . '</div>';
-    $html .= '<div class="pl-card-meta">' . esc_html(_n('grupo', 'grupos', count($byEtapa[$etapa]), 'sticpa')) . '</div>';
+    $html .= '<div class="pl-card-num">' . esc_html($fresco ? (string) $nPart : (string) $nGrupos) . '</div>';
+
+    $meta = array();
+    if ($fresco) {
+        $meta[] = sprintf(
+            /* translators: %d: número de grupos de la etapa */
+            _n('%d grupo', '%d grupos', $nGrupos, 'sticpa'),
+            $nGrupos
+        );
+        if ($nMon > 0) {
+            $meta[] = sprintf(
+                /* translators: %d: número de monitores. Abreviado: cabe poco. */
+                __('%d mon.', 'sticpa'),
+                $nMon
+            );
+        }
+    } else {
+        $meta[] = _n('grupo', 'grupos', $nGrupos, 'sticpa');
+    }
+    $html .= '<div class="pl-card-meta">' . esc_html(implode(' · ', $meta)) . '</div>';
     $html .= '</div>';
 }
 $html .= '</div>';
