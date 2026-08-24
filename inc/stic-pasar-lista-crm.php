@@ -1022,6 +1022,75 @@ function sticpa_pl_event_registrations_direct($objSCP, $eventId)
 }
 
 /**
+ * Las asistencias de una sesión por `get_entry_list`, con el enlace poblado.
+ *
+ * Respaldo de sticpa_pl_session_attendances(). Se pide por delegación y se
+ * filtra por sesión en PHP, por lo mismo que en las inscripciones: no hay
+ * columna consultable con el id de la sesión, y es mejor filtrar aquí que
+ * arriesgarse a una consulta que el CRM devuelva vacía sin decir por qué.
+ */
+function sticpa_pl_session_attendances_direct($objSCP, $sessionId, $regMap)
+{
+    $deleg = sticpa_pl_delegation($objSCP);
+    if (!$deleg || empty($regMap)) {
+        return array();
+    }
+
+    $rows = $objSCP->getRecordsModule(
+        'stic_Attendances',
+        "stic_attendances.assigned_user_id = '" . sticpa_pl_safe_id($deleg) . "'",
+        array(
+            'id', 'status', 'description',
+            'stic_attendances_stic_registrationsstic_registrations_ida',
+            'stic_attendances_stic_sessionsstic_sessions_ida',
+        ),
+        array(
+            'inscripcion' => array(
+                'relationshipName' => 'stic_attendances_stic_registrations',
+                'fields' => array('id', 'name'),
+            ),
+            'sesion' => array(
+                'relationshipName' => 'stic_attendances_stic_sessions',
+                'fields' => array('id', 'name'),
+            ),
+        )
+    );
+
+    $out = array();
+    if (!is_array($rows)) {
+        return $out;
+    }
+    foreach ($rows as $row) {
+        $v = isset($row->name_value_list) ? $row->name_value_list : null;
+        if (!$v || empty($v->id->value)) {
+            continue;
+        }
+        $sid = sticpa_pl_nvl_first($v, array(
+            'sesion_id',
+            'stic_attendances_stic_sessionsstic_sessions_ida',
+        ));
+        if ($sid === '' || $sid !== (string) $sessionId) {
+            continue;
+        }
+        $regId = sticpa_pl_nvl_first($v, array(
+            'inscripcion_id',
+            'stic_attendances_stic_registrationsstic_registrations_ida',
+        ));
+        if ($regId === '' || !isset($regMap[$regId])) {
+            continue;
+        }
+        $status = isset($v->status->value) ? (string) $v->status->value : '';
+        $out[$regMap[$regId]] = array(
+            'id' => (string) $v->id->value,
+            'status' => sticpa_pl_is_state($status) ? $status : '',
+            'description' => isset($v->description->value) ? (string) $v->description->value : '',
+            'registration_id' => $regId,
+        );
+    }
+    return $out;
+}
+
+/**
  * Asistencias de una sesión: array contactId => array('id','status').
  *
  * Una llamada por sesión, nunca una por participante. Las asistencias las crea
@@ -1079,6 +1148,17 @@ function sticpa_pl_session_attendances($objSCP, $sessionId, $regMap = array())
             );
         }
     }
+
+    // RESPALDO. Si no ha salido ninguna asistencia, se piden por get_entry_list
+    // con el enlace anidado —la via probada— y se filtran por sesion en PHP.
+    //
+    // Sin esto el guardado CREABA una asistencia nueva en vez de actualizar la
+    // que el CRM ya habia hecho con la inscripcion: dos asistencias de la misma
+    // persona en la misma sesion, y la nueva sin fecha ni duracion.
+    if (empty($out)) {
+        $out = sticpa_pl_session_attendances_direct($objSCP, $sessionId, $regMap);
+    }
+
     return $out;
 }
 
