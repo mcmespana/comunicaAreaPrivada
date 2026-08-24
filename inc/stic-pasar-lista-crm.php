@@ -131,8 +131,51 @@ function sticpa_pl_cache_key($what, $objSCP = null, $extra = '')
 {
     $deleg = $objSCP ? sticpa_pl_delegation($objSCP) : (isset($_SESSION['scp_pl_delegation']) ? $_SESSION['scp_pl_delegation'] : 'nodeleg');
     $course = sticpa_pl_course_for();
-    $key = 'sticpa_pl_' . $what . '_' . md5($deleg . '|' . $course['label'] . '|' . $extra);
+    // La GENERACIÓN va dentro de la clave. Ver sticpa_pl_flush(): es lo que
+    // permite invalidar de golpe las cachés cuya clave lleva un id dentro
+    // (las personas de un grupo, las inscripciones de un evento…), que no se
+    // pueden borrar por nombre porque no se sabe cuáles hay.
+    $gen = sticpa_pl_cache_gen(sticpa_pl_cache_family($what), $deleg);
+    $key = 'sticpa_pl_' . $what . '_' . md5($gen . '|' . $deleg . '|' . $course['label'] . '|' . $extra);
     return $key;
+}
+
+/**
+ * A qué familia pertenece cada caché: 'state' o 'struct'.
+ *
+ * El estado cambia cada sábado y se invalida al guardar una lista. La
+ * estructura (grupos, personas de un grupo, quién coordina) cambia cuando
+ * alguien toca el CRM, y de eso solo se entera el botón de refrescar.
+ */
+function sticpa_pl_cache_family($what)
+{
+    // Lo que se invalida al guardar una lista. El resto es estructura, que es
+    // el defecto seguro: colarse en 'state' haría que un dato de estructura se
+    // borrase cada cinco minutos y se volviera a pedir al CRM.
+    $state = array('state', 'streaks');
+    return in_array((string) $what, $state, true) ? 'state' : 'struct';
+}
+
+/**
+ * El número de generación de una familia de cachés.
+ *
+ * Va en `wp_options` y no en un transient a propósito: si se perdiera, el
+ * contador volvería a 1 y las claves viejas —que siguen ahí hasta que caduquen—
+ * volverían a acertar. Es decir, resucitaría datos ya invalidados.
+ */
+function sticpa_pl_cache_gen($family, $deleg)
+{
+    if (!function_exists('get_option')) {
+        return 1;
+    }
+    $gen = (int) get_option(sticpa_pl_cache_gen_option($family, $deleg), 1);
+    return ($gen > 0) ? $gen : 1;
+}
+
+/** El nombre de la opción donde vive el contador. */
+function sticpa_pl_cache_gen_option($family, $deleg)
+{
+    return 'sticpa_pl_gen_' . preg_replace('/[^a-z]/', '', (string) $family) . '_' . md5((string) $deleg);
 }
 
 /** TTL de la estructura: cambia una vez al año, así que se cachea de verdad. */
@@ -154,16 +197,25 @@ function sticpa_pl_ttl_state()
  */
 function sticpa_pl_flush($objSCP = null, $scope = 'state')
 {
-    if (!function_exists('delete_transient')) {
+    if (!function_exists('update_option')) {
         return;
     }
-    delete_transient(sticpa_pl_cache_key('state', $objSCP));
-    // Las rachas de ausencias se calculan sobre las asistencias, así que
-    // caducan con ellas: guardar una lista puede romper o alargar una racha.
-    delete_transient(sticpa_pl_cache_key('streaks', $objSCP));
-    if ($scope === 'all') {
-        delete_transient(sticpa_pl_cache_key('structure', $objSCP));
-        delete_transient(sticpa_pl_cache_key('sessions', $objSCP));
+    $deleg = $objSCP ? sticpa_pl_delegation($objSCP) : (isset($_SESSION['scp_pl_delegation']) ? $_SESSION['scp_pl_delegation'] : 'nodeleg');
+
+    // Se SUBE LA GENERACIÓN en vez de borrar transients por nombre.
+    //
+    // Antes se borraban cuatro claves fijas ('state', 'streaks', 'structure',
+    // 'sessions') de las DOCE que se usan, así que el botón de refrescar dejaba
+    // intactas las personas de cada grupo, quién coordina, los grupos, las
+    // inscripciones… Y esas no se pueden borrar por nombre ni queriendo: su
+    // clave lleva dentro el id del grupo o del evento, y no hay forma de saber
+    // qué ids hay cacheados. Subiendo un contador que va DENTRO de la clave,
+    // todas dejan de acertar a la vez y caducan solas.
+    $families = ($scope === 'all') ? array('state', 'struct') : array('state');
+    foreach ($families as $family) {
+        $option = sticpa_pl_cache_gen_option($family, $deleg);
+        $gen = (int) get_option($option, 1);
+        update_option($option, ($gen > 0 ? $gen : 1) + 1);
     }
 }
 

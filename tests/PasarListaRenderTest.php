@@ -1705,4 +1705,61 @@ final class PasarListaRenderTest extends TestCase
         $html = $this->render('single_stic_pasar_lista_grupos');
         $this->assertStringNotContainsString('data-pl-filter', $html);
     }
+
+    // -----------------------------------------------------------------------
+    // La invalidacion de caches (el boton de refrescar)
+    // -----------------------------------------------------------------------
+
+    /**
+     * El fallo real: refrescar borraba cuatro claves fijas de las doce que se
+     * usan, asi que las personas de un grupo seguian viniendo de la cache. Y
+     * esa clave lleva DENTRO el id del grupo, asi que no se puede borrar por
+     * nombre: hay que invalidarla por generacion.
+     */
+    public function testRefrescarInvalidaLasPersonasDeUnGrupo()
+    {
+        $antes = sticpa_pl_cache_key('people', $this->scp, 'g1');
+
+        sticpa_pl_flush($this->scp, 'all');
+
+        $this->assertNotSame($antes, sticpa_pl_cache_key('people', $this->scp, 'g1'));
+    }
+
+    /** Y lo mismo con las que no llevan id: grupos, coordinacion, monitores. */
+    public function testRefrescarInvalidaTodaLaEstructura()
+    {
+        $antes = array();
+        foreach (array('structure', 'mygroups', 'coord', 'acomp', 'events', 'nogroup') as $what) {
+            $antes[$what] = sticpa_pl_cache_key($what, $this->scp);
+        }
+
+        sticpa_pl_flush($this->scp, 'all');
+
+        foreach ($antes as $what => $key) {
+            $this->assertNotSame($key, sticpa_pl_cache_key($what, $this->scp), $what . ' seguia cacheada');
+        }
+    }
+
+    /**
+     * Guardar una lista invalida el ESTADO, no la estructura: si tirase los
+     * grupos y las personas, cada guardado costaria volver a pedirlo todo.
+     */
+    public function testGuardarSoloInvalidaElEstado()
+    {
+        $estructura = sticpa_pl_cache_key('people', $this->scp, 'g1');
+        $estado = sticpa_pl_cache_key('state', $this->scp);
+
+        sticpa_pl_flush($this->scp, 'state');
+
+        $this->assertSame($estructura, sticpa_pl_cache_key('people', $this->scp, 'g1'));
+        $this->assertNotSame($estado, sticpa_pl_cache_key('state', $this->scp));
+    }
+
+    /** Las rachas se calculan sobre las asistencias: caducan con ellas. */
+    public function testLasRachasCaducanConElEstado()
+    {
+        $antes = sticpa_pl_cache_key('streaks', $this->scp);
+        sticpa_pl_flush($this->scp, 'state');
+        $this->assertNotSame($antes, sticpa_pl_cache_key('streaks', $this->scp));
+    }
 }
