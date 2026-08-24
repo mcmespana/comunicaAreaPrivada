@@ -139,6 +139,11 @@ if ($mainGroupId !== '') {
  * una home. El panorama completo del curso es el resumen de coordinación
  * (fase 3), que ya recorre el curso entero y pinta la tira de listas. */
 $pending = array();
+// Los demás grupos MÍOS que no son deuda. Existen porque se puede ser monitor
+// de varios grupos, y antes desaparecían de la portada en cuanto su lista
+// estaba pasada: el atajo enseña uno, la deuda enseña los que faltan, y el
+// segundo grupo al día no se podía alcanzar desde aquí. Ahora tiene su fila.
+$otherMine = array();
 foreach ($myGroups as $gid) {
     if (!isset($groups[$gid]) || $gid === $mainGroupId) {
         continue;
@@ -146,16 +151,26 @@ foreach ($myGroups as $gid) {
     $g = $groups[$gid];
     $etapa = sticpa_pl_group_etapa($g['level']);
     if (!isset($events[$etapa])) {
+        // Sin evento de su etapa no hay sesión que ofrecer, pero el grupo es
+        // tuyo: se enseña para poder entrar, aunque sea sin fecha.
+        $otherMine[] = array('group' => $g, 'id' => $gid, 'session' => null);
         continue;
     }
     $sessions = sticpa_pl_event_sessions($objSCP, $events[$etapa]['id']);
     $pick = sticpa_pl_pick_session($sessions);
     if ($pick === null || $pick['why'] === 'future') {
+        $otherMine[] = array(
+            'group' => $g,
+            'id' => $gid,
+            'session' => ($pick !== null) ? $pick['session'] : null,
+        );
         continue;
     }
     $lista = sticpa_pl_lista($objSCP, $pick['session']['id'], $gid);
     if ($lista !== null && $lista['estado'] !== '') {
-        continue;   // pasada u omitida: no es pendiente
+        // Pasada u omitida: no es deuda, pero sigue siendo tu grupo.
+        $otherMine[] = array('group' => $g, 'id' => $gid, 'session' => $pick['session']);
+        continue;
     }
     $pending[] = array('group' => $g, 'id' => $gid, 'session' => $pick['session']);
 }
@@ -186,6 +201,43 @@ if (!empty($pending)) {
             . ($row['group']['name'] !== '' ? ' · ' . esc_html($row['group']['name']) : '') . '</span>';
         $html .= '</span>';
         $html .= '<span class="pl-pending-cta">' . esc_html__('Recuperar', 'sticpa') . '</span>';
+        $html .= '</a>';
+    }
+    $html .= '</div>';
+}
+
+// ---------------------------------------------------------------------------
+// Tus otros grupos
+// ---------------------------------------------------------------------------
+
+/* Sin ámbar y sin botón: esto no es una deuda, es navegación. Se puede ser
+ * monitor de más de un grupo y el atajo solo puede enseñar uno. */
+if (!empty($otherMine)) {
+    $html .= '<div class="pl-etapa-title">' . esc_html(
+        _n('Tu otro grupo', 'Tus otros grupos', count($otherMine), 'sticpa')
+    ) . '</div>';
+    $html .= '<div class="pl-list">';
+    foreach ($otherMine as $row) {
+        $url = '?internalpage=single_stic_pasar_lista_marcar&grupo=' . rawurlencode($row['id']);
+        if ($row['session'] !== null) {
+            $url .= '&sesion=' . rawurlencode($row['session']['id']);
+        }
+        $html .= '<a class="pl-group" href="' . esc_url($url) . '">';
+        $html .= '<span class="pl-group-body">';
+        $html .= '<span class="pl-name">' . esc_html($row['group']['code'])
+            . ($row['group']['name'] !== '' ? ' · ' . esc_html($row['group']['name']) : '') . '</span>';
+        $meta = array();
+        if ($row['group']['cursos'] !== '') {
+            $meta[] = $row['group']['cursos'];
+        }
+        if ($row['session'] !== null) {
+            $meta[] = sticpa_pl_session_short($row['session']);
+        }
+        if (!empty($meta)) {
+            $html .= '<span class="pl-group-meta">' . esc_html(implode(' · ', $meta)) . '</span>';
+        }
+        $html .= '</span>';
+        $html .= '<span class="pl-detail">' . sticpa_pl_icon('next') . '</span>';
         $html .= '</a>';
     }
     $html .= '</div>';

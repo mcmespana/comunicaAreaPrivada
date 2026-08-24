@@ -247,6 +247,11 @@ function sticpa_pl_groups($objSCP)
         }
     }
 
+    // Por código y en orden natural, conservando el id como clave: el árbol y
+    // la portada recorren esto tal cual, así que ordenar aquí ordena en todas
+    // las pantallas a la vez.
+    uasort($groups, 'sticpa_pl_cmp_group');
+
     if ($ttl > 0) {
         set_transient($cacheKey, $groups, $ttl);
     }
@@ -1816,11 +1821,40 @@ function sticpa_pl_participants_without_group($objSCP)
         return array();
     }
 
+    $cacheKey = sticpa_pl_cache_key('nogroup', $objSCP);
+    $ttl = sticpa_pl_ttl_structure();
+    if ($ttl > 0) {
+        $cached = get_transient($cacheKey);
+        if (is_array($cached)) {
+            return $cached;
+        }
+    }
+
+    // La vigencia se filtra EN SQL y no solo en PHP. Sin esto se pedían todas
+    // las relaciones que ha tenido la delegación en su vida —participantes,
+    // monitores, familias, coordinación, de todos los cursos— con dos enlaces
+    // poblados cada una. En Castellón eso es una respuesta enorme para acabar
+    // enseñando siete nombres, y es lo que dejaba la pantalla colgada.
     $rows = $objSCP->getRecordsModule(
         'stic_Contacts_Relationships',
-        "stic_contacts_relationships.assigned_user_id = '" . sticpa_pl_safe_id($deleg) . "'",
+        "stic_contacts_relationships.assigned_user_id = '" . sticpa_pl_safe_id($deleg) . "'"
+        . " AND (stic_contacts_relationships.end_date IS NULL"
+        . " OR stic_contacts_relationships.end_date = ''"
+        . " OR stic_contacts_relationships.end_date >= CURDATE())",
         array('id', 'relationship_type', 'end_date'),
-        array('grupo' => 'ajmcm_grupos_stic_contacts_relationships', 'persona' => 'stic_contacts_relationships_contacts')
+        array(
+            // La forma que espera parseRelationshipFields(). Antes se pasaba el
+            // nombre del enlace a pelo y en PHP 8 eso es un TypeError fatal:
+            // la pantalla de resumen no se colgaba, se moría.
+            'grupo' => array(
+                'relationshipName' => 'ajmcm_grupos_stic_contacts_relationships',
+                'fields' => array('id', 'name'),
+            ),
+            'persona' => array(
+                'relationshipName' => 'stic_contacts_relationships_contacts',
+                'fields' => array('id', 'name', 'first_name', 'last_name'),
+            ),
+        )
     );
 
     $out = array();
@@ -1856,6 +1890,10 @@ function sticpa_pl_participants_without_group($objSCP)
             'name' => ($name !== '') ? $name : __('(sin nombre)', 'sticpa'),
             'initials' => sticpa_pl_initials('', '', $name),
         );
+    }
+
+    if ($ttl > 0) {
+        set_transient($cacheKey, $out, $ttl);
     }
     return $out;
 }
