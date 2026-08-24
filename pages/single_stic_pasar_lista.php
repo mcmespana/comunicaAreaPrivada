@@ -247,6 +247,49 @@ if (!empty($otherMine)) {
 // Entrada al árbol
 // ---------------------------------------------------------------------------
 
+/* «Pasar lista de otro grupo» del artboard `Main`: MIC, COM I, COM II, COM III,
+ * LC — con su punto de color y su número. Antes había UNA fila, «Ver todos los
+ * grupos · 28 grupos», que es pedirle a un monitor que lea veintiocho nombres
+ * para encontrar uno. Elegir entre cuatro secciones es otra cosa. */
+$buckets = sticpa_pl_group_buckets($groups);
+$etapaDots = array(
+    'MIC' => 'var(--danger-color)',
+    'COM' => 'var(--success-color)',
+    'LC' => 'var(--primary-color)',
+);
+
+if (!empty($buckets)) {
+    $html .= '<div class="pl-sec">' . esc_html__('Pasar lista de otro grupo', 'sticpa') . '</div>';
+    $html .= '<div class="pl-list">';
+    foreach ($buckets as $b) {
+        $dot = isset($etapaDots[$b['etapa']]) ? $etapaDots[$b['etapa']] : 'var(--gray-300)';
+        $html .= '<a class="pl-bucket" href="?internalpage=single_stic_pasar_lista_grupos&seccion='
+            . rawurlencode($b['key']) . '">';
+        $html .= '<span class="pl-etapa-dot" style="background:' . esc_attr($dot) . '"></span>';
+        $html .= '<span class="pl-bucket-name">' . esc_html($b['label']) . '</span>';
+
+        // El número: participantes si hay recuentos frescos —es el 93/48/37/22
+        // del artboard— y si no, cuántos grupos. Un número que no se puede
+        // calcular no se inventa: se cambia por el que sí, y se dice cuál es.
+        if ($b['fresh']) {
+            $html .= '<span class="pl-bucket-count" title="'
+                . esc_attr__('Participantes', 'sticpa') . '">'
+                . esc_html((string) $b['participants']) . '</span>';
+        } else {
+            $html .= '<span class="pl-bucket-count pl-bucket-count--groups" title="'
+                . esc_attr__('Grupos', 'sticpa') . '">' . esc_html(sprintf(
+                    /* translators: %d: número de grupos. Abreviado: va en una pastilla. */
+                    __('%d gr.', 'sticpa'),
+                    $b['groups']
+                )) . '</span>';
+        }
+        $html .= '<span class="pl-detail">' . sticpa_pl_icon('next') . '</span>';
+        $html .= '</a>';
+    }
+    $html .= '</div>';
+}
+
+// El árbol entero sigue existiendo, pero como destino y no como puerta.
 $html .= '<a class="pl-all-groups" href="?internalpage=single_stic_pasar_lista_grupos">';
 $html .= '<span>' . esc_html__('Ver todos los grupos', 'sticpa') . '</span>';
 $html .= '<span class="pl-all-groups-meta">' . esc_html(sprintf(
@@ -260,7 +303,8 @@ $html .= '</a>';
 // El resumen de coordinación: lo ve cualquier monitor (ver es útil para todos),
 // pero solo coordinación puede editar los datos por revisar.
 $html .= '<a class="pl-all-groups" href="?internalpage=single_stic_pasar_lista_resumen">';
-$html .= '<span>' . esc_html__('Resumen y datos por revisar', 'sticpa') . '</span>';
+$html .= sticpa_pl_icon('chart');
+$html .= '<span>' . esc_html__('Resumen de grupos', 'sticpa') . '</span>';
 $html .= sticpa_pl_icon('next');
 $html .= '</a>';
 

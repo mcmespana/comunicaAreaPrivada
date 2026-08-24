@@ -722,6 +722,87 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
 
 /* La leyenda del árbol: los mismos tres estados que el círculo de cada grupo.
    Va arriba y una sola vez, igual que la leyenda de la lista de marcado. */
+/* ---- «Pasar lista de otro grupo»: las secciones del artboard `Main` ----- */
+.pl-bucket {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.95rem 1rem;
+    text-decoration: none;
+    color: inherit;
+    border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+.pl-bucket:last-child { border-bottom: 0; }
+.pl-bucket:hover { background: var(--surface-2, #f7f9fc); }
+.pl-bucket-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-weight: 650;
+    font-size: 1.02rem;
+    letter-spacing: -0.01em;
+}
+/* La pastilla del número. Cifras tabulares para que no baile entre filas. */
+.pl-bucket-count {
+    flex: 0 0 auto;
+    min-width: 2.4rem;
+    padding: 0.18rem 0.55rem;
+    border-radius: 999px;
+    background: var(--surface-2, #f1f5f9);
+    color: var(--text-muted, #6b7280);
+    font-size: 0.86rem;
+    font-weight: 600;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+/* Cuando el número son GRUPOS y no participantes, se dice: la unidad no puede
+   quedar a la interpretación de quien mira. */
+.pl-bucket-count--groups { font-weight: 500; }
+
+/* El recuento de la cabecera de una sección: «COM I  5 grupos». */
+.pl-title-count {
+    margin-left: 0.5rem;
+    padding: 0.14rem 0.5rem;
+    border-radius: 999px;
+    background: var(--surface-2, #f1f5f9);
+    color: var(--text-muted, #6b7280);
+    font-size: 0.78rem;
+    font-weight: 600;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---- «N participantes sin grupo asignado» ------------------------------
+   Borde DISCONTINUO a propósito, como el artboard: no es una sección más del
+   árbol, es un hueco en los datos. */
+.pl-orphans {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 1rem 0 0.5rem;
+    padding: 0.9rem 1rem;
+    border-radius: 14px;
+    border: 1.5px dashed var(--warning-color, #d97706);
+    background: var(--warning-50, rgba(217, 119, 6, 0.07));
+    text-decoration: none;
+    color: inherit;
+}
+.pl-orphans:hover { background: var(--warning-50, rgba(217, 119, 6, 0.12)); }
+.pl-orphans-icon { flex: 0 0 auto; display: inline-flex; }
+.pl-orphans-icon svg {
+    width: 22px;
+    height: 22px;
+    stroke: var(--warning-dark, #b45309);
+    fill: none;
+    stroke-width: 1.8;
+}
+.pl-orphans-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+.pl-orphans-title {
+    font-weight: 650;
+    font-size: 0.95rem;
+    color: var(--warning-dark, #b45309);
+}
+.pl-orphans-sub { font-size: 0.85rem; color: var(--text-muted, #6b7280); }
+
 /* ---- El buscador del árbol ---------------------------------------------
    Del artboard `Grupos`. Va pegado arriba al hacer scroll: con veintiocho
    grupos, un buscador que se va de la pantalla en cuanto bajas no sirve. */

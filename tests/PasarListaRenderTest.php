@@ -142,6 +142,9 @@ class FakeSCP
         return $out;
     }
 
+    /** Simula una instancia que NO devuelve los enlaces anidados. */
+    public $sinEnlaces = false;
+
     public function getRecordsModule($module, $query = '', $fields = array(), $rel = null)
     {
         $this->calls[] = 'getRecordsModule:' . $module;
@@ -185,6 +188,14 @@ class FakeSCP
             //
             // La vigencia la filtra el SQL, asi que el doble NO devuelve
             // relaciones caducadas: devolverlas seria mentir sobre la consulta.
+            if ($this->sinEnlaces) {
+                // Ni enlaces anidados ni campos planos: solo el registro. Es lo
+                // que hace la instancia real con `get_relationships`, y lo que
+                // obliga a tener respaldo.
+                return array(
+                    $this->nvl(array('id' => 'r1', 'name' => 'Solete Vilarroya - Participante MIC-COM', 'relationship_type' => 'participante_mic_com', 'end_date' => '')),
+                );
+            }
             return $this->entryListShape(array(
                 array(
                     'fields' => array('id' => 'r1', 'relationship_type' => 'participante_mic_com', 'start_date' => '2025-09-01', 'end_date' => ''),
@@ -306,6 +317,20 @@ class FakeSCP
                     ));
                 }
                 return $this->apiShape($rels);
+
+            // El respaldo: el contacto de una relacion, una llamada por
+            // relacion. Sin enlaces anidados, solo el registro.
+            case 'stic_Contacts_Relationships:stic_contacts_relationships_contacts':
+                $map = array(
+                    'r1' => array('id' => 'c1', 'first_name' => 'Solete', 'last_name' => 'Vilarroya', 'stic_age_c' => '13', 'phone_mobile' => '600111222'),
+                    'r2' => array('id' => 'c2', 'first_name' => 'Jaume', 'last_name' => 'Pascual'),
+                    'r4' => array('id' => 'm1', 'first_name' => 'David', 'last_name' => 'Soler'),
+                );
+                $rid = $p['module_id'];
+                if (!isset($map[$rid])) {
+                    return array();
+                }
+                return array($this->nvl($map[$rid]));
 
             case 'stic_Events:stic_sessions_stic_events':
                 return $this->apiShape(array(
@@ -1924,5 +1949,65 @@ final class PasarListaRenderTest extends TestCase
             return $c === 'getRecordsModule:stic_Contacts_Relationships';
         });
         $this->assertLessThanOrEqual(1, count($mapa));
+    }
+
+    // -----------------------------------------------------------------------
+    // El respaldo: una instancia que NO devuelve enlaces anidados
+    // -----------------------------------------------------------------------
+
+    /**
+     * ESTE es el test que importa. En la instancia real ni `get_relationships`
+     * ni los campos planos traen la persona, y el sintoma era "0 participantes"
+     * en un grupo con gente: un monitor sin poder pasar lista un sabado.
+     *
+     * Con el respaldo, Solete aparece igual.
+     */
+    public function testSinEnlacesAnidadosSoleteSigueSaliendo()
+    {
+        $this->scp->sinEnlaces = true;
+
+        $people = sticpa_pl_group_people($this->scp, 'g1');
+
+        $this->assertNotEmpty($people['participants'], 'el grupo NO puede salir vacio');
+
+        $porId = array();
+        foreach ($people['participants'] as $person) {
+            $porId[$person['id']] = $person;
+        }
+        // Solete, con su id: es lo que hace falta para guardar la asistencia.
+        $this->assertArrayHasKey('c1', $porId);
+        $this->assertSame('Solete Vilarroya', $porId['c1']['name']);
+        $this->assertSame('SV', $porId['c1']['initials']);
+        // Y el monitor en su cubo.
+        $this->assertSame(array('David Soler'), array_column($people['monitors'], 'name'));
+        // Alfabetico por apellido: Pascual antes de Vilarroya.
+        $this->assertSame(
+            array('Jaume Pascual', 'Solete Vilarroya'),
+            array_column($people['participants'], 'name')
+        );
+    }
+
+    /** El respaldo tambien pinta la pantalla de marcado entera. */
+    public function testSinEnlacesLaPantallaDeMarcadoPintaALaGente()
+    {
+        $this->scp->sinEnlaces = true;
+        $_REQUEST = array('grupo' => 'g1');
+
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertStringContainsString('Solete Vilarroya', $html);
+        $this->assertStringNotContainsString('no tiene participantes con relación vigente', $html);
+    }
+
+    /**
+     * El nombre de la relacion es «Persona - Papel». Partirlo por el ultimo
+     * " - " no puede romper un apellido con guion.
+     */
+    public function testElNombreDeLaRelacionSePartePorElPapel()
+    {
+        $v = new stdClass();
+        $v->name = (object) array('name' => 'name', 'value' => 'Ana Perez-Gil - Participante MIC-COM');
+        $person = sticpa_pl_person_from_rel_row($v);
+        $this->assertSame('Ana Perez-Gil', $person['name']);
     }
 }

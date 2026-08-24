@@ -59,6 +59,10 @@ function sticpa_pl_icon($which)
         'refresh' => '<path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/>',
         // La lupa del buscador del árbol de grupos.
         'search' => '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+        // Las barras del botón de «Resumen de grupos» (artboard `Main`).
+        'chart' => '<path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-6"/><path d="M22 20H2"/>',
+        // La persona con anillo de la tarjeta de «participantes sin grupo».
+        'person' => '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="2.6"/><path d="M7.5 18a4.8 4.8 0 0 1 9 0"/>',
         // El triángulo de aviso: lo que reclama algo, no lo que informa. Se usa
         // en el título de las listas pendientes y en nada decorativo.
         'warn' => '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
