@@ -2296,14 +2296,12 @@ function sticpa_pl_save_monitors($objSCP, $sessionId, $monitors, $marks, $regMap
 // ===========================================================================
 
 /**
- * ENCENDIDO. El acceso del usuario de la API a `stic_FollowUps` está dado.
- *
- * OJO CON UNA COSA: los nombres de campo de `sticpa_pl_seg_map()` son la
- * convención documentada del módulo y no los pude comprobar contra la instancia
- * (cuando lo intenté, la API respondía "does not have access to this module").
- * Si al abrir la ficha de un monitor los seguimientos salen vacíos o el guardado
- * falla, el problema es un nombre, y se corrige SIN TOCAR CÓDIGO con el filtro
- * `sticpa_pl_seg_map`. Y si hay que apagarlo mientras se averigua:
+ * ENCENDIDO Y VERIFICADO. El acceso del usuario de la API a `stic_FollowUps`
+ * está dado, y los nombres de `sticpa_pl_seg_map()` están comprobados contra la
+ * instancia con `get_module_fields` — el único que no coincidía con la
+ * convención documentada era la fecha (`start_date`, no `date_start`), y ya está
+ * corregido. Si algún día cambiara, se arregla SIN TOCAR CÓDIGO con el filtro
+ * `sticpa_pl_seg_map`. Y si hay que apagarlo:
  *
  *     add_filter('sticpa_pl_seguimientos_enabled', '__return_false');
  */
@@ -2326,7 +2324,7 @@ function sticpa_pl_seg_map()
         'f_name' => 'name',
         'f_text' => 'description',
         'f_type' => 'type',
-        'f_date' => 'date_start',
+        'f_date' => 'start_date',
     ));
 }
 
