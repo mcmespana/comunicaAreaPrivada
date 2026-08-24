@@ -621,7 +621,9 @@ class SugarRestApiCall
                 ? $relationshipList[$index]->link_list
                 : array();
 
+            $linkIndex = -1;
             foreach ($relationshipFields as $keyField => $spec) {
+                $linkIndex++;
                 // Se tolera tanto la forma documentada (array con
                 // 'relationshipName') como que se pase el nombre del enlace a
                 // pelo: antes, un string aquí era un TypeError fatal en PHP 8 y
@@ -632,7 +634,7 @@ class SugarRestApiCall
                     $linkName = (string) $spec;
                 }
 
-                $found = self::firstLinked($links, $linkName);
+                $found = self::firstLinked($links, $linkName, $linkIndex);
                 $record->name_value_list->$keyField = (object) array(
                     'name' => $keyField,
                     'value' => $found['name'],
@@ -666,38 +668,80 @@ class SugarRestApiCall
      * participante no tiene grupo». Si el registro no trae `name`, el nombre se
      * compone con nombre y apellidos, que es lo que pasa con Contacts.
      *
+     * @param int $linkIndex Posición del enlace en lo que se pidió, para cuando
+     *                        la API no dice de qué enlace es cada bloque.
      * @return array{id: string, name: string, record: object|null}
      */
-    private static function firstLinked($links, $linkName)
+    private static function firstLinked($links, $linkName, $linkIndex = 0)
     {
         $empty = array('id' => '', 'name' => '', 'record' => null);
-        foreach ($links as $link) {
-            if (!is_object($link) || empty($link->records) || !is_array($link->records)) {
-                continue;
-            }
-            // Cuando la API dice de qué enlace es, se exige que coincida. Si no
-            // lo dice y solo se pidió uno, vale el que haya.
-            if ($linkName !== '' && isset($link->name) && (string) $link->name !== $linkName) {
-                continue;
-            }
-            foreach ($link->records as $rec) {
-                $lv = isset($rec->link_value) ? $rec->link_value : null;
-                if (!$lv) {
+
+        // 1) Por NOMBRE, si la API lo dice. Es lo fiable.
+        if ($linkName !== '') {
+            foreach ($links as $link) {
+                if (!is_object($link) || !isset($link->name) || (string) $link->name !== $linkName) {
                     continue;
                 }
-                $id = isset($lv->id->value) ? trim((string) $lv->id->value) : '';
-                $name = isset($lv->name->value) ? trim((string) $lv->name->value) : '';
-                if ($name === '') {
-                    $first = isset($lv->first_name->value) ? trim((string) $lv->first_name->value) : '';
-                    $last = isset($lv->last_name->value) ? trim((string) $lv->last_name->value) : '';
-                    $name = trim($first . ' ' . $last);
+                $found = self::firstRecordOf($link);
+                if ($found !== null) {
+                    return $found;
                 }
-                if ($id !== '' || $name !== '') {
-                    return array('id' => $id, 'name' => $name, 'record' => $lv);
-                }
+                return $empty;   // el enlace existe y esta vacio: eso es un dato
             }
         }
-        return $empty;
+
+        // 2) Si NINGÚN bloque trae nombre, se va POR POSICIÓN: `link_list` llega
+        //    en el mismo orden en que se pidieron los enlaces.
+        //
+        //    AQUÍ ESTABA EL FALLO QUE LO EXPLICA TODO. Antes se recorría la
+        //    lista y se cogía el PRIMER bloque con registros — para todos los
+        //    campos. Pidiendo dos enlaces («el grupo» y «la persona»), los dos
+        //    recibían el primero: `grupo` se quedaba con el id de la persona,
+        //    no coincidía con ningún grupo, y la consulta de UNA llamada se
+        //    daba por fallida. De ahí que todo cayera a los respaldos de 1+N
+        //    llamadas, y de ahí que la pantalla vaya lenta.
+        $anyNamed = false;
+        foreach ($links as $link) {
+            if (is_object($link) && isset($link->name) && (string) $link->name !== '') {
+                $anyNamed = true;
+                break;
+            }
+        }
+        if ($anyNamed) {
+            return $empty;      // hay nombres y el nuestro no está: no es nuestro
+        }
+
+        $list = array_values(is_array($links) ? $links : array());
+        if (!isset($list[$linkIndex]) || !is_object($list[$linkIndex])) {
+            return $empty;
+        }
+        $found = self::firstRecordOf($list[$linkIndex]);
+        return ($found !== null) ? $found : $empty;
+    }
+
+    /** El primer registro con datos de un bloque de enlace, o null. */
+    private static function firstRecordOf($link)
+    {
+        if (!is_object($link) || empty($link->records) || !is_array($link->records)) {
+            return null;
+        }
+        foreach ($link->records as $rec) {
+            $lv = isset($rec->link_value) ? $rec->link_value : null;
+            if (!$lv) {
+                continue;
+            }
+            $id = isset($lv->id->value) ? trim((string) $lv->id->value) : '';
+            $name = isset($lv->name->value) ? trim((string) $lv->name->value) : '';
+            if ($name === '') {
+                $first = isset($lv->first_name->value) ? trim((string) $lv->first_name->value) : '';
+                $last = isset($lv->last_name->value) ? trim((string) $lv->last_name->value) : '';
+                $name = trim($first . ' ' . $last);
+            }
+            if ($id !== '' || $name !== '') {
+                return array('id' => $id, 'name' => $name, 'record' => $lv);
+            }
+        }
+        return null;
     }
 
     // Portal login using the permanent access token (custom field ajmcm_pa_token_c).
