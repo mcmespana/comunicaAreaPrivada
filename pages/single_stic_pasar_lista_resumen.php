@@ -21,9 +21,7 @@ if (!defined('ABSPATH')) {
 
 $pageSettings['fileName'] = basename(__FILE__, ".php");
 
-if (!empty($_REQUEST['refrescar'])) {
-    sticpa_pl_flush($objSCP, 'all');
-}
+sticpa_pl_maybe_refresh($objSCP);
 
 $groups = sticpa_pl_groups($objSCP);
 $events = sticpa_pl_etapa_events($objSCP);

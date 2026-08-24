@@ -19,6 +19,10 @@ if (!defined('ABSPATH')) {
 
 $pageSettings['fileName'] = basename(__FILE__, ".php");
 
+// El botón de refrescar de la cabecera. Tiene que ir ANTES de la primera
+// lectura: si no, se pinta con la caché vieja y hay que pulsarlo dos veces.
+sticpa_pl_maybe_refresh($objSCP);
+
 $groups = sticpa_pl_groups($objSCP);
 $myGroups = sticpa_pl_my_groups($objSCP);
 $events = sticpa_pl_etapa_events($objSCP);

@@ -1904,6 +1904,59 @@ final class PasarListaRenderTest extends TestCase
         $this->assertNotSame($estado, sticpa_pl_cache_key('state', $this->scp));
     }
 
+    /**
+     * EL BOTÓN DE REFRESCAR, EN LAS CUATRO PANTALLAS.
+     *
+     * Estaba pintado en cuatro y el `flush` solo en dos: en el árbol de grupos
+     * —justo donde más se toca, porque es donde se ve que falta alguien— el
+     * botón no hacía NADA. Se pulsaba, no cambiaba nada, y la conclusión era
+     * que el dato del CRM estaba mal. Se comprueba pantalla por pantalla,
+     * porque el fallo era exactamente "en esta sí y en esta no".
+     */
+    public function testElBotonDeRefrescarRefrescaEnTodasLasPantallas()
+    {
+        $paginas = array(
+            'single_stic_pasar_lista',
+            'single_stic_pasar_lista_grupos',
+            'single_stic_pasar_lista_resumen',
+            'single_stic_pasar_lista_marcar',
+        );
+        foreach ($paginas as $pagina) {
+            $_REQUEST = array('refrescar' => '1', 'grupo' => 'g1');
+            $antes = sticpa_pl_cache_key('structure', $this->scp);
+            $this->render($pagina);
+            $this->assertNotSame(
+                $antes,
+                sticpa_pl_cache_key('structure', $this->scp),
+                $pagina . ': el botón de refrescar no tiró la caché'
+            );
+        }
+    }
+
+    /** Y sin `?refrescar=1` NO se tira: si no, no habría caché nunca. */
+    public function testSinPedirloNoSeTiraLaCache()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $antes = sticpa_pl_cache_key('structure', $this->scp);
+        $this->render('single_stic_pasar_lista_grupos');
+        $this->assertSame($antes, sticpa_pl_cache_key('structure', $this->scp));
+    }
+
+    /**
+     * El grupo sin participantes ofrece volver a mirar. Es el caso de "lo he
+     * arreglado en el CRM ahora mismo": sin este enlace hay que salir a la
+     * portada, refrescar allí y volver a entrar.
+     */
+    public function testUnGrupoVacioOfreceVolverAMirar()
+    {
+        // g3 es el grupo sin nadie del doble.
+        $_REQUEST = array('grupo' => 'g3');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+        $this->assertStringContainsString('no tiene participantes', $html);
+        $this->assertStringContainsString('refrescar=1', $html);
+        $this->assertStringContainsString('Ya lo he arreglado', $html);
+    }
+
     /** Las rachas se calculan sobre las asistencias: caducan con ellas. */
     public function testLasRachasCaducanConElEstado()
     {
