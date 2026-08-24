@@ -119,6 +119,7 @@ duplicados. Todo lo de abajo lo necesita «Pasar Lista» y **ya está en el CRM*
 | Campo | Para qué |
 |---|---|
 | `relationship_type` | `participante_mic_com` · `monitor` · `grupo` · `familiar_menor` |
+| ↳ `grupo` | El papel de los **+18** en su grupo de referencia. Cuenta como participante del grupo a todos los efectos (lista de marcado y recuento) — corregido el 24/08, `sticpa_pl_rel_types()` en PHP y `PAPELES` en el Guardián |
 | `ajmcm_grupos_stic_contacts_relationships_*` | **El vínculo persona ↔ grupo.** La pieza central |
 | `ajmcm_etapa_relacion_c` | Etapa de esa relación |
 | `ajmcm_curso_escolar_c`, `ajmcm_delegacion_c` | |

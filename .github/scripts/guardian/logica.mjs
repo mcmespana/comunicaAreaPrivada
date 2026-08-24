@@ -55,9 +55,18 @@ export function tocaAhora({ horaObjetivo, ahora = new Date(), margenMin = 90 }) 
 // Relaciones persona ↔ grupo
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Los `relationship_type` que nos interesan, con el papel que juegan. */
+/**
+ * Los `relationship_type` que nos interesan, con el papel que juegan.
+ *
+ * `grupo` es el papel de los +18 en su grupo de referencia: no llevan
+ * "participante_mic_com" pero cuentan igual como participantes del grupo.
+ * MISMO mapa que `sticpa_pl_rel_types()` en PHP — si un rol cambia, cambia
+ * en los dos sitios o el número del área privada y el del Guardián dejan de
+ * cuadrar.
+ */
 export const PAPELES = {
   participante_mic_com: 'participante',
+  grupo: 'participante',
   monitor: 'monitor',
 };
 
