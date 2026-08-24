@@ -470,4 +470,56 @@ final class PasarListaTest extends TestCase
         // Una sesión que viene no está "pendiente de pasar".
         $this->assertSame('future', sticpa_pl_list_mark('', $manana, $hoy));
     }
+
+    // -----------------------------------------------------------------------
+    // Orden de los grupos
+    // -----------------------------------------------------------------------
+
+    /**
+     * El sintoma real: en Castellon el arbol sacaba M4.3, M5.3, M6.2, M4.1...
+     * porque nadie ordenaba nada.
+     */
+    public function testLosGruposSeOrdenanPorCodigo()
+    {
+        $groups = array(
+            'g1' => array('code' => 'M5.3', 'name' => 'MIC 5.3'),
+            'g2' => array('code' => 'M4.1', 'name' => 'MIC 4.1'),
+            'g3' => array('code' => 'M6.2', 'name' => 'MIC 6.2'),
+            'g4' => array('code' => 'M4.3', 'name' => 'MIC 4.3'),
+        );
+        uasort($groups, 'sticpa_pl_cmp_group');
+
+        $this->assertSame(
+            array('M4.1', 'M4.3', 'M5.3', 'M6.2'),
+            array_column(array_values($groups), 'code')
+        );
+        // Y se conserva la clave: las pantallas navegan por id.
+        $this->assertSame(array('g2', 'g4', 'g1', 'g3'), array_keys($groups));
+    }
+
+    /** Natural, no alfabetico: M4.10 va DESPUES de M4.2, no antes. */
+    public function testElOrdenEsNaturalConLosNumeros()
+    {
+        $groups = array(
+            array('code' => 'M4.10', 'name' => ''),
+            array('code' => 'M4.2', 'name' => ''),
+            array('code' => 'M4.1', 'name' => ''),
+        );
+        usort($groups, 'sticpa_pl_cmp_group');
+        $this->assertSame(array('M4.1', 'M4.2', 'M4.10'), array_column($groups, 'code'));
+    }
+
+    /** Sin codigo se usa el nombre, y sin ninguno de los dos se va al final. */
+    public function testGrupoSinCodigoSeOrdenaPorNombreYElVacioAlFinal()
+    {
+        $groups = array(
+            array('code' => '', 'name' => ''),
+            array('code' => 'C2', 'name' => 'Los Mayores'),
+            array('code' => '', 'name' => 'Aula abierta'),
+        );
+        usort($groups, 'sticpa_pl_cmp_group');
+        $this->assertSame('Aula abierta', $groups[0]['name']);
+        $this->assertSame('C2', $groups[1]['code']);
+        $this->assertSame('', $groups[2]['name']);
+    }
 }

@@ -149,6 +149,12 @@ require_once __DIR__ . '/../inc/stic-calendar.php';
 // stubeado arriba); el resto son definiciones de función, así que cargarlo
 // aquí no ejecuta nada que dependa de WordPress/SugarCRM real.
 require_once __DIR__ . '/../inc/stic-action.php';
+// stic-class-6.php solo declara la clase del cliente del CRM (más un
+// `define`), así que cargarlo no abre ninguna conexión. Se necesita para
+// SugarRestApiCall::attachLinkList(), que es el ensamblado de la respuesta de
+// `get_relationships`: el doble de los tests de render lo usa para devolver la
+// forma REAL de la API en vez de una inventada.
+require_once __DIR__ . '/../inc/stic-class-6.php';
 // stic-pasar-lista.php es la lógica de Pasar Lista SIN CRM: qué sesión se
 // ofrece, el denominador del porcentaje, las ausencias seguidas y el nombre del
 // grupo. Solo define funciones, así que se carga tal cual. La parte que habla
