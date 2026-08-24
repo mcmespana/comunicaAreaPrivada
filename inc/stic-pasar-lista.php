@@ -750,3 +750,76 @@ function sticpa_pl_cmp_group($a, $b)
     // estable entre peticiones y no baile de una carga a otra.
     return strnatcasecmp($na, $nb);
 }
+
+/**
+ * ¿Se puede confiar en un recuento nocturno, por su marca de tiempo?
+ *
+ * La regla de PASAR-LISTA-RECUENTOS.md §6: si el dato es viejo, la pantalla se
+ * CALLA. Un hueco se entiende; un número mal no se detecta, y este recuento
+ * acaba puesto al lado de nombres de menores.
+ *
+ * El margen es de tres días y no de uno porque el cálculo es nocturno y puede
+ * fallar una noche sin que eso invalide el número: lo que no vale es un dato de
+ * hace un mes.
+ *
+ * @param string $raw  `ajmcm_recuento_al_c` tal cual viene del CRM.
+ * @param int    $now  Ahora, en marca de tiempo.
+ * @return bool
+ */
+function sticpa_pl_recuento_fresco($raw, $now = null)
+{
+    $raw = trim((string) $raw);
+    if ($raw === '') {
+        return false;
+    }
+    if ($now === null) {
+        $now = sticpa_pl_now();
+    }
+    $ts = strtotime($raw);
+    if (!$ts) {
+        return false;
+    }
+    // Una fecha en el futuro tampoco es de fiar: es un reloj mal puesto, y
+    // fiarse de ella sería fiarse de lo que no se sabe.
+    if ($ts > $now + DAY_IN_SECONDS) {
+        return false;
+    }
+    $maxAge = (int) apply_filters('sticpa_pl_recuento_max_age', 3 * DAY_IN_SECONDS);
+    return ($now - $ts) <= $maxAge;
+}
+
+/**
+ * La línea de datos de un grupo en el árbol.
+ *
+ * El artboard `Grupos` pone «monitores · curso · N participantes». La etapa NO
+ * va aquí: el árbol ya agrupa por etapa y repetirla en cada fila es ruido —
+ * decía «MIC · 4º Primaria» debajo de una cabecera que ya dice MIC.
+ *
+ * El recuento solo aparece si es fresco (ver sticpa_pl_recuento_fresco): la
+ * alternativa a un número dudoso es no ponerlo, no ponerlo con un asterisco.
+ */
+function sticpa_pl_group_meta($group, $now = null)
+{
+    $bits = array();
+
+    $monitores = isset($group['monitores']) ? trim((string) $group['monitores']) : '';
+    if ($monitores !== '') {
+        $bits[] = $monitores;
+    }
+    $cursos = isset($group['cursos']) ? trim((string) $group['cursos']) : '';
+    if ($cursos !== '') {
+        $bits[] = $cursos;
+    }
+
+    $n = isset($group['n_participantes']) ? (int) $group['n_participantes'] : -1;
+    $al = isset($group['recuento_al']) ? $group['recuento_al'] : '';
+    if ($n >= 0 && sticpa_pl_recuento_fresco($al, $now)) {
+        $bits[] = sprintf(
+            /* translators: %d: número de participantes del grupo */
+            _n('%d participante', '%d participantes', $n, 'sticpa'),
+            $n
+        );
+    }
+
+    return $bits;
+}

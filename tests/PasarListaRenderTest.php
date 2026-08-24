@@ -116,11 +116,30 @@ class FakeSCP
             // verdad: "1º ESO", "Adultos", "6º Primària"… NO el año académico.
             // Este doble decía "2025-2026" y por eso los tests daban por bueno
             // un filtro que en producción escondía 19 de los 27 grupos.
+            // El recuento nocturno del Guardián: `ajmcm_recuento_al_c` es de
+            // anoche respecto al «ahora» de los tests (15/11/2025), así que el
+            // número se pinta. g2 lo tiene VIEJO a propósito: ahí la pantalla
+            // tiene que callarse el número y enseñar el resto de la línea.
             return array(
-                $this->nvl(array('id' => 'g1', 'name' => 'Los Peques', 'code' => 'C1', 'level' => 'COM', 'cursos_c' => '1º ESO')),
-                $this->nvl(array('id' => 'g2', 'name' => 'C2', 'code' => 'C2', 'level' => 'COM', 'cursos_c' => '2º ESO')),
-                $this->nvl(array('id' => 'g3', 'name' => 'Los Micos', 'code' => 'M1', 'level' => 'MIC', 'cursos_c' => '5º Primaria')),
-                // Sin curso escolar puesto: pasa igual, como en el CRM.
+                $this->nvl(array(
+                    'id' => 'g1', 'name' => 'Los Peques', 'code' => 'C1', 'level' => 'COM',
+                    'cursos_c' => '1º ESO',
+                    'ajmcm_n_participantes_c' => '11', 'ajmcm_n_monitores_c' => '2',
+                    'ajmcm_monitores_c' => 'David Soler', 'ajmcm_recuento_al_c' => '2025-11-15 01:30:00',
+                )),
+                $this->nvl(array(
+                    'id' => 'g2', 'name' => 'C2', 'code' => 'C2', 'level' => 'COM',
+                    'cursos_c' => '2º ESO',
+                    'ajmcm_n_participantes_c' => '10', 'ajmcm_n_monitores_c' => '1',
+                    'ajmcm_monitores_c' => 'Mercedes', 'ajmcm_recuento_al_c' => '2025-09-01 01:30:00',
+                )),
+                $this->nvl(array(
+                    'id' => 'g3', 'name' => 'Los Micos', 'code' => 'M1', 'level' => 'MIC',
+                    'cursos_c' => '5º Primaria',
+                    'ajmcm_n_participantes_c' => '9', 'ajmcm_n_monitores_c' => '1',
+                    'ajmcm_monitores_c' => 'Jaime', 'ajmcm_recuento_al_c' => '2025-11-14 23:40:00',
+                )),
+                // Sin curso escolar y sin recuento: pasa igual, como en el CRM.
                 $this->nvl(array('id' => 'g9', 'name' => 'Ruah', 'code' => '', 'level' => 'LC')),
             );
         }
@@ -1640,5 +1659,50 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame('ev-lc', $events['LC']['id']);
         // La trampa no entra por ninguna via.
         $this->assertCount(3, $events);
+    }
+
+    // -----------------------------------------------------------------------
+    // Arbol de grupos: buscador y linea de datos del artboard
+    // -----------------------------------------------------------------------
+
+    /**
+     * La linea del artboard `Grupos`: monitores, curso y participantes. Antes
+     * ponia la ETAPA, que ya esta en la cabecera de la seccion.
+     */
+    public function testElArbolPintaMonitoresYRecuento()
+    {
+        $html = $this->render('single_stic_pasar_lista_grupos');
+
+        $this->assertStringContainsString('David Soler', $html);
+        $this->assertStringContainsString('11 participantes', $html);
+        // g2 tiene el recuento VIEJO: su numero no se pinta, su monitor si.
+        $this->assertStringContainsString('Mercedes', $html);
+        $this->assertStringNotContainsString('10 participantes', $html);
+    }
+
+    /**
+     * La etapa ya no se repite en cada fila. Se comprueba sobre la linea de
+     * datos concreta, no sobre la pagina: "COM" aparece legitimamente en la
+     * cabecera de la seccion.
+     */
+    public function testLaLineaDeDatosNoRepiteLaEtapa()
+    {
+        $html = $this->render('single_stic_pasar_lista_grupos');
+        if (preg_match_all('/<span class="pl-group-meta">(.*?)<\/span>/s', $html, $m)) {
+            foreach ($m[1] as $meta) {
+                $this->assertStringNotContainsString('MIC ·', $meta);
+                $this->assertStringNotContainsString('COM ·', $meta);
+            }
+        } else {
+            $this->fail('No se ha pintado ninguna linea de datos de grupo.');
+        }
+    }
+
+    /** El buscador solo aparece cuando hay bastantes grupos para necesitarlo. */
+    public function testElBuscadorNoSalePorCuatroGrupos()
+    {
+        // El doble devuelve 4 grupos, por debajo del umbral.
+        $html = $this->render('single_stic_pasar_lista_grupos');
+        $this->assertStringNotContainsString('data-pl-filter', $html);
     }
 }

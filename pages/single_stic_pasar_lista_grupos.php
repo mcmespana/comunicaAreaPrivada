@@ -188,6 +188,26 @@ $doneMark = function ($gid) use ($lastMarks) {
     return '';      // sin sesiones celebradas todavía: no hay nada que decir
 };
 
+// El buscador del artboard `Grupos`. Con veintiocho grupos en Castellón,
+// encontrar el tuyo era leer la lista entera; el diseño lo pedía y no estaba.
+//
+// Filtra lo YA PINTADO, en el navegador: ni una consulta más, ni una recarga.
+// Busca por código, por nombre del grupo, por curso y por los monitores, que es
+// justo lo que la gente recuerda («el de Mercedes», «el de 1º ESO»).
+// Se pinta solo si hay bastantes grupos para que haga falta: un buscador sobre
+// cuatro filas es un trasto.
+if (count($groups) >= 8) {
+    $html .= '<div class="pl-search">';
+    $html .= sticpa_pl_icon('search');
+    $html .= '<input type="search" data-pl-filter'
+        . ' placeholder="' . esc_attr__('Buscar grupo, monitor o curso…', 'sticpa') . '"'
+        . ' aria-label="' . esc_attr__('Buscar grupo', 'sticpa') . '"'
+        . ' autocomplete="off" enterkeyhint="search">';
+    $html .= '</div>';
+    $html .= '<p class="pl-search-empty" data-pl-filter-empty hidden>'
+        . esc_html__('Ningún grupo coincide con lo que buscas.', 'sticpa') . '</p>';
+}
+
 // La leyenda, arriba y una sola vez. Los tres estados que puede tener el
 // círculo, con el mismo glifo y el mismo color que en la fila.
 if (!empty($lastMarks)) {
@@ -203,18 +223,15 @@ if (!empty($lastMarks)) {
     $html .= '</div>';
 }
 
-/** El nombre del monitor no está aquí (haría una consulta por grupo), así que
- *  la línea secundaria dice lo que sí sabemos sin coste: la etapa y el curso. */
+/* La línea de datos del artboard `Grupos`: monitores · curso · N participantes.
+ * Los tres salen del recuento nocturno que el Guardián deja en el propio grupo,
+ * así que no cuestan ninguna consulta más (PASAR-LISTA-RECUENTOS.md).
+ *
+ * La ETAPA ya no va aquí: el árbol agrupa por etapa, así que repetirla en cada
+ * fila era ruido — ponía «MIC · 4º Primaria» debajo de una cabecera que ya
+ * dice MIC. */
 $groupMeta = function ($g) {
-    $bits = array();
-    $etapa = sticpa_pl_group_etapa($g['level']);
-    if ($etapa !== '') {
-        $bits[] = $etapa;
-    }
-    if (!empty($g['cursos'])) {
-        $bits[] = $g['cursos'];
-    }
-    return implode(' · ', $bits);
+    return implode(' · ', sticpa_pl_group_meta($g));
 };
 
 // Tu grupo, primero y con el filete de degradado.
