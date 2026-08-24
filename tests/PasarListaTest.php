@@ -602,4 +602,40 @@ final class PasarListaTest extends TestCase
         ), $now);
         $this->assertSame(array('1º ESO', '0 participantes'), $meta);
     }
+
+    // -----------------------------------------------------------------------
+    // El nombre corto de la lista
+    // -----------------------------------------------------------------------
+
+    /** Nombre y PRIMER apellido: el segundo no distingue a nadie en un grupo. */
+    public function testElNombreDeLaListaLlevaUnSoloApellido()
+    {
+        $this->assertSame(
+            'Solete Vilarroya',
+            sticpa_pl_short_name('Solete', 'Vilarroya Messguerr')
+        );
+    }
+
+    /** Un nombre COMPUESTO se respeta entero: ahi las dos palabras son el nombre. */
+    public function testUnNombreCompuestoNoSeRecorta()
+    {
+        $this->assertSame(
+            'Jose Maria Pardo',
+            sticpa_pl_short_name('Jose Maria', 'Pardo Aragones')
+        );
+    }
+
+    /** Con un solo apellido no cambia nada. */
+    public function testConUnApellidoSeQuedaIgual()
+    {
+        $this->assertSame('Marta Adulta', sticpa_pl_short_name('Marta', 'Adulta'));
+    }
+
+    /** Sin nombre y apellido separados se parte el completo por las dos primeras. */
+    public function testSinCamposSeparadosSePorteElCompleto()
+    {
+        $this->assertSame('Ana Perez', sticpa_pl_short_name('', '', 'Ana Perez Gil'));
+        $this->assertSame('Ana', sticpa_pl_short_name('', '', 'Ana'));
+        $this->assertSame('', sticpa_pl_short_name('', '', ''));
+    }
 }

@@ -509,7 +509,11 @@ function sticpa_pl_person_from_rel_row($v)
 
     return array(
         'id' => $id,
-        'name' => $full,
+        // El nombre de la lista es corto (nombre + primer apellido). El
+        // completo se conserva en `full` para la ficha, donde sí cabe y sí
+        // importa.
+        'name' => sticpa_pl_short_name($first, $last, $full),
+        'full' => $full,
         'first' => $first,
         'last' => $last,
         'sort' => ($last !== '' || $first !== '')
@@ -677,7 +681,8 @@ function sticpa_pl_contact_of_relationship($objSCP, $relId, $relRow = null)
 
         return array(
             'id' => (string) $c->id->value,
-            'name' => $full,
+            'name' => sticpa_pl_short_name($first, $last, $full),
+            'full' => $full,
             'first' => $first,
             'last' => $last,
             'sort' => ($last !== '' || $first !== '')
@@ -727,7 +732,8 @@ function sticpa_pl_person_from_rel($rel)
             }
             return array(
                 'id' => $lv->id->value,
-                'name' => $full,
+                'name' => sticpa_pl_short_name($first, $last, $full),
+                'full' => $full,
                 'first' => $first,
                 'last' => $last,
                 'sort' => sticpa_pl_sort_key($last, $first),
@@ -898,11 +904,16 @@ function sticpa_pl_event_registrations($objSCP, $eventId)
         }
     }
 
+    // EL CAMPO PLANO, ademas del enlace anidado. Sin el id del contacto de cada
+    // inscripcion NO SE PUEDE ESCRIBIR NINGUNA ASISTENCIA: la asistencia cuelga
+    // de la inscripcion, no de la persona. Cuando este mapa venia vacio, el
+    // guardado escribia una lista de «0 y 0» y ni una sola asistencia — la
+    // pantalla decia "lista guardada" y en el CRM no habia nada.
     $rows = $objSCP->getRelatedElementsForLoggedUser(array(
         'module_name' => 'stic_Events',
         'module_id' => $eventId,
         'link_field_name' => 'stic_registrations_stic_events',
-        'related_fields' => array('id', 'status'),
+        'related_fields' => array('id', 'status', 'stic_registrations_contactscontacts_ida'),
         'related_module_link_name_to_fields_array' => array(
             array('name' => 'stic_registrations_contacts', 'value' => array('id')),
         ),
@@ -920,7 +931,11 @@ function sticpa_pl_event_registrations($objSCP, $eventId)
             if ($status === 'cancelled') {
                 continue;
             }
+            // Primero el enlace anidado; si no vino, el campo plano.
             $contactId = sticpa_pl_link_id($row);
+            if ($contactId === '') {
+                $contactId = sticpa_pl_nvl_first($v, array('stic_registrations_contactscontacts_ida'));
+            }
             if ($contactId === '') {
                 continue;
             }
@@ -928,8 +943,80 @@ function sticpa_pl_event_registrations($objSCP, $eventId)
         }
     }
 
+    // RESPALDO. Si no ha salido ni un contacto, se piden las inscripciones de la
+    // delegacion por get_entry_list con el enlace anidado —la via probada— y se
+    // filtran por evento en PHP. Una llamada, cacheada.
+    if (empty($map)) {
+        $map = sticpa_pl_event_registrations_direct($objSCP, $eventId);
+    }
+
     if ($ttl > 0) {
         set_transient($cacheKey, $map, $ttl);
+    }
+    return $map;
+}
+
+/**
+ * Las inscripciones de un evento por `get_entry_list`, con el enlace poblado.
+ *
+ * Es el respaldo de sticpa_pl_event_registrations(). Se pide por delegacion y
+ * se filtra por evento en PHP porque el id del evento no esta en ninguna
+ * columna consultable de la inscripcion (`ajmcm_eventid_c` existe pero esta
+ * vacio), y una consulta que no se puede filtrar bien es mejor filtrarla aqui
+ * que arriesgarse a que el CRM devuelva vacio sin decir por que.
+ */
+function sticpa_pl_event_registrations_direct($objSCP, $eventId)
+{
+    $deleg = sticpa_pl_delegation($objSCP);
+    if (!$deleg) {
+        return array();
+    }
+
+    $rows = $objSCP->getRecordsModule(
+        'stic_Registrations',
+        "stic_registrations.assigned_user_id = '" . sticpa_pl_safe_id($deleg) . "'",
+        array('id', 'status', 'stic_registrations_contactscontacts_ida', 'stic_registrations_stic_eventsstic_events_ida'),
+        array(
+            'persona' => array(
+                'relationshipName' => 'stic_registrations_contacts',
+                'fields' => array('id', 'name'),
+            ),
+            'evento' => array(
+                'relationshipName' => 'stic_registrations_stic_events',
+                'fields' => array('id', 'name'),
+            ),
+        )
+    );
+
+    $map = array();
+    if (!is_array($rows)) {
+        return $map;
+    }
+    foreach ($rows as $row) {
+        $v = isset($row->name_value_list) ? $row->name_value_list : null;
+        if (!$v || empty($v->id->value)) {
+            continue;
+        }
+        if (isset($v->status->value) && (string) $v->status->value === 'cancelled') {
+            continue;
+        }
+        $ev = sticpa_pl_nvl_first($v, array(
+            'evento_id',
+            'stic_registrations_stic_eventsstic_events_ida',
+        ));
+        // Sin saber de que evento es, NO se mete en el mapa: colgarle una
+        // asistencia al evento equivocado es peor que no tenerla.
+        if ($ev === '' || $ev !== (string) $eventId) {
+            continue;
+        }
+        $contactId = sticpa_pl_nvl_first($v, array(
+            'persona_id',
+            'stic_registrations_contactscontacts_ida',
+        ));
+        if ($contactId === '') {
+            continue;
+        }
+        $map[(string) $v->id->value] = $contactId;
     }
     return $map;
 }
@@ -957,7 +1044,10 @@ function sticpa_pl_session_attendances($objSCP, $sessionId, $regMap = array())
         // `description` es donde vive el motivo de la ausencia: se trae con el
         // estado para que la hoja lo enseñe al abrirse en vez de aparecer vacía
         // sobre un motivo que ya estaba escrito.
-        'related_fields' => array('id', 'status', 'description'),
+        'related_fields' => array(
+            'id', 'status', 'description',
+            'stic_attendances_stic_registrationsstic_registrations_ida',
+        ),
         // La asistencia cuelga de la INSCRIPCIÓN: se trae su id y el contacto
         // se resuelve con $regMap, porque la API no puebla dos niveles.
         'related_module_link_name_to_fields_array' => array(
@@ -975,6 +1065,9 @@ function sticpa_pl_session_attendances($objSCP, $sessionId, $regMap = array())
             }
             $status = isset($v->status->value) ? (string) $v->status->value : '';
             $regId = sticpa_pl_link_id($row);
+            if ($regId === '') {
+                $regId = sticpa_pl_nvl_first($v, array('stic_attendances_stic_registrationsstic_registrations_ida'));
+            }
             if ($regId === '' || !isset($regMap[$regId])) {
                 continue;   // asistencia sin inscripción conocida: no es de nadie de este curso
             }
@@ -1083,13 +1176,43 @@ function sticpa_pl_group_streaks($objSCP, $sessions, $currentSessionId, $regMap 
  * lista", que en un modelo de un evento compartido por todos los grupos no se
  * puede deducir de las asistencias.
  */
+/** El id del grupo de una lista, preguntando por su enlace. */
+function sticpa_pl_group_of_lista($objSCP, $listaId)
+{
+    $rows = $objSCP->getRelatedElementsForLoggedUser(array(
+        'module_name' => 'LIS_listas',
+        'module_id' => sticpa_pl_safe_id($listaId),
+        'link_field_name' => 'lis_listas_ajmcm_grupos',
+        'related_fields' => array('id'),
+        'related_module_link_name_to_fields_array' => array(),
+        'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
+    ));
+    if (!is_array($rows)) {
+        return '';
+    }
+    foreach ($rows as $row) {
+        $g = isset($row->name_value_list) ? $row->name_value_list : null;
+        if ($g && !empty($g->id->value)) {
+            return (string) $g->id->value;
+        }
+    }
+    return '';
+}
+
 function sticpa_pl_lista($objSCP, $sessionId, $groupId)
 {
     $rows = $objSCP->getRelatedElementsForLoggedUser(array(
         'module_name' => 'stic_Sessions',
         'module_id' => (string) $sessionId,
         'link_field_name' => 'lis_listas_stic_sessions',
-        'related_fields' => array('id', 'estado', 'pasada_el', 'n_asistieron', 'n_faltaron'),
+        // El campo plano del grupo, ademas del enlace anidado. AQUI ESTABAN LOS
+        // DUPLICADOS: si no se sabe de que grupo es cada lista, la de este
+        // grupo NUNCA se encuentra, y cada guardado creaba OTRA. Por eso
+        // aparecieron dos «Omitida» del mismo grupo y la misma sesion.
+        'related_fields' => array(
+            'id', 'estado', 'pasada_el', 'n_asistieron', 'n_faltaron',
+            'lis_listas_ajmcm_gruposajmcm_grupos_ida',
+        ),
         'related_module_link_name_to_fields_array' => array(
             array('name' => 'lis_listas_ajmcm_grupos', 'value' => array('id')),
         ),
@@ -1104,7 +1227,17 @@ function sticpa_pl_lista($objSCP, $sessionId, $groupId)
         if (!$v || empty($v->id->value)) {
             continue;
         }
-        if (sticpa_pl_link_id($row) !== (string) $groupId) {
+        $gid = sticpa_pl_link_id($row);
+        if ($gid === '') {
+            $gid = sticpa_pl_nvl_first($v, array('lis_listas_ajmcm_gruposajmcm_grupos_ida'));
+        }
+        if ($gid === '') {
+            // Sin saber de que grupo es, se pregunta. Es UNA llamada y solo
+            // ocurre cuando la instancia no resuelve ninguna de las dos formas;
+            // el precio de no preguntarlo es duplicar la lista en cada guardado.
+            $gid = sticpa_pl_group_of_lista($objSCP, (string) $v->id->value);
+        }
+        if ($gid !== (string) $groupId) {
             continue;
         }
         return array(
@@ -1680,7 +1813,7 @@ function sticpa_pl_contact_marks($objSCP, $registrationId)
         'module_name' => 'stic_Registrations',
         'module_id' => $registrationId,
         'link_field_name' => 'stic_attendances_stic_registrations',
-        'related_fields' => array('id', 'status'),
+        'related_fields' => array('id', 'status', 'stic_attendances_stic_sessionsstic_sessions_ida'),
         'related_module_link_name_to_fields_array' => array(
             array('name' => 'stic_attendances_stic_sessions', 'value' => array('id')),
         ),
@@ -1695,6 +1828,9 @@ function sticpa_pl_contact_marks($objSCP, $registrationId)
                 continue;
             }
             $sid = sticpa_pl_link_id($row);
+            if ($sid === '') {
+                $sid = sticpa_pl_nvl_first($v, array('stic_attendances_stic_sessionsstic_sessions_ida'));
+            }
             if ($sid === '') {
                 continue;
             }
@@ -2186,7 +2322,10 @@ function sticpa_pl_listas_by_session($objSCP, $sessions, $limit = 12)
             'module_name' => 'stic_Sessions',
             'module_id' => $s['id'],
             'link_field_name' => 'lis_listas_stic_sessions',
-            'related_fields' => array('id', 'estado', 'n_asistieron', 'n_faltaron'),
+            'related_fields' => array(
+                'id', 'estado', 'n_asistieron', 'n_faltaron',
+                'lis_listas_ajmcm_gruposajmcm_grupos_ida',
+            ),
             'related_module_link_name_to_fields_array' => array(
                 array('name' => 'lis_listas_ajmcm_grupos', 'value' => array('id')),
             ),
@@ -2201,6 +2340,9 @@ function sticpa_pl_listas_by_session($objSCP, $sessions, $limit = 12)
                     continue;
                 }
                 $gid = sticpa_pl_link_id($row);
+                if ($gid === '') {
+                    $gid = sticpa_pl_nvl_first($v, array('lis_listas_ajmcm_gruposajmcm_grupos_ida'));
+                }
                 if ($gid === '') {
                     continue;
                 }

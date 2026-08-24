@@ -60,7 +60,8 @@ if ($mainGroupId !== '') {
 
 $html .= '<div class="pl-head">';
 $html .= '<div class="pl-head-titles">';
-$html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html__('Pasar lista', 'sticpa') . '</span></div>';
+$html .= '<div class="pl-title"><span class="pl-title-code pl-title-code--main">'
+    . esc_html__('Pasar lista', 'sticpa') . '</span></div>';
 $html .= '<div class="pl-subtitle">' . esc_html(
     ($heroPick !== null)
         ? sticpa_pl_session_label($heroPick['session'], false)
@@ -274,17 +275,11 @@ if (!empty($otherMine)) {
  * grupos · 28 grupos», que es pedirle a un monitor que lea veintiocho nombres
  * para encontrar uno. Elegir entre cuatro secciones es otra cosa. */
 $buckets = sticpa_pl_group_buckets($groups);
-$etapaDots = array(
-    'MIC' => 'var(--danger-color)',
-    'COM' => 'var(--success-color)',
-    'LC' => 'var(--primary-color)',
-);
-
 if (!empty($buckets)) {
     $html .= '<div class="pl-sec">' . esc_html__('Pasar lista de otro grupo', 'sticpa') . '</div>';
-    $html .= '<div class="pl-list">';
+    $html .= '<div class="pl-buckets">';
     foreach ($buckets as $b) {
-        $dot = isset($etapaDots[$b['etapa']]) ? $etapaDots[$b['etapa']] : 'var(--gray-300)';
+        $dot = isset($b['dot']) ? $b['dot'] : 'var(--gray-300)';
         $html .= '<a class="pl-bucket" href="?internalpage=single_stic_pasar_lista_grupos&seccion='
             . rawurlencode($b['key']) . '">';
         $html .= '<span class="pl-etapa-dot" style="background:' . esc_attr($dot) . '"></span>';

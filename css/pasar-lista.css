@@ -151,9 +151,13 @@
     min-height: 46px;
     margin-bottom: 0.9rem;
     border-radius: var(--radius-lg);
-    background: var(--success-50);
-    border: 1px solid var(--success-border);
-    color: var(--success-dark);
+    /* Verde claro de fondo y verde OSCURO de letra, fijos en los dos temas.
+       Salían de `--success-50` / `--success-dark`, que en oscuro se invierten
+       (allí `--success-dark` es el verde CLARO del texto): el resultado era
+       letra clara sobre fondo claro, o sea invisible. */
+    background: #dcfce7;
+    border: 1px solid #86efac;
+    color: #15803d;
     font-size: 0.88rem;
     font-weight: 700;
     font-family: inherit;
@@ -248,7 +252,9 @@
 }
 
 .pl-row-body { display: flex; flex-direction: column; gap: 0.1rem; flex-grow: 1; min-width: 0; }
-.pl-name { font-size: 0.99rem; font-weight: 700; letter-spacing: -0.01em; }
+/* El color se fija: la fila es un <button>, que no hereda el color del texto
+   de la página, así que sin esto el nombre dependía del navegador. */
+.pl-name { font-size: 0.99rem; font-weight: 700; letter-spacing: -0.01em; color: var(--text-color, #1f2937); }
 .pl-row[data-state="no_unjustified"] .pl-name,
 .pl-row[data-state="no_justified"] .pl-name { color: var(--gray-500, #6b7280); }
 .pl-note { font-size: 0.73rem; font-weight: 700; }
@@ -448,7 +454,17 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
 .pl-count-dot--yes  { background: var(--success-color); }
 .pl-count-dot--no   { background: var(--danger-color); }
 .pl-count-dot--none { border: 2px solid var(--gray-300); }
-.pl-count--none { color: var(--warning-dark); }
+/* El ámbar del «sin marcar», BAJADO de tono. Salía de `--warning-dark`, que en
+   oscuro es un amarillo muy vivo: era lo más luminoso de la pantalla y se
+   comía la atención que necesitan los nombres y los círculos. Sigue siendo
+   ámbar —es un aviso— pero deja de gritar, y se fija en los dos temas para que
+   no dependa de un token que se invierte. */
+.pl-count--none { color: #b45309; }
+:root:not([data-theme="light"]) .pl-count--none { color: #d8a25a; }
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) .pl-count--none { color: #b45309; }
+}
+:root[data-theme="dark"] .pl-count--none { color: #d8a25a; }
 
 .pl-save {
     display: flex;
@@ -722,34 +738,71 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
 
 /* La leyenda del árbol: los mismos tres estados que el círculo de cada grupo.
    Va arriba y una sola vez, igual que la leyenda de la lista de marcado. */
-/* ---- «Pasar lista de otro grupo»: las secciones del artboard `Main` ----- */
+/* La barra vertical de degradado a la izquierda del titulo, del artboard
+   `Main`. Es lo que hace que «Pasar lista» se lea como el titulo de la
+   seccion y no como una linea de texto mas. */
+.pl-title-code--main::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 1.05em;
+    margin-right: 0.5rem;
+    border-radius: 999px;
+    background: var(--grad-brand);
+    vertical-align: -0.12em;
+}
+/* La tarjeta que agrupa las secciones. Va aparte de `.pl-list` porque esa es
+   para filas de GRUPO, que son mas altas y llevan dos lineas. */
+.pl-buckets {
+    margin-bottom: 0.9rem;
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--surface-1, #fff);
+    border: 1px solid var(--border-color, #e5e7eb);
+}
+
+/* ---- «Pasar lista de otro grupo»: las secciones del artboard `Main` -----
+   Filas COMPACTAS dentro de una tarjeta, con divisorias entre ellas. Antes
+   eran del alto de una fila de grupo, y una lista de cinco atajos ocupaba
+   media pantalla. */
 .pl-bucket {
     display: flex;
     align-items: center;
-    gap: 0.7rem;
-    padding: 0.95rem 1rem;
+    gap: 0.65rem;
+    /* 52 px de alto: sigue siendo objetivo tactil holgado y entran las cinco
+       secciones sin scroll, que es la gracia de tenerlas. */
+    min-height: 52px;
+    padding: 0 0.9rem;
     text-decoration: none;
-    color: inherit;
     border-bottom: 1px solid var(--border-color, #e5e7eb);
 }
 .pl-bucket:last-child { border-bottom: 0; }
 .pl-bucket:hover { background: var(--surface-2, #f7f9fc); }
+
+/* El nombre de la sección va en COLOR DE TEXTO, no de enlace: la fila entera
+   es un enlace, así que heredaba el azul y las cinco secciones salían en azul
+   sobre fondo oscuro. El color se fija aquí y no se hereda. */
 .pl-bucket-name {
     flex: 1 1 auto;
     min-width: 0;
+    color: var(--text-color, #1f2937);
     font-weight: 650;
-    font-size: 1.02rem;
+    font-size: 0.98rem;
     letter-spacing: -0.01em;
 }
+.pl-bucket .pl-etapa-dot { flex: 0 0 auto; }
+/* La flecha, discreta: la fila ya se lee como pulsable por el nombre. */
+.pl-bucket .pl-detail svg { width: 16px; height: 16px; stroke: var(--text-muted, #9ca3af); }
+
 /* La pastilla del número. Cifras tabulares para que no baile entre filas. */
 .pl-bucket-count {
     flex: 0 0 auto;
-    min-width: 2.4rem;
-    padding: 0.18rem 0.55rem;
+    min-width: 2.2rem;
+    padding: 0.14rem 0.5rem;
     border-radius: 999px;
     background: var(--surface-2, #f1f5f9);
     color: var(--text-muted, #6b7280);
-    font-size: 0.86rem;
+    font-size: 0.82rem;
     font-weight: 600;
     text-align: center;
     font-variant-numeric: tabular-nums;
