@@ -121,8 +121,16 @@ export async function abrirCrm({ url, clientId, clientSecret, avisar = () => {} 
       return Object.keys(attrs);
     },
 
-    /** Recorre todas las páginas de un módulo. `campos` es un sparse fieldset. */
-    async listar(modulo, { campos = [], tamanoPagina = 50, maxPaginas = 200 } = {}) {
+    /**
+     * Recorre todas las páginas de un módulo. `campos` es un sparse fieldset.
+     *
+     * `filtro` es `{ campo: { operador: valor } }` y se traduce a
+     * `filter[campo][operador]=valor`, que es lo que entiende el API V8.
+     * Operadores: eq · neq · gt · gte · lt · lte · like (los comodines `%` los
+     * pones tú). Ojo: el API **excluye los borrados** siempre, así que un filtro
+     * nunca te va a traer una relación que alguien haya borrado.
+     */
+    async listar(modulo, { campos = [], filtro = null, tamanoPagina = 50, maxPaginas = 200 } = {}) {
       const registros = [];
       let pagina = 1;
       let totalPaginas = 1;
@@ -130,6 +138,11 @@ export async function abrirCrm({ url, clientId, clientSecret, avisar = () => {} 
       do {
         const params = new URLSearchParams();
         if (campos.length) params.set(`fields[${modulo}]`, campos.join(','));
+        for (const [campo, condiciones] of Object.entries(filtro ?? {})) {
+          for (const [operador, valor] of Object.entries(condiciones ?? {})) {
+            params.set(`filter[${campo}][${operador}]`, String(valor));
+          }
+        }
         params.set('page[number]', String(pagina));
         params.set('page[size]', String(tamanoPagina));
 

@@ -52,6 +52,97 @@ export function tocaAhora({ horaObjetivo, ahora = new Date(), margenMin = 90 }) 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Los dos modos: suave y completo
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * `full`  — recalcula TODOS los grupos. Una llamada por grupo, y es el único
+ *           modo que se entera de una relación **borrada**: el API excluye los
+ *           borrados de cualquier consulta, así que si una relación desaparece
+ *           no hay forma de saber a qué grupo pertenecía. Solo recontando el
+ *           grupo entero sale el número bueno.
+ * `soft`   — recalcula solo los grupos con alguna relación tocada hace poco.
+ *           Dos o tres llamadas en vez de cien. Rápido, pero ciego a los
+ *           borrados (ver arriba) y a una vigencia que caduca sola: un
+ *           `end_date` que llega no modifica el registro.
+ *
+ * Por eso el suave NO puede ir solo: el completo del viernes y del sábado es la
+ * red que recoge lo que el suave no puede ver.
+ */
+export const MODOS = ['soft', 'full'];
+
+/** Los días (0 = domingo) en los que toca pasada completa: viernes y sábado. */
+export const DIAS_COMPLETOS = [5, 6];
+
+const DIA_A_NUMERO = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+
+/**
+ * Día de la semana en Madrid (0 = domingo).
+ *
+ * Se mira la zona de aquí y no la del runner por lo mismo que la hora: a la 1:30
+ * de un viernes de verano, en UTC son las 23:30 del JUEVES. Con el día del
+ * runner, la pasada completa del viernes caería en jueves media parte del año.
+ */
+export function diaEnMadrid(fecha = new Date()) {
+  const corto = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Europe/Madrid',
+    weekday: 'short',
+  }).format(fecha);
+  return DIA_A_NUMERO[corto] ?? -1;
+}
+
+/** Qué modo toca esta noche: completo el viernes y el sábado, suave el resto. */
+export function modoDeLaNoche(fecha = new Date()) {
+  return DIAS_COMPLETOS.includes(diaEnMadrid(fecha)) ? 'full' : 'soft';
+}
+
+/**
+ * Desde qué día mira el modo suave, en `YYYY-MM-DD`.
+ *
+ * La ventana es de varios días y no de 24 horas a propósito: así una noche que
+ * falle (o que se retrase) no abre un agujero — la siguiente pasada vuelve a
+ * cubrir ese día. Se usa día entero y no hora exacta porque el filtro con fecha
+ * suelta es el que está comprobado contra el CRM, y porque redondear hacia atrás
+ * solo ensancha la ventana, que es el lado seguro de equivocarse.
+ */
+export function ventanaDesde(hoy = new Date(), dias = 3) {
+  const atras = new Date(hoy.getTime() - Math.max(1, dias) * 86_400_000);
+  return atras.toISOString().slice(0, 10);
+}
+
+/**
+ * El campo de la relación que lleva el **id** del grupo.
+ *
+ * Comprobado contra el CRM (24/08): en una consulta al módulo viene relleno con
+ * el id de verdad, no con el nombre. Eso es lo que hace viable el modo suave —
+ * el atajo que `PASAR-LISTA-RECUENTOS.md` §2 descarta era emparejar por NOMBRE,
+ * que sí se rompe con dos grupos que se llaman igual.
+ */
+export const CAMPO_GRUPO_EN_RELACION = 'ajmcm_grupos_stic_contacts_relationshipsajmcm_grupos_ida';
+
+/**
+ * De un montón de relaciones, los ids de los grupos que hay que recalcular.
+ *
+ * Las relaciones sin grupo se cuentan aparte y no son un problema: el
+ * acompañamiento de monitores es una relación sin grupo por diseño.
+ */
+export function gruposTocados(relaciones, campo = CAMPO_GRUPO_EN_RELACION) {
+  const ids = new Set();
+  let sinGrupo = 0;
+
+  for (const rel of relaciones ?? []) {
+    const id = String(rel?.[campo] ?? '').trim();
+    if (id === '') {
+      sinGrupo += 1;
+      continue;
+    }
+    ids.add(id);
+  }
+
+  return { ids, sinGrupo };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Relaciones persona ↔ grupo
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -206,20 +297,43 @@ export function camposQueCambian(grupo, calculado, { sello, campos }) {
  *
  * `recuentos` es lo ya calculado por la tarea de recuentos, así que esto no
  * cuesta ni una llamada más.
+ *
+ * En modo suave solo se ha recalculado un puñado de grupos, así que para los
+ * demás se usa **el número que ya está escrito en el grupo** (que lo dejó la
+ * última pasada). Así el suave revisa los 105 igual que el completo, en vez de
+ * callarse sobre 102 de ellos — que sería peor que no revisar: un informe que
+ * dice "nada que revisar" cuando en realidad no ha mirado.
+ *
+ * Si no hay ni recuento fresco ni número guardado, de ese grupo **no se opina**.
+ * Un hueco se entiende; inventarse un cero y avisar de un grupo vacío que no lo
+ * está, no.
  */
-export function revisarDatos(grupos, recuentos) {
+export function revisarDatos(grupos, recuentos, campos = null) {
   const sinCodigo = [];
   const sinMonitor = [];
   const sinNadie = [];
 
   for (const g of grupos ?? []) {
-    const r = recuentos.get(g.id);
     const etiqueta = String(g.code ?? '').trim() || String(g.name ?? '').trim() || g.id;
-
     if (String(g.code ?? '').trim() === '') sinCodigo.push(etiqueta);
-    if (r && r.nMonitores === 0 && r.nParticipantes > 0) sinMonitor.push(etiqueta);
-    if (r && r.nMonitores === 0 && r.nParticipantes === 0) sinNadie.push(etiqueta);
+
+    const fresco = recuentos?.get(g.id);
+    const nParticipantes = fresco ? fresco.nParticipantes : numeroGuardado(g, campos?.nParticipantes);
+    const nMonitores = fresco ? fresco.nMonitores : numeroGuardado(g, campos?.nMonitores);
+    if (nParticipantes === null || nMonitores === null) continue;
+
+    if (nMonitores === 0 && nParticipantes > 0) sinMonitor.push(etiqueta);
+    if (nMonitores === 0 && nParticipantes === 0) sinNadie.push(etiqueta);
   }
 
   return { sinCodigo, sinMonitor, sinNadie };
+}
+
+/** Un entero guardado en el grupo, o `null` si no hay nada que leer. */
+function numeroGuardado(grupo, campo) {
+  if (!campo) return null;
+  const bruto = String(grupo?.[campo] ?? '').trim();
+  if (bruto === '') return null;
+  const n = Number(bruto);
+  return Number.isFinite(n) ? n : null;
 }

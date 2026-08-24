@@ -7,6 +7,21 @@ name: Guardián Nocturno del CRM
 # Pasar Lista. Para añadir tareas, mira la cabecera de
 # .github/scripts/guardian/guardian.mjs — está pensado para crecer.
 #
+# ── Dos modos, y por qué ─────────────────────────────────────────────────────
+# COMPLETO (viernes y sábado de madrugada): recalcula los ~105 grupos, una
+#   llamada por grupo. Es el único modo que se entera de una relación BORRADA:
+#   el API excluye los borrados de cualquier consulta, así que si una relación
+#   desaparece no hay forma de saber a qué grupo pertenecía — solo recontando
+#   el grupo entero sale el número bueno.
+# SUAVE (el resto de las noches): pide en UNA consulta las relaciones tocadas
+#   en los últimos días y recalcula solo esos grupos. Dos o tres llamadas en
+#   vez de cien, pero ciego a los borrados y a una vigencia que caduca sola
+#   (un `end_date` que llega no modifica el registro).
+# El completo del viernes y del sábado es la red que recoge lo que el suave no
+# puede ver, y cae justo antes del sábado, que es cuando se miran los números.
+# El día se decide EN MADRID, no en UTC: a la 1:30 de un viernes de verano en
+# UTC es jueves, y la pasada completa caería en el día que no toca.
+#
 # ── Por qué DOS horas de cron ────────────────────────────────────────────────
 # El cron de GitHub es siempre UTC y España cambia de hora dos veces al año:
 #   verano (CEST, UTC+2) -> la 01:30 de Madrid son las 23:30 UTC del día antes
@@ -40,6 +55,12 @@ on:
     - cron: '30 0 * * *'    # 01:30 en Madrid en horario de invierno
   workflow_dispatch:
     inputs:
+      modo:
+        description: 'Completa (segura, recalcula todo) o suave (solo lo que ha cambiado).'
+        type: choice
+        required: false
+        default: 'full'
+        options: ['full', 'soft', 'auto']
       tareas:
         description: 'Tareas a ejecutar (claves separadas por comas). Vacío = todas.'
         required: false
@@ -99,6 +120,7 @@ jobs:
           # interpolado en el shell: así un valor con comillas o con `;` no
           # puede acabar ejecutándose como comando.
           IN_TAREAS: ${{ inputs.tareas }}
+          IN_MODO: ${{ inputs.modo }}
           IN_DRY_RUN: ${{ inputs.dry_run }}
           IN_AVISAR_SIEMPRE: ${{ inputs.avisar_siempre }}
           EVENTO: ${{ github.event_name }}
@@ -109,6 +131,10 @@ jobs:
           # línea entera devuelve 1 cuando la condición es falsa y el job
           # abortaría. Con `if` no pasa.
           if [ -n "${IN_TAREAS:-}" ]; then args+=("--tareas=$IN_TAREAS"); fi
+          # En cron `inputs.modo` viene vacío y no se pasa nada: el script decide
+          # por el día de la semana (completo viernes y sábado, suave el resto).
+          # A mano llega siempre relleno, y por defecto es la completa.
+          if [ -n "${IN_MODO:-}" ]; then args+=("--modo=$IN_MODO"); fi
           if [ "${IN_DRY_RUN:-}" = "true" ]; then args+=("--dry-run"); fi
           if [ "${IN_AVISAR_SIEMPRE:-}" = "true" ]; then args+=("--avisar-siempre"); fi
           # En ejecución manual se salta la guarda de la hora: si has pulsado el

@@ -12,9 +12,63 @@ import assert from 'node:assert/strict';
 import {
   horaEnMadrid, tocaAhora, estaVigente, clasificarRelaciones,
   formatearMonitores, camposQueCambian, revisarDatos,
+  diaEnMadrid, modoDeLaNoche, ventanaDesde, gruposTocados, CAMPO_GRUPO_EN_RELACION,
 } from './logica.mjs';
 import { aMarkdown, aTexto, hayFallos, mereceAviso, titular, estadoDe } from './informe.mjs';
 import { CAMPOS } from './tareas/recuentos-grupos.mjs';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Suave o completo
+// ─────────────────────────────────────────────────────────────────────────────
+
+test('el día se cuenta en Madrid, no en UTC (verano cambia de día)', () => {
+  // ESTE es el fallo que se evita: en verano la 1:30 del VIERNES de Madrid son
+  // las 23:30 del JUEVES en UTC. Con el día del runner, la pasada completa del
+  // viernes caería en jueves media parte del año.
+  assert.equal(diaEnMadrid(new Date('2026-08-20T23:30:00Z')), 5); // jueves en UTC, viernes aquí
+  assert.equal(diaEnMadrid(new Date('2026-08-21T23:30:00Z')), 6); // viernes en UTC, sábado aquí
+  assert.equal(diaEnMadrid(new Date('2026-08-22T23:30:00Z')), 0); // sábado en UTC, domingo aquí
+  // En invierno no hay salto de día, y tiene que salir lo mismo.
+  assert.equal(diaEnMadrid(new Date('2026-01-16T00:30:00Z')), 5);
+  assert.equal(diaEnMadrid(new Date('2026-01-17T00:30:00Z')), 6);
+});
+
+test('completo el viernes y el sábado, suave el resto — en las dos estaciones', () => {
+  // Verano, con el salto de día de UTC.
+  assert.equal(modoDeLaNoche(new Date('2026-08-20T23:30:00Z')), 'full'); // viernes
+  assert.equal(modoDeLaNoche(new Date('2026-08-21T23:30:00Z')), 'full'); // sábado
+  assert.equal(modoDeLaNoche(new Date('2026-08-22T23:30:00Z')), 'soft'); // domingo
+  // Invierno.
+  assert.equal(modoDeLaNoche(new Date('2026-01-16T00:30:00Z')), 'full'); // viernes
+  assert.equal(modoDeLaNoche(new Date('2026-01-17T00:30:00Z')), 'full'); // sábado
+  assert.equal(modoDeLaNoche(new Date('2026-01-18T00:30:00Z')), 'soft'); // domingo
+});
+
+test('la ventana del suave mira varios días atrás, no 24 horas', () => {
+  // Con 3 días, una noche que falle no abre un agujero: la siguiente pasada
+  // vuelve a cubrir ese día.
+  assert.equal(ventanaDesde(new Date('2026-08-24T01:30:00Z'), 3), '2026-08-21');
+  assert.equal(ventanaDesde(new Date('2026-08-24T01:30:00Z'), 1), '2026-08-23');
+  // Cero o negativo no puede dejar la ventana vacía: se fuerza a un día.
+  assert.equal(ventanaDesde(new Date('2026-08-24T01:30:00Z'), 0), '2026-08-23');
+});
+
+test('de las relaciones tocadas salen ids de grupo, y las sin grupo se cuentan aparte', () => {
+  // Una relación de acompañamiento NO lleva grupo, y eso es correcto: no puede
+  // contar como problema ni colarse como un id vacío.
+  const rels = [
+    { [CAMPO_GRUPO_EN_RELACION]: 'g1' },
+    { [CAMPO_GRUPO_EN_RELACION]: 'g2' },
+    { [CAMPO_GRUPO_EN_RELACION]: 'g1' },   // el mismo grupo dos veces: una
+    { [CAMPO_GRUPO_EN_RELACION]: '' },     // sin grupo
+    {},                                     // el campo no viene
+  ];
+  const { ids, sinGrupo } = gruposTocados(rels);
+  assert.deepEqual([...ids].sort(), ['g1', 'g2']);
+  assert.equal(sinGrupo, 2);
+  // Y sin nada, no revienta.
+  assert.deepEqual(gruposTocados(undefined).ids.size, 0);
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // La hora
@@ -215,6 +269,32 @@ test('avisa de grupos con chavales y sin monitor, y de los vacíos', () => {
   assert.deepEqual(r.sinMonitor, ['C1']);
   assert.deepEqual(r.sinNadie, ['C2']);
   assert.deepEqual(r.sinCodigo, ['Sin código']);
+});
+
+test('en modo suave se revisa TODO: los no recalculados, con su número guardado', () => {
+  // El suave solo recalcula g1. Si de g2 y g3 no se opinara, el informe diría
+  // "nada que revisar" habiendo mirado uno de tres — peor que no revisar.
+  const grupos = [
+    { id: 'g1', code: 'C1' },
+    { id: 'g2', code: 'C2', [CAMPOS.nParticipantes]: '7', [CAMPOS.nMonitores]: '0' },
+    { id: 'g3', code: 'C3', [CAMPOS.nParticipantes]: '0', [CAMPOS.nMonitores]: '0' },
+  ];
+  const recuentos = new Map([['g1', { nParticipantes: 5, nMonitores: 2 }]]);
+
+  const r = revisarDatos(grupos, recuentos, CAMPOS);
+  assert.deepEqual(r.sinMonitor, ['C2']);   // del número guardado
+  assert.deepEqual(r.sinNadie, ['C3']);     // del número guardado
+});
+
+test('de un grupo sin recuento fresco NI guardado no se opina', () => {
+  // Inventarse un cero avisaría de un grupo vacío que a lo mejor está lleno. Un
+  // hueco se entiende; un aviso falso hace que se dejen de leer los avisos.
+  const grupos = [{ id: 'g1', code: 'C1' }, { id: 'g2', code: 'C2', [CAMPOS.nParticipantes]: '' }];
+  const r = revisarDatos(grupos, new Map(), CAMPOS);
+  assert.deepEqual(r.sinMonitor, []);
+  assert.deepEqual(r.sinNadie, []);
+  // Pero lo que SÍ se ve en el propio grupo se sigue revisando.
+  assert.deepEqual(r.sinCodigo, []);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
