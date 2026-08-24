@@ -106,14 +106,54 @@ if ($wantSessions && $groupId !== '' && isset($groups[$groupId])) {
 // Árbol de etapas y grupos
 // ---------------------------------------------------------------------------
 
+/* La SECCIÓN, si se ha entrado por una: MIC, COM I… El artboard `Grupos` no
+ * enseña las veintiocho filas de la delegación, enseña las cinco de su sección,
+ * y la cabecera dice cuál es y cuántas hay. Sin `seccion` se ve el árbol
+ * entero, que sigue existiendo como destino. */
+$seccion = isset($_REQUEST['seccion']) ? (string) $_REQUEST['seccion'] : '';
+$seccionLabel = '';
+$dotsByEtapa = array('MIC' => 'var(--danger-color)', 'COM' => 'var(--success-color)', 'LC' => 'var(--primary-color)');
+$seccionDot = '';
+
+if ($seccion !== '') {
+    foreach (sticpa_pl_group_buckets($groups) as $b) {
+        if ($b['key'] === $seccion) {
+            $seccionLabel = $b['label'];
+            $seccionDot = isset($dotsByEtapa[$b['etapa']]) ? $dotsByEtapa[$b['etapa']] : 'var(--gray-300)';
+            break;
+        }
+    }
+    // Una sección que no existe (url a mano, o el grupo cambió de segmento) no
+    // deja la pantalla vacía: se cae al árbol entero.
+    if ($seccionLabel === '') {
+        $seccion = '';
+    } else {
+        $groups = array_filter($groups, function ($g) use ($seccion) {
+            return sticpa_pl_group_in_bucket($g, $seccion);
+        });
+    }
+}
+
 $html .= '<div class="pl-head">';
 $html .= '<a class="pl-back" href="?internalpage=single_stic_pasar_lista"'
     . ' aria-label="' . esc_attr__('Volver', 'sticpa') . '">' . sticpa_pl_icon('back') . '</a>';
 $html .= '<div class="pl-head-titles">';
-$html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html__('Pasar lista', 'sticpa') . '</span></div>';
-$html .= '<div class="pl-subtitle">' . esc_html(sticpa_pl_course_for()['label']) . '</div>';
+if ($seccion !== '') {
+    $html .= '<div class="pl-title">'
+        . '<span class="pl-etapa-dot" style="background:' . esc_attr($seccionDot) . '"></span>'
+        . '<span class="pl-title-code">' . esc_html($seccionLabel) . '</span>'
+        . '<span class="pl-title-count">' . esc_html(sprintf(
+            /* translators: %d: número de grupos de la sección */
+            _n('%d grupo', '%d grupos', count($groups), 'sticpa'),
+            count($groups)
+        )) . '</span></div>';
+} else {
+    $html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html__('Pasar lista', 'sticpa') . '</span></div>';
+    $html .= '<div class="pl-subtitle">' . esc_html(sticpa_pl_course_for()['label']) . '</div>';
+}
 $html .= '</div>';
-$html .= '<a class="pl-session-pick" href="?internalpage=single_stic_pasar_lista_grupos&refrescar=1"'
+$html .= '<a class="pl-session-pick" href="?internalpage=single_stic_pasar_lista_grupos&refrescar=1'
+    . ($seccion !== '' ? '&seccion=' . rawurlencode($seccion) : '') . '"'
     . ' aria-label="' . esc_attr__('Refrescar datos', 'sticpa') . '">' . sticpa_pl_icon('refresh') . '</a>';
 $html .= '</div>';
 
@@ -287,4 +327,31 @@ foreach (array('MIC', 'COM', 'LC', '?') as $etapa) {
         $html .= '</a>';
     }
     $html .= '</div>';
+}
+
+// ---------------------------------------------------------------------------
+// Los que no aparecen en ninguna lista
+// ---------------------------------------------------------------------------
+
+/* La tarjeta ámbar con borde discontinuo del artboard `Grupos`, al final del
+ * árbol. Va AQUÍ y no solo en el resumen porque es donde se nota el problema:
+ * pasas lista, faltan chavales, y la explicación es que no están en ningún
+ * grupo. Enlaza al resumen, que es donde coordinación puede arreglarlo.
+ *
+ * No cuesta una llamada: sale del mismo mapa de relaciones que ya trajo las
+ * personas de los grupos. */
+$sinGrupo = sticpa_pl_participants_without_group($objSCP);
+if (!empty($sinGrupo)) {
+    $html .= '<a class="pl-orphans" href="?internalpage=single_stic_pasar_lista_resumen">';
+    $html .= '<span class="pl-orphans-icon">' . sticpa_pl_icon('person') . '</span>';
+    $html .= '<span class="pl-orphans-body">';
+    $html .= '<span class="pl-orphans-title">' . esc_html(sprintf(
+        /* translators: %d: participantes sin grupo asignado */
+        _n('%d participante sin grupo asignado', '%d participantes sin grupo asignado', count($sinGrupo), 'sticpa'),
+        count($sinGrupo)
+    )) . '</span>';
+    $html .= '<span class="pl-orphans-sub">' . esc_html__('No aparecen en ninguna lista', 'sticpa') . '</span>';
+    $html .= '</span>';
+    $html .= '<span class="pl-detail">' . sticpa_pl_icon('next') . '</span>';
+    $html .= '</a>';
 }
