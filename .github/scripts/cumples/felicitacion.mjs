@@ -26,9 +26,11 @@ export const CRM_WEB = 'https://movimientoconsolacion.sinergiacrm.org';
  * Fecha y hora "de aquí" (Europe/Madrid), pase lo que pase con el reloj UTC
  * del runner. Devuelve { fecha: 'YYYY-MM-DD', hora: 7 }.
  *
- * GitHub solo programa crons en UTC, y España cambia de hora dos veces al año.
- * En vez de pelearse con eso, el workflow lanza a las 05:00 y a las 06:00 UTC y
- * el script se planta aquí: solo sigue si en Madrid son las 7.
+ * Lo que se usa de verdad es la FECHA: el cron es UTC y en invierno una
+ * ejecución de madrugada estaría todavía en la fecha de ayer, así que
+ * felicitaríamos a los de ayer. La hora ya no decide nada — el candado que
+ * exigía que fueran las 7 se quitó porque un cron retrasado se saltaba el día
+ * entero (ver la cabecera de enviar-cumples.mjs).
  */
 export function ahoraEnMadrid(instante = new Date()) {
   const partes = new Intl.DateTimeFormat('en-CA', {
