@@ -119,7 +119,7 @@ if ($seccion !== '') {
     foreach (sticpa_pl_group_buckets($groups) as $b) {
         if ($b['key'] === $seccion) {
             $seccionLabel = $b['label'];
-            $seccionDot = isset($dotsByEtapa[$b['etapa']]) ? $dotsByEtapa[$b['etapa']] : 'var(--gray-300)';
+            $seccionDot = isset($b['dot']) ? $b['dot'] : 'var(--gray-300)';
             break;
         }
     }
