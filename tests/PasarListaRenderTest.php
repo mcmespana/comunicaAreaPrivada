@@ -265,7 +265,7 @@ class FakeSCP
                         'name' => 'x',
                         'description' => $seg['texto'],
                         'type' => $seg['type'],
-                        'date_start' => '2026-01-10 12:00:00',
+                        'start_date' => '2026-01-10 12:00:00',
                         'assigned_user_name' => 'MCM Castellón',
                     ));
                 }
@@ -1510,7 +1510,7 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame('mcm_incidencia', $writes[0]['data']['type']);
         $this->assertSame('Llegó tarde tres sábados', $writes[0]['data']['description']);
         // La fecha del HECHO, no la de hoy.
-        $this->assertStringContainsString('2026-01-10', $writes[0]['data']['date_start']);
+        $this->assertStringContainsString('2026-01-10', $writes[0]['data']['start_date']);
     }
 
     /**
