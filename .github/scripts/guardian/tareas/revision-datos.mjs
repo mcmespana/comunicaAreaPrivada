@@ -11,6 +11,7 @@
  */
 
 import { revisarDatos } from '../logica.mjs';
+import { CAMPOS } from './recuentos-grupos.mjs';
 
 export const clave = 'revision-datos';
 export const titulo = 'Datos que hacen falta revisar';
@@ -21,11 +22,17 @@ export async function ejecutar(ctx) {
   const grupos = await ctx.grupos();
   const recuentos = ctx.compartido('recuentos') ?? new Map();
 
-  if (recuentos.size === 0) {
-    log('sin recuentos en memoria: solo se revisa lo que se puede ver en el propio grupo');
+  // Para los grupos que no se han recalculado esta noche (el modo suave solo
+  // toca los que han cambiado) se usa el número que ya está escrito en el grupo.
+  // Así la revisión cubre los 105 en los dos modos.
+  const conRecuentoFresco = recuentos.size;
+  if (conRecuentoFresco === 0) {
+    log('sin recuentos frescos: se revisa con los números guardados en cada grupo');
+  } else if (conRecuentoFresco < grupos.length) {
+    log(`${conRecuentoFresco} grupos con recuento de esta noche; el resto, con el guardado`);
   }
 
-  const { sinCodigo, sinMonitor, sinNadie } = revisarDatos(grupos, recuentos);
+  const { sinCodigo, sinMonitor, sinNadie } = revisarDatos(grupos, recuentos, CAMPOS);
 
   const detalles = [];
   const problemas = [];

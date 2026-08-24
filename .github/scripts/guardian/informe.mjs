@@ -41,12 +41,25 @@ export function titular(resultados) {
   return 'todo bien · sin cambios';
 }
 
+/**
+ * Cómo se dice el modo en el informe.
+ *
+ * Va en la cabecera y no escondido en el log porque cambia lo que el informe
+ * SIGNIFICA: en suave, «sin cambios» quiere decir «sin cambios en lo que se ha
+ * mirado», no «he revisado los 105 grupos y están bien».
+ */
+export function etiquetaModo(modo) {
+  if (modo === 'soft') return 'pasada suave';
+  if (modo === 'full') return 'pasada completa';
+  return 'pasada';
+}
+
 /** El informe en Markdown, para $GITHUB_STEP_SUMMARY. */
 export function aMarkdown({ resultados, contexto }) {
   const l = [];
   l.push(`## 🌙 Guardián Nocturno — ${titular(resultados)}`);
   l.push('');
-  l.push(`*${contexto.cuando}* · ${contexto.llamadas} llamadas al CRM · ${contexto.duracionSeg} s`
+  l.push(`*${contexto.cuando}* · ${etiquetaModo(contexto.modo)} · ${contexto.llamadas} llamadas al CRM · ${contexto.duracionSeg} s`
     + (contexto.secoDePrueba ? ' · **prueba en seco: no se ha escrito nada**' : ''));
   l.push('');
 
@@ -112,7 +125,7 @@ export function aMarkdown({ resultados, contexto }) {
 /** El mismo informe en texto plano, para el cuerpo del correo. */
 export function aTexto({ resultados, contexto }) {
   const l = [`GUARDIÁN NOCTURNO — ${titular(resultados)}`, ''];
-  l.push(`${contexto.cuando} · ${contexto.llamadas} llamadas al CRM · ${contexto.duracionSeg} s`);
+  l.push(`${contexto.cuando} · ${etiquetaModo(contexto.modo)} · ${contexto.llamadas} llamadas al CRM · ${contexto.duracionSeg} s`);
   if (contexto.secoDePrueba) l.push('PRUEBA EN SECO: no se ha escrito nada.');
   l.push('');
 
@@ -154,7 +167,7 @@ export function aHtml({ resultados, contexto }) {
   return `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:600px;margin:0 auto;color:#1f2937">
     <h2 style="font-size:18px;margin:0 0 4px">🌙 Guardián Nocturno</h2>
     <p style="margin:0 0 16px;color:#6b7280;font-size:13px">
-      ${esc(titular(resultados))} · ${esc(contexto.cuando)}
+      ${esc(titular(resultados))} · ${esc(contexto.cuando)} · ${esc(etiquetaModo(contexto.modo))}
       ${contexto.secoDePrueba ? ' · <strong>prueba en seco</strong>' : ''}
     </p>
     <table style="width:100%;border-collapse:collapse;background:#fff;border:1px solid #e5e7eb;border-radius:10px">

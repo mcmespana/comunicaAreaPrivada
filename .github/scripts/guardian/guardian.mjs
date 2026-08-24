@@ -19,6 +19,8 @@
  *   ctx.relacionesDe(id, mod, lk) relaciones de un registro, cacheado
  *   ctx.compartir(k, v) / ctx.compartido(k)   pasar datos a otras tareas
  *   ctx.hoy                       el instante de la pasada (uno para todas)
+ *   ctx.modo                      'soft' (solo lo que ha cambiado) | 'full'
+ *   ctx.ventanaDias               días hacia atrás que mira el modo suave
  *   ctx.secoDePrueba              true = mirar sin escribir
  *   ctx.log(texto)                traza en el log del job
  *
@@ -39,13 +41,16 @@
  *     --forzar-hora       ignora la guarda de la hora (lo pone el botón manual)
  *     --avisar-siempre    manda el correo aunque todo haya ido bien
  *     --hora-objetivo=1   la hora de Madrid a la que toca (por defecto, 1)
+ *     --modo=auto         auto | soft | full. `auto` (por defecto) mira el día:
+ *                         completo viernes y sábado, suave el resto
+ *     --ventana-dias=3    los días hacia atrás que mira el modo suave
  *
  * Entorno: CRM_URL, CRM_CLIENT_ID, CRM_CLIENT_SECRET.
  * Para el correo (opcional): RESEND_API_KEY y GUARDIAN_AVISOS_TO.
  */
 
 import { abrirCrm, fetchConReintentos } from './crm.mjs';
-import { tocaAhora } from './logica.mjs';
+import { tocaAhora, modoDeLaNoche, MODOS } from './logica.mjs';
 import { aMarkdown, aTexto, aHtml, hayFallos, mereceAviso, titular } from './informe.mjs';
 import * as recuentosGrupos from './tareas/recuentos-grupos.mjs';
 import * as revisionDatos from './tareas/revision-datos.mjs';
@@ -58,7 +63,10 @@ const CAMPOS_GRUPO = ['id', 'name', 'code', 'level', 'cursos_c', 'assigned_user_
   'ajmcm_n_participantes_c', 'ajmcm_n_monitores_c', 'ajmcm_monitores_c', 'ajmcm_recuento_al_c'];
 
 function parsearArgs(argv) {
-  const o = { tareas: [], dryRun: false, forzarHora: false, avisarSiempre: false, horaObjetivo: 1 };
+  const o = {
+    tareas: [], dryRun: false, forzarHora: false, avisarSiempre: false,
+    horaObjetivo: 1, modo: 'auto', ventanaDias: 3,
+  };
   for (const a of argv.slice(2)) {
     if (a === '--dry-run') o.dryRun = true;
     else if (a === '--forzar-hora') o.forzarHora = true;
@@ -67,6 +75,10 @@ function parsearArgs(argv) {
       o.tareas = a.slice('--tareas='.length).split(',').map((s) => s.trim()).filter(Boolean);
     } else if (a.startsWith('--hora-objetivo=')) {
       o.horaObjetivo = Number(a.slice('--hora-objetivo='.length)) || 0;
+    } else if (a.startsWith('--modo=')) {
+      o.modo = a.slice('--modo='.length).trim();
+    } else if (a.startsWith('--ventana-dias=')) {
+      o.ventanaDias = Number(a.slice('--ventana-dias='.length)) || 3;
     }
   }
   return o;
@@ -97,6 +109,15 @@ async function principal() {
     return 0;
   }
 
+  // ── Suave o completo ───────────────────────────────────────────────────
+  // `auto` decide por el día de la semana EN MADRID: completo el viernes y el
+  // sábado, suave el resto. El botón manual manda un modo explícito.
+  if (opciones.modo !== 'auto' && !MODOS.includes(opciones.modo)) {
+    console.error(`Modo que no existe: ${opciones.modo}. Los que hay: auto, ${MODOS.join(', ')}`);
+    return 2;
+  }
+  const modo = opciones.modo === 'auto' ? modoDeLaNoche(hoy) : opciones.modo;
+
   const elegidas = opciones.tareas.length
     ? TAREAS.filter((t) => opciones.tareas.includes(t.clave))
     : TAREAS;
@@ -111,6 +132,8 @@ async function principal() {
   }
 
   console.log(`🌙 Guardián Nocturno · ${elegidas.length} ${elegidas.length === 1 ? 'tarea' : 'tareas'}`
+    + ` · modo ${modo === 'soft' ? 'SUAVE' : 'COMPLETO'}`
+    + (opciones.modo === 'auto' ? ' (por el día de la semana)' : '')
     + (opciones.dryRun ? ' · PRUEBA EN SECO' : ''));
 
   const avisosCrm = [];
@@ -131,6 +154,8 @@ async function principal() {
   const ctx = {
     crm,
     hoy,
+    modo,
+    ventanaDias: opciones.ventanaDias,
     secoDePrueba: opciones.dryRun,
     log,
     compartir: (k, v) => compartido.set(k, v),
@@ -175,6 +200,7 @@ async function principal() {
     }).format(hoy),
     llamadas: crm.llamadas,
     duracionSeg: Math.round((Date.now() - arranque) / 1000),
+    modo,
     secoDePrueba: opciones.dryRun,
     avisosCrm,
     enlaceEjecucion: process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID

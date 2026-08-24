@@ -11,7 +11,10 @@
  * trabajo exista en vez de hacerlo el área privada.
  */
 
-import { clasificarRelaciones, formatearMonitores, camposQueCambian } from '../logica.mjs';
+import {
+  clasificarRelaciones, formatearMonitores, camposQueCambian,
+  ventanaDesde, gruposTocados, CAMPO_GRUPO_EN_RELACION,
+} from '../logica.mjs';
 
 /** Los nombres de los cuatro campos, en UN sitio. */
 export const CAMPOS = {
@@ -23,6 +26,7 @@ export const CAMPOS = {
 
 const MODULO = 'ajmcm_GRUPOS';
 const LINK_RELACIONES = 'ajmcm_grupos_stic_contacts_relationships';
+const MODULO_RELACIONES = 'stic_Contacts_Relationships';
 
 export const clave = 'recuentos-grupos';
 export const titulo = 'Recuentos y monitores de cada grupo';
@@ -47,12 +51,54 @@ export async function ejecutar(ctx) {
   // TODOS los grupos, sin filtrar por curso. A propósito: contar un grupo que
   // luego no se enseña no cuesta nada, y filtrar aquí obligaría a mantener la
   // misma regla en dos sitios. Quién se enseña lo decide el área privada.
-  const grupos = await ctx.grupos();
-  log(`${grupos.length} grupos que revisar`);
+  const todos = await ctx.grupos();
+
+  // ── Qué grupos toca recalcular ─────────────────────────────────────────
+  // `modo` es lo que se pidió; `modoEfectivo` es lo que se acabó haciendo. Se
+  // separan porque el suave puede degradar a completo, y el informe tiene que
+  // decir lo que PASÓ, no lo que se intentó.
+  const modo = ctx.modo === 'soft' ? 'soft' : 'full';
+  let modoEfectivo = modo;
+  const avisosModo = [];
+  let grupos = todos;
+  let desde = '';
+
+  if (modo === 'soft') {
+    desde = ventanaDesde(hoy, ctx.ventanaDias);
+    try {
+      const relaciones = await crm.listar(MODULO_RELACIONES, {
+        campos: ['id', CAMPO_GRUPO_EN_RELACION, 'date_modified'],
+        filtro: { date_modified: { gte: desde } },
+      });
+      const { ids, sinGrupo } = gruposTocados(relaciones);
+      grupos = todos.filter((g) => ids.has(g.id));
+
+      // Ids tocados que no son de ningún grupo conocido: normalmente un grupo de
+      // otra delegación o uno borrado. No es un fallo, pero se dice.
+      const desconocidos = [...ids].filter((id) => !todos.some((g) => g.id === id)).length;
+      log(`modo suave · ${relaciones.length} relaciones tocadas desde ${desde}`
+        + ` → ${grupos.length} grupos que recalcular`
+        + (sinGrupo ? ` (${sinGrupo} relaciones sin grupo, normal)` : ''));
+      if (desconocidos) avisosModo.push(`${desconocidos} grupos tocados que no están en la lista de grupos`);
+    } catch (err) {
+      // Si el filtro falla, se cae hacia la pasada COMPLETA y no hacia no hacer
+      // nada: el modo suave es una optimización, y una optimización que se rompe
+      // tiene que degradar al camino seguro, no dejar los números sin tocar.
+      grupos = todos;
+      modoEfectivo = 'full';
+      // En el aviso va el motivo CORTO: esto acaba en un correo, y la URL entera
+      // con el filtro codificado ocupa media pantalla. La larga queda en el log.
+      avisosModo.push(`el modo suave no se pudo hacer (${primeraLinea(err.message)});`
+        + ' se ha hecho la pasada completa, así que los números están bien igual');
+      log(`modo suave roto, se pasa a completo: ${err.message}`);
+    }
+  } else {
+    log(`modo completo · ${todos.length} grupos que revisar`);
+  }
 
   const recuentos = new Map();
   const detalles = [];
-  const problemas = [];
+  const problemas = [...avisosModo];
   let escritos = 0;
 
   // El sello se calcula UNA vez para toda la pasada: si cada grupo llevara su
@@ -89,10 +135,18 @@ export async function ejecutar(ctx) {
   // volver a pedir nada al CRM.
   ctx.compartir('recuentos', recuentos);
 
+  // El resumen dice el modo y, en suave, CUÁNTOS NO se han mirado. Sin ese dato
+  // "3 grupos revisados" se lee como si hubiera solo tres grupos.
+  const sinMirar = todos.length - grupos.length;
+  const cabeza = modoEfectivo === 'soft'
+    ? `suave (desde ${desde}) · ${plural(grupos.length, 'grupo', 'grupos')} con cambios recientes`
+      + (sinMirar > 0 ? ` · ${sinMirar} sin recalcular` : '')
+    : `completo · ${plural(grupos.length, 'grupo', 'grupos')} revisados`;
+
   return {
     resumen: secoDePrueba
-      ? `${plural(grupos.length, 'grupo', 'grupos')} revisados · ${escritos} cambiarían (prueba en seco, no se ha escrito nada)`
-      : `${plural(grupos.length, 'grupo', 'grupos')} revisados · ${escritos} actualizados`,
+      ? `${cabeza} · ${escritos} cambiarían (prueba en seco, no se ha escrito nada)`
+      : `${cabeza} · ${escritos} actualizados`,
     detalles,
     problemas,
   };
@@ -105,4 +159,16 @@ export async function ejecutar(ctx) {
  */
 function plural(n, singular, plural_) {
   return `${n} ${n === 1 ? singular : plural_}`;
+}
+
+/**
+ * El motivo de un error, corto y sin la URL.
+ *
+ * El mensaje del cliente del CRM trae la ruta entera con el filtro codificado, y
+ * eso en un correo es media pantalla de ruido que tapa lo que importa.
+ */
+function primeraLinea(mensaje, max = 120) {
+  const limpio = String(mensaje ?? '').split('\n')[0].replace(/\s*https?:\/\/\S+|\s*\/Api\/\S+/g, '').trim();
+  const texto = limpio || String(mensaje ?? '').split('\n')[0].trim();
+  return texto.length > max ? `${texto.slice(0, max)}…` : texto;
 }

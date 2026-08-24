@@ -20,6 +20,50 @@ que el área privada no puede permitirse en caliente, y **canta si algo va mal**
 Está pensado para crecer: la idea es que todo lo que sea «pasar por el CRM de
 madrugada» viva aquí en vez de en cinco workflows distintos.
 
+## 1.b Dos modos: suave y completo
+
+| | Completo | Suave |
+|---|---|---|
+| **Cuándo** | Madrugada del **viernes y del sábado** | Las demás noches |
+| **Qué mira** | Los ~105 grupos, uno por uno | Solo los grupos con alguna relación tocada en los últimos días |
+| **Llamadas al CRM** | Una por grupo (~105) | Dos o tres |
+| **Se entera de un borrado** | **Sí** | No |
+| **Se entera de una vigencia que caduca sola** | **Sí** | No |
+
+**Por qué el suave no puede ir solo.** Dos cosas se le escapan, y las dos por
+motivos de fondo, no por descuido:
+
+- **Una relación borrada.** El API excluye los borrados de cualquier consulta,
+  así que cuando una relación desaparece no hay forma de saber a qué grupo
+  pertenecía. Ese grupo se queda con una persona de más hasta la siguiente
+  pasada completa. Solo recontando el grupo entero sale el número bueno.
+- **Una vigencia que caduca sola.** Una relación con `end_date` del 31 de agosto
+  deja de contar el 1 de septiembre **sin que nadie la modifique**, así que su
+  `date_modified` no cambia y el suave no la ve pasar.
+
+El completo del viernes y del sábado es la red que recoge las dos cosas, y cae
+justo antes del sábado, que es cuando se miran los números.
+
+**El día se decide en Madrid, no en UTC.** A la 1:30 de un viernes de verano, en
+UTC son las 23:30 del **jueves**: con el día del runner, la pasada completa del
+viernes caería en jueves media parte del año. Es el mismo motivo por el que la
+hora se mira en `Europe/Madrid` (§4), y está cubierto con tests en las dos
+estaciones.
+
+**Si el suave se rompe, degrada a completo.** Una optimización que falla tiene
+que caer al camino seguro, no dejar los números sin tocar: si la consulta
+filtrada da error, se hace la pasada completa y el informe lo dice.
+
+**La revisión de datos no pierde cobertura en suave.** Los grupos que no se han
+recalculado esa noche se revisan con **el número que ya está escrito en el
+grupo**, así que los 105 se miran en los dos modos. Sin eso, un informe en suave
+diría «nada que revisar» habiendo mirado tres grupos de 105 — peor que no
+revisar. De un grupo sin recuento fresco ni guardado no se opina: un hueco se
+entiende, un aviso falso hace que se dejen de leer los avisos.
+
+A mano se puede elegir el modo, y **por defecto sale la completa**, que es la
+segura.
+
 ## 2. Cómo canta si falla
 
 Cuatro capas, de la que no depende de nadie a la más cómoda:
@@ -95,6 +139,8 @@ ctx.relacionesDe(id, mod, link) // relaciones de un registro, cacheado
 ctx.compartir(k, v)            // dejar algo para otra tarea
 ctx.compartido(k)              // cogerlo
 ctx.hoy                        // el instante de la pasada (uno para todas)
+ctx.modo                       // 'soft' (solo lo cambiado) | 'full' (todo)
+ctx.ventanaDias                // días atrás que mira el suave
 ctx.secoDePrueba               // true = mirar sin escribir
 ctx.log(texto)                 // traza en el log del job
 
@@ -106,6 +152,11 @@ ctx.log(texto)                 // traza en el log del job
 mirar (salen desplegadas en el informe y disparan el correo). Si tu tarea no
 escribe nada, pon `etiquetaDetalles` para que el informe no llame «cambios» a lo
 que no lo es.
+
+Si tu tarea puede mirar «solo lo que ha cambiado», respeta `ctx.modo` — y que el
+suave **degrade a completo** si su atajo falla, nunca a no hacer nada. Y que el
+resumen diga lo que **pasó** y no lo que se intentó: si el suave cayó a
+completo, el informe tiene que decir «completo».
 
 ### Las tres reglas de la casa
 
@@ -133,4 +184,7 @@ node --test .github/scripts/guardian/guardian.test.mjs
 Y contra la instancia de verdad, sin escribir nada:
 
 *Actions → Guardián Nocturno → Run workflow*, marcando **dry_run**. Dice
-exactamente qué cambiaría y no toca un solo registro.
+exactamente qué cambiaría y no toca un solo registro. Ahí también se elige el
+**modo** (por defecto la completa, que es la segura): lanzarlo con `soft` y
+`dry_run` es la forma de comprobar que el atajo del suave funciona contra el CRM
+real sin arriesgar nada.
