@@ -57,6 +57,8 @@ function sticpa_pl_icon($which)
         'check' => '<path d="M20 6 9 17l-5-5"/>',
         'skip' => '<path d="m5 4 10 8-10 8V4Z"/><path d="M19 5v14"/>',
         'refresh' => '<path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/>',
+        // La lupa del buscador del árbol de grupos.
+        'search' => '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
         // El triángulo de aviso: lo que reclama algo, no lo que informa. Se usa
         // en el título de las listas pendientes y en nada decorativo.
         'warn' => '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',

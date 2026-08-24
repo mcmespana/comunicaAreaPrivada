@@ -206,7 +206,14 @@ function sticpa_pl_groups($objSCP)
     // `ajmcm_segmento_com_c` puede no existir todavía. La API devuelve un error
     // si se pide un campo inexistente, así que se pide aparte y se cae con
     // elegancia: sin segmento, el alcance por etapa sigue funcionando.
-    $fields = array('id', 'name', 'code', 'level', 'cursos_c');
+    // Los cuatro campos del recuento nocturno entran GRATIS en esta consulta:
+    // es justo por lo que se eligió guardarlos en el grupo en vez de en un
+    // módulo aparte (PASAR-LISTA-RECUENTOS.md). Los rellena el Guardián.
+    $fields = array(
+        'id', 'name', 'code', 'level', 'cursos_c',
+        'ajmcm_n_participantes_c', 'ajmcm_n_monitores_c',
+        'ajmcm_monitores_c', 'ajmcm_recuento_al_c',
+    );
     if (sticpa_pl_has_segmento()) {
         $fields[] = 'ajmcm_segmento_com_c';
     }
@@ -243,6 +250,19 @@ function sticpa_pl_groups($objSCP)
                 'segmento' => isset($v->ajmcm_segmento_com_c->value)
                     ? trim((string) $v->ajmcm_segmento_com_c->value) : '',
                 'cursos' => $cursos,
+                // Recuento nocturno. Se guarda tal cual y quien lo pinte decide
+                // si se puede fiar (sticpa_pl_recuento_fresco): un numero viejo
+                // al lado del nombre de un grupo de menores es peor que un hueco.
+                'n_participantes' => isset($v->ajmcm_n_participantes_c->value)
+                    && trim((string) $v->ajmcm_n_participantes_c->value) !== ''
+                    ? (int) $v->ajmcm_n_participantes_c->value : -1,
+                'n_monitores' => isset($v->ajmcm_n_monitores_c->value)
+                    && trim((string) $v->ajmcm_n_monitores_c->value) !== ''
+                    ? (int) $v->ajmcm_n_monitores_c->value : -1,
+                'monitores' => isset($v->ajmcm_monitores_c->value)
+                    ? trim((string) $v->ajmcm_monitores_c->value) : '',
+                'recuento_al' => isset($v->ajmcm_recuento_al_c->value)
+                    ? trim((string) $v->ajmcm_recuento_al_c->value) : '',
             );
         }
     }

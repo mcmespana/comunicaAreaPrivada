@@ -522,4 +522,84 @@ final class PasarListaTest extends TestCase
         $this->assertSame('C2', $groups[1]['code']);
         $this->assertSame('', $groups[2]['name']);
     }
+
+    // -----------------------------------------------------------------------
+    // El recuento nocturno y la regla de callarse si es viejo
+    // -----------------------------------------------------------------------
+
+    public function testUnRecuentoDeAnocheEsFresco()
+    {
+        $now = strtotime('2026-02-10 12:00:00');
+        $this->assertTrue(sticpa_pl_recuento_fresco('2026-02-10 01:30:00', $now));
+        $this->assertTrue(sticpa_pl_recuento_fresco('2026-02-08 01:30:00', $now));
+    }
+
+    /** PASAR-LISTA-RECUENTOS.md 6: si el dato es viejo, la pantalla se calla. */
+    public function testUnRecuentoViejoNoEsFresco()
+    {
+        $now = strtotime('2026-02-10 12:00:00');
+        $this->assertFalse(sticpa_pl_recuento_fresco('2026-01-10 01:30:00', $now));
+        $this->assertFalse(sticpa_pl_recuento_fresco('', $now));
+        $this->assertFalse(sticpa_pl_recuento_fresco('no es una fecha', $now));
+    }
+
+    /** Una fecha en el futuro es un reloj mal puesto: tampoco es de fiar. */
+    public function testUnRecuentoDelFuturoNoEsFresco()
+    {
+        $now = strtotime('2026-02-10 12:00:00');
+        $this->assertFalse(sticpa_pl_recuento_fresco('2026-03-01 01:30:00', $now));
+    }
+
+    /** La linea del artboard: monitores, curso y participantes. Sin la etapa. */
+    public function testLaLineaDelGrupoLlevaMonitoresCursoYRecuento()
+    {
+        $now = strtotime('2026-02-10 12:00:00');
+        $meta = sticpa_pl_group_meta(array(
+            'monitores' => 'Mercedes, Jaime',
+            'cursos' => '1º ESO',
+            'n_participantes' => 11,
+            'recuento_al' => '2026-02-10 01:30:00',
+            'level' => 'com',
+        ), $now);
+
+        $this->assertSame(array('Mercedes, Jaime', '1º ESO', '11 participantes'), $meta);
+        // La etapa NO va: el arbol ya agrupa por etapa.
+        $this->assertStringNotContainsStringIgnoringCase('com', implode(' ', $meta));
+    }
+
+    /** Con el recuento viejo, sale todo lo demas y el numero desaparece. */
+    public function testConRecuentoViejoLaLineaOmiteElNumero()
+    {
+        $now = strtotime('2026-02-10 12:00:00');
+        $meta = sticpa_pl_group_meta(array(
+            'monitores' => 'Mercedes',
+            'cursos' => '1º ESO',
+            'n_participantes' => 11,
+            'recuento_al' => '2025-11-01 01:30:00',
+        ), $now);
+
+        $this->assertSame(array('Mercedes', '1º ESO'), $meta);
+    }
+
+    /** Un grupo recien creado, sin recuento todavia: ni numero ni error. */
+    public function testGrupoSinRecuentoNoRompeLaLinea()
+    {
+        $this->assertSame(array(), sticpa_pl_group_meta(array()));
+        $this->assertSame(
+            array('2º ESO'),
+            sticpa_pl_group_meta(array('cursos' => '2º ESO', 'n_participantes' => -1, 'recuento_al' => ''))
+        );
+    }
+
+    /** Cero participantes es un dato, no un hueco: un grupo vacio hay que verlo. */
+    public function testCeroParticipantesSeDice()
+    {
+        $now = strtotime('2026-02-10 12:00:00');
+        $meta = sticpa_pl_group_meta(array(
+            'cursos' => '1º ESO',
+            'n_participantes' => 0,
+            'recuento_al' => '2026-02-10 01:30:00',
+        ), $now);
+        $this->assertSame(array('1º ESO', '0 participantes'), $meta);
+    }
 }

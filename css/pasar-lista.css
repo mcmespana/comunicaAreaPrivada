@@ -722,6 +722,62 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
 
 /* La leyenda del árbol: los mismos tres estados que el círculo de cada grupo.
    Va arriba y una sola vez, igual que la leyenda de la lista de marcado. */
+/* ---- El buscador del árbol ---------------------------------------------
+   Del artboard `Grupos`. Va pegado arriba al hacer scroll: con veintiocho
+   grupos, un buscador que se va de la pantalla en cuanto bajas no sirve. */
+.pl-search {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    margin: 0 0 0.6rem;
+    padding: 0 0.85rem;
+    border-radius: 999px;
+    background: var(--surface-1, #fff);
+    border: 1px solid var(--border-color, #e5e7eb);
+    /* La sombra despega el campo del contenido que pasa por debajo. */
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+.pl-search svg {
+    width: 17px;
+    height: 17px;
+    flex: 0 0 auto;
+    stroke: var(--text-muted, #6b7280);
+    fill: none;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+}
+.pl-search input {
+    flex: 1 1 auto;
+    min-width: 0;
+    /* 44px de alto: es un objetivo táctil, no un campo de formulario. */
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    /* 16px reales: por debajo, iOS hace zoom al enfocar y descoloca todo. */
+    font-size: 1rem;
+    color: var(--text-color, #1f2937);
+    box-shadow: none;
+}
+.pl-search input:focus { outline: none; }
+/* El foco se marca en el contenedor, que es lo que se ve como un control. */
+.pl-search:focus-within {
+    border-color: var(--primary-color, #2563eb);
+    box-shadow: 0 0 0 3px var(--primary-50, rgba(37, 99, 235, 0.12));
+}
+/* Fuera la cruz nativa de WebKit: choca con el redondeo y con la lupa. */
+.pl-search input::-webkit-search-cancel-button { -webkit-appearance: none; }
+
+.pl-search-empty {
+    margin: 0.4rem 0.25rem 0.8rem;
+    font-size: 0.9rem;
+    color: var(--text-muted, #6b7280);
+}
+
 .pl-tree-legend {
     display: flex;
     align-items: center;
