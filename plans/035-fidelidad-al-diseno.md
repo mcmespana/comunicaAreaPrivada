@@ -3,6 +3,29 @@
 **Prioridad: P2** (P1 percibida: es lo que el propietario ve cada día).
 Esfuerzo: M. Depende de: nada (pero no pisar 033/034 en los mismos ficheros).
 
+> ## Estado al 27/08/2026 (noche)
+>
+> - **Marcar: verificada y fiel.** Comparada propiedad a propiedad con el CSS en
+>   línea del artboard (título 1,15rem/800, nombre 0,99rem/700, avatar y círculo
+>   40 px, fila `11px 6px 11px 14px`, leyenda 0,74rem/600). La corrigió el PR
+>   #60 y sigue cuadrando.
+> - **Ficha → bloque de teléfonos: corregido.** Era el que más desviado estaba,
+>   y justo el que ahora se usa (la familia ya se encuentra):
+>   nombre 0,88 → **0,95rem**, número 0,8 → **0,79rem**, relleno de fila
+>   `0,7/0,85rem` → **`13px 16px`**, hueco interno 0,1 → **0,19rem**, y el verde
+>   del botón de WhatsApp pasa de `--success-50` (#e6fcf5, el de «han venido
+>   todos») a **`--success-soft`** (#f4fbf7), que es el del artboard.
+>   Y la estructura, que era el desvío de fondo: el artboard pone **nombre +
+>   pastilla** arriba y **«Parentesco · número»** debajo; estaba todo amontonado
+>   en una línea.
+> - **Divergencia DELIBERADA, y se queda:** los botones de llamar y WhatsApp son
+>   de **44 px**, no de 40 como el artboard. Es el mínimo de un objetivo táctil,
+>   y con prisa un botón de 40 se falla. La fidelidad no manda sobre la
+>   accesibilidad; queda escrito para que nadie lo «arregle» de vuelta.
+> - **Pendientes**: `Grupos`, `Resumen`, `Main` y `Estados`. Y `monitores`,
+>   `monitor` y `reuniones`, que no tienen artboard y siguen la spec de su
+>   pantalla hermana (monitores = marcar; reuniones = árbol).
+
 ## El problema
 
 Los artboards de `design/pasar-lista/` (`Main`, `Grupos`, `Marcar`, `Ficha`,
@@ -84,9 +107,9 @@ Resumen, Ficha, Main, Estados.
 
 | Pantalla | Spec extraída | Desvíos anotados | Corregida | Verificada (2 temas) |
 |---|---|---|---|---|
-| Marcar | | | | |
+| Marcar | ✅ | ninguno vivo | ✅ (PR #60) | pendiente en dispositivo |
+| Ficha | ✅ teléfonos | ✅ 5 + la estructura | ✅ teléfonos | pendiente en dispositivo |
 | Grupos | | | | |
 | Resumen | | | | |
-| Ficha | | | | |
 | Main | | | | |
 | Estados | | | | |

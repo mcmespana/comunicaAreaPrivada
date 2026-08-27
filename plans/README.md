@@ -54,11 +54,11 @@ antes de empezar, respeta sus "STOP conditions" y actualiza su fila de estado al
 | 030 | Tap instantáneo: feedback en enlaces + prefetch + puente app | P1 | S-M | — | **DONE** (`d2873dd` + prefetch 2026-08-13) |
 | 031 | Dieta de assets: CSS minificado en deploy + Inter local | P2 | M | — | **PARCIAL** (`7dc928a`) — falta retirar DataTables |
 | 032 | Acotar listados: ventana de eventos + techo de filas | P2 | M | — (tras 011 en páginas compartidas) | **PARCIAL** (`113255e`) — falta el techo de filas |
-| 033 | Pasar Lista: guardado visible y cierre de EL bug | **P0** | M | — | **HECHO** (`eb5eac5`) — falta confirmar en producción |
-| 034 | Pasar Lista: rendimiento (calentar, paralelizar, medir) | P1 | M | 033 (medir guardados) | **PARCIAL** (`eb5eac5`) — falta `curl_multi`, y antes los números reales |
-| 035 | Pasar Lista: fidelidad al diseño de los artboards | P2 | M | — | TODO |
+| 033 | Pasar Lista: guardado visible y cierre de EL bug | **P0** | M | — | **HECHO** — confirmado en producción el 27/08/2026 |
+| 034 | Pasar Lista: rendimiento (calentar, paralelizar, medir) | P1 | M | 033 | **HECHO** — 1+N de monitores muerto y `curl_multi` en las cinco pantallas (viajes: 7→3, 6→2, 8→4, 7→3, 9→4). Falta la foto real de producción |
+| 035 | Pasar Lista: fidelidad al diseño de los artboards | P2 | M | — | **PARCIAL** — Marcar verificada, Ficha (teléfonos) corregida; faltan Grupos/Resumen/Main/Estados |
 | 036 | Pasar Lista: funcionalidad pendiente + doctrina de la API | P2 | por fila | 033 | TODO |
-| 037 | Pasar Lista: UX — fluidez, menos toques, ficha a un gesto | P1-P2 | S-M por fila | 033 | TODO |
+| 037 | Pasar Lista: UX — fluidez, menos toques, ficha a un gesto | P1-P2 | S-M por fila | 033 | **PARCIAL** — filas 1, 3 y 5 hechas; 2, 4 y 6 esperan medición |
 
 > Los planes 033-037 salen de la revisión del 27/08/2026 (bug de guardado
 > verificado contra el CRM por MCP, rendimiento, diseño, funcionalidad y UX).

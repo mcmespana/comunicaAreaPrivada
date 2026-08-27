@@ -242,6 +242,15 @@ function sticpa_pl_sheet_html($whenLabel = '')
         . ' aria-label="' . esc_attr__('Motivo de la ausencia', 'sticpa') . '">'
         . '</label>';
 
+    /* La salida a la ficha, DESDE la hoja. Cuando marcas una falta, lo
+     * siguiente que quieres casi siempre es el teléfono de casa — y la hoja
+     * tapa la pantalla, así que la flecha de la fila queda detrás. El JS le
+     * pone la dirección de la persona que está abierta. */
+    $html .= '<a class="pl-sheet-ficha" data-pl-sheet-ficha href="#" hidden>'
+        . sticpa_pl_icon('person') . '<span>'
+        . esc_html__('Ficha y teléfonos', 'sticpa') . '</span>'
+        . sticpa_pl_icon('next') . '</a>';
+
     $html .= '<button type="button" class="pl-sheet-clear" data-pl-sheet-clear>'
         . esc_html__('Quitar la marca', 'sticpa') . '</button>';
     $html .= '</div>';
@@ -461,6 +470,28 @@ function sticpa_pl_notice_html($pick)
     }
 
     return '<p class="pl-notice">' . sticpa_pl_icon('clock') . '<span>' . $msg . '</span></p>';
+}
+
+/**
+ * Qué hacer DESPUÉS de guardar bien.
+ *
+ * Hasta ahora la pantalla se quedaba igual que estaba, con un «Lista guardada»
+ * pequeño arriba: el monitor ya ha terminado y la aplicación no le ofrece nada.
+ * Lo que viene después es siempre una de estas dos cosas — mirar cómo va el
+ * grupo, o pasar la lista de otro— y las dos estaban a tres toques.
+ *
+ * Solo se pinta cuando el guardado está CONFIRMADO contra el CRM: es una
+ * recompensa, y una recompensa detrás de un fallo es una burla.
+ */
+function sticpa_pl_next_steps_html($groupId = '')
+{
+    $html = '<div class="pl-next">';
+    $html .= '<a class="pl-next-btn" href="?internalpage=single_stic_pasar_lista_resumen">'
+        . sticpa_pl_icon('chart') . '<span>' . esc_html__('Ver el resumen', 'sticpa') . '</span></a>';
+    $html .= '<a class="pl-next-btn" href="?internalpage=single_stic_pasar_lista_grupos">'
+        . sticpa_pl_icon('search') . '<span>' . esc_html__('Otro grupo', 'sticpa') . '</span></a>';
+    $html .= '</div>';
+    return $html;
 }
 
 // ---------------------------------------------------------------------------
