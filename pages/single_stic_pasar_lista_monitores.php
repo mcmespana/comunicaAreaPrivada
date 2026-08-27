@@ -23,6 +23,16 @@ if (!defined('ABSPATH')) {
 
 $pageSettings['fileName'] = basename(__FILE__, ".php");
 
+// La tanda va ANTES de resolver el alcance: así la primera consulta de
+// coordinación viaja con las otras cuatro en vez de abrir su propio viaje.
+sticpa_pl_prime($objSCP, function () use ($objSCP) {
+    sticpa_pl_coord_scope($objSCP);
+    sticpa_pl_groups($objSCP);
+    sticpa_pl_all_relationships($objSCP);
+    sticpa_pl_etapa_events($objSCP);
+    sticpa_pl_all_listas($objSCP);
+});
+
 $scope = sticpa_pl_coord_scope($objSCP);
 if ($scope === null) {
     // No coordina: no se enseña media pantalla ni un error técnico.
@@ -83,6 +93,12 @@ if ($event === null) {
     }
     return;
 }
+
+// TANDA 2: sesiones e inscripciones del evento.
+sticpa_pl_prime($objSCP, function () use ($objSCP, $event) {
+    sticpa_pl_event_sessions($objSCP, $event['id']);
+    sticpa_pl_event_registrations($objSCP, $event['id']);
+});
 
 $sessions = sticpa_pl_event_sessions($objSCP, $event['id']);
 $pick = null;

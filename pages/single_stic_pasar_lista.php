@@ -26,9 +26,27 @@ sticpa_pl_maybe_refresh($objSCP);
 // conexión no está encendido (ver inc/stic-pasar-lista-sw.php).
 $html .= sticpa_pl_sw_register_html();
 
+// UNA TANDA en vez de cuatro viajes en fila. Lo que ya esté en caché no entra:
+// la recolecta pasa por los mismos cargadores y ellos miran su caché primero.
+sticpa_pl_prime($objSCP, function () use ($objSCP) {
+    sticpa_pl_groups($objSCP);
+    sticpa_pl_my_groups($objSCP);
+    sticpa_pl_all_relationships($objSCP);
+    sticpa_pl_etapa_events($objSCP);
+    sticpa_pl_all_listas($objSCP);
+});
+
 $groups = sticpa_pl_groups($objSCP);
 $myGroups = sticpa_pl_my_groups($objSCP);
 $events = sticpa_pl_etapa_events($objSCP);
+
+// TANDA 2: las sesiones de cada etapa, todas juntas. Antes eran una llamada por
+// etapa, una detrás de otra.
+sticpa_pl_prime($objSCP, function () use ($objSCP, $events) {
+    foreach ($events as $ev) {
+        sticpa_pl_event_sessions($objSCP, $ev['id']);
+    }
+});
 $course = sticpa_pl_course_for();
 
 // El grupo del atajo: el tuyo. Si tienes varios, el primero; si no tienes

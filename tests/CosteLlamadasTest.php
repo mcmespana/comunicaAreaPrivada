@@ -47,6 +47,9 @@ class CosteLlamadasTest extends TestCase
             'single_stic_pasar_lista_marcar' => array('grupo' => 'g1'),
             'single_stic_pasar_lista_resumen' => array(),
             'single_stic_pasar_lista_ficha' => array('persona' => 'c1'),
+            // Monitores hace falta AQUÍ: era la pantalla más lenta de todas y
+            // nadie le contaba las llamadas.
+            'single_stic_pasar_lista_monitores' => array('__coord' => 'COM'),
         );
 
         $lineas = array();
@@ -55,6 +58,10 @@ class CosteLlamadasTest extends TestCase
             foreach ($pantallas as $page => $req) {
                 $this->setUp();
                 $this->scp->sinEnlaces = $sinEnlaces;
+                if (isset($req['__coord'])) {
+                    $this->scp->coordEtapa = $req['__coord'];
+                    unset($req['__coord']);
+                }
                 $_REQUEST = $req;
                 $this->render($page);
                 $n = count($this->scp->calls);
@@ -85,11 +92,20 @@ class CosteLlamadasTest extends TestCase
             'single_stic_pasar_lista_grupos' => array(array(), 8),
             'single_stic_pasar_lista_marcar' => array(array('grupo' => 'g1'), 10),
             'single_stic_pasar_lista_resumen' => array(array(), 9),
+            // Monitores: el tope importa MÁS que en las demás. Su coste no
+            // puede depender de cuántos grupos haya en el CRM (hay ~150, casi
+            // todos históricos), y eso es justo lo que pasaba: el respaldo por
+            // grupo se disparaba en cada grupo vacío.
+            'single_stic_pasar_lista_monitores' => array(array('__coord' => 'COM'), 11),
         );
 
         foreach ($topes as $page => $spec) {
             list($req, $tope) = $spec;
             $this->setUp();
+            if (isset($req['__coord'])) {
+                $this->scp->coordEtapa = $req['__coord'];
+                unset($req['__coord']);
+            }
             $_REQUEST = $req;
             $this->render($page);
             $n = count($this->scp->calls);

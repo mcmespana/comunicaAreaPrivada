@@ -14,28 +14,62 @@ entra** porque el calentado nocturno no está configurado. Se ataca en este
 orden: lo gratis (config), lo estructural (paralelizar), lo fino (caché), y
 todo con medición antes/después.
 
-> ## Estado al 27/08/2026
+> ## Estado al 27/08/2026 (tarde) — fases 0 a 3 HECHAS
 >
-> - **Fase 0 (medir): hecha.** Cada petición cuenta llamadas y milisegundos; las
->   que pasan de 3 s dejan una línea en el `error_log` con el desglose, y
->   `?pl_diag=1` lo enseña por pantalla. Falta **la foto real de producción**:
->   sin esos números no se empieza la fase 2.
+> **El hallazgo gordo no era la latencia: era un 1+N escondido.**
+> `sticpa_pl_group_people()` caía a su respaldo por grupo cuando ESE grupo salía
+> vacío, y la pantalla de monitores recorre todos los grupos del alcance: con
+> ~150 grupos en el CRM, casi todos históricos y vacíos, eran decenas de
+> llamadas para pintar doce monitores. Por eso monitores iba «tremendamente
+> lento». La condición correcta es «el mapa de relaciones no sirve», no «este
+> grupo está vacío», y `sticpa_pl_monitors_of()` ahora recorre el mapa una sola
+> vez en vez de preguntar grupo a grupo.
+>
+> **Fase 2 (`curl_multi`): hecha, y sin duplicar ninguna lista de campos.**
+> `SugarRestApiCall::collectRequests()` ejecuta los cargadores en modo
+> recolecta —no llaman a nadie, solo apuntan qué consulta harían, y los que ya
+> están en caché no apuntan nada—, `callMany()` las lanza todas a la vez con
+> `curl_multi` (concurrencia 4, conexiones compartidas con `curl_share`), y en
+> la pasada de verdad cada cargador encuentra su respuesta ya traída.
+> `sticpa_pl_prime($objSCP, fn)` es la puerta de entrada, una por tanda.
+>
+> Viajes de ida y vuelta por pantalla, que es lo que se paga:
+>
+> | Pantalla | Consultas | Antes (en fila) | Ahora |
+> |---|---|---|---|
+> | Portada | 7 | 7 | **3** |
+> | Árbol | 6 | 6 | **2** |
+> | Marcar | 8 | 8 | **4** |
+> | Resumen | 7 | 7 | **3** |
+> | Monitores | 9 | 9 (y decenas con el 1+N) | **4** |
+>
+> Con 400 ms por viaje: marcar en frío pasa de ~3,2 s a ~1,6 s, y el árbol de
+> ~2,4 s a ~0,8 s.
+>
+> Redes de seguridad: si el hosting no tiene `curl_multi`, si la recolecta
+> encuentra menos de dos consultas o si el filtro `sticpa_pl_paralelo` está en
+> false, todo sigue funcionando en serie. Una respuesta que no llegue en la
+> tanda la pide el cargador como siempre.
+>
+> ⚠️ **Regla para quien añada un cargador a una tanda:** su caché tiene que
+> escribir por `sticpa_pl_cache_put()` (respeta la recolecta) y su respaldo
+> tiene que llevar `&& !sticpa_pl_collecting()`. Si no, la pasada de recolecta
+> —que devuelve vacío a propósito— cachea ese vacío o dispara consultas que no
+> hacen falta. Ya no queda ningún `set_transient()` directo en el archivo.
+>
+> - **Fase 0 (medir): hecha.** Contador y cronómetro por petición, aviso en el
+>   `error_log` por encima de 3 s, y `?pl_diag=1` con el desglose.
 > - **Fase 1 (calentado nocturno): hecha** — los tres secretos están puestos.
-> - **Fase 3 (caché): hecha a medias.** TTL de estructura a 24 h y, sobre todo,
->   **los resultados vacíos ya no se cachean 12 horas** (`sticpa_pl_cache_put`,
->   `sticpa_pl_ttl_empty`): era la causa de que un hipo del CRM dejara un grupo
->   «sin participantes» media jornada. El *write-through* tras guardar se
->   DESCARTA a propósito: chocaría con la relectura de verificación del plan 033,
->   que vale más que la llamada que ahorraría.
-> - **Fase 2 (`curl_multi`): sin empezar**, y a propósito. Con el calentado
->   nocturno puesto, los arranques en frío son raros; primero los números.
+> - **Fase 3 (caché): hecha.** TTL de estructura a 24 h y los vacíos con TTL
+>   corto. El *write-through* tras guardar se DESCARTA a propósito: chocaría con
+>   la relectura de verificación del plan 033, que vale más que la llamada que
+>   ahorraría.
+> - **Fase 4 (espejo en `wpdb`): sigue sin hacer falta.** Volver a medir en
+>   producción antes de plantearla.
 >
-> Coste medido por pantalla (modo normal, caché fría): portada 6, árbol 6,
-> marcar 8, resumen 7 — los topes de `CosteLlamadasTest` siguen valiendo.
-> En el modo degradado (cuando el CRM no devuelve enlaces ni campos planos) la
-> portada se va a **una llamada por persona**: es un respaldo, no el camino
-> normal, pero si el registro de peticiones lentas lo delata alguna vez, es ahí
-> donde hay que mirar.
+> `tests/CosteLlamadasTest.php` sigue fijando el TOTAL de consultas (monitores
+> entra ahora, con tope 11) y `PasarListaRenderTest` fija las TANDAS, que es lo
+> que de verdad se nota.
 
 ## Fase 0 — Medir (sin esto no se acepta nada de lo demás)
 

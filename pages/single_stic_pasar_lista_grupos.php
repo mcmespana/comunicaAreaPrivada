@@ -23,9 +23,26 @@ $pageSettings['fileName'] = basename(__FILE__, ".php");
 // lectura: si no, se pinta con la caché vieja y hay que pulsarlo dos veces.
 sticpa_pl_maybe_refresh($objSCP);
 
+// UNA TANDA en vez de cuatro viajes en fila. Lo que ya esté en caché no entra:
+// la recolecta pasa por los mismos cargadores y ellos miran su caché primero.
+sticpa_pl_prime($objSCP, function () use ($objSCP) {
+    sticpa_pl_groups($objSCP);
+    sticpa_pl_my_groups($objSCP);
+    sticpa_pl_all_relationships($objSCP);
+    sticpa_pl_etapa_events($objSCP);
+    sticpa_pl_all_listas($objSCP);
+});
+
 $groups = sticpa_pl_groups($objSCP);
 $myGroups = sticpa_pl_my_groups($objSCP);
 $events = sticpa_pl_etapa_events($objSCP);
+
+// TANDA 2: las sesiones de todas las etapas de golpe.
+sticpa_pl_prime($objSCP, function () use ($objSCP, $events) {
+    foreach ($events as $ev) {
+        sticpa_pl_event_sessions($objSCP, $ev['id']);
+    }
+});
 
 $wantSessions = !empty($_REQUEST['sesiones']);
 $groupId = isset($_REQUEST['grupo']) ? sticpa_pl_safe_id($_REQUEST['grupo']) : '';
@@ -265,6 +282,23 @@ if (!empty($lastMarks)) {
         . sticpa_pl_icon('skip') . '</span><span class="pl-legend-label">'
         . esc_html__('No hubo', 'sticpa') . '</span></span>';
     $html .= '</div>';
+}
+
+// Si hay grupos fuera de Pasar Lista por la casilla del CRM, se DICE. Un grupo
+// que existe y no aparece, sin explicación, se lee como que la pantalla está
+// mal — y alguien acaba buscando el fallo donde no está.
+$ocultos = sticpa_pl_grupos_ocultos($objSCP);
+if ($ocultos > 0) {
+    $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>' . esc_html(sprintf(
+        /* translators: %d: cuántos grupos no salen */
+        _n(
+            'Hay %d grupo más en el CRM que no está marcado para Pasar Lista.',
+            'Hay %d grupos más en el CRM que no están marcados para Pasar Lista.',
+            $ocultos,
+            'sticpa'
+        ),
+        $ocultos
+    )) . '</span></p>';
 }
 
 /* La línea de datos del artboard `Grupos`: monitores · curso · N participantes.

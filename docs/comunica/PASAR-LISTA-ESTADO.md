@@ -116,6 +116,39 @@ Ahora:
 > `LIS_listas` que hoy no existe**, y aquí no se inventan campos. Si hace falta,
 > se pide al CRM y se anota en `CAMPOS.md`.
 
+### ✅ La ficha ya encuentra a la familia y sus teléfonos (27/08/2026)
+
+Era el mismo tipo de trampa de §3.1, y llevaba a la ficha sin lo que más se
+busca un sábado: el teléfono de casa.
+
+- El código pedía el campo plano `stic_personal_environment_contacts_1contacts_idb`,
+  que **no existe**: los DOS lados de la relación acaban en `_ida` (verificado
+  con `get_module_fields`).
+- Y leía los datos del familiar **solo del enlace anidado**, que esta instancia
+  no puebla. Resultado: bloque de familia vacío en todas las fichas, sin un aviso.
+
+Ahora se leen los dos campos planos, se descarta el lado del propio
+participante, y los familiares se resuelven en **una sola consulta** para toda
+la familia (el teléfono está en `phone_mobile`; no llega por el enlace). El
+parentesco se traduce: el CRM lo guarda en inglés (`mother`) y debajo del nombre
+de la madre eso se leía raro.
+
+Detalle de campos, en [`PASAR-LISTA-CAMPOS-CRM.md`](PASAR-LISTA-CAMPOS-CRM.md).
+
+### 🟡 Falta crear una casilla en el CRM: `ajmcm_GRUPOS` → `ajmcm_pasar_lista_c`
+
+El código ya está puesto y desplegado, **y no hace nada hasta que exista el
+campo y haya al menos un grupo marcado**. Sirve para limpiar el árbol: en el CRM
+hay ~150 grupos y la mayoría son históricos.
+
+La regla de seguridad: **mientras no haya ninguna casilla marcada, no se esconde
+nada**. Así se puede crear el campo y marcar los grupos poco a poco sin que
+Pasar Lista se quede vacío ni un minuto. Y cuando el filtro actúa, el árbol dice
+cuántos grupos quedan fuera.
+
+Ficha completa del campo (etiqueta, tipo, interruptores para apagarlo) en
+[`PASAR-LISTA-CAMPOS-CRM.md`](PASAR-LISTA-CAMPOS-CRM.md) §2.
+
 ### 🟡 Las vigencias caducan el 31/08/2026 (anotado, no bloquea)
 
 Verificado en el CRM el 27/08/2026: **tanto la relación de participante de
@@ -341,7 +374,7 @@ de colección nueva tiene que usarla**.
 
 ```bash
 composer install
-vendor/bin/phpunit                                        # 259 tests
+vendor/bin/phpunit                                        # 272 tests
 node --test .github/scripts/guardian/guardian.test.mjs    # 36 tests
 ```
 
