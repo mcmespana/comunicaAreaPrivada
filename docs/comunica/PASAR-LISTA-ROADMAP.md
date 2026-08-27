@@ -11,6 +11,11 @@ hace ahora**, para que no se pierda ni contamine el diseño de la fase 1.
 
 ## Dónde estamos
 
+> **El estado al día vive en
+> [`PASAR-LISTA-ESTADO.md`](PASAR-LISTA-ESTADO.md)**: qué funciona, qué está
+> roto y los IDs verificados del piloto. Lo de aquí abajo es el montaje inicial
+> del CRM, que es otra cosa y no se actualiza cada semana.
+
 **Piloto: MCM Castellón, curso 2025-2026.** Ya montado en el CRM:
 
 | Qué | Detalle |

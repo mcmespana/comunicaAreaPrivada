@@ -122,6 +122,11 @@ próxima.
 
 ## 5. Caché y refresco
 
+> **Esto es el DISEÑO.** Cómo está implementado de verdad —las dos familias, el
+> contador de generación, el calentado nocturno y los topes de llamadas— está en
+> [`PASAR-LISTA-ESTADO.md`](PASAR-LISTA-ESTADO.md) §5 y en
+> [`GUARDIAN-NOCTURNO.md`](GUARDIAN-NOCTURNO.md) §5.
+
 Esto importa porque el CRM va lento y porque se entra desde MCM App, que es una
 webview del sitio web: cada apertura es una carga de página real.
 
