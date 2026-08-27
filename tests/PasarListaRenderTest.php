@@ -169,10 +169,107 @@ class FakeSCP
     /** Simula una instancia que NO devuelve los enlaces anidados. */
     public $sinEnlaces = false;
 
+    /* ---- Recolecta y tanda paralela: el MISMO contrato que el transporte ----
+     *
+     * El doble tiene que modelar esto o los tests mienten: sin ello, la pasada
+     * de recolecta ejecutaría las consultas de verdad y cada pantalla contaría
+     * el doble de llamadas. Y al contrario: si el doble se limitara a devolver
+     * los datos ignorando la recolecta, un `prime()` roto pasaría por bueno.
+     *
+     * Modelo, igual que en producción: recolectar NO llama a nadie; la tanda
+     * ES la llamada (cuenta N); y después cada cargador encuentra su respuesta
+     * ya traída y no cuenta ninguna.
+     */
+    /**
+     * Qué grupos llevan marcada la casilla de «entra en Pasar Lista».
+     * null = el campo no está relleno en ninguno, que es como está el CRM el
+     * día que se crea: ahí el filtro NO debe esconder nada.
+     */
+    public $gruposActivos = null;
+
+    /** Cuántas peticiones ha llevado cada tanda paralela. */
+    public $batches = array();
+
+    private $recolectando = false;
+    private $recolectado = array();
+    private $traido = array();
+
+    public function collectRequests(callable $fn)
+    {
+        $this->recolectando = true;
+        $this->recolectado = array();
+        try {
+            // Se enciende TAMBIÉN el interruptor del transporte real, que es el
+            // que leen `sticpa_pl_collecting()`, la caché y los respaldos. Sin
+            // esto, la pasada de recolecta cachearía los vacíos que devuelve a
+            // propósito y la pantalla se quedaría sin datos — que es
+            // exactamente el fallo que este doble tiene que poder detectar.
+            SugarRestApiCall::collect(function () use ($fn) { $fn(); });
+        } finally {
+            $this->recolectando = false;
+        }
+        $out = $this->recolectado;
+        $this->recolectado = array();
+        return array_values($out);
+    }
+
+    public function callMany($requests)
+    {
+        $this->batches[] = count((array) $requests);
+        $listas = 0;
+        foreach ((array) $requests as $req) {
+            // La tanda SÍ llama: se apunta la llamada, como en producción.
+            $this->calls[] = $req['label'];
+            $this->traido[$req['sig']] = call_user_func($req['producer']);
+            $listas++;
+        }
+        return $listas;
+    }
+
+    /**
+     * El paso por el que entran las dos lecturas: recolecta, memo o llamada.
+     */
+    private function servir($sig, $label, callable $producer)
+    {
+        if ($this->recolectando) {
+            if (!isset($this->recolectado[$sig])) {
+                $this->recolectado[$sig] = array(
+                    'sig' => $sig, 'label' => $label, 'producer' => $producer,
+                );
+            }
+            return null;
+        }
+        if (array_key_exists($sig, $this->traido)) {
+            $datos = $this->traido[$sig];
+            unset($this->traido[$sig]);
+            return $datos;   // ya la trajo la tanda: no cuenta como llamada
+        }
+        $this->calls[] = $label;
+        return call_user_func($producer);
+    }
+
     public function getRecordsModule($module, $query = '', $fields = array(), $rel = null)
     {
-        $this->calls[] = 'getRecordsModule:' . $module;
+        $self = $this;
+        return $this->servir(
+            'gr|' . md5(serialize(array($module, $query, $fields, $rel))),
+            'getRecordsModule:' . $module,
+            function () use ($self, $module, $query, $fields, $rel) {
+                return $self->datosDeModulo($module, $query, $fields, $rel);
+            }
+        );
+    }
+
+    public function datosDeModulo($module, $query = '', $fields = array(), $rel = null)
+    {
         if ($module === 'ajmcm_GRUPOS') {
+            $marcar = function ($fila) {
+                if (!is_array($this->gruposActivos)) {
+                    return $fila;   // campo vacío en todos, como recién creado
+                }
+                $fila['ajmcm_pasar_lista_c'] = in_array($fila['id'], $this->gruposActivos, true) ? '1' : '0';
+                return $fila;
+            };
             // `cursos_c` lleva el CURSO ESCOLAR, que es lo que hay en el CRM de
             // verdad: "1º ESO", "Adultos", "6º Primària"… NO el año académico.
             // Este doble decía "2025-2026" y por eso los tests daban por bueno
@@ -182,26 +279,26 @@ class FakeSCP
             // número se pinta. g2 lo tiene VIEJO a propósito: ahí la pantalla
             // tiene que callarse el número y enseñar el resto de la línea.
             return array(
-                $this->nvl(array(
+                $this->nvl($marcar(array(
                     'id' => 'g1', 'name' => 'Los Peques', 'code' => 'C1', 'level' => 'COM',
                     'cursos_c' => '1º ESO',
                     'ajmcm_n_participantes_c' => '11', 'ajmcm_n_monitores_c' => '2',
                     'ajmcm_monitores_c' => 'David Soler', 'ajmcm_recuento_al_c' => '2025-11-15 01:30:00',
-                )),
-                $this->nvl(array(
+                ))),
+                $this->nvl($marcar(array(
                     'id' => 'g2', 'name' => 'C2', 'code' => 'C2', 'level' => 'COM',
                     'cursos_c' => '2º ESO',
                     'ajmcm_n_participantes_c' => '10', 'ajmcm_n_monitores_c' => '1',
                     'ajmcm_monitores_c' => 'Mercedes', 'ajmcm_recuento_al_c' => '2025-09-01 01:30:00',
-                )),
-                $this->nvl(array(
+                ))),
+                $this->nvl($marcar(array(
                     'id' => 'g3', 'name' => 'Los Micos', 'code' => 'M1', 'level' => 'MIC',
                     'cursos_c' => '5º Primaria',
                     'ajmcm_n_participantes_c' => '9', 'ajmcm_n_monitores_c' => '1',
                     'ajmcm_monitores_c' => 'Jaime', 'ajmcm_recuento_al_c' => '2025-11-14 23:40:00',
-                )),
+                ))),
                 // Sin curso escolar y sin recuento: pasa igual, como en el CRM.
-                $this->nvl(array('id' => 'g9', 'name' => 'Ruah', 'code' => '', 'level' => 'LC')),
+                $this->nvl($marcar(array('id' => 'g9', 'name' => 'Ruah', 'code' => '', 'level' => 'LC'))),
             );
         }
         if ($module === 'stic_Contacts_Relationships') {
@@ -329,6 +426,23 @@ class FakeSCP
             }
             return $this->entryListShape($rows, $rel);
         }
+        if ($module === 'Contacts') {
+            // La consulta de la familia: UNA para todos los familiares.
+            $fam = array(
+                'fam1' => array(
+                    'id' => 'fam1', 'first_name' => 'Solete', 'last_name' => 'Messeguer',
+                    'name' => 'Solete Messeguer', 'phone_mobile' => '600 333 444',
+                    'email1' => 'sol@example.com',
+                ),
+            );
+            $out = array();
+            foreach ($fam as $id => $datos) {
+                if (strpos((string) $query, "'" . $id . "'") !== false) {
+                    $out[] = $this->nvl($datos);
+                }
+            }
+            return $out;
+        }
         if ($module === 'stic_Events') {
             return array(
                 // Un solo evento para MIC y COM, y el nombre NO dice la etapa:
@@ -351,8 +465,19 @@ class FakeSCP
 
     public function getRelatedElementsForLoggedUser($p)
     {
+        $self = $this;
+        return $this->servir(
+            'rel|' . md5(serialize($p)),
+            $p['module_name'] . ':' . $p['link_field_name'],
+            function () use ($self, $p) {
+                return $self->datosDeRelacion($p);
+            }
+        );
+    }
+
+    public function datosDeRelacion($p)
+    {
         $key = $p['module_name'] . ':' . $p['link_field_name'];
-        $this->calls[] = $key;
 
         switch ($key) {
             // Personas del grupo: participantes y monitor, en UNA llamada.
@@ -492,16 +617,28 @@ class FakeSCP
                     $this->nvl(array('id' => 'a3', 'status' => 'partial'), array(array('id' => 's3'))),
                 ));
 
-            // Familia: la relación puede estar creada en cualquiera de los dos
-            // sentidos, así que el doble solo contesta por uno de los enlaces.
+            // Familia, CON LA FORMA REAL (verificada en el CRM el 27/08/2026):
+            //
+            //  - Los dos lados de la relación son campos planos y los DOS
+            //    acaban en `_ida`. El código pedía `..._1contacts_idb`, que no
+            //    existe, y por eso la familia salía vacía en todas las fichas.
+            //  - El enlace anidado NO trae los datos del contacto: ni nombre
+            //    completo ni teléfono. Hay que leer el contacto aparte.
+            //  - La relación solo contesta por el primer enlace; desde
+            //    Contacts, el `_1` devuelve cero.
+            //
+            // Este doble tiene que mentir lo mismo que el CRM o el arreglo no
+            // se puede probar.
             case 'Contacts:stic_personal_environment_contacts':
-                return $this->apiShape(array($this->nvl(
-                    array('id' => 'pe1', 'relationship_type' => 'madre', 'reference_contact' => '1', 'authorized_signer' => '1', 'end_date' => ''),
-                    array(
-                        array('id' => 'c1'),                                    // el propio participante: se descarta
-                        array('id' => 'fam1', 'first_name' => 'Solete', 'last_name' => 'Messeguer', 'phone_mobile' => '600 333 444'),
-                    )
-                )));
+                return $this->apiShape(array($this->nvl(array(
+                    'id' => 'pe1',
+                    'relationship_type' => 'mother',
+                    'reference_contact' => '1',
+                    'authorized_signer' => '1',
+                    'end_date' => '',
+                    'stic_personal_environment_contactscontacts_ida' => 'c1',
+                    'stic_personal_environment_contacts_1contacts_ida' => 'fam1',
+                ))));
 
             // Seguimientos de una persona (stic_FollowUps).
             // Avisos de comportamiento. Módulo verificado contra el CRM con
@@ -1947,6 +2084,206 @@ final class PasarListaRenderTest extends TestCase
             return $w['module'] === 'stic_Attendances';
         }));
         $this->assertSame('no_unjustified', $writes[0]['data']['status']);
+    }
+
+    // ---- La casilla de «este grupo entra en Pasar Lista» -----------------
+
+    /**
+     * LA REGLA DE SEGURIDAD. El día que se cree el campo en el CRM estará vacío
+     * en los ~150 grupos: si el filtro actuara, Pasar Lista se quedaría SIN UN
+     * SOLO GRUPO y parecería que se ha roto todo.
+     */
+    public function test_sin_ninguna_casilla_marcada_no_se_esconde_nada()
+    {
+        $this->scp->gruposActivos = null;   // el campo, vacío en todos
+        $groups = sticpa_pl_groups($this->scp);
+
+        $this->assertCount(4, $groups);
+        $this->assertSame(0, sticpa_pl_grupos_ocultos($this->scp));
+    }
+
+    /** Y en cuanto alguien marca, salen solo los marcados. */
+    public function test_con_casillas_marcadas_solo_salen_esos()
+    {
+        $this->scp->gruposActivos = array('g1', 'g3');
+        $groups = sticpa_pl_groups($this->scp);
+
+        $this->assertSame(array('g1', 'g3'), array_keys($groups));
+        // Y se sabe cuántos quedan fuera, para poder decirlo.
+        $this->assertSame(2, sticpa_pl_grupos_ocultos($this->scp));
+    }
+
+    /** El árbol lo dice, en vez de dejar que alguien busque un grupo que no ve. */
+    public function test_el_arbol_avisa_de_los_grupos_no_marcados()
+    {
+        $this->scp->gruposActivos = array('g1');
+        $html = $this->render('single_stic_pasar_lista_grupos');
+
+        $this->assertStringContainsString('no están marcados para Pasar Lista', $html);
+        $this->assertStringContainsString('3 grupos', $html);
+    }
+
+    /**
+     * Una casilla de SuiteCRM llega de muchas formas según por dónde salga.
+     * Tratar solo `'1'` como sí escondería grupos que están marcados.
+     */
+    public function test_la_casilla_se_entiende_en_todas_sus_formas()
+    {
+        foreach (array('1', 'on', 'true', 'yes', 'checked', 'On', 'TRUE') as $si) {
+            $this->assertTrue(sticpa_pl_bool_crm($si), $si . ' es sí');
+        }
+        foreach (array('', '0', 'off', 'false', 'no', null) as $no) {
+            $this->assertFalse(sticpa_pl_bool_crm($no), var_export($no, true) . ' es no');
+        }
+    }
+
+    /** Y se puede apagar del todo mientras el campo no exista en el CRM. */
+    public function test_el_campo_se_puede_apagar_con_un_filtro()
+    {
+        $GLOBALS['__stic_filters']['sticpa_pl_has_grupo_activo'] = false;
+        $this->scp->gruposActivos = array('g1');
+        $groups = sticpa_pl_groups($this->scp);
+
+        $this->assertCount(4, $groups, 'apagado, no filtra nada');
+    }
+
+    /**
+     * LA FAMILIA, POR LOS CAMPOS PLANOS. Sin esto la ficha no sirve para nada
+     * un sábado: sin familia no hay teléfonos, y el teléfono es lo que se busca
+     * cuando un chaval no ha venido.
+     *
+     * El código pedía `stic_personal_environment_contacts_1contacts_idb`, que
+     * NO EXISTE (los dos lados acaban en `_ida`), y leía los datos solo del
+     * enlace anidado, que esta instancia no puebla. Resultado: bloque de
+     * familia vacío en TODAS las fichas, sin un aviso.
+     */
+    public function test_la_familia_sale_por_los_campos_planos()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringContainsString('Solete Messeguer', $html, 'la familia tiene que salir');
+        $this->assertStringContainsString('600 333 444', $html, 'y con su teléfono');
+        // El parentesco, traducido: el CRM lo guarda en inglés.
+        $this->assertStringContainsString('Madre', $html);
+        $this->assertStringNotContainsString('mother', $html);
+    }
+
+    /** Y los familiares se leen en UNA consulta, no una por persona. */
+    public function test_la_familia_se_lee_en_una_sola_consulta()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $this->render('single_stic_pasar_lista_ficha');
+
+        $contactos = array_filter($this->scp->calls, function ($c) {
+            return $c === 'getRecordsModule:Contacts';
+        });
+        $this->assertLessThanOrEqual(1, count($contactos));
+    }
+
+    /**
+     * LO QUE DE VERDAD SE PAGA SON LOS VIAJES DE IDA Y VUELTA, no las consultas.
+     *
+     * Ocho consultas en fila a 400 ms son más de tres segundos de espera pura.
+     * Las mismas ocho en dos tandas son menos de uno. `CosteLlamadasTest` cuenta
+     * consultas —que también importan— y este test cuenta TANDAS, que es lo que
+     * nota un monitor el sábado.
+     */
+    public function test_marcar_agrupa_sus_consultas_en_dos_tandas()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertCount(2, $this->scp->batches, 'dos tandas: lo independiente y lo que depende del evento');
+        $this->assertSame(4, $this->scp->batches[0], 'grupos, relaciones, eventos y listas van juntos');
+        $this->assertSame(2, $this->scp->batches[1], 'sesiones e inscripciones van juntas');
+
+        // Y el total de consultas no ha subido por paralelizar.
+        $this->assertLessThanOrEqual(10, count($this->scp->calls));
+    }
+
+    /** Lo mismo en la pantalla de monitores, que era la más lenta. */
+    public function test_monitores_agrupa_sus_consultas_en_tandas()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $this->render('single_stic_pasar_lista_monitores');
+
+        $this->assertNotEmpty($this->scp->batches);
+        $this->assertLessThanOrEqual(2, count($this->scp->batches));
+        // Al menos cinco de sus consultas viajan agrupadas.
+        $this->assertGreaterThanOrEqual(5, array_sum($this->scp->batches));
+    }
+
+    /**
+     * Y con la paralelización apagada todo sigue funcionando: es la red de
+     * seguridad para un hosting sin `curl_multi`.
+     */
+    public function test_sin_paralelizar_la_pantalla_sigue_pintando()
+    {
+        $GLOBALS['__stic_filters']['sticpa_pl_paralelo'] = false;
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertSame(array(), $this->scp->batches, 'ni una tanda');
+        $this->assertStringContainsString('data-pl-marcar', $html);
+        $this->assertStringContainsString('Solete', $html);
+    }
+
+    /**
+     * EL 1+N QUE HACÍA ETERNA LA PANTALLA DE MONITORES.
+     *
+     * `sticpa_pl_group_people()` caía al respaldo por grupo cuando ESE grupo
+     * salía vacío, y coordinación recorre todos los grupos de su alcance: con
+     * ~150 grupos en el CRM (casi todos históricos y vacíos) eran decenas de
+     * llamadas para pintar doce monitores.
+     *
+     * La condición correcta es «el mapa de relaciones no sirve», no «este grupo
+     * está vacío». Este test lo fija: con el mapa bueno, NO se pregunta por
+     * ningún grupo, aunque haya grupos vacíos en el alcance (g2 lo está).
+     */
+    public function test_monitores_no_pregunta_grupo_a_grupo()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $this->render('single_stic_pasar_lista_monitores');
+
+        $porGrupo = array_filter($this->scp->calls, function ($c) {
+            return $c === 'ajmcm_GRUPOS:ajmcm_grupos_stic_contacts_relationships';
+        });
+        $this->assertSame(array(), array_values($porGrupo), 'ni una consulta por grupo');
+        // Y ninguna llamada repetida: todas son de colección.
+        $this->assertSame(
+            array(),
+            array_filter(array_count_values($this->scp->calls), function ($n) { return $n > 1; }),
+            'ninguna consulta se repite: sería un 1+N'
+        );
+    }
+
+    /** Y un grupo vacío tampoco provoca una consulta propia. */
+    public function test_un_grupo_vacio_no_provoca_una_consulta()
+    {
+        // g2 existe y no tiene relaciones en el doble.
+        $antes = count($this->scp->calls);
+        $people = sticpa_pl_group_people($this->scp, 'g2');
+        $this->assertSame(array(), $people['participants']);
+        $this->assertSame(array(), $people['monitors']);
+
+        $nuevas = array_slice($this->scp->calls, $antes);
+        // La única llamada permitida es la del mapa de la delegación, que sirve
+        // para TODOS los grupos.
+        $this->assertNotContains('ajmcm_GRUPOS:ajmcm_grupos_stic_contacts_relationships', $nuevas);
+    }
+
+    /**
+     * Pero si el mapa NO sirve (la instancia no devuelve enlaces ni campos
+     * planos), el respaldo tiene que seguir saltando: sin él un monitor se
+     * queda sin poder pasar lista un sábado.
+     */
+    public function test_si_el_mapa_no_sirve_el_respaldo_sigue_saltando()
+    {
+        $this->scp->sinEnlaces = true;
+        $people = sticpa_pl_group_people($this->scp, 'g1');
+        $this->assertNotEmpty($people['participants'], 'el respaldo por grupo tiene que salvar la pantalla');
+        $this->assertContains('ajmcm_GRUPOS:ajmcm_grupos_stic_contacts_relationships', $this->scp->calls);
     }
 
     /**

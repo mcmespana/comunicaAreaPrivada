@@ -20,6 +20,45 @@ No hace falta ningún otro módulo nuevo. Todo lo demás son campos.
 
 ## 2. Lo que hay que crear
 
+### 🔨 `ajmcm_GRUPOS` → `ajmcm_pasar_lista_c`  ← **pedido el 27/08/2026**
+
+| | |
+|---|---|
+| **Módulo** | `ajmcm_GRUPOS` (Grupos MCM) |
+| **Etiqueta** | Entra en Pasar Lista |
+| **Tipo** | Casilla de verificación (`bool`) |
+| **Por defecto** | Desmarcada |
+| **Obligatorio** | No |
+
+**Para qué.** En el CRM hay ~150 grupos y la mayoría son históricos. Salían
+todos: en el árbol, en el buscador y en el alcance de coordinación. Esta casilla
+dice qué grupos están de verdad en el sistema, y limpia la pantalla sin borrar
+nada del CRM.
+
+**La regla de seguridad, que es lo importante.** El día que se cree el campo
+estará **vacío en los ~150 grupos**. Si el filtro actuara sin más, Pasar Lista
+se quedaría sin un solo grupo y parecería que se ha roto todo. Por eso:
+
+> **Si no hay NINGUNA casilla marcada en la delegación, no se esconde nada.**
+> El filtro se enciende solo cuando alguien empieza a marcar.
+
+Así se puede crear el campo con calma y marcar los grupos poco a poco: hasta que
+haya el primero marcado, todo sigue exactamente como ahora. Y desde el primero,
+solo salen los marcados — y el árbol dice cuántos quedan fuera, para que nadie
+busque un grupo que está ahí pero sin marcar.
+
+**Mientras no exista el campo**, si el CRM protestara por pedir una columna que
+no tiene, se apaga sin tocar código:
+
+```php
+add_filter('sticpa_pl_has_grupo_activo', '__return_false');
+```
+
+Y si se decide otro nombre, se ajusta con `sticpa_pl_grupo_activo_field`.
+
+**No hay que propagar nada a `comunicaFormularios`**: ningún formulario público
+escribe en este campo, es de gestión interna.
+
 ### 🔨 `ajmcm_GRUPOS` → `ajmcm_segmento_com_c`
 
 | | |
@@ -113,6 +152,37 @@ duplicados. Todo lo de abajo lo necesita «Pasar Lista» y **ya está en el CRM*
 | `level` | Etapa del grupo: `mic` · `com` · `lc` · `apoyo` |
 | `cursos_c` | Curso escolar, texto libre |
 | `ajmcm_grupos_accounts_*` | Delegación |
+| `ajmcm_pasar_lista_c` | **Casilla: este grupo entra en Pasar Lista.** Ver §2 — mientras no haya ninguna marcada, no filtra |
+
+### Entorno personal / familia (`stic_Personal_Environment`)
+
+Verificado contra el CRM el **27/08/2026**, y aquí estaba un bug que dejaba la
+ficha sin teléfonos:
+
+| Campo | Qué es |
+|---|---|
+| `stic_personal_environment_contactscontacts_ida` | Un lado de la relación (en el piloto, **el participante**) |
+| `stic_personal_environment_contacts_1contacts_ida` | El otro lado (**el familiar**) |
+| `relationship_type` | Parentesco. **Las claves están en INGLÉS**: `mother` verificado. Obligatorio |
+| `reference_contact`, `authorized_signer` | Casillas |
+| `end_date` | Si está pasada, la relación ya no cuenta |
+
+⚠️ **Los DOS lados acaban en `_ida`.** No hay ningún `_idb`. El plugin pedía
+`stic_personal_environment_contacts_1contacts_idb` —que no existe— y leía los
+datos del familiar SOLO del enlace anidado, que esta instancia no puebla: el
+bloque de la familia salía vacío en todas las fichas sin decir nada. Arreglado
+el 27/08/2026.
+
+⚠️ **El enlace anidado NO trae los datos del contacto** (ni nombre completo ni
+teléfono), solo los campos `_name`. Para el teléfono hay que leer el contacto
+aparte — el plugin lo hace en **una sola consulta para toda la familia**.
+
+El teléfono del familiar está en **`phone_mobile`** (verificado). `phone_home`,
+`phone_work` y `phone_other` venían vacíos en el caso mirado.
+
+Desde `Contacts`, la relación solo contesta por el enlace
+`stic_personal_environment_contacts`; el `_1` devuelve cero. El plugin pregunta
+por los dos porque puede estar creada en cualquier sentido.
 
 ### Relaciones con Personas (`stic_Contacts_Relationships`)
 

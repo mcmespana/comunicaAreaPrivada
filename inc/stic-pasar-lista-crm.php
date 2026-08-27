@@ -228,6 +228,59 @@ function sticpa_pl_ttl_state()
 }
 
 /**
+ * ¿Estamos recolectando peticiones para lanzarlas en paralelo?
+ *
+ * Mientras se recolecta, los cargadores se ejecutan SIN CRM (ver
+ * `SugarRestApiCall::collect()`): salen vacíos a propósito, así que ni se
+ * cachea lo que devuelven ni se disparan sus respaldos.
+ */
+function sticpa_pl_collecting()
+{
+    return class_exists('SugarRestApiCall') && SugarRestApiCall::isCollecting();
+}
+
+/**
+ * UNA TANDA: ejecuta los cargadores en paralelo en vez de en fila.
+ *
+ * Se le pasa una función que llama a los cargadores que hacen falta. Se corre
+ * dos veces: la primera en modo recolecta (no toca el CRM, solo apunta qué
+ * consultas harían falta — las que ya están en caché no apuntan nada), y con
+ * esa lista se lanza UNA tanda paralela. Después, quien llame ejecuta los
+ * cargadores de verdad y cada uno encuentra su respuesta ya traída.
+ *
+ * Por qué así y no con una lista de consultas escrita a mano: los `fields` de
+ * cada consulta viven en su cargador y ahí se quedan. Una segunda copia se
+ * desincronizaría — y una consulta que pide campos distintos no acierta en el
+ * memo, así que se pagaría DOS veces sin que nadie se enterara.
+ *
+ * Si el hosting no tiene `curl_multi`, o la recolecta no encuentra al menos dos
+ * consultas, esto no hace nada y todo sigue funcionando en serie.
+ *
+ * @return int cuántas respuestas se han dejado listas.
+ */
+function sticpa_pl_prime($objSCP, callable $cargadores)
+{
+    // Se le pregunta AL CLIENTE, no a la clase: quien no sepa recolectar sigue
+    // funcionando en serie sin enterarse.
+    if (!is_object($objSCP)
+        || !method_exists($objSCP, 'collectRequests')
+        || !method_exists($objSCP, 'callMany')) {
+        return 0;
+    }
+    if (class_exists('SugarRestApiCall') && !SugarRestApiCall::supportsMulti()) {
+        return 0;
+    }
+    if (!apply_filters('sticpa_pl_paralelo', true)) {
+        return 0;
+    }
+    $peticiones = $objSCP->collectRequests($cargadores);
+    if (count($peticiones) < 2) {
+        return 0;   // una sola consulta no gana nada por ir «en paralelo»
+    }
+    return (int) $objSCP->callMany($peticiones);
+}
+
+/**
  * TTL de un resultado VACÍO. Corto, y por una razón concreta.
  *
  * Una colección vacía puede significar dos cosas muy distintas: «no hay nada»
@@ -257,6 +310,11 @@ function sticpa_pl_cache_put($key, $value, $ttl)
 {
     $ttl = (int) $ttl;
     if ($ttl <= 0) {
+        return;
+    }
+    // Durante la recolecta los cargadores corren sin CRM y salen vacíos:
+    // guardar eso dejaría la caché envenenada con vacíos que no son datos.
+    if (sticpa_pl_collecting()) {
         return;
     }
     if (is_array($value) && empty($value)) {
@@ -369,6 +427,12 @@ function sticpa_pl_groups($objSCP)
     if (sticpa_pl_has_segmento()) {
         $fields[] = 'ajmcm_segmento_com_c';
     }
+    // La casilla de «entra en Pasar Lista». Va en la MISMA consulta: no cuesta
+    // una llamada, solo una columna más.
+    $campoActivo = sticpa_pl_has_grupo_activo() ? sticpa_pl_grupo_activo_field() : '';
+    if ($campoActivo !== '') {
+        $fields[] = $campoActivo;
+    }
     $rows = $objSCP->getRecordsModule('ajmcm_GRUPOS', $query, $fields);
 
     $groups = array();
@@ -402,6 +466,8 @@ function sticpa_pl_groups($objSCP)
                 'segmento' => isset($v->ajmcm_segmento_com_c->value)
                     ? trim((string) $v->ajmcm_segmento_com_c->value) : '',
                 'cursos' => $cursos,
+                'activo' => ($campoActivo !== '' && isset($v->$campoActivo))
+                    ? sticpa_pl_bool_crm($v->$campoActivo->value) : false,
                 // Recuento nocturno. Se guarda tal cual y quien lo pinte decide
                 // si se puede fiar (sticpa_pl_recuento_fresco): un numero viejo
                 // al lado del nombre de un grupo de menores es peor que un hueco.
@@ -424,8 +490,52 @@ function sticpa_pl_groups($objSCP)
     // las pantallas a la vez.
     uasort($groups, 'sticpa_pl_cmp_group');
 
+    // EL FILTRO DE «ESTE GRUPO ENTRA EN PASAR LISTA».
+    //
+    // En el CRM hay ~150 grupos y la mayoría son históricos: salían todos en el
+    // árbol, en el buscador y en el alcance de coordinación. La casilla del
+    // grupo decide, pero con una regla de seguridad importante:
+    //
+    //   **si NADIE ha marcado ninguna casilla todavía, no se esconde nada.**
+    //
+    // Sin esa regla, el día que se despliegue esto —con el campo recién creado
+    // y vacío— Pasar Lista se quedaría sin un solo grupo y parecería que se ha
+    // roto todo. Así, el filtro se enciende SOLO cuando alguien empieza a
+    // marcar, que es justo cuando se quiere.
+    //
+    // Se guarda también cuántos quedan fuera: la pantalla lo dice, para que
+    // nadie busque un grupo que está ahí pero sin marcar.
+    $marcados = array();
+    foreach ($groups as $id => $g) {
+        if (!empty($g['activo'])) {
+            $marcados[$id] = $g;
+        }
+    }
+    if (!empty($marcados)) {
+        $ocultos = count($groups) - count($marcados);
+        foreach ($marcados as $id => $g) {
+            $marcados[$id]['ocultos'] = $ocultos;
+        }
+        $groups = $marcados;
+    }
+
     sticpa_pl_cache_put($cacheKey, $groups, $ttl);
     return $groups;
+}
+
+/**
+ * Cuántos grupos de la delegación quedan fuera de Pasar Lista por la casilla.
+ *
+ * Cero significa dos cosas distintas y las dos se pintan igual de bien: o no
+ * hay ninguno sin marcar, o todavía no se ha marcado ninguno y el filtro no
+ * está actuando.
+ */
+function sticpa_pl_grupos_ocultos($objSCP)
+{
+    foreach (sticpa_pl_groups($objSCP) as $g) {
+        return isset($g['ocultos']) ? (int) $g['ocultos'] : 0;
+    }
+    return 0;
 }
 
 /**
@@ -643,7 +753,14 @@ function sticpa_pl_group_people($objSCP, $groupId)
     $out = array('participants' => array(), 'monitors' => array());
 
     // Camino normal: del mapa comun de la delegacion, sin una llamada propia.
+    //
+    // `$mapaSirve` se calcula AQUÍ, en el mismo recorrido, y es lo que decide
+    // si hace falta el respaldo. Ver el comentario largo de más abajo.
+    $mapaSirve = false;
     foreach (sticpa_pl_all_relationships($objSCP) as $rel) {
+        if ($rel['person']['id'] !== '') {
+            $mapaSirve = true;
+        }
         if ($rel['group_id'] !== $groupId || $rel['person']['id'] === '') {
             continue;
         }
@@ -652,12 +769,27 @@ function sticpa_pl_group_people($objSCP, $groupId)
         $out[$bucket][$rel['person']['id']] = $rel['person'];
     }
 
-    // RESPALDO. Si el mapa no ha sacado a nadie de este grupo, se pregunta por
-    // el grupo directamente. Cuesta 1+N llamadas —lo que hace el resto del
-    // plugin desde siempre— y por eso es el respaldo y no el camino; pero una
-    // lista vacia en un grupo con gente deja a un monitor sin poder pasar
-    // lista un sabado, y eso no se puede permitir por ahorrar llamadas.
-    if (empty($out['participants']) && empty($out['monitors'])) {
+    // RESPALDO, y OJO CON LA CONDICIÓN.
+    //
+    // Antes se disparaba cuando ESTE grupo salía vacío, y eso era un 1+N de los
+    // caros: la pantalla de monitores recorre TODOS los grupos del alcance y en
+    // el CRM hay ~150, la mayoría históricos y vacíos. Una llamada por cada uno.
+    // Es exactamente por lo que la lista de monitores tardaba una eternidad.
+    //
+    // Un grupo vacío en un mapa que SÍ trae gente no es un fallo: es un grupo
+    // vacío, y preguntar otra vez devuelve lo mismo. El respaldo solo tiene
+    // sentido cuando el mapa entero viene vacío, que es la señal de que la
+    // consulta de colección ha fallado.
+    // La condición es «el mapa no sirve», NO «este grupo está vacío»:
+    //
+    //   - Mapa con personas y este grupo vacío → el grupo está vacío de verdad,
+    //     y preguntar otra vez devuelve lo mismo. NO se pregunta.
+    //   - Mapa vacío, o con filas pero sin ninguna persona dentro (la trampa
+    //     §3.1: la instancia no devuelve ni el enlace anidado ni el campo
+    //     plano) → el mapa no sirve, y sin respaldo un monitor se queda sin
+    //     poder pasar lista un sábado.
+    if (empty($out['participants']) && empty($out['monitors']) && !$mapaSirve
+        && !sticpa_pl_collecting()) {
         $out = sticpa_pl_group_people_direct($objSCP, $groupId);
     }
 
@@ -1040,7 +1172,7 @@ function sticpa_pl_event_registrations($objSCP, $eventId)
     // RESPALDO. Si no ha salido ni un contacto, se piden las inscripciones de la
     // delegacion por get_entry_list con el enlace anidado —la via probada— y se
     // filtran por evento en PHP. Una llamada, cacheada.
-    if (empty($map)) {
+    if (empty($map) && !sticpa_pl_collecting()) {
         $map = sticpa_pl_event_registrations_direct($objSCP, $eventId);
     }
 
@@ -1247,7 +1379,7 @@ function sticpa_pl_session_attendances($objSCP, $sessionId, $regMap = array())
     // Sin esto el guardado CREABA una asistencia nueva en vez de actualizar la
     // que el CRM ya habia hecho con la inscripcion: dos asistencias de la misma
     // persona en la misma sesion, y la nueva sin fecha ni duracion.
-    if (empty($out)) {
+    if (empty($out) && !sticpa_pl_collecting()) {
         $out = sticpa_pl_session_attendances_direct($objSCP, $sessionId, $regMap);
     }
 
@@ -1440,9 +1572,9 @@ function sticpa_pl_group_streaks($objSCP, $sessions, $currentSessionId, $regMap 
         }
     }
 
-    if ($ttl > 0) {
-        set_transient($cacheKey, array('sig' => $sig, 'data' => $streaks), $ttl);
-    }
+    // Por `cache_put` y no por `set_transient` a pelo: es quien respeta la
+    // pasada de recolecta (si no, cachearía el vacío que devuelve a propósito).
+    sticpa_pl_cache_put($cacheKey, array('sig' => $sig, 'data' => $streaks), $ttl);
     return $streaks;
 }
 
@@ -2225,7 +2357,7 @@ function sticpa_pl_my_groups($objSCP)
     //
     // Sin esto la portada dice "no tienes ningun grupo asignado como monitor/a"
     // a un monitor con su relacion vigente, y el atajo del sabado desaparece.
-    if (empty($ids)) {
+    if (empty($ids) && !sticpa_pl_collecting()) {
         $ids = sticpa_pl_my_groups_direct($objSCP, $userId);
     }
 
@@ -2756,23 +2888,33 @@ function sticpa_pl_family($objSCP, $contactId)
         return array();
     }
 
-    $people = array();
-    $links = array('stic_personal_environment_contacts', 'stic_personal_environment_contacts_1');
+    // LOS DOS CAMPOS PLANOS ACABAN EN `_ida`, Y ESO ERA EL BUG.
+    //
+    // El código pedía `stic_personal_environment_contacts_1contacts_idb`, que
+    // NO EXISTE en el módulo (verificado con `get_module_fields` el 27/08/2026):
+    // cada lado de la relación tiene su propio `..._ida`. Y como los datos del
+    // familiar se leían SOLO del enlace anidado —que esta instancia no puebla
+    // (trampa §3.1)— el bloque de la familia salía vacío en TODAS las fichas,
+    // sin decir nada. Sin familia no hay teléfonos, y sin teléfonos la ficha no
+    // sirve para lo que se abre un sábado.
+    $ladoParticipante = 'stic_personal_environment_contactscontacts_ida';
+    $ladoFamiliar = 'stic_personal_environment_contacts_1contacts_ida';
 
-    foreach ($links as $link) {
+    $vinculos = array();   // id de contacto => datos de la relación
+    // Se pregunta por los dos enlaces porque la relación puede estar creada en
+    // cualquiera de los dos sentidos. En el piloto solo contesta el primero.
+    foreach (array('stic_personal_environment_contacts', 'stic_personal_environment_contacts_1') as $link) {
         $rows = $objSCP->getRelatedElementsForLoggedUser(array(
             'module_name' => 'Contacts',
             'module_id' => $contactId,
             'link_field_name' => $link,
-            // Los campos planos de los DOS enlaces, ademas de los anidados: la
-            // relacion familiar puede estar creada en cualquiera de los dos
-            // sentidos. Sin esto el bloque de telefonos de la familia salia
-            // VACIO en todas las fichas, sin decir nada.
             'related_fields' => array(
                 'id', 'relationship_type', 'reference_contact', 'authorized_signer', 'end_date',
-                'stic_personal_environment_contactscontacts_ida',
-                'stic_personal_environment_contacts_1contacts_idb',
+                $ladoParticipante,
+                $ladoFamiliar,
             ),
+            // Se piden igual: si algún día la instancia los puebla, sale gratis
+            // el nombre y el teléfono sin la segunda consulta.
             'related_module_link_name_to_fields_array' => array(
                 array('name' => 'stic_personal_environment_contacts', 'value' => array('id', 'first_name', 'last_name', 'name', 'phone_mobile')),
                 array('name' => 'stic_personal_environment_contacts_1', 'value' => array('id', 'first_name', 'last_name', 'name', 'phone_mobile')),
@@ -2797,11 +2939,28 @@ function sticpa_pl_family($objSCP, $contactId)
                 }
             }
 
+            $rel = array(
+                'relationship' => isset($v->relationship_type->value) ? (string) $v->relationship_type->value : '',
+                'reference' => sticpa_pl_bool_crm(isset($v->reference_contact->value) ? $v->reference_contact->value : ''),
+                'signer' => sticpa_pl_bool_crm(isset($v->authorized_signer->value) ? $v->authorized_signer->value : ''),
+            );
+
+            // Camino bueno: los campos planos. Los DOS lados, y se descarta el
+            // del propio participante — el otro es el familiar.
+            foreach (array($ladoParticipante, $ladoFamiliar) as $campo) {
+                $id = isset($v->$campo->value) ? sticpa_pl_safe_id($v->$campo->value) : '';
+                if ($id === '' || $id === $contactId || isset($vinculos[$id])) {
+                    continue;
+                }
+                $vinculos[$id] = $rel;
+            }
+
+            // Y si el enlace anidado SÍ vino, se aprovecha lo que trae.
             foreach (sticpa_pl_link_records($row) as $rec) {
                 $lv = $rec['value'];
-                $id = (string) $lv->id->value;
-                if ($id === $contactId || isset($people[$id])) {
-                    continue;   // el propio participante, o ya lo tenemos
+                $id = isset($lv->id->value) ? sticpa_pl_safe_id($lv->id->value) : '';
+                if ($id === '' || $id === $contactId) {
+                    continue;
                 }
                 $first = isset($lv->first_name->value) ? trim((string) $lv->first_name->value) : '';
                 $last = isset($lv->last_name->value) ? trim((string) $lv->last_name->value) : '';
@@ -2809,26 +2968,142 @@ function sticpa_pl_family($objSCP, $contactId)
                 if ($full === '' && isset($lv->name->value)) {
                     $full = trim((string) $lv->name->value);
                 }
-                $people[$id] = array(
-                    'id' => $id,
-                    'name' => $full,
-                    'initials' => sticpa_pl_initials($first, $last, $full),
-                    'mobile' => isset($lv->phone_mobile->value) ? (string) $lv->phone_mobile->value : '',
-                    'relationship' => isset($v->relationship_type->value) ? (string) $v->relationship_type->value : '',
-                    'reference' => !empty($v->reference_contact->value) && $v->reference_contact->value !== '0',
-                    'signer' => !empty($v->authorized_signer->value) && $v->authorized_signer->value !== '0',
+                $vinculos[$id] = array_merge(
+                    isset($vinculos[$id]) ? $vinculos[$id] : $rel,
+                    array(
+                        'name' => $full,
+                        'first' => $first,
+                        'last' => $last,
+                        'mobile' => isset($lv->phone_mobile->value) ? (string) $lv->phone_mobile->value : '',
+                    )
                 );
             }
         }
     }
 
+    if (empty($vinculos)) {
+        return array();
+    }
+
+    // Los datos de los familiares, en UNA consulta para todos. El teléfono vive
+    // en `phone_mobile` (verificado en el CRM), y no llega por el enlace: hay
+    // que leer el contacto. Una llamada para toda la familia, nunca una por
+    // persona.
+    $faltan = array();
+    foreach ($vinculos as $id => $datos) {
+        if (!isset($datos['name']) || $datos['name'] === '' || !isset($datos['mobile'])) {
+            $faltan[] = $id;
+        }
+    }
+    if (!empty($faltan)) {
+        $lista = array();
+        foreach ($faltan as $id) {
+            $lista[] = "'" . sticpa_pl_safe_id($id) . "'";
+        }
+        $rows = $objSCP->getRecordsModule(
+            'Contacts',
+            'contacts.id IN (' . implode(',', $lista) . ')',
+            array('id', 'first_name', 'last_name', 'name', 'phone_mobile', 'email1')
+        );
+        if (is_array($rows)) {
+            foreach ($rows as $row) {
+                $v = isset($row->name_value_list) ? $row->name_value_list : null;
+                if (!$v || empty($v->id->value)) {
+                    continue;
+                }
+                $id = (string) $v->id->value;
+                if (!isset($vinculos[$id])) {
+                    continue;
+                }
+                $first = isset($v->first_name->value) ? trim((string) $v->first_name->value) : '';
+                $last = isset($v->last_name->value) ? trim((string) $v->last_name->value) : '';
+                $full = trim($first . ' ' . $last);
+                if ($full === '' && isset($v->name->value)) {
+                    $full = trim((string) $v->name->value);
+                }
+                $vinculos[$id] = array_merge($vinculos[$id], array(
+                    'name' => $full,
+                    'first' => $first,
+                    'last' => $last,
+                    'mobile' => isset($v->phone_mobile->value) ? (string) $v->phone_mobile->value : '',
+                    'email' => isset($v->email1->value) ? (string) $v->email1->value : '',
+                ));
+            }
+        }
+    }
+
+    $people = array();
+    foreach ($vinculos as $id => $datos) {
+        $first = isset($datos['first']) ? $datos['first'] : '';
+        $last = isset($datos['last']) ? $datos['last'] : '';
+        $full = isset($datos['name']) ? $datos['name'] : '';
+        // Sin nombre no se pinta: una fila con un teléfono y sin dueño no dice
+        // a quién estás llamando.
+        if ($full === '') {
+            continue;
+        }
+        $people[] = array(
+            'id' => $id,
+            'name' => $full,
+            'initials' => sticpa_pl_initials($first, $last, $full),
+            'mobile' => isset($datos['mobile']) ? $datos['mobile'] : '',
+            'email' => isset($datos['email']) ? $datos['email'] : '',
+            'relationship' => isset($datos['relationship']) ? $datos['relationship'] : '',
+            'reference' => !empty($datos['reference']),
+            'signer' => !empty($datos['signer']),
+        );
+    }
+
     // La familia de referencia primero: es a quien se llama.
-    $people = array_values($people);
     usort($people, 'sticpa_pl_cmp_family');
     return $people;
 }
 
-/** La referencia va primero; luego quien firma; luego por nombre. */
+/**
+ * Cómo se lee un parentesco del CRM.
+ *
+ * Las claves están en INGLÉS (`mother`, verificado en el piloto) y pintarlas a
+ * pelo deja «mother» debajo del nombre de la madre. La lista completa del
+ * desplegable no está confirmada, así que lo que no esté aquí se enseña tal
+ * cual con la primera letra en mayúscula: peor que la traducción, mejor que
+ * esconder el dato.
+ */
+function sticpa_pl_parentescos()
+{
+    return apply_filters('sticpa_pl_parentescos', array(
+        'mother' => __('Madre', 'sticpa'),
+        'father' => __('Padre', 'sticpa'),
+        'tutor' => __('Tutor/a', 'sticpa'),
+        'grandmother' => __('Abuela', 'sticpa'),
+        'grandfather' => __('Abuelo', 'sticpa'),
+        'sister' => __('Hermana', 'sticpa'),
+        'brother' => __('Hermano', 'sticpa'),
+        'aunt' => __('Tía', 'sticpa'),
+        'uncle' => __('Tío', 'sticpa'),
+        'other' => __('Otro', 'sticpa'),
+        // Y las de la convención en castellano, por si conviven las dos.
+        'madre' => __('Madre', 'sticpa'),
+        'padre' => __('Padre', 'sticpa'),
+    ));
+}
+
+/** El parentesco, ya legible. */
+function sticpa_pl_parentesco_label($raw)
+{
+    $raw = trim((string) $raw);
+    if ($raw === '') {
+        return '';
+    }
+    $mapa = sticpa_pl_parentescos();
+    $clave = strtolower($raw);
+    if (isset($mapa[$clave])) {
+        return $mapa[$clave];
+    }
+    return function_exists('mb_strtoupper')
+        ? mb_strtoupper(mb_substr($raw, 0, 1)) . mb_substr($raw, 1)
+        : ucfirst($raw);
+}
+
 function sticpa_pl_cmp_family($a, $b)
 {
     if ($a['reference'] !== $b['reference']) {
@@ -2896,6 +3171,49 @@ function sticpa_pl_is_coordinator($objSCP)
 function sticpa_pl_has_segmento()
 {
     return (bool) apply_filters('sticpa_pl_has_segmento', true);
+}
+
+/**
+ * El campo del CRM que dice si un grupo ENTRA en Pasar Lista.
+ *
+ * En `ajmcm_GRUPOS` hay ~150 grupos y la mayoría son históricos: aparecían
+ * todos en el árbol y en el alcance de coordinación, y eso era ruido para quien
+ * usa la pantalla y trabajo de más para el servidor.
+ *
+ * Es una casilla (`bool`) y se llama `ajmcm_pasar_lista_c`. Si algún día se
+ * renombra en el CRM, se arregla SIN TOCAR CÓDIGO con este filtro.
+ */
+function sticpa_pl_grupo_activo_field()
+{
+    return (string) apply_filters('sticpa_pl_grupo_activo_field', 'ajmcm_pasar_lista_c');
+}
+
+/**
+ * ¿Se puede pedir ese campo al CRM?
+ *
+ * Se pide en la MISMA consulta que ya se hace, así que no cuesta nada — pero
+ * hasta que exista en el CRM hay que poder apagarlo:
+ *
+ *     add_filter('sticpa_pl_has_grupo_activo', '__return_false');
+ */
+function sticpa_pl_has_grupo_activo()
+{
+    return sticpa_pl_grupo_activo_field() !== ''
+        && (bool) apply_filters('sticpa_pl_has_grupo_activo', true);
+}
+
+/**
+ * ¿Es «sí» el valor de una casilla del CRM?
+ *
+ * SuiteCRM devuelve las casillas de formas distintas según por dónde salgan:
+ * `1`/`0`, `on`/`off`, `true`/`false` o vacío. Tratar solo `'1'` como sí deja
+ * fuera la mitad de los casos, y con este campo eso significaría esconder
+ * grupos que sí están marcados.
+ */
+function sticpa_pl_bool_crm($raw)
+{
+    $v = strtolower(trim((string) $raw));
+    return in_array($v, array('1', 'on', 'yes', 'true', 'checked'), true);
 }
 
 /**
@@ -3136,9 +3454,7 @@ function sticpa_pl_coord_scope($objSCP)
         }
     }
 
-    if ($ttl > 0) {
-        set_transient($cacheKey, array('scope' => $scope), $ttl);
-    }
+    sticpa_pl_cache_put($cacheKey, array('scope' => $scope), $ttl);
     return $scope;
 }
 
@@ -3168,17 +3484,57 @@ function sticpa_pl_scoped_groups($objSCP, $scope)
  */
 function sticpa_pl_monitors_of($objSCP, $groups)
 {
+    // UNA pasada por el mapa de relaciones, no una consulta por grupo.
+    //
+    // Antes esto llamaba a sticpa_pl_group_people() por cada grupo del alcance.
+    // Con el mapa caliente eran cero llamadas, sí, pero cada grupo VACÍO caía
+    // en el respaldo por grupo: con ~150 grupos en el CRM, decenas de llamadas
+    // al CRM para pintar una lista de doce monitores. Ahora el recorrido es
+    // local y el coste no depende de cuántos grupos haya.
     $out = array();
-    foreach ($groups as $gid => $g) {
-        $people = sticpa_pl_group_people($objSCP, $gid);
-        foreach ($people['monitors'] as $m) {
-            if (!isset($out[$m['id']])) {
-                $out[$m['id']] = $m;
-                $out[$m['id']]['groups'] = array();
-            }
-            $out[$m['id']]['groups'][] = $g['code'];
+    $mapaSirve = false;
+    foreach (sticpa_pl_all_relationships($objSCP) as $rel) {
+        if ($rel['person']['id'] !== '') {
+            $mapaSirve = true;
+        }
+        if ($rel['role'] !== 'monitor' || $rel['person']['id'] === '') {
+            continue;
+        }
+        $gid = $rel['group_id'];
+        if ($gid === '' || !isset($groups[$gid])) {
+            continue;   // de otro alcance, o sin grupo
+        }
+        $id = $rel['person']['id'];
+        if (!isset($out[$id])) {
+            $out[$id] = $rel['person'];
+            $out[$id]['groups'] = array();
+        }
+        // Un monitor de dos grupos sale UNA vez con sus dos códigos, y sin
+        // repetir el mismo código si tiene dos relaciones con el mismo grupo.
+        $code = $groups[$gid]['code'];
+        if (!in_array($code, $out[$id]['groups'], true)) {
+            $out[$id]['groups'][] = $code;
         }
     }
+
+    // RESPALDO, con la misma regla que en sticpa_pl_group_people(): solo si el
+    // mapa entero viene vacío. Aquí sí se paga el precio por grupo, porque sin
+    // monitores coordinación no puede pasar su lista.
+    if (empty($out) && !$mapaSirve && !sticpa_pl_collecting()) {
+        foreach ($groups as $gid => $g) {
+            $people = sticpa_pl_group_people($objSCP, $gid);
+            foreach ($people['monitors'] as $m) {
+                if (!isset($out[$m['id']])) {
+                    $out[$m['id']] = $m;
+                    $out[$m['id']]['groups'] = array();
+                }
+                if (!in_array($g['code'], $out[$m['id']]['groups'], true)) {
+                    $out[$m['id']]['groups'][] = $g['code'];
+                }
+            }
+        }
+    }
+
     $out = array_values($out);
     usort($out, 'sticpa_pl_cmp_person');
     return $out;
@@ -3299,8 +3655,8 @@ function sticpa_pl_reuniones_event($objSCP, $create = false)
         }
     }
 
-    if ($found !== null && $ttl > 0) {
-        set_transient($cacheKey, $found, $ttl);
+    if ($found !== null) {
+        sticpa_pl_cache_put($cacheKey, $found, $ttl);
     }
     return $found;
 }
@@ -3661,9 +4017,7 @@ function sticpa_pl_is_acompanante($objSCP)
         }
     }
 
-    if ($ttl > 0) {
-        set_transient($cacheKey, array('is' => $is), $ttl);
-    }
+    sticpa_pl_cache_put($cacheKey, array('is' => $is), $ttl);
     return (bool) apply_filters('sticpa_pl_is_acompanante', $is, $objSCP);
 }
 

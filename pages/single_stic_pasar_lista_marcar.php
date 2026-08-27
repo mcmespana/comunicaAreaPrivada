@@ -29,6 +29,16 @@ sticpa_pl_maybe_refresh($objSCP);
 $groupId = isset($_REQUEST['grupo']) ? sticpa_pl_safe_id($_REQUEST['grupo']) : '';
 $sessionId = isset($_REQUEST['sesion']) ? sticpa_pl_safe_id($_REQUEST['sesion']) : '';
 
+// TANDA 1: lo que no depende de nada. Estas cuatro consultas iban en fila y
+// eran cuatro viajes de ida y vuelta al CRM; ahora salen juntas. Si el hosting
+// no puede paralelizar, esto no hace nada y todo sigue igual.
+sticpa_pl_prime($objSCP, function () use ($objSCP, $groupId) {
+    sticpa_pl_groups($objSCP);              // los grupos de la delegación
+    sticpa_pl_all_relationships($objSCP);   // y su gente (la usa group_people)
+    sticpa_pl_etapa_events($objSCP);        // los eventos por etapa
+    sticpa_pl_all_listas($objSCP);          // las listas ya pasadas
+});
+
 $groups = sticpa_pl_groups($objSCP);
 
 if ($groupId === '' || !isset($groups[$groupId])) {
@@ -56,6 +66,12 @@ if ($event === null) {
         . '</span></p>';
     return;
 }
+
+// TANDA 2: las dos que necesitaban saber de qué evento hablamos.
+sticpa_pl_prime($objSCP, function () use ($objSCP, $event) {
+    sticpa_pl_event_sessions($objSCP, $event['id']);
+    sticpa_pl_event_registrations($objSCP, $event['id']);
+});
 
 $sessions = sticpa_pl_event_sessions($objSCP, $event['id']);
 
