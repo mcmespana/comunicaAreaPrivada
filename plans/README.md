@@ -54,6 +54,18 @@ antes de empezar, respeta sus "STOP conditions" y actualiza su fila de estado al
 | 030 | Tap instantáneo: feedback en enlaces + prefetch + puente app | P1 | S-M | — | **DONE** (`d2873dd` + prefetch 2026-08-13) |
 | 031 | Dieta de assets: CSS minificado en deploy + Inter local | P2 | M | — | **PARCIAL** (`7dc928a`) — falta retirar DataTables |
 | 032 | Acotar listados: ventana de eventos + techo de filas | P2 | M | — (tras 011 en páginas compartidas) | **PARCIAL** (`113255e`) — falta el techo de filas |
+| 033 | Pasar Lista: guardado visible y cierre de EL bug | **P0** | M | — | TODO |
+| 034 | Pasar Lista: rendimiento (calentar, paralelizar, medir) | P1 | M | 033 (medir guardados) | TODO |
+| 035 | Pasar Lista: fidelidad al diseño de los artboards | P2 | M | — | TODO |
+| 036 | Pasar Lista: funcionalidad pendiente + doctrina de la API | P2 | por fila | 033 | TODO |
+| 037 | Pasar Lista: UX — fluidez, menos toques, ficha a un gesto | P1-P2 | S-M por fila | 033 | TODO |
+
+> Los planes 033-037 salen de la revisión del 27/08/2026 (bug de guardado
+> verificado contra el CRM por MCP, rendimiento, diseño, funcionalidad y UX).
+> La decisión sobre la BBDD espejo está en
+> [`../docs/comunica/DECISION-BBDD-ESPEJO.md`](../docs/comunica/DECISION-BBDD-ESPEJO.md):
+> Neon descartado; journal de escrituras (033) y, si hiciera falta tras medir,
+> espejo de lectura en `wpdb`.
 
 ### Estado tras implementar la pasada de rendimiento (2026-08-12)
 

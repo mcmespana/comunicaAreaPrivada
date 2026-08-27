@@ -34,8 +34,41 @@ Lo que se ha arreglado por el camino (y está desplegado):
   segunda (`Unknown - Unknown`, sin fecha ni duración). Ahora se actualiza la
   existente — verificado contra el CRM real.
 
-Y aun así **el usuario reporta que no se guarda**. Lo que hay que hacer, en este
-orden:
+Y aun así **el usuario reporta que no se guarda**.
+
+### Lo verificado el 27/08/2026 por la tarde (esto acota el bug)
+
+El usuario pasó lista a mano (participantes Y monitores) hacia las **~16:00 UTC**
+del 27/08 y después se comprobó el CRM por MCP:
+
+- **Cero rastro**: ninguna `stic_Attendances` ni `LIS_listas` con
+  `date_modified` posterior a las 14:00 UTC. Ni creación, ni modificación,
+  ni borrado.
+- Todas las escrituras de ese día en esos módulos son de **«API User MCP»**
+  entre las 8:35 y las 8:53 UTC: la limpieza de la «pizarra en blanco», no la
+  aplicación.
+
+Conclusión: **el fallo está ANTES de que ninguna escritura llegue al CRM.**
+O el POST no entra en la rama de guardado (nonce, marcas vacías tras el
+filtrado), o TODAS las llamadas `set_entry` fallan de raíz (login del usuario
+API del plugin, ACL de módulo). Y hoy eso es invisible dos veces:
+
+- `SugarRestApiCall::set_entry()` (`inc/stic-class-6.php:344`) hace
+  `$recordID = $set_entry_result->id;` **sin mirar si la respuesta es un
+  error**: el mensaje real del CRM (sesión inválida, sin acceso al módulo…)
+  se tira sin registrarlo.
+- Un fallo al escribir la `LIS_listas` **no se cuenta en `failed`**: la
+  pantalla dice «Lista guardada» aunque la lista no se haya creado.
+
+Un precedente que hace plausible la vía ACL: al montar seguimientos, el
+usuario de la API **no tenía acceso** a `stic_FollowUps` («does not have
+access to this module») y hubo que dárselo. Nadie ha verificado ese acceso
+para `LIS_listas` con el usuario del PLUGIN (no confundir con el usuario del
+MCP, que es otro y sí escribe).
+
+**El plan de cierre, paso a paso, está en
+[`../../plans/033-guardado-visible-cerrar-el-bug.md`](../../plans/033-guardado-visible-cerrar-el-bug.md).**
+Lo que hay que hacer, en este orden:
 
 1. **Reproducirlo con datos frescos.** La razón por la que no está cerrado es
    que las pruebas anteriores se hicieron sobre sesiones ya pasadas y con pocos
@@ -200,13 +233,18 @@ Cargadores de colección (uno por colección, nunca uno por fila):
 
 ### Lo siguiente, si sigue lento
 
-1. **Medir con la caché caliente**, que es lo que verá un monitor real una vez
-   configurado el calentado nocturno.
-2. Subir el TTL de la familia `struct`: son grupos y personas, no cambian a
-   media tarde.
-3. **Solo entonces** plantear el middleware / base de datos espejo. Es mucha
-   superficie nueva (sincronía, conflictos, datos rancios) y ahora mismo no está
-   justificada: el 1+N ya no está.
+Hay plan cerrado y ordenado en
+[`../../plans/034-rendimiento-calentar-paralelizar-medir.md`](../../plans/034-rendimiento-calentar-paralelizar-medir.md):
+medir (Server-Timing), configurar el calentado nocturno (los 3 secretos, cero
+código), **paralelizar con `curl_multi` las llamadas independientes de cada
+pantalla** (el coste real que queda: 6-8 llamadas EN SERIE), write-through de
+caché tras guardar, y TTL de `struct` arriba.
+
+La pregunta de la **base de datos espejo** quedó analizada y decidida el
+27/08/2026 en [`DECISION-BBDD-ESPEJO.md`](DECISION-BBDD-ESPEJO.md): Neon
+descartado (dato minúsculo, RTT externo nuevo, RGPD de menores, sync contra la
+misma API frágil); si tras el plan 034 sigue lento, espejo de LECTURA en la
+MySQL de WordPress con el diseño que ya está escrito allí.
 
 ---
 
@@ -329,6 +367,17 @@ Y se vaciaron los 6 `status` que quedaban (21/02, 28/02, 11/04, 18/04, 02/05).
 CRM al crear la inscripción y son el esqueleto del que cuelga todo — la
 asistencia pende de la inscripción, no de la persona. Borrarlas rompería el
 modelo, no lo limpiaría.
+
+> ⚠️ **Corrección del propietario (27/08 por la tarde), sin resolver.** El
+> usuario afirma que esas asistencias de Solete **las creó Claude a mano por
+> MCP** (no el CRM al crear la inscripción) y que ha pedido **borrarlas** para
+> empezar de cero. Contradice el párrafo de arriba y no hay que elegir a
+> ciegas: **hay que verificarlo empíricamente** (crear una inscripción de
+> prueba nueva y mirar si el CRM genera solas las asistencias). Importa mucho:
+> si el CRM NO las crea, el camino normal del guardado es CREAR asistencias,
+> no actualizarlas — y el camino de crear es justo el que está fallando.
+> Además, si se borran las 24, la siguiente prueba de guardado ejercitará
+> exclusivamente ese camino de creación. Está recogido en el plan 033.
 
 > **Antes de probar, pulsa refrescar.** La caché de `struct` dura 12 h, así que
 > la pantalla puede seguir enseñando el estado de antes de la limpieza. El botón
