@@ -696,6 +696,55 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
    motivo, así que con "sin marcar" el campo no pinta nada. */
 .pl-sheet[data-state=""] .pl-motive { display: none; }
 
+/* Los dos pasos siguientes tras guardar. Ocupan una fila, no una pantalla:
+   la lista ya está pasada y esto es una salida, no una celebración. */
+.pl-next {
+    display: flex;
+    gap: 0.6rem;
+    margin: 0 0 0.9rem;
+}
+.pl-next-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    flex: 1 1 0;
+    min-height: 48px;
+    padding: 0 0.7rem;
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    border: 1px solid var(--gray-200);
+    box-shadow: var(--shadow-xs);
+    color: var(--gray-800);
+    font-size: 0.88rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+.pl-next-btn svg { width: 17px; height: 17px; flex-shrink: 0; color: var(--primary-color); }
+.pl-next-btn:hover { background: var(--gray-50); color: var(--gray-800); }
+
+/* La salida a la ficha desde la hoja de estados. Mismo peso visual que un
+   enlace de lista: no compite con los cuatro estados, que son la acción
+   principal, pero está donde la mano ya está. */
+.pl-sheet-ficha {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-height: 48px;
+    margin-top: 0.5rem;
+    padding: 0 0.9rem;
+    border-radius: var(--radius-lg);
+    background: var(--gray-50);
+    color: var(--gray-800);
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+.pl-sheet-ficha svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--gray-500); }
+.pl-sheet-ficha span { flex-grow: 1; }
+.pl-sheet-ficha:hover { background: var(--gray-100); color: var(--gray-800); }
+.pl-sheet-ficha[hidden] { display: none; }
+
 .pl-sheet-clear {
     display: flex;
     align-items: center;
@@ -1321,13 +1370,31 @@ a.pl-group .pl-name { display: block; }
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.7rem 0.85rem;
+    /* 13px 16px del artboard `Ficha`. */
+    padding: 0.81rem 1rem;
     border-top: 1px solid var(--gray-100);
 }
 .pl-phone:first-child { border-top: 0; }
-.pl-phone-who { display: flex; flex-direction: column; gap: 0.1rem; flex-grow: 1; min-width: 0; }
-.pl-phone-label { font-size: 0.88rem; font-weight: 700; }
-.pl-phone-num { font-size: 0.8rem; color: var(--gray-500); }
+.pl-phone-who { display: flex; flex-direction: column; gap: 0.19rem; flex-grow: 1; min-width: 0; }
+/* Primera línea: el nombre y, si toca, su pastilla. Segunda: parentesco y
+   número. Es como lo dice el artboard, y se lee mejor que amontonarlo todo en
+   el nombre: lo que buscas con prisa es a quién llamas, no su etiqueta. */
+.pl-phone-name { display: flex; align-items: center; gap: 0.44rem; min-width: 0; }
+.pl-phone-label { font-size: 0.95rem; font-weight: 700; }
+.pl-phone-num { font-size: 0.79rem; color: var(--gray-500); }
+.pl-phone-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.1rem 0.45rem;
+    border-radius: var(--radius-full);
+    font-size: 0.63rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+.pl-phone-tag--suyo { background: var(--primary-50); color: var(--primary-color); }
+.pl-phone-tag--ref  { background: var(--secondary-50); color: var(--secondary-color); }
 
 .pl-phone-acts { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
 .pl-phone-btn {
@@ -1340,7 +1407,9 @@ a.pl-group .pl-name { display: block; }
     text-decoration: none;
 }
 .pl-phone-btn svg { width: 20px; height: 20px; }
-.pl-phone-btn--wa   { background: var(--success-50); color: var(--success-dark); }
+/* `--success-soft` (#f4fbf7), que es el del artboard: `--success-50` (#e6fcf5)
+   es el verde de «han venido todos» y aquí tiraba a menta. */
+.pl-phone-btn--wa   { background: var(--success-soft); color: var(--success-dark); }
 .pl-phone-btn--call { background: var(--primary-50); color: var(--primary-color); }
 
 /* Salud y datos: etiqueta pequeña arriba, valor debajo y legible. El texto de

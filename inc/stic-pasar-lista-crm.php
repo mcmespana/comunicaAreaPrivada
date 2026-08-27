@@ -2461,6 +2461,21 @@ function sticpa_pl_group_of_relationship($objSCP, $relId)
  * piden EXPLÍCITAMENTE: sin lista de campos, la API devuelve el módulo entero
  * (unos 200 campos por contacto) y la pantalla se vuelve lenta y cara.
  */
+/**
+ * El nombre corto de la ficha: el de pila, y el completo si no lo hay.
+ *
+ * En la fila de su propio teléfono el artboard pone «Solete», no el nombre
+ * entero: el apellido ya está tres centímetros más arriba, en el título.
+ */
+function sticpa_pl_nombre_corto_ficha($ficha)
+{
+    $first = isset($ficha['first_name']) ? trim((string) $ficha['first_name']) : '';
+    if ($first !== '') {
+        return $first;
+    }
+    return isset($ficha['name']) ? trim((string) $ficha['name']) : '';
+}
+
 function sticpa_pl_ficha_fields()
 {
     return array(
