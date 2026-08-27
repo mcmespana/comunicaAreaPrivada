@@ -228,6 +228,59 @@ function sticpa_pl_ttl_state()
 }
 
 /**
+ * ¿Estamos recolectando peticiones para lanzarlas en paralelo?
+ *
+ * Mientras se recolecta, los cargadores se ejecutan SIN CRM (ver
+ * `SugarRestApiCall::collect()`): salen vacíos a propósito, así que ni se
+ * cachea lo que devuelven ni se disparan sus respaldos.
+ */
+function sticpa_pl_collecting()
+{
+    return class_exists('SugarRestApiCall') && SugarRestApiCall::isCollecting();
+}
+
+/**
+ * UNA TANDA: ejecuta los cargadores en paralelo en vez de en fila.
+ *
+ * Se le pasa una función que llama a los cargadores que hacen falta. Se corre
+ * dos veces: la primera en modo recolecta (no toca el CRM, solo apunta qué
+ * consultas harían falta — las que ya están en caché no apuntan nada), y con
+ * esa lista se lanza UNA tanda paralela. Después, quien llame ejecuta los
+ * cargadores de verdad y cada uno encuentra su respuesta ya traída.
+ *
+ * Por qué así y no con una lista de consultas escrita a mano: los `fields` de
+ * cada consulta viven en su cargador y ahí se quedan. Una segunda copia se
+ * desincronizaría — y una consulta que pide campos distintos no acierta en el
+ * memo, así que se pagaría DOS veces sin que nadie se enterara.
+ *
+ * Si el hosting no tiene `curl_multi`, o la recolecta no encuentra al menos dos
+ * consultas, esto no hace nada y todo sigue funcionando en serie.
+ *
+ * @return int cuántas respuestas se han dejado listas.
+ */
+function sticpa_pl_prime($objSCP, callable $cargadores)
+{
+    // Se le pregunta AL CLIENTE, no a la clase: quien no sepa recolectar sigue
+    // funcionando en serie sin enterarse.
+    if (!is_object($objSCP)
+        || !method_exists($objSCP, 'collectRequests')
+        || !method_exists($objSCP, 'callMany')) {
+        return 0;
+    }
+    if (class_exists('SugarRestApiCall') && !SugarRestApiCall::supportsMulti()) {
+        return 0;
+    }
+    if (!apply_filters('sticpa_pl_paralelo', true)) {
+        return 0;
+    }
+    $peticiones = $objSCP->collectRequests($cargadores);
+    if (count($peticiones) < 2) {
+        return 0;   // una sola consulta no gana nada por ir «en paralelo»
+    }
+    return (int) $objSCP->callMany($peticiones);
+}
+
+/**
  * TTL de un resultado VACÍO. Corto, y por una razón concreta.
  *
  * Una colección vacía puede significar dos cosas muy distintas: «no hay nada»
@@ -257,6 +310,11 @@ function sticpa_pl_cache_put($key, $value, $ttl)
 {
     $ttl = (int) $ttl;
     if ($ttl <= 0) {
+        return;
+    }
+    // Durante la recolecta los cargadores corren sin CRM y salen vacíos:
+    // guardar eso dejaría la caché envenenada con vacíos que no son datos.
+    if (sticpa_pl_collecting()) {
         return;
     }
     if (is_array($value) && empty($value)) {
@@ -643,7 +701,14 @@ function sticpa_pl_group_people($objSCP, $groupId)
     $out = array('participants' => array(), 'monitors' => array());
 
     // Camino normal: del mapa comun de la delegacion, sin una llamada propia.
+    //
+    // `$mapaSirve` se calcula AQUÍ, en el mismo recorrido, y es lo que decide
+    // si hace falta el respaldo. Ver el comentario largo de más abajo.
+    $mapaSirve = false;
     foreach (sticpa_pl_all_relationships($objSCP) as $rel) {
+        if ($rel['person']['id'] !== '') {
+            $mapaSirve = true;
+        }
         if ($rel['group_id'] !== $groupId || $rel['person']['id'] === '') {
             continue;
         }
@@ -652,12 +717,27 @@ function sticpa_pl_group_people($objSCP, $groupId)
         $out[$bucket][$rel['person']['id']] = $rel['person'];
     }
 
-    // RESPALDO. Si el mapa no ha sacado a nadie de este grupo, se pregunta por
-    // el grupo directamente. Cuesta 1+N llamadas —lo que hace el resto del
-    // plugin desde siempre— y por eso es el respaldo y no el camino; pero una
-    // lista vacia en un grupo con gente deja a un monitor sin poder pasar
-    // lista un sabado, y eso no se puede permitir por ahorrar llamadas.
-    if (empty($out['participants']) && empty($out['monitors'])) {
+    // RESPALDO, y OJO CON LA CONDICIÓN.
+    //
+    // Antes se disparaba cuando ESTE grupo salía vacío, y eso era un 1+N de los
+    // caros: la pantalla de monitores recorre TODOS los grupos del alcance y en
+    // el CRM hay ~150, la mayoría históricos y vacíos. Una llamada por cada uno.
+    // Es exactamente por lo que la lista de monitores tardaba una eternidad.
+    //
+    // Un grupo vacío en un mapa que SÍ trae gente no es un fallo: es un grupo
+    // vacío, y preguntar otra vez devuelve lo mismo. El respaldo solo tiene
+    // sentido cuando el mapa entero viene vacío, que es la señal de que la
+    // consulta de colección ha fallado.
+    // La condición es «el mapa no sirve», NO «este grupo está vacío»:
+    //
+    //   - Mapa con personas y este grupo vacío → el grupo está vacío de verdad,
+    //     y preguntar otra vez devuelve lo mismo. NO se pregunta.
+    //   - Mapa vacío, o con filas pero sin ninguna persona dentro (la trampa
+    //     §3.1: la instancia no devuelve ni el enlace anidado ni el campo
+    //     plano) → el mapa no sirve, y sin respaldo un monitor se queda sin
+    //     poder pasar lista un sábado.
+    if (empty($out['participants']) && empty($out['monitors']) && !$mapaSirve
+        && !sticpa_pl_collecting()) {
         $out = sticpa_pl_group_people_direct($objSCP, $groupId);
     }
 
@@ -1040,7 +1120,7 @@ function sticpa_pl_event_registrations($objSCP, $eventId)
     // RESPALDO. Si no ha salido ni un contacto, se piden las inscripciones de la
     // delegacion por get_entry_list con el enlace anidado —la via probada— y se
     // filtran por evento en PHP. Una llamada, cacheada.
-    if (empty($map)) {
+    if (empty($map) && !sticpa_pl_collecting()) {
         $map = sticpa_pl_event_registrations_direct($objSCP, $eventId);
     }
 
@@ -1247,7 +1327,7 @@ function sticpa_pl_session_attendances($objSCP, $sessionId, $regMap = array())
     // Sin esto el guardado CREABA una asistencia nueva en vez de actualizar la
     // que el CRM ya habia hecho con la inscripcion: dos asistencias de la misma
     // persona en la misma sesion, y la nueva sin fecha ni duracion.
-    if (empty($out)) {
+    if (empty($out) && !sticpa_pl_collecting()) {
         $out = sticpa_pl_session_attendances_direct($objSCP, $sessionId, $regMap);
     }
 
@@ -1440,9 +1520,9 @@ function sticpa_pl_group_streaks($objSCP, $sessions, $currentSessionId, $regMap 
         }
     }
 
-    if ($ttl > 0) {
-        set_transient($cacheKey, array('sig' => $sig, 'data' => $streaks), $ttl);
-    }
+    // Por `cache_put` y no por `set_transient` a pelo: es quien respeta la
+    // pasada de recolecta (si no, cachearía el vacío que devuelve a propósito).
+    sticpa_pl_cache_put($cacheKey, array('sig' => $sig, 'data' => $streaks), $ttl);
     return $streaks;
 }
 
@@ -2225,7 +2305,7 @@ function sticpa_pl_my_groups($objSCP)
     //
     // Sin esto la portada dice "no tienes ningun grupo asignado como monitor/a"
     // a un monitor con su relacion vigente, y el atajo del sabado desaparece.
-    if (empty($ids)) {
+    if (empty($ids) && !sticpa_pl_collecting()) {
         $ids = sticpa_pl_my_groups_direct($objSCP, $userId);
     }
 
@@ -3136,9 +3216,7 @@ function sticpa_pl_coord_scope($objSCP)
         }
     }
 
-    if ($ttl > 0) {
-        set_transient($cacheKey, array('scope' => $scope), $ttl);
-    }
+    sticpa_pl_cache_put($cacheKey, array('scope' => $scope), $ttl);
     return $scope;
 }
 
@@ -3168,17 +3246,57 @@ function sticpa_pl_scoped_groups($objSCP, $scope)
  */
 function sticpa_pl_monitors_of($objSCP, $groups)
 {
+    // UNA pasada por el mapa de relaciones, no una consulta por grupo.
+    //
+    // Antes esto llamaba a sticpa_pl_group_people() por cada grupo del alcance.
+    // Con el mapa caliente eran cero llamadas, sí, pero cada grupo VACÍO caía
+    // en el respaldo por grupo: con ~150 grupos en el CRM, decenas de llamadas
+    // al CRM para pintar una lista de doce monitores. Ahora el recorrido es
+    // local y el coste no depende de cuántos grupos haya.
     $out = array();
-    foreach ($groups as $gid => $g) {
-        $people = sticpa_pl_group_people($objSCP, $gid);
-        foreach ($people['monitors'] as $m) {
-            if (!isset($out[$m['id']])) {
-                $out[$m['id']] = $m;
-                $out[$m['id']]['groups'] = array();
-            }
-            $out[$m['id']]['groups'][] = $g['code'];
+    $mapaSirve = false;
+    foreach (sticpa_pl_all_relationships($objSCP) as $rel) {
+        if ($rel['person']['id'] !== '') {
+            $mapaSirve = true;
+        }
+        if ($rel['role'] !== 'monitor' || $rel['person']['id'] === '') {
+            continue;
+        }
+        $gid = $rel['group_id'];
+        if ($gid === '' || !isset($groups[$gid])) {
+            continue;   // de otro alcance, o sin grupo
+        }
+        $id = $rel['person']['id'];
+        if (!isset($out[$id])) {
+            $out[$id] = $rel['person'];
+            $out[$id]['groups'] = array();
+        }
+        // Un monitor de dos grupos sale UNA vez con sus dos códigos, y sin
+        // repetir el mismo código si tiene dos relaciones con el mismo grupo.
+        $code = $groups[$gid]['code'];
+        if (!in_array($code, $out[$id]['groups'], true)) {
+            $out[$id]['groups'][] = $code;
         }
     }
+
+    // RESPALDO, con la misma regla que en sticpa_pl_group_people(): solo si el
+    // mapa entero viene vacío. Aquí sí se paga el precio por grupo, porque sin
+    // monitores coordinación no puede pasar su lista.
+    if (empty($out) && !$mapaSirve && !sticpa_pl_collecting()) {
+        foreach ($groups as $gid => $g) {
+            $people = sticpa_pl_group_people($objSCP, $gid);
+            foreach ($people['monitors'] as $m) {
+                if (!isset($out[$m['id']])) {
+                    $out[$m['id']] = $m;
+                    $out[$m['id']]['groups'] = array();
+                }
+                if (!in_array($g['code'], $out[$m['id']]['groups'], true)) {
+                    $out[$m['id']]['groups'][] = $g['code'];
+                }
+            }
+        }
+    }
+
     $out = array_values($out);
     usort($out, 'sticpa_pl_cmp_person');
     return $out;
@@ -3299,8 +3417,8 @@ function sticpa_pl_reuniones_event($objSCP, $create = false)
         }
     }
 
-    if ($found !== null && $ttl > 0) {
-        set_transient($cacheKey, $found, $ttl);
+    if ($found !== null) {
+        sticpa_pl_cache_put($cacheKey, $found, $ttl);
     }
     return $found;
 }
@@ -3661,9 +3779,7 @@ function sticpa_pl_is_acompanante($objSCP)
         }
     }
 
-    if ($ttl > 0) {
-        set_transient($cacheKey, array('is' => $is), $ttl);
-    }
+    sticpa_pl_cache_put($cacheKey, array('is' => $is), $ttl);
     return (bool) apply_filters('sticpa_pl_is_acompanante', $is, $objSCP);
 }
 

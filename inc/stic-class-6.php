@@ -36,6 +36,26 @@ class SugarRestApiCall
     public static $callLog = array();
 
     /**
+     * MODO RECOLECTA. Mientras está encendido, `call()` NO llama al CRM: apunta
+     * la petición y devuelve null.
+     *
+     * Es la pieza que permite paralelizar sin duplicar en ningún sitio la lista
+     * de campos de cada consulta. Se ejecutan los cargadores de verdad —que ya
+     * saben qué piden y ya miran su caché, así que los que están calientes no
+     * apuntan nada—, se recogen las peticiones que habrían salido, y se lanzan
+     * TODAS A LA VEZ con `callMany()`. Después se vuelve a ejecutar a los
+     * cargadores y cada uno encuentra su respuesta ya traída.
+     */
+    private static $collecting = false;
+    private static $collected = array();
+
+    /** Respuestas ya traídas, por firma de peticion. De un solo uso. */
+    private static $memo = array();
+
+    /** Handle compartido para que las tandas paralelas reutilicen conexiones. */
+    private static $shareHandle = null;
+
+    /**
      * Handle de cURL reutilizado en TODAS las llamadas de esta petición.
      * Antes se creaba y destruía uno por llamada, así que cada round-trip pagaba
      * DNS + TCP + handshake TLS completos. Una sola pantalla hace de 2 a 40
@@ -157,6 +177,25 @@ class SugarRestApiCall
 
     public function call($method, $parameters, $url, $retry = false)
     {
+        $firma = self::signature($method, $parameters);
+
+        // En modo recolecta no se llama a nadie: se apunta y se sale.
+        if (self::$collecting) {
+            if (!isset(self::$collected[$firma])) {
+                self::$collected[$firma] = array('method' => $method, 'parameters' => $parameters);
+            }
+            return null;
+        }
+
+        // ¿Ya la trajo una tanda paralela? Se consume y se devuelve. De un solo
+        // uso a propósito: esto es un puente entre la tanda y el cargador, no
+        // una caché (la caché de verdad son los transients, con su TTL).
+        if (isset(self::$memo[$firma])) {
+            $memoizada = self::$memo[$firma];
+            unset(self::$memo[$firma]);
+            return $memoizada;
+        }
+
         $curl_request = $this->getCurlHandle();
 
         curl_setopt($curl_request, CURLOPT_URL, $url);
@@ -280,6 +319,248 @@ class SugarRestApiCall
                 'error' => (string) $error,
             );
         }
+    }
+
+    /**
+     * La firma de una peticion, para memorizar su respuesta.
+     *
+     * El `session` se deja FUERA: puede refrescarse entre la recolecta y la
+     * tanda, y no forma parte de la pregunta.
+     */
+    private static function signature($method, $parameters)
+    {
+        if (is_array($parameters)) {
+            unset($parameters['session']);
+        }
+        return $method . '|' . md5(serialize($parameters));
+    }
+
+    /** ¿Se puede paralelizar en este hosting? */
+    public static function supportsMulti()
+    {
+        return function_exists('curl_multi_init') && function_exists('curl_multi_exec');
+    }
+
+    /** ¿Estamos recolectando peticiones en vez de ejecutarlas? */
+    public static function isCollecting()
+    {
+        return self::$collecting;
+    }
+
+    /**
+     * Ejecuta `$fn` en modo recolecta y devuelve las peticiones que habrían
+     * salido a la red, sin haber llamado al CRM ni una vez.
+     */
+    public static function collect(callable $fn)
+    {
+        if (self::$collecting) {
+            return array();   // recolecta anidada: la de fuera manda
+        }
+        self::$collecting = true;
+        self::$collected = array();
+        try {
+            $fn();
+        } catch (\Throwable $e) {
+            // Un cargador que revienta en la recolecta NO puede tumbar la
+            // pantalla: se pierde la paralelización y se sigue en serie.
+            error_log('[sticpa] Recolecta de peticiones interrumpida: ' . $e->getMessage());
+        } finally {
+            self::$collecting = false;
+        }
+        $out = array_values(self::$collected);
+        self::$collected = array();
+        return $out;
+    }
+
+    /**
+     * Recolecta las peticiones que harían los cargadores, sin ejecutarlas.
+     *
+     * Es método de INSTANCIA a propósito, aunque por dentro use el estado
+     * estático: así el contrato («recolecta y luego lanza la tanda») lo puede
+     * implementar cualquier cliente, y el doble de los tests puede modelarlo de
+     * verdad en vez de ignorarlo — que es lo que convierte un test en verde con
+     * la producción rota.
+     */
+    public function collectRequests(callable $fn)
+    {
+        return self::collect($fn);
+    }
+
+    /**
+     * Lanza varias peticiones A LA VEZ y guarda sus respuestas en el memo.
+     *
+     * Esto es lo que convierte «nueve viajes de ida y vuelta en fila» en dos o
+     * tres tandas. Con 400 ms de latencia por llamada, una pantalla fría pasa
+     * de ~3,5 s a ~1 s.
+     *
+     * Nunca es obligatorio que funcione: si el hosting no tiene curl_multi, si
+     * una respuesta viene mal o si algo falla, el memo se queda sin esa entrada
+     * y el cargador la pedirá en serie como siempre.
+     *
+     * @return int cuántas respuestas se han dejado listas.
+     */
+    public function callMany($requests)
+    {
+        $requests = array_values((array) $requests);
+        if (count($requests) < 2 || !self::supportsMulti()) {
+            return 0;
+        }
+
+        $lote = self::intSetting('sticpa_crm_multi_concurrency', 4);
+        if ($lote < 2) {
+            return 0;
+        }
+
+        $listas = 0;
+        $caducadas = array();
+
+        foreach (array_chunk($requests, $lote) as $tanda) {
+            $multi = curl_multi_init();
+            $handles = array();
+
+            foreach ($tanda as $i => $req) {
+                $parametros = $req['parameters'];
+                if (is_array($parametros) && array_key_exists('session', $parametros)) {
+                    $parametros['session'] = $this->session_id;
+                }
+                $ch = $this->newHandleFor($req['method'], $parametros);
+                curl_multi_add_handle($multi, $ch);
+                $handles[$i] = array('ch' => $ch, 'req' => $req);
+            }
+
+            $startedAt = microtime(true);
+            do {
+                $estado = curl_multi_exec($multi, $activas);
+                if ($activas) {
+                    // Sin esto el bucle quema CPU mientras espera la red. Y con
+                    // -1 (cURL no tiene descriptores que vigilar todavía) hay
+                    // que dormir a mano, o el select vuelve al instante y el
+                    // bucle gira igual de caliente.
+                    if (curl_multi_select($multi, 1.0) === -1) {
+                        usleep(1000);
+                    }
+                }
+            } while ($activas && $estado === CURLM_OK);
+
+            foreach ($handles as $h) {
+                $cuerpo = curl_multi_getcontent($h['ch']);
+                curl_multi_remove_handle($multi, $h['ch']);
+                curl_close($h['ch']);
+
+                $firma = self::signature($h['req']['method'], $h['req']['parameters']);
+                if (!is_string($cuerpo) || $cuerpo === '') {
+                    continue;   // sin respuesta: que la pida el cargador
+                }
+                $respuesta = json_decode($cuerpo);
+                if ($respuesta === null) {
+                    continue;
+                }
+                // Sesión caducada: se reintenta al final, una sola vez y en
+                // serie. Son raras y no merecen complicar la tanda.
+                if (isset($respuesta->number) && (int) $respuesta->number === 11) {
+                    $caducadas[] = $h['req'];
+                    continue;
+                }
+                $error = self::errorFrom($respuesta);
+                if ($error !== '') {
+                    // Un error SÍ se memoriza: el cargador tiene que verlo y
+                    // decidir (sus respaldos viven ahí). Repetirlo en serie
+                    // solo costaría otra llamada para el mismo error.
+                    error_log('[sticpa] El CRM ha rechazado ' . $h['req']['method']
+                        . ' (en tanda paralela): ' . $error);
+                }
+                self::$memo[$firma] = $respuesta;
+                $listas++;
+            }
+
+            curl_multi_close($multi);
+
+            // Se apunta como UNA llamada por petición, pero el tiempo es el de
+            // la tanda: es lo que hay que ver para saber si paralelizar sirve.
+            $ms = (microtime(true) - $startedAt) * 1000;
+            self::$callCount += count($tanda);
+            self::$callMs += $ms;
+            if (count(self::$callLog) < 60) {
+                self::$callLog[] = array(
+                    'method' => 'tanda(' . count($tanda) . ')',
+                    'module' => '',
+                    'ms' => round($ms, 1),
+                    'error' => '',
+                );
+            }
+        }
+
+        if (!empty($caducadas)) {
+            $this->storeSessionId($this->login());
+            foreach ($caducadas as $req) {
+                $parametros = $req['parameters'];
+                if (is_array($parametros) && array_key_exists('session', $parametros)) {
+                    $parametros['session'] = $this->session_id;
+                }
+                $respuesta = $this->call($req['method'], $parametros, $this->url, true);
+                if ($respuesta !== null) {
+                    self::$memo[self::signature($req['method'], $req['parameters'])] = $respuesta;
+                    $listas++;
+                }
+            }
+        }
+
+        return $listas;
+    }
+
+    /**
+     * Un handle nuevo con las MISMAS opciones que `call()`, para una tanda.
+     *
+     * Las opciones se repiten a mano y no se comparten con `call()` porque esa
+     * reutiliza un único handle (keep-alive) y aquí hace falta uno por
+     * petición. Lo que sí se comparte es el pool de conexiones, con
+     * `curl_share`: sin él cada petición de la tanda pagaría su handshake TLS y
+     * se perdería buena parte de lo ganado.
+     */
+    private function newHandleFor($method, $parameters)
+    {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $this->url);
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+        curl_setopt($ch, CURLOPT_HEADER, 0);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 0);
+        curl_setopt($ch, CURLOPT_TCP_KEEPALIVE, 1);
+        curl_setopt($ch, CURLOPT_ENCODING, '');
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, self::intSetting('sticpa_crm_connect_timeout', 5));
+        curl_setopt($ch, CURLOPT_TIMEOUT, self::intSetting('sticpa_crm_timeout', 20));
+        curl_setopt($ch, CURLOPT_POSTFIELDS, array(
+            'method' => $method,
+            'input_type' => 'JSON',
+            'response_type' => 'JSON',
+            'rest_data' => json_encode($parameters),
+        ));
+
+        $share = self::shareHandle();
+        if ($share !== null) {
+            curl_setopt($ch, CURLOPT_SHARE, $share);
+        }
+        return $ch;
+    }
+
+    /** El handle compartido, si esta versión de cURL sabe compartir conexiones. */
+    private static function shareHandle()
+    {
+        if (self::$shareHandle !== null) {
+            return self::$shareHandle;
+        }
+        if (!function_exists('curl_share_init') || !defined('CURL_LOCK_DATA_CONNECT')) {
+            return null;
+        }
+        $share = curl_share_init();
+        curl_share_setopt($share, CURLSHOPT_SHARE, CURL_LOCK_DATA_CONNECT);
+        if (defined('CURL_LOCK_DATA_SSL_SESSION')) {
+            curl_share_setopt($share, CURLSHOPT_SHARE, CURL_LOCK_DATA_SSL_SESSION);
+        }
+        self::$shareHandle = $share;
+        return self::$shareHandle;
     }
 
     // login into sugar
