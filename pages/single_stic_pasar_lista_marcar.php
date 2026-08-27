@@ -309,6 +309,9 @@ $html .= sticpa_pl_notice_html($pick);
 
 // Resultado del guardado, contrastado con lo que dice el CRM al releerlo.
 $html .= sticpa_pl_save_result_html($saved, $saveProblems, $objSCP);
+if ($savedOk) {
+    $html .= sticpa_pl_next_steps_html($groupId);
+}
 
 // Si la lista ya está pasada, se dice: evita el "¿la pasé o no?".
 if ($lista !== null && $lista['estado'] !== '') {

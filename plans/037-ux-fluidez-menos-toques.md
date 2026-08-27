@@ -9,6 +9,36 @@ esfuerzo a la ficha del chaval (o del monitor) con toda la información
 interesante. Público: monitores con el móvil en la mano un sábado por la
 tarde, dentro de la webview de MCM App.
 
+> ## Estado al 27/08/2026 (noche)
+>
+> **Hecho:**
+>
+> - **Fila 1 (el guardado no miente ni pierde marcas):** el borrador solo se
+>   tira cuando el servidor confirma, la cola sin conexión solo saca una entrada
+>   con confirmación real, y «Lista guardada» está contrastado contra el CRM.
+>   Ver plan 033.
+> - **Fila 1 (siguiente acción):** tras un guardado CONFIRMADO, la pantalla
+>   ofrece «Ver el resumen» y «Otro grupo». Antes se quedaba igual que estaba:
+>   el monitor había terminado y la aplicación no le decía nada.
+> - **Fila 3 (la ficha sirve):** la familia y sus teléfonos ya salen —no salían
+>   en ninguna ficha— con el parentesco traducido y en su sitio.
+> - **Fila 5 (menos toques):** desde la hoja de estados se llega a la ficha. Al
+>   marcar una falta, lo siguiente que se quiere es el teléfono de casa, y la
+>   hoja tapa la flecha de la fila.
+>
+> **Pendiente, y por qué:**
+>
+> - **Fila 2 (llamar desde la propia hoja, sin pasar por la ficha):** pide tener
+>   los teléfonos de toda la delegación en la pantalla de marcar. Se puede hacer
+>   sin 1+N —el entorno personal de la delegación en UNA consulta, más otra para
+>   los contactos, cacheadas 24 h y metidas en la tanda paralela—, pero son dos
+>   consultas más en la pantalla más usada y conviene medir antes con los
+>   números reales de producción.
+> - **Fila 4 (skeletons):** después de ver cuánto queda de espera real con las
+>   tandas paralelas ya desplegadas. Si marcar carga en 1,5 s, un skeleton
+>   sobra.
+> - **Fila 6 (buscador de personas para coordinación).**
+
 ## Lo que YA está bien (no tocar, no re-inventar)
 
 - Portada con CTA «hero» al marcar de tu grupo → el camino sábado es 2 toques.

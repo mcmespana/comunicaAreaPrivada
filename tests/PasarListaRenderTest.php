@@ -2086,6 +2086,57 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame('no_unjustified', $writes[0]['data']['status']);
     }
 
+    // ---- UX: el paso siguiente y la salida a la ficha --------------------
+
+    /**
+     * Tras guardar bien, la pantalla ofrece qué hacer ahora. Antes se quedaba
+     * igual que estaba: el monitor había terminado y la aplicación no le decía
+     * nada, con el resumen y el árbol a tres toques.
+     */
+    public function test_tras_guardar_bien_se_ofrece_el_paso_siguiente()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => json_encode(array('c1' => 'yes')),
+        );
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertStringContainsString('pl-next', $html);
+        $this->assertStringContainsString('Ver el resumen', $html);
+        $this->assertStringContainsString('Otro grupo', $html);
+    }
+
+    /** Y si el guardado FALLA, no se ofrece nada: sería una burla. */
+    public function test_si_falla_el_guardado_no_se_ofrece_el_paso_siguiente()
+    {
+        $this->scp->failWrites = array('LIS_listas');
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => json_encode(array('c1' => 'yes')),
+        );
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertStringNotContainsString('pl-next-btn', $html);
+    }
+
+    /**
+     * La hoja de estados lleva salida a la ficha. Al marcar una falta, lo
+     * siguiente que se quiere es el teléfono de casa — y la hoja tapa la
+     * pantalla, así que la flecha de la fila queda detrás.
+     */
+    public function test_la_hoja_lleva_salida_a_la_ficha()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertStringContainsString('data-pl-sheet-ficha', $html);
+        $this->assertStringContainsString('Ficha y teléfonos', $html);
+    }
+
     // ---- La casilla de «este grupo entra en Pasar Lista» -----------------
 
     /**

@@ -157,14 +157,31 @@ if ($avisoMsg !== '') {
  * Una tarjeta de teléfono con sus dos botones.
  * $whatsapp = false cuando el permiso no lo autoriza: entonces solo se llama.
  */
-$phoneCard = function ($label, $rawPhone, $whatsapp = true) {
+/**
+ * Una fila de teléfono, como la dibuja el artboard `Ficha`:
+ *
+ *   Sol Meseguer  [REF]        (WA) (Llamar)
+ *   Madre · 622 14 87 03
+ *
+ * El nombre manda en la primera línea; el parentesco acompaña al número abajo.
+ * Amontonarlo todo en el nombre («Sol Meseguer · Madre · REF») obliga a leer
+ * una frase para encontrar a quién llamas.
+ */
+$phoneCard = function ($label, $rawPhone, $whatsapp = true, $sub = '', $tag = '', $tagKind = 'ref') {
     $phone = sticpa_pl_phone($rawPhone);
     if ($phone === null) {
         return '';
     }
+    $numero = ($sub !== '') ? $sub . ' · ' . $phone['display'] : $phone['display'];
     $out = '<div class="pl-phone">';
-    $out .= '<div class="pl-phone-who"><span class="pl-phone-label">' . esc_html($label) . '</span>'
-        . '<span class="pl-phone-num">' . esc_html($phone['display']) . '</span></div>';
+    $out .= '<div class="pl-phone-who">';
+    $out .= '<span class="pl-phone-name"><span class="pl-phone-label">' . esc_html($label) . '</span>';
+    if ($tag !== '') {
+        $out .= '<span class="pl-phone-tag pl-phone-tag--' . esc_attr($tagKind) . '">'
+            . esc_html($tag) . '</span>';
+    }
+    $out .= '</span>';
+    $out .= '<span class="pl-phone-num">' . esc_html($numero) . '</span></div>';
     $out .= '<div class="pl-phone-acts">';
     if ($whatsapp) {
         $out .= '<a class="pl-phone-btn pl-phone-btn--wa" href="https://wa.me/' . esc_attr($phone['wa']) . '"'
@@ -233,19 +250,25 @@ $phoneCards = '';
 // El chaval primero si tiene móvil propio: en el COM lo tienen, y a veces es a
 // quien hay que llamar. El botón de WhatsApp respeta ajmcm_menorwhatsapp_c.
 $menorWa = ($ficha['ajmcm_menorwhatsapp_c'] === '1' || $ficha['ajmcm_menorwhatsapp_c'] === 'on');
-$phoneCards .= $phoneCard(__('Suyo', 'sticpa'), $ficha['phone_mobile'], $menorWa);
+$phoneCards .= $phoneCard(
+    sticpa_pl_nombre_corto_ficha($ficha),
+    $ficha['phone_mobile'],
+    $menorWa,
+    '',
+    __('Suyo', 'sticpa'),
+    'suyo'
+);
 foreach ($family as $rel) {
-    $label = $rel['name'];
-    // El parentesco, traducido: el CRM lo guarda en inglés («mother») y debajo
-    // del nombre de la madre eso se lee raro.
-    $parentesco = sticpa_pl_parentesco_label($rel['relationship']);
-    if ($parentesco !== '') {
-        $label .= ' · ' . $parentesco;
-    }
-    if ($rel['reference']) {
-        $label .= ' · ' . __('REF', 'sticpa');
-    }
-    $phoneCards .= $phoneCard($label, $rel['mobile'], true);
+    // El parentesco, traducido y en su línea: el CRM lo guarda en inglés
+    // («mother») y debajo del nombre de la madre eso se lee raro.
+    $phoneCards .= $phoneCard(
+        $rel['name'],
+        $rel['mobile'],
+        true,
+        sticpa_pl_parentesco_label($rel['relationship']),
+        $rel['reference'] ? __('REF', 'sticpa') : '',
+        'ref'
+    );
 }
 $emergency = sticpa_pl_phone($ficha['phone_other']);
 if ($emergency !== null) {

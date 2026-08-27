@@ -667,6 +667,24 @@
                 opt.setAttribute('aria-checked', opt.getAttribute('data-value') === current ? 'true' : 'false');
             });
 
+            /* La salida a la ficha: la dirección la tiene la flecha de la fila,
+               que es hermana del botón. Si esa fila no la lleva (la lista de
+               monitores no la pinta), el enlace no se enseña en vez de llevar
+               a ninguna parte. */
+            var ficha = sheet.querySelector('[data-pl-sheet-ficha]');
+            if (ficha) {
+                var detalle = row.parentNode && row.parentNode.querySelector
+                    ? row.parentNode.querySelector('[data-pl-detail]')
+                    : null;
+                var href = detalle ? detalle.getAttribute('href') : '';
+                if (href) {
+                    ficha.setAttribute('href', href);
+                    ficha.hidden = false;
+                } else {
+                    ficha.hidden = true;
+                }
+            }
+
             // El motivo que ya tuviera, y el estado en la hoja para que el CSS
             // sepa si el campo pinta algo (con "sin marcar" no pinta nada).
             if (motive) { motive.value = row.getAttribute('data-motive') || ''; }
