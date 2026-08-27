@@ -113,8 +113,17 @@ $regMap = sticpa_pl_event_registrations($objSCP, $event['id']);
 // ---------------------------------------------------------------------------
 
 $saved = null;
+$saveProblems = array();
+$savedOk = false;
+$isPost = (isset($_SERVER['REQUEST_METHOD']) && strtoupper($_SERVER['REQUEST_METHOD']) === 'POST');
+$marksRaw = isset($_POST['pl_marks']) ? (string) $_POST['pl_marks'] : '';
+
 if (!empty($_POST['pl_action'])) {
     if (!isset($_POST['pl_nonce']) || !wp_verify_nonce($_POST['pl_nonce'], 'pl_monitores')) {
+        sticpa_pl_log_save(array(
+            'pantalla' => 'monitores', 'motivo' => 'nonce',
+            'sesion' => $session['id'], 'marcas_post' => strlen($marksRaw),
+        ));
         $html .= '<p class="pl-notice">' . sticpa_pl_icon('clock') . '<span>'
             . esc_html__('La sesión ha caducado. Vuelve a cargar la pantalla.', 'sticpa') . '</span></p>';
     } else {
@@ -135,9 +144,52 @@ if (!empty($_POST['pl_action'])) {
         }
         $saved = sticpa_pl_save_monitors($objSCP, $session['id'], $monitors, $marks, $regMap);
     }
+} elseif ($isPost) {
+    // Un POST sin acción: el mismo agujero que en la pantalla de participantes
+    // (el botón deshabilitado antes de serializar). Aquí queda registrado.
+    sticpa_pl_log_save(array(
+        'pantalla' => 'monitores', 'motivo' => 'post_sin_accion',
+        'sesion' => $session['id'], 'marcas_post' => strlen($marksRaw),
+    ));
+    $html .= '<p class="pl-notice" style="color:var(--danger-dark)">' . sticpa_pl_icon('warn') . '<span>'
+        . esc_html__('No se ha guardado: la petición llegó sin la orden de guardar. Vuelve a intentarlo.', 'sticpa')
+        . '</span></p>';
 }
 
 $attendances = sticpa_pl_session_attendances($objSCP, $session['id'], $regMap);
+
+// La lista de monitores de esta sesión, releída del CRM. Se lee SIEMPRE (no
+// solo tras guardar) para poder decir si ya estaba pasada: es la misma pregunta
+// que contesta la pantalla de participantes, «¿la pasé o no?».
+$listasMon = sticpa_pl_all_listas_monitores($objSCP);
+$listaMon = isset($listasMon[$session['id']]) ? $listasMon[$session['id']] : null;
+
+// La misma verificación por relectura que en participantes: las asistencias y,
+// desde ahora, también la lista.
+if (is_array($saved)) {
+    $saveProblems = sticpa_pl_check_saved(
+        isset($saved['written']) ? $saved['written'] : array(),
+        $listaMon,
+        $attendances,
+        false,
+        true
+    );
+    $savedOk = ((int) $saved['failed'] === 0 && empty($saveProblems));
+    sticpa_pl_log_save(array(
+        'pantalla' => 'monitores',
+        'motivo' => $savedOk ? 'ok' : 'fallos',
+        'sesion' => $session['id'],
+        'marcas_post' => strlen($marksRaw),
+        'marcas_usadas' => isset($saved['written']) ? count($saved['written']) : 0,
+        'saved' => (int) $saved['saved'],
+        'failed' => (int) $saved['failed'],
+        'lista_id' => (string) $saved['lista_id'],
+        'errores' => array_merge(
+            isset($saved['errors']) ? (array) $saved['errors'] : array(),
+            array_map(function ($p) { return array('paso' => 'relectura', 'error' => $p); }, $saveProblems)
+        ),
+    ));
+}
 
 // ---------------------------------------------------------------------------
 // Pintado
@@ -148,6 +200,7 @@ $backUrl = $isReunion
     : '?internalpage=single_stic_pasar_lista';
 
 $html .= '<div data-pl-marcar data-pl-monitores'
+    . ($savedOk ? ' data-pl-saved-ok' : '')
     . ' data-session="' . esc_attr($session['id']) . '"'
     . ' data-group="monitores"'
     . ' data-msg-draft="' . esc_attr__('Tienes marcas sin guardar de antes.', 'sticpa') . '"'
@@ -155,6 +208,7 @@ $html .= '<div data-pl-marcar data-pl-monitores'
     . ' data-msg-queued="' . esc_attr__('Guardado en el móvil. Se enviará solo al volver la cobertura.', 'sticpa') . '"'
     . ' data-msg-sync="' . esc_attr__('Enviando lo que quedó pendiente…', 'sticpa') . '"'
     . ' data-msg-sent="' . esc_attr__('Lo pendiente ya está enviado.', 'sticpa') . '"'
+    . ' data-msg-stuck="' . esc_attr__('No se ha podido enviar lo que quedó pendiente. Vuelve a marcar y guardar.', 'sticpa') . '"'
     . '>';
 
 $html .= '<div class="pl-head">';
@@ -178,15 +232,18 @@ $html .= '</div>';
 
 $html .= sticpa_pl_notice_html($pick);
 
+// Si ya estaba pasada, se dice. Evita el «¿la pasé o no?» y el guardado doble.
+if ($saved === null && $listaMon !== null && $listaMon['estado'] !== '') {
+    $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>' . esc_html(sprintf(
+        /* translators: 1: cuántos vinieron, 2: cuántas faltas */
+        __('Esta lista de monitores ya está pasada: %1$d vinieron, %2$d faltas. Si la cambias, se actualiza.', 'sticpa'),
+        (int) $listaMon['n_asistieron'],
+        (int) $listaMon['n_faltaron']
+    )) . '</span></p>';
+}
+
 if (is_array($saved)) {
-    if ($saved['failed'] > 0) {
-        $html .= '<p class="pl-notice"><span>' . esc_html(sprintf(
-            /* translators: 1: guardadas, 2: fallidas */
-            __('Se han guardado %1$d y %2$d han fallado. Vuelve a intentarlo.', 'sticpa'),
-            $saved['saved'],
-            $saved['failed']
-        )) . '</span></p>';
-    } else {
+    if ($savedOk) {
         $html .= '<p class="pl-notice" style="color:var(--success-dark)">' . sticpa_pl_icon('check')
             . '<span>' . esc_html(sprintf(
                 /* translators: 1: cuántos vinieron, 2: cuántas faltas */
@@ -194,6 +251,8 @@ if (is_array($saved)) {
                 $saved['counts']['yes'],
                 $saved['counts']['no']
             )) . '</span></p>';
+    } else {
+        $html .= sticpa_pl_save_result_html($saved, $saveProblems, $objSCP);
     }
 }
 
@@ -214,6 +273,10 @@ $html .= '<p class="pl-hint pl-hint--rule">' . sticpa_pl_icon('info') . '<span>'
 $html .= '<form method="post" class="stic-loading-form" data-pl-form'
     . ' data-loading-text="' . esc_attr__('Guardando…', 'sticpa') . '">';
 $html .= wp_nonce_field('pl_monitores', 'pl_nonce', true, false);
+// La acción, también en un campo oculto: ver el comentario largo en la pantalla
+// de participantes. Sin esto, un botón deshabilitado al enviar se traga la orden
+// de guardar y no se escribe nada.
+$html .= '<input type="hidden" name="pl_action" value="save" data-pl-action>';
 $html .= '<input type="hidden" name="pl_marks" value="" data-pl-marks>';
 
 $html .= '<div class="pl-list">';

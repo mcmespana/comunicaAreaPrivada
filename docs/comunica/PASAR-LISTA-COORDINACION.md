@@ -198,6 +198,18 @@ pisarían. Con él, «la lista del C1» y «la lista de monitores del COM» conv
 Un solo campo, y las listas que ya existen siguen valiendo porque el valor por
 defecto es el que ya son.
 
+> **Estado 27/08/2026: hecho y en uso.** El campo existe en el CRM y es
+> **requerido** (verificado con `get_module_fields`). El plugin lo manda
+> explícito en las dos familias, y `LIS_listas` se lee una vez para ambas
+> (`sticpa_pl_listas_index()`), con un índice por familia.
+>
+> La lista de monitores va **sin grupo**, porque el alcance es la etapa. Eso
+> deja **una por sesión y delegación**: si MIC y COM comparten evento, sus
+> coordinadores comparten la lista y el último que guarde deja sus números (las
+> asistencias por persona siguen siendo correctas). Separarlas pediría un campo
+> de etapa en `LIS_listas`, que **no existe** y no se ha inventado. Si se decide
+> que hace falta, se pide al CRM y se documenta en `CAMPOS.md`.
+
 ### 🔨 El evento de reuniones
 
 No es un campo: es un registro. Uno por delegación y curso, asignado al usuario

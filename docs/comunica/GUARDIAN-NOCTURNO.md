@@ -185,9 +185,10 @@ nada — a las 2:05 ya está fría.
 
 ### El TTL, que es la parte que se olvida
 
-El TTL normal de la estructura son **12 horas**. Calentada a la 1:30, caducaría a
-las 13:30 — **antes** de las sesiones del sábado, que son por la tarde, y el
-calentado no habría servido para nada. Mientras calienta se sube a **26 horas**
+El TTL normal de la estructura son **24 horas** (eran 12, y calentada a la 1:30
+caducaba a las 13:30 — **antes** de las sesiones del sábado, que son por la
+tarde, con lo que el calentado no había servido para nada). Mientras calienta se
+sube a **26 horas**
 con el filtro `sticpa_pl_ttl_structure`, que cubre hasta la pasada de la noche
 siguiente con margen. Al terminar se quita: una página normal sigue escribiendo
 con el TTL de siempre.

@@ -200,6 +200,26 @@
         if (q.length) { lsSet(STORE_QUEUE, JSON.stringify(q)); } else { lsDel(STORE_QUEUE); }
     }
 
+    /* Un intento fallido no se tira: se cuenta. Un nonce caducado devuelve 200
+       con un aviso, así que sin contar los intentos la entrada se reenviaría
+       para siempre sin que nadie se enterase. */
+    function queueBumpTries(entry) {
+        var q = queueRead().map(function (e) {
+            if (e.session === entry.session && e.group === entry.group) {
+                e.tries = (e.tries || 0) + 1;
+            }
+            return e;
+        });
+        lsSet(STORE_QUEUE, JSON.stringify(q));
+    }
+
+    var QUEUE_MAX_TRIES = 5;
+
+    /** ¿Hay algo en la cola que ya no hay forma de enviar solo? */
+    function queueStuck() {
+        return queueRead().some(function (e) { return (e.tries || 0) >= QUEUE_MAX_TRIES; });
+    }
+
     /**
      * Intenta enviar lo que haya en la cola.
      *
@@ -232,11 +252,20 @@
                 credentials: 'same-origin',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
             }).then(function (res) {
-                // Un nonce caducado devuelve 200 con un aviso, no un error HTTP,
-                // así que esto solo distingue "ha llegado" de "no ha llegado".
-                if (res.ok) {
+                // `res.ok` NO vale como prueba: un nonce caducado o un fallo del
+                // CRM contestan 200 con un aviso, y la entrada se daba por
+                // enviada — la lista del monitor se perdía en silencio. La
+                // prueba es el atributo que el servidor pinta SOLO cuando ha
+                // releído el CRM y lo ha comprobado.
+                if (!res.ok) { return null; }
+                return res.text();
+            }).then(function (html) {
+                if (html === null) { return; }
+                if (html.indexOf('data-pl-saved-ok') !== -1) {
                     queueRemove(entry);
                     sent++;
+                } else {
+                    queueBumpTries(entry);
                 }
             }).catch(function () {
                 /* sigue en la cola para el próximo intento */
@@ -792,6 +821,8 @@
             // pero si el navegador no lo trae, sin esto "Sin registro" se
             // encolaría sin cobertura como si fuera un guardado normal.
             var lastSubmitter = null;
+            var actionInput = root.querySelector('[data-pl-action]');
+            var sending = false;
             form.addEventListener('click', function (ev) {
                 var btn = ev.target.closest && ev.target.closest('button[type="submit"]');
                 if (btn) { lastSubmitter = btn; }
@@ -805,6 +836,13 @@
 
                 var submitter = ev.submitter || lastSubmitter;
                 var action = (submitter && submitter.getAttribute('value')) || 'save';
+                /* La acción, al campo oculto. Los botones la llevan en su
+                   `value`, pero un botón deshabilitado NO se serializa: si se
+                   deshabilita durante este mismo manejador —lo que hacíamos
+                   más abajo— la orden de guardar no sale del navegador y el
+                   servidor no guarda nada. Era EL bug: «pasar lista» no pasaba
+                   lista desde el primer día. */
+                if (actionInput) { actionInput.value = action; }
 
                 if (!navigator.onLine) {
                     // Sin cobertura no se intenta y se falla: se guarda y se
@@ -831,13 +869,28 @@
                     return;
                 }
 
+                // Doble toque: el segundo envío no se manda (el primero ya va
+                // de camino y navega).
+                if (sending) {
+                    ev.preventDefault();
+                    return;
+                }
+                sending = true;
+
                 // Con cobertura sí navega: el overlay de carga lo pone
                 // js/stic-ui.js por la clase stic-loading-form del formulario.
                 dirty = false;
-                lsDel(draftKey);
+                // EL BORRADOR NO SE TIRA AQUÍ. Se tiraba al enviar, antes de
+                // saber si el CRM lo había aceptado: si fallaba, el monitor
+                // perdía las marcas y encima creía que estaban guardadas. Ahora
+                // lo tira el arranque de la página siguiente, y solo si el
+                // servidor confirma el guardado (`data-pl-saved-ok`).
                 if (saveBtn) {
-                    saveBtn.disabled = true;
                     saveBtn.textContent = saveBtn.getAttribute('data-label-saving') || 'Guardando…';
+                    // Deshabilitar SÍ, pero en el siguiente tic: el navegador
+                    // construye los datos del formulario después de este
+                    // manejador, y un control deshabilitado se queda fuera.
+                    setTimeout(function () { saveBtn.disabled = true; }, 0);
                 }
             });
         }
@@ -864,6 +917,12 @@
                     if (sent > 0) {
                         say('ok', root.getAttribute('data-msg-sent') || '');
                         lsDel(draftKey);
+                    } else if (queueStuck()) {
+                        // Ni con cobertura entra: casi siempre el nonce caducado
+                        // de una pantalla vieja. Callarlo dejaría al monitor
+                        // creyendo que su lista se envió sola.
+                        say('offline', root.getAttribute('data-msg-stuck')
+                            || 'No se ha podido enviar lo que quedó pendiente. Vuelve a marcar y guardar.');
                     }
                 });
             } else {
@@ -877,6 +936,10 @@
         /* ---- Arranque -------------------------------------------------- */
 
         if (lsGet(STORE_HINT)) { document.body.classList.add('pl-hold-seen'); }
+        // El servidor ha confirmado, releyendo el CRM, que esto está guardado:
+        // ahora sí se puede tirar el borrador. Va ANTES de restoreDraft() para
+        // que no reviva las marcas que ya están en el CRM.
+        if (root.hasAttribute('data-pl-saved-ok')) { lsDel(draftKey); }
         restoreDraft();
         showConnectivity();
         refresh();

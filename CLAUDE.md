@@ -65,16 +65,32 @@ contexto**. Reglas:
 
 ---
 
+## Si vas a tocar Pasar Lista
+
+Lee **[`docs/comunica/PASAR-LISTA-ESTADO.md`](docs/comunica/PASAR-LISTA-ESTADO.md)**
+antes de empezar. Está el bug abierto, las cinco trampas que ya han costado días
+(los enlaces anidados que esta instancia no devuelve, los dobles de test que
+mienten sobre la forma de la API, el CSS de los artboards, los tokens que no
+existen y los `<button>` que pinta el tema de WordPress) y los IDs del piloto.
+El mapa de los demás documentos está en
+[`PASAR-LISTA-README.md`](docs/comunica/PASAR-LISTA-README.md).
+
+---
+
 ## Documentación por funcionalidad
 
 | Tema | Documento |
 |---|---|
 | Campos del CRM (**la fuente de la verdad**) | `docs/comunica/CAMPOS.md` |
 | Eventos e inscripciones | `docs/comunica/EVENTOS.md` |
+| **Pasar Lista — índice de todo** | `docs/comunica/PASAR-LISTA-README.md` |
+| **Pasar Lista — parte de estado: qué funciona, qué está roto** | `docs/comunica/PASAR-LISTA-ESTADO.md` |
 | Pasar Lista — diseño funcional | `docs/comunica/PASAR-LISTA.md` |
 | Pasar Lista — campos del CRM | `docs/comunica/PASAR-LISTA-CAMPOS-CRM.md` |
 | Pasar Lista — fases y futuro | `docs/comunica/PASAR-LISTA-ROADMAP.md` |
-| Pasar Lista — recuentos y monitores (pendiente, con plan) | `docs/comunica/PASAR-LISTA-RECUENTOS.md` |
+| Pasar Lista — recuentos y monitores | `docs/comunica/PASAR-LISTA-RECUENTOS.md` |
+| Pasar Lista — coordinación y monitores | `docs/comunica/PASAR-LISTA-COORDINACION.md` |
+| Pasar Lista — seguimientos de monitores | `docs/comunica/PASAR-LISTA-SEGUIMIENTOS.md` |
 | Contrato con MCM App (webview) | `docs/comunica/CONTRATO-APP-WEBVIEW.md` |
 | Guardián Nocturno del CRM (mantenimiento de madrugada) | `docs/comunica/GUARDIAN-NOCTURNO.md` |
 | Sistema de diseño | `docs/design-system.md` |
