@@ -23,6 +23,27 @@ class FakeSCP
     /** Seguimientos que devuelve el CRM (claves ya del CRM: mcm_*). */
     public $seguimientos = array();
 
+    /**
+     * ESTE DOBLE GUARDA. Lo que se escribe con set_entry se ve al volver a
+     * leer, como en el CRM de verdad.
+     *
+     * Antes no: una escritura se apuntaba en `$writes` y las lecturas seguían
+     * devolviendo lo de siempre. Con eso no se puede probar lo único que
+     * importaba —«¿está de verdad guardado?»— y es la misma trampa que dejó 175
+     * tests en verde con la producción rota (parte de estado §3.2).
+     */
+    public $attStatus = array();       // id de asistencia => status escrito
+    public $attSession = array();      // id de asistencia => sesión enlazada
+    public $attReg = array();          // id de asistencia => inscripción enlazada
+    public $listas = array();          // id de lista => campos escritos
+
+    /** Módulos en los que set_entry falla, como cuando el CRM lo rechaza. */
+    public $failWrites = array();
+    /** Cuando es true, set_relationship falla. */
+    public $failRelationships = false;
+    /** Lo que el transporte deja ahí para que arriba se pueda decir por qué. */
+    public $lastError = '';
+
     /** Envuelve un array plano en la forma que devuelve la API. */
     private function nvl($fields, $links = array())
     {
@@ -262,16 +283,51 @@ class FakeSCP
         if ($module === 'LIS_listas') {
             // El cargador comun de listas: UNA llamada para toda la delegacion.
             // Solo la sesion s3 tiene lista pasada, igual que antes.
-            return $this->entryListShape(array(
+            $rows = array(
                 array(
                     'fields' => array(
                         'id' => 'l1', 'estado' => 'pasada', 'pasada_el' => '2025-11-15 18:05:00',
-                        'n_asistieron' => 2, 'n_faltaron' => 0,
+                        'n_asistieron' => 2, 'n_faltaron' => 0, 'ajmcm_tipo_c' => 'participantes',
                     ),
                     'sesion' => array('id' => 's3', 'name' => 'Sesion 3'),
                     'grupo' => array('id' => 'g1', 'name' => 'Los Peques'),
                 ),
-            ), $rel);
+            );
+            // Lo escrito manda sobre lo de fábrica, como en el CRM.
+            foreach ($rows as $i => $row) {
+                $id = $row['fields']['id'];
+                if (!isset($this->listas[$id])) {
+                    continue;
+                }
+                foreach (array('estado', 'pasada_el', 'n_asistieron', 'n_faltaron', 'ajmcm_tipo_c') as $campo) {
+                    if (array_key_exists($campo, $this->listas[$id])) {
+                        $rows[$i]['fields'][$campo] = $this->listas[$id][$campo];
+                    }
+                }
+            }
+            // Y las creadas en esta prueba, con los enlaces que se les hayan
+            // puesto: sin sesión y sin grupo, el CRM las devuelve igual y es el
+            // plugin quien no puede colocarlas (eso también se prueba así).
+            foreach ($this->listas as $id => $l) {
+                if ($id === 'l1') {
+                    continue;
+                }
+                $fields = array('id' => $id, 'ajmcm_tipo_c' => 'participantes');
+                foreach (array('estado', 'pasada_el', 'n_asistieron', 'n_faltaron', 'ajmcm_tipo_c') as $campo) {
+                    if (array_key_exists($campo, $l)) {
+                        $fields[$campo] = $l[$campo];
+                    }
+                }
+                $row = array('fields' => $fields);
+                if (!empty($l['__sesion'])) {
+                    $row['sesion'] = array('id' => $l['__sesion'], 'name' => 'Sesion');
+                }
+                if (!empty($l['__grupo'])) {
+                    $row['grupo'] = array('id' => $l['__grupo'], 'name' => 'Grupo');
+                }
+                $rows[] = $row;
+            }
+            return $this->entryListShape($rows, $rel);
         }
         if ($module === 'stic_Events') {
             return array(
@@ -398,10 +454,35 @@ class FakeSCP
                 ));
 
             case 'stic_Sessions:stic_attendances_stic_sessions':
-                return $this->apiShape(array(
-                    $this->nvl(array('id' => 'a1', 'status' => 'yes'), array(array('id' => 'reg1'))),
-                    $this->nvl(array('id' => 'a2', 'status' => ''), array(array('id' => 'reg2'))),
-                ));
+                $filas = array(
+                    'a1' => array('status' => 'yes', 'reg' => 'reg1'),
+                    'a2' => array('status' => '', 'reg' => 'reg2'),
+                );
+                // Lo escrito se ve al releer.
+                foreach ($filas as $id => $fila) {
+                    if (isset($this->attStatus[$id])) {
+                        $filas[$id]['status'] = $this->attStatus[$id];
+                    }
+                }
+                // Y las asistencias creadas y enlazadas a ESTA sesión.
+                $sesion = isset($p['module_id']) ? (string) $p['module_id'] : '';
+                foreach ($this->attSession as $id => $sid) {
+                    if ($sid !== $sesion || isset($filas[$id])) {
+                        continue;
+                    }
+                    $filas[$id] = array(
+                        'status' => isset($this->attStatus[$id]) ? $this->attStatus[$id] : '',
+                        'reg' => isset($this->attReg[$id]) ? $this->attReg[$id] : '',
+                    );
+                }
+                $out = array();
+                foreach ($filas as $id => $fila) {
+                    $out[] = $this->nvl(
+                        array('id' => $id, 'status' => $fila['status']),
+                        array(array('id' => $fila['reg']))
+                    );
+                }
+                return $this->apiShape($out);
 
             // Histórico de un participante: todas sus asistencias del curso.
             case 'stic_Registrations:stic_attendances_stic_registrations':
@@ -484,13 +565,51 @@ class FakeSCP
     public function set_entry($module, $data)
     {
         $this->writes[] = array('module' => $module, 'data' => $data);
-        return isset($data['id']) ? $data['id'] : 'new-' . count($this->writes);
+
+        if (in_array($module, $this->failWrites, true)) {
+            // La forma real de un rechazo: el CRM contesta 200 con un cuerpo de
+            // error y el transporte lo deja en lastError y devuelve null.
+            $this->lastError = 'Access Denied — el usuario no tiene acceso a ' . $module . ' — #40';
+            return null;
+        }
+        $this->lastError = '';
+
+        $id = isset($data['id']) ? $data['id'] : 'new-' . count($this->writes);
+        if ($module === 'stic_Attendances' && array_key_exists('status', $data)) {
+            $this->attStatus[$id] = (string) $data['status'];
+        }
+        if ($module === 'LIS_listas') {
+            $previo = isset($this->listas[$id]) ? $this->listas[$id] : array();
+            $this->listas[$id] = array_merge($previo, $data, array('id' => $id));
+        }
+        return $id;
     }
 
     public function set_relationship($module, $id, $link, $ids)
     {
         $this->relationships[] = array('module' => $module, 'id' => $id, 'link' => $link, 'ids' => $ids);
-        return true;
+
+        if ($this->failRelationships) {
+            $this->lastError = 'set_relationship(' . $link . ') ha fallado en 1 de 1';
+            return false;
+        }
+        $this->lastError = '';
+
+        $primero = isset($ids[0]) ? (string) $ids[0] : '';
+        if ($module === 'stic_Attendances' && $link === 'stic_attendances_stic_sessions') {
+            $this->attSession[$id] = $primero;
+        }
+        if ($module === 'stic_Attendances' && $link === 'stic_attendances_stic_registrations') {
+            $this->attReg[$id] = $primero;
+        }
+        if ($module === 'LIS_listas' && $link === 'lis_listas_stic_sessions') {
+            $this->listas[$id]['__sesion'] = $primero;
+        }
+        if ($module === 'LIS_listas' && $link === 'lis_listas_ajmcm_grupos') {
+            $this->listas[$id]['__grupo'] = $primero;
+        }
+        // La forma real: {created, failed, deleted}.
+        return (object) array('created' => count((array) $ids), 'failed' => 0, 'deleted' => 0);
     }
 }
 
@@ -522,11 +641,16 @@ final class PasarListaRenderTest extends TestCase
         $_POST = array();
         $this->scp = new FakeSCP();
         $GLOBALS['__stic_filters']['sticpa_pl_seguimientos_enabled'] = true;
+        // El diario de guardados vive en wp_options y se arrastraría entre
+        // pruebas.
+        unset($GLOBALS['__stic_options']['sticpa_pl_save_log']);
+        unset($_SERVER['REQUEST_METHOD']);
     }
 
     protected function tearDown(): void
     {
         unset($GLOBALS['__stic_pl_now']);
+        unset($_SERVER['REQUEST_METHOD']);
         $_SESSION = array();
         $_REQUEST = array();
         $_POST = array();
@@ -863,6 +987,309 @@ final class PasarListaRenderTest extends TestCase
     }
 
 
+
+    // ---- EL bug: la orden de guardar tiene que llegar --------------------
+
+    /**
+     * LA REGRESIÓN QUE IMPORTA. «Pasar lista» no pasaba lista desde el primer
+     * día por esto: el JS deshabilitaba el botón de enviar DENTRO del manejador
+     * de `submit`, y un control deshabilitado no se serializa. `pl_action` no
+     * salía del navegador, PHP se saltaba el guardado entero y la pantalla no
+     * decía ni una palabra. Cero rastro en el CRM.
+     *
+     * El arreglo de fondo está en el JS (no deshabilitar hasta el tic
+     * siguiente), pero eso ningún test de PHP lo puede ver. Lo que sí se puede
+     * exigir es el cinturón: que la acción viaje también en un campo oculto,
+     * que no depende de ningún botón.
+     */
+    public function test_el_formulario_manda_la_accion_en_un_campo_oculto()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertStringContainsString(
+            '<input type="hidden" name="pl_action" value="save" data-pl-action>',
+            $html
+        );
+        // Y los botones siguen llevándola: sin JS son los que distinguen
+        // guardar de «sin registro».
+        $this->assertStringContainsString('name="pl_action" value="skip"', $html);
+        $this->assertStringContainsString('name="pl_action" value="save"', $html);
+    }
+
+    /** La misma garantía en la pantalla de monitores. */
+    public function test_monitores_tambien_manda_la_accion_en_un_campo_oculto()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        $this->assertStringContainsString(
+            '<input type="hidden" name="pl_action" value="save" data-pl-action>',
+            $html
+        );
+    }
+
+    /**
+     * Y si aun así llega un POST sin acción, NO se traga en silencio: se dice y
+     * se apunta. Es la diferencia entre «no se guarda y no sé por qué» y un
+     * diagnóstico de treinta segundos.
+     */
+    public function test_un_post_sin_accion_no_se_traga_el_guardado()
+    {
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => json_encode(array('c1' => 'yes')),
+        );
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertStringContainsString('llegó sin la orden de guardar', $html);
+        $this->assertStringNotContainsString('Lista guardada', $html);
+        $this->assertSame(array(), $this->scp->writes);
+
+        $log = sticpa_pl_save_log();
+        $this->assertNotEmpty($log);
+        $this->assertSame('post_sin_accion', $log[0]['motivo']);
+        // Con el tamaño de lo que sí llegó: prueba de que el POST no venía vacío.
+        $this->assertGreaterThan(0, $log[0]['marcas_post']);
+    }
+
+    // ---- «Lista guardada» solo si es verdad ------------------------------
+
+    /** Un guardado bueno deja la señal que el JS necesita para tirar el borrador. */
+    public function test_un_guardado_bueno_marca_la_senal_para_el_borrador()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => json_encode(array('c1' => 'yes')),
+        );
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertStringContainsString('Lista guardada', $html);
+        $this->assertStringContainsString('data-pl-saved-ok', $html);
+
+        $log = sticpa_pl_save_log();
+        $this->assertSame('ok', $log[0]['motivo']);
+        $this->assertSame(1, $log[0]['saved']);
+        $this->assertSame(0, $log[0]['failed']);
+    }
+
+    /**
+     * Si el CRM rechaza la LISTA, la pantalla no puede felicitar. Este era el
+     * agujero: el fallo de la lista no se contaba en `failed`, así que decía
+     * «Lista guardada» con el CRM sin lista.
+     */
+    public function test_si_el_crm_rechaza_la_lista_no_se_dice_guardada()
+    {
+        $this->scp->failWrites = array('LIS_listas');
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => json_encode(array('c1' => 'yes')),
+        );
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertStringNotContainsString('Lista guardada', $html);
+        $this->assertStringNotContainsString('data-pl-saved-ok', $html);
+        $this->assertStringContainsString('no se ha guardado del todo', mb_strtolower($html));
+
+        // Y el motivo del CRM queda apuntado, con el paso exacto.
+        $log = sticpa_pl_save_log();
+        $pasos = array_column($log[0]['errores'], 'paso');
+        $this->assertContains('lista_actualizar', $pasos);
+        $this->assertStringContainsString('Access Denied', $log[0]['errores'][0]['error']);
+    }
+
+    /** Si rechaza las ASISTENCIAS, tampoco. */
+    public function test_si_el_crm_rechaza_las_asistencias_no_se_dice_guardada()
+    {
+        $this->scp->failWrites = array('stic_Attendances');
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => json_encode(array('c1' => 'yes')),
+        );
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertStringNotContainsString('Lista guardada', $html);
+        $log = sticpa_pl_save_log();
+        $this->assertContains('asistencia_actualizar', array_column($log[0]['errores'], 'paso'));
+    }
+
+    /**
+     * Una asistencia CREADA a la que le falla el enlace queda huérfana: el CRM
+     * no la cuenta en el porcentaje. Antes se lanzaba el enlace y nadie miraba
+     * el resultado.
+     */
+    public function test_una_relacion_fallida_cuenta_como_fallo()
+    {
+        $this->scp->failRelationships = true;
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            // c3 no tiene asistencia previa ni inscripción: es el camino de CREAR.
+            'pl_marks' => json_encode(array('c3' => 'yes')),
+        );
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertStringNotContainsString('Lista guardada', $html);
+        $log = sticpa_pl_save_log();
+        $pasos = array_column($log[0]['errores'], 'paso');
+        $this->assertContains('asistencia_enlazar_sesion', $pasos);
+        // Y se dice que esa persona no tiene inscripción, que es un dato y no ruido.
+        $this->assertContains('sin_inscripcion', $pasos);
+    }
+
+    /**
+     * El caso traicionero: el CRM acepta la escritura y al releer no está el
+     * dato. Sin relectura eso se cuenta como éxito y la pantalla felicita.
+     */
+    public function test_si_al_releer_no_esta_no_se_dice_guardada()
+    {
+        // Falta el estado de quien se marcó: no está guardado.
+        $problemas = sticpa_pl_check_saved(
+            array('c1' => 'yes'),
+            array('id' => 'l1', 'estado' => 'pasada'),
+            array('c1' => array('id' => 'a1', 'status' => '')),
+            false
+        );
+        $this->assertNotEmpty($problemas);
+        $this->assertStringContainsString('no ha quedado guardada', $problemas[0]);
+
+        // Con todo en su sitio, ni un problema.
+        $this->assertSame(array(), sticpa_pl_check_saved(
+            array('c1' => 'yes'),
+            array('id' => 'l1', 'estado' => 'pasada'),
+            array('c1' => array('id' => 'a1', 'status' => 'yes')),
+            false
+        ));
+
+        // Una lista que no aparece al releer también lo es.
+        $this->assertNotEmpty(sticpa_pl_check_saved(array(), null, array(), false));
+
+        // Y en «sin registro» se comprueba el estado de la lista, no las marcas.
+        $this->assertSame(array(), sticpa_pl_check_saved(
+            array(),
+            array('id' => 'l1', 'estado' => 'omitida'),
+            array(),
+            true
+        ));
+        $this->assertNotEmpty(sticpa_pl_check_saved(
+            array(),
+            array('id' => 'l1', 'estado' => 'pasada'),
+            array(),
+            true
+        ));
+    }
+
+    // ---- El diario de intentos -------------------------------------------
+
+    /** Un nonce caducado no escribe nada, y eso también se apunta. */
+    public function test_el_diario_apunta_el_nonce_caducado()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => 'no-vale',
+            'pl_marks' => json_encode(array('c1' => 'yes')),
+        );
+        $this->render('single_stic_pasar_lista_marcar');
+
+        $log = sticpa_pl_save_log();
+        $this->assertSame('nonce', $log[0]['motivo']);
+        $this->assertSame(array(), $this->scp->writes);
+    }
+
+    /**
+     * «Sin marcas» se apunta con el tamaño del campo crudo: es lo que distingue
+     * «no marcó a nadie» de «las marcas llegaron y el filtrado se las comió»,
+     * que son dos bugs distintos y desde fuera se ven igual.
+     */
+    public function test_el_diario_distingue_sin_marcas_de_filtrado()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            // Marcas de gente que no es del grupo: llegan y el filtrado las tira.
+            'pl_marks' => json_encode(array('c99' => 'yes')),
+        );
+        $this->render('single_stic_pasar_lista_marcar');
+
+        $log = sticpa_pl_save_log();
+        $this->assertSame('sin_marcas', $log[0]['motivo']);
+        $this->assertGreaterThan(0, $log[0]['marcas_post']);
+        $this->assertSame(0, $log[0]['marcas_usadas']);
+    }
+
+    // ---- El tipo de lista -----------------------------------------------
+
+    /** `ajmcm_tipo_c` es REQUERIDO en el CRM: se manda, no se deja al defecto. */
+    public function test_la_lista_lleva_el_tipo_participantes()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => json_encode(array('c1' => 'yes')),
+        );
+        $this->render('single_stic_pasar_lista_marcar');
+
+        $listWrites = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'LIS_listas';
+        }));
+        $this->assertSame('participantes', $listWrites[0]['data']['ajmcm_tipo_c']);
+    }
+
+    /**
+     * Una lista de MONITORES vive en la misma sesión que la del grupo (para eso
+     * está `ajmcm_tipo_c`). No puede colarse como la lista del grupo: diría que
+     * el grupo tiene la lista pasada cuando no la tiene.
+     */
+    public function test_una_lista_de_monitores_no_se_toma_por_la_del_grupo()
+    {
+        $id = $this->scp->set_entry('LIS_listas', array(
+            'estado' => 'pasada', 'ajmcm_tipo_c' => 'monitores',
+            'n_asistieron' => 3, 'n_faltaron' => 0,
+        ));
+        $this->scp->set_relationship('LIS_listas', $id, 'lis_listas_stic_sessions', array('s2'));
+        $this->scp->set_relationship('LIS_listas', $id, 'lis_listas_ajmcm_grupos', array('g1'));
+
+        $this->assertNull(sticpa_pl_lista($this->scp, 's2', 'g1'));
+        // Y la de participantes de siempre sigue encontrándose.
+        $this->assertNotNull(sticpa_pl_lista($this->scp, 's3', 'g1'));
+    }
+
+    // ---- Caché: un vacío no vale doce horas ------------------------------
+
+    /**
+     * Un resultado VACÍO puede ser «no hay nada» o «el CRM no ha contestado», y
+     * se guardaban igual: 12 horas. Un hipo del CRM dejaba el grupo «sin
+     * participantes» hasta la madrugada — y el mapa de inscripciones vacío, que
+     * es lo que impide escribir cualquier asistencia.
+     */
+    public function test_una_coleccion_vacia_caduca_enseguida()
+    {
+        $largo = sticpa_pl_ttl_structure();
+        sticpa_pl_cache_put('k_vacia', array(), $largo);
+        sticpa_pl_cache_put('k_llena', array('algo'), $largo);
+
+        $expiraVacia = $GLOBALS['__stic_transients']['k_vacia']['expires'];
+        $expiraLlena = $GLOBALS['__stic_transients']['k_llena']['expires'];
+        $this->assertLessThan($expiraLlena, $expiraVacia);
+        $this->assertLessThanOrEqual(
+            stic_test_now() + sticpa_pl_ttl_empty(),
+            $expiraVacia
+        );
+        // Y lo lleno conserva su TTL completo.
+        $this->assertSame(stic_test_now() + $largo, $expiraLlena);
+    }
 
     public function test_guardar_escribe_asistencias_y_la_lista()
     {

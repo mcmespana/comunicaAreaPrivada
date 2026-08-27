@@ -90,14 +90,28 @@ $regMap = sticpa_pl_event_registrations($objSCP, $event['id']);
 // ---------------------------------------------------------------------------
 
 $saved = null;
+$saveProblems = array();
+$savedOk = false;
+$marks = array();
+$notes = array();
+$omitida = false;
+$isPost = (isset($_SERVER['REQUEST_METHOD']) && strtoupper($_SERVER['REQUEST_METHOD']) === 'POST');
+$marksRaw = isset($_POST['pl_marks']) ? (string) $_POST['pl_marks'] : '';
+
 if (!empty($_POST['pl_action'])) {
     // El nonce evita que un enlace de fuera escriba asistencias en nombre del
     // monitor conectado. Sin esto, un GET disfrazado bastaría.
     if (!isset($_POST['pl_nonce']) || !wp_verify_nonce($_POST['pl_nonce'], 'pl_save_' . $groupId)) {
+        // Se registra: «caducada» y «no llegó» se confunden desde fuera, y esta
+        // rama no escribe nada en el CRM.
+        sticpa_pl_log_save(array(
+            'pantalla' => 'marcar', 'motivo' => 'nonce',
+            'grupo' => $groupId, 'sesion' => $session['id'],
+            'marcas_post' => strlen($marksRaw),
+        ));
         $html .= '<p class="pl-notice">' . sticpa_pl_icon('clock') . '<span>'
             . esc_html__('La sesión ha caducado. Vuelve a cargar la pantalla.', 'sticpa') . '</span></p>';
     } else {
-        $marks = array();
         if (!empty($_POST['pl_marks'])) {
             $decoded = json_decode(wp_unslash($_POST['pl_marks']), true);
             if (is_array($decoded)) {
@@ -114,7 +128,6 @@ if (!empty($_POST['pl_action'])) {
         }
         // Los motivos viajan en su propio campo. Se sanean igual que las marcas:
         // solo gente de ESTE grupo, y recortado a lo que cabe en el CRM.
-        $notes = array();
         if (!empty($_POST['pl_notes'])) {
             $decodedNotes = json_decode(wp_unslash($_POST['pl_notes']), true);
             if (is_array($decodedNotes)) {
@@ -145,6 +158,20 @@ if (!empty($_POST['pl_action'])) {
         // «Sin registro» (skip) si escribe con cero marcas: ahi el cero es la
         // afirmacion, no un descuido.
         if (!$omitida && empty($marks)) {
+            // Y se apunta CON el tamaño del campo crudo: si venía lleno y aquí
+            // está vacío, el problema es el filtrado (ids que no cuadran), no
+            // que el monitor no marcara. Son dos bugs distintos y desde fuera
+            // se ven igual.
+            sticpa_pl_log_save(array(
+                'pantalla' => 'marcar', 'motivo' => 'sin_marcas',
+                'grupo' => $groupId, 'sesion' => $session['id'],
+                'marcas_post' => strlen($marksRaw),
+                'marcas_usadas' => 0,
+                'errores' => array(array(
+                    'paso' => 'filtrado',
+                    'error' => 'participantes en pantalla: ' . count($people['participants']),
+                )),
+            ));
             $html .= '<p class="pl-notice">' . sticpa_pl_icon('info') . '<span>'
                 . esc_html__('No has marcado a nadie, así que no se ha guardado nada. Marca al menos a una persona, o usa «Sin registro» si no hubo sesión.', 'sticpa')
                 . '</span></p>';
@@ -152,6 +179,20 @@ if (!empty($_POST['pl_action'])) {
             $saved = sticpa_pl_save($objSCP, $session['id'], $groupId, $marks, $omitida, $regMap, $notes);
         }
     }
+} elseif ($isPost) {
+    // UN POST SIN ACCIÓN. Aquí vivía EL bug: el JS deshabilitaba el botón de
+    // enviar dentro del propio manejador de `submit`, y un control
+    // deshabilitado NO se serializa — así que `pl_action` no llegaba, PHP se
+    // saltaba el guardado entero y la pantalla no decía nada. Ahora la acción
+    // viaja además en un campo oculto, pero si volviera a pasar, se ve aquí.
+    sticpa_pl_log_save(array(
+        'pantalla' => 'marcar', 'motivo' => 'post_sin_accion',
+        'grupo' => $groupId, 'sesion' => $session['id'],
+        'marcas_post' => strlen($marksRaw),
+    ));
+    $html .= '<p class="pl-notice" style="color:var(--danger-dark)">' . sticpa_pl_icon('warn') . '<span>'
+        . esc_html__('No se ha guardado: la petición llegó sin la orden de guardar. Vuelve a intentarlo.', 'sticpa')
+        . '</span></p>';
 }
 
 // ---------------------------------------------------------------------------
@@ -172,6 +213,29 @@ $lista = sticpa_pl_lista($objSCP, $session['id'], $groupId);
 // "3 seguidas" no cambia lo que hay que hacer.
 $streaks = sticpa_pl_group_streaks($objSCP, $sessions, $session['id'], $regMap);
 
+// ¿DE VERDAD SE HA GUARDADO? Se comprueba releyendo el CRM, que es lo que
+// acaba de hacerse arriba (la caché de estado se invalida al guardar). No
+// cuesta ninguna llamada extra y convierte «Lista guardada» en un hecho
+// verificado en vez de una suposición.
+if (is_array($saved)) {
+    $saveProblems = sticpa_pl_check_saved($marks, $lista, $attendances, $omitida);
+    $savedOk = ((int) $saved['failed'] === 0 && empty($saveProblems));
+    sticpa_pl_log_save(array(
+        'pantalla' => 'marcar',
+        'motivo' => $savedOk ? 'ok' : ($omitida ? 'sin_registro_con_fallos' : 'fallos'),
+        'grupo' => $groupId, 'sesion' => $session['id'],
+        'marcas_post' => strlen($marksRaw),
+        'marcas_usadas' => count($marks),
+        'saved' => (int) $saved['saved'],
+        'failed' => (int) $saved['failed'],
+        'lista_id' => (string) $saved['lista_id'],
+        'errores' => array_merge(
+            isset($saved['errors']) ? (array) $saved['errors'] : array(),
+            array_map(function ($p) { return array('paso' => 'relectura', 'error' => $p); }, $saveProblems)
+        ),
+    ));
+}
+
 $monitorNames = array();
 foreach ($people['monitors'] as $m) {
     $monitorNames[] = $m['name'];
@@ -182,6 +246,10 @@ foreach ($people['monitors'] as $m) {
 // ---------------------------------------------------------------------------
 
 $html .= '<div data-pl-marcar'
+    // La señal de «guardado de verdad». El JS solo tira el borrador del móvil
+    // cuando la ve: antes lo borraba al enviar, así que un guardado fallido se
+    // llevaba por delante las marcas del monitor.
+    . ($savedOk ? ' data-pl-saved-ok' : '')
     . ' data-session="' . esc_attr($session['id']) . '"'
     . ' data-group="' . esc_attr($groupId) . '"'
     . ' data-msg-draft="' . esc_attr__('Tienes marcas sin guardar de antes.', 'sticpa') . '"'
@@ -189,6 +257,7 @@ $html .= '<div data-pl-marcar'
     . ' data-msg-queued="' . esc_attr__('Guardado en el móvil. Se enviará solo al volver la cobertura.', 'sticpa') . '"'
     . ' data-msg-sync="' . esc_attr__('Enviando lo que quedó pendiente…', 'sticpa') . '"'
     . ' data-msg-sent="' . esc_attr__('Lo pendiente ya está enviado.', 'sticpa') . '"'
+    . ' data-msg-stuck="' . esc_attr__('No se ha podido enviar lo que quedó pendiente. Vuelve a marcar y guardar.', 'sticpa') . '"'
     . '>';
 
 // Cabecera: grupo, monitores y selector de sesión.
@@ -222,20 +291,8 @@ $html .= '</div>';
 // Aviso de por qué esta sesión (solo si hay algo que decir).
 $html .= sticpa_pl_notice_html($pick);
 
-// Resultado del guardado.
-if (is_array($saved)) {
-    if ($saved['failed'] > 0) {
-        $html .= '<p class="pl-notice"><span>' . esc_html(sprintf(
-            /* translators: 1: guardadas, 2: fallidas */
-            __('Se han guardado %1$d marcas y %2$d han fallado. Vuelve a intentarlo.', 'sticpa'),
-            $saved['saved'],
-            $saved['failed']
-        )) . '</span></p>';
-    } else {
-        $html .= '<p class="pl-notice" style="color:var(--success-dark)">' . sticpa_pl_icon('check')
-            . '<span>' . esc_html__('Lista guardada.', 'sticpa') . '</span></p>';
-    }
-}
+// Resultado del guardado, contrastado con lo que dice el CRM al releerlo.
+$html .= sticpa_pl_save_result_html($saved, $saveProblems, $objSCP);
 
 // Si la lista ya está pasada, se dice: evita el "¿la pasé o no?".
 if ($lista !== null && $lista['estado'] !== '') {
@@ -269,6 +326,12 @@ $html .= '<form method="post" class="stic-loading-form" data-pl-form'
     . ' data-loading-text="' . esc_attr__('Guardando la lista…', 'sticpa') . '"'
     . ' data-loading-sub="' . esc_attr__('Un momento', 'sticpa') . '">';
 $html .= wp_nonce_field('pl_save_' . $groupId, 'pl_nonce', true, false);
+// LA ACCIÓN, EN UN CAMPO OCULTO. Los botones siguen llevando `name="pl_action"`
+// (sin JS son los que distinguen guardar de «sin registro», y ahí manda el
+// último valor que llega, que es el del botón pulsado), pero un campo oculto
+// garantiza que la orden llegue SIEMPRE, aunque el botón esté deshabilitado en
+// el momento de serializar. Eso es lo que hacía que no se guardara nada.
+$html .= '<input type="hidden" name="pl_action" value="save" data-pl-action>';
 $html .= '<input type="hidden" name="pl_marks" value="" data-pl-marks>';
 $html .= '<input type="hidden" name="pl_notes" value="" data-pl-notes>';
 
