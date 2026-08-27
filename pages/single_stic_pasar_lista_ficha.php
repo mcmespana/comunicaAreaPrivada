@@ -236,6 +236,12 @@ $menorWa = ($ficha['ajmcm_menorwhatsapp_c'] === '1' || $ficha['ajmcm_menorwhatsa
 $phoneCards .= $phoneCard(__('Suyo', 'sticpa'), $ficha['phone_mobile'], $menorWa);
 foreach ($family as $rel) {
     $label = $rel['name'];
+    // El parentesco, traducido: el CRM lo guarda en inglés («mother») y debajo
+    // del nombre de la madre eso se lee raro.
+    $parentesco = sticpa_pl_parentesco_label($rel['relationship']);
+    if ($parentesco !== '') {
+        $label .= ' · ' . $parentesco;
+    }
     if ($rel['reference']) {
         $label .= ' · ' . __('REF', 'sticpa');
     }

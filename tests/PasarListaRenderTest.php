@@ -180,6 +180,13 @@ class FakeSCP
      * ES la llamada (cuenta N); y después cada cargador encuentra su respuesta
      * ya traída y no cuenta ninguna.
      */
+    /**
+     * Qué grupos llevan marcada la casilla de «entra en Pasar Lista».
+     * null = el campo no está relleno en ninguno, que es como está el CRM el
+     * día que se crea: ahí el filtro NO debe esconder nada.
+     */
+    public $gruposActivos = null;
+
     /** Cuántas peticiones ha llevado cada tanda paralela. */
     public $batches = array();
 
@@ -256,6 +263,13 @@ class FakeSCP
     public function datosDeModulo($module, $query = '', $fields = array(), $rel = null)
     {
         if ($module === 'ajmcm_GRUPOS') {
+            $marcar = function ($fila) {
+                if (!is_array($this->gruposActivos)) {
+                    return $fila;   // campo vacío en todos, como recién creado
+                }
+                $fila['ajmcm_pasar_lista_c'] = in_array($fila['id'], $this->gruposActivos, true) ? '1' : '0';
+                return $fila;
+            };
             // `cursos_c` lleva el CURSO ESCOLAR, que es lo que hay en el CRM de
             // verdad: "1º ESO", "Adultos", "6º Primària"… NO el año académico.
             // Este doble decía "2025-2026" y por eso los tests daban por bueno
@@ -265,26 +279,26 @@ class FakeSCP
             // número se pinta. g2 lo tiene VIEJO a propósito: ahí la pantalla
             // tiene que callarse el número y enseñar el resto de la línea.
             return array(
-                $this->nvl(array(
+                $this->nvl($marcar(array(
                     'id' => 'g1', 'name' => 'Los Peques', 'code' => 'C1', 'level' => 'COM',
                     'cursos_c' => '1º ESO',
                     'ajmcm_n_participantes_c' => '11', 'ajmcm_n_monitores_c' => '2',
                     'ajmcm_monitores_c' => 'David Soler', 'ajmcm_recuento_al_c' => '2025-11-15 01:30:00',
-                )),
-                $this->nvl(array(
+                ))),
+                $this->nvl($marcar(array(
                     'id' => 'g2', 'name' => 'C2', 'code' => 'C2', 'level' => 'COM',
                     'cursos_c' => '2º ESO',
                     'ajmcm_n_participantes_c' => '10', 'ajmcm_n_monitores_c' => '1',
                     'ajmcm_monitores_c' => 'Mercedes', 'ajmcm_recuento_al_c' => '2025-09-01 01:30:00',
-                )),
-                $this->nvl(array(
+                ))),
+                $this->nvl($marcar(array(
                     'id' => 'g3', 'name' => 'Los Micos', 'code' => 'M1', 'level' => 'MIC',
                     'cursos_c' => '5º Primaria',
                     'ajmcm_n_participantes_c' => '9', 'ajmcm_n_monitores_c' => '1',
                     'ajmcm_monitores_c' => 'Jaime', 'ajmcm_recuento_al_c' => '2025-11-14 23:40:00',
-                )),
+                ))),
                 // Sin curso escolar y sin recuento: pasa igual, como en el CRM.
-                $this->nvl(array('id' => 'g9', 'name' => 'Ruah', 'code' => '', 'level' => 'LC')),
+                $this->nvl($marcar(array('id' => 'g9', 'name' => 'Ruah', 'code' => '', 'level' => 'LC'))),
             );
         }
         if ($module === 'stic_Contacts_Relationships') {
@@ -411,6 +425,23 @@ class FakeSCP
                 $rows[] = $row;
             }
             return $this->entryListShape($rows, $rel);
+        }
+        if ($module === 'Contacts') {
+            // La consulta de la familia: UNA para todos los familiares.
+            $fam = array(
+                'fam1' => array(
+                    'id' => 'fam1', 'first_name' => 'Solete', 'last_name' => 'Messeguer',
+                    'name' => 'Solete Messeguer', 'phone_mobile' => '600 333 444',
+                    'email1' => 'sol@example.com',
+                ),
+            );
+            $out = array();
+            foreach ($fam as $id => $datos) {
+                if (strpos((string) $query, "'" . $id . "'") !== false) {
+                    $out[] = $this->nvl($datos);
+                }
+            }
+            return $out;
         }
         if ($module === 'stic_Events') {
             return array(
@@ -586,16 +617,28 @@ class FakeSCP
                     $this->nvl(array('id' => 'a3', 'status' => 'partial'), array(array('id' => 's3'))),
                 ));
 
-            // Familia: la relación puede estar creada en cualquiera de los dos
-            // sentidos, así que el doble solo contesta por uno de los enlaces.
+            // Familia, CON LA FORMA REAL (verificada en el CRM el 27/08/2026):
+            //
+            //  - Los dos lados de la relación son campos planos y los DOS
+            //    acaban en `_ida`. El código pedía `..._1contacts_idb`, que no
+            //    existe, y por eso la familia salía vacía en todas las fichas.
+            //  - El enlace anidado NO trae los datos del contacto: ni nombre
+            //    completo ni teléfono. Hay que leer el contacto aparte.
+            //  - La relación solo contesta por el primer enlace; desde
+            //    Contacts, el `_1` devuelve cero.
+            //
+            // Este doble tiene que mentir lo mismo que el CRM o el arreglo no
+            // se puede probar.
             case 'Contacts:stic_personal_environment_contacts':
-                return $this->apiShape(array($this->nvl(
-                    array('id' => 'pe1', 'relationship_type' => 'madre', 'reference_contact' => '1', 'authorized_signer' => '1', 'end_date' => ''),
-                    array(
-                        array('id' => 'c1'),                                    // el propio participante: se descarta
-                        array('id' => 'fam1', 'first_name' => 'Solete', 'last_name' => 'Messeguer', 'phone_mobile' => '600 333 444'),
-                    )
-                )));
+                return $this->apiShape(array($this->nvl(array(
+                    'id' => 'pe1',
+                    'relationship_type' => 'mother',
+                    'reference_contact' => '1',
+                    'authorized_signer' => '1',
+                    'end_date' => '',
+                    'stic_personal_environment_contactscontacts_ida' => 'c1',
+                    'stic_personal_environment_contacts_1contacts_ida' => 'fam1',
+                ))));
 
             // Seguimientos de una persona (stic_FollowUps).
             // Avisos de comportamiento. Módulo verificado contra el CRM con
@@ -2041,6 +2084,101 @@ final class PasarListaRenderTest extends TestCase
             return $w['module'] === 'stic_Attendances';
         }));
         $this->assertSame('no_unjustified', $writes[0]['data']['status']);
+    }
+
+    // ---- La casilla de «este grupo entra en Pasar Lista» -----------------
+
+    /**
+     * LA REGLA DE SEGURIDAD. El día que se cree el campo en el CRM estará vacío
+     * en los ~150 grupos: si el filtro actuara, Pasar Lista se quedaría SIN UN
+     * SOLO GRUPO y parecería que se ha roto todo.
+     */
+    public function test_sin_ninguna_casilla_marcada_no_se_esconde_nada()
+    {
+        $this->scp->gruposActivos = null;   // el campo, vacío en todos
+        $groups = sticpa_pl_groups($this->scp);
+
+        $this->assertCount(4, $groups);
+        $this->assertSame(0, sticpa_pl_grupos_ocultos($this->scp));
+    }
+
+    /** Y en cuanto alguien marca, salen solo los marcados. */
+    public function test_con_casillas_marcadas_solo_salen_esos()
+    {
+        $this->scp->gruposActivos = array('g1', 'g3');
+        $groups = sticpa_pl_groups($this->scp);
+
+        $this->assertSame(array('g1', 'g3'), array_keys($groups));
+        // Y se sabe cuántos quedan fuera, para poder decirlo.
+        $this->assertSame(2, sticpa_pl_grupos_ocultos($this->scp));
+    }
+
+    /** El árbol lo dice, en vez de dejar que alguien busque un grupo que no ve. */
+    public function test_el_arbol_avisa_de_los_grupos_no_marcados()
+    {
+        $this->scp->gruposActivos = array('g1');
+        $html = $this->render('single_stic_pasar_lista_grupos');
+
+        $this->assertStringContainsString('no están marcados para Pasar Lista', $html);
+        $this->assertStringContainsString('3 grupos', $html);
+    }
+
+    /**
+     * Una casilla de SuiteCRM llega de muchas formas según por dónde salga.
+     * Tratar solo `'1'` como sí escondería grupos que están marcados.
+     */
+    public function test_la_casilla_se_entiende_en_todas_sus_formas()
+    {
+        foreach (array('1', 'on', 'true', 'yes', 'checked', 'On', 'TRUE') as $si) {
+            $this->assertTrue(sticpa_pl_bool_crm($si), $si . ' es sí');
+        }
+        foreach (array('', '0', 'off', 'false', 'no', null) as $no) {
+            $this->assertFalse(sticpa_pl_bool_crm($no), var_export($no, true) . ' es no');
+        }
+    }
+
+    /** Y se puede apagar del todo mientras el campo no exista en el CRM. */
+    public function test_el_campo_se_puede_apagar_con_un_filtro()
+    {
+        $GLOBALS['__stic_filters']['sticpa_pl_has_grupo_activo'] = false;
+        $this->scp->gruposActivos = array('g1');
+        $groups = sticpa_pl_groups($this->scp);
+
+        $this->assertCount(4, $groups, 'apagado, no filtra nada');
+    }
+
+    /**
+     * LA FAMILIA, POR LOS CAMPOS PLANOS. Sin esto la ficha no sirve para nada
+     * un sábado: sin familia no hay teléfonos, y el teléfono es lo que se busca
+     * cuando un chaval no ha venido.
+     *
+     * El código pedía `stic_personal_environment_contacts_1contacts_idb`, que
+     * NO EXISTE (los dos lados acaban en `_ida`), y leía los datos solo del
+     * enlace anidado, que esta instancia no puebla. Resultado: bloque de
+     * familia vacío en TODAS las fichas, sin un aviso.
+     */
+    public function test_la_familia_sale_por_los_campos_planos()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringContainsString('Solete Messeguer', $html, 'la familia tiene que salir');
+        $this->assertStringContainsString('600 333 444', $html, 'y con su teléfono');
+        // El parentesco, traducido: el CRM lo guarda en inglés.
+        $this->assertStringContainsString('Madre', $html);
+        $this->assertStringNotContainsString('mother', $html);
+    }
+
+    /** Y los familiares se leen en UNA consulta, no una por persona. */
+    public function test_la_familia_se_lee_en_una_sola_consulta()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $this->render('single_stic_pasar_lista_ficha');
+
+        $contactos = array_filter($this->scp->calls, function ($c) {
+            return $c === 'getRecordsModule:Contacts';
+        });
+        $this->assertLessThanOrEqual(1, count($contactos));
     }
 
     /**
