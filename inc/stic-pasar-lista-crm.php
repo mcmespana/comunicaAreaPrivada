@@ -1471,16 +1471,57 @@ function sticpa_pl_group_streaks($objSCP, $sessions, $currentSessionId, $regMap 
  */
 function sticpa_pl_all_listas($objSCP)
 {
+    $index = sticpa_pl_listas_index($objSCP);
+    return $index['participantes'];
+}
+
+/**
+ * Las listas de MONITORES de la delegación: sessionId => datos de la lista.
+ *
+ * Van en su propio mapa, no colgadas de un grupo, porque una lista de monitores
+ * no es de un grupo: el alcance de coordinación es la etapa. Sale de la MISMA
+ * llamada y la MISMA caché que las de participantes (ver
+ * `sticpa_pl_listas_index()`), así que no cuesta ninguna consulta extra.
+ *
+ * ⚠️ UNA POR SESIÓN Y DELEGACIÓN. Si MIC y COM comparten evento —y por tanto
+ * sesiones— sus coordinadores comparten esta lista, y el último que guarde deja
+ * sus números. Las ASISTENCIAS de cada monitor son correctas en cualquier caso
+ * (son por persona); lo que se pisa es el resumen. Separarlas de verdad pide un
+ * campo de etapa en `LIS_listas` que hoy NO existe, y aquí no se inventan
+ * campos: está anotado en PASAR-LISTA-COORDINACION.md.
+ */
+function sticpa_pl_all_listas_monitores($objSCP)
+{
+    $index = sticpa_pl_listas_index($objSCP);
+    return $index['monitores'];
+}
+
+/**
+ * Una sola lectura de `LIS_listas` para las dos familias.
+ *
+ * Devuelve array('participantes' => [sesion][grupo] => …, 'monitores' =>
+ * [sesion] => …). Lo que separa las dos es `ajmcm_tipo_c`, que es justo para
+ * lo que existe ese campo: la lista del C1 y la de monitores del COM viven en
+ * la misma sesión y no se pueden pisar.
+ */
+function sticpa_pl_listas_index($objSCP)
+{
+    $vacio = array('participantes' => array(), 'monitores' => array());
+
     $deleg = sticpa_pl_delegation($objSCP);
     if (!$deleg) {
-        return array();
+        return $vacio;
     }
 
     $cacheKey = sticpa_pl_cache_key('listas', $objSCP);
     $ttl = sticpa_pl_ttl_state();
     if ($ttl > 0) {
         $cached = get_transient($cacheKey);
-        if (is_array($cached)) {
+        // La comprobación de las dos claves NO es paranoia: una caché escrita
+        // por la versión anterior tiene la forma vieja (plana) y colarla aquí
+        // daría un índice sin monitores y con las participantes en el sitio
+        // equivocado.
+        if (is_array($cached) && isset($cached['participantes']) && isset($cached['monitores'])) {
             return $cached;
         }
     }
@@ -1505,40 +1546,49 @@ function sticpa_pl_all_listas($objSCP)
         )
     );
 
-    $out = array();
+    $tipos = sticpa_pl_lista_tipos();
+    $out = $vacio;
     if (is_array($rows)) {
         foreach ($rows as $row) {
             $v = isset($row->name_value_list) ? $row->name_value_list : null;
             if (!$v || empty($v->id->value)) {
                 continue;
             }
-            // Solo las listas de PARTICIPANTES. Una lista de monitores vive en
-            // la misma sesión (ese es el sentido de `ajmcm_tipo_c`) y colarla
-            // aquí haría que la pantalla de un grupo enseñara como suya una
-            // lista que no lo es. Vacío = participantes, que es el defecto del
-            // CRM y lo que son todas las listas de antes de este campo.
-            $tipo = isset($v->ajmcm_tipo_c->value) ? (string) $v->ajmcm_tipo_c->value : '';
-            $tipos = sticpa_pl_lista_tipos();
-            if ($tipo !== '' && $tipo !== $tipos['participantes']) {
-                continue;
-            }
             $sid = sticpa_pl_nvl_first($v, array('sesion_id', 'lis_listas_stic_sessionsstic_sessions_ida'));
-            $gid = sticpa_pl_nvl_first($v, array('grupo_id', 'lis_listas_ajmcm_gruposajmcm_grupos_ida'));
-            // Sin sesión o sin grupo no se puede colocar, y colocarla mal es
-            // peor que no tenerla: diría que un grupo pasó una lista que no es.
-            if ($sid === '' || $gid === '') {
+            // Sin sesión no se puede colocar ninguna de las dos.
+            if ($sid === '') {
                 continue;
             }
-            $out[$sid][$gid] = array(
+            $datos = array(
                 'id' => (string) $v->id->value,
                 'estado' => isset($v->estado->value) ? (string) $v->estado->value : '',
                 'pasada_el' => isset($v->pasada_el->value) ? (string) $v->pasada_el->value : '',
                 'n_asistieron' => isset($v->n_asistieron->value) ? (int) $v->n_asistieron->value : 0,
                 'n_faltaron' => isset($v->n_faltaron->value) ? (int) $v->n_faltaron->value : 0,
             );
+
+            // Vacío = participantes: es el valor por defecto del CRM y lo que
+            // son todas las listas de antes de que existiera el campo.
+            $tipo = isset($v->ajmcm_tipo_c->value) ? (string) $v->ajmcm_tipo_c->value : '';
+            if ($tipo === $tipos['monitores']) {
+                $out['monitores'][$sid] = $datos;
+                continue;
+            }
+
+            $gid = sticpa_pl_nvl_first($v, array('grupo_id', 'lis_listas_ajmcm_gruposajmcm_grupos_ida'));
+            // Una lista de participantes sin grupo no se puede colocar, y
+            // colocarla mal es peor que no tenerla: diría que un grupo pasó una
+            // lista que no es.
+            if ($gid === '') {
+                continue;
+            }
+            $out['participantes'][$sid][$gid] = $datos;
         }
     }
 
+    // El índice se cachea entero. Ojo con `sticpa_pl_cache_put`: este array
+    // NUNCA está vacío (lleva sus dos claves), así que conserva el TTL de
+    // estado completo, que es lo que queremos.
     sticpa_pl_cache_put($cacheKey, $out, $ttl);
     return $out;
 }
@@ -3318,7 +3368,7 @@ function sticpa_pl_save_monitors($objSCP, $sessionId, $monitors, $marks, $regMap
 {
     $sessionId = (string) $sessionId;
     $result = array(
-        'saved' => 0, 'failed' => 0,
+        'saved' => 0, 'failed' => 0, 'lista_id' => '',
         'counts' => array('yes' => 0, 'no' => 0),
         'errors' => array(),
         // Lo que se ha intentado escribir, para que la pantalla pueda releer el
@@ -3407,6 +3457,75 @@ function sticpa_pl_save_monitors($objSCP, $sessionId, $monitors, $marks, $regMap
             );
         }
         $result['saved']++;
+    }
+
+    // ---------------------------------------------------------------------
+    // La lista de monitores de la sesión.
+    // ---------------------------------------------------------------------
+    // Antes esto no se escribía: se guardaban las asistencias y no quedaba
+    // constancia de que la lista se hubiera pasado. `ajmcm_tipo_c` existe
+    // justo para esto —`monitores` frente a `participantes`— y el plugin
+    // tenía el mapa de valores sin que nadie lo llamara.
+    //
+    // NO lleva grupo, a diferencia de la de participantes: el alcance de
+    // coordinación es la etapa, no un grupo. Ver el aviso de
+    // `sticpa_pl_all_listas_monitores()` sobre qué pasa si dos etapas
+    // comparten evento.
+    $estados = sticpa_pl_lista_estados();
+    $tipos = sticpa_pl_lista_tipos();
+    $existentes = sticpa_pl_all_listas_monitores($objSCP);
+    $lista = isset($existentes[$sessionId]) ? $existentes[$sessionId] : null;
+
+    $payload = array(
+        'estado' => $estados['pasada'],
+        'ajmcm_tipo_c' => $tipos['monitores'],
+        'pasada_el' => date('Y-m-d H:i:s', sticpa_pl_now()),
+        'n_asistieron' => $result['counts']['yes'],
+        'n_faltaron' => $result['counts']['no'],
+        'assigned_user_id' => sticpa_pl_delegation($objSCP),
+    );
+
+    if ($lista !== null) {
+        $payload['id'] = $lista['id'];
+        $listaId = $objSCP->set_entry('LIS_listas', $payload);
+        if (!$listaId) {
+            $result['failed']++;
+            $result['errors'][] = array(
+                'paso' => 'lista_actualizar',
+                'id' => $lista['id'],
+                'error' => sticpa_pl_crm_error($objSCP),
+            );
+        }
+        $result['lista_id'] = $listaId ? $listaId : $lista['id'];
+    } else {
+        $listaId = $objSCP->set_entry('LIS_listas', $payload);
+        if (!$listaId) {
+            $result['failed']++;
+            $result['errors'][] = array(
+                'paso' => 'lista_crear',
+                'id' => '',
+                'error' => sticpa_pl_crm_error($objSCP),
+            );
+        } else {
+            if ($objSCP->set_relationship('LIS_listas', $listaId, 'lis_listas_stic_sessions', array($sessionId)) === false) {
+                $result['failed']++;
+                $result['errors'][] = array(
+                    'paso' => 'lista_enlazar_sesion',
+                    'id' => $listaId,
+                    'error' => sticpa_pl_crm_error($objSCP),
+                );
+            }
+            // Quién la pasó: informativo, no invalida el guardado.
+            $who = isset($_SESSION['scp_user_id']) ? $_SESSION['scp_user_id'] : '';
+            if ($who && $objSCP->set_relationship('LIS_listas', $listaId, 'lis_listas_contacts', array($who)) === false) {
+                $result['errors'][] = array(
+                    'paso' => 'lista_enlazar_monitor',
+                    'id' => $listaId,
+                    'error' => sticpa_pl_crm_error($objSCP),
+                );
+            }
+        }
+        $result['lista_id'] = $listaId ? $listaId : '';
     }
 
     sticpa_pl_flush($objSCP, 'state');

@@ -81,17 +81,40 @@ en `?pl_diag=1`.
 
 ### 🟡 Lo que sigue abierto de esto
 
-- **La lista de monitores no escribe `LIS_listas`.** Las asistencias sí. El
-  campo `ajmcm_tipo_c` existe para distinguirlas (`monitores` /
-  `participantes`) y el plugin tiene `sticpa_pl_lista_tipos()`, pero **nadie la
-  llamaba**. Ahora las listas de participantes mandan su tipo explícito (es un
-  campo REQUERIDO en el CRM, verificado) y el cargador ignora las de tipo
-  `monitores` para que no se confundan con la del grupo. Falta decidir de qué
-  «grupo» cuelga una lista de monitores antes de escribirla — es una decisión de
-  diseño, no código.
-- **Confirmarlo en producción.** Está verificado con tests (256 en verde, con
+- **Confirmarlo en producción.** Está verificado con tests (259 en verde, con
   un doble que ahora sí modela escribir-y-releer) pero no todavía con un
   guardado real.
+
+### ✅ La lista de monitores ya se escribe (27/08/2026)
+
+Antes se guardaban las asistencias de los monitores y **no quedaba constancia de
+que la lista se hubiera pasado**: no había forma de distinguir «ese sábado nadie
+la pasó» de «la pasaron y no vino nadie». El campo `ajmcm_tipo_c` existe justo
+para esto y el plugin tenía `sticpa_pl_lista_tipos()` **sin que nadie la
+llamara**.
+
+Ahora:
+
+- La lista de monitores se escribe con `ajmcm_tipo_c = monitores`, enlazada a la
+  sesión y al monitor que la pasó, y **sin grupo**: el alcance de coordinación
+  es la etapa, no un grupo.
+- Las de participantes mandan su tipo explícito. Es un campo **REQUERIDO** en el
+  CRM (verificado con `get_module_fields`): salía bien solo porque el CRM tiene
+  `participantes` como valor por defecto, y apoyarse en eso es apoyarse en nada.
+- `LIS_listas` se lee **una sola vez** para las dos familias
+  (`sticpa_pl_listas_index()`), y cada una tiene su índice:
+  `sticpa_pl_all_listas()` por sesión y grupo, `sticpa_pl_all_listas_monitores()`
+  por sesión. Así una lista de monitores no puede aparecer como la lista de un
+  grupo, que diría que un grupo pasó una lista que no es.
+- La pantalla de monitores dice si ya está pasada, con sus números.
+
+> ⚠️ **Límite conocido, a propósito.** Hay **una lista de monitores por sesión y
+> delegación**. Si MIC y COM comparten evento —y por tanto sesiones— sus
+> coordinadores comparten esa lista y el último que guarde deja sus números. Las
+> asistencias de cada monitor son correctas en cualquier caso (son por persona);
+> lo que se pisa es el resumen. Separarlas de verdad pide **un campo de etapa en
+> `LIS_listas` que hoy no existe**, y aquí no se inventan campos. Si hace falta,
+> se pide al CRM y se anota en `CAMPOS.md`.
 
 ### 🟡 Las vigencias caducan el 31/08/2026 (anotado, no bloquea)
 
@@ -318,7 +341,7 @@ de colección nueva tiene que usarla**.
 
 ```bash
 composer install
-vendor/bin/phpunit                                        # 256 tests
+vendor/bin/phpunit                                        # 259 tests
 node --test .github/scripts/guardian/guardian.test.mjs    # 36 tests
 ```
 

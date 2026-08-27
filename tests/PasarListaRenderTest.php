@@ -1264,6 +1264,13 @@ final class PasarListaRenderTest extends TestCase
         $this->assertNull(sticpa_pl_lista($this->scp, 's2', 'g1'));
         // Y la de participantes de siempre sigue encontrándose.
         $this->assertNotNull(sticpa_pl_lista($this->scp, 's3', 'g1'));
+
+        // Pero SÍ se encuentra en su propio índice, que es de donde la lee
+        // coordinación para no duplicarla al volver a guardar.
+        $monitores = sticpa_pl_all_listas_monitores($this->scp);
+        $this->assertArrayHasKey('s2', $monitores);
+        $this->assertSame($id, $monitores['s2']['id']);
+        $this->assertSame(3, $monitores['s2']['n_asistieron']);
     }
 
     // ---- Caché: un vacío no vale doce horas ------------------------------
@@ -1940,6 +1947,94 @@ final class PasarListaRenderTest extends TestCase
             return $w['module'] === 'stic_Attendances';
         }));
         $this->assertSame('no_unjustified', $writes[0]['data']['status']);
+    }
+
+    /**
+     * LA LISTA DE MONITORES SE ESCRIBE. Antes se guardaban las asistencias y no
+     * quedaba constancia de que la lista se hubiera pasado: no había forma de
+     * saber si un sábado nadie la pasó o si la pasaron y no vino nadie.
+     *
+     * Lleva `ajmcm_tipo_c = monitores` y NO lleva grupo: el alcance de
+     * coordinación es la etapa, no un grupo.
+     */
+    public function test_la_lista_de_monitores_se_escribe_con_su_tipo()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_monitores'),
+            'pl_marks' => json_encode(array('m1' => 'no_unjustified')),
+        );
+        $this->render('single_stic_pasar_lista_monitores');
+
+        $listas = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'LIS_listas';
+        }));
+        $this->assertCount(1, $listas);
+        $this->assertSame('monitores', $listas[0]['data']['ajmcm_tipo_c']);
+        $this->assertSame('pasada', $listas[0]['data']['estado']);
+        $this->assertSame(0, $listas[0]['data']['n_asistieron']);
+        $this->assertSame(1, $listas[0]['data']['n_faltaron']);
+
+        // Enlazada a la sesión, y a NINGÚN grupo.
+        $links = array_values(array_filter($this->scp->relationships, function ($r) {
+            return $r['module'] === 'LIS_listas';
+        }));
+        $cuales = array_column($links, 'link');
+        $this->assertContains('lis_listas_stic_sessions', $cuales);
+        $this->assertNotContains('lis_listas_ajmcm_grupos', $cuales);
+    }
+
+    /** Y al volver a guardar se ACTUALIZA la misma, no se duplica. */
+    public function test_la_lista_de_monitores_no_se_duplica()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $post = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_monitores'),
+            'pl_marks' => json_encode(array('m1' => 'no_unjustified')),
+        );
+
+        $_POST = $post;
+        $this->render('single_stic_pasar_lista_monitores');
+        $primera = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'LIS_listas';
+        }));
+        $this->assertArrayNotHasKey('id', $primera[0]['data'], 'la primera se crea');
+
+        // Segundo guardado, ahora sin faltas.
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_monitores'),
+            'pl_marks' => json_encode(array()),
+        );
+        $this->render('single_stic_pasar_lista_monitores');
+
+        $listas = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'LIS_listas';
+        }));
+        $this->assertCount(2, $listas, 'dos escrituras, no dos listas');
+        $this->assertNotEmpty($listas[1]['data']['id'], 'la segunda actualiza la primera');
+        $this->assertSame(1, $listas[1]['data']['n_asistieron']);
+        $this->assertSame(0, $listas[1]['data']['n_faltaron']);
+    }
+
+    /** Y la pantalla lo dice al volver a entrar: evita pasarla dos veces. */
+    public function test_monitores_dice_que_la_lista_ya_esta_pasada()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_monitores'),
+            'pl_marks' => json_encode(array()),
+        );
+        $this->render('single_stic_pasar_lista_monitores');
+
+        // Segunda visita, sin guardar nada.
+        $_POST = array();
+        $html = $this->render('single_stic_pasar_lista_monitores');
+        $this->assertStringContainsString('ya está pasada', $html);
+        $this->assertStringContainsString('1 vinieron, 0 faltas', $html);
     }
 
     /** La ficha del monitor: certificado primero, y sin familia ni salud. */

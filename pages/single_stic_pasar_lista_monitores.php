@@ -158,15 +158,21 @@ if (!empty($_POST['pl_action'])) {
 
 $attendances = sticpa_pl_session_attendances($objSCP, $session['id'], $regMap);
 
-// La misma verificación por relectura que en participantes: sin lista que
-// comprobar (la de monitores todavía no se escribe), solo las asistencias.
+// La lista de monitores de esta sesión, releída del CRM. Se lee SIEMPRE (no
+// solo tras guardar) para poder decir si ya estaba pasada: es la misma pregunta
+// que contesta la pantalla de participantes, «¿la pasé o no?».
+$listasMon = sticpa_pl_all_listas_monitores($objSCP);
+$listaMon = isset($listasMon[$session['id']]) ? $listasMon[$session['id']] : null;
+
+// La misma verificación por relectura que en participantes: las asistencias y,
+// desde ahora, también la lista.
 if (is_array($saved)) {
     $saveProblems = sticpa_pl_check_saved(
         isset($saved['written']) ? $saved['written'] : array(),
-        null,
+        $listaMon,
         $attendances,
         false,
-        false
+        true
     );
     $savedOk = ((int) $saved['failed'] === 0 && empty($saveProblems));
     sticpa_pl_log_save(array(
@@ -177,6 +183,7 @@ if (is_array($saved)) {
         'marcas_usadas' => isset($saved['written']) ? count($saved['written']) : 0,
         'saved' => (int) $saved['saved'],
         'failed' => (int) $saved['failed'],
+        'lista_id' => (string) $saved['lista_id'],
         'errores' => array_merge(
             isset($saved['errors']) ? (array) $saved['errors'] : array(),
             array_map(function ($p) { return array('paso' => 'relectura', 'error' => $p); }, $saveProblems)
@@ -224,6 +231,16 @@ if (!$isReunion) {
 $html .= '</div>';
 
 $html .= sticpa_pl_notice_html($pick);
+
+// Si ya estaba pasada, se dice. Evita el «¿la pasé o no?» y el guardado doble.
+if ($saved === null && $listaMon !== null && $listaMon['estado'] !== '') {
+    $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>' . esc_html(sprintf(
+        /* translators: 1: cuántos vinieron, 2: cuántas faltas */
+        __('Esta lista de monitores ya está pasada: %1$d vinieron, %2$d faltas. Si la cambias, se actualiza.', 'sticpa'),
+        (int) $listaMon['n_asistieron'],
+        (int) $listaMon['n_faltaron']
+    )) . '</span></p>';
+}
 
 if (is_array($saved)) {
     if ($savedOk) {
