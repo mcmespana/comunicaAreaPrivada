@@ -58,7 +58,7 @@ navegador, deje en el CRM: una `LIS_listas` con `estado = pasada` y los números
 correctos, y una `stic_Attendances` por persona marcada, enlazada a su sesión y
 a su inscripción.**
 
-### 🔴 Y una bomba de relojería: las vigencias caducan el 31/08/2026
+### 🟡 Las vigencias caducan el 31/08/2026 (anotado, no bloquea)
 
 Verificado en el CRM el 27/08/2026: **tanto la relación de participante de
 Solete como la de monitor de David Soler tienen `end_date` = 2026-08-31**. En
@@ -66,9 +66,11 @@ cuanto pase esa fecha, C1 se queda sin miembros vigentes y la pantalla volverá 
 decir «0 participantes».
 
 Eso se va a leer como «ha vuelto el bug grave» y **no lo será**: será que el
-curso 2025-2026 se ha acabado en los datos. Hay que renovar las relaciones (o
-crear las del curso siguiente) antes de seguir depurando, o cada prueba a partir
-del 1 de septiembre partirá de un grupo vacío.
+curso 2025-2026 se ha acabado en los datos.
+
+Decisión del 27/08/2026: **no bloquea**, se sigue probando y se renuevan las
+relaciones cuando toque. Pero si a partir del 1 de septiembre C1 sale vacío,
+**mira esto antes de buscar el fallo en el código**.
 
 ### Otros abiertos, menores
 
@@ -300,37 +302,59 @@ Cómo está montado:
   excluye `cancelled`.
 - Existe una asistencia de Solete para cada una de las 24 sesiones.
 
-### El juego de datos para probar el guardado
+### Pizarra en blanco (27/08/2026)
 
-Preparado a propósito el 27/08/2026 vaciando el `status` de 14 asistencias de
-Solete (las de 18/10, 01/11, 08/11, 15/11, 29/11, 06/12, 22/12 de 2025 y 10/01,
-24/01, 31/01, 07/02, 14/02, 21/03, 28/03 de 2026). Con las 5 que ya estaban
-vacías (22/11, 13/12, 17/01, 14/03, 25/04), quedan:
+El CRM se dejó **limpio a propósito** para poder comprobar si el guardado
+funciona de verdad, sin restos de pruebas anteriores que confundan:
 
-- **19 de las 24 sesiones «sin pasar»** — asistencia creada y enlazada a su
-  sesión y a su inscripción, pero con `status` vacío. Son las que sirven para
-  probar el guardado una y otra vez.
-- **4 marcadas a propósito** (28/02, 11/04, 18/04 y 02/05 de 2026), para probar
-  también el camino de «esta lista ya estaba pasada».
+| | Estado verificado |
+|---|---|
+| `LIS_listas` de la delegación | **0** |
+| Asistencias de Solete | **24**, una por sesión |
+| …con `status` | **0** — ninguna marcada |
+| …enlazadas a su sesión y a su inscripción | **24 de 24** |
+| Duplicados | ninguno (24 ids de sesión distintos) |
 
-**Los monitores están listos para probar sin tocar nada más.** David tiene
-inscripción en el evento COM y `uninvited` no le excluye, así que sale en la
-pantalla de monitores. No tiene asistencias todavía, y eso es lo interesante: al
-guardar por primera vez desde `single_stic_pasar_lista_monitores` se recorre el
-camino de CREAR la asistencia (y de escribir `yes` explícito para los no
-marcados, que en monitores es un dato afirmado y no un hueco).
+Lo que se borró (borrado lógico, `deleted: true`):
 
-Solo dos sesiones tienen `LIS_listas`, las dos creadas el 24/08/2026 por las
-pruebas: la del 25/04 en `omitida` y la del 02/05 en `pasada` con 0/1. **No hay
-histórico real de listas.**
+- Las **dos `LIS_listas`** creadas el 24/08/2026 por las pruebas: la del 25/04
+  en `omitida` 0/0 y la del 02/05 en `pasada` 0/1.
+- La asistencia duplicada **`Unknown - Unknown`**
+  (`00000ea3-0611-9695-a832-6a8c0c33eced`), que tenía `status = yes`
+  contradiciendo a la buena del mismo día. Era el rastro del bug de duplicados.
 
-Dos restos conocidos que **no se han borrado** a propósito, porque borrar en el
-CRM lo decide el usuario:
+Y se vaciaron los 6 `status` que quedaban (21/02, 28/02, 11/04, 18/04, 02/05).
 
-- La asistencia duplicada `Unknown` del 02/05/2026, con `status = yes`
-  contradiciendo a la otra del mismo día (`no_unjustified`). Es el rastro del bug
-  de duplicados.
-- Las dos `LIS_listas` de prueba de arriba.
+**Lo que NO se tocó, y no hay que tocar:** las 24 asistencias en sí. Las crea el
+CRM al crear la inscripción y son el esqueleto del que cuelga todo — la
+asistencia pende de la inscripción, no de la persona. Borrarlas rompería el
+modelo, no lo limpiaría.
+
+> **Antes de probar, pulsa refrescar.** La caché de `struct` dura 12 h, así que
+> la pantalla puede seguir enseñando el estado de antes de la limpieza. El botón
+> circular de la cabecera lo arregla al momento.
+
+**Los monitores están listos sin tocar nada.** David tiene inscripción y sale en
+la pantalla de monitores; `uninvited` no le excluye porque el código solo excluye
+`cancelled`. No tiene ninguna asistencia, y eso es lo interesante: al guardar por
+primera vez desde `single_stic_pasar_lista_monitores` se recorre el camino de
+CREAR la asistencia, y el de escribir `yes` explícito para los no marcados, que
+en monitores es un dato afirmado y no un hueco.
+
+### Qué se tiene que ver después de pasar una lista
+
+Con la pizarra en blanco, un guardado correcto de una sesión deja **exactamente**
+esto, y es el criterio para cerrar el bug:
+
+1. **Una** `LIS_listas` nueva, con `estado = pasada`, su `lis_listas_stic_sessions`
+   y su `lis_listas_ajmcm_grupos` apuntando a la sesión y a C1, y
+   `n_asistieron` / `n_faltaron` cuadrando con lo marcado.
+2. La asistencia de Solete de **esa** sesión con su `status` puesto —
+   **actualizada, no una nueva**: siguen siendo 24 en total.
+3. Nada en las otras 23 sesiones.
+
+Si aparecen 25 asistencias, o dos listas, o una lista con 0/0, el bug sigue ahí y
+ya se sabe por dónde: son los tres fallos silenciosos de §1.
 
 ### Detalle que conviene documentar en CAMPOS.md
 
@@ -347,5 +371,5 @@ participantes.
 - `phone_mobile` en `CAMPOS.md` está mal, y hay que propagar el arreglo al repo
   `comunicaFormularios`.
 - Cerrar la relación de monitor del grupo `Najar`.
-- Borrar la asistencia basura `00000ea3-0611-9695-a832-6a8c0c33eced`
-  («Unknown - Unknown»), que es el rastro del bug de duplicados.
+- ~~Borrar la asistencia basura «Unknown - Unknown»~~ — hecho el 27/08/2026,
+  junto con las dos `LIS_listas` de prueba. Ver §7, «Pizarra en blanco».
