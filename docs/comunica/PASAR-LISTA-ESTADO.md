@@ -13,50 +13,108 @@ Piloto: **MCM Castellón, curso 2025-2026**. Nada interdelegacional.
 
 ---
 
-## 1. El bug abierto
+## 1. El bug: ENCONTRADO Y ARREGLADO (27/08/2026)
 
-### 🔴 Pasar lista todavía no pasa lista
+### ✅ Pasar lista ya pasa lista — pendiente de confirmar en producción
 
-**Sigue sin funcionar de punta a punta en producción.** Es EL bug: mientras esté
-abierto, lo demás es decoración.
+**La causa era el JavaScript, y llevaba ahí desde el primer commit de la fase 1**
+(`88511ec`). Al enviar el formulario, el manejador de `submit` hacía:
 
-Lo que se ha arreglado por el camino (y está desplegado):
+```js
+saveBtn.disabled = true;   // dentro del propio manejador de submit
+```
 
-- La lista se buscaba por un enlace anidado que esta instancia no devuelve, así
-  que **nunca encontraba la lista existente** y creaba una nueva cada vez. De
-  ahí los dos registros `Omitida` con 0/0 que aparecieron en el CRM.
-- El `regMap` (qué inscripción corresponde a cada persona) venía por esa misma
-  vía. **Sin inscripción detrás no hay asistencia que escribir**, así que no se
-  escribía nada.
-- Guardar sin marcar a nadie escribía una lista falsa. Ahora no escribe nada y
-  lo dice.
-- La asistencia creada por el CRM no se encontraba, así que se creaba una
-  segunda (`Unknown - Unknown`, sin fecha ni duración). Ahora se actualiza la
-  existente — verificado contra el CRM real.
+Y **un control deshabilitado no se serializa**. El navegador construye los datos
+del formulario DESPUÉS de ejecutar el manejador de `submit`, así que el botón
+—que es quien lleva `name="pl_action"`— se quedaba fuera. Al servidor llegaba un
+POST sin `pl_action`, PHP entraba en `if (!empty($_POST['pl_action']))`, decía
+que no, y **se saltaba el guardado entero sin escribir ni una línea ni decir
+nada**. La pantalla se recargaba igual y el borrador se había borrado ya.
 
-Y aun así **el usuario reporta que no se guarda**. Lo que hay que hacer, en este
-orden:
+Encaja con todo lo observado:
 
-1. **Reproducirlo con datos frescos.** La razón por la que no está cerrado es
-   que las pruebas anteriores se hicieron sobre sesiones ya pasadas y con pocos
-   datos. Hace falta un juego de sesiones sin lista y participantes con
-   inscripción para poder repetir el guardado muchas veces.
-2. **Mirar el camino completo de `sticpa_pl_save()`**
-   (`inc/stic-pasar-lista-crm.php`, ~línea 1573). Las tres cosas que pueden
-   fallar en silencio ahí:
-   - `$regMap` vacío → no hay `stic_Registrations` que enlazar y la asistencia
-     queda huérfana (el CRM no la cuenta en el porcentaje).
-   - `sticpa_pl_session_attendances()` devuelve vacío → cree que no hay
-     asistencia previa y crea una nueva en vez de actualizar.
-   - `set_entry` devuelve algo falsy y se cuenta en `failed` sin decir por qué.
-3. **Que el fallo se vea.** Ahora mismo un `failed` se cuenta y no se explica.
-   Antes de seguir adivinando conviene que la pantalla (o un log) diga *qué*
-   llamada falló y con qué respuesta del CRM.
+- **Cero rastro en el CRM**, que es justo lo que se verificó por MCP: ninguna
+  `stic_Attendances` ni `LIS_listas` tocada después de las 14:00 UTC del 27/08
+  (todo lo de ese día es de «API User MCP», la limpieza de la mañana).
+- **Fallaba igual en participantes y en monitores**: las dos pantallas usan el
+  mismo JS y el mismo botón.
+- **«Sin registro» sí funcionaba**: ese botón no se deshabilita.
+- **Ningún test lo veía**: un POST de PHPUnit trae `pl_action` puesto a mano. Es
+  la misma familia de la trampa §3.2 — el doble (aquí, el test entero) no
+  reproducía el comportamiento real del navegador.
 
-**No se cierra este bug hasta que un guardado real, hecho a mano en el
-navegador, deje en el CRM: una `LIS_listas` con `estado = pasada` y los números
-correctos, y una `stic_Attendances` por persona marcada, enlazada a su sesión y
-a su inscripción.**
+Todo lo arreglado antes (los enlaces anidados, el `regMap`, la lista duplicada)
+era real y necesario, pero estaba detrás de una puerta cerrada.
+
+**El arreglo, por dos vías independientes:**
+
+1. La acción viaja en un **campo oculto** (`<input type="hidden"
+   name="pl_action" value="save" data-pl-action>`), que no depende de ningún
+   botón. Los botones conservan su `name`/`value` para el caso sin JS, donde
+   manda el último valor que llega — y «Sin registro» va después en el DOM, así
+   que sigue ganando cuando se pulsa.
+2. El JS ya **no deshabilita el botón hasta el tic siguiente**
+   (`setTimeout(…, 0)`), y además pone la acción en el campo oculto.
+
+### Y para que nunca vuelva a fallar en silencio
+
+Esto es lo que convierte «no se guarda y no sé por qué» en un diagnóstico de
+treinta segundos:
+
+| Qué | Dónde |
+|---|---|
+| El transporte deja de tragarse los errores del CRM: `set_entry` ya no lee `->id` a ciegas, `set_relationship` mira su cuenta de fallos, y el motivo queda en `$objSCP->lastError` y en el `error_log` | `inc/stic-class-6.php` |
+| El fallo de la `LIS_listas` y el de las relaciones **cuentan** como fallo (antes no: se decía «Lista guardada» con el CRM vacío) | `sticpa_pl_save()` |
+| **Relectura del CRM tras guardar**: «Lista guardada» solo si se comprueba que está. Sin llamadas extra, la pantalla ya releía | `sticpa_pl_check_saved()` |
+| **Diario de intentos** en `wp_options` (`sticpa_pl_save_log`), incluidos los que NO escriben: `nonce`, `sin_marcas`, `post_sin_accion`, con el tamaño del campo crudo recibido | `sticpa_pl_log_save()` |
+| **Panel de diagnóstico** de solo lectura: `?pl_diag=1` en la portada, solo coordinación. Enseña el diario y las llamadas al CRM de la petición con sus milisegundos | `inc/stic-pasar-lista-diag.php` |
+| El borrador del móvil ya no se borra al enviar, sino cuando el servidor confirma; y la cola sin conexión solo saca una entrada si el servidor confirma (antes un 200 con aviso se daba por enviado y la lista se perdía) | `js/stic-pasar-lista.js` |
+
+### Cómo confirmar que está cerrado
+
+Sigue valiendo el criterio de §7: un guardado real a mano en el navegador tiene
+que dejar **una** `LIS_listas` con `estado = pasada`, sus dos enlaces y los
+números correctos, y el `status` de cada persona marcada en la asistencia de ESA
+sesión. Ahora, además, **la propia pantalla lo comprueba**: si dice «Lista
+guardada» es que ha releído el CRM y estaba. Si algo falla, lo dice y lo apunta
+en `?pl_diag=1`.
+
+### 🟡 Lo que sigue abierto de esto
+
+- **Confirmarlo en producción.** Está verificado con tests (259 en verde, con
+  un doble que ahora sí modela escribir-y-releer) pero no todavía con un
+  guardado real.
+
+### ✅ La lista de monitores ya se escribe (27/08/2026)
+
+Antes se guardaban las asistencias de los monitores y **no quedaba constancia de
+que la lista se hubiera pasado**: no había forma de distinguir «ese sábado nadie
+la pasó» de «la pasaron y no vino nadie». El campo `ajmcm_tipo_c` existe justo
+para esto y el plugin tenía `sticpa_pl_lista_tipos()` **sin que nadie la
+llamara**.
+
+Ahora:
+
+- La lista de monitores se escribe con `ajmcm_tipo_c = monitores`, enlazada a la
+  sesión y al monitor que la pasó, y **sin grupo**: el alcance de coordinación
+  es la etapa, no un grupo.
+- Las de participantes mandan su tipo explícito. Es un campo **REQUERIDO** en el
+  CRM (verificado con `get_module_fields`): salía bien solo porque el CRM tiene
+  `participantes` como valor por defecto, y apoyarse en eso es apoyarse en nada.
+- `LIS_listas` se lee **una sola vez** para las dos familias
+  (`sticpa_pl_listas_index()`), y cada una tiene su índice:
+  `sticpa_pl_all_listas()` por sesión y grupo, `sticpa_pl_all_listas_monitores()`
+  por sesión. Así una lista de monitores no puede aparecer como la lista de un
+  grupo, que diría que un grupo pasó una lista que no es.
+- La pantalla de monitores dice si ya está pasada, con sus números.
+
+> ⚠️ **Límite conocido, a propósito.** Hay **una lista de monitores por sesión y
+> delegación**. Si MIC y COM comparten evento —y por tanto sesiones— sus
+> coordinadores comparten esa lista y el último que guarde deja sus números. Las
+> asistencias de cada monitor son correctas en cualquier caso (son por persona);
+> lo que se pisa es el resumen. Separarlas de verdad pide **un campo de etapa en
+> `LIS_listas` que hoy no existe**, y aquí no se inventan campos. Si hace falta,
+> se pide al CRM y se anota en `CAMPOS.md`.
 
 ### 🟡 Las vigencias caducan el 31/08/2026 (anotado, no bloquea)
 
@@ -79,7 +137,6 @@ relaciones cuando toque. Pero si a partir del 1 de septiembre C1 sale vacío,
 | 🟡 | Alguien puede ser monitor de dos grupos. Sale, pero hay que decidir cómo se enseña. |
 | 🟡 | El grupo `Najar` no es de participantes MIC-COM y aparece en el árbol. Hay que decidir el filtro de qué grupos salen. |
 | 🟡 | Los «sectores» (COM I = los dos primeros cursos de la ESO, etc.) se agrupan **a mano**. No hay campo en el CRM y de momento no lo va a haber. |
-| 🟡 | El calentado de caché **no está configurado** (ver §5). Funciona sin él, solo que la caché la calienta el primero que entra. |
 | 🟡 | El filtro plano por campo de enlace (`..._ida`) en `get_entry_list` devuelve **error 400 de base de datos** en `stic_Sessions`, `LIS_listas`, `stic_Registrations` y `stic_Contacts_Relationships`. Se puede LEER el campo, pero no FILTRAR por él. Para consultar por relación hay que ir por `get_relationships`. Ojo: no es lo mismo que la trampa de §3.1 — ahí el problema es el enlace anidado que no viene; aquí es el filtro que el CRM rechaza. |
 | 🟡 | Las asistencias de 5 sesiones existen **sin `status`**: quedaron a medio marcar. Es un estado válido (una sesión sin pasar), pero conviene saber que existe. |
 
@@ -198,15 +255,34 @@ Cargadores de colección (uno por colección, nunca uno por fila):
 `sticpa_pl_all_relationships()`, `sticpa_pl_all_listas()`,
 `sticpa_pl_attendances_for_sessions()`.
 
+### Lo hecho el 27/08/2026
+
+- **Un vacío ya no envenena la caché 12 horas** (ver §5). Es lo que convertía un
+  hipo del CRM en media jornada de pantalla rota, que se lee como «va lentísimo
+  y encima está mal».
+- **TTL de estructura 12 h → 24 h**, ahora que el calentado nocturno está
+  configurado: con 12 h la caché caducaba a media tarde del sábado, justo
+  cuando se usa.
+- **Medición de verdad**: cada petición cuenta sus llamadas al CRM y sus
+  milisegundos. Las que pasan de 3 s dejan una línea en el `error_log` con el
+  desglose, y `?pl_diag=1` lo enseña por pantalla. **Antes de tocar nada más de
+  rendimiento, mira esos números**: lo siguiente (paralelizar con `curl_multi`)
+  es la parte cara y no se empieza a ciegas.
+
 ### Lo siguiente, si sigue lento
 
-1. **Medir con la caché caliente**, que es lo que verá un monitor real una vez
-   configurado el calentado nocturno.
-2. Subir el TTL de la familia `struct`: son grupos y personas, no cambian a
-   media tarde.
-3. **Solo entonces** plantear el middleware / base de datos espejo. Es mucha
-   superficie nueva (sincronía, conflictos, datos rancios) y ahora mismo no está
-   justificada: el 1+N ya no está.
+Hay plan cerrado y ordenado en
+[`../../plans/034-rendimiento-calentar-paralelizar-medir.md`](../../plans/034-rendimiento-calentar-paralelizar-medir.md):
+medir (Server-Timing), configurar el calentado nocturno (los 3 secretos, cero
+código), **paralelizar con `curl_multi` las llamadas independientes de cada
+pantalla** (el coste real que queda: 6-8 llamadas EN SERIE), write-through de
+caché tras guardar, y TTL de `struct` arriba.
+
+La pregunta de la **base de datos espejo** quedó analizada y decidida el
+27/08/2026 en [`DECISION-BBDD-ESPEJO.md`](DECISION-BBDD-ESPEJO.md): Neon
+descartado (dato minúsculo, RTT externo nuevo, RGPD de menores, sync contra la
+misma API frágil); si tras el plan 034 sigue lento, espejo de LECTURA en la
+MySQL de WordPress con el diseño que ya está escrito allí.
 
 ---
 
@@ -217,7 +293,7 @@ Dos familias, y **la familia sale del nombre de la caché**:
 | Familia | Qué guarda | TTL | Se invalida |
 |---|---|---|---|
 | `state` | listas, asistencias, ausencias seguidas | 5 min | al guardar una lista |
-| `struct` | grupos, personas, eventos, sesiones, inscripciones | 12 h | solo con el botón de refrescar |
+| `struct` | grupos, personas, eventos, sesiones, inscripciones | 24 h | solo con el botón de refrescar |
 
 La invalidación es por **contador de generación dentro de la clave**, no
 borrando transients por nombre: hay claves que llevan un id dentro (las personas
@@ -235,21 +311,29 @@ delegación. Está en portada, árbol y resumen; y si un grupo sale sin
 participantes, la pantalla de marcar ofrece **«Ya lo he arreglado, vuelve a
 mirar»**.
 
-### ⚠️ Calentado nocturno: falta configurarlo
+### ✅ Calentado nocturno: configurado (27/08/2026)
 
 El Guardián deja la caché hecha de madrugada para que el primero que entra el
-sábado no la pague. Necesita tres cosas, y **sin ellas la tarea se salta y lo
-dice en el informe** (no se calla):
+sábado no la pague. Los tres secretos ya están puestos
+(`STICPA_PL_WARM_SECRET` en `wp-config.php`, y `AREA_PRIVADA_CALENTAR_SECRET` +
+`AREA_PRIVADA_URL` en el repo). Detalle en
+[`GUARDIAN-NOCTURNO.md`](GUARDIAN-NOCTURNO.md) §5.
 
-```bash
-openssl rand -hex 32
-```
+**Cómo saber que funciona:** el informe del Guardián de la mañana siguiente ya
+no dice que se salta la tarea. Si lo dijera, es que falta o no coincide alguno
+de los tres.
 
-1. `wp-config.php` → `define('STICPA_PL_WARM_SECRET', '<eso>');`
-2. Secreto del repo `AREA_PRIVADA_CALENTAR_SECRET` = **el mismo valor**
-3. Secreto del repo `AREA_PRIVADA_URL` = la base del sitio, sin barra final
+### Un vacío ya no se cachea como si fuera un dato
 
-Detalle en [`GUARDIAN-NOCTURNO.md`](GUARDIAN-NOCTURNO.md) §5.
+Añadido el 27/08/2026. Una colección vacía puede significar «no hay nada» o «el
+CRM no ha contestado», y se guardaban igual: **doce horas**. Un solo hipo del
+CRM un sábado por la tarde dejaba el grupo «sin participantes con relación
+vigente» hasta la madrugada —con el monitor pulsando refrescar sin entender
+nada— y el `regMap` vacío, que es lo que impide escribir cualquier asistencia.
+
+Ahora un resultado vacío caduca en **2 minutos** (`sticpa_pl_ttl_empty`) y uno
+lleno conserva su TTL completo. Pasa por `sticpa_pl_cache_put()`: **toda caché
+de colección nueva tiene que usarla**.
 
 ---
 
@@ -257,7 +341,7 @@ Detalle en [`GUARDIAN-NOCTURNO.md`](GUARDIAN-NOCTURNO.md) §5.
 
 ```bash
 composer install
-vendor/bin/phpunit                                        # 243 tests
+vendor/bin/phpunit                                        # 259 tests
 node --test .github/scripts/guardian/guardian.test.mjs    # 36 tests
 ```
 
@@ -330,7 +414,18 @@ CRM al crear la inscripción y son el esqueleto del que cuelga todo — la
 asistencia pende de la inscripción, no de la persona. Borrarlas rompería el
 modelo, no lo limpiaría.
 
-> **Antes de probar, pulsa refrescar.** La caché de `struct` dura 12 h, así que
+> ⚠️ **Corrección del propietario (27/08 por la tarde), sin resolver.** El
+> usuario afirma que esas asistencias de Solete **las creó Claude a mano por
+> MCP** (no el CRM al crear la inscripción) y que ha pedido **borrarlas** para
+> empezar de cero. Contradice el párrafo de arriba y no hay que elegir a
+> ciegas: **hay que verificarlo empíricamente** (crear una inscripción de
+> prueba nueva y mirar si el CRM genera solas las asistencias). Importa mucho:
+> si el CRM NO las crea, el camino normal del guardado es CREAR asistencias,
+> no actualizarlas — y el camino de crear es justo el que está fallando.
+> Además, si se borran las 24, la siguiente prueba de guardado ejercitará
+> exclusivamente ese camino de creación. Está recogido en el plan 033.
+
+> **Antes de probar, pulsa refrescar.** La caché de `struct` dura 24 h, así que
 > la pantalla puede seguir enseñando el estado de antes de la limpieza. El botón
 > circular de la cabecera lo arregla al momento.
 

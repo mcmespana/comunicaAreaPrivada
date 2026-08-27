@@ -213,13 +213,57 @@ function sticpa_pl_cache_gen_option($family, $deleg)
 /** TTL de la estructura: cambia una vez al año, así que se cachea de verdad. */
 function sticpa_pl_ttl_structure()
 {
-    return (int) apply_filters('sticpa_pl_ttl_structure', 12 * HOUR_IN_SECONDS);
+    // 24 h y no 12: lo que hay dentro (grupos, personas, eventos, sesiones,
+    // inscripciones) cambia a ritmo de curso, y con 12 h la caché caducaba a
+    // media tarde del sábado — justo cuando se usa. El calentado nocturno la
+    // deja hecha cada madrugada, y el botón de refrescar sigue estando para
+    // quien acaba de tocar el CRM y quiere verlo ya.
+    return (int) apply_filters('sticpa_pl_ttl_structure', 24 * HOUR_IN_SECONDS);
 }
 
 /** TTL del estado: cambia cada sábado y se invalida al guardar. */
 function sticpa_pl_ttl_state()
 {
     return (int) apply_filters('sticpa_pl_ttl_state', 5 * MINUTE_IN_SECONDS);
+}
+
+/**
+ * TTL de un resultado VACÍO. Corto, y por una razón concreta.
+ *
+ * Una colección vacía puede significar dos cosas muy distintas: «no hay nada»
+ * (un grupo sin monitores) o «el CRM no ha contestado» (un tiempo de espera
+ * agotado, un 400 por un filtro que rechaza). Se guardaban las dos igual, con
+ * el TTL de la estructura: DOCE HORAS. Así, un solo hipo del CRM un sábado a
+ * las cinco dejaba el grupo «sin participantes con relación vigente» hasta la
+ * madrugada, con el monitor pulsando refrescar sin entender nada — y el mapa de
+ * inscripciones vacío, que es lo que impide escribir cualquier asistencia.
+ *
+ * Con esto, un vacío se reintenta en un par de minutos y un vacío de verdad
+ * sigue cacheado (solo se comprueba más a menudo, que es barato).
+ */
+function sticpa_pl_ttl_empty()
+{
+    return (int) apply_filters('sticpa_pl_ttl_empty', 2 * MINUTE_IN_SECONDS);
+}
+
+/**
+ * Guarda en caché con la regla de arriba: lo vacío caduca enseguida.
+ *
+ * Se usa en los cargadores de COLECCIÓN. Los que guardan un valor envuelto
+ * (`array('sig' => …)`, `array('is' => …)`) nunca están vacíos y conservan su
+ * TTL completo, que es lo que queremos.
+ */
+function sticpa_pl_cache_put($key, $value, $ttl)
+{
+    $ttl = (int) $ttl;
+    if ($ttl <= 0) {
+        return;
+    }
+    if (is_array($value) && empty($value)) {
+        $vacio = sticpa_pl_ttl_empty();
+        $ttl = ($vacio > 0 && $vacio < $ttl) ? $vacio : $ttl;
+    }
+    set_transient($key, $value, $ttl);
 }
 
 /**
@@ -380,9 +424,7 @@ function sticpa_pl_groups($objSCP)
     // las pantallas a la vez.
     uasort($groups, 'sticpa_pl_cmp_group');
 
-    if ($ttl > 0) {
-        set_transient($cacheKey, $groups, $ttl);
-    }
+    sticpa_pl_cache_put($cacheKey, $groups, $ttl);
     return $groups;
 }
 
@@ -501,9 +543,7 @@ function sticpa_pl_all_relationships($objSCP)
         }
     }
 
-    if ($ttl > 0) {
-        set_transient($cacheKey, $out, $ttl);
-    }
+    sticpa_pl_cache_put($cacheKey, $out, $ttl);
     return $out;
 }
 
@@ -894,9 +934,7 @@ function sticpa_pl_event_sessions($objSCP, $eventId)
     }
     usort($sessions, 'sticpa_pl_cmp_start');
 
-    if ($ttl > 0) {
-        set_transient($cacheKey, $sessions, $ttl);
-    }
+    sticpa_pl_cache_put($cacheKey, $sessions, $ttl);
     return $sessions;
 }
 
@@ -1006,9 +1044,7 @@ function sticpa_pl_event_registrations($objSCP, $eventId)
         $map = sticpa_pl_event_registrations_direct($objSCP, $eventId);
     }
 
-    if ($ttl > 0) {
-        set_transient($cacheKey, $map, $ttl);
-    }
+    sticpa_pl_cache_put($cacheKey, $map, $ttl);
     return $map;
 }
 
@@ -1334,9 +1370,7 @@ function sticpa_pl_attendances_for_sessions($objSCP, $sessions, $regMap)
         }
     }
 
-    if ($ttl > 0 && !empty($out)) {
-        set_transient($cacheKey, $out, $ttl);
-    }
+    sticpa_pl_cache_put($cacheKey, $out, $ttl);
     return $out;
 }
 
@@ -1437,16 +1471,57 @@ function sticpa_pl_group_streaks($objSCP, $sessions, $currentSessionId, $regMap 
  */
 function sticpa_pl_all_listas($objSCP)
 {
+    $index = sticpa_pl_listas_index($objSCP);
+    return $index['participantes'];
+}
+
+/**
+ * Las listas de MONITORES de la delegación: sessionId => datos de la lista.
+ *
+ * Van en su propio mapa, no colgadas de un grupo, porque una lista de monitores
+ * no es de un grupo: el alcance de coordinación es la etapa. Sale de la MISMA
+ * llamada y la MISMA caché que las de participantes (ver
+ * `sticpa_pl_listas_index()`), así que no cuesta ninguna consulta extra.
+ *
+ * ⚠️ UNA POR SESIÓN Y DELEGACIÓN. Si MIC y COM comparten evento —y por tanto
+ * sesiones— sus coordinadores comparten esta lista, y el último que guarde deja
+ * sus números. Las ASISTENCIAS de cada monitor son correctas en cualquier caso
+ * (son por persona); lo que se pisa es el resumen. Separarlas de verdad pide un
+ * campo de etapa en `LIS_listas` que hoy NO existe, y aquí no se inventan
+ * campos: está anotado en PASAR-LISTA-COORDINACION.md.
+ */
+function sticpa_pl_all_listas_monitores($objSCP)
+{
+    $index = sticpa_pl_listas_index($objSCP);
+    return $index['monitores'];
+}
+
+/**
+ * Una sola lectura de `LIS_listas` para las dos familias.
+ *
+ * Devuelve array('participantes' => [sesion][grupo] => …, 'monitores' =>
+ * [sesion] => …). Lo que separa las dos es `ajmcm_tipo_c`, que es justo para
+ * lo que existe ese campo: la lista del C1 y la de monitores del COM viven en
+ * la misma sesión y no se pueden pisar.
+ */
+function sticpa_pl_listas_index($objSCP)
+{
+    $vacio = array('participantes' => array(), 'monitores' => array());
+
     $deleg = sticpa_pl_delegation($objSCP);
     if (!$deleg) {
-        return array();
+        return $vacio;
     }
 
     $cacheKey = sticpa_pl_cache_key('listas', $objSCP);
     $ttl = sticpa_pl_ttl_state();
     if ($ttl > 0) {
         $cached = get_transient($cacheKey);
-        if (is_array($cached)) {
+        // La comprobación de las dos claves NO es paranoia: una caché escrita
+        // por la versión anterior tiene la forma vieja (plana) y colarla aquí
+        // daría un índice sin monitores y con las participantes en el sitio
+        // equivocado.
+        if (is_array($cached) && isset($cached['participantes']) && isset($cached['monitores'])) {
             return $cached;
         }
     }
@@ -1455,7 +1530,7 @@ function sticpa_pl_all_listas($objSCP)
         'LIS_listas',
         "lis_listas.assigned_user_id = '" . sticpa_pl_safe_id($deleg) . "'",
         array(
-            'id', 'estado', 'pasada_el', 'n_asistieron', 'n_faltaron',
+            'id', 'estado', 'pasada_el', 'n_asistieron', 'n_faltaron', 'ajmcm_tipo_c',
             'lis_listas_stic_sessionsstic_sessions_ida',
             'lis_listas_ajmcm_gruposajmcm_grupos_ida',
         ),
@@ -1471,7 +1546,8 @@ function sticpa_pl_all_listas($objSCP)
         )
     );
 
-    $out = array();
+    $tipos = sticpa_pl_lista_tipos();
+    $out = $vacio;
     if (is_array($rows)) {
         foreach ($rows as $row) {
             $v = isset($row->name_value_list) ? $row->name_value_list : null;
@@ -1479,25 +1555,41 @@ function sticpa_pl_all_listas($objSCP)
                 continue;
             }
             $sid = sticpa_pl_nvl_first($v, array('sesion_id', 'lis_listas_stic_sessionsstic_sessions_ida'));
-            $gid = sticpa_pl_nvl_first($v, array('grupo_id', 'lis_listas_ajmcm_gruposajmcm_grupos_ida'));
-            // Sin sesión o sin grupo no se puede colocar, y colocarla mal es
-            // peor que no tenerla: diría que un grupo pasó una lista que no es.
-            if ($sid === '' || $gid === '') {
+            // Sin sesión no se puede colocar ninguna de las dos.
+            if ($sid === '') {
                 continue;
             }
-            $out[$sid][$gid] = array(
+            $datos = array(
                 'id' => (string) $v->id->value,
                 'estado' => isset($v->estado->value) ? (string) $v->estado->value : '',
                 'pasada_el' => isset($v->pasada_el->value) ? (string) $v->pasada_el->value : '',
                 'n_asistieron' => isset($v->n_asistieron->value) ? (int) $v->n_asistieron->value : 0,
                 'n_faltaron' => isset($v->n_faltaron->value) ? (int) $v->n_faltaron->value : 0,
             );
+
+            // Vacío = participantes: es el valor por defecto del CRM y lo que
+            // son todas las listas de antes de que existiera el campo.
+            $tipo = isset($v->ajmcm_tipo_c->value) ? (string) $v->ajmcm_tipo_c->value : '';
+            if ($tipo === $tipos['monitores']) {
+                $out['monitores'][$sid] = $datos;
+                continue;
+            }
+
+            $gid = sticpa_pl_nvl_first($v, array('grupo_id', 'lis_listas_ajmcm_gruposajmcm_grupos_ida'));
+            // Una lista de participantes sin grupo no se puede colocar, y
+            // colocarla mal es peor que no tenerla: diría que un grupo pasó una
+            // lista que no es.
+            if ($gid === '') {
+                continue;
+            }
+            $out['participantes'][$sid][$gid] = $datos;
         }
     }
 
-    if ($ttl > 0) {
-        set_transient($cacheKey, $out, $ttl);
-    }
+    // El índice se cachea entero. Ojo con `sticpa_pl_cache_put`: este array
+    // NUNCA está vacío (lleva sus dos claves), así que conserva el TTL de
+    // estado completo, que es lo que queremos.
+    sticpa_pl_cache_put($cacheKey, $out, $ttl);
     return $out;
 }
 
@@ -1560,6 +1652,137 @@ function sticpa_pl_link_id($row)
 // ---------------------------------------------------------------------------
 
 /**
+ * El motivo del último fallo del CRM, si el transporte lo ha guardado.
+ *
+ * Tolerante a que no exista la propiedad: los dobles de test y cualquier otro
+ * cliente siguen valiendo.
+ */
+function sticpa_pl_crm_error($objSCP)
+{
+    if (is_object($objSCP) && isset($objSCP->lastError) && (string) $objSCP->lastError !== '') {
+        return (string) $objSCP->lastError;
+    }
+    return '';
+}
+
+/** Cuántas entradas del registro de guardados se conservan. */
+function sticpa_pl_save_log_max()
+{
+    return (int) apply_filters('sticpa_pl_save_log_max', 20);
+}
+
+/**
+ * Apunta un intento de guardado en `wp_options`, salga bien o mal.
+ *
+ * POR QUÉ EXISTE: el 27/08/2026 el usuario pasó lista y en el CRM no apareció
+ * NADA — ni un registro tocado. Sin rastro por nuestro lado no había forma de
+ * saber si el POST llegó, si las marcas venían vacías o si el CRM las rechazó,
+ * y cada intento de diagnóstico costaba una sesión entera de pruebas a mano.
+ * Ahora cada intento deja una línea, incluidos los que NO escriben (nonce
+ * caducado, sin marcas), que son justo los que se confundían con «no llegó».
+ */
+function sticpa_pl_log_save($entry)
+{
+    if (!function_exists('update_option')) {
+        return;
+    }
+    $entry = array_merge(array(
+        'ts' => date('Y-m-d H:i:s', sticpa_pl_now()),
+        'pantalla' => '',
+        'motivo' => '',
+        'grupo' => '',
+        'sesion' => '',
+        'marcas_post' => 0,
+        'marcas_usadas' => 0,
+        'saved' => 0,
+        'failed' => 0,
+        'lista_id' => '',
+        'errores' => array(),
+        'llamadas' => class_exists('SugarRestApiCall') ? (int) SugarRestApiCall::$callCount : 0,
+    ), (array) $entry);
+
+    // Los motivos se recortan: esto es un diario de diagnóstico, no un almacén.
+    $entry['errores'] = array_slice((array) $entry['errores'], 0, 10);
+
+    $log = get_option('sticpa_pl_save_log', array());
+    if (!is_array($log)) {
+        $log = array();
+    }
+    $log[] = $entry;
+    $max = sticpa_pl_save_log_max();
+    if (count($log) > $max) {
+        $log = array_slice($log, -$max);
+    }
+    update_option('sticpa_pl_save_log', $log, false);
+}
+
+/** El registro de intentos de guardado, del más reciente al más viejo. */
+function sticpa_pl_save_log()
+{
+    $log = function_exists('get_option') ? get_option('sticpa_pl_save_log', array()) : array();
+    if (!is_array($log)) {
+        return array();
+    }
+    return array_reverse($log);
+}
+
+/**
+ * Comprueba, LEYENDO EL CRM, que lo que se dijo que se guardó está guardado.
+ *
+ * Es el criterio de cierre del bug convertido en código: una lista con su
+ * estado, y el estado de cada persona marcada en la asistencia de ESA sesión.
+ * No cuesta ninguna llamada extra: la pantalla ya vuelve a leer las dos cosas
+ * después de guardar (y la caché de estado se acaba de invalidar).
+ *
+ * Devuelve la lista de problemas encontrados; vacía es que de verdad se guardó.
+ */
+function sticpa_pl_check_saved($marks, $lista, $attendances, $omitida = false, $checkLista = true)
+{
+    $problemas = array();
+
+    if (!$checkLista) {
+        $lista = null;   // la lista de monitores no se escribe todavía (ver docs)
+    } elseif (!is_array($lista) || empty($lista['id'])) {
+        $problemas[] = __('la lista no aparece en el CRM al volver a leerla', 'sticpa');
+    } elseif (is_array($lista)) {
+        $estados = sticpa_pl_lista_estados();
+        $esperado = $omitida ? $estados['omitida'] : $estados['pasada'];
+        if ((string) $lista['estado'] !== (string) $esperado) {
+            $problemas[] = sprintf(
+                /* translators: 1: estado leído, 2: estado esperado */
+                __('la lista está en «%1$s» y debería estar en «%2$s»', 'sticpa'),
+                (string) $lista['estado'],
+                (string) $esperado
+            );
+        }
+    }
+
+    if ($omitida) {
+        return $problemas;   // sin registro: no hay asistencias que comprobar
+    }
+
+    $sinEscribir = 0;
+    foreach ((array) $marks as $contactId => $key) {
+        if ((string) $key === '' || !sticpa_pl_is_state($key)) {
+            continue;
+        }
+        $leido = isset($attendances[$contactId]['status']) ? (string) $attendances[$contactId]['status'] : '';
+        if ($leido !== (string) $key) {
+            $sinEscribir++;
+        }
+    }
+    if ($sinEscribir > 0) {
+        $problemas[] = sprintf(
+            /* translators: %d: número de marcas que no se han guardado */
+            _n('%d marca no ha quedado guardada', '%d marcas no han quedado guardadas', $sinEscribir, 'sticpa'),
+            $sinEscribir
+        );
+    }
+
+    return $problemas;
+}
+
+/**
  * Guarda la lista de un grupo en una sesión, DE GOLPE.
  *
  * $marks: array contactId => clave de estado ('' = sin marcar, no se escribe).
@@ -1574,7 +1797,13 @@ function sticpa_pl_save($objSCP, $sessionId, $groupId, $marks, $omitida = false,
 {
     $sessionId = (string) $sessionId;
     $groupId = (string) $groupId;
-    $result = array('saved' => 0, 'failed' => 0, 'lista_id' => '', 'counts' => array('yes' => 0, 'no' => 0));
+    $result = array(
+        'saved' => 0, 'failed' => 0, 'lista_id' => '',
+        'counts' => array('yes' => 0, 'no' => 0),
+        // Cada fallo, con el paso en el que ocurrió y lo que dijo el CRM. Un
+        // `failed` a secas no se puede diagnosticar.
+        'errors' => array(),
+    );
     if ($sessionId === '' || $groupId === '') {
         return $result;
     }
@@ -1617,6 +1846,11 @@ function sticpa_pl_save($objSCP, $sessionId, $groupId, $marks, $omitida = false,
                     $result['saved']++;
                 } else {
                     $result['failed']++;
+                    $result['errors'][] = array(
+                        'paso' => 'asistencia_actualizar',
+                        'id' => $existing[$contactId]['id'],
+                        'error' => sticpa_pl_crm_error($objSCP),
+                    );
                 }
                 continue;
             }
@@ -1634,14 +1868,42 @@ function sticpa_pl_save($objSCP, $sessionId, $groupId, $marks, $omitida = false,
             $newId = $objSCP->set_entry('stic_Attendances', $newAtt);
             if (!$newId) {
                 $result['failed']++;
+                $result['errors'][] = array(
+                    'paso' => 'asistencia_crear',
+                    'id' => $contactId,
+                    'error' => sticpa_pl_crm_error($objSCP),
+                );
                 continue;
             }
-            $objSCP->set_relationship('stic_Attendances', $newId, 'stic_attendances_stic_sessions', array($sessionId));
+            // Las relaciones SÍ se comprueban: una asistencia sin sesión o sin
+            // inscripción queda huérfana y el CRM no la cuenta. Antes se
+            // lanzaban y nadie miraba el resultado.
+            if ($objSCP->set_relationship('stic_Attendances', $newId, 'stic_attendances_stic_sessions', array($sessionId)) === false) {
+                $result['failed']++;
+                $result['errors'][] = array(
+                    'paso' => 'asistencia_enlazar_sesion',
+                    'id' => $newId,
+                    'error' => sticpa_pl_crm_error($objSCP),
+                );
+            }
             // Sin la inscripción detrás, la asistencia queda huérfana y el CRM
             // no la cuenta en el porcentaje de la inscripción.
             $regId = array_search($contactId, (array) $regMap, true);
             if ($regId !== false) {
-                $objSCP->set_relationship('stic_Attendances', $newId, 'stic_attendances_stic_registrations', array($regId));
+                if ($objSCP->set_relationship('stic_Attendances', $newId, 'stic_attendances_stic_registrations', array($regId)) === false) {
+                    $result['failed']++;
+                    $result['errors'][] = array(
+                        'paso' => 'asistencia_enlazar_inscripcion',
+                        'id' => $newId,
+                        'error' => sticpa_pl_crm_error($objSCP),
+                    );
+                }
+            } else {
+                $result['errors'][] = array(
+                    'paso' => 'sin_inscripcion',
+                    'id' => $contactId,
+                    'error' => __('esta persona no tiene inscripción en el evento: su asistencia queda sin enlazar', 'sticpa'),
+                );
             }
             $result['saved']++;
         }
@@ -1649,8 +1911,13 @@ function sticpa_pl_save($objSCP, $sessionId, $groupId, $marks, $omitida = false,
 
     // La lista: se crea o se actualiza, nunca se duplica.
     $lista = sticpa_pl_lista($objSCP, $sessionId, $groupId);
+    $tipos = sticpa_pl_lista_tipos();
     $payload = array(
         'estado' => $omitida ? $estados['omitida'] : $estados['pasada'],
+        // REQUERIDO en el CRM (verificado con get_module_fields el 27/08/2026).
+        // Se enviaba vacío y salía bien solo porque el CRM tiene 'participantes'
+        // como valor por defecto: apoyarse en eso es apoyarse en nada.
+        'ajmcm_tipo_c' => $tipos['participantes'],
         'pasada_el' => date('Y-m-d H:i:s', sticpa_pl_now()),
         'n_asistieron' => $result['counts']['yes'],
         'n_faltaron' => $result['counts']['no'],
@@ -1659,16 +1926,55 @@ function sticpa_pl_save($objSCP, $sessionId, $groupId, $marks, $omitida = false,
     if ($lista !== null) {
         $payload['id'] = $lista['id'];
         $listaId = $objSCP->set_entry('LIS_listas', $payload);
+        // ANTES ESTE FALLO NO CONTABA: la pantalla decía «Lista guardada» aunque
+        // la lista no se hubiera escrito.
+        if (!$listaId) {
+            $result['failed']++;
+            $result['errors'][] = array(
+                'paso' => 'lista_actualizar',
+                'id' => $lista['id'],
+                'error' => sticpa_pl_crm_error($objSCP),
+            );
+        }
         $result['lista_id'] = $listaId ? $listaId : $lista['id'];
     } else {
         $listaId = $objSCP->set_entry('LIS_listas', $payload);
         if ($listaId) {
-            $objSCP->set_relationship('LIS_listas', $listaId, 'lis_listas_stic_sessions', array($sessionId));
-            $objSCP->set_relationship('LIS_listas', $listaId, 'lis_listas_ajmcm_grupos', array($groupId));
+            if ($objSCP->set_relationship('LIS_listas', $listaId, 'lis_listas_stic_sessions', array($sessionId)) === false) {
+                $result['failed']++;
+                $result['errors'][] = array(
+                    'paso' => 'lista_enlazar_sesion',
+                    'id' => $listaId,
+                    'error' => sticpa_pl_crm_error($objSCP),
+                );
+            }
+            if ($objSCP->set_relationship('LIS_listas', $listaId, 'lis_listas_ajmcm_grupos', array($groupId)) === false) {
+                $result['failed']++;
+                $result['errors'][] = array(
+                    'paso' => 'lista_enlazar_grupo',
+                    'id' => $listaId,
+                    'error' => sticpa_pl_crm_error($objSCP),
+                );
+            }
+            // Quién la pasó es informativo: si falla, se anota pero no invalida
+            // el guardado (la lista y las asistencias son lo que importa).
             $who = isset($_SESSION['scp_user_id']) ? $_SESSION['scp_user_id'] : '';
             if ($who) {
-                $objSCP->set_relationship('LIS_listas', $listaId, 'lis_listas_contacts', array($who));
+                if ($objSCP->set_relationship('LIS_listas', $listaId, 'lis_listas_contacts', array($who)) === false) {
+                    $result['errors'][] = array(
+                        'paso' => 'lista_enlazar_monitor',
+                        'id' => $listaId,
+                        'error' => sticpa_pl_crm_error($objSCP),
+                    );
+                }
             }
+        } else {
+            $result['failed']++;
+            $result['errors'][] = array(
+                'paso' => 'lista_crear',
+                'id' => '',
+                'error' => sticpa_pl_crm_error($objSCP),
+            );
         }
         $result['lista_id'] = $listaId ? $listaId : '';
     }
@@ -1826,9 +2132,7 @@ function sticpa_pl_etapa_events($objSCP)
         }
     }
 
-    if ($ttl > 0) {
-        set_transient($cacheKey, $out, $ttl);
-    }
+    sticpa_pl_cache_put($cacheKey, $out, $ttl);
     return $out;
 }
 
@@ -1926,9 +2230,7 @@ function sticpa_pl_my_groups($objSCP)
     }
 
     $ids = array_keys($ids);
-    if ($ttl > 0) {
-        set_transient($cacheKey, $ids, $ttl);
-    }
+    sticpa_pl_cache_put($cacheKey, $ids, $ttl);
     return $ids;
 }
 
@@ -3065,7 +3367,15 @@ function sticpa_pl_create_reunion($objSCP, $name, $date, $time, $hours)
 function sticpa_pl_save_monitors($objSCP, $sessionId, $monitors, $marks, $regMap = array())
 {
     $sessionId = (string) $sessionId;
-    $result = array('saved' => 0, 'failed' => 0, 'counts' => array('yes' => 0, 'no' => 0));
+    $result = array(
+        'saved' => 0, 'failed' => 0, 'lista_id' => '',
+        'counts' => array('yes' => 0, 'no' => 0),
+        'errors' => array(),
+        // Lo que se ha intentado escribir, para que la pantalla pueda releer el
+        // CRM y comprobar que está. En monitores no coincide con lo marcado: el
+        // que no está marcado se guarda como «vino», que aquí es una afirmación.
+        'written' => array(),
+    );
     if ($sessionId === '') {
         return $result;
     }
@@ -3083,6 +3393,7 @@ function sticpa_pl_save_monitors($objSCP, $sessionId, $monitors, $marks, $regMap
         } else {
             $result['counts']['no']++;
         }
+        $result['written'][$m['id']] = $key;
 
         if (isset($existing[$m['id']]['id'])) {
             $ok = $objSCP->set_entry('stic_Attendances', array(
@@ -3093,6 +3404,11 @@ function sticpa_pl_save_monitors($objSCP, $sessionId, $monitors, $marks, $regMap
                 $result['saved']++;
             } else {
                 $result['failed']++;
+                $result['errors'][] = array(
+                    'paso' => 'asistencia_actualizar',
+                    'id' => $existing[$m['id']]['id'],
+                    'error' => sticpa_pl_crm_error($objSCP),
+                );
             }
             continue;
         }
@@ -3106,14 +3422,110 @@ function sticpa_pl_save_monitors($objSCP, $sessionId, $monitors, $marks, $regMap
         ));
         if (!$newId) {
             $result['failed']++;
+            $result['errors'][] = array(
+                'paso' => 'asistencia_crear',
+                'id' => $m['id'],
+                'error' => sticpa_pl_crm_error($objSCP),
+            );
             continue;
         }
-        $objSCP->set_relationship('stic_Attendances', $newId, 'stic_attendances_stic_sessions', array($sessionId));
+        if ($objSCP->set_relationship('stic_Attendances', $newId, 'stic_attendances_stic_sessions', array($sessionId)) === false) {
+            $result['failed']++;
+            $result['errors'][] = array(
+                'paso' => 'asistencia_enlazar_sesion',
+                'id' => $newId,
+                'error' => sticpa_pl_crm_error($objSCP),
+            );
+        }
         $regId = array_search($m['id'], (array) $regMap, true);
         if ($regId !== false) {
-            $objSCP->set_relationship('stic_Attendances', $newId, 'stic_attendances_stic_registrations', array($regId));
+            if ($objSCP->set_relationship('stic_Attendances', $newId, 'stic_attendances_stic_registrations', array($regId)) === false) {
+                $result['failed']++;
+                $result['errors'][] = array(
+                    'paso' => 'asistencia_enlazar_inscripcion',
+                    'id' => $newId,
+                    'error' => sticpa_pl_crm_error($objSCP),
+                );
+            }
+        } else {
+            // Un monitor sin inscripción en el evento: la asistencia se queda
+            // sin enlazar y el CRM no la contará. Es dato, no ruido.
+            $result['errors'][] = array(
+                'paso' => 'sin_inscripcion',
+                'id' => $m['id'],
+                'error' => __('este monitor no tiene inscripción en el evento: su asistencia queda sin enlazar', 'sticpa'),
+            );
         }
         $result['saved']++;
+    }
+
+    // ---------------------------------------------------------------------
+    // La lista de monitores de la sesión.
+    // ---------------------------------------------------------------------
+    // Antes esto no se escribía: se guardaban las asistencias y no quedaba
+    // constancia de que la lista se hubiera pasado. `ajmcm_tipo_c` existe
+    // justo para esto —`monitores` frente a `participantes`— y el plugin
+    // tenía el mapa de valores sin que nadie lo llamara.
+    //
+    // NO lleva grupo, a diferencia de la de participantes: el alcance de
+    // coordinación es la etapa, no un grupo. Ver el aviso de
+    // `sticpa_pl_all_listas_monitores()` sobre qué pasa si dos etapas
+    // comparten evento.
+    $estados = sticpa_pl_lista_estados();
+    $tipos = sticpa_pl_lista_tipos();
+    $existentes = sticpa_pl_all_listas_monitores($objSCP);
+    $lista = isset($existentes[$sessionId]) ? $existentes[$sessionId] : null;
+
+    $payload = array(
+        'estado' => $estados['pasada'],
+        'ajmcm_tipo_c' => $tipos['monitores'],
+        'pasada_el' => date('Y-m-d H:i:s', sticpa_pl_now()),
+        'n_asistieron' => $result['counts']['yes'],
+        'n_faltaron' => $result['counts']['no'],
+        'assigned_user_id' => sticpa_pl_delegation($objSCP),
+    );
+
+    if ($lista !== null) {
+        $payload['id'] = $lista['id'];
+        $listaId = $objSCP->set_entry('LIS_listas', $payload);
+        if (!$listaId) {
+            $result['failed']++;
+            $result['errors'][] = array(
+                'paso' => 'lista_actualizar',
+                'id' => $lista['id'],
+                'error' => sticpa_pl_crm_error($objSCP),
+            );
+        }
+        $result['lista_id'] = $listaId ? $listaId : $lista['id'];
+    } else {
+        $listaId = $objSCP->set_entry('LIS_listas', $payload);
+        if (!$listaId) {
+            $result['failed']++;
+            $result['errors'][] = array(
+                'paso' => 'lista_crear',
+                'id' => '',
+                'error' => sticpa_pl_crm_error($objSCP),
+            );
+        } else {
+            if ($objSCP->set_relationship('LIS_listas', $listaId, 'lis_listas_stic_sessions', array($sessionId)) === false) {
+                $result['failed']++;
+                $result['errors'][] = array(
+                    'paso' => 'lista_enlazar_sesion',
+                    'id' => $listaId,
+                    'error' => sticpa_pl_crm_error($objSCP),
+                );
+            }
+            // Quién la pasó: informativo, no invalida el guardado.
+            $who = isset($_SESSION['scp_user_id']) ? $_SESSION['scp_user_id'] : '';
+            if ($who && $objSCP->set_relationship('LIS_listas', $listaId, 'lis_listas_contacts', array($who)) === false) {
+                $result['errors'][] = array(
+                    'paso' => 'lista_enlazar_monitor',
+                    'id' => $listaId,
+                    'error' => sticpa_pl_crm_error($objSCP),
+                );
+            }
+        }
+        $result['lista_id'] = $listaId ? $listaId : '';
     }
 
     sticpa_pl_flush($objSCP, 'state');

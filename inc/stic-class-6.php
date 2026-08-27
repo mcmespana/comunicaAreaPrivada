@@ -16,6 +16,26 @@ class SugarRestApiCall
     public $language;
 
     /**
+     * El último error que ha contado el CRM, en texto.
+     *
+     * EXISTE PORQUE NO EXISTÍA: `set_entry()` hacía `$r->id` sin mirar si la
+     * respuesta era un error, así que el motivo real («Access Denied», «Invalid
+     * Session ID», un campo que no existe) se tiraba a la basura y arriba solo
+     * quedaba un null. Con esto, quien escribe puede DECIR por qué no pudo.
+     */
+    public $lastError = '';
+
+    /**
+     * Contadores de la petición HTTP en curso (no de la instancia): cuántas
+     * llamadas al CRM se han hecho y cuánto han costado. Los lee
+     * `sticpa_crm_timing_header()` para la cabecera `Server-Timing`, que es la
+     * única forma de saber si una pantalla va lenta por el CRM o por otra cosa.
+     */
+    public static $callCount = 0;
+    public static $callMs = 0.0;
+    public static $callLog = array();
+
+    /**
      * Handle de cURL reutilizado en TODAS las llamadas de esta petición.
      * Antes se creaba y destruía uno por llamada, así que cada round-trip pagaba
      * DNS + TCP + handshake TLS completos. Una sola pantalla hace de 2 a 40
@@ -170,6 +190,7 @@ class SugarRestApiCall
         );
 
         curl_setopt($curl_request, CURLOPT_POSTFIELDS, $post);
+        $startedAt = microtime(true);
         $result = curl_exec($curl_request);
 
         if ($result === false) {
@@ -179,11 +200,15 @@ class SugarRestApiCall
             // Y se tira el handle: la conexión que ha fallado no vale para la
             // siguiente llamada (ver closeCurlHandle).
             $this->closeCurlHandle();
+            $this->lastError = 'red: ' . $curlError;
+            self::noteCall($method, $parameters, $startedAt, $this->lastError);
             error_log('[sticpa] Llamada al CRM fallida (' . $method . '): ' . $curlError);
             return null;
         }
 
         $response = json_decode($result);
+        $error = self::errorFrom($response);
+        self::noteCall($method, $parameters, $startedAt, $error);
 
         if (isset($response->number) && $response->number == 11 && !$retry) {
             // Sesión del CRM caducada: re-login y reintento. El 'session' que
@@ -195,7 +220,66 @@ class SugarRestApiCall
             }
             return $this->call($method, $parameters, $url, true);
         }
+
+        // El error se GUARDA y se registra. Antes llegaba arriba como un null
+        // pelado y el motivo del CRM no lo veía nadie.
+        if ($error !== '') {
+            $this->lastError = $error;
+            error_log('[sticpa] El CRM ha rechazado ' . $method
+                . (isset($parameters['module_name']) ? ' (' . $parameters['module_name'] . ')' : '')
+                . ': ' . $error);
+        } else {
+            $this->lastError = '';
+        }
+
         return $response;
+    }
+
+    /**
+     * ¿Es esta respuesta un error del CRM? Devuelve el motivo, o '' si va bien.
+     *
+     * SuiteCRM contesta **200 con un cuerpo de error** `{number, name,
+     * description}`: no hay código HTTP que mirar. Una respuesta buena no trae
+     * `number`, así que su simple presencia (con nombre, o con número distinto
+     * de cero) es la señal.
+     */
+    public static function errorFrom($response)
+    {
+        if (!is_object($response) || !isset($response->number)) {
+            return '';
+        }
+        $number = (int) $response->number;
+        $hasName = isset($response->name) && (string) $response->name !== '';
+        if ($number === 0 && !$hasName) {
+            return '';
+        }
+        $parts = array();
+        if ($hasName) {
+            $parts[] = (string) $response->name;
+        }
+        if (isset($response->description) && (string) $response->description !== '') {
+            $parts[] = (string) $response->description;
+        }
+        $parts[] = '#' . $number;
+        return implode(' — ', $parts);
+    }
+
+    /** Apunta una llamada en los contadores de la petición. */
+    private static function noteCall($method, $parameters, $startedAt, $error = '')
+    {
+        $ms = (microtime(true) - (float) $startedAt) * 1000;
+        self::$callCount++;
+        self::$callMs += $ms;
+        // El detalle solo se guarda si alguien lo va a leer: sin el filtro
+        // puesto, ~40 entradas por petición serían memoria para nada.
+        if (count(self::$callLog) < 60) {
+            self::$callLog[] = array(
+                'method' => (string) $method,
+                'module' => isset($parameters['module_name']) ? (string) $parameters['module_name'] : '',
+                'ms' => round($ms, 1),
+                'error' => (string) $error,
+            );
+        }
     }
 
     // login into sugar
@@ -341,8 +425,19 @@ class SugarRestApiCall
         );
         $set_entry_result = $this->call("set_entry", $set_entry_parameters, $this->url);
 
-        $recordID = $set_entry_result->id;
-        return $recordID;
+        // ANTES ERA `$set_entry_result->id` A PELO. Si el CRM contestaba un
+        // error (sin acceso al módulo, sesión inválida, campo inexistente) esto
+        // devolvía null con un aviso de PHP y el motivo se perdía: es la razón
+        // por la que «pasar lista» podía no escribir nada y no decir nada.
+        if (!is_object($set_entry_result) || empty($set_entry_result->id)) {
+            if ($this->lastError === '') {
+                $this->lastError = 'set_entry sin id: ' . substr((string) wp_json_encode($set_entry_result), 0, 300);
+            }
+            error_log('[sticpa] set_entry(' . $module_name . ') no ha devuelto id: ' . $this->lastError);
+            return null;
+        }
+
+        return $set_entry_result->id;
     }
 
     public function set_relationship($moduleName, $recordId, $relationship, $relatedIds = array())
@@ -355,6 +450,30 @@ class SugarRestApiCall
             "related_ids" => $relatedIds,
         );
         $setRelationshipResult = $this->call("set_relationship", $setRelationshipParameters, $this->url);
+
+        // `set_relationship` contesta {created, failed, deleted}. Nadie miraba
+        // `failed`, así que una asistencia podía quedarse SIN sesión o SIN
+        // inscripción —huérfana, y el CRM no la cuenta en el porcentaje— sin
+        // que constara en ningún sitio.
+        if (!is_object($setRelationshipResult)) {
+            if ($this->lastError === '') {
+                $this->lastError = 'set_relationship sin respuesta';
+            }
+            return false;
+        }
+        if (!empty($setRelationshipResult->failed)) {
+            $this->lastError = 'set_relationship(' . $relationship . ') ha fallado en '
+                . (int) $setRelationshipResult->failed . ' de ' . count((array) $relatedIds);
+            error_log('[sticpa] ' . $this->lastError);
+            return false;
+        }
+        if (isset($setRelationshipResult->created) && (int) $setRelationshipResult->created === 0
+            && empty($setRelationshipResult->deleted)) {
+            // Cero creadas y cero borradas: o ya estaba (inofensivo) o no ha
+            // hecho nada. No es un fallo, pero se deja rastro por si el
+            // diagnóstico lo necesita.
+            error_log('[sticpa] set_relationship(' . $relationship . ') no ha creado nada (¿ya existía?)');
+        }
         return $setRelationshipResult;
     }
 

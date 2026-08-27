@@ -145,12 +145,14 @@ class PasarListaWarmTest extends TestCase
 
     public function test_mientras_calienta_el_ttl_de_la_estructura_es_largo()
     {
-        // La parte que más fácil se rompe en silencio. El TTL normal son 12
-        // horas: calentado a la 1:30, caducaría a las 13:30 — ANTES de las
-        // sesiones del sábado, que son por la tarde. O sea que el calentado
-        // habría sido para nada y nadie se enteraría.
+        // La parte que más fácil se rompe en silencio. El TTL normal son 24
+        // horas (antes 12, y calentado a la 1:30 caducaba a las 13:30 — ANTES
+        // de las sesiones del sábado, que son por la tarde: el calentado había
+        // sido para nada y nadie se enteraba). El del calentado sigue siendo
+        // más largo aún, para que quepa el margen del día siguiente.
         $normal = sticpa_pl_ttl_structure();
-        $this->assertSame(12 * HOUR_IN_SECONDS, $normal);
+        $this->assertSame(24 * HOUR_IN_SECONDS, $normal);
+        $this->assertGreaterThan($normal, sticpa_pl_warm_ttl());
 
         $visto = null;
         // Se espía desde dentro: un filtro de más prioridad que el del

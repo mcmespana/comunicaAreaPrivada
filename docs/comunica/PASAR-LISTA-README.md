@@ -26,6 +26,8 @@ que se rompa en móvil se rompe en la app.
 | Los recuentos que lleva el grupo en su ficha | [`PASAR-LISTA-RECUENTOS.md`](PASAR-LISTA-RECUENTOS.md) |
 | Seguimientos de monitores (`stic_FollowUps`) | [`PASAR-LISTA-SEGUIMIENTOS.md`](PASAR-LISTA-SEGUIMIENTOS.md) |
 | El trabajo de madrugada y el calentado de caché | [`GUARDIAN-NOCTURNO.md`](GUARDIAN-NOCTURNO.md) |
+| ¿BBDD espejo? — análisis y decisión (27/08/2026) | [`DECISION-BBDD-ESPEJO.md`](DECISION-BBDD-ESPEJO.md) |
+| **Planes de trabajo ejecutables** (bug del guardado, rendimiento, fidelidad, funcionalidad, UX) | [`../../plans/`](../../plans/) — 033 a 037 |
 | Colores, tipografía, componentes | [`../design-system.md`](../design-system.md) |
 | El contrato con la app (webview) | [`CONTRATO-APP-WEBVIEW.md`](CONTRATO-APP-WEBVIEW.md) |
 

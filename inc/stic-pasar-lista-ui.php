@@ -462,3 +462,82 @@ function sticpa_pl_notice_html($pick)
 
     return '<p class="pl-notice">' . sticpa_pl_icon('clock') . '<span>' . $msg . '</span></p>';
 }
+
+// ---------------------------------------------------------------------------
+// El resultado de un guardado, dicho sin mentir
+// ---------------------------------------------------------------------------
+
+/**
+ * ¿Se le puede enseñar a esta persona el detalle técnico de un fallo?
+ *
+ * Solo a coordinación (y forzable con el filtro para depurar). El detalle lleva
+ * ids y respuestas del CRM: útil para arreglar, impropio para un monitor.
+ */
+function sticpa_pl_debug_allowed($objSCP)
+{
+    $allowed = function_exists('sticpa_pl_is_coordinator') ? sticpa_pl_is_coordinator($objSCP) : false;
+    return (bool) apply_filters('sticpa_pl_debug_allowed', $allowed, $objSCP);
+}
+
+/**
+ * El aviso de después de guardar.
+ *
+ * LA REGLA: «Lista guardada» SOLO si no ha fallado nada Y la relectura del CRM
+ * lo confirma. Antes se decía siempre que no hubiera `failed`, y `failed` no
+ * contaba ni el fallo de la lista ni el de las relaciones: la pantalla podía
+ * felicitarte con el CRM vacío, que es exactamente el bug que nos ha costado
+ * semanas.
+ *
+ * @param array $saved     lo que devolvió sticpa_pl_save()/_save_monitors()
+ * @param array $problemas lo que devolvió sticpa_pl_check_saved() (relectura)
+ */
+function sticpa_pl_save_result_html($saved, $problemas = array(), $objSCP = null)
+{
+    if (!is_array($saved)) {
+        return '';
+    }
+    $failed = isset($saved['failed']) ? (int) $saved['failed'] : 0;
+    $problemas = (array) $problemas;
+    $errors = isset($saved['errors']) ? (array) $saved['errors'] : array();
+
+    if ($failed === 0 && empty($problemas)) {
+        return '<p class="pl-notice" style="color:var(--success-dark)">' . sticpa_pl_icon('check')
+            . '<span>' . esc_html__('Lista guardada.', 'sticpa') . '</span></p>';
+    }
+
+    $html = '<p class="pl-notice" style="color:var(--danger-dark)">' . sticpa_pl_icon('warn') . '<span>';
+    if ($failed > 0) {
+        $html .= esc_html(sprintf(
+            /* translators: 1: marcas guardadas, 2: fallos */
+            __('No se ha guardado del todo: %1$d bien y %2$d con fallo.', 'sticpa'),
+            isset($saved['saved']) ? (int) $saved['saved'] : 0,
+            $failed
+        ));
+    } else {
+        // Ni un fallo y aun así no está: es el caso traicionero.
+        $html .= esc_html__('El CRM ha aceptado el guardado, pero al volver a leerlo no está.', 'sticpa');
+    }
+    if (!empty($problemas)) {
+        $html .= ' ' . esc_html(implode('; ', array_map('strval', $problemas)) . '.');
+    }
+    $html .= ' ' . esc_html__('Tus marcas siguen puestas en la pantalla: no se han perdido. Vuelve a intentarlo y, si sigue igual, avisa a coordinación.', 'sticpa');
+    $html .= '</span></p>';
+
+    // El detalle, solo para quien puede arreglarlo.
+    if (!empty($errors) && sticpa_pl_debug_allowed($objSCP)) {
+        $html .= '<details class="pl-hint"><summary>'
+            . esc_html__('Detalle técnico del fallo', 'sticpa') . '</summary><ul>';
+        foreach ($errors as $e) {
+            $paso = isset($e['paso']) ? (string) $e['paso'] : '?';
+            $msg = isset($e['error']) ? (string) $e['error'] : '';
+            $id = isset($e['id']) ? (string) $e['id'] : '';
+            $html .= '<li><code>' . esc_html($paso) . '</code>'
+                . ($id !== '' ? ' <code>' . esc_html($id) . '</code>' : '')
+                . ($msg !== '' ? ' — ' . esc_html($msg) : '')
+                . '</li>';
+        }
+        $html .= '</ul></details>';
+    }
+
+    return $html;
+}
