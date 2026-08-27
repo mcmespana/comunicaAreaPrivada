@@ -1,5 +1,23 @@
 # 033 — Que el guardado se vea, y cerrar EL bug
 
+> ## ✅ HECHO el 27/08/2026 — falta confirmarlo con un guardado real
+>
+> **La causa era el JS: `saveBtn.disabled = true` dentro del manejador de
+> `submit`.** Un control deshabilitado no se serializa, así que `pl_action` no
+> llegaba al servidor y PHP se saltaba el guardado entero sin decir nada. Estaba
+> ahí desde el primer commit de la fase 1 (`88511ec`), y por eso «pasar lista»
+> no ha pasado lista nunca. Ningún test lo veía porque un POST de PHPUnit trae
+> `pl_action` puesto a mano.
+>
+> Arreglado por dos vías (campo oculto + no deshabilitar hasta el tic
+> siguiente), y con todo lo de la fase 1 de este plan implementado para que no
+> vuelva a fallar en silencio. El relato completo, en
+> [`../docs/comunica/PASAR-LISTA-ESTADO.md`](../docs/comunica/PASAR-LISTA-ESTADO.md) §1.
+>
+> Lo que queda: **confirmarlo en producción** con el criterio de cierre de la
+> fase 3 (abajo), y decidir si la lista de monitores debe escribir su propia
+> `LIS_listas` (ver §5 de este plan).
+
 **Prioridad: P0. Es EL bug: mientras esté abierto, lo demás es decoración.**
 Esfuerzo: M. Depende de: nada. Bloquea: 034 (medir con un guardado que funcione),
 037 (UX del guardado).
@@ -178,4 +196,8 @@ Según la rama que confirme la fase 2, más esto, que vale para todas:
 
 | Fecha | Qué | Quién |
 |---|---|---|
-| 2026-08-27 | Plan escrito tras verificar por MCP que el intento real no deja rastro | revisión Fable |
+| 2026-08-27 | Plan escrito tras verificar por MCP que el intento real no deja rastro | revisión |
+| 2026-08-27 | Fase 1 completa (transporte, contabilidad de fallos, diario, panel `?pl_diag=1`, borrador y cola que no mienten) | `eb5eac5` |
+| 2026-08-27 | **Causa encontrada y arreglada**: el botón deshabilitado se comía `pl_action`. Verificado por MCP que el payload y las relaciones son válidos, así que no era ni ACL ni forma del dato | `eb5eac5` |
+| 2026-08-27 | El doble de test ahora modela escribir-y-releer, y puede rechazar escrituras. 256 tests en verde | `eb5eac5` |
+| | **Pendiente**: confirmar con un guardado real en producción | — |

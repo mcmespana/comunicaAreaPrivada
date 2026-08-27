@@ -23,9 +23,9 @@ para ejecutarlo solo si tras medir con caché caliente sigue siendo lento.
   problema nunca ha sido el tamaño de los datos.
 - **La lentitud real es el RTT en serie.** Cada pantalla hace 6–8 llamadas a
   la API SOAP-ish de SuiteCRM, **una detrás de otra**, a ~200–800 ms cada una.
-  Eso son 2–6 s de pura espera de red, que la caché (12 h struct / 5 min
-  state) esconde solo cuando está caliente — y el calentado nocturno **aún no
-  está configurado** (parte de estado §5).
+  Eso son 2–6 s de pura espera de red, que la caché (24 h struct / 5 min
+  state) esconde solo cuando está caliente. El calentado nocturno ya está
+  configurado (27/08/2026), así que los arranques en frío son la excepción.
 - **No hay acceso a la BBDD ni al servidor de SinergiaCRM.** Todo pasa por la
   API v4 (la misma que usa el plugin y el MCP). Un webhook desde SuiteCRM es
   inviable sin acceso a ficheros (los workflows de serie no llaman URLs).

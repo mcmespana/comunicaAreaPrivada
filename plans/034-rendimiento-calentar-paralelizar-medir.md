@@ -14,6 +14,29 @@ entra** porque el calentado nocturno no está configurado. Se ataca en este
 orden: lo gratis (config), lo estructural (paralelizar), lo fino (caché), y
 todo con medición antes/después.
 
+> ## Estado al 27/08/2026
+>
+> - **Fase 0 (medir): hecha.** Cada petición cuenta llamadas y milisegundos; las
+>   que pasan de 3 s dejan una línea en el `error_log` con el desglose, y
+>   `?pl_diag=1` lo enseña por pantalla. Falta **la foto real de producción**:
+>   sin esos números no se empieza la fase 2.
+> - **Fase 1 (calentado nocturno): hecha** — los tres secretos están puestos.
+> - **Fase 3 (caché): hecha a medias.** TTL de estructura a 24 h y, sobre todo,
+>   **los resultados vacíos ya no se cachean 12 horas** (`sticpa_pl_cache_put`,
+>   `sticpa_pl_ttl_empty`): era la causa de que un hipo del CRM dejara un grupo
+>   «sin participantes» media jornada. El *write-through* tras guardar se
+>   DESCARTA a propósito: chocaría con la relectura de verificación del plan 033,
+>   que vale más que la llamada que ahorraría.
+> - **Fase 2 (`curl_multi`): sin empezar**, y a propósito. Con el calentado
+>   nocturno puesto, los arranques en frío son raros; primero los números.
+>
+> Coste medido por pantalla (modo normal, caché fría): portada 6, árbol 6,
+> marcar 8, resumen 7 — los topes de `CosteLlamadasTest` siguen valiendo.
+> En el modo degradado (cuando el CRM no devuelve enlaces ni campos planos) la
+> portada se va a **una llamada por persona**: es un respaldo, no el camino
+> normal, pero si el registro de peticiones lentas lo delata alguna vez, es ahí
+> donde hay que mirar.
+
 ## Fase 0 — Medir (sin esto no se acepta nada de lo demás)
 
 1. Contador + cronómetro de llamadas al CRM por petición, en
