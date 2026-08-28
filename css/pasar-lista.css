@@ -2610,57 +2610,104 @@ a.pl-group .pl-name { display: block; }
    estaba. Solo afecta a Pasar Lista: esta hoja únicamente se carga aquí. */
 .stic-container { overflow-x: clip; }
 
-/* ---- La línea de contacto de la ficha del monitor ----------------------- */
+/* Un familiar SIN teléfono también sale. Antes desaparecía de la ficha entera:
+   la madre está en el CRM, bien relacionada, y la pantalla decía «no hay ningún
+   teléfono» sin nombrarla — así nadie podía avisar de que faltaba SU número,
+   porque nadie sabía que ella existía. Sale en gris y sin botones: es una fila
+   informativa, no un contacto al que se pueda llamar. */
+.pl-phone--sinnum { opacity: 0.72; }
+.pl-phone-num--none { font-style: italic; color: var(--gray-400); }
 
-/* Debajo de los dos botones grandes va UNA línea, no una lista de teléfonos:
-   el móvil ya está arriba y repetirlo empuja hacia abajo lo que sí se viene a
-   leer. Queda el correo, que se LEE, y el otro teléfono, que solo se PULSA. */
-.pl-contactline {
+/* ---- Las filas de contacto de la ficha del monitor ----------------------
+   UNA FILA POR DATO, con su etiqueta. Antes el correo y el otro teléfono
+   compartían una línea: un correo largo se partía en dos y quedaba cortado
+   contra un botón redondo sin etiqueta que —encima— no era el teléfono de esa
+   persona sino el de urgencias. Dos datos distintos peleando por el mismo
+   renglón. Ahora cada uno tiene su fila, su etiqueta y su sitio. */
+.pl-contactrows {
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    min-height: 52px;
-    padding: 0 0.4rem 0 0.9rem;
+    flex-direction: column;
+    gap: 1px;                       /* la separación la hace la línea, no el hueco */
     border-radius: var(--radius-lg);
-    background: var(--surface);
+    background: var(--gray-200);
+    overflow: hidden;
     box-shadow: var(--shadow-xs);
 }
-.pl-contactline-main {
+.pl-contactrow {
     display: flex;
     align-items: center;
-    gap: 0.55rem;
+    gap: 0.35rem;
+    min-height: 56px;
+    padding-right: 0.35rem;
+    background: var(--surface);
+}
+.pl-contactrow-main {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
     flex: 1 1 auto;
     min-width: 0;
-    padding: 0.6rem 0;
-    color: var(--gray-700);
-    font-size: 0.86rem;
+    padding: 0.55rem 0.35rem 0.55rem 0.9rem;
+    color: var(--gray-800);
     text-decoration: none;
-    overflow-wrap: anywhere;
     -webkit-tap-highlight-color: transparent;
 }
-.pl-contactline-main svg { width: 17px; height: 17px; flex-shrink: 0; color: var(--gray-400); }
-.pl-contactline-main--empty { color: var(--gray-400); font-style: italic; }
+.pl-contactrow-main > svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--gray-400); }
+.pl-contactrow-body { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.pl-contactrow-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+/* EN UNA LÍNEA Y CON PUNTOS SUSPENSIVOS. Un correo partido en dos renglones es
+   ilegible y descoloca la fila entera; el valor completo se lo lleva el botón
+   de copiar, que es lo que se hace con un correo de verdad. */
+.pl-contactrow-value {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--gray-800);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.pl-contactrow-main--empty {
+    color: var(--gray-400);
+    font-style: italic;
+    font-size: 0.86rem;
+}
 
-/* El otro teléfono cabe en un botón redondo: el número va en el `aria-label` y
-   en el `title`, así que quien lo necesite lo tiene y quien no, no lo lee.
-   Redondo y SIN texto a propósito: con la etiqueta «otro» al lado se comía
-   ochenta píxeles y el correo se partía en dos líneas. */
-.pl-contactline-btn {
+/* Copiar de un toque, con acuse de recibo: el icono cambia a un check verde
+   durante un segundo y medio. Sin eso no se sabe si ha funcionado y se pulsa
+   otra vez. */
+.pl-copy {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    position: relative;
     flex-shrink: 0;
     width: 44px;
     height: 44px;
+    padding: 0;
+    border: 0;
     border-radius: var(--radius-full);
     background: var(--primary-50);
     color: var(--primary-color);
-    text-decoration: none;
+    cursor: pointer;
     -webkit-tap-highlight-color: transparent;
+    transition: background-color 140ms ease, color 140ms ease;
 }
-.pl-contactline-btn svg { width: 18px; height: 18px; }
-.pl-contactline-main:active,
-.pl-contactline-btn:active { opacity: 0.72; }
+.pl-copy svg { width: 18px; height: 18px; }
+.pl-copy .pl-copy-ok,
+.pl-copy.is-done .pl-copy-i { display: none; }
+.pl-copy.is-done .pl-copy-ok { display: block; }
+.pl-copy.is-done {
+    background: var(--success-light, var(--primary-50));
+    color: var(--success-dark);
+}
+.pl-contactrow-main:active { opacity: 0.72; }
+.pl-copy:active { transform: scale(0.92); }
 
 /* ---- El vacío, dicho con calma ------------------------------------------ */
 

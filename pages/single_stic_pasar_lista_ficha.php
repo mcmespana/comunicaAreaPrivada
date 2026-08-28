@@ -201,10 +201,30 @@ if ($avisoMsg !== '') {
  * Amontonarlo todo en el nombre («Sol Meseguer · Madre · REF») obliga a leer
  * una frase para encontrar a quién llamas.
  */
-$phoneCard = function ($label, $rawPhone, $whatsapp = true, $sub = '', $tag = '', $tagKind = 'ref') {
+$phoneCard = function ($label, $rawPhone, $whatsapp = true, $sub = '', $tag = '', $tagKind = 'ref', $siempre = false) {
     $phone = sticpa_pl_phone($rawPhone);
-    if ($phone === null) {
+    // SIN TELÉFONO TAMBIÉN SE PINTA, cuando quien llama lo pide.
+    //
+    // La familia se caía de la ficha entera si no tenía número: la madre existe
+    // en el CRM, está bien relacionada, y la pantalla decía «no hay ningún
+    // teléfono en la ficha» sin nombrarla. Así nadie podía ni avisar de que
+    // faltaba el número, porque nadie sabía que faltaba el de ELLA.
+    if ($phone === null && !$siempre) {
         return '';
+    }
+    if ($phone === null) {
+        $out = '<div class="pl-phone pl-phone--sinnum">';
+        $out .= '<div class="pl-phone-who">';
+        $out .= '<span class="pl-phone-name"><span class="pl-phone-label">' . esc_html($label) . '</span>';
+        if ($tag !== '') {
+            $out .= '<span class="pl-phone-tag pl-phone-tag--' . esc_attr($tagKind) . '">'
+                . esc_html($tag) . '</span>';
+        }
+        $out .= '</span>';
+        $out .= '<span class="pl-phone-num pl-phone-num--none">'
+            . esc_html($sub !== '' ? $sub . ' · ' . __('sin teléfono', 'sticpa') : __('sin teléfono', 'sticpa'))
+            . '</span></div></div>';
+        return $out;
     }
     $numero = ($sub !== '') ? $sub . ' · ' . $phone['display'] : $phone['display'];
     $out = '<div class="pl-phone">';
@@ -295,13 +315,15 @@ $phoneCards .= $phoneCard(
 foreach ($family as $rel) {
     // El parentesco, traducido y en su línea: el CRM lo guarda en inglés
     // («mother») y debajo del nombre de la madre eso se lee raro.
+    // `true` al final: la familia SIEMPRE sale, con número o sin él.
     $phoneCards .= $phoneCard(
         $rel['name'],
         $rel['mobile'],
         true,
         sticpa_pl_parentesco_label($rel['relationship']),
         $rel['reference'] ? __('REF', 'sticpa') : '',
-        'ref'
+        'ref',
+        true
     );
 }
 $emergency = sticpa_pl_phone($ficha['phone_other']);
@@ -310,11 +332,26 @@ if ($emergency !== null) {
 }
 
 if ($phoneCards !== '') {
-    $html .= '<div class="pl-sec">' . esc_html__('Teléfonos', 'sticpa') . '</div>';
+    // «Contacto» y no «Teléfonos»: ahora también salen los familiares que no
+    // tienen número, y una sección llamada «Teléfonos» con una fila sin
+    // teléfono se lee como un error.
+    $html .= '<div class="pl-sec">' . esc_html__('Contacto', 'sticpa') . '</div>';
     $html .= '<div class="pl-list">' . $phoneCards . '</div>';
+    if ($quick === null) {
+        $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
+            . esc_html__('Nadie de la familia tiene teléfono en el CRM. Avisa a coordinación para que lo completen.', 'sticpa')
+            . '</span></p>';
+    }
 } else {
+    /* NI FAMILIA NI TELÉFONOS, y decir solo «no hay teléfonos» manda a buscar
+     * en el sitio equivocado. Hay una causa concreta y conocida: el registro
+     * del entorno personal tiene que estar ASIGNADO A LA DELEGACIÓN, porque de
+     * ahí cuelga el grupo de seguridad. Si se creó con otro usuario (pasa: el
+     * de Solete está a nombre de «Administrador MCM»), existe en el CRM, está
+     * bien enlazado… y esta pantalla no lo ve. Se dice, para que coordinación
+     * sepa qué mirar. */
     $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
-        . esc_html__('No hay ningún teléfono en la ficha. Avisa a coordinación para que lo completen.', 'sticpa')
+        . esc_html__('Esta ficha no tiene familia ni teléfonos que esta pantalla pueda ver. Avisa a coordinación: o faltan en el CRM, o el entorno personal no está asignado a la delegación.', 'sticpa')
         . '</span></p>';
 }
 

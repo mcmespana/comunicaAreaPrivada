@@ -1807,8 +1807,8 @@ final class PasarListaRenderTest extends TestCase
 
         $this->assertStringContainsString('pl-ident-name', $html);
         $this->assertStringContainsString('pl-ident-avatar', $html);
-        // Los botones grandes van ANTES de la lista de teléfonos.
-        $this->assertLessThan(strpos($html, 'Teléfonos'), strpos($html, 'pl-contact-btn'));
+        // Los botones grandes van ANTES de la lista de contacto.
+        $this->assertLessThan(strpos($html, '>Contacto<'), strpos($html, 'pl-contact-btn'));
         // Y apuntan al contacto de REFERENCIA de la familia, no al primero que salga.
         $this->assertStringContainsString('Llamar a Solete Messeguer', $html);
     }
@@ -3046,13 +3046,21 @@ final class PasarListaRenderTest extends TestCase
         // Pero NO una fila «Móvil» repitiendo el número.
         $this->assertStringNotContainsString('>Móvil<', $html);
 
-        // El correo se LEE: va en texto.
-        $this->assertStringContainsString('pl-contactline', $html);
+        // El correo se LEE: va en texto, en su propia fila y con etiqueta.
+        $this->assertStringContainsString('pl-contactrow', $html);
         $this->assertStringContainsString('david@movimientoconsolacion.com', $html);
-        // El otro teléfono solo se PULSA: cabe en un botón, con el número en el
-        // `aria-label` para quien lo necesite de verdad.
+        // Y SE COPIA DE UN TOQUE, que es lo que se hace con un correo: pegarlo
+        // en otro sitio. El valor va en el `data-`, no se lee del DOM, porque
+        // ahí está recortado con puntos suspensivos.
+        $this->assertStringContainsString('data-pl-copy="david@movimientoconsolacion.com"', $html);
+
+        // El otro teléfono, EN SU PROPIA FILA Y CON SU ETIQUETA. Antes era un
+        // botón redondo sin texto al lado del correo: se leía como «llamar a
+        // esta persona» cuando es justo lo contrario —es el teléfono de una
+        // urgencia— y de paso partía el correo en dos líneas.
         $this->assertStringContainsString('tel:964200300', $html);
-        $this->assertStringContainsString('Llamar al otro teléfono', $html);
+        $this->assertStringContainsString('964 200 300', $html);
+        $this->assertStringContainsString('Otro teléfono', $html);
         $this->assertStringNotContainsString('>Emergencias<', $html);
     }
 
