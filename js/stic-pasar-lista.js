@@ -1029,6 +1029,28 @@
      * el principio, que es el peor caso aceptable — se puede usar.
      * ===================================================================== */
 
+    /* El alta de un seguimiento, detrás de un botón (ficha del monitor).
+       Al abrir, el foco va al PRIMER campo —el desplegable del tipo—, no al
+       texto: así se puede escribir la nota entera con el teclado sin volver a
+       tocar la pantalla, y en móvil no salta el teclado antes de tiempo. */
+    var segAdd = document.querySelector('[data-pl-seg-add]');
+    var segForm = document.querySelector('[data-pl-seg-form]');
+    if (segAdd && segForm) {
+        segAdd.setAttribute('aria-expanded', 'false');
+        segAdd.addEventListener('click', function () {
+            var abrir = segForm.hidden;
+            segForm.hidden = !abrir;
+            segAdd.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+            if (abrir) {
+                var first = segForm.querySelector('[data-pl-seg-first]');
+                if (first) { first.focus(); }
+                if (segForm.scrollIntoView) {
+                    segForm.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                }
+            }
+        });
+    }
+
     var avisoAdd = document.querySelector('[data-pl-aviso-add]');
     var avisoForm = document.querySelector('[data-pl-aviso-form]');
     if (avisoAdd && avisoForm) {

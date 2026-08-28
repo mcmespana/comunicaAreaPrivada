@@ -27,8 +27,9 @@ que se rompa en móvil se rompe en la app.
 | Seguimientos de monitores (`stic_FollowUps`) | [`PASAR-LISTA-SEGUIMIENTOS.md`](PASAR-LISTA-SEGUIMIENTOS.md) |
 | El trabajo de madrugada y el calentado de caché | [`GUARDIAN-NOCTURNO.md`](GUARDIAN-NOCTURNO.md) |
 | ¿BBDD espejo? — análisis y decisión (27/08/2026) | [`DECISION-BBDD-ESPEJO.md`](DECISION-BBDD-ESPEJO.md) |
-| **Planes de trabajo ejecutables** (bug del guardado, rendimiento, fidelidad, funcionalidad, UX) | [`../../plans/`](../../plans/) — 033 a 037 |
+| **Planes de trabajo ejecutables** (bug del guardado, rendimiento, fidelidad, funcionalidad, UX, seguimiento de monitores) | [`../../plans/`](../../plans/) — 033 a 038 |
 | Colores, tipografía, componentes | [`../design-system.md`](../design-system.md) |
+| **Fidelidad pantalla ↔ artboard** (la spec medida, y las divergencias deliberadas) | [`fidelidad/`](fidelidad/) |
 | El contrato con la app (webview) | [`CONTRATO-APP-WEBVIEW.md`](CONTRATO-APP-WEBVIEW.md) |
 
 **Y la regla que manda sobre todas:** los nombres de campo del CRM salen de
@@ -88,7 +89,7 @@ Las pantallas, y a qué artboard corresponde cada una:
 | `single_stic_pasar_lista_marcar` | `Marcar` + `Estados` |
 | `single_stic_pasar_lista_ficha` | `Ficha` |
 | `single_stic_pasar_lista_resumen` | `Resumen` |
-| `single_stic_pasar_lista_monitores`, `_monitor`, `_reuniones` | sin artboard todavía |
+| `single_stic_pasar_lista_monitores`, `_monitor`, `_reuniones` | sin artboard todavía — el diseño de `_monitor` está escrito en [`PASAR-LISTA-COORDINACION.md`](PASAR-LISTA-COORDINACION.md) §4 y en [`../../plans/038-seguimiento-de-monitores.md`](../../plans/038-seguimiento-de-monitores.md) |
 
 ---
 

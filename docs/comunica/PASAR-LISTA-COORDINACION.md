@@ -123,24 +123,59 @@ para que nadie lo «arregle» dentro de un año.
 
 ---
 
-## 4. Los datos del monitor: lo esencial, no la ficha entera
+## 4. Los datos del monitor: mejor que el CRM, y en otro orden
 
-La ficha del monitor es la de los chavales sin familia y con otra mitad de abajo.
-Lo que hace falta cuando coordinación abre a un monitor es saber **si está en
-regla y si viene**:
+**Reescrita el 28/08/2026.** La primera versión abría con el certificado de
+delitos sexuales; el propietario pidió lo contrario: «poniendo más arriba los
+datos de más interés (por ejemplo el de delitos sexuales pues el primero no hace
+falta)». Tiene razón — es una obligación legal, sí, pero es una casilla, y una
+casilla no es la persona.
 
-- **Certificado de delitos sexuales.** Es lo primero, porque es una obligación
-  legal y porque es lo que se reclama. Tres estados que se distinguen a la vista:
-  automático autorizado · subido a mano · **falta**.
-- **Titulaciones**: premonitores I y II, MAT, DAT, FA, manipulación de alimentos.
-  Cada una con su año si lo tiene, y un aviso si el título dice sí pero no hay
-  archivo subido — que es el descuadre típico.
-- **Asistencia hasta hoy**, con denominador, igual que en los chavales.
-- **Monitor/a desde** y de qué etapa.
-- Teléfono y correo, con llamar y WhatsApp.
+El orden es el de la conversación real de seguimiento (afinado el 28/08/2026
+por el propietario: **el papeleo, al final**):
+
+1. **Quién es y cómo se le llama.** Nombre grande, la línea que le sitúa
+   (grupos · curso · edad · desde cuándo es monitor) y los dos botones de
+   WhatsApp y Llamar. Debajo, **una sola línea**: el correo, que se LEE, y el
+   otro teléfono, que solo se PULSA y por eso cabe en un botón redondo con el
+   número en su `aria-label`. El móvil no se repite: ya está en los botones.
+   Si ha pedido que no se le llame, se dice aquí y no enterrado abajo.
+2. **Cómo va este curso** — es el motivo de abrir la ficha. Tres pistas de
+   cuadraditos **separadas y nunca promediadas** (plan 038):
+   - *Sábados*, con porcentaje.
+   - *Reuniones de programación*, con fracción y no porcentaje: con tres o
+     cuatro al año, un 75 % suena a nota y es una sola falta.
+   - *Listas de su grupo*, con quién la pasó. **Esta fila se lee junto a la de
+     sábados o no se lee**: una lista de grupo la puede pasar cualquiera que
+     cubra ese sábado, así que «no la pasó» puede querer decir «no vino y la
+     pasó un compañero», que es correcto. Está dicho en la propia pantalla.
+   - Un sábado sin marcar es un hueco, no una falta: no cuenta en el
+     porcentaje y se dice aparte.
+3. **Sus grupos**: el que lleva y **el suyo** —la relación `grupo` COM-LC, que en
+   el CRM está en otra pestaña y aquí no—, con los recuentos calculados en vivo
+   y con quién los comparte. El que lleva enlaza a su lista.
+4. **Seguimientos**, y solo los de ESTE curso: el CRM devuelve las notas de
+   todos los años en la misma lectura y una lista de cinco cursos es un
+   archivo, no una pantalla de seguimiento. Un enlace discreto trae los del
+   curso anterior, y no cuesta ninguna consulta porque los datos ya estaban.
+   Sin nada apuntado, un vacío tranquilo —contorno discontinuo y una frase—, no
+   un aviso con icono de información: que no haya notas en octubre es lo normal.
+   El alta va **detrás de un botón** que abre el formulario y pone el foco en el
+   desplegable: se escribe entera sin tocar la pantalla otra vez.
+5. **Por dónde ha pasado**: curso a curso y con quién estaba. Plegable y
+   abierto de partida, con la cuenta de cursos en la cabecera.
+6. **El papeleo, al final**: «En regla» (aquí dentro va el certificado de
+   delitos sexuales), «Datos MCM» (nivel, etapa, pañuelo, desde cuándo) y
+   «Formación» (solo lo que tiene, con el aviso de «titulado pero sin archivo»).
+   Y cerrando, plegados, los **datos personales**: documento, nacimiento,
+   dirección, centro educativo y nº de persona.
 
 **Sin familia y sin salud.** Un monitor es un adulto: sus datos de salud no son
 asunto de coordinación en esta pantalla.
+
+En la **lista** de monitores, en cambio, no va nada de esto: solo una nota en
+rojo cuando algo no va. Ahí la pregunta es *a quién hay que mirar* de los
+treinta, y una lista con treinta porcentajes es una lista que nadie lee.
 
 ---
 

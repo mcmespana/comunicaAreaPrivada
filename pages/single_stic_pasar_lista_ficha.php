@@ -302,23 +302,34 @@ if (isset($events[$etapa])) {
 
     if ($regId !== false) {
         $marks = sticpa_pl_contact_marks($objSCP, $regId);
-        $att = sticpa_pl_attendance($sessions, $marks);
+        $track = sticpa_pl_att_track($sessions, $marks);
         $streak = sticpa_pl_absence_streak($sessions, $marks);
 
-        /* El porcentaje grande, y a su lado SIEMPRE el denominador: un 79 % de
+        /* EL DENOMINADOR SON LAS SESIONES MARCADAS, no las celebradas.
+         *
+         * Es el mismo cambio que en la ficha de un monitor y por la misma
+         * razón: si el grupo pasó tres listas de diez, un chaval que vino a las
+         * tres salía al 30 %. Ese 70 % que faltaba no eran ausencias suyas, era
+         * la lista sin pasar — y el número quedaba escrito en su ficha como si
+         * lo fueran. Los sábados sin marcar se cuentan aparte y se dicen.
+         *
+         * El porcentaje grande, y a su lado SIEMPRE el denominador: un 79 % de
          * noviembre y uno de mayo se leen igual si no se dice sobre cuántas.
          * La barra dice el mismo dato sin números, para el vistazo de un
          * segundo; el ancho se pone en línea porque es un dato, no un estilo. */
-        $pct = max(0, min(100, (int) $att['pct']));
+        $pct = max(0, min(100, (int) $track['pct']));
+        $sinDatos = ((int) $track['pct'] < 0);
         $html .= '<div class="pl-sec">' . esc_html__('Asistencia', 'sticpa') . '</div>';
         $html .= '<div class="pl-att">';
         $html .= '<div class="pl-att-top">';
-        $html .= '<span class="pl-att-pct">' . esc_html($att['pct']) . '<span>%</span></span>';
+        $html .= $sinDatos
+            ? '<span class="pl-att-pct pl-att-pct--none">' . esc_html__('Sin datos', 'sticpa') . '</span>'
+            : '<span class="pl-att-pct">' . esc_html((string) $pct) . '<span>%</span></span>';
         $html .= '<span class="pl-att-meta">' . esc_html(sprintf(
             /* translators: 1: horas asistidas, 2: horas celebradas */
             __('%1$s h de %2$s h', 'sticpa'),
-            $att['hours'],
-            $att['hours_total']
+            $track['hours'],
+            $track['hours_total']
         )) . '</span>';
         $html .= '</div>';
         $html .= '<div class="pl-att-bar" role="img" aria-label="' . esc_attr(sprintf(
@@ -328,12 +339,29 @@ if (isset($events[$etapa])) {
         )) . '"><div class="pl-att-fill" style="width:' . esc_attr($pct) . '%"></div></div>';
         $html .= '<div class="pl-att-body">';
         $html .= '<span class="pl-att-main">' . esc_html(sprintf(
-            /* translators: 1: sesiones a las que vino, 2: sesiones celebradas */
-            __('%1$d de %2$d sesiones hasta hoy', 'sticpa'),
-            $att['attended'],
-            $att['elapsed']
+            /* translators: 1: sesiones a las que vino, 2: sesiones con lista pasada */
+            __('%1$d de %2$d sesiones marcadas', 'sticpa'),
+            $track['attended'],
+            $track['counted']
         )) . '</span>';
+        if ($track['unknown'] > 0) {
+            $html .= '<span class="pl-att-meta">' . esc_html(sprintf(
+                /* translators: %d: sábados celebrados sin lista pasada */
+                _n('%d sábado sin lista', '%d sábados sin lista', $track['unknown'], 'sticpa'),
+                $track['unknown']
+            )) . '</span>';
+        }
         $html .= '</div>';
+        $html .= sticpa_pl_squares_html(
+            $track['squares'],
+            'asistencia',
+            sprintf(
+                /* translators: 1: a cuántas vino, 2: cuántas se contaron */
+                __('Vino a %1$d de %2$d sesiones marcadas', 'sticpa'),
+                $track['attended'],
+                $track['counted']
+            )
+        );
         $html .= '</div>';
 
         if ($streak >= sticpa_pl_streak_threshold()) {

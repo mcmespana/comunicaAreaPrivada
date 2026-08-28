@@ -162,7 +162,7 @@ $html .= '<div class="pl-head-titles">';
 if ($seccion !== '') {
     $html .= '<div class="pl-title">'
         . '<span class="pl-etapa-dot" style="background:' . esc_attr($seccionDot) . '"></span>'
-        . '<span class="pl-title-code">' . esc_html($seccionLabel) . '</span>'
+        . '<span class="pl-title-code pl-title-code--seccion">' . esc_html($seccionLabel) . '</span>'
         . '<span class="pl-title-count">' . esc_html(sprintf(
             /* translators: %d: número de grupos de la sección */
             _n('%d grupo', '%d grupos', count($groups), 'sticpa'),

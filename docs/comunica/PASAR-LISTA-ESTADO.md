@@ -1,6 +1,6 @@
 # Pasar Lista — parte de estado
 
-**Fecha de este parte: 27 de agosto de 2026.** Es el documento que hay que leer
+**Fecha de este parte: 28 de agosto de 2026.** Es el documento que hay que leer
 para retomar el trabajo sin reconstruir el contexto. El mapa de todo lo demás
 está en [`PASAR-LISTA-README.md`](PASAR-LISTA-README.md); el diseño funcional,
 en [`PASAR-LISTA.md`](PASAR-LISTA.md).
@@ -79,11 +79,9 @@ sesión. Ahora, además, **la propia pantalla lo comprueba**: si dice «Lista
 guardada» es que ha releído el CRM y estaba. Si algo falla, lo dice y lo apunta
 en `?pl_diag=1`.
 
-### 🟡 Lo que sigue abierto de esto
+### ✅ Confirmado en producción el 27/08/2026
 
-- **Confirmarlo en producción.** Está verificado con tests (259 en verde, con
-  un doble que ahora sí modela escribir-y-releer) pero no todavía con un
-  guardado real.
+El propietario pasó lista de verdad y se guardó. **El bug está cerrado.**
 
 ### ✅ La lista de monitores ya se escribe (27/08/2026)
 
@@ -116,6 +114,26 @@ Ahora:
 > `LIS_listas` que hoy no existe**, y aquí no se inventan campos. Si hace falta,
 > se pide al CRM y se anota en `CAMPOS.md`.
 
+### ✅ C1 se quedó sin participantes, y la causa era de las gordas (27/08/2026)
+
+El grupo salía con «0 participantes» teniendo su gente viva en el CRM
+(verificado: la relación de Solete existe, vigente hasta el 31/08/2026).
+
+**La causa raíz: el CRM devolvía UNA PÁGINA y el plugin se la creía entera.**
+Está contada como trampa en §3.5, porque va a volver a morder a quien escriba
+una consulta nueva. En corto: `max_results = 0` no significa «sin límite»,
+llegaban 20 de 109 relaciones, y los grupos que caían fuera salían vacíos.
+
+Hubo además un agravante nuestro, y de ese día: por matar un 1+N en la pantalla
+de monitores se quitó **entero** el respaldo por grupo, que es justo lo que
+rescataba a un grupo cuya gente no venía en el mapa. El 1+N estaba en el bucle
+sobre ~150 grupos, no en pintar un grupo:
+
+- `sticpa_pl_group_people()` vuelve a rescatar el grupo que se está pintando.
+  Cuesta UNA llamada y solo cuando ese grupo sale vacío.
+- `sticpa_pl_group_people_bulk()` es la puerta para quien recorre grupos: no cae
+  al respaldo nunca. Es la que usa `sticpa_pl_monitors_of()`.
+
 ### ✅ La ficha ya encuentra a la familia y sus teléfonos (27/08/2026)
 
 Era el mismo tipo de trampa de §3.1, y llevaba a la ficha sin lo que más se
@@ -135,10 +153,19 @@ de la madre eso se leía raro.
 
 Detalle de campos, en [`PASAR-LISTA-CAMPOS-CRM.md`](PASAR-LISTA-CAMPOS-CRM.md).
 
-### 🟡 Falta crear una casilla en el CRM: `ajmcm_GRUPOS` → `ajmcm_pasar_lista_c`
+### ✅ La casilla `ajmcm_pasar_lista_c` ya existe y está en uso (27/08/2026)
 
-El código ya está puesto y desplegado, **y no hace nada hasta que exista el
-campo y haya al menos un grupo marcado**. Sirve para limpiar el árbol: en el CRM
+Creada en el CRM y rellenada: **20 grupos marcados de 28** en Castellón (fuera
+quedan L1, L2, L3, L4, L6, L7, L8 y el grupo de apoyo sin código). Cuatro de los
+que quedan fuera **tienen monitores** (L3, L4, L6, L8), así que esos monitores no
+salen en la pantalla de coordinación — es lo que la casilla hace, pero conviene
+saberlo antes de buscar el fallo en otro sitio.
+
+> ⚠️ **El valor llega de dos formas distintas** según por dónde salga: la cadena
+> `"1"` cuando está marcada y el booleano `false` cuando no. Por eso se normaliza
+> con `sticpa_pl_bool_crm()` y no se compara nunca con `=== true` ni con `== '0'`.
+
+Sirve para limpiar el árbol: en el CRM
 hay ~150 grupos y la mayoría son históricos.
 
 La regla de seguridad: **mientras no haya ninguna casilla marcada, no se esconde
@@ -163,6 +190,68 @@ Decisión del 27/08/2026: **no bloquea**, se sigue probando y se renuevan las
 relaciones cuando toque. Pero si a partir del 1 de septiembre C1 sale vacío,
 **mira esto antes de buscar el fallo en el código**.
 
+### ✅ La ficha del monitor: seguimiento, datos agrupados, grupos e histórico (28/08/2026)
+
+La pantalla que sustituye a abrir el CRM. **El orden ya no es el del CRM sino el
+de la conversación de coordinación**, y el certificado de delitos sexuales ya no
+la abre: es una obligación legal, sí, pero es una casilla, y una casilla no es
+la persona. Ahora va dentro de «En regla», con las otras siete.
+
+Lo que enseña, en este orden:
+
+1. **Cómo va este curso**, en tres pistas de cuadraditos separadas y **nunca
+   promediadas**: sábados (con porcentaje), reuniones de programación (con
+   fracción, no porcentaje: con cuatro al año un 75 % suena a nota y es una
+   sola falta) y listas del grupo (con quién la pasó).
+2. **En regla**: ocho comprobaciones, con la cuenta de lo que falta en la
+   cabecera. Un permiso no dado —la cesión de imágenes— sale en gris y no en
+   rojo: es una decisión de la persona, no una deuda.
+3. **Formación** (solo lo que tiene, con el descuadre de «titulado sin
+   archivo»), **trayectoria** y **datos personales**, estos últimos plegados.
+4. **Sus grupos**: el que lleva y el suyo (la relación `grupo` COM-LC, que en el
+   CRM vive en otra pestaña), con los recuentos calculados **en vivo** del mapa
+   de relaciones y con quién los comparte.
+5. **Por dónde ha pasado**: curso a curso, con quién estaba en cada uno.
+
+**Coste: cuatro tandas paralelas, y ni una consulta por grupo ni por curso.** El
+histórico entero sale de las relaciones **terminadas**, que ya venían en la misma
+consulta que las vigentes y se tiraban al filtrar por vigencia. Con la caché
+caliente son dos consultas. El tope está escrito en `CosteLlamadasTest`.
+
+### ✅ Un hueco no es una falta (28/08/2026)
+
+`sticpa_pl_attendance()` metía las sesiones **sin marcar** en el denominador. Si
+el grupo pasó tres listas de diez, un chaval que vino a las tres salía al 30 %
+en su ficha: ese 70 % no eran ausencias suyas, era la lista sin pasar, y el
+número quedaba escrito como si lo fueran.
+
+La función se ha retirado. Queda `sticpa_pl_att_track()`, que cuenta sobre lo
+**marcado**, cuenta los huecos aparte y los dice en pantalla, y devuelve «sin
+datos» en vez de un 0 % cuando no hay nada marcado. Las horas siguen la misma
+regla. Lo usan las tres pantallas: ficha del participante, ficha del monitor y
+lista de monitores.
+
+### ✅ Avisos de seguimiento en la lista de monitores (28/08/2026)
+
+En la lista, una nota en rojo bajo el nombre **solo cuando algo no va** —tres
+seguidas sin venir, o menos del 60 % de asistencia— y nada para quien va bien.
+Lo que se busca ahí es *a quién hay que mirar* de los treinta: una lista con
+treinta porcentajes es una lista que nadie lee. Umbrales en
+`sticpa_pl_seguimiento_umbrales`, conservadores a propósito.
+
+### ✅ Dos parejas de consultas que preguntaban lo mismo (28/08/2026)
+
+Los eventos de la delegación se pedían **dos veces** (el cargador por etapa y el
+del evento de reuniones) y las relaciones de quien está conectado también (el
+alcance de coordinación y el acompañamiento). El memo de la tanda paralela no
+las salvaba: **se consume de un solo uso**, así que dos cargadores con la misma
+firma se reparten una respuesta y el segundo llama igual. La forma de no pagar
+dos veces es no preguntar dos veces, así que ahora hay un cargador crudo debajo
+—`sticpa_pl_events_raw()` y `sticpa_pl_mis_rels()`— y los dos de arriba filtran.
+
+Los topes de `CosteLlamadasTest` bajaron a la vez: el árbol de grupos de 8 a 7 y
+marcar de 10 a 9. Un tope que se queda holgado deja de proteger nada.
+
 ### Otros abiertos, menores
 
 | | Qué |
@@ -172,6 +261,8 @@ relaciones cuando toque. Pero si a partir del 1 de septiembre C1 sale vacío,
 | 🟡 | Los «sectores» (COM I = los dos primeros cursos de la ESO, etc.) se agrupan **a mano**. No hay campo en el CRM y de momento no lo va a haber. |
 | 🟡 | El filtro plano por campo de enlace (`..._ida`) en `get_entry_list` devuelve **error 400 de base de datos** en `stic_Sessions`, `LIS_listas`, `stic_Registrations` y `stic_Contacts_Relationships`. Se puede LEER el campo, pero no FILTRAR por él. Para consultar por relación hay que ir por `get_relationships`. Ojo: no es lo mismo que la trampa de §3.1 — ahí el problema es el enlace anidado que no viene; aquí es el filtro que el CRM rechaza. |
 | 🟡 | Las asistencias de 5 sesiones existen **sin `status`**: quedaron a medio marcar. Es un estado válido (una sesión sin pasar), pero conviene saber que existe. |
+| 🟡 | `ajmcm_curso_escolar_c` **existe** en `stic_Contacts_Relationships` y está **vacío en todas** las relaciones reales. El curso del histórico se deduce por eso de `start_date` y `end_date`. Si algún día se rellena, hay que mirar antes las claves internas de su desplegable: si guarda `2024_2025` y nosotros calculamos `2024-2025`, el histórico se parte en dos. |
+| 🟡 | `ajmcm_pasar_lista_c` (la casilla del grupo) tiene **`default: 1`** en el CRM, aunque `PASAR-LISTA-CAMPOS-CRM.md` decía «por defecto desmarcada». Los grupos que ya existían nacieron sin valor —por eso el filtro funciona—, pero **un grupo nuevo entrará solo en Pasar Lista**. Probablemente es lo que se quiere; conviene saberlo. |
 
 ---
 
@@ -186,12 +277,15 @@ relaciones cuando toque. Pero si a partir del 1 de septiembre C1 sale vacío,
 - Los recuentos nocturnos del Guardián se leen en la ficha del grupo.
 - El modo sin conexión está construido (apagado por defecto con el filtro
   `sticpa_pl_offline_enabled`).
+- La ficha de un monitor enseña su seguimiento del curso, sus datos agrupados,
+  sus grupos y por dónde ha pasado, sin abrir el CRM.
+- Los porcentajes de asistencia cuentan sobre lo marcado, no sobre lo celebrado.
 
 ---
 
 ## 3. Las trampas: por qué se rompió lo que se rompió
 
-Esta sección es la que ahorra días. Son cinco cosas que **volverán a morder** a
+Esta sección es la que ahorra días. Son seis cosas que **volverán a morder** a
 quien no las sepa.
 
 ### 3.1 Esta instancia NO devuelve los enlaces anidados
@@ -255,7 +349,59 @@ Dos más de la misma familia:
 `tests/TokensCssTest.php` impide que las tres vuelvan. **No pongas valores de
 reserva con color en `var()`**: es lo que esconde el fallo.
 
-### 3.5 El tema de WordPress pinta tus `<button>`
+### 3.5 `max_results = 0` NO es «sin límite» — y por eso un grupo salía vacío
+
+**La trampa más cara del proyecto, encontrada el 27/08/2026.** Todas las
+consultas de colección mandaban `'max_results' => 0` dando por hecho que
+significaba «tráelo todo». En SuiteCRM v4.1 es un valor **falsy**: no se aplica,
+y el servidor usa su `list_max_entries_per_page` — **20 filas** por defecto.
+
+La delegación de Castellón tiene **109 `stic_Contacts_Relationships`**. Llegaban
+las 20 primeras. Los grupos cuya gente caía fuera de esa página salían con
+**cero participantes**, exactamente igual que un grupo vacío de verdad. Así se
+quedó C1 sin participantes un sábado, con el dato intacto en el CRM.
+
+Y era invisible: `total_count`, `result_count` y `next_offset` —los tres campos
+que la API devuelve justo para esto— **no aparecían en ninguna línea del repo**,
+y los dobles de test construían respuestas sin `total_count`, así que ningún
+test podía verlo.
+
+**La regla:** una consulta de colección **pagina**, y el corte lo pone
+`total_count` o una página vacía. **NUNCA** una página más corta de lo pedido:
+el servidor tiene su propio tope y puede devolver 20 aunque le pidas 200 — que
+es el fallo entero. Y como seguro, si una página no trae ningún id nuevo, se
+para: hay servidores que ignoran el `offset`.
+
+Está resuelto en `getRecordsModule()` y `getRelatedElementsForLoggedUser()`;
+ajustable con `sticpa_crm_page_size` y `sticpa_crm_max_rows`.
+
+> **Corolario para los dobles:** si tu doble devuelve siempre la colección
+> entera, no puede detectar un truncado. El de `TransportLinkListTest` simula un
+> servidor que pagina Y que ignora un `max_results` mayor que su tope.
+
+### 3.6 El tema de WordPress pinta tus `<button>`… y tus `<label>` y tus `<input>`
+
+**Ampliada el 28/08/2026: no eran solo los botones.** Son tres selectores del
+tema y de la base del área que le ganan por especificidad a una clase suelta, y
+los tres han producido un fallo visible que nadie vio leyendo el CSS del plugin:
+
+| Quién gana | A quién le gana | Qué se veía |
+|---|---|---|
+| `.entry-content button` del tema de WP | `.pl-all-present`, `.pl-opt`, `.pl-row`… | «Han venido todos» en letra blanca sobre verde claro |
+| `:is(.stic-tab-content, …) label { display: block }` de `stic-base.css` | `.pl-motive`, `.pl-avi-check`, `.pl-field` | El motivo de la hoja, una caja de 130 px con el lápiz ENCIMA del texto en vez de la pastilla de 48 px del artboard |
+| `input[type=text\|search] { border-width: 1.5px !important }` de `custom-style.css` §10 | `.pl-motive input`, `.pl-search input` | Una caja con borde DENTRO de la pastilla |
+
+Los tres se neutralizan en `css/pasar-lista.css` §0.b, §0.c y §0.d, con la misma
+receta: `!important` para desactivar lo del tema, y que el componente vuelva a
+declarar lo suyo también con `!important`.
+
+**La regla, para no repetirlo una cuarta vez: todo componente nuevo de Pasar
+Lista que sea un `<button>`, un `<label>` o lleve un `<input>` dentro pasa por
+§0.b/§0.c/§0.d antes de darse por bueno.** Y ojo con el efecto secundario: una
+regla de `display` con `!important` se come los `display: none` que la esconden,
+así que esos también tienen que llevarlo (le pasó al motivo).
+
+### 3.6-bis El texto original sobre los `<button>`
 
 El tema estila `.entry-content button`, con más especificidad que una clase.
 Todos los botones de Pasar Lista son `<button>` de verdad (accesibilidad), así
@@ -374,7 +520,7 @@ de colección nueva tiene que usarla**.
 
 ```bash
 composer install
-vendor/bin/phpunit                                        # 272 tests
+vendor/bin/phpunit                                        # 285 tests
 node --test .github/scripts/guardian/guardian.test.mjs    # 36 tests
 ```
 

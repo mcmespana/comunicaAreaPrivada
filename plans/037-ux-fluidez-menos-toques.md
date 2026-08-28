@@ -28,12 +28,10 @@ tarde, dentro de la webview de MCM App.
 >
 > **Pendiente, y por qué:**
 >
-> - **Fila 2 (llamar desde la propia hoja, sin pasar por la ficha):** pide tener
->   los teléfonos de toda la delegación en la pantalla de marcar. Se puede hacer
->   sin 1+N —el entorno personal de la delegación en UNA consulta, más otra para
->   los contactos, cacheadas 24 h y metidas en la tanda paralela—, pero son dos
->   consultas más en la pantalla más usada y conviene medir antes con los
->   números reales de producción.
+> - **Fila 2 (llamar desde la propia hoja): DESCARTADA** por el propietario el
+>   27/08/2026 — «esto no hay que hacerlo, desde la ficha». Se llama desde la
+>   ficha, que está a un toque desde la hoja. No se retoma sin que lo pida.
+>   Queda escrito para que nadie lo proponga otra vez creyendo que es una mejora.
 > - **Fila 4 (skeletons):** después de ver cuánto queda de espera real con las
 >   tandas paralelas ya desplegadas. Si marcar carga en 1,5 s, un skeleton
 >   sobra.

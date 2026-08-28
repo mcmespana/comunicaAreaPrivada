@@ -184,7 +184,7 @@ function sticpa_pl_cache_family($what)
     // `sticpa_pl_flush($objSCP, 'state')` de después de guardar no las tiraba.
     // Se salvaba por el TTL de cinco minutos, o sea que la lista que acababas
     // de pasar tardaba hasta cinco minutos en aparecer.
-    $state = array('state', 'streaks', 'listas', 'attrange');
+    $state = array('state', 'streaks', 'listas', 'attrange', 'marks');
     return in_array((string) $what, $state, true) ? 'state' : 'struct';
 }
 
@@ -562,20 +562,49 @@ function sticpa_pl_grupos_ocultos($objSCP)
  * mismas relaciones, y el árbol de Castellón tiene 28 grupos. Una llamada
  * cacheada 12 h contra veintiocho por pantalla.
  *
- * La vigencia se filtra EN SQL: sin eso vendrían todas las relaciones que ha
- * tenido la delegación en su vida.
- *
  * Devuelve array de filas: rel_id, role, group_id, group_name, contact_id,
  * name, first, last, y los campos de la ficha que usa la lista de marcado.
+ *
+ * Solo las VIGENTES. Las terminadas están en
+ * `sticpa_pl_all_relationships_raw()`, que es de donde sale esta: son la misma
+ * consulta y la misma caché, así que el histórico de un monitor no cuesta ni
+ * una llamada más.
  */
 function sticpa_pl_all_relationships($objSCP)
+{
+    $out = array();
+    foreach (sticpa_pl_all_relationships_raw($objSCP) as $rel) {
+        if (!empty($rel['vigente'])) {
+            $out[] = $rel;
+        }
+    }
+    return $out;
+}
+
+/**
+ * Lo mismo, pero SIN filtrar por vigencia: la historia entera.
+ *
+ * Existe porque la ficha de un monitor enseña por qué grupos ha pasado —«en
+ * 2024-2025 llevaba 4.º de primaria»— y eso son justo las relaciones cerradas,
+ * que la de arriba tira. Una relación terminada no es un dato de hoy, pero sí
+ * es el dato de entonces.
+ *
+ * Cada fila lleva `vigente`, `start`, `end` y `cursos` (los cursos escolares
+ * que cubre, calculados de las fechas). El CRM no guarda el curso escolar de
+ * una relación en ningún campo, así que se deduce: septiembre manda.
+ */
+function sticpa_pl_all_relationships_raw($objSCP)
 {
     $deleg = sticpa_pl_delegation($objSCP);
     if (!$deleg) {
         return array();
     }
 
-    $cacheKey = sticpa_pl_cache_key('rels', $objSCP);
+    // Clave nueva ('relshist') y no la de antes: lo que se guarda aquí lleva
+    // TAMBIÉN las relaciones terminadas, y una caché escrita por la versión
+    // anterior tiene solo las vigentes. Colarla daría un histórico vacío sin
+    // que nada fallara, que es la peor forma de fallar.
+    $cacheKey = sticpa_pl_cache_key('relshist', $objSCP);
     $ttl = sticpa_pl_ttl_structure();
     if ($ttl > 0) {
         $cached = get_transient($cacheKey);
@@ -631,22 +660,59 @@ function sticpa_pl_all_relationships($objSCP)
             if (!$v || empty($v->id->value)) {
                 continue;
             }
-            $role = sticpa_pl_rel_role(isset($v->relationship_type->value) ? $v->relationship_type->value : '');
+            $tipoRaw = isset($v->relationship_type->value) ? trim((string) $v->relationship_type->value) : '';
+            $role = sticpa_pl_rel_role($tipoRaw);
             if ($role === '') {
                 continue;
             }
-            // Vigencia. Una relacion terminada es historia, no un dato de hoy.
+            // Vigencia. Una relacion terminada es historia, no un dato de hoy:
+            // se marca y se guarda, y cada pantalla decide si la quiere.
             $endRaw = isset($v->end_date->value) ? trim((string) $v->end_date->value) : '';
+            $endTs = 0;
             if ($endRaw !== '') {
-                $endTs = strtotime($endRaw . ' 23:59:59');
-                if ($endTs && $endTs < $now) {
-                    continue;
+                $ts = strtotime($endRaw . ' 23:59:59');
+                if ($ts) {
+                    $endTs = (int) $ts;
                 }
+            }
+            $startRaw = isset($v->start_date->value) ? trim((string) $v->start_date->value) : '';
+            $startTs = 0;
+            if ($startRaw !== '') {
+                $ts = strtotime($startRaw . ' 00:00:00');
+                if ($ts) {
+                    $startTs = (int) $ts;
+                }
+            }
+
+            $vigente = ($endTs === 0 || $endTs >= $now);
+
+            $persona = sticpa_pl_person_from_rel_row($v);
+            if (!$vigente) {
+                // Una relación terminada solo se usa para el histórico, y allí
+                // se pinta un nombre y poco más. Guardar su edad y su móvil
+                // sería engordar la caché de TODA la delegación con datos que
+                // ninguna pantalla lee, y que además son los de hace tres años.
+                $persona = array(
+                    'id' => $persona['id'],
+                    'name' => $persona['name'],
+                    'full' => $persona['full'],
+                    'sort' => $persona['sort'],
+                    'initials' => $persona['initials'],
+                );
             }
 
             $out[] = array(
                 'rel_id' => (string) $v->id->value,
                 'role' => $role,
+                // El `relationship_type` en crudo, además del papel resuelto:
+                // `participante_mic_com` y `grupo` son los dos «participante»,
+                // pero en la ficha de un monitor no son lo mismo — `grupo` es
+                // el grupo COM-LC al que PERTENECE, y ese es el que se enseña.
+                'tipo' => $tipoRaw,
+                'vigente' => $vigente,
+                'start' => $startTs,
+                'end' => $endTs,
+                'cursos' => sticpa_pl_rel_cursos($startTs, $endTs, $now),
                 'group_id' => sticpa_pl_nvl_first($v, array(
                     'grupo_id',
                     'ajmcm_grupos_stic_contacts_relationshipsajmcm_grupos_ida',
@@ -655,7 +721,7 @@ function sticpa_pl_all_relationships($objSCP)
                     'grupo',
                     'ajmcm_grupos_stic_contacts_relationships_name',
                 )),
-                'person' => sticpa_pl_person_from_rel_row($v),
+                'person' => $persona,
             );
         }
     }
@@ -1675,7 +1741,12 @@ function sticpa_pl_all_listas_monitores($objSCP)
  */
 function sticpa_pl_listas_index($objSCP)
 {
-    $vacio = array('participantes' => array(), 'monitores' => array());
+    // `v` es la VERSIÓN de la forma de este índice. Sin ella, una caché escrita
+    // por la versión anterior —que no lleva `monitor_id`— se colaría tal cual y
+    // la ficha de todos los monitores diría «no ha pasado ninguna lista»
+    // durante cinco minutos, sin que nada fallara. Un dato que falta y no se
+    // nota es peor que un error.
+    $vacio = array('v' => 2, 'participantes' => array(), 'monitores' => array());
 
     $deleg = sticpa_pl_delegation($objSCP);
     if (!$deleg) {
@@ -1690,7 +1761,8 @@ function sticpa_pl_listas_index($objSCP)
         // por la versión anterior tiene la forma vieja (plana) y colarla aquí
         // daría un índice sin monitores y con las participantes en el sitio
         // equivocado.
-        if (is_array($cached) && isset($cached['participantes']) && isset($cached['monitores'])) {
+        if (is_array($cached) && isset($cached['participantes']) && isset($cached['monitores'])
+            && isset($cached['v']) && (int) $cached['v'] === 2) {
             return $cached;
         }
     }
@@ -1702,6 +1774,12 @@ function sticpa_pl_listas_index($objSCP)
             'id', 'estado', 'pasada_el', 'n_asistieron', 'n_faltaron', 'ajmcm_tipo_c',
             'lis_listas_stic_sessionsstic_sessions_ida',
             'lis_listas_ajmcm_gruposajmcm_grupos_ida',
+            // QUIÉN la pasó. Es una columna más en la misma consulta, así que
+            // no cuesta nada, y es lo único que hace falta para la fila de
+            // «listas pasadas» de la ficha del monitor. Nombre verificado
+            // contra el CRM (`get_module_fields` de LIS_listas) y comprobado
+            // que viene poblado con un id, no vacío.
+            'lis_listas_contactscontacts_ida',
         ),
         array(
             'sesion' => array(
@@ -1734,6 +1812,10 @@ function sticpa_pl_listas_index($objSCP)
                 'pasada_el' => isset($v->pasada_el->value) ? (string) $v->pasada_el->value : '',
                 'n_asistieron' => isset($v->n_asistieron->value) ? (int) $v->n_asistieron->value : 0,
                 'n_faltaron' => isset($v->n_faltaron->value) ? (int) $v->n_faltaron->value : 0,
+                'monitor_id' => sticpa_pl_nvl_first($v, array(
+                    'monitor_id',
+                    'lis_listas_contactscontacts_ida',
+                )),
             );
 
             // Vacío = participantes: es el valor por defecto del CRM y lo que
@@ -2200,6 +2282,59 @@ function sticpa_pl_event_etapa_field()
  * Las claves se comparan contra el mismo mapa que los prefijos del nombre, de
  * modo que da igual si en el desplegable están como `MIC` o como `mic`.
  */
+/**
+ * TODOS los eventos de la delegación, en UNA consulta y una caché.
+ *
+ * Existe porque encima cuelgan DOS cargadores —los eventos por etapa y el de
+ * reuniones de programación— que preguntaban lo mismo por separado: dos viajes
+ * al CRM en cada pantalla de coordinación para leer la misma tabla. El memo de
+ * la tanda paralela no los salvaba, porque se consume de un solo uso: dos
+ * cargadores con la misma firma se reparten una respuesta y el segundo llama
+ * igual. La forma de no pagar dos veces es no preguntar dos veces.
+ */
+function sticpa_pl_events_raw($objSCP)
+{
+    $deleg = sticpa_pl_delegation($objSCP);
+    if (!$deleg) {
+        return array();
+    }
+    $cacheKey = sticpa_pl_cache_key('evraw', $objSCP);
+    $ttl = sticpa_pl_ttl_structure();
+    if ($ttl > 0) {
+        $cached = get_transient($cacheKey);
+        if (is_array($cached)) {
+            return $cached;
+        }
+    }
+
+    $etapaField = sticpa_pl_event_etapa_field();
+    $rows = $objSCP->getRecordsModule(
+        'stic_Events',
+        "stic_events.assigned_user_id = '" . sticpa_pl_safe_id($deleg) . "'",
+        array('id', 'name', 'start_date', 'end_date', $etapaField)
+    );
+
+    $out = array();
+    if (is_array($rows)) {
+        foreach ($rows as $row) {
+            $v = isset($row->name_value_list) ? $row->name_value_list : null;
+            if (!$v || empty($v->id->value)) {
+                continue;
+            }
+            $out[] = array(
+                'id' => (string) $v->id->value,
+                'name' => isset($v->name->value) ? (string) $v->name->value : '',
+                'start_date' => isset($v->start_date->value) ? (string) $v->start_date->value : '',
+                'end_date' => isset($v->end_date->value) ? (string) $v->end_date->value : '',
+                'etapa_raw' => isset($v->$etapaField->value) ? (string) $v->$etapaField->value : '',
+            );
+        }
+    }
+
+    sticpa_pl_cache_put($cacheKey, $out, $ttl);
+    return $out;
+}
+
 function sticpa_pl_etapas_from_multi($raw)
 {
     if (is_object($raw)) {
@@ -2259,18 +2394,17 @@ function sticpa_pl_etapa_events($objSCP)
     $course = sticpa_pl_course_for();
     $etapaField = sticpa_pl_event_etapa_field();
 
-    $rows = $objSCP->getRecordsModule(
-        'stic_Events',
-        "stic_events.assigned_user_id = '" . sticpa_pl_safe_id($deleg) . "'",
-        array('id', 'name', 'start_date', 'end_date', $etapaField)
-    );
+    $rows = sticpa_pl_events_raw($objSCP);
 
     $out = array();
     if (is_array($rows)) {
-        foreach ($rows as $row) {
-            $v = $row->name_value_list;
-            $id = isset($v->id->value) ? $v->id->value : '';
-            $name = isset($v->name->value) ? (string) $v->name->value : '';
+        foreach ($rows as $ev) {
+            $v = (object) array_map(function ($x) {
+                return (object) array('value' => $x);
+            }, $ev);
+            $v->$etapaField = (object) array('value' => $ev['etapa_raw']);
+            $id = $ev['id'];
+            $name = $ev['name'];
             if (!$id || $name === '') {
                 continue;
             }
@@ -2573,13 +2707,26 @@ function sticpa_pl_ficha($objSCP, $contactId)
  * Se piden desde la inscripción, no sesión por sesión: la inscripción tiene
  * todas sus asistencias colgando, y con el enlace a la sesión poblado vuelve
  * también de qué día es cada una. Devuelve array sessionId => clave de estado,
- * que es justo lo que come sticpa_pl_attendance() y sticpa_pl_absence_streak().
+ * que es justo lo que comen sticpa_pl_att_track() y sticpa_pl_absence_streak().
  */
 function sticpa_pl_contact_marks($objSCP, $registrationId)
 {
     $registrationId = sticpa_pl_safe_id($registrationId);
     if ($registrationId === '') {
         return array();
+    }
+
+    // Cacheada como ESTADO: son las asistencias de una persona, cambian cuando
+    // alguien guarda una lista y `sticpa_pl_flush($objSCP, 'state')` las tira.
+    // Sin esto, abrir la ficha de un monitor costaba dos viajes al CRM cada
+    // vez —el de las sesiones y el de las reuniones— también al volver atrás.
+    $cacheKey = sticpa_pl_cache_key('marks', $objSCP, $registrationId);
+    $ttl = sticpa_pl_ttl_state();
+    if ($ttl > 0) {
+        $cached = get_transient($cacheKey);
+        if (is_array($cached)) {
+            return $cached;
+        }
     }
 
     $rows = $objSCP->getRelatedElementsForLoggedUser(array(
@@ -2611,6 +2758,8 @@ function sticpa_pl_contact_marks($objSCP, $registrationId)
             $marks[$sid] = sticpa_pl_is_state($status) ? $status : '';
         }
     }
+
+    sticpa_pl_cache_put($cacheKey, $marks, $ttl);
     return $marks;
 }
 
@@ -3411,6 +3560,57 @@ function sticpa_pl_lista_tipos()
  * (las relaciones del contacto), pero se cachea aparte porque se pregunta desde
  * casi todas las pantallas y así no se repite.
  */
+/**
+ * Las relaciones de quien está conectado, en UNA consulta y una caché.
+ *
+ * La misma historia que `sticpa_pl_events_raw()`: el alcance de coordinación y
+ * el acompañamiento preguntan los dos «¿qué relaciones tengo?» y lo hacían por
+ * separado. Ahora preguntan una vez y cada uno filtra lo suyo.
+ *
+ * Se pide el campo plano del grupo ADEMÁS del enlace anidado. Sin eso el
+ * segmento del alcance salía SIEMPRE vacío, y un coordinador de COM II veía la
+ * delegación entera en vez de su segmento: no es comodidad, es quién puede
+ * editar los datos de quién.
+ */
+function sticpa_pl_mis_rels($objSCP, $userId)
+{
+    $userId = sticpa_pl_safe_id($userId);
+    if ($userId === '') {
+        return array();
+    }
+    $cacheKey = sticpa_pl_cache_key('misrels', $objSCP, $userId);
+    $ttl = sticpa_pl_ttl_structure();
+    if ($ttl > 0) {
+        $cached = get_transient($cacheKey);
+        if (is_array($cached)) {
+            return $cached;
+        }
+    }
+
+    $rows = $objSCP->getRelatedElementsForLoggedUser(sticpa_pl_mis_rels_params($userId));
+    $rows = is_array($rows) ? $rows : array();
+
+    sticpa_pl_cache_put($cacheKey, $rows, $ttl);
+    return $rows;
+}
+
+function sticpa_pl_mis_rels_params($userId)
+{
+    return array(
+        'module_name' => 'Contacts',
+        'module_id' => $userId,
+        'link_field_name' => 'stic_contacts_relationships_contacts',
+        'related_fields' => array(
+            'id', 'relationship_type', 'end_date', 'ajmcm_etapa_relacion_c',
+            'ajmcm_grupos_stic_contacts_relationshipsajmcm_grupos_ida',
+        ),
+        'related_module_link_name_to_fields_array' => array(
+            array('name' => 'ajmcm_grupos_stic_contacts_relationships', 'value' => array('id')),
+        ),
+        'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
+    );
+}
+
 function sticpa_pl_coord_scope($objSCP)
 {
     $userId = isset($_SESSION['scp_user_id']) ? $_SESSION['scp_user_id'] : '';
@@ -3429,23 +3629,7 @@ function sticpa_pl_coord_scope($objSCP)
         }
     }
 
-    $rels = $objSCP->getRelatedElementsForLoggedUser(array(
-        'module_name' => 'Contacts',
-        'module_id' => $userId,
-        'link_field_name' => 'stic_contacts_relationships_contacts',
-        // El campo plano del grupo ademas del enlace. SIN ESTO el segmento del
-        // alcance salia SIEMPRE vacio, y un coordinador de COM II veia la
-        // delegacion entera en vez de su segmento. No es solo comodidad: es
-        // quien puede editar los datos de quien.
-        'related_fields' => array(
-            'id', 'relationship_type', 'end_date', 'ajmcm_etapa_relacion_c',
-            'ajmcm_grupos_stic_contacts_relationshipsajmcm_grupos_ida',
-        ),
-        'related_module_link_name_to_fields_array' => array(
-            array('name' => 'ajmcm_grupos_stic_contacts_relationships', 'value' => array('id')),
-        ),
-        'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
-    ));
+    $rels = sticpa_pl_mis_rels($objSCP, $userId);
 
     $scope = null;
     $needle = strtolower(sticpa_pl_coord_rel_type());
@@ -3675,20 +3859,43 @@ function sticpa_pl_monitors_of($objSCP, $groups)
  */
 function sticpa_pl_monitor_fields()
 {
+    // TODOS en la MISMA llamada. Son cuarenta y pico campos y siguen costando
+    // una consulta: lo caro de la API es el viaje, no la columna. Pedir menos
+    // aquí no ahorra nada y obliga a una segunda llamada en cuanto la ficha
+    // quiere enseñar un dato más.
+    //
+    // Cada nombre está comprobado contra `get_module_fields` de `Contacts`
+    // (revisión del 28/08/2026): un campo que no existe hace que la API
+    // devuelva error y la ficha entera se queda en blanco, así que aquí no se
+    // suponen nombres. Ver `docs/comunica/PASAR-LISTA-CAMPOS-CRM.md`.
     return array(
+        // Identidad y contacto
         'id', 'first_name', 'last_name', 'name',
-        'birthdate', 'stic_age_c', 'phone_mobile', 'email1',
+        'birthdate', 'stic_age_c', 'stic_gender_c',
+        'phone_mobile', 'phone_other', 'email1',
+        'primary_address_street', 'primary_address_postalcode', 'primary_address_city',
+        'stic_identification_type_c', 'stic_identification_number_c',
+        'ajmcm_centro_educativo_c', 'ajmcm_numero_persona_c',
+        // `do_not_call` NO va con los datos de padrón: si alguien ha pedido que
+        // no se le llame, eso se dice ARRIBA, al lado de los botones de llamar.
+        'do_not_call',
         // Trayectoria
-        'ajmcm_monitor_desde_c', 'ajmcm_monitor_de_c',
-        // Certificado de delitos sexuales: lo primero de la ficha
+        'ajmcm_monitor_desde_c', 'ajmcm_monitor_de_c', 'ajmcm_mcm_desde_c',
+        'ajmcm_ano_incorporacion_lc_c',
+        'ajmcm_nivel_com_c', 'ajmcm_etapa_c', 'ajmcm_panuelo_c',
+        // En regla: obligaciones legales y permisos
         'ajmcm_aut_del_sex_c', 'ajmcm_cert_del_sex_c',
+        'ajmcm_form_intera_proteccion_c',
+        'stic_conduct_code_c', 'stic_confidentiality_agreement_c',
+        'ajmcm_vol_acuerdo_c', 'ajmcm_compromiso_c',
+        'ajmcm_acepta_lopd_c', 'ajmcm_cesionimagenes_interne_c',
         // Titulaciones y sus archivos
         'ajmcm_premonitores1_c', 'ajmcm_premonitores2_c', 'ajmcm_premonitores_year_c',
         'ajmcm_mat_c', 'ajmcm_mat_year_c', 'ajmcm_mat_file_c',
         'ajmcm_dat_c', 'ajmcm_dat_year_c', 'ajmcm_dat_file_c',
         'ajmcm_fa_c', 'ajmcm_fa_year_c',
         'ajmcm_alimentos_c', 'ajmcm_cert_files_c',
-        'ajmcm_formacion_academica_c',
+        'ajmcm_formacion_academica_c', 'ajmcm_congreso_monis_c',
     );
 }
 
@@ -3755,19 +3962,13 @@ function sticpa_pl_reuniones_event($objSCP, $create = false)
         }
     }
 
-    $rows = $objSCP->getRecordsModule(
-        'stic_Events',
-        "stic_events.assigned_user_id = '" . sticpa_pl_safe_id($deleg) . "'",
-        array('id', 'name')
-    );
+    // Del cargador común de eventos: cero consultas propias. Antes esto pedía
+    // `stic_Events` otra vez, con dos columnas menos, para leer la misma tabla.
     $found = null;
-    if (is_array($rows)) {
-        foreach ($rows as $row) {
-            $v = $row->name_value_list;
-            if (!empty($v->id->value) && isset($v->name->value) && (string) $v->name->value === $name) {
-                $found = array('id' => $v->id->value, 'name' => $name);
-                break;
-            }
+    foreach (sticpa_pl_events_raw($objSCP) as $ev) {
+        if ($ev['id'] !== '' && $ev['name'] === $name) {
+            $found = array('id' => $ev['id'], 'name' => $name);
+            break;
         }
     }
 
@@ -4104,14 +4305,10 @@ function sticpa_pl_is_acompanante($objSCP)
         }
     }
 
-    $rels = $objSCP->getRelatedElementsForLoggedUser(array(
-        'module_name' => 'Contacts',
-        'module_id' => $userId,
-        'link_field_name' => 'stic_contacts_relationships_contacts',
-        'related_fields' => array('id', 'relationship_type', 'end_date'),
-        'related_module_link_name_to_fields_array' => array(),
-        'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
-    ));
+    // El MISMO cargador que usa `sticpa_pl_coord_scope()`: una consulta para las
+    // dos preguntas. Aquí sobran tres de los campos que trae; sobrar no cuesta
+    // nada y un viaje al CRM sí.
+    $rels = sticpa_pl_mis_rels($objSCP, $userId);
 
     $is = false;
     $now = sticpa_pl_now();
@@ -4281,4 +4478,350 @@ function sticpa_pl_create_seguimiento($objSCP, $monitorId, $tipo, $texto, $date,
     $objSCP->set_relationship($map['module'], $id, $map['link_contacts'], array($monitorId));
     sticpa_pl_flush($objSCP, 'state');
     return true;
+}
+
+// ---------------------------------------------------------------------------
+// Los grupos de un monitor: los de hoy y los de antes
+// ---------------------------------------------------------------------------
+
+/**
+ * El índice de relaciones por grupo y curso, para no recorrer el mapa N veces.
+ *
+ * Devuelve grupo => curso => array de filas de relación. Se calcula una vez por
+ * petición sobre el mapa que YA está en memoria: cero llamadas al CRM. Es lo
+ * que permite contestar «¿quién más era monitor de ese grupo en 2024-2025?» sin
+ * preguntárselo al CRM una vez por grupo y curso, que es exactamente el 1+N que
+ * costó la pantalla de monitores.
+ */
+function sticpa_pl_rels_por_grupo_curso($objSCP)
+{
+    // El memo va por DELEGACIÓN, no suelto: el calentador nocturno recorre
+    // varias delegaciones en el mismo proceso, y un estático global le daría a
+    // la segunda el índice de la primera. Y no se memoriza durante la recolecta
+    // en paralelo, donde los cargadores salen vacíos a propósito.
+    static $memo = array();
+    $deleg = (string) sticpa_pl_delegation($objSCP);
+    if (isset($memo[$deleg])) {
+        return $memo[$deleg];
+    }
+
+    $index = array();
+    foreach (sticpa_pl_all_relationships_raw($objSCP) as $rel) {
+        $gid = (string) $rel['group_id'];
+        if ($gid === '') {
+            continue;
+        }
+        foreach ((array) $rel['cursos'] as $curso) {
+            $index[$gid][$curso][] = $rel;
+        }
+    }
+
+    if (!sticpa_pl_collecting()) {
+        $memo[$deleg] = $index;
+    }
+    return $index;
+}
+
+/**
+ * Lo que se sabe de un grupo sin pagar ni una llamada.
+ *
+ * El código y el nombre salen del mapa de grupos si el grupo sigue en Pasar
+ * Lista, y del nombre que trae la propia relación si no (un grupo histórico, o
+ * uno sin la casilla marcada: existe, y esconderlo dejaría el histórico lleno
+ * de huecos sin explicación).
+ *
+ * Los recuentos se calculan del mapa de relaciones —viven, son de hoy— y no del
+ * recuento nocturno del grupo, que puede ser de anteayer.
+ */
+function sticpa_pl_grupo_info($objSCP, $groupId, $groupName = '', $curso = '')
+{
+    // El mapa de grupos, una vez por delegación y petición: el histórico llama
+    // aquí una vez por grupo y curso, y cada llamada leía su transient.
+    static $mapa = array();
+    $deleg = (string) sticpa_pl_delegation($objSCP);
+    if (!isset($mapa[$deleg]) || sticpa_pl_collecting()) {
+        $cargado = sticpa_pl_groups($objSCP);
+        if (sticpa_pl_collecting()) {
+            $groups = $cargado;
+        } else {
+            $mapa[$deleg] = $cargado;
+            $groups = $mapa[$deleg];
+        }
+    } else {
+        $groups = $mapa[$deleg];
+    }
+    $g = isset($groups[$groupId]) ? $groups[$groupId] : null;
+
+    $label = ($g !== null)
+        ? array('code' => $g['code'], 'name' => $g['name'])
+        : sticpa_pl_group_label('', $groupName);
+
+    $out = array(
+        'id' => (string) $groupId,
+        'code' => $label['code'],
+        'name' => $label['name'],
+        'cursos' => ($g !== null) ? $g['cursos'] : '',
+        'etapa' => ($g !== null) ? $g['etapa'] : '',
+        'en_pasar_lista' => ($g !== null),
+        'monitores' => array(),
+        'n_participantes' => 0,
+        'n_monitores' => 0,
+    );
+
+    $index = sticpa_pl_rels_por_grupo_curso($objSCP);
+    // Sin curso, el de hoy: es lo que se quiere en la tarjeta del grupo actual.
+    if ($curso === '') {
+        $hoy = sticpa_pl_course_for();
+        $curso = $hoy['label'];
+    }
+    $filas = isset($index[$groupId][$curso]) ? $index[$groupId][$curso] : array();
+
+    $vistos = array();
+    foreach ($filas as $rel) {
+        $pid = (string) $rel['person']['id'];
+        if ($pid === '' || isset($vistos[$rel['role'] . '|' . $pid])) {
+            continue;   // dos relaciones de la misma persona no son dos personas
+        }
+        $vistos[$rel['role'] . '|' . $pid] = true;
+        if ($rel['role'] === 'monitor') {
+            $out['n_monitores']++;
+            $out['monitores'][] = $rel['person'];
+        } else {
+            $out['n_participantes']++;
+        }
+    }
+    usort($out['monitores'], 'sticpa_pl_cmp_person');
+    return $out;
+}
+
+/**
+ * Los grupos de un monitor HOY: el que lleva y el suyo.
+ *
+ * Son dos cosas distintas y la ficha las separa:
+ *   - `monitor`: los grupos de los que es monitor/a. Puede haber varios.
+ *   - `suyo`: su grupo COM-LC, el de la relación `grupo`, donde es uno más.
+ *     Todos los monitores tienen uno, y es el que casi nadie mira porque en el
+ *     CRM está en otra pestaña.
+ *
+ * Cero llamadas: todo sale del mapa de relaciones y del de grupos, que la
+ * pantalla ya tiene cargados.
+ */
+function sticpa_pl_monitor_grupos($objSCP, $monitorId)
+{
+    $monitorId = (string) $monitorId;
+    $out = array();
+    if ($monitorId === '') {
+        return $out;
+    }
+
+    foreach (sticpa_pl_all_relationships($objSCP) as $rel) {
+        if ((string) $rel['person']['id'] !== $monitorId || $rel['group_id'] === '') {
+            continue;
+        }
+        // `grupo` es la relación de pertenencia (COM-LC); `participante_mic_com`
+        // es la de un menor y en un monitor no debería aparecer, pero si
+        // aparece se trata igual: pertenece.
+        $papel = ($rel['role'] === 'monitor') ? 'monitor' : 'suyo';
+        $clave = $papel . '|' . $rel['group_id'];
+        if (isset($out[$clave])) {
+            continue;
+        }
+        $info = sticpa_pl_grupo_info($objSCP, $rel['group_id'], $rel['group_name']);
+        $info['papel'] = $papel;
+        $info['desde'] = (int) $rel['start'];
+        // De la lista de monitores del grupo se quita a la propia persona: la
+        // línea dice «con quién», y uno no está con uno mismo.
+        $info['companeros'] = array();
+        foreach ($info['monitores'] as $m) {
+            if ((string) $m['id'] !== $monitorId) {
+                $info['companeros'][] = $m;
+            }
+        }
+        $out[$clave] = $info;
+    }
+
+    // Primero los que lleva —es la razón de abrir la ficha— y después el suyo.
+    $orden = array();
+    foreach (array('monitor', 'suyo') as $papel) {
+        foreach ($out as $clave => $info) {
+            if ($info['papel'] === $papel) {
+                $orden[] = $info;
+            }
+        }
+    }
+    return $orden;
+}
+
+/**
+ * Por dónde ha pasado: sus grupos curso a curso, del más reciente al primero.
+ *
+ * Esto es lo que el CRM no enseña de un vistazo y hay que reconstruir abriendo
+ * relaciones una a una. Sale entero del mapa de relaciones —vigentes y
+ * terminadas— sin una sola llamada extra, porque las terminadas ya vienen en la
+ * misma consulta (ver `sticpa_pl_all_relationships_raw()`).
+ *
+ * De cada curso se dice también con QUIÉN estaba, que es la mitad de la memoria
+ * de un monitor: «el año de 4.º con Jorge».
+ *
+ * SOLO las relaciones de MONITOR. La de pertenencia (`grupo` COM-LC) dura años
+ * seguidos y saldría repetida en cada curso desde 2022 —cuatro entradas
+ * idénticas— sepultando lo único que se viene a leer aquí, que es por qué
+ * grupos ha pasado. Dónde pertenece ya lo dice, y mejor, la sección «Sus
+ * grupos», con su fecha de inicio.
+ *
+ * @return array de array('curso', 'actual', 'grupos' => [...]).
+ */
+function sticpa_pl_monitor_historico($objSCP, $monitorId)
+{
+    $monitorId = (string) $monitorId;
+    if ($monitorId === '') {
+        return array();
+    }
+    $hoy = sticpa_pl_course_for();
+
+    $porCurso = array();
+    foreach (sticpa_pl_all_relationships_raw($objSCP) as $rel) {
+        if ((string) $rel['person']['id'] !== $monitorId || $rel['group_id'] === ''
+            || $rel['role'] !== 'monitor') {
+            continue;
+        }
+        $papel = 'monitor';
+        foreach ((array) $rel['cursos'] as $curso) {
+            $clave = $papel . '|' . $rel['group_id'];
+            if (isset($porCurso[$curso][$clave])) {
+                continue;
+            }
+            $info = sticpa_pl_grupo_info($objSCP, $rel['group_id'], $rel['group_name'], $curso);
+            $info['papel'] = $papel;
+            $info['companeros'] = array();
+            foreach ($info['monitores'] as $m) {
+                if ((string) $m['id'] !== $monitorId) {
+                    $info['companeros'][] = $m;
+                }
+            }
+            $porCurso[$curso][$clave] = $info;
+        }
+    }
+
+    // Del curso más reciente al más antiguo: la pregunta es «¿y antes?», y se
+    // lee hacia atrás desde donde estamos.
+    krsort($porCurso);
+
+    $out = array();
+    foreach ($porCurso as $curso => $grupos) {
+        $lista = array_values($grupos);
+        // Dentro de un curso, primero el grupo que llevaba.
+        usort($lista, function ($a, $b) {
+            if ($a['papel'] !== $b['papel']) {
+                return ($a['papel'] === 'monitor') ? -1 : 1;
+            }
+            return strcasecmp($a['code'], $b['code']);
+        });
+        $out[] = array(
+            'curso' => (string) $curso,
+            'actual' => ((string) $curso === $hoy['label']),
+            'grupos' => $lista,
+        );
+    }
+    return $out;
+}
+
+// ---------------------------------------------------------------------------
+// El seguimiento de un monitor: sesiones, reuniones y listas
+// ---------------------------------------------------------------------------
+
+/**
+ * Cómo va un monitor este curso, en tres pistas separadas.
+ *
+ * Separadas y NO promediadas, que es la decisión de diseño de este bloque
+ * (plan 038 §1): las reuniones de programación son tres o cuatro al año, así
+ * que faltar a una pesa muchísimo más que faltar a un sábado. Un número que
+ * junte las dos cosas esconde justo lo que coordinación viene a mirar.
+ *
+ * Coste: CERO consultas por grupo y como mucho dos por persona —sus asistencias
+ * a las sesiones y a las reuniones—, y las dos van en la misma tanda paralela.
+ * Todo lo demás (sesiones, inscripciones, listas, relaciones) sale de
+ * cargadores de colección que la pantalla ya tenía cargados.
+ *
+ * @param array|null $event    el evento de sesiones semanales de su etapa.
+ * @param array|null $reunion  el evento de reuniones de programación.
+ * @param array      $grupos   lo que devuelve `sticpa_pl_monitor_grupos()`.
+ */
+function sticpa_pl_seguimiento_monitor($objSCP, $monitorId, $event, $reunion, $grupos)
+{
+    $monitorId = (string) $monitorId;
+    $out = array(
+        'sesiones' => null,
+        'reuniones' => null,
+        'listas' => array(),
+    );
+    if ($monitorId === '') {
+        return $out;
+    }
+
+    $regSes = false;
+    $regReu = false;
+    $sesiones = array();
+
+    if (is_array($event) && !empty($event['id'])) {
+        $sesiones = sticpa_pl_event_sessions($objSCP, $event['id']);
+        $regSes = array_search($monitorId, sticpa_pl_event_registrations($objSCP, $event['id']), true);
+    }
+    if (is_array($reunion) && !empty($reunion['id'])) {
+        $regReu = array_search($monitorId, sticpa_pl_event_registrations($objSCP, $reunion['id']), true);
+    }
+
+    // Las dos lecturas de asistencias, juntas. Se salta durante la recolecta:
+    // ahí los cargadores corren sin CRM y una tanda dentro de otra no tiene
+    // sentido (ni respuestas que repartir).
+    if (!sticpa_pl_collecting() && ($regSes !== false || $regReu !== false)) {
+        sticpa_pl_prime($objSCP, function () use ($objSCP, $regSes, $regReu) {
+            if ($regSes !== false) {
+                sticpa_pl_contact_marks($objSCP, $regSes);
+            }
+            if ($regReu !== false) {
+                sticpa_pl_contact_marks($objSCP, $regReu);
+            }
+        });
+    }
+
+    if (is_array($event) && !empty($event['id'])) {
+        $marks = ($regSes !== false) ? sticpa_pl_contact_marks($objSCP, $regSes) : array();
+        $out['sesiones'] = array(
+            // Sin inscripción no hay asistencias que contar, y eso NO es un
+            // 0 %: es otra cosa, y la pantalla tiene que poder decirlo.
+            'inscrito' => ($regSes !== false),
+            'track' => sticpa_pl_att_track($sesiones, $marks),
+        );
+
+        // Las listas, una pista por grupo que lleva. Del índice que ya está
+        // cargado: ni una consulta más.
+        $todas = sticpa_pl_all_listas($objSCP);
+        foreach ($grupos as $g) {
+            if ($g['papel'] !== 'monitor') {
+                continue;
+            }
+            $suyas = array();
+            foreach ($todas as $sid => $porGrupo) {
+                if (isset($porGrupo[$g['id']])) {
+                    $suyas[$sid] = $porGrupo[$g['id']];
+                }
+            }
+            $out['listas'][] = array(
+                'grupo' => $g,
+                'track' => sticpa_pl_listas_track($sesiones, $suyas, $monitorId),
+            );
+        }
+    }
+
+    if (is_array($reunion) && !empty($reunion['id'])) {
+        $reuSesiones = sticpa_pl_event_sessions($objSCP, $reunion['id']);
+        $marksReu = ($regReu !== false) ? sticpa_pl_contact_marks($objSCP, $regReu) : array();
+        $out['reuniones'] = array(
+            'inscrito' => ($regReu !== false),
+            'track' => sticpa_pl_att_track($reuSesiones, $marksReu),
+        );
+    }
+
+    return $out;
 }

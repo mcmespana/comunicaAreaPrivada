@@ -82,7 +82,7 @@ function sticpa_pl_icon($which)
  * Es un <button> y no un <div> con onclick: así lo alcanza el teclado y lo
  * anuncia el lector de pantalla sin tener que añadir roles a mano.
  */
-function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub = '', $motive = '')
+function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub = '', $motive = '', $aviso = '')
 {
     $states = sticpa_pl_states();
     $state = sticpa_pl_is_state($state) ? $state : '';
@@ -94,6 +94,13 @@ function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub =
             _n('%d ausencia seguida', '%d ausencias seguidas', $streak, 'sticpa'),
             $streak
         );
+    }
+    // Un aviso ya escrito por quien llama —el seguimiento de un monitor— usa el
+    // mismo sitio y el mismo rojo que la racha de ausencias de un chaval: es el
+    // mismo mensaje («a esta persona hay que mirarla») y no merece un segundo
+    // idioma en la misma lista.
+    if ($aviso !== '') {
+        $warn = $aviso;
     }
 
     // La nota bajo el nombre: el estado del gesto largo (que si no, es invisible)
@@ -580,4 +587,140 @@ function sticpa_pl_save_result_html($saved, $problemas = array(), $objSCP = null
     }
 
     return $html;
+}
+
+// ---------------------------------------------------------------------------
+// Las pistas de cuadraditos del seguimiento de monitores
+// ---------------------------------------------------------------------------
+
+/**
+ * Los nombres y colores de cada cuadradito, por tipo de pista.
+ *
+ * `asistencia` reutiliza las cuatro claves de estado del marcado, así que el
+ * verde de «vino» es EL MISMO verde de la lista: quien ha marcado una lista ya
+ * sabe leer esta fila sin que nadie se la explique.
+ */
+function sticpa_pl_sq_meta($tipo)
+{
+    if ($tipo === 'listas') {
+        return array(
+            'suya' => array('class' => 'pl-sq--suya', 'label' => __('La pasó', 'sticpa')),
+            'otra' => array('class' => 'pl-sq--otra', 'label' => __('La pasó otra persona', 'sticpa')),
+            'omitida' => array('class' => 'pl-sq--omitida', 'label' => __('No hubo sesión', 'sticpa')),
+            'sin' => array('class' => 'pl-sq--falta', 'label' => __('Sin lista', 'sticpa')),
+        );
+    }
+    $out = array();
+    foreach (sticpa_pl_states() as $key => $st) {
+        $out[$key] = array('class' => 'pl-sq--' . $key, 'label' => $st['label']);
+    }
+    $out[''] = array('class' => 'pl-sq--none', 'label' => __('Sin marcar', 'sticpa'));
+    return $out;
+}
+
+/**
+ * La fila de cuadraditos.
+ *
+ * Un cuadrado por sesión celebrada, en orden, con una holgura extra cada vez
+ * que cambia el mes: así se lee «esto fue en enero» sin poner ni una fecha, y
+ * cuatro faltas seguidas de enero se ven como un bloque en vez de como cuatro
+ * cuadrados sueltos entre veinte.
+ *
+ * Los cuadrados son decoración para el lector de pantalla —`aria-hidden`— y el
+ * conjunto lleva un `aria-label` con el resumen en palabras: veinticuatro
+ * «vino, vino, no vino» seguidos no ayudan a nadie.
+ */
+function sticpa_pl_squares_html($squares, $tipo = 'asistencia', $aria = '')
+{
+    if (empty($squares)) {
+        return '';
+    }
+    $meta = sticpa_pl_sq_meta($tipo);
+    $html = '<div class="pl-track-sqs" role="img" aria-label="' . esc_attr($aria) . '">';
+
+    $mesAnterior = '';
+    foreach ($squares as $sq) {
+        $ts = isset($sq['start']) ? (int) $sq['start'] : 0;
+        $mes = ($ts > 0) ? date('Y-n', $ts) : '';
+        if ($mesAnterior !== '' && $mes !== '' && $mes !== $mesAnterior) {
+            $html .= '<span class="pl-sq-gap" aria-hidden="true"></span>';
+        }
+        $mesAnterior = $mes;
+
+        $state = isset($sq['state']) ? (string) $sq['state'] : '';
+        $m = isset($meta[$state]) ? $meta[$state] : $meta[''];
+        $cuando = ($ts > 0) ? date_i18n('j M', $ts) : '';
+        $titulo = ($cuando !== '') ? $cuando . ' · ' . $m['label'] : $m['label'];
+
+        $html .= '<span class="pl-sq ' . esc_attr($m['class']) . '"'
+            . ' title="' . esc_attr($titulo) . '" aria-hidden="true"></span>';
+    }
+    $html .= '</div>';
+    return $html;
+}
+
+/**
+ * Una pista entera: título, marcador a la derecha, cuadrados y pie.
+ *
+ * El marcador NUNCA va solo. Un «78 %» no distingue a quien faltó cuatro
+ * sábados seguidos en enero —y sigue sin venir— de quien falta uno de cada
+ * cinco desde octubre, y esa diferencia es justo la que hace que coordinación
+ * llame o no llame. Los cuadrados enseñan el patrón; el número sirve para
+ * comparar y para apuntarlo.
+ */
+function sticpa_pl_track_html($titulo, $squares, $marcador, $pie, $tipo = 'asistencia', $aria = '')
+{
+    $html = '<div class="pl-track">';
+    $html .= '<div class="pl-track-head">';
+    $html .= '<span class="pl-track-title">' . esc_html($titulo) . '</span>';
+    if ($marcador !== '') {
+        $html .= '<span class="pl-track-score">' . $marcador . '</span>';
+    }
+    $html .= '</div>';
+    $html .= sticpa_pl_squares_html($squares, $tipo, ($aria !== '') ? $aria : $pie);
+    if ($pie !== '') {
+        $html .= '<div class="pl-track-foot">' . esc_html($pie) . '</div>';
+    }
+    $html .= '</div>';
+    return $html;
+}
+
+/** El marcador de un porcentaje, con el `%` pequeño. `-1` es «no se sabe». */
+function sticpa_pl_pct_html($pct)
+{
+    if ((int) $pct < 0) {
+        return '<span class="pl-track-score--none">' . esc_html__('sin datos', 'sticpa') . '</span>';
+    }
+    return esc_html((string) (int) $pct) . '<i>%</i>';
+}
+
+/** La leyenda de los cuadraditos, en enano. Solo los estados que salen. */
+function sticpa_pl_sq_legend_html($tipo, $usados)
+{
+    $meta = sticpa_pl_sq_meta($tipo);
+    $trozos = array();
+    foreach ($meta as $key => $m) {
+        if (!in_array((string) $key, $usados, true)) {
+            continue;
+        }
+        $trozos[] = '<span class="pl-sq-key"><span class="pl-sq ' . esc_attr($m['class'])
+            . '" aria-hidden="true"></span>' . esc_html($m['label']) . '</span>';
+    }
+    if (empty($trozos)) {
+        return '';
+    }
+    return '<div class="pl-sq-legend">' . implode('', $trozos) . '</div>';
+}
+
+/** Los estados que aparecen de verdad en una pista, para la leyenda. */
+function sticpa_pl_sq_usados($squares)
+{
+    $out = array();
+    foreach ((array) $squares as $sq) {
+        $s = isset($sq['state']) ? (string) $sq['state'] : '';
+        if (!in_array($s, $out, true)) {
+            $out[] = $s;
+        }
+    }
+    return $out;
 }
