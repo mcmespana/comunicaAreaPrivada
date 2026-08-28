@@ -51,6 +51,27 @@ monitor de David Soler tienen `end_date` = 2026-08-31. A partir del 1 de
 septiembre C1 saldrá vacío y **eso NO es el bug volviendo**: es que el curso
 2025-2026 se ha acabado en los datos. Mirar esto antes de buscar en el código.
 
+### 🟡 Los márgenes laterales: sigue abierto
+
+El propietario lo dice desde el 28/08: «se pierde mucho espacio por los lados,
+hace falta un poco pero no tanto». **No está arreglado**, y el camino obvio es
+un callejón sin salida: el relleno lateral de `.stic-tab-content` ya es cero
+(§20.a lo pisa con `!important`), así que el hueco viene del **tema de
+WordPress, por fuera de `.stic-container`**.
+
+Siguiente paso concreto, y en este orden:
+
+1. **Medir.** Abrir el área privada en el móvil de verdad, inspeccionar y
+   apuntar el `padding-inline` (o el `max-width` + `margin: auto`) del envoltorio
+   del tema que contiene `.stic-container`. Sin ese número no se puede hacer
+   nada que no sea adivinar.
+2. Con el número, sangrar `.stic-container` esa cantidad exacta con margen
+   negativo y devolverle el aire que se quiera (el «un poco, pero no tanto»).
+3. **Comprobar que no reaparece el desbordamiento horizontal** de plan 035:
+   varios bloques de Pasar Lista YA sangran por su cuenta contando con ese
+   relleno, y si se sangra dos veces se salen. Hoy lo tapa `overflow-x: clip`,
+   que esconde el síntoma pero no la causa.
+
 ### 🟡 Otros abiertos, menores
 
 | | Qué |
@@ -410,10 +431,16 @@ siguen en serie: necesitan el id que devuelve el CRM para poder atarlas.
 
 ### ✅ La vuelta de diseño (28/08/2026, tarde)
 
-- **Márgenes**: `.stic-tab-content` se comía 14 px por lado en un móvil de 390,
-  antes de contar lo que mete el tema de WordPress por fuera, y dentro casi todo
-  son a su vez tarjetas con su propio margen. Los lados bajan a la mitad
-  (`--stic-gutter`). Lo que quede es del tema, no del plugin.
+- **Márgenes: NO arreglados, y conviene saber por qué.** El primer intento fue
+  bajar el relleno lateral de `.stic-tab-content`… que ya vale CERO: §20.a de
+  `custom-style.css` lo pisa entero con `!important`, en una regla global. El
+  cambio no movía un píxel y se ha retirado, dejando el aviso escrito donde
+  engaña. **El hueco lateral lo mete el tema de WordPress POR FUERA de
+  `.stic-container`**, y comérselo pide sangrar con margen negativo — que es lo
+  que ya hacen algunos bloques y lo que provocó los 32 px de desbordamiento que
+  tapa `overflow-x: clip` (plan 035). Antes de volver a intentarlo hay que
+  **medir el relleno real del tema en la página de verdad**; adivinarlo es lo
+  que salió mal las dos veces.
 - **Jerarquía**: el título de sección tenía 1,2 rem por arriba y 0,55 por abajo.
   Medio rem no se ve, y la ficha del monitor —ocho secciones seguidas de
   tarjetas blancas sobre página casi blanca— se leía como un muro. Ahora el
