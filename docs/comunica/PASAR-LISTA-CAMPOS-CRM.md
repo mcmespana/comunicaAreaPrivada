@@ -192,6 +192,18 @@ para que nadie lo descubra por sorpresa. (Comprobado el 28/08/2026.)
 
 ### Entorno personal / familia (`stic_Personal_Environment`)
 
+> ⚠️ **OJO CON `assigned_user_id`, que es lo que hace que se vea o no.**
+> Verificado el 28/08/2026: el entorno personal de Solete existe, está vigente y
+> enlaza bien con su madre (Sol Meseguer, móvil `662065966`)… y la ficha no lo
+> enseñaba, porque el registro está asignado a **«Administrador MCM» (id `1`)**
+> y no a la delegación. De `assigned_user_id` cuelga el grupo de seguridad, así
+> que el usuario con el que lee el plugin no lo alcanza.
+>
+> Es la regla de `CLAUDE.md` aplicada aquí: **todo lo que se cree en el CRM va
+> asignado a su delegación.** Un entorno personal creado a mano por un
+> administrador es invisible para el área privada aunque esté perfecto, y no hay
+> forma de distinguirlo desde el código de «esta persona no tiene familia».
+
 Verificado contra el CRM el **27/08/2026**, y aquí estaba un bug que dejaba la
 ficha sin teléfonos:
 
@@ -557,6 +569,47 @@ enlaces sin nombre, la versión anterior daba el primer bloque a los dos campos,
 así que «el grupo» se quedaba con el id de «la persona». Con eso, la consulta de
 una sola llamada se daba por fallida y todo caía a los respaldos de 1+N — que es
 lo que hacía la pantalla lenta.
+
+### 9-bis. Y PARA ESCRIBIR, el campo plano también (28/08/2026)
+
+La cara B de todo lo anterior, y costó **cuatro avisos sin dueño** y **un
+centenar de asistencias basura** antes de verla.
+
+`set_relationship` escribe la tabla puente **por detrás del bean**. El registro
+queda relacionado —una consulta por relación lo encuentra— pero:
+
+- el campo desde el que la pantalla del CRM lo PINTA se queda vacío (por eso
+  «Persona del aviso» salía en blanco en un aviso que sí estaba relacionado);
+- y el `name` que el CRM compone **al guardar** ya se ha calculado sin los
+  enlaces, así que se queda «Unknown - Unknown \| » **para siempre**.
+
+> **La regla: los enlaces van DENTRO del `set_entry`, en su campo plano
+> `..._ida`.** Es lo que hace la propia pantalla del CRM: SuiteCRM crea la fila
+> de la relación al guardar el bean. `set_relationship` vale como refuerzo
+> después, nunca como camino principal.
+
+Los que usa Pasar Lista al escribir, verificados:
+
+| Módulo | Campo plano | Qué ata |
+|---|---|---|
+| `AVI_avisos` | `avi_avisos_contactscontacts_ida` | la persona del aviso |
+| `stic_Attendances` | `stic_attendances_stic_sessionsstic_sessions_ida` | la sesión |
+| `stic_Attendances` | `stic_attendances_stic_registrationsstic_registrations_ida` | la inscripción |
+| `stic_Registrations` | `stic_registrations_contactscontacts_ida` | la persona inscrita |
+
+**Y no confundas el campo relate con su id.** `ajmcm_sesion_c` y
+`ajmcm_puesto_por_c` son los campos que se PINTAN; el id vive aparte, en
+`stic_sessions_id_c` y `contact_id_c`. Escribir un id de 36 caracteres en el
+campo de pintar deja el registro con un texto ilegible y, aun así, sin relación.
+
+**Corolario del modelo de datos:** una asistencia cuelga de la INSCRIPCIÓN, no
+de la persona. Sin inscripción detrás no tiene nombre, no tiene fecha, el CRM no
+la cuenta y —lo grave— **no se puede volver a encontrar**, así que el guardado
+siguiente crea otra. Si alguien no está inscrito al evento, se le crea la
+inscripción; nunca se escribe una asistencia huérfana.
+
+Un dato más, verificado: **`end_date` NO existe en `stic_Attendances`**. La API
+devuelve un 400 si se manda. Solo hay `start_date`.
 
 ### El coste, medido
 

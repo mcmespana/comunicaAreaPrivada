@@ -1,6 +1,6 @@
 # Pasar Lista — parte de estado
 
-**Fecha de este parte: 28 de agosto de 2026.** Es el documento que hay que leer
+**Fecha de este parte: 28 de agosto de 2026 (tarde).** Es el documento que hay que leer
 para retomar el trabajo sin reconstruir el contexto. El mapa de todo lo demás
 está en [`PASAR-LISTA-README.md`](PASAR-LISTA-README.md); el diseño funcional,
 en [`PASAR-LISTA.md`](PASAR-LISTA.md).
@@ -13,7 +13,100 @@ Piloto: **MCM Castellón, curso 2025-2026**. Nada interdelegacional.
 
 ---
 
-## 1. El bug: ENCONTRADO Y ARREGLADO (27/08/2026)
+## 1. QUÉ ESTÁ ABIERTO AHORA MISMO (28/08/2026, tarde)
+
+Esto es lo único que hay que leer para saber por dónde va. Lo cerrado está más
+abajo, en §1-bis, y se conserva porque explica POR QUÉ el código es como es.
+
+### 🔴 Tres cosas que hay que arreglar EN EL CRM, no en el código
+
+Salieron al buscar fallos de diseño y son de datos, no de programa. Mientras no
+se toquen, la aplicación seguirá enseñando menos de lo que hay.
+
+| | Qué pasa | Qué hay que hacer |
+|---|---|---|
+| 🔴 | **El entorno personal de Solete está asignado a «Administrador MCM», no a la delegación.** Existe, está vigente, enlaza bien con su madre (Sol Meseguer, móvil `662065966`)… y la ficha no lo ve: de `assigned_user_id` cuelga el grupo de seguridad, y el usuario con el que lee el plugin no alcanza ese registro. | Reasignar a **MCM Castellón** (`00000cd2-159a-eef9-3639-68cd21b90b6a`) ese registro y **revisar si hay más entornos personales igual**. Es la regla de `CLAUDE.md`: todo lo que se cree va asignado a su delegación. |
+| 🔴 | **Un centenar de asistencias basura `Unknown - Unknown \| `** (todas del 28/08 a la 01:10, colgando de la sesión del 02/05/2026, ninguna enlazada a nadie). El código que las creaba ya está arreglado, pero las que hay siguen ahí. | Borrado lógico (`deleted: true`) de las `stic_Attendances` cuyo `name` empiece por `Unknown` **y** no tengan inscripción enlazada. El propietario dijo que las borra él. **No tocar** las 24 de Solete ni ninguna con inscripción. |
+| 🟡 | **Dos `LIS_listas` para la sesión del 02/05/2026**: una de `monitores` (pasada, 24/5) y otra de `participantes` (omitida, 0/0). Convivir no es ilegal —son de tipos distintos— pero conviene revisar que la de participantes en `omitida` sea lo que se quiso. | Mirarla y decidir. El código ya elige siempre la misma cuando hay dos, y lo avisa en pantalla. |
+
+### 🟡 Lo que queda por comprobar en producción
+
+Todo lo del 28/08 por la tarde está probado con tests pero **no confirmado
+contra el CRM real**. Lo que hay que mirar la próxima vez que se pase lista:
+
+1. **Un aviso nuevo llega con «Persona del aviso» rellena.** Es el arreglo de
+   escribir el campo plano `avi_avisos_contactscontacts_ida` en el propio
+   `set_entry` en vez de atarlo después con `set_relationship`. Si sigue
+   saliendo vacía, el camino bueno es otro y hay que volver a mirarlo.
+2. **Un aviso puesto desde la lista llega con su sesión** (`stic_sessions_id_c`).
+3. **Guardar la lista de monitores NO crea ninguna `Unknown`**, y a los
+   monitores sin inscripción se les crea la inscripción.
+4. **La ficha de Solete enseña sus seis sesiones marcadas** (31/01 vino, 07/02
+   falta justificada, 14/02, 14/03, 25/04 y 02/05 vino).
+
+### 🟡 Las vigencias caducan el 31/08/2026
+
+Verificado el 27/08: tanto la relación de participante de Solete como la de
+monitor de David Soler tienen `end_date` = 2026-08-31. A partir del 1 de
+septiembre C1 saldrá vacío y **eso NO es el bug volviendo**: es que el curso
+2025-2026 se ha acabado en los datos. Mirar esto antes de buscar en el código.
+
+### 🟡 Otros abiertos, menores
+
+| | Qué |
+|---|---|
+| 🟡 | Alguien puede ser monitor de dos grupos. Sale, pero hay que decidir cómo se enseña. |
+| 🟡 | El grupo `Najar` no es de participantes MIC-COM y aparece en el árbol. Hay que decidir el filtro de qué grupos salen. |
+| 🟡 | Los «sectores» (COM I = los dos primeros cursos de la ESO, etc.) se agrupan **a mano**. No hay campo en el CRM y de momento no lo va a haber. |
+| 🟡 | El filtro plano por campo de enlace (`..._ida`) en `get_entry_list` devuelve **error 400 de base de datos** en `stic_Sessions`, `LIS_listas`, `stic_Registrations` y `stic_Contacts_Relationships`. Se puede LEER el campo, pero no FILTRAR por él. Para consultar por relación hay que ir por `get_relationships`. Ojo: no es lo mismo que la trampa de §3.1 — ahí el problema es el enlace anidado que no viene; aquí es el filtro que el CRM rechaza. |
+| 🟡 | `ajmcm_curso_escolar_c` **existe** en `stic_Contacts_Relationships` y está **vacío en todas** las relaciones reales. El curso del histórico se deduce de `start_date` y `end_date`. Si algún día se rellena, hay que mirar antes las claves internas de su desplegable. |
+| 🟡 | `ajmcm_pasar_lista_c` (la casilla del grupo) tiene **`default: 1`** en el CRM: un grupo nuevo entrará solo en Pasar Lista. Probablemente es lo que se quiere; conviene saberlo. |
+| 🟡 | `end_date` **no existe** en `stic_Attendances` (la API devuelve 400 si se manda). Solo hay `start_date`. |
+
+### 💡 Anotado para hablarlo: un navegador de fichas sin pasar lista
+
+**No está hecho y no se ha empezado.** El propietario lo pidió el 28/08 y
+quiere hablarlo antes.
+
+El problema: hoy, para ver los datos de un chaval o de un monitor, hay que
+**«pagar el precio» de entrar a pasar una lista** — portada → árbol de grupos →
+marcar → flecha de la fila → ficha. La ficha ya tiene todo lo que hace falta,
+pero está enterrada detrás de un flujo que es para otra cosa.
+
+Lo que se quiere: una pantalla que lleve **directamente a fichas y a listas de
+personas**, sin pasar por marcar. Navegable por lo que tenga sentido —**por
+grupos, alfabética, por cursos**— y para las dos poblaciones: niños y monitores.
+
+Lo que ya está resuelto y se puede reaprovechar tal cual:
+
+- `sticpa_pl_all_relationships()` ya trae **toda** la gente de la delegación en
+  una consulta, con su grupo, su papel y su vigencia. El navegador no necesita
+  ni una consulta nueva: es re-presentar lo que ya se carga.
+- `sticpa_pl_contacts_bulk()` resuelve los datos de lista de mucha gente de una
+  vez (nombre, iniciales, edad, móvil).
+- Las dos fichas (`_ficha` para participantes, `_monitor` para monitores) ya
+  existen, ya agrupan sus consultas y ya son la pantalla que sustituye a abrir
+  el CRM.
+- La lista de monitores (`_monitores`) ya es medio navegador: tiene alcance por
+  etapa y buscador.
+
+Lo que hay que decidir (esto es lo que hay que hablar):
+
+1. **¿Una pantalla o dos?** ¿Niños y monitores juntos con un conmutador, o
+   separados como ahora?
+2. **¿Cuál es el orden por defecto?** Por grupo es lo que coincide con cómo se
+   piensa un sábado; alfabético es lo que sirve cuando buscas a alguien
+   concreto y no recuerdas su grupo.
+3. **¿Quién lo ve?** Un monitor solo su grupo, o toda la delegación (que es lo
+   que ya puede hacer hoy pasando lista de cualquier grupo).
+4. **¿Entra en el menú principal** o cuelga de la portada de Pasar Lista?
+
+---
+
+## 1-bis. Historial: lo que ya está cerrado
+
+Se conserva porque explica por qué el código es como es. Si buscas el estado de
+hoy, está arriba.
 
 ### ✅ Pasar lista ya pasa lista — pendiente de confirmar en producción
 
@@ -176,20 +269,6 @@ cuántos grupos quedan fuera.
 Ficha completa del campo (etiqueta, tipo, interruptores para apagarlo) en
 [`PASAR-LISTA-CAMPOS-CRM.md`](PASAR-LISTA-CAMPOS-CRM.md) §2.
 
-### 🟡 Las vigencias caducan el 31/08/2026 (anotado, no bloquea)
-
-Verificado en el CRM el 27/08/2026: **tanto la relación de participante de
-Solete como la de monitor de David Soler tienen `end_date` = 2026-08-31**. En
-cuanto pase esa fecha, C1 se queda sin miembros vigentes y la pantalla volverá a
-decir «0 participantes».
-
-Eso se va a leer como «ha vuelto el bug grave» y **no lo será**: será que el
-curso 2025-2026 se ha acabado en los datos.
-
-Decisión del 27/08/2026: **no bloquea**, se sigue probando y se renuevan las
-relaciones cuando toque. Pero si a partir del 1 de septiembre C1 sale vacío,
-**mira esto antes de buscar el fallo en el código**.
-
 ### ✅ La ficha del monitor: seguimiento, datos agrupados, grupos e histórico (28/08/2026)
 
 La pantalla que sustituye a abrir el CRM. **El orden ya no es el del CRM sino el
@@ -252,17 +331,106 @@ dos veces es no preguntar dos veces, así que ahora hay un cargador crudo debajo
 Los topes de `CosteLlamadasTest` bajaron a la vez: el árbol de grupos de 8 a 7 y
 marcar de 10 a 9. Un tope que se queda holgado deja de proteger nada.
 
-### Otros abiertos, menores
+### ✅ Los avisos llegaban sin persona (28/08/2026, tarde)
 
-| | Qué |
-|---|---|
-| 🟡 | Alguien puede ser monitor de dos grupos. Sale, pero hay que decidir cómo se enseña. |
-| 🟡 | El grupo `Najar` no es de participantes MIC-COM y aparece en el árbol. Hay que decidir el filtro de qué grupos salen. |
-| 🟡 | Los «sectores» (COM I = los dos primeros cursos de la ESO, etc.) se agrupan **a mano**. No hay campo en el CRM y de momento no lo va a haber. |
-| 🟡 | El filtro plano por campo de enlace (`..._ida`) en `get_entry_list` devuelve **error 400 de base de datos** en `stic_Sessions`, `LIS_listas`, `stic_Registrations` y `stic_Contacts_Relationships`. Se puede LEER el campo, pero no FILTRAR por él. Para consultar por relación hay que ir por `get_relationships`. Ojo: no es lo mismo que la trampa de §3.1 — ahí el problema es el enlace anidado que no viene; aquí es el filtro que el CRM rechaza. |
-| 🟡 | Las asistencias de 5 sesiones existen **sin `status`**: quedaron a medio marcar. Es un estado válido (una sesión sin pasar), pero conviene saber que existe. |
-| 🟡 | `ajmcm_curso_escolar_c` **existe** en `stic_Contacts_Relationships` y está **vacío en todas** las relaciones reales. El curso del histórico se deduce por eso de `start_date` y `end_date`. Si algún día se rellena, hay que mirar antes las claves internas de su desplegable: si guarda `2024_2025` y nosotros calculamos `2024-2025`, el histórico se parte en dos. |
-| 🟡 | `ajmcm_pasar_lista_c` (la casilla del grupo) tiene **`default: 1`** en el CRM, aunque `PASAR-LISTA-CAMPOS-CRM.md` decía «por defecto desmarcada». Los grupos que ya existían nacieron sin valor —por eso el filtro funciona—, pero **un grupo nuevo entrará solo en Pasar Lista**. Probablemente es lo que se quiere; conviene saberlo. |
+De cuatro avisos reales en el CRM, **solo uno tenía la relación** con el chaval,
+y hasta ese salía con «Persona del aviso» vacía en la pantalla de edición.
+
+La causa: el aviso se creaba con `set_entry` y se ataba DESPUÉS con
+`set_relationship`. Eso escribe la tabla puente por detrás y deja sin rellenar
+el campo desde el que el CRM pinta el nombre. Ahora la persona va en el campo
+plano **`avi_avisos_contactscontacts_ida` dentro del propio `set_entry`**, que
+es el camino que usa la pantalla del CRM, y la relación se manda además por su
+lado. Y se **comprueba releyendo**: si el aviso no queda a nombre de nadie, la
+pantalla lo dice en vez de felicitar.
+
+Y el id de la sesión iba a `ajmcm_sesion_c`, que es el campo que se PINTA. Va a
+**`stic_sessions_id_c`**. La sesión, además, viaja desde la lista en el enlace
+de la ficha: un aviso puesto un sábado es un aviso DE ese sábado.
+
+### ✅ La fábrica de asistencias «Unknown - Unknown» (28/08/2026, tarde)
+
+Un centenar de registros basura en el CRM en una noche. Al guardar la lista de
+monitores se creaba una asistencia por monitor aunque el monitor **no estuviera
+inscrito al evento** — y casi ninguno lo está, así que ese camino era el normal,
+no la excepción.
+
+Sin inscripción detrás, una asistencia:
+
+- nace **sin nombre** (el CRM lo compone de la inscripción: «Unknown - Unknown»),
+- nace **sin fecha**, así que las consultas por rango no la ven nunca,
+- y **no se puede volver a encontrar**, porque lo único que la ata a una persona
+  es justo la inscripción que no tiene.
+
+Consecuencia: **cada guardado creaba otra**. Ahora se le crea la inscripción que
+le falta —una llamada, y solo la primera vez—, los dos enlaces y la fecha van en
+el propio `set_entry` (el CRM compone el nombre AL GUARDAR: llegar tarde con los
+enlaces deja «Unknown» para siempre), y **si no se puede atar, no se escribe**.
+
+### ✅ La ficha decía «0 de 0 sesiones marcadas» con las marcas puestas (28/08/2026)
+
+Solete tiene 24 asistencias y **seis marcadas**; la ficha no veía ninguna.
+`sticpa_pl_contact_marks()` pedía la sesión de cada asistencia por el enlace
+anidado —que esta instancia no devuelve, §3.1— y era la única lectura sin el
+respaldo que sí tienen las demás. Ahora cae al camino probado: por rango de
+fechas, que son columnas de verdad. Cuesta cero llamadas cuando la pantalla ya
+las ha pedido.
+
+### ✅ El 1+N que hacía lento el sábado (28/08/2026)
+
+El respaldo que resuelve a la gente de un grupo llamaba al CRM **una vez por
+persona**. Un C1 de doce son doce viajes; en móvil, seis segundos con la
+pantalla quieta. Es el «cambiar de fecha va lentísimo».
+
+Ahora el campo plano del contacto viaja en la consulta de las relaciones del
+grupo y **los contactos se piden todos juntos** (`sticpa_pl_contacts_bulk()`).
+De paso, los dos caminos dan la misma lista: el de antes se dejaba fuera a quien
+entra al grupo por el papel `grupo` (los +18 en su grupo de referencia).
+
+Y **la ficha del participante hacía TRECE llamadas en fila sin agrupar ni una**,
+mientras la del monitor sí agrupaba — de ahí que «la velocidad de monitores vaya
+bien» y la de los niños no. Ahora agrupa igual.
+
+Números en el modo que ocurre de verdad (sin enlaces anidados):
+
+| Pantalla | Antes | Ahora |
+|---|---|---|
+| Portada | 14 llamadas | **9** |
+| Árbol de grupos | 8 | **7** |
+| Marcar | 13 | **10** |
+| Ficha del participante | 16 llamadas / 13 esperas | **13 / 7** |
+| Cambiar de fecha (caché caliente) | — | **4 llamadas** |
+
+### ✅ Guardar eran doce escrituras en fila (28/08/2026)
+
+Las asistencias de un guardado son filas distintas de la misma tabla,
+independientes entre sí, y salían una detrás de otra. Ahora las que solo hay que
+**actualizar** —el caso normal— van en una tanda. Las que hay que **crear**
+siguen en serie: necesitan el id que devuelve el CRM para poder atarlas.
+
+### ✅ La vuelta de diseño (28/08/2026, tarde)
+
+- **Márgenes**: `.stic-tab-content` se comía 14 px por lado en un móvil de 390,
+  antes de contar lo que mete el tema de WordPress por fuera, y dentro casi todo
+  son a su vez tarjetas con su propio margen. Los lados bajan a la mitad
+  (`--stic-gutter`). Lo que quede es del tema, no del plugin.
+- **Jerarquía**: el título de sección tenía 1,2 rem por arriba y 0,55 por abajo.
+  Medio rem no se ve, y la ficha del monitor —ocho secciones seguidas de
+  tarjetas blancas sobre página casi blanca— se leía como un muro. Ahora el
+  hueco de arriba es más del triple. Separar por proximidad, sin una caja más.
+- **«Formación» plegada**, con los títulos (MAT, DAT) en la solapa: plegar sin
+  perder.
+- **Los cuadraditos, por meses y con el mes escrito**, y el último con anillo.
+  A 24 sesiones la fila corrida solo decía «hay rojos», no cuándo — y el cuándo
+  es el dato.
+- **Contacto del monitor**: cada dato en su fila, el correo se copia de un toque
+  y el «otro teléfono» dice que es de urgencia en vez de parecer el suyo.
+- **Oscuro**: las reglas de los controles nativos estaban escritas para
+  `.stic-form` y los formularios de Pasar Lista son `.pl-field`; y los enlaces
+  sin clase se quedaban con el azul del tema de WordPress.
+- **La familia sale aunque no tenga teléfono**: la sección era la lista de
+  teléfonos, así que quien no tenía número no existía — ni para llamarle ni para
+  avisar de que faltaba su número.
 
 ---
 
@@ -280,6 +448,10 @@ marcar de 10 a 9. Un tope que se queda holgado deja de proteger nada.
 - La ficha de un monitor enseña su seguimiento del curso, sus datos agrupados,
   sus grupos y por dónde ha pasado, sin abrir el CRM.
 - Los porcentajes de asistencia cuentan sobre lo marcado, no sobre lo celebrado.
+- La ficha de un participante enseña sus sesiones marcadas (era el «0 de 0»).
+- Un aviso queda a nombre de su persona, y si no, la pantalla lo dice.
+- Guardar no crea asistencias huérfanas: o se puede atar, o no se escribe.
+- Ninguna pantalla resuelve a la gente de un grupo con una llamada por persona.
 
 ---
 
@@ -313,6 +485,35 @@ stic_attendances_stic_registrationsstic_registrations_ida
 
 Detalle largo en [`PASAR-LISTA-CAMPOS-CRM.md`](PASAR-LISTA-CAMPOS-CRM.md) §9.
 
+### 3.1-bis Y PARA ESCRIBIR, el campo plano también
+
+La cara B de §3.1, y costó cuatro avisos sin dueño y un centenar de asistencias
+basura antes de verla.
+
+`set_relationship` escribe la tabla puente **por detrás del bean**. El registro
+queda relacionado —una consulta por relación lo encuentra— pero:
+
+- el campo que la pantalla del CRM PINTA se queda vacío («Persona del aviso»),
+- y el `name` que el CRM compone AL GUARDAR ya se ha calculado sin los enlaces,
+  así que se queda «Unknown - Unknown» para siempre.
+
+**La regla: los enlaces van DENTRO del `set_entry`, en su campo plano `..._ida`.**
+Es lo que hace la propia pantalla del CRM, y con eso SuiteCRM crea la fila de la
+relación al guardar. `set_relationship` vale como refuerzo, no como camino
+principal.
+
+```
+avi_avisos_contactscontacts_ida                         ← la persona de un aviso
+stic_attendances_stic_sessionsstic_sessions_ida         ← la sesión
+stic_attendances_stic_registrationsstic_registrations_ida ← la inscripción
+stic_registrations_contactscontacts_ida                 ← la persona inscrita
+```
+
+Y los campos **relate** (`ajmcm_sesion_c`, `ajmcm_puesto_por_c`) son los que se
+PINTAN: el id va en su campo aparte (`stic_sessions_id_c`, `contact_id_c`).
+Escribir un id de 36 caracteres en el campo de pintar deja el registro con un
+texto ilegible y, aun así, sin relación.
+
 ### 3.2 Un doble de test puede mentir sobre la forma de la API
 
 Hubo **175 tests en verde con la producción rota**. El doble colgaba
@@ -324,6 +525,18 @@ y no lo hacía, y el doble ocultaba justo eso.
 ensamblado del propio plugin (`SugarRestApiCall::attachLinkList()`,
 `flattenRelationshipFields()`). Si el doble tiene su propio ensamblado, no
 prueba nada.
+
+> **Y también miente por lo que NO modela.** El doble contaba las escrituras de
+> la pasada de recolecta como escrituras de verdad: el transporte real no llama
+> a nadie mientras recolecta, así que una lista de doce habría parecido
+> veinticuatro escrituras y —peor— un `prime()` colado antes de un `set_entry`
+> de verdad habría pasado por bueno escribiendo dos veces. Si el doble no modela
+> un mecanismo, ese mecanismo no está probado aunque los tests estén verdes.
+>
+> **Y por lo que esconde.** El doble no devolvía el campo plano
+> `stic_contacts_relationships_contactscontacts_ida` en el modo «sin enlaces»,
+> aunque el CRM sí lo devuelve (§3.1). Resultado: una llamada por persona
+> parecía inevitable, y era un 1+N que se podía matar con una consulta.
 
 ### 3.3 El CSS de los artboards es la especificación, no su texto
 
@@ -417,7 +630,36 @@ El problema no era el CRM: era un bug propio (`firstLinked()` daba el primer
 bloque de enlace a **todos** los campos pedidos, así que el camino de una sola
 llamada fallaba en silencio y caía a respaldos 1+N).
 
-Llamadas al CRM por pantalla:
+> ⚠️ **LOS NÚMEROS DE ABAJO ESTABAN MEDIDOS EN EL MODO QUE NO OCURRE.**
+> El test de coste solo contaba las llamadas con los enlaces anidados puestos, y
+> esta instancia **no los devuelve** (§3.1). En el modo real cada pantalla
+> costaba bastante más, y encima pedía la ficha del participante con el
+> parámetro equivocado —salía por la puerta de «no se ha indicado ningún
+> participante»— así que medía **0 llamadas de una pantalla que no se pintaba**.
+> Arreglado el 28/08/2026: `CosteLlamadasTest` mide **los dos modos**, con tope
+> en los dos, y además tiene tope de **ESPERAS** (viajes de ida y vuelta), que
+> es lo que se nota. Diez llamadas en dos tandas paralelas son dos esperas; diez
+> en fila son diez.
+
+**Coste real hoy** (sin enlaces anidados, que es como responde esta instancia):
+
+| Pantalla | Llamadas | Esperas |
+|---|---|---|
+| Portada | 9 | 5 |
+| Árbol de grupos | 7 | 3 |
+| Marcar | 10 | 6 |
+| Resumen | 7 | 3 |
+| Ficha del participante | 13 | 7 |
+| Lista de monitores | 10 | 4 |
+| **Cambiar de fecha** (caché caliente) | **4** | 4 |
+
+Lo que bajó esos números el 28/08: matar el 1+N que resolvía a la gente de un
+grupo una llamada por persona, agrupar en tandas la ficha del participante (que
+hacía trece llamadas en fila sin agrupar ni una), juntar las dos consultas de
+«mis relaciones» y batir las escrituras del guardado.
+
+<details>
+<summary>Los números de antes (27/08/2026), medidos solo en el modo «enlaces OK»</summary>
 
 | Pantalla | Antes | Ahora |
 |---|---|---|
@@ -425,6 +667,8 @@ Llamadas al CRM por pantalla:
 | Árbol de grupos | 10 | 6 |
 | Marcar | 14 | 8 |
 | Resumen | 15 | **7** |
+
+</details>
 
 `tests/CosteLlamadasTest.php` fija los topes. **Si añades una consulta, ese test
 te lo dirá**: es el sitio donde se ve un 1+N nuevo antes de que llegue a
@@ -447,6 +691,18 @@ Cargadores de colección (uno por colección, nunca uno por fila):
   desglose, y `?pl_diag=1` lo enseña por pantalla. **Antes de tocar nada más de
   rendimiento, mira esos números**: lo siguiente (paralelizar con `curl_multi`)
   es la parte cara y no se empieza a ciegas.
+
+### Medido y DESCARTADO: no envolver `session_attendances` en una tanda
+
+Parece la jugada obvia —las dos lecturas de asistencias de la pantalla de marcar
+son independientes y son dos esperas en fila— pero **sube el coste**: de 10 a 12
+llamadas en la primera carga y de 4 a 6 al cambiar de fecha.
+
+La razón: `sticpa_pl_session_attendances()` tiene un respaldo que **no corre en
+modo recolecta** (`!sticpa_pl_collecting()`). La tanda trae la consulta
+principal, que en esta instancia vuelve vacía, y el respaldo sale igual después:
+se paga la tanda Y el respaldo. Para ganar ahí hay que arreglar antes el
+respaldo, no envolverlo en una tanda. Queda escrito en el propio archivo.
 
 ### Lo siguiente, si sigue lento
 
@@ -641,9 +897,21 @@ participantes.
 
 ## 8. Pendiente en el CRM, no en el código
 
-- El workflow que avisa por correo a coordinación cuando se pone un aviso nuevo.
-- `phone_mobile` en `CAMPOS.md` está mal, y hay que propagar el arreglo al repo
-  `comunicaFormularios`.
-- Cerrar la relación de monitor del grupo `Najar`.
-- ~~Borrar la asistencia basura «Unknown - Unknown»~~ — hecho el 27/08/2026,
-  junto con las dos `LIS_listas` de prueba. Ver §7, «Pizarra en blanco».
+**Los tres primeros son de hoy y son los que más se notan.** Están explicados
+con detalle en §1.
+
+1. 🔴 **Reasignar a la delegación el entorno personal de Solete** (hoy está a
+   nombre de «Administrador MCM»), y revisar si hay más igual. Mientras no se
+   haga, la ficha de un participante no puede enseñar a su familia por más que
+   el código esté bien.
+2. 🔴 **Borrar el centenar de asistencias `Unknown - Unknown`** (las que no
+   tienen inscripción enlazada). El código que las creaba ya está arreglado.
+3. 🟡 **Revisar la `LIS_listas` de participantes del 02/05 en `omitida`**, que
+   convive con la de monitores de la misma sesión.
+4. El workflow que avisa por correo a coordinación cuando se pone un aviso nuevo.
+5. `phone_mobile` en `CAMPOS.md` está mal, y hay que propagar el arreglo al repo
+   `comunicaFormularios`.
+6. Cerrar la relación de monitor del grupo `Najar`.
+7. ~~Borrar la asistencia basura «Unknown - Unknown»~~ — se hizo el 27/08/2026,
+   pero **volvieron a aparecer** esa misma noche: era el código, no un resto de
+   pruebas. Ver §1 y el historial de §1-bis.
