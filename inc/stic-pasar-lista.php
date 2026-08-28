@@ -1141,7 +1141,9 @@ function sticpa_pl_seguimiento_umbrales()
         'pct_minimo' => 60,
         // Faltas seguidas al final: es lo que de verdad hace llamar. Alguien
         // que falta una de cada cinco desde octubre no preocupa; alguien que
-        // lleva tres seguidas, sí.
+        // lleva tres seguidas, sí. TRES lo confirmó el propietario el
+        // 28/08/2026 («nos parece fantástico»), así que no se toca sin volver
+        // a preguntar.
         'seguidas' => 3,
         // Y por debajo de esta cuenta de sesiones marcadas no se avisa de nada:
         // con dos datos, un porcentaje es una anécdota.

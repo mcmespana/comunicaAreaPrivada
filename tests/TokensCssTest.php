@@ -94,4 +94,46 @@ class TokensCssTest extends TestCase
             'El atributo de esta área es data-stic-scheme, no data-theme.'
         );
     }
+    /**
+     * Los botones de ICONO del área se defienden del tema de WordPress.
+     *
+     * El tema estila `.entry-content button`, que le gana por especificidad a
+     * una clase suelta. Un botón de icono es una caja cuadrada con un radio del
+     * 50 %: si el tema le impone su ancho, el círculo se convierte en una
+     * ELIPSE enorme. Le pasó a `.stic-hero-close` —una equis de 280 px en la
+     * esquina del saludo, en escritorio y siempre— mientras que
+     * `.stic-pass-toggle`, que es el mismo patrón, sí estaba defendido desde el
+     * principio.
+     *
+     * La regla: si un botón de icono declara `width` y `border-radius: 50%`,
+     * los dos van con `!important`. No es paranoia de estilo, es que sin eso el
+     * fallo no se ve en el CSS del plugin —que está bien— sino solo en
+     * producción, encima del tema.
+     */
+    public function test_los_botones_de_icono_fijan_su_tamano_con_important()
+    {
+        $css = file_get_contents(dirname(__DIR__) . '/css/custom-style.css');
+
+        $botones = array('stic-hero-close', 'stic-pass-toggle');
+        foreach ($botones as $clase) {
+            // El bloque de la regla principal: desde el selector hasta su `}`.
+            $ok = preg_match('/\.' . preg_quote($clase, '/') . '[^{}]*\{([^}]*)\}/', $css, $m);
+            $this->assertSame(1, $ok, 'no se encuentra la regla de .' . $clase);
+            $bloque = $m[1];
+
+            $this->assertMatchesRegularExpression(
+                '/width:\s*[^;]*!important/',
+                $bloque,
+                '.' . $clase . ' no fija su `width` con !important: el tema de '
+                    . 'WordPress se lo puede llevar por delante y, con el radio '
+                    . 'del 50 %, el círculo sale como una elipse.'
+            );
+            $this->assertMatchesRegularExpression(
+                '/border-radius:\s*50%\s*!important/',
+                $bloque,
+                '.' . $clase . ' no fija su `border-radius` con !important.'
+            );
+        }
+    }
+
 }

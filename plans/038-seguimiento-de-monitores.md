@@ -142,9 +142,12 @@ caché fría y 2 con la caliente; la lista de monitores sube de 9 a 10, y la
 consulta nueva viaja en la tanda que ya había, así que no añade ningún viaje.
 Cero consultas por monitor, por grupo o por curso, que era la condición del §3.
 
-Queda sin hacer del §6: confirmar los umbrales con el propietario (van con un
-valor conservador y filtrable) y contar cuántas reuniones hay de verdad en un
-curso.
+**Umbrales: confirmados** por el propietario el 28/08/2026 — tres seguidas sin
+venir. El otro (menos del 60 %) se queda como estaba, y los dos siguen siendo
+filtrables con `sticpa_pl_seguimiento_umbrales`.
+
+Queda sin hacer del §6: contar cuántas reuniones hay de verdad en un curso (en
+el piloto solo hay dos, y de prueba).
 
 ## Estado
 
