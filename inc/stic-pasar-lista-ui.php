@@ -82,7 +82,7 @@ function sticpa_pl_icon($which)
  * Es un <button> y no un <div> con onclick: así lo alcanza el teclado y lo
  * anuncia el lector de pantalla sin tener que añadir roles a mano.
  */
-function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub = '', $motive = '', $aviso = '')
+function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub = '', $motive = '', $aviso = '', $track = null)
 {
     $states = sticpa_pl_states();
     $state = sticpa_pl_is_state($state) ? $state : '';
@@ -133,8 +133,44 @@ function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub =
     $html .= '<span class="pl-name">' . esc_html($person['name']) . '</span>';
     // Línea fija: los grupos de un monitor. Es lo que distingue a dos personas
     // con el mismo nombre de pila y lo que explica por qué están en esta lista.
-    if ($sub !== '') {
-        $html .= '<span class="pl-rowsub">' . esc_html($sub) . '</span>';
+    if ($sub !== '' || $track !== null) {
+        $html .= '<span class="pl-rowsub">';
+        if ($sub !== '') {
+            $html .= esc_html($sub);
+        }
+        /* EL PORCENTAJE, CALLADO. (ROADMAP «ausencias de monitores», 28/08/2026.)
+         *
+         * Coordinación quiere el número, pero treinta porcentajes en fila no se
+         * leen: todos pesan lo mismo y ninguno destaca. Así que va pequeño, gris
+         * y al final de la línea que ya explica de qué grupo es cada uno — se
+         * encuentra cuando se busca y no compite cuando se escanea.
+         *
+         * Lo que SÍ salta a la vista sigue siendo la nota roja de debajo, que
+         * solo sale cuando hay algo que mirar. Este número no la sustituye: la
+         * acompaña, para poder comparar dos monitores sin abrir sus fichas.
+         *
+         * Con menos sesiones marcadas que el mínimo no se pinta nada: con dos
+         * datos un porcentaje es una anécdota, y una anécdota con pinta de dato
+         * es peor que ningún dato. */
+        if (is_array($track)) {
+            $u = sticpa_pl_seguimiento_umbrales();
+            $pct = (int) $track['pct'];
+            if ($pct >= 0 && (int) $track['counted'] >= (int) $u['minimo_para_opinar']) {
+                $flojo = ($pct < (int) $u['pct_minimo']);
+                $html .= '<span class="pl-rowpct' . ($flojo ? ' pl-rowpct--bajo' : '') . '"'
+                    . ' title="' . esc_attr(sprintf(
+                        /* translators: 1: a cuántas vino, 2: cuántas se contaron */
+                        __('Vino a %1$d de %2$d sesiones marcadas', 'sticpa'),
+                        (int) $track['attended'],
+                        (int) $track['counted']
+                    )) . '">' . esc_html(sprintf(
+                        /* translators: %d: porcentaje de asistencia */
+                        __('%d %%', 'sticpa'),
+                        $pct
+                    )) . '</span>';
+            }
+        }
+        $html .= '</span>';
     }
     $html .= '<span class="pl-note" data-pl-state-note ' . $noteClass
         . ($note === '' ? ' hidden' : '') . '>' . esc_html($note) . '</span>';

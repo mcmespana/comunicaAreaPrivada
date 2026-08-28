@@ -269,16 +269,23 @@ comprobar que el módulo admite `grupo` vacío.
 
 Sin cerrar. Cuando toque, se piensa bien.
 
-### 2. Ausencias de monitores
+### 2. Ausencias de monitores — ✅ HECHO (28/08/2026)
 
-Extender el sistema para registrar qué monitores no han venido y sacar su
-porcentaje de ausencias.
+- La asistencia de los monitores **ya se guarda** (lista de monitores, con su
+  `ajmcm_tipo_c = monitores`), y a quien no está inscrito al evento se le crea
+  la inscripción.
+- **El porcentaje está en la lista**, pequeño y gris al final de la línea de los
+  grupos, con cifras de ancho fijo para comparar dos filas seguidas. Por debajo
+  del umbral se pone rojo, que es el mismo idioma que la nota de aviso.
+- Con menos de cuatro sesiones marcadas **no se pinta**: un porcentaje sobre dos
+  datos es una anécdota.
+- **El encuadre está en la forma**, que era lo que pedía este melón: el número
+  acompaña, no acusa. Lo que salta a la vista sigue siendo la nota roja, que
+  solo sale cuando hay algo que mirar; quien va bien no lleva nada.
+- Sigue siendo solo para **coordinación**: un monitor no ve la lista de
+  monitores.
 
-- Solo **coordinación** entra aquí. Un monitor no ve la lista de monitores.
-- Los monitores de un grupo ya se sacan de las relaciones, así que la lista
-  existe; falta dónde guardar su asistencia.
-- Ojo: es un dato sensible entre compañeros. Merece pensar el encuadre antes que
-  la técnica.
+Detalle en `PASAR-LISTA-ESTADO.md` §2.
 
 ### 3. Inscripciones automáticas
 

@@ -24,7 +24,7 @@ mismas cinco piedras.
 | P | Qué | Siguiente paso concreto |
 |---|---|---|
 | ✅ | ~~Asistencias de 5 sesiones sin `status` (a medio marcar)~~ | **Hecho el 28/08/2026.** Un hueco ya no se lee como avería en ningún sitio: `sticpa_pl_att_track()` cuenta los sin marcar APARTE, los dice en pantalla («24 sábados sin lista»), devuelve «sin datos» en vez de un 0 % cuando no hay nada marcado, y el cuadradito de «sin marcar» es un contorno discontinuo con su entrada en la leyenda — no un gris que parezca un estado. |
-| P2 | Monitor de dos grupos: sale, pero sin decidir cómo se enseña | Decisión de producto (propietario): ¿etiqueta doble en el árbol? ¿aviso en la ficha? Después, cambio solo en builders de UI. |
+| ✅ | ~~Monitor de dos grupos: sale, pero sin decidir cómo se enseña~~ | **Hecho el 28/08/2026.** Una fila, con los códigos de todos sus grupos; y la sección de la etapa donde NO cae lo nombra, incluso si se queda sin ninguna fila propia (que era el caso peor: la sección desaparecía entera). Las cinco variantes, en `PASAR-LISTA-ESTADO.md` §2. |
 | P2 | El grupo `Najar` (no MIC-COM) aparece en el árbol | Definir el filtro de grupos visibles (ver melón 4 abajo: la solución buena es común). Mientras: filtro por lista negra vía `apply_filters` para no hardcodear. |
 | P2 | «Sectores» agrupados a mano | Sin campo en el CRM y no lo va a haber de momento (ROADMAP §6). Dejarlo como está; documentado y punto. |
 | P3 | Filtro plano por `..._ida` da 400 en 4 módulos | No es arreglable desde el plugin: es doctrina (abajo). Ya documentado en CAMPOS §9. |
@@ -38,7 +38,7 @@ mismas cinco piedras.
 | P2 | **Grupos viejos fuera de la navegación** (ROADMAP 4) | Regla propuesta: un grupo sale en Pasar Lista si su etapa tiene evento de sesiones del curso actual Y el grupo tiene ≥1 relación vigente. Cubre también `Najar`. Validar con el propietario antes de codificar. |
 | P2 | **Workflow de correo de avisos** (ROADMAP 5) | Configuración del CRM, no código. Bloqueado por definir coordinadores (`relationship_type = coordinador_mic/com`, COORDINACION §6). Escribir la petición concreta para el administrador del CRM. |
 | P3 | **Pasar lista de un evento puntual** (convivencia, bus — ROADMAP 1) | Antes de nada: comprobar que `LIS_listas` admite grupo vacío. Reusar pantalla de marcar con fuente = inscritos del evento. No abrir hasta tener el semanal cerrado y rodado. |
-| P3 | **Ausencias de monitores con porcentaje** (ROADMAP 2) | Primero el encuadre (dato sensible entre compañeros) con el propietario; la técnica ya existe a medias (monitores ya se marcan). |
+| ✅ | ~~**Ausencias de monitores con porcentaje** (ROADMAP 2)~~ | **Hecho el 28/08/2026.** El porcentaje va en la lista de monitores, pequeño y gris, y rojo por debajo del umbral. El encuadre está en la forma: acompaña, no acusa. Con menos de cuatro sesiones marcadas no se pinta. |
 | P3 | Verificar `CAMPOS.md` contra el CRM por MCP (ROADMAP 9) | Subagente que recorra `get_module_fields` de los módulos usados y compare con CAMPOS.md. Barato de hacer ya; salida = lista de discrepancias, no cambios automáticos. |
 
 ## 3. Pendiente en el CRM (no en el código) — lo que hay que PEDIR

@@ -79,9 +79,12 @@ tarde, dentro de la webview de MCM App.
   `haptic()`) y **siguiente acción a un toque**: «Ver resumen» / «Otro grupo»
   / «Ficha de los ausentes» si hubo faltas. Hoy la pantalla re-renderiza igual
   y la confirmación es un párrafo pequeño arriba.
-- El aviso de «guardado en el móvil, se enviará solo» (cola offline) debe
-  distinguirse visualmente MUCHO del «guardada en el CRM»: hoy ambos son un
-  aviso de texto; el primero es una promesa, el segundo un hecho.
+- ✅ **Hecho el 28/08/2026, y el que faltaba era otro.** El agujero de verdad no
+  era distinguir «guardado en el móvil» de «guardado en el CRM»: era que
+  **mientras tenías marcas sin enviar la pantalla no decía NADA**. Lo único que
+  avisaba era el diálogo del navegador al salir, o sea cuando ya te ibas. Ahora,
+  en cuanto hay una marca sin guardar, la barra lo dice en ámbar, con contorno
+  propio y un punto que late despacio. Detalle en `PASAR-LISTA-ESTADO.md` §2.
 - La cola offline tiene un agujero conocido: un reenvío con nonce caducado
   vuelve 200-con-aviso y la entrada se da por enviada (se pierde). Con el ring
   de 033 §2.2 el servidor lo detectaría; el JS debe comprobar en la respuesta

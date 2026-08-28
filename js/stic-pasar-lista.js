@@ -403,7 +403,7 @@
             }
 
             if (!quiet) {
-                dirty = true;
+                setDirty(true);
                 saveDraft();
             }
             refresh();
@@ -458,6 +458,8 @@
             });
 
             if (changed > 0) {
+                // Sin guardar, sí, pero el aviso que toca es el del borrador:
+                // dice lo mismo Y de dónde salen esas marcas.
                 dirty = true;
                 say('draft', root.getAttribute('data-msg-draft') || '');
             }
@@ -472,6 +474,33 @@
         }
         function hush() {
             if (status) { status.hidden = true; }
+        }
+
+        /** Marcar o desmarcar «hay cambios que solo están en este móvil».
+         *
+         * ANTES NO SE DECÍA NADA. Se marcaba a diez chavales, la pantalla se
+         * quedaba igual, y lo único que avisaba era el diálogo del navegador AL
+         * SALIR — o sea, cuando ya te ibas. Quien cerraba la app sin más creía
+         * que estaba guardado.
+         *
+         * El aviso tiene que distinguirse MUCHO del verde de «guardado en el
+         * CRM»: uno es una promesa y el otro un hecho. Va en ámbar, con un
+         * punto que late, y justo encima del botón de Guardar, que es donde
+         * está mirando quien acaba de marcar.
+         *
+         * Sin cobertura manda el aviso de cobertura: ahí «solo en tu móvil» es
+         * cierto pero no es la noticia, y dos avisos discutiendo en la misma
+         * línea no los lee nadie.
+         */
+        function setDirty(value) {
+            dirty = !!value;
+            if (!status) { return; }
+            if (!dirty) {
+                if (status.getAttribute('data-kind') === 'dirty') { hush(); }
+                return;
+            }
+            if (!navigator.onLine || queueRead().length > 0) { return; }
+            say('dirty', root.getAttribute('data-msg-dirty') || '');
         }
 
         /* ---- Toque y gesto largo --------------------------------------- */
@@ -620,7 +649,7 @@
             var value = motive.value.trim().slice(0, 255);
             if ((sheetRow.getAttribute('data-motive') || '') === value) { return; }
             sheetRow.setAttribute('data-motive', value);
-            dirty = true;
+            setDirty(true);
             saveDraft();
         }
 
@@ -881,7 +910,7 @@
                     // Ya está guardado (en el móvil), así que el aviso de salir
                     // sin guardar sería mentira: un aviso que miente enseña a
                     // ignorar todos los avisos.
-                    dirty = false;
+                    setDirty(false);
                     say('offline', root.getAttribute('data-msg-queued') || '');
                     haptic(20);
                     return;
@@ -897,7 +926,7 @@
 
                 // Con cobertura sí navega: el overlay de carga lo pone
                 // js/stic-ui.js por la clase stic-loading-form del formulario.
-                dirty = false;
+                setDirty(false);
                 // EL BORRADOR NO SE TIRA AQUÍ. Se tiraba al enviar, antes de
                 // saber si el CRM lo había aceptado: si fallaba, el monitor
                 // perdía las marcas y encima creía que estaban guardadas. Ahora
