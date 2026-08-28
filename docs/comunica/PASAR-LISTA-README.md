@@ -88,7 +88,7 @@ Las pantallas, y a qué artboard corresponde cada una:
 | `single_stic_pasar_lista_marcar` | `Marcar` + `Estados` |
 | `single_stic_pasar_lista_ficha` | `Ficha` |
 | `single_stic_pasar_lista_resumen` | `Resumen` |
-| `single_stic_pasar_lista_monitores`, `_monitor`, `_reuniones` | sin artboard todavía |
+| `single_stic_pasar_lista_monitores`, `_monitor`, `_reuniones` | sin artboard todavía — el diseño de `_monitor` está escrito en [`PASAR-LISTA-COORDINACION.md`](PASAR-LISTA-COORDINACION.md) §4 y en [`../../plans/038-seguimiento-de-monitores.md`](../../plans/038-seguimiento-de-monitores.md) |
 
 ---
 

@@ -1,6 +1,6 @@
 # Pasar Lista — parte de estado
 
-**Fecha de este parte: 27 de agosto de 2026.** Es el documento que hay que leer
+**Fecha de este parte: 28 de agosto de 2026.** Es el documento que hay que leer
 para retomar el trabajo sin reconstruir el contexto. El mapa de todo lo demás
 está en [`PASAR-LISTA-README.md`](PASAR-LISTA-README.md); el diseño funcional,
 en [`PASAR-LISTA.md`](PASAR-LISTA.md).
@@ -190,6 +190,68 @@ Decisión del 27/08/2026: **no bloquea**, se sigue probando y se renuevan las
 relaciones cuando toque. Pero si a partir del 1 de septiembre C1 sale vacío,
 **mira esto antes de buscar el fallo en el código**.
 
+### ✅ La ficha del monitor: seguimiento, datos agrupados, grupos e histórico (28/08/2026)
+
+La pantalla que sustituye a abrir el CRM. **El orden ya no es el del CRM sino el
+de la conversación de coordinación**, y el certificado de delitos sexuales ya no
+la abre: es una obligación legal, sí, pero es una casilla, y una casilla no es
+la persona. Ahora va dentro de «En regla», con las otras siete.
+
+Lo que enseña, en este orden:
+
+1. **Cómo va este curso**, en tres pistas de cuadraditos separadas y **nunca
+   promediadas**: sábados (con porcentaje), reuniones de programación (con
+   fracción, no porcentaje: con cuatro al año un 75 % suena a nota y es una
+   sola falta) y listas del grupo (con quién la pasó).
+2. **En regla**: ocho comprobaciones, con la cuenta de lo que falta en la
+   cabecera. Un permiso no dado —la cesión de imágenes— sale en gris y no en
+   rojo: es una decisión de la persona, no una deuda.
+3. **Formación** (solo lo que tiene, con el descuadre de «titulado sin
+   archivo»), **trayectoria** y **datos personales**, estos últimos plegados.
+4. **Sus grupos**: el que lleva y el suyo (la relación `grupo` COM-LC, que en el
+   CRM vive en otra pestaña), con los recuentos calculados **en vivo** del mapa
+   de relaciones y con quién los comparte.
+5. **Por dónde ha pasado**: curso a curso, con quién estaba en cada uno.
+
+**Coste: cuatro tandas paralelas, y ni una consulta por grupo ni por curso.** El
+histórico entero sale de las relaciones **terminadas**, que ya venían en la misma
+consulta que las vigentes y se tiraban al filtrar por vigencia. Con la caché
+caliente son dos consultas. El tope está escrito en `CosteLlamadasTest`.
+
+### ✅ Un hueco no es una falta (28/08/2026)
+
+`sticpa_pl_attendance()` metía las sesiones **sin marcar** en el denominador. Si
+el grupo pasó tres listas de diez, un chaval que vino a las tres salía al 30 %
+en su ficha: ese 70 % no eran ausencias suyas, era la lista sin pasar, y el
+número quedaba escrito como si lo fueran.
+
+La función se ha retirado. Queda `sticpa_pl_att_track()`, que cuenta sobre lo
+**marcado**, cuenta los huecos aparte y los dice en pantalla, y devuelve «sin
+datos» en vez de un 0 % cuando no hay nada marcado. Las horas siguen la misma
+regla. Lo usan las tres pantallas: ficha del participante, ficha del monitor y
+lista de monitores.
+
+### ✅ Avisos de seguimiento en la lista de monitores (28/08/2026)
+
+En la lista, una nota en rojo bajo el nombre **solo cuando algo no va** —tres
+seguidas sin venir, o menos del 60 % de asistencia— y nada para quien va bien.
+Lo que se busca ahí es *a quién hay que mirar* de los treinta: una lista con
+treinta porcentajes es una lista que nadie lee. Umbrales en
+`sticpa_pl_seguimiento_umbrales`, conservadores a propósito.
+
+### ✅ Dos parejas de consultas que preguntaban lo mismo (28/08/2026)
+
+Los eventos de la delegación se pedían **dos veces** (el cargador por etapa y el
+del evento de reuniones) y las relaciones de quien está conectado también (el
+alcance de coordinación y el acompañamiento). El memo de la tanda paralela no
+las salvaba: **se consume de un solo uso**, así que dos cargadores con la misma
+firma se reparten una respuesta y el segundo llama igual. La forma de no pagar
+dos veces es no preguntar dos veces, así que ahora hay un cargador crudo debajo
+—`sticpa_pl_events_raw()` y `sticpa_pl_mis_rels()`— y los dos de arriba filtran.
+
+Los topes de `CosteLlamadasTest` bajaron a la vez: el árbol de grupos de 8 a 7 y
+marcar de 10 a 9. Un tope que se queda holgado deja de proteger nada.
+
 ### Otros abiertos, menores
 
 | | Qué |
@@ -199,6 +261,8 @@ relaciones cuando toque. Pero si a partir del 1 de septiembre C1 sale vacío,
 | 🟡 | Los «sectores» (COM I = los dos primeros cursos de la ESO, etc.) se agrupan **a mano**. No hay campo en el CRM y de momento no lo va a haber. |
 | 🟡 | El filtro plano por campo de enlace (`..._ida`) en `get_entry_list` devuelve **error 400 de base de datos** en `stic_Sessions`, `LIS_listas`, `stic_Registrations` y `stic_Contacts_Relationships`. Se puede LEER el campo, pero no FILTRAR por él. Para consultar por relación hay que ir por `get_relationships`. Ojo: no es lo mismo que la trampa de §3.1 — ahí el problema es el enlace anidado que no viene; aquí es el filtro que el CRM rechaza. |
 | 🟡 | Las asistencias de 5 sesiones existen **sin `status`**: quedaron a medio marcar. Es un estado válido (una sesión sin pasar), pero conviene saber que existe. |
+| 🟡 | `ajmcm_curso_escolar_c` **existe** en `stic_Contacts_Relationships` y está **vacío en todas** las relaciones reales. El curso del histórico se deduce por eso de `start_date` y `end_date`. Si algún día se rellena, hay que mirar antes las claves internas de su desplegable: si guarda `2024_2025` y nosotros calculamos `2024-2025`, el histórico se parte en dos. |
+| 🟡 | `ajmcm_pasar_lista_c` (la casilla del grupo) tiene **`default: 1`** en el CRM, aunque `PASAR-LISTA-CAMPOS-CRM.md` decía «por defecto desmarcada». Los grupos que ya existían nacieron sin valor —por eso el filtro funciona—, pero **un grupo nuevo entrará solo en Pasar Lista**. Probablemente es lo que se quiere; conviene saberlo. |
 
 ---
 
@@ -213,6 +277,9 @@ relaciones cuando toque. Pero si a partir del 1 de septiembre C1 sale vacío,
 - Los recuentos nocturnos del Guardián se leen en la ficha del grupo.
 - El modo sin conexión está construido (apagado por defecto con el filtro
   `sticpa_pl_offline_enabled`).
+- La ficha de un monitor enseña su seguimiento del curso, sus datos agrupados,
+  sus grupos y por dónde ha pasado, sin abrir el CRM.
+- Los porcentajes de asistencia cuentan sobre lo marcado, no sobre lo celebrado.
 
 ---
 

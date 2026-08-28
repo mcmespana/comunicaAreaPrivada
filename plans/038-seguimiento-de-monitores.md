@@ -1,6 +1,6 @@
 # 038 — Seguimiento de monitores: cómo van de asistencia
 
-**Prioridad: P2.** Esfuerzo: M. Depende de: 033 y del 072 (paginación) — sin
+**Prioridad: P2. HECHO el 28/08/2026** (ver «Estado» al final). Esfuerzo: M. Depende de: 033 y del 072 (paginación) — sin
 datos completos cualquier porcentaje miente. Encaja con
 [`PASAR-LISTA-COORDINACION.md`](../docs/comunica/PASAR-LISTA-COORDINACION.md) §7
 y con [`PASAR-LISTA-SEGUIMIENTOS.md`](../docs/comunica/PASAR-LISTA-SEGUIMIENTOS.md),
@@ -115,8 +115,40 @@ quema la confianza en el aviso.
 3. Medir con `?pl_diag=1` el coste de la pantalla de monitores **después** de
    esta pantalla: el tope de `CosteLlamadasTest` es 11 y esto suma.
 
+## 7. Cómo quedó (28/08/2026)
+
+Implementado, y con dos cosas distintas de lo escrito arriba:
+
+- **Las reuniones no llevan porcentaje, llevan fracción.** El §2 decía «2 de 4»
+  como pie; acabó siendo el marcador. Con tres o cuatro reuniones al año un
+  75 % suena a nota y es una sola falta.
+- **La fila de listas tiene CUATRO estados, no tres.** `suya`, `otra`,
+  `omitida` (el grupo no se reunió: sale del denominador) y `sin`. El §2 no
+  contaba con `omitida`, y sin ella un sábado sin sesión se leía como una lista
+  que falta.
+- **Los cuadrados envuelven, no se agrupan por mes.** El §2 proponía agrupar si
+  no caben; envolver es más simple y no encoge nada. Lo que sí se hizo es meter
+  una holgura extra cada cambio de mes: cuatro faltas seguidas de enero se leen
+  como un bloque sin poner ni una fecha.
+
+Y una regla que no estaba escrita y ahora manda en tres pantallas: **`pct` vale
+-1 cuando no hay nada marcado**, y se pinta «sin datos», no un 0 %. Al aplicarla
+salió a la luz que la ficha del participante tenía el bug contrario (contaba los
+huecos como faltas), así que `sticpa_pl_attendance()` se retiró y quedó
+`sticpa_pl_att_track()` para todo.
+
+**Coste medido**: la ficha del monitor, 14 consultas en cuatro tandas con la
+caché fría y 2 con la caliente; la lista de monitores sube de 9 a 10, y la
+consulta nueva viaja en la tanda que ya había, así que no añade ningún viaje.
+Cero consultas por monitor, por grupo o por curso, que era la condición del §3.
+
+Queda sin hacer del §6: confirmar los umbrales con el propietario (van con un
+valor conservador y filtrable) y contar cuántas reuniones hay de verdad en un
+curso.
+
 ## Estado
 
 | Fecha | Qué | Quién |
 |---|---|---|
 | 2026-08-27 | Diseño escrito a petición del propietario. Sin implementar | revisión |
+| 2026-08-28 | **Implementado**, con los tres cambios de diseño de §7 | revisión |

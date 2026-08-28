@@ -143,6 +143,36 @@ duplicados. Todo lo de abajo lo necesita «Pasar Lista» y **ya está en el CRM*
 | `stic_relationship_type_c` | Detección de rol (monitor / laico), ya se usa hoy |
 | `email1`, `phone_other` | Contacto. `phone_other` es «contacto de emergencias» |
 
+**Y los que usa la ficha del MONITOR**, verificados uno a uno contra
+`get_module_fields` de `Contacts` el **28/08/2026**. Un campo que no existe hace
+que la API devuelva error y la ficha entera se quede en blanco, así que aquí no
+se supone ningún nombre. La lista viva está en `sticpa_pl_monitor_fields()`.
+
+| Bloque | Campos |
+|---|---|
+| Identidad | `stic_gender_c`, `stic_identification_type_c`, `stic_identification_number_c`, `primary_address_city`, `ajmcm_numero_persona_c` |
+| Trayectoria | `ajmcm_monitor_desde_c`, `ajmcm_monitor_de_c`, `ajmcm_mcm_desde_c`, `ajmcm_ano_incorporacion_lc_c` |
+| En regla | `ajmcm_aut_del_sex_c`, `ajmcm_cert_del_sex_c`, `ajmcm_form_intera_proteccion_c`, `stic_conduct_code_c`, `stic_confidentiality_agreement_c`, `ajmcm_vol_acuerdo_c`, `ajmcm_compromiso_c` |
+| Permisos (no son obligaciones) | `ajmcm_acepta_lopd_c`, `ajmcm_cesionimagenes_interne_c` |
+| Formación | `ajmcm_premonitores1_c`, `ajmcm_premonitores2_c`, `ajmcm_premonitores_year_c`, `ajmcm_mat_c`, `ajmcm_mat_year_c`, `ajmcm_mat_file_c`, `ajmcm_dat_c`, `ajmcm_dat_year_c`, `ajmcm_dat_file_c`, `ajmcm_fa_c`, `ajmcm_fa_year_c`, `ajmcm_alimentos_c`, `ajmcm_cert_files_c`, `ajmcm_formacion_academica_c`, `ajmcm_congreso_monis_c` |
+
+⚠️ **`stic_conduct_code_c`, `stic_confidentiality_agreement_c` y
+`stic_time_availability_c` existen en el CRM y no estaban en `CAMPOS.md`.** Los
+dos primeros ya se usan (código de conducta y acuerdo de confidencialidad); el
+tercero está sin mirar. Hay que documentarlos en `CAMPOS.md` y propagarlo a
+`comunicaFormularios`.
+
+⚠️ **`ajmcm_congreso_monis_c` es un multienum** y viene con acentos
+circunflejos de adorno: `^2019_godelleta^,^2022_burriana^`. Los quita
+`sticpa_pl_multienum()`.
+
+⚠️ **La API omite los campos vacíos**, no los devuelve con cadena vacía. El
+código lee siempre con `isset()` por eso.
+
+⚠️ **Las mayúsculas de los enum no son de fiar**: en los datos reales conviven
+`COM` y `com` para el mismo valor de `ajmcm_monitor_de_c`. `sticpa_pl_enum_label()`
+compara sin distinguirlas.
+
 ### Grupos (`ajmcm_GRUPOS`)
 
 | Campo | Para qué |
@@ -153,6 +183,12 @@ duplicados. Todo lo de abajo lo necesita «Pasar Lista» y **ya está en el CRM*
 | `cursos_c` | Curso escolar, texto libre |
 | `ajmcm_grupos_accounts_*` | Delegación |
 | `ajmcm_pasar_lista_c` | **Casilla: este grupo entra en Pasar Lista.** Ver §2 — mientras no haya ninguna marcada, no filtra |
+
+⚠️ **`ajmcm_pasar_lista_c` tiene `default: 1` en el CRM**, aunque §2 pidió que
+naciera desmarcada. Los ~150 grupos que ya existían nacieron **sin valor**, que
+es lo que hace que el filtro funcione hoy; pero **un grupo creado a partir de
+ahora entrará solo en Pasar Lista**. Probablemente es lo que se quiere. Anotado
+para que nadie lo descubra por sorpresa. (Comprobado el 28/08/2026.)
 
 ### Entorno personal / familia (`stic_Personal_Environment`)
 
@@ -192,8 +228,26 @@ por los dos porque puede estar creada en cualquier sentido.
 | ↳ `grupo` | El papel de los **+18** en su grupo de referencia. Cuenta como participante del grupo a todos los efectos (lista de marcado y recuento) — corregido el 24/08, `sticpa_pl_rel_types()` en PHP y `PAPELES` en el Guardián |
 | `ajmcm_grupos_stic_contacts_relationships_*` | **El vínculo persona ↔ grupo.** La pieza central |
 | `ajmcm_etapa_relacion_c` | Etapa de esa relación |
-| `ajmcm_curso_escolar_c`, `ajmcm_delegacion_c` | |
+| `ajmcm_curso_escolar_c` | **Existe y está VACÍO en todas las relaciones reales** (comprobado 28/08/2026). Ver el aviso de abajo |
+| `ajmcm_delegacion_c` | Delegación de la relación. Sus claves NO son las de `ajmcm_procendencia_c` de `Contacts`: aquí `vilareal`, allí `vila-real`. Sin documentar en `CAMPOS.md` |
 | `start_date` / `end_date` / `active` | Vigencia — permite el histórico por curso |
+| `end_reason` / `other_end_reasons` | Motivo del fin. Sin documentar, sin usar |
+
+⚠️ **El curso escolar del histórico se DEDUCE de las fechas**, no se lee de
+`ajmcm_curso_escolar_c`: el campo existe pero está vacío en todas las
+relaciones. Lo calcula `sticpa_pl_rel_cursos()`, con septiembre como corte, y
+una relación que duró tres años sale en los tres cursos porque los tres estuvo.
+
+Si algún día se empieza a rellenar el campo, **hay que mirar antes las claves
+internas de su desplegable**: si guarda `2024_2025` y nosotros calculamos
+`2024-2025`, mezclarlos parte el histórico en dos entradas por curso.
+
+⚠️ **La consulta de relaciones NO filtra por vigencia**: devuelve también las
+terminadas, y filtrarlas en SQL se descartó porque una consulta que el CRM
+rechaza vuelve vacía y no se distingue de «no hay nadie». Eso es lo que hace que
+el histórico de un monitor **no cueste ni una consulta más**: las relaciones
+cerradas ya venían en el mismo viaje y se tiraban. Ver
+`sticpa_pl_all_relationships_raw()`.
 
 ### Eventos, Sesiones, Inscripciones, Asistencias
 
@@ -239,9 +293,9 @@ La estructura que has creado encaja con el diseño:
 
 | Campo | Uso |
 |---|---|
-| `lis_listas_stic_sessions` | La sesión |
-| `lis_listas_ajmcm_grupos` | El grupo |
-| `lis_listas_contacts` | Quién pasó la lista |
+| `lis_listas_stic_sessions` | La sesión (plano: `lis_listas_stic_sessionsstic_sessions_ida`) |
+| `lis_listas_ajmcm_grupos` | El grupo (plano: `lis_listas_ajmcm_gruposajmcm_grupos_ida`) |
+| `lis_listas_contacts` | Quién pasó la lista. **Para LEERLO hay que pedir el campo plano `lis_listas_contactscontacts_ida`** (verificado el 28/08/2026: viene poblado con el id del contacto). El enlace anidado esta instancia no lo devuelve — trampa §3.1 |
 | `estado` | Estado de la lista |
 | `pasada_el` | Cuándo |
 | `n_asistieron` / `n_faltaron` | Contadores, para el resumen sin recontar |

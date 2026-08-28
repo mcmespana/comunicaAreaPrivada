@@ -123,24 +123,54 @@ para que nadie lo «arregle» dentro de un año.
 
 ---
 
-## 4. Los datos del monitor: lo esencial, no la ficha entera
+## 4. Los datos del monitor: mejor que el CRM, y en otro orden
 
-La ficha del monitor es la de los chavales sin familia y con otra mitad de abajo.
-Lo que hace falta cuando coordinación abre a un monitor es saber **si está en
-regla y si viene**:
+**Reescrita el 28/08/2026.** La primera versión abría con el certificado de
+delitos sexuales; el propietario pidió lo contrario: «poniendo más arriba los
+datos de más interés (por ejemplo el de delitos sexuales pues el primero no hace
+falta)». Tiene razón — es una obligación legal, sí, pero es una casilla, y una
+casilla no es la persona.
 
-- **Certificado de delitos sexuales.** Es lo primero, porque es una obligación
-  legal y porque es lo que se reclama. Tres estados que se distinguen a la vista:
-  automático autorizado · subido a mano · **falta**.
-- **Titulaciones**: premonitores I y II, MAT, DAT, FA, manipulación de alimentos.
-  Cada una con su año si lo tiene, y un aviso si el título dice sí pero no hay
-  archivo subido — que es el descuadre típico.
-- **Asistencia hasta hoy**, con denominador, igual que en los chavales.
-- **Monitor/a desde** y de qué etapa.
-- Teléfono y correo, con llamar y WhatsApp.
+El orden es el de la conversación real de seguimiento:
+
+1. **Quién es y cómo se le llama.** Nombre grande, la línea que le sitúa
+   (grupos · curso · edad · desde cuándo es monitor) y los dos botones de
+   contacto. El de emergencias no lleva WhatsApp: suele ser un fijo.
+2. **Cómo va este curso** — es el motivo de abrir la ficha. Tres pistas de
+   cuadraditos **separadas y nunca promediadas** (plan 038):
+   - *Sábados*, con porcentaje.
+   - *Reuniones de programación*, con fracción y no porcentaje: con tres o
+     cuatro al año, un 75 % suena a nota y es una sola falta.
+   - *Listas de su grupo*, con quién la pasó. **Esta fila se lee junto a la de
+     sábados o no se lee**: una lista de grupo la puede pasar cualquiera que
+     cubra ese sábado, así que «no la pasó» puede querer decir «no vino y la
+     pasó un compañero», que es correcto. Está dicho en la propia pantalla.
+   - Un sábado sin marcar es un hueco, no una falta: no cuenta en el
+     porcentaje y se dice aparte.
+3. **En regla**: certificado de delitos sexuales, formación en protección del
+   menor, código de conducta, confidencialidad, acuerdo de incorporación y
+   compromiso — con la cuenta de lo que falta en la cabecera. Los **permisos**
+   (LOPD, cesión de imágenes) van en la misma lista pero en gris: un permiso no
+   dado es una decisión de la persona, no una deuda.
+4. **Formación**: solo lo que tiene, con su año y con el aviso de «titulado pero
+   sin archivo», que es el descuadre típico. Y los congresos, en pastillas.
+5. **Trayectoria**: nivel COM, etapa, pañuelo, desde cuándo.
+6. **Datos personales**, plegados: se miran una vez al año y ocupan media
+   pantalla de las que hay que pasar para llegar al final.
+7. **Sus grupos**: el que lleva y **el suyo** —la relación `grupo` COM-LC, que en
+   el CRM está en otra pestaña y aquí no—, con los recuentos calculados en vivo
+   y con quién los comparte. El que lleva enlaza a su lista.
+8. **Por dónde ha pasado**: curso a curso y con quién estaba. Solo las
+   relaciones de monitor: la de pertenencia dura años y saldría repetida en cada
+   uno, sepultando lo único que se viene a leer aquí.
+9. **Seguimientos** (§7), al final, porque son notas y no datos.
 
 **Sin familia y sin salud.** Un monitor es un adulto: sus datos de salud no son
 asunto de coordinación en esta pantalla.
+
+En la **lista** de monitores, en cambio, no va nada de esto: solo una nota en
+rojo cuando algo no va. Ahí la pregunta es *a quién hay que mirar* de los
+treinta, y una lista con treinta porcentajes es una lista que nadie lee.
 
 ---
 
