@@ -4254,6 +4254,7 @@ function sticpa_pl_monitors_of($objSCP, $groups)
             // curso: un monitor de 4º de primaria y de 2º de la ESO se lee
             // antes con los pequeños, que es donde empieza su sábado.
             $out[$id]['etapa'] = '';
+            $out[$id]['etapas'] = array();
             $out[$id]['curso'] = '';
             $out[$id]['rank'] = 99999;
         }
@@ -4263,11 +4264,20 @@ function sticpa_pl_monitors_of($objSCP, $groups)
         if (!in_array($code, $out[$id]['groups'], true)) {
             $out[$id]['groups'][] = $code;
         }
+        // TODAS sus etapas, no solo la principal. Quien lleva un grupo de MIC
+        // y otro de COM sale UNA vez —una fila, una marca: dos filas de la
+        // misma persona en una lista de marcar es pedir que se contradigan—
+        // pero la pantalla necesita saber que también es de la otra, o el
+        // coordinador que mira la sección de COM da por hecho que no está.
+        $etapaG = isset($groups[$gid]['etapa']) ? (string) $groups[$gid]['etapa'] : '';
+        if ($etapaG !== '' && !in_array($etapaG, $out[$id]['etapas'], true)) {
+            $out[$id]['etapas'][] = $etapaG;
+        }
         $rank = sticpa_pl_curso_rank(isset($groups[$gid]['cursos']) ? $groups[$gid]['cursos'] : '');
         if ($rank < $out[$id]['rank']) {
             $out[$id]['rank'] = $rank;
             $out[$id]['curso'] = isset($groups[$gid]['cursos']) ? (string) $groups[$gid]['cursos'] : '';
-            $out[$id]['etapa'] = isset($groups[$gid]['etapa']) ? (string) $groups[$gid]['etapa'] : '';
+            $out[$id]['etapa'] = $etapaG;
         }
     }
 
@@ -4281,6 +4291,11 @@ function sticpa_pl_monitors_of($objSCP, $groups)
                 if (!isset($out[$m['id']])) {
                     $out[$m['id']] = $m;
                     $out[$m['id']]['groups'] = array();
+                    $out[$m['id']]['etapas'] = array();
+                }
+                $etapaG = isset($g['etapa']) ? (string) $g['etapa'] : '';
+                if ($etapaG !== '' && !in_array($etapaG, $out[$m['id']]['etapas'], true)) {
+                    $out[$m['id']]['etapas'][] = $etapaG;
                 }
                 if (!in_array($g['code'], $out[$m['id']]['groups'], true)) {
                     $out[$m['id']]['groups'][] = $g['code'];

@@ -18,7 +18,8 @@ que se rompa en móvil se rompe en la app.
 
 | Si buscas… | Documento |
 |---|---|
-| **Estado, bugs abiertos y cómo probar** — empieza por su §1, que es lo único abierto; lo cerrado vive en §1-bis | [`PASAR-LISTA-ESTADO.md`](PASAR-LISTA-ESTADO.md) |
+| **Estado, bugs abiertos y cómo probar** — empieza por su §1, que es lo único abierto | [`PASAR-LISTA-ESTADO.md`](PASAR-LISTA-ESTADO.md) |
+| Lo ya cerrado, con su causa: **por qué el código es como es** (no es el estado) | [`PASAR-LISTA-HISTORIAL.md`](PASAR-LISTA-HISTORIAL.md) |
 | Qué tiene que pasar y cómo son las pantallas | [`PASAR-LISTA.md`](PASAR-LISTA.md) |
 | Nombres exactos de campos y módulos del CRM | [`PASAR-LISTA-CAMPOS-CRM.md`](PASAR-LISTA-CAMPOS-CRM.md) |
 | Fases y melones pendientes — incluido **el navegador de fichas sin pasar lista**, que está por hablar | [`PASAR-LISTA-ROADMAP.md`](PASAR-LISTA-ROADMAP.md) |

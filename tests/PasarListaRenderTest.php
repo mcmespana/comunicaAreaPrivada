@@ -38,6 +38,8 @@ class FakeSCP
     public $listas = array();          // id de lista => campos escritos
     public $avisos = array();          // id de aviso => campos escritos
     public $avisosCiegos = false;      // el CRM acepta el aviso y no lo devuelve
+    /** m1 lleva ADEMÁS un grupo de MIC: el caso del monitor de dos etapas. */
+    public $monitorDeDosEtapas = false;
 
     /** Módulos en los que set_entry falla, como cuando el CRM lo rechaza. */
     public $failWrites = array();
@@ -81,6 +83,9 @@ class FakeSCP
      */
     private function entryListShape($rows, $relationshipFields)
     {
+        // Las filas condicionales llegan como null: se caen aqui y no en cada
+        // sitio que arma la lista.
+        $rows = array_values(array_filter($rows));
         $entries = array();
         $relationshipList = array();
 
@@ -380,6 +385,14 @@ class FakeSCP
                     'grupo' => array('id' => 'g1', 'name' => 'Los Peques'),
                     'persona' => array('id' => 'm1', 'name' => 'David Soler', 'first_name' => 'David', 'last_name' => 'Soler'),
                 ),
+                // Y, cuando se pide, ese MISMO monitor lleva ademas un grupo de
+                // MIC: es el caso del monitor de dos etapas, que tiene que
+                // salir UNA vez y ser nombrado por la seccion que no lo tiene.
+                $this->monitorDeDosEtapas ? array(
+                    'fields' => array('id' => 'r4b', 'relationship_type' => 'monitor', 'end_date' => ''),
+                    'grupo' => array('id' => 'g3', 'name' => 'Los Micos'),
+                    'persona' => array('id' => 'm1', 'name' => 'David Soler', 'first_name' => 'David', 'last_name' => 'Soler'),
+                ) : null,
                 // El rol `grupo` de los +18: cuenta como participante.
                 array(
                     'fields' => array('id' => 'r5', 'relationship_type' => 'grupo', 'end_date' => ''),
@@ -440,6 +453,26 @@ class FakeSCP
                     'fields' => array('id' => 'a3', 'status' => 'no_unjustified'),
                     'sesion' => array('id' => 's3', 'name' => 'S3'),
                     'inscripcion' => array('id' => 'reg1', 'name' => 'R1'),
+                ),
+                // Y las del MONITOR. Sin ellas, la pantalla de monitores no
+                // tiene de donde sacar ni el aviso de seguimiento ni el
+                // porcentaje, y la mitad de esa pantalla no se podia probar:
+                // los tests pasaban porque no habia dato, no porque el codigo
+                // estuviera bien.
+                array(
+                    'fields' => array('id' => 'am1', 'status' => 'yes'),
+                    'sesion' => array('id' => 's1', 'name' => 'S1'),
+                    'inscripcion' => array('id' => 'regm1', 'name' => 'RM1'),
+                ),
+                array(
+                    'fields' => array('id' => 'am2', 'status' => 'no_unjustified'),
+                    'sesion' => array('id' => 's2', 'name' => 'S2'),
+                    'inscripcion' => array('id' => 'regm1', 'name' => 'RM1'),
+                ),
+                array(
+                    'fields' => array('id' => 'am3', 'status' => 'yes'),
+                    'sesion' => array('id' => 's3', 'name' => 'S3'),
+                    'inscripcion' => array('id' => 'regm1', 'name' => 'RM1'),
                 ),
             ), $rel);
         }
@@ -1961,6 +1994,87 @@ final class PasarListaRenderTest extends TestCase
         );
         // Y el contenido sigue estando, no se ha perdido por el camino.
         $this->assertStringContainsString('Director/a de tiempo libre', $html);
+    }
+
+    /**
+     * EL PORCENTAJE DE CADA MONITOR, EN LA LISTA (ROADMAP «ausencias»).
+     *
+     * Coordinación quiere el número sin abrir treinta fichas. Va pequeño y al
+     * final de la línea de los grupos: lo que salta a la vista sigue siendo la
+     * nota roja, que solo sale cuando hay algo que mirar.
+     */
+    public function test_la_lista_de_monitores_enseña_el_porcentaje()
+    {
+        // El doble trae tres sesiones, y el mínimo real para opinar son cuatro
+        // marcadas: se baja aquí para poder probar el pintado. El umbral de
+        // verdad se prueba en el test de al lado.
+        $GLOBALS['__stic_filters']['sticpa_pl_seguimiento_umbrales'] = array(
+            'pct_minimo' => 60, 'seguidas' => 3, 'minimo_para_opinar' => 1,
+        );
+        $this->scp->coordEtapa = 'COM';
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        $this->assertStringContainsString('pl-rowpct', $html);
+    }
+
+    /**
+     * Y NO se pinta con cuatro datos: un porcentaje sobre dos sesiones es una
+     * anécdota, y una anécdota con pinta de dato es peor que ningún dato.
+     */
+    public function test_sin_sesiones_suficientes_no_se_pinta_porcentaje()
+    {
+        $GLOBALS['__stic_filters']['sticpa_pl_seguimiento_umbrales'] = array(
+            'pct_minimo' => 60, 'seguidas' => 3, 'minimo_para_opinar' => 99,
+        );
+        $this->scp->coordEtapa = 'COM';
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        $this->assertStringNotContainsString('pl-rowpct', $html);
+    }
+
+    /**
+     * UN MONITOR DE DOS ETAPAS SALE UNA VEZ, Y LA OTRA SECCIÓN LO DICE.
+     *
+     * Dos filas de la misma persona en una lista de marcar acaban
+     * contradiciéndose, así que sale una sola vez —en la etapa de su curso más
+     * bajo—. Pero entonces quien mira la otra sección da por hecho que no está,
+     * y eso es peor: por eso la sección que no lo tiene lo nombra.
+     */
+    public function test_un_monitor_de_dos_etapas_sale_una_vez_y_se_dice()
+    {
+        $this->scp->coordEtapa = '';        // alcance ancho: entran las dos etapas
+        $this->scp->monitorDeDosEtapas = true;
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        // Una sola fila suya.
+        $this->assertSame(1, substr_count($html, 'data-contact="m1"'));
+        // Y la otra sección lo nombra, CON SU NOMBRE, que es lo que se busca.
+        $this->assertStringContainsString('También lleva grupo de esta etapa', $html);
+        $this->assertStringContainsString('David Soler (MIC)', $html);
+        // EL CASO PEOR: en esta prueba la sección de COM se queda sin ninguna
+        // fila propia. Antes desaparecía entera y la pantalla decía, sin
+        // decirlo, «en COM no hay monitores». Tiene que seguir estando.
+        $this->assertStringContainsString('>COM<', $html);
+    }
+
+    /**
+     * «CAMBIOS SIN GUARDAR» TIENE QUE SER OTRA COSA QUE «GUARDADO».
+     *
+     * Uno es una promesa y el otro un hecho, y hasta ahora eran el mismo
+     * párrafo gris. El texto viaja desde el servidor —el JS de esta área no
+     * tiene puente de traducción— y lo pinta la barra de guardar.
+     */
+    public function test_las_dos_listas_traen_el_aviso_de_sin_guardar()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $marcar = $this->render('single_stic_pasar_lista_marcar');
+        $this->assertStringContainsString('data-msg-dirty=', $marcar);
+        $this->assertStringContainsString('solo en tu móvil', $marcar);
+
+        $this->setUp();
+        $this->scp->coordEtapa = 'COM';
+        $monitores = $this->render('single_stic_pasar_lista_monitores');
+        $this->assertStringContainsString('data-msg-dirty=', $monitores);
     }
 
     /** El porcentaje también se ve sin leer números. */

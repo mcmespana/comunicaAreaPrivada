@@ -2053,8 +2053,43 @@ a.pl-group .pl-name { display: block; }
 .pl-status[data-kind="sync"]    { background: var(--primary-50); color: var(--primary-color); }
 .pl-status[data-kind="ok"]      { background: var(--success-50); color: var(--success-dark); }
 
+/* ---- «Cambios sin guardar» ---------------------------------------------
+   TIENE QUE DISTINGUIRSE MUCHO DEL VERDE DE «guardado en el CRM»: uno es una
+   promesa y el otro un hecho, y hasta ahora eran el mismo párrafo. Ámbar,
+   contorno propio —el único aviso de esta barra que lo lleva— y un punto que
+   late despacio a la izquierda del texto.
+
+   El latido no es adorno: un aviso quieto en una barra que siempre está ahí se
+   convierte en parte del mueble a los dos sábados. Late DESPACIO (1,8 s) y con
+   poco recorrido, que es la diferencia entre «esto sigue pendiente» y una
+   alarma. Solo `opacity` y `transform`: va por el compositor y no recalcula
+   nada. */
+.pl-status[data-kind="dirty"] {
+    background: var(--warning-soft);
+    color: var(--warning-dark);
+    box-shadow: inset 0 0 0 1.5px currentColor;
+}
+.pl-status[data-kind="dirty"]::before {
+    content: '';
+    flex-shrink: 0;
+    width: 9px;
+    height: 9px;
+    border-radius: var(--radius-full);
+    background: currentColor;
+    animation: pl-dirty-pulse 1.8s ease-in-out infinite;
+}
+@keyframes pl-dirty-pulse {
+    0%, 100% { opacity: 1;    transform: scale(1); }
+    50%      { opacity: 0.35; transform: scale(0.72); }
+}
+
 @keyframes pl-status-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .pl-status { animation: none; } }
+@media (prefers-reduced-motion: reduce) {
+    .pl-status { animation: none; }
+    /* El punto se queda, quieto: es la marca que distingue este aviso de los
+       demás, y quitarla dejaría el mismo ámbar del borrador. */
+    .pl-status[data-kind="dirty"]::before { animation: none; }
+}
 
 /* Quien pide menos movimiento no pierde ningún dato: todo lo de arriba es
    decoración del mismo contenido, así que se apaga entero. */
@@ -2714,6 +2749,23 @@ a.pl-group .pl-name { display: block; }
    informativa, no un contacto al que se pueda llamar. */
 .pl-phone--sinnum { opacity: 0.72; }
 .pl-phone-num--none { font-style: italic; color: var(--gray-400); }
+
+/* EL PORCENTAJE DE LA FILA. Va al final de la línea de los grupos, pequeño y
+   gris: coordinación quiere el número, pero treinta porcentajes en fila no se
+   leen —todos pesan lo mismo y ninguno destaca—. Se encuentra cuando se busca
+   y no compite cuando se escanea. Lo que salta a la vista sigue siendo la nota
+   roja de debajo, que solo sale cuando hay algo que mirar. */
+.pl-rowpct {
+    margin-left: 0.45rem;
+    padding-left: 0.45rem;
+    border-left: 1px solid var(--gray-200);
+    font-variant-numeric: tabular-nums;   /* dos filas seguidas se comparan */
+    color: var(--gray-400);
+}
+/* Por debajo del umbral toma el color del aviso: es el MISMO mensaje que la
+   nota roja de debajo, y dos idiomas para lo mismo en la misma fila se leen
+   como dos problemas distintos. */
+.pl-rowpct--bajo { color: var(--danger-dark); font-weight: 700; }
 
 /* ---- Las filas de contacto de la ficha del monitor ----------------------
    UNA FILA POR DATO, con su etiqueta. Antes el correo y el otro teléfono

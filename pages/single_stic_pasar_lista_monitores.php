@@ -205,6 +205,7 @@ $attendances = sticpa_pl_session_attendances($objSCP, $session['id'], $regMap);
  * en la misma tanda que la de arriba: ni un viaje más. Ninguna por monitor: si
  * aparece un 1+N aquí, el diseño está mal y hay que rehacerlo. */
 $avisos = array();
+$tracks = array();
 if ($seguimientoOn) {
     $porPersona = array();
     foreach (sticpa_pl_attendances_for_sessions($objSCP, $sessions, $regMap) as $sid => $porContacto) {
@@ -214,7 +215,10 @@ if ($seguimientoOn) {
     }
     foreach ($monitors as $m) {
         $marks = isset($porPersona[$m['id']]) ? $porPersona[$m['id']] : array();
-        $avisos[$m['id']] = sticpa_pl_seguimiento_aviso(sticpa_pl_att_track($sessions, $marks));
+        // El track entero, no solo el aviso: la fila enseña además el
+        // porcentaje en pequeño, y calcularlo dos veces sería tirar el trabajo.
+        $tracks[$m['id']] = sticpa_pl_att_track($sessions, $marks);
+        $avisos[$m['id']] = sticpa_pl_seguimiento_aviso($tracks[$m['id']]);
     }
 }
 
@@ -263,6 +267,7 @@ $html .= '<div data-pl-marcar data-pl-monitores'
     . ($savedOk ? ' data-pl-saved-ok' : '')
     . ' data-session="' . esc_attr($session['id']) . '"'
     . ' data-group="monitores"'
+    . ' data-msg-dirty="' . esc_attr__('Cambios sin guardar · los datos están solo en tu móvil', 'sticpa') . '"'
     . ' data-msg-draft="' . esc_attr__('Tienes marcas sin guardar de antes.', 'sticpa') . '"'
     . ' data-msg-offline="' . esc_attr__('Sin cobertura. Puedes marcar: se guardará en el móvil.', 'sticpa') . '"'
     . ' data-msg-queued="' . esc_attr__('Guardado en el móvil. Se enviará solo al volver la cobertura.', 'sticpa') . '"'
@@ -362,25 +367,76 @@ foreach ($monitors as $m) {
     $porEtapa[$etapa][] = $m;
 }
 
-// Una sección sola no es una sección: si todos son de la misma etapa, la
-// cabecera solo añadiría ruido.
-$conSecciones = (count($porEtapa) > 1);
-
+/* QUIÉN FALTA DE CADA SECCIÓN, Y POR QUÉ.
+ *
+ * Un monitor que lleva grupo en DOS etapas sale una sola vez, en la del curso
+ * más bajo — una fila, una marca; dos filas de la misma persona en una lista de
+ * marcar acaban contradiciéndose. Pero entonces el coordinador que mira la
+ * sección de COM no lo ve y da por hecho que no está.
+ *
+ * Y el caso peor: si TODOS los de una etapa están prestados, la sección
+ * desaparecía entera y la pantalla decía, sin decirlo, «en COM no hay
+ * monitores». Por eso los prestados se calculan ANTES de decidir qué secciones
+ * se pintan: una sección con gente prestada se pinta igual, aunque no tenga ni
+ * una fila propia, y CUENTA para decidir si hay que poner cabeceras. */
+$prestadosPor = array();
 foreach (array('MIC', 'COM', 'LC', '?') as $etapa) {
-    if (empty($porEtapa[$etapa])) {
-        continue;
+    $prestadosPor[$etapa] = array();
+    foreach ($monitors as $m) {
+        if (empty($m['etapas']) || $m['etapa'] === $etapa) {
+            continue;   // o no tiene etapas, o esta ES su sección
+        }
+        if (in_array($etapa, $m['etapas'], true)) {
+            $prestadosPor[$etapa][] = $m['name'] . ' (' . $m['etapa'] . ')';
+        }
     }
+}
+
+$conFilas = array();
+foreach (array('MIC', 'COM', 'LC', '?') as $etapa) {
+    if (!empty($porEtapa[$etapa]) || !empty($prestadosPor[$etapa])) {
+        $conFilas[] = $etapa;
+    }
+}
+
+// Una sección sola no es una sección: si todo es de la misma etapa, la cabecera
+// solo añadiría ruido.
+$conSecciones = (count($conFilas) > 1);
+
+foreach ($conFilas as $etapa) {
+    $prestados = $prestadosPor[$etapa];
     if ($conSecciones) {
         $dot = isset($etapaDots[$etapa]) ? $etapaDots[$etapa] : 'var(--gray-300)';
         $titulo = ($etapa === '?') ? __('Sin etapa', 'sticpa') : $etapa;
+        // La cuenta es de las filas PROPIAS. Una sección que solo tiene gente
+        // prestada dice «0 monitores», que es la verdad: aquí no hay ninguno
+        // que marcar, y la línea de debajo explica dónde están.
+        $propios = isset($porEtapa[$etapa]) ? count($porEtapa[$etapa]) : 0;
         $html .= '<div class="pl-etapa-title">'
             . '<span class="pl-etapa-dot" style="background:' . esc_attr($dot) . '"></span>'
             . esc_html($titulo)
             . '<span class="pl-etapa-count">' . esc_html(sprintf(
                 /* translators: %d: cuántos monitores hay en la etapa */
-                _n('%d monitor', '%d monitores', count($porEtapa[$etapa]), 'sticpa'),
-                count($porEtapa[$etapa])
+                _n('%d monitor', '%d monitores', $propios, 'sticpa'),
+                $propios
             )) . '</span></div>';
+    }
+
+    if (!empty($prestados)) {
+        $html .= '<p class="pl-hint pl-hint--rule"><span>' . esc_html(sprintf(
+            /* translators: %s: lista de nombres con la etapa donde sí salen */
+            _n(
+                'También lleva grupo de esta etapa: %s. Sale una sola vez, en su otra sección.',
+                'También llevan grupo de esta etapa: %s. Salen una sola vez, en su otra sección.',
+                count($prestados),
+                'sticpa'
+            ),
+            implode(', ', $prestados)
+        )) . '</span></p>';
+    }
+
+    if (empty($porEtapa[$etapa])) {
+        continue;   // solo prestados: la nota de arriba ya lo ha dicho todo
     }
 
     $html .= '<div class="pl-list">';
@@ -399,7 +455,8 @@ foreach (array('MIC', 'COM', 'LC', '?') as $etapa) {
         }
         $fichaUrl = '?internalpage=single_stic_pasar_lista_monitor&monitor=' . rawurlencode($m['id']);
         $aviso = isset($avisos[$m['id']]) ? $avisos[$m['id']] : '';
-        $html .= sticpa_pl_row_html($m, $state, 0, $fichaUrl, $sub, '', $aviso);
+        $track = isset($tracks[$m['id']]) ? $tracks[$m['id']] : null;
+        $html .= sticpa_pl_row_html($m, $state, 0, $fichaUrl, $sub, '', $aviso, $track);
     }
     $html .= '</div>';
 }
