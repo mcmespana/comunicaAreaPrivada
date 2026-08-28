@@ -707,7 +707,10 @@ class FakeSCP
             case 'stic_Sessions:stic_attendances_stic_sessions':
                 $filas = array(
                     'a1' => array('status' => 'yes', 'reg' => 'reg1'),
-                    'a2' => array('status' => '', 'reg' => 'reg2'),
+                    // Con MOTIVO ya escrito: hace falta para probar el caso de
+                    // borrarlo, que es donde la tanda y la escritura de verdad
+                    // se separaban y se pagaba dos veces.
+                    'a2' => array('status' => '', 'reg' => 'reg2', 'desc' => 'Se fue antes'),
                 );
                 // Lo escrito se ve al releer.
                 foreach ($filas as $id => $fila) {
@@ -729,7 +732,11 @@ class FakeSCP
                 $out = array();
                 foreach ($filas as $id => $fila) {
                     $out[] = $this->nvl(
-                        array('id' => $id, 'status' => $fila['status']),
+                        array(
+                            'id' => $id,
+                            'status' => $fila['status'],
+                            'description' => isset($fila['desc']) ? $fila['desc'] : '',
+                        ),
                         array(array('id' => $fila['reg']))
                     );
                 }
@@ -1300,6 +1307,46 @@ final class PasarListaRenderTest extends TestCase
         }));
         $this->assertCount(1, $attWrites);
         $this->assertArrayNotHasKey('description', $attWrites[0]['data']);
+    }
+
+    /**
+     * BORRAR UN MOTIVO NO PUEDE ESCRIBIR DOS VECES.
+     *
+     * Es el caso que separaba la tanda de la escritura de verdad. Con un motivo
+     * ya puesto en el CRM y el campo vacío en pantalla, la escritura manda
+     * `description => ''` para borrarlo; si la tanda no lo mandaba también, los
+     * dos payloads dejaban de ser el mismo, el memo no acertaba, y la misma
+     * asistencia se escribía dos veces. El memo va por la FIRMA de la petición:
+     * un campo de diferencia y no vale de nada.
+     */
+    public function test_borrar_un_motivo_no_duplica_la_escritura()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            /* c2 tiene «Se fue antes» en el CRM y aquí se ha borrado.
+             * OJO CON LA FORMA: el navegador NO manda `c2 => ''`, manda un
+             * `pl_notes` SIN c2 — `collectNotes()` solo mete las filas cuyo
+             * motivo no está vacío. Probarlo con la cadena vacía dentro no
+             * ejercita el caso real y deja pasar el fallo. */
+            'pl_marks' => json_encode(array('c1' => 'yes', 'c2' => 'yes')),
+            'pl_notes' => json_encode(array()),
+        );
+        $this->render('single_stic_pasar_lista_marcar');
+
+        $attWrites = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Attendances';
+        }));
+        $this->assertCount(2, $attWrites, 'una escritura por persona, ni una más');
+
+        // Y el borrado va de verdad.
+        $porId = array();
+        foreach ($attWrites as $w) {
+            $porId[$w['data']['id']] = $w['data'];
+        }
+        $this->assertArrayHasKey('description', $porId['a2']);
+        $this->assertSame('', $porId['a2']['description']);
     }
 
     /** Un motivo de un contacto que no es del grupo no se escribe. */

@@ -1727,7 +1727,7 @@ function sticpa_pl_att_update_payload($existing, $personId, $key, $note = null)
  * Las que hay que CREAR no entran: necesitan el id que devuelve el CRM para
  * atarlas, así que van en serie. Son la excepción, no el caso normal.
  */
-function sticpa_pl_prime_attendance_updates($objSCP, $marks, $existing, $notes = array())
+function sticpa_pl_prime_attendance_updates($objSCP, $marks, $existing, $notes = null)
 {
     $payloads = array();
     foreach ((array) $marks as $personId => $key) {
@@ -1735,7 +1735,17 @@ function sticpa_pl_prime_attendance_updates($objSCP, $marks, $existing, $notes =
         if ($key === '' || !sticpa_pl_is_state($key) || !isset($existing[$personId]['id'])) {
             continue;
         }
-        $note = array_key_exists($personId, (array) $notes) ? (string) $notes[$personId] : null;
+        // EL MISMO CRITERIO QUE LA ESCRITURA DE VERDAD, o el memo no acierta.
+        //
+        // `$notes === null` significa «esta pantalla no tiene motivos» (los
+        // monitores); un array significa «sí los tiene, y el de esta persona
+        // está vacío», que NO es lo mismo: con un motivo escrito antes, el
+        // vacío se escribe para borrarlo. Si aquí se pusiera `null` en los dos
+        // casos, el payload de la tanda no llevaría `description`, el de la
+        // escritura sí, y se pagarían las dos.
+        $note = ($notes === null)
+            ? null
+            : (isset($notes[$personId]) ? (string) $notes[$personId] : '');
         $payloads[] = sticpa_pl_att_update_payload($existing, $personId, $key, $note);
     }
     if (count($payloads) < 2) {
