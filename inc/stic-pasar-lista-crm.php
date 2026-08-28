@@ -2707,7 +2707,7 @@ function sticpa_pl_ficha($objSCP, $contactId)
  * Se piden desde la inscripción, no sesión por sesión: la inscripción tiene
  * todas sus asistencias colgando, y con el enlace a la sesión poblado vuelve
  * también de qué día es cada una. Devuelve array sessionId => clave de estado,
- * que es justo lo que come sticpa_pl_attendance() y sticpa_pl_absence_streak().
+ * que es justo lo que comen sticpa_pl_att_track() y sticpa_pl_absence_streak().
  */
 function sticpa_pl_contact_marks($objSCP, $registrationId)
 {

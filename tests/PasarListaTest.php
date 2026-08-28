@@ -113,39 +113,50 @@ final class PasarListaTest extends TestCase
     public function test_porcentaje_sobre_sesiones_celebradas()
     {
         $marks = array('s1' => 'yes', 's2' => 'no_unjustified', 's3' => 'yes', 's4' => 'yes');
-        $a = sticpa_pl_attendance($this->sessions(), $marks, $this->saturday(17));
+        $a = sticpa_pl_att_track($this->sessions(), $marks, $this->saturday(17));
 
         // 2 de 3, no 3 de 4: la cuarta sesión aún no ha pasado.
         $this->assertSame(2, $a['attended']);
         $this->assertSame(3, $a['elapsed']);
+        $this->assertSame(3, $a['counted']);
         $this->assertSame(67, $a['pct']);
-        $this->assertStringContainsString('3 sesiones', $a['text']);
     }
 
     /** "Parcial" cuenta como haber venido, igual que en el CRM. */
     public function test_parcial_cuenta_como_asistencia()
     {
         $marks = array('s1' => 'partial', 's2' => 'partial', 's3' => 'partial');
-        $a = sticpa_pl_attendance($this->sessions(), $marks, $this->saturday(17));
+        $a = sticpa_pl_att_track($this->sessions(), $marks, $this->saturday(17));
         $this->assertSame(3, $a['attended']);
         $this->assertSame(100, $a['pct']);
     }
 
-    /** Las horas también se cuentan hasta hoy: 3 sesiones × 1,5 h. */
+    /**
+     * Las horas siguen la misma regla que el porcentaje: solo lo marcado.
+     *
+     * Tres sesiones de 1,5 h marcadas = 4,5 h. Con la cuarta sin marcar (y sin
+     * celebrar), ni suma ni resta.
+     */
     public function test_horas_hasta_hoy()
     {
         $marks = array('s1' => 'yes', 's2' => 'yes', 's3' => 'yes');
-        $a = sticpa_pl_attendance($this->sessions(), $marks, $this->saturday(17));
+        $a = sticpa_pl_att_track($this->sessions(), $marks, $this->saturday(17));
         $this->assertSame(4.5, $a['hours']);
         $this->assertSame(4.5, $a['hours_total']);
+
+        // Y si una de las tres no está marcada, sale del total: «3 h de 3 h» y
+        // no «3 h de 4,5 h», que insinuaría una hora y media perdida.
+        $b = sticpa_pl_att_track($this->sessions(), array('s1' => 'yes', 's3' => 'yes'), $this->saturday(17));
+        $this->assertSame(3.0, $b['hours']);
+        $this->assertSame(3.0, $b['hours_total']);
     }
 
     /** Sin sesiones celebradas no se enseña un 0 % acusador. */
     public function test_antes_de_la_primera_sesion_no_hay_porcentaje()
     {
-        $a = sticpa_pl_attendance($this->sessions(), array(), mktime(12, 0, 0, 10, 1, 2025));
+        $a = sticpa_pl_att_track($this->sessions(), array(), mktime(12, 0, 0, 10, 1, 2025));
         $this->assertSame(0, $a['elapsed']);
-        $this->assertStringNotContainsString('%', $a['text']);
+        $this->assertSame(-1, $a['pct'], 'no se sabe, que no es cero');
     }
 
     // ---- Ausencias seguidas ---------------------------------------------

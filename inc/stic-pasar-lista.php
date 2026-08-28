@@ -281,60 +281,6 @@ function sticpa_pl_cmp_start($a, $b)
     return ($x < $y) ? -1 : 1;
 }
 
-/**
- * Asistencia de un participante HASTA HOY.
- *
- * $marks: array sessionId => clave de estado.
- * Devuelve array('attended','elapsed','pct','hours','hours_total','text').
- *
- * El 'text' lleva SIEMPRE el denominador ("82 % de 12 sesiones"). Un 82 % en
- * noviembre y un 82 % en mayo no son lo mismo, y sin denominador se leen igual.
- * Por eso tampoco se usa `attendance_percentage` de la inscripción, que el CRM
- * calcula sobre el evento completo y a mitad de curso da un número bajo que no
- * significa nada malo.
- */
-function sticpa_pl_attendance($sessions, $marks, $nowTs = null)
-{
-    $states = sticpa_pl_states();
-    $elapsed = sticpa_pl_elapsed_sessions($sessions, $nowTs);
-
-    $attended = 0;
-    $hours = 0.0;
-    $hoursTotal = 0.0;
-
-    foreach ($elapsed as $s) {
-        $dur = 0.0;
-        if (!empty($s['start']) && !empty($s['end']) && (int) $s['end'] > (int) $s['start']) {
-            $dur = ((int) $s['end'] - (int) $s['start']) / HOUR_IN_SECONDS;
-        }
-        $hoursTotal += $dur;
-
-        $key = isset($s['id'], $marks[$s['id']]) ? $marks[$s['id']] : '';
-        if (sticpa_pl_is_state($key) && $states[$key]['counts']) {
-            $attended++;
-            $hours += $dur;
-        }
-    }
-
-    $total = count($elapsed);
-    $pct = ($total > 0) ? (int) round(($attended / $total) * 100) : 0;
-
-    return array(
-        'attended' => $attended,
-        'elapsed' => $total,
-        'pct' => $pct,
-        'hours' => round($hours, 1),
-        'hours_total' => round($hoursTotal, 1),
-        'text' => ($total === 0)
-            ? __('Aún no ha habido sesiones', 'sticpa')
-            : sprintf(
-                /* translators: 1: porcentaje, 2: número de sesiones celebradas */
-                __('%1$d %% de %2$d sesiones', 'sticpa'),
-                $pct,
-                $total
-            ),
-    );
-}
 
 /**
  * Ausencias SEGUIDAS al final del histórico.
@@ -1042,8 +988,8 @@ function sticpa_pl_short_name($first, $last, $full = '')
 /**
  * La pista de asistencia: un cuadrado por sesión celebrada, y el porcentaje.
  *
- * Se parece a `sticpa_pl_attendance()` pero NO cuenta igual, y la diferencia es
- * deliberada: **una sesión sin marcar no cuenta en el porcentaje**. Si el
+ * LA REGLA de todo este bloque, y la usan también la ficha del participante y
+ * la lista de monitores: **una sesión sin marcar no cuenta en el porcentaje**. Si el
  * sábado que Marta faltó nadie pasó la lista de monitores, ese hueco no es una
  * falta suya, es un dato que no existe; meterlo en el denominador la acusa de
  * algo que nadie ha registrado. Los huecos se cuentan aparte (`unknown`) y la
@@ -1064,18 +1010,33 @@ function sticpa_pl_att_track($sessions, $marks, $nowTs = null)
     $vino = 0;
     $falto = 0;
     $sin = 0;
+    $horas = 0.0;
+    $horasTotal = 0.0;
 
     foreach ($elapsed as $s) {
         $id = isset($s['id']) ? (string) $s['id'] : '';
         $key = ($id !== '' && isset($marks[$id])) ? $marks[$id] : '';
+        $dur = 0.0;
+        if (!empty($s['start']) && !empty($s['end']) && (int) $s['end'] > (int) $s['start']) {
+            $dur = ((int) $s['end'] - (int) $s['start']) / 3600;
+        }
+
         if (!sticpa_pl_is_state($key)) {
             $key = '';
             $sin++;
-        } elseif (!empty($states[$key]['counts'])) {
-            $vino++;
         } else {
-            $falto++;
+            // Las horas siguen la MISMA regla que el porcentaje: solo cuentan
+            // las sesiones marcadas. Si no, saldría «3 h de 12 h» con nueve de
+            // esas horas sin que nadie sepa si estuvo o no.
+            $horasTotal += $dur;
+            if (!empty($states[$key]['counts'])) {
+                $vino++;
+                $horas += $dur;
+            } else {
+                $falto++;
+            }
         }
+
         $squares[] = array(
             'id' => $id,
             'start' => isset($s['start']) ? (int) $s['start'] : 0,
@@ -1092,6 +1053,8 @@ function sticpa_pl_att_track($sessions, $marks, $nowTs = null)
         'unknown' => $sin,
         'counted' => $contadas,
         'pct' => ($contadas > 0) ? (int) round(($vino / $contadas) * 100) : -1,
+        'hours' => round($horas, 1),
+        'hours_total' => round($horasTotal, 1),
     );
 }
 
@@ -1162,6 +1125,78 @@ function sticpa_pl_listas_track($sessions, $listas, $monitorId, $nowTs = null)
         // que el propio grupo marcó como que no hubo.
         'esperadas' => count($elapsed) - $omitidas,
     );
+}
+
+/**
+ * Los umbrales del aviso de seguimiento. Conservadores a propósito.
+ *
+ * Es un dato sensible entre compañeros: un aviso de más quema la confianza en
+ * el aviso, y a la tercera vez que salta sin motivo nadie lo mira. Filtrables
+ * porque cada delegación sabe cómo es su curso.
+ */
+function sticpa_pl_seguimiento_umbrales()
+{
+    return apply_filters('sticpa_pl_seguimiento_umbrales', array(
+        // Por debajo de esto, la lista lo señala.
+        'pct_minimo' => 60,
+        // Faltas seguidas al final: es lo que de verdad hace llamar. Alguien
+        // que falta una de cada cinco desde octubre no preocupa; alguien que
+        // lleva tres seguidas, sí.
+        'seguidas' => 3,
+        // Y por debajo de esta cuenta de sesiones marcadas no se avisa de nada:
+        // con dos datos, un porcentaje es una anécdota.
+        'minimo_para_opinar' => 4,
+    ));
+}
+
+/**
+ * ¿Hay algo que mirar en este monitor? Una frase corta, o nada.
+ *
+ * Se calcula sobre una pista ya hecha (`sticpa_pl_att_track()`), así que no
+ * cuesta ninguna consulta: en la lista de monitores es lo que decide a quién
+ * hay que mirar de los treinta, que es la única pregunta que se hace ahí.
+ *
+ * Devuelve '' cuando no hay nada que decir, que es el caso normal y el que
+ * mantiene la lista limpia.
+ */
+function sticpa_pl_seguimiento_aviso($track, $nowTs = null)
+{
+    $u = sticpa_pl_seguimiento_umbrales();
+    if (!is_array($track) || (int) $track['counted'] < (int) $u['minimo_para_opinar']) {
+        return '';
+    }
+
+    // Las últimas seguidas, mirando hacia atrás y SALTÁNDOSE los huecos: un
+    // sábado sin marcar no rompe una racha de faltas ni la crea.
+    $states = sticpa_pl_states();
+    $seguidas = 0;
+    for ($i = count($track['squares']) - 1; $i >= 0; $i--) {
+        $key = $track['squares'][$i]['state'];
+        if ($key === '') {
+            continue;
+        }
+        if (!empty($states[$key]['counts'])) {
+            break;
+        }
+        $seguidas++;
+    }
+    if ($seguidas >= (int) $u['seguidas']) {
+        return sprintf(
+            /* translators: %d: cuántas sesiones seguidas lleva sin venir */
+            _n('%d sesión seguida sin venir', '%d seguidas sin venir', $seguidas, 'sticpa'),
+            $seguidas
+        );
+    }
+
+    $pct = (int) $track['pct'];
+    if ($pct >= 0 && $pct < (int) $u['pct_minimo']) {
+        return sprintf(
+            /* translators: %d: porcentaje de asistencia */
+            __('%d %% de asistencia', 'sticpa'),
+            $pct
+        );
+    }
+    return '';
 }
 
 // ---------------------------------------------------------------------------

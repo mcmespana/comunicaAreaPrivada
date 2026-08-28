@@ -1879,16 +1879,25 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('tel:600111222', $html);
     }
 
-    /** El porcentaje se dice con denominador, y sobre sesiones celebradas. */
+    /**
+     * El porcentaje se dice con denominador, y el denominador son las sesiones
+     * MARCADAS.
+     *
+     * Si el grupo pasó tres listas de diez, un chaval que vino a las tres no
+     * tiene un 30 %: tiene un 100 % de lo que se sabe y siete sábados sin
+     * datos. Los sábados sin lista se cuentan aparte y la ficha los dice.
+     */
     public function test_ficha_asistencia_con_denominador()
     {
         $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
         $html = $this->render('single_stic_pasar_lista_ficha');
 
-        // yes + partial cuentan: 2 de las 3 sesiones celebradas (s4 no ha llegado).
-        $this->assertStringContainsString('2 de 3 sesiones', $html);
+        // yes + partial cuentan: 2 de las 3 sesiones marcadas (s4 no ha llegado).
+        $this->assertStringContainsString('2 de 3 sesiones marcadas', $html);
         $this->assertStringContainsString('67', $html);
-        $this->assertStringContainsString('hasta hoy', $html);
+        // Y los cuadraditos, el mismo idioma que en la ficha de un monitor.
+        $this->assertStringContainsString('pl-sq--yes', $html);
+        $this->assertStringContainsString('pl-sq--partial', $html);
     }
 
     /** Solo los campos de salud con contenido: nada de etiquetas vacías. */
@@ -2467,9 +2476,13 @@ final class PasarListaRenderTest extends TestCase
         $this->render('single_stic_pasar_lista_monitores');
 
         $this->assertNotEmpty($this->scp->batches);
-        $this->assertLessThanOrEqual(2, count($this->scp->batches));
-        // Al menos cinco de sus consultas viajan agrupadas.
-        $this->assertGreaterThanOrEqual(5, array_sum($this->scp->batches));
+        // Tres tandas: lo independiente, lo que depende del evento, y las dos
+        // lecturas de asistencias —la de la sesión y la del curso entero para
+        // los avisos—, que van DESPUÉS del guardado y por eso no caben en la
+        // segunda. Tres viajes, no siete consultas en fila.
+        $this->assertLessThanOrEqual(3, count($this->scp->batches));
+        // Y la mayoría de sus consultas viajan agrupadas.
+        $this->assertGreaterThanOrEqual(7, array_sum($this->scp->batches));
     }
 
     /**

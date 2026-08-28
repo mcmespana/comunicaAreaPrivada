@@ -2434,3 +2434,7 @@ a.pl-group .pl-name { display: block; }
 /* Una fila de contacto que ES un enlace (el correo): sin los dos botones, pero
    con la misma altura y el mismo sitio que las de teléfono. */
 .pl-phone--link { color: inherit; text-decoration: none; }
+
+/* «Sin datos» ocupa el sitio del número grande, pero no grita como él: es la
+   ausencia de un dato, no un dato malo. */
+.pl-att-pct--none { font-size: 1rem; font-weight: 700; color: var(--gray-400); }

@@ -82,7 +82,7 @@ function sticpa_pl_icon($which)
  * Es un <button> y no un <div> con onclick: así lo alcanza el teclado y lo
  * anuncia el lector de pantalla sin tener que añadir roles a mano.
  */
-function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub = '', $motive = '')
+function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub = '', $motive = '', $aviso = '')
 {
     $states = sticpa_pl_states();
     $state = sticpa_pl_is_state($state) ? $state : '';
@@ -94,6 +94,13 @@ function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub =
             _n('%d ausencia seguida', '%d ausencias seguidas', $streak, 'sticpa'),
             $streak
         );
+    }
+    // Un aviso ya escrito por quien llama —el seguimiento de un monitor— usa el
+    // mismo sitio y el mismo rojo que la racha de ausencias de un chaval: es el
+    // mismo mensaje («a esta persona hay que mirarla») y no merece un segundo
+    // idioma en la misma lista.
+    if ($aviso !== '') {
+        $warn = $aviso;
     }
 
     // La nota bajo el nombre: el estado del gesto largo (que si no, es invisible)
