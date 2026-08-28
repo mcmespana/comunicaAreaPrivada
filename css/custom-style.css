@@ -169,14 +169,18 @@
 .stic-tab-content {
     margin-top: 0.65rem;
     padding: clamp(0.9rem, 2.5vw, 1.5rem);
-    /* LOS LADOS, MÁS ESTRECHOS QUE ARRIBA Y ABAJO.
-       En un móvil de 390 px esta tarjeta se comía 14 px por cada lado ANTES de
-       contar lo que mete el tema de WordPress por fuera, y dentro casi todo lo
-       que va son a su vez tarjetas con su propio margen: el hueco se pagaba dos
-       veces y el contenido —los nombres de una lista, un correo largo— se
-       quedaba sin sitio. Sigue habiendo aire, pero la mitad.
-       Se toca con `--stic-gutter` si alguna delegación lo quiere distinto. */
-    padding-inline: var(--stic-gutter, clamp(0.45rem, 1.4vw, 1.5rem));
+    /* OJO: EL RELLENO LATERAL DE AQUÍ NO SE APLICA.
+       §20.a, más abajo en esta misma hoja, lo pisa entero con
+       `padding: clamp(0.5rem, 2vw, 1rem) 0 !important` — regla global, no de
+       una media query. O sea que a los lados esta tarjeta ya vale CERO.
+       Se deja escrito porque es exactamente lo que hace perder media hora:
+       tocar este `padding` para ganar ancho no cambia ni un píxel. El hueco
+       lateral que se ve en el móvil lo mete el tema de WordPress POR FUERA de
+       `.stic-container`, y para comértelo hay que sangrar con margen negativo
+       —que es lo que ya hacen algunos bloques de Pasar Lista y lo que provocó
+       los 32 px de desbordamiento que tapa `overflow-x: clip` (plan 035)—.
+       Antes de volver a intentarlo: MEDIR el relleno real del tema en la
+       página de verdad. Adivinarlo es lo que salió mal la vez anterior. */
     animation: stic-fade-up 0.5s var(--ease-out) both;
     background: var(--surface);
     border: 1px solid var(--gray-200);
