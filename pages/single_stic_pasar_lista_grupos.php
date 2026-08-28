@@ -261,16 +261,14 @@ $doneMark = function ($gid) use ($lastMarks) {
 // justo lo que la gente recuerda («el de Mercedes», «el de 1º ESO»).
 // Se pinta solo si hay bastantes grupos para que haga falta: un buscador sobre
 // cuatro filas es un trasto.
+// El cuadro y el «no coincide nada» viven en `sticpa_pl_buscador_html()`: los
+// comparte con «Mis grupos», que busca lo mismo de otra manera.
 if (count($groups) >= 8) {
-    $html .= '<div class="pl-search">';
-    $html .= sticpa_pl_icon('search');
-    $html .= '<input type="search" data-pl-filter'
-        . ' placeholder="' . esc_attr__('Buscar grupo, monitor o curso…', 'sticpa') . '"'
-        . ' aria-label="' . esc_attr__('Buscar grupo', 'sticpa') . '"'
-        . ' autocomplete="off" enterkeyhint="search">';
-    $html .= '</div>';
-    $html .= '<p class="pl-search-empty" data-pl-filter-empty hidden>'
-        . esc_html__('Ningún grupo coincide con lo que buscas.', 'sticpa') . '</p>';
+    $html .= sticpa_pl_buscador_html(
+        __('Buscar grupo, monitor o curso…', 'sticpa'),
+        __('Buscar grupo', 'sticpa')
+    );
+    $html .= sticpa_pl_buscador_vacio_html(__('Ningún grupo coincide con lo que buscas.', 'sticpa'));
 }
 
 // La leyenda, arriba y una sola vez. Los tres estados que puede tener el
@@ -386,16 +384,4 @@ if (!empty($sinGrupo)) {
 // Los grupos que la casilla del CRM deja fuera. Va ABAJO y en gris pequeño: es
 // una nota al pie, no un aviso. Pero tiene que estar: un grupo que existe y no
 // aparece, sin explicación, se lee como que la pantalla está rota.
-$ocultos = sticpa_pl_grupos_ocultos($objSCP);
-if ($ocultos > 0) {
-    $html .= '<p class="pl-footnote">' . esc_html(sprintf(
-        /* translators: %d: cuántos grupos no salen */
-        _n(
-            '%d grupo más en el CRM sin marcar para Pasar Lista.',
-            '%d grupos más en el CRM sin marcar para Pasar Lista.',
-            $ocultos,
-            'sticpa'
-        ),
-        $ocultos
-    )) . '</p>';
-}
+$html .= sticpa_pl_grupos_ocultos_html($objSCP);

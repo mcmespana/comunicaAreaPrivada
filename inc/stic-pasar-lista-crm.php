@@ -2813,6 +2813,32 @@ function sticpa_pl_group_etapa($level)
 }
 
 /**
+ * ¿Esta persona es de MI delegación?
+ *
+ * La usa el endpoint de fotos, que es el único sitio del área privada donde un
+ * id de persona llega desde el request y se convierte en un dato de esa
+ * persona. La respuesta sale del mapa de relaciones, que ya está cacheado: la
+ * comprobación no cuesta ninguna llamada al CRM.
+ *
+ * Se miran TODAS las relaciones, también las terminadas: quien fue del grupo el
+ * curso pasado sigue saliendo en el histórico de una ficha, y su foto ahí no es
+ * una fuga — es la misma pantalla que ya se puede abrir entera.
+ */
+function sticpa_pl_persona_de_mi_delegacion($objSCP, $contactId)
+{
+    $contactId = sticpa_pl_safe_id($contactId);
+    if ($contactId === '') {
+        return false;
+    }
+    foreach (sticpa_pl_all_relationships_raw($objSCP) as $rel) {
+        if (isset($rel['person']['id']) && (string) $rel['person']['id'] === $contactId) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
  * Los grupos en los que el usuario conectado es MONITOR.
  *
  * Es lo que permite el atajo de la home y el "Tu grupo" del árbol. No limita

@@ -1158,16 +1158,24 @@
     }
 
     /* =====================================================================
-     * Árbol de grupos: el buscador
+     * El buscador: árbol de grupos y «Mis grupos»
      * ---------------------------------------------------------------------
      * Filtra lo que YA está pintado: ni una consulta, ni una recarga. Con
-     * veintiocho grupos, encontrar el tuyo era leer la lista entera.
+     * veintiocho grupos, encontrar el tuyo era leer la lista entera; con
+     * trescientos chavales en la vista A-Z, más todavía.
      *
-     * Se busca sobre el texto de la fila entera (código, nombre, curso y
-     * monitores), sin acentos y sin mayúsculas, porque nadie escribe «Emaús»
-     * con tilde en un buscador. Las cabeceras de etapa se esconden cuando se
-     * quedan sin filas: una cabecera «COM» sola es peor que nada.
+     * Se busca sobre el texto de la fila entera (código, nombre, curso,
+     * monitores; o nombre, grupo y edad en las filas de personas), sin acentos
+     * y sin mayúsculas, porque nadie escribe «Emaús» con tilde en un buscador.
+     * Las cabeceras se esconden cuando se quedan sin filas: una cabecera «COM»
+     * sola es peor que nada.
      * ===================================================================== */
+
+    // Lo filtrable, en un sitio: tarjetas de grupo (árbol y «Mis grupos») y
+    // filas de persona (`sticpa_pl_person_link_html`). Las filas de MARCAR no
+    // entran: allí no hay buscador, y esconder una fila de una lista que se está
+    // guardando es pedir un lío.
+    var PL_FILTRABLE = '.pl-list .pl-group, .pl-mine, .pl-list .pl-rowlink';
 
     var filterInput = document.querySelector('[data-pl-filter]');
     if (filterInput) {
@@ -1177,7 +1185,7 @@
         // cada pulsación es trabajo repetido sobre algo que no cambia.
         var rows = [];
         Array.prototype.forEach.call(
-            document.querySelectorAll('.pl-list .pl-group, .pl-mine'),
+            document.querySelectorAll(PL_FILTRABLE),
             function (el) { rows.push({ el: el, hay: norm(el.textContent) }); }
         );
 
@@ -1200,15 +1208,18 @@
                 if (hit) { shown++; }
             });
 
-            // Cabeceras de etapa y sus listas: fuera si no queda nada dentro.
+            // Cabeceras y sus listas: fuera si no queda nada dentro. Vale
+            // igual para la cabecera de etapa del árbol y para el «Monitores» /
+            // «Participantes» de la ficha de un grupo.
             Array.prototype.forEach.call(
                 document.querySelectorAll('.pl-list'),
                 function (list) {
-                    var any = !!list.querySelector('.pl-group:not([hidden])');
+                    var any = !!list.querySelector('.pl-group:not([hidden]), .pl-rowlink:not([hidden])');
                     list.hidden = !any;
                     // El título va justo ANTES de la lista en el HTML.
                     var title = list.previousElementSibling;
-                    if (title && title.classList.contains('pl-etapa-title')) {
+                    if (title && (title.classList.contains('pl-etapa-title')
+                        || title.classList.contains('pl-sec'))) {
                         title.hidden = !any;
                     }
                 }

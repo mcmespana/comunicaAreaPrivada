@@ -94,6 +94,8 @@ if (!function_exists('esc_attr'))    { function esc_attr($t) { return $t; } }
 if (!function_exists('esc_attr__'))  { function esc_attr__($t, $d = null) { return $t; } }
 if (!function_exists('esc_html__'))  { function esc_html__($t, $d = null) { return $t; } }
 if (!function_exists('esc_url'))     { function esc_url($u) { return $u; } }
+// La URL de admin-post.php: la usa el avatar con foto de «Mis grupos».
+if (!function_exists('admin_url'))   { function admin_url($p = '') { return '/wp-admin/' . $p; } }
 if (!function_exists('is_singular')) { function is_singular($t = '') { return false; } }
 if (!function_exists('get_post'))    { function get_post($p = null) { return null; } }
 if (!function_exists('has_shortcode')) { function has_shortcode($c, $tag) { return false; } }

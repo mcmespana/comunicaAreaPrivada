@@ -37,10 +37,18 @@ function pageCacheName() {
     return userKey ? (CACHE_PREFIX + 'pages-' + userKey) : null;
 }
 
-/** ¿Es una pantalla de Pasar Lista? Solo esas se guardan. */
+/** ¿Es una pantalla de Pasar Lista? Solo esas se guardan.
+ *
+ * Copia de `sticpa_es_pantalla_pl()` (inc/stic-pasar-lista.php): el service
+ * worker no ve PHP. Si allí se añade una pantalla, aquí también. */
+var PL_EXTRA = ['single_stic_mis_grupos'];
+
 function isPasarLista(url) {
-    return url.searchParams.get('internalpage') &&
-        url.searchParams.get('internalpage').indexOf('single_stic_pasar_lista') === 0;
+    var page = url.searchParams.get('internalpage');
+    if (!page) {
+        return false;
+    }
+    return page.indexOf('single_stic_pasar_lista') === 0 || PL_EXTRA.indexOf(page) !== -1;
 }
 
 /** Recursos estáticos del plugin: CSS, JS, tipografías, iconos. */

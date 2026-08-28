@@ -2933,3 +2933,117 @@ a.pl-group .pl-name { display: block; }
 }
 .pl-fold--hist .pl-hist { padding-top: 0.4rem; }
 .pl-fold--hist .pl-footnote { padding-bottom: 0.8rem; }
+
+/* ==========================================================================
+   MIS GRUPOS — leer las fichas sin pasar lista
+   --------------------------------------------------------------------------
+   Casi todo está reutilizado: la tarjeta de grupo, la cabecera de etapa, el
+   buscador, el avatar y la flecha son los MISMOS de Pasar Lista. Aquí solo va
+   lo que no existía: las pestañas, la fila que es un enlace en vez de un botón
+   y la foto dentro del avatar.
+   ========================================================================== */
+
+/* Las pestañas. Tres formas de mirar la misma gente, así que son pestañas y no
+   tres pantallas: cambiar de vista no debe sentirse como irse a otro sitio.
+   Se desplazan en horizontal porque en un móvil estrecho «Participantes» y
+   «Monitores» no caben, y partirlas en dos filas las convierte en un menú. */
+.pl-tabs {
+    display: flex;
+    gap: 0.35rem;
+    margin-bottom: 0.75rem;
+    padding: 0.28rem;
+    border-radius: var(--radius-lg);
+    background: var(--gray-100);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+}
+.pl-tabs::-webkit-scrollbar { display: none; }
+
+.pl-tab {
+    flex: 1 1 0;
+    min-width: max-content;
+    padding: 0.5rem 0.85rem;
+    border-radius: calc(var(--radius-lg) - 0.28rem);
+    font-size: 0.86rem;
+    font-weight: 700;
+    color: var(--gray-500);
+    text-align: center;
+    text-decoration: none !important;
+    white-space: nowrap;
+    transition: background 160ms var(--ease-out), color 160ms var(--ease-out);
+}
+.pl-tab:hover { color: var(--gray-700); }
+.pl-tab.is-active {
+    background: var(--surface);
+    color: var(--gray-900);
+    box-shadow: var(--shadow-xs);
+}
+/* La segunda barra (chavales / monitores) es una decisión menor que la de
+   arriba, y se nota: más pequeña y sin fondo propio. Dos barras del mismo peso
+   una encima de otra no dicen cuál manda. */
+.pl-tabs--quien {
+    background: none;
+    padding: 0 0 0.15rem;
+    gap: 0.5rem;
+    margin-bottom: 0.9rem;
+}
+.pl-tabs--quien .pl-tab {
+    flex: 0 0 auto;
+    padding: 0.3rem 0.7rem;
+    border-radius: var(--radius-full);
+    font-size: 0.8rem;
+    border: 1px solid var(--gray-200);
+}
+.pl-tabs--quien .pl-tab.is-active {
+    background: var(--gray-900);
+    border-color: var(--gray-900);
+    color: var(--surface);
+    box-shadow: none;
+}
+
+/* La fila de una persona cuando es un ENLACE y no un botón de marcar. Hereda de
+   `.pl-rowwrap` el filete y la caja; lo que añade es el relleno que en la lista
+   de marcar pone el `<button>` de dentro, que aquí no existe. */
+.pl-rowlink {
+    gap: 0.75rem;
+    padding: 0.7rem 0.35rem 0.7rem 0.85rem;
+    text-decoration: none !important;
+    color: inherit;
+}
+.pl-rowlink:hover { background: var(--gray-50); }
+.pl-rowlink:active { background: var(--gray-100); }
+.pl-rowlink .pl-name { color: var(--gray-800); }
+
+/* La flecha que solo indica «esto se abre». En la lista de marcar la flecha es
+   un enlace propio con su objetivo táctil de 44 px; aquí el objetivo es la fila
+   entera, así que la flecha es decoración y no necesita su caja. */
+.pl-detail--static { width: 28px; }
+
+/* LA FOTO. Va DENTRO del mismo círculo que las iniciales y encima de ellas: si
+   la persona no tiene foto —o el CRM tarda, o falla— lo que queda debajo son
+   las iniciales de siempre, sin hueco ni salto. Por eso las iniciales se pintan
+   siempre y la foto se superpone, y no al revés. */
+.pl-avatar { position: relative; overflow: hidden; }
+.pl-avatar-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
+    /* Entra con una transición corta: la foto llega después del HTML y
+       aparecer de golpe encima de las iniciales da un parpadeo feo. */
+    animation: pl-avatar-in 240ms var(--ease-out) both;
+}
+@keyframes pl-avatar-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* La cabecera de la ficha de un grupo: el mismo bloque de identidad de la ficha
+   de una persona, pero sin avatar — un grupo no tiene cara. */
+.pl-ident--grupo { padding-top: 0.2rem; }
+.pl-ident--grupo .pl-ident-name { font-size: 1.15rem; }
+
+@media (prefers-reduced-motion: reduce) {
+    .pl-avatar-img { animation: none; }
+    .pl-tab { transition: none; }
+}

@@ -25,8 +25,14 @@ function getSticMenuElements()
 
     // Pasar Lista: solo monitores, y solo cuando la persona es ella misma (un
     // familiar mirando la ficha de su hijo no pasa lista de nadie).
+    // «Mis grupos» va al lado y con la misma condición: es la misma gente vista
+    // sin pasar lista —para leer una ficha, mirar un teléfono, buscar a alguien
+    // por su nombre— y hasta ahora había que entrar a marcar una lista para
+    // llegar. Comparte cargadores, caché y estilos con Pasar Lista: es la misma
+    // sección, con otra puerta.
     if ($role === 'monitor' && $audience !== 'participante') {
         $menuElements['single_stic_pasar_lista'] = __('Pasar lista', 'sticpa');
+        $menuElements['single_stic_mis_grupos'] = __('Mis grupos', 'sticpa');
     }
 
     // --- Secciones del área privada (las que ya había) ---

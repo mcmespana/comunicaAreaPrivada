@@ -4116,4 +4116,163 @@ final class PasarListaRenderTest extends TestCase
         $this->assertCount(1, $listas);
         $this->assertSame('omitida', $listas[0]['data']['estado']);
     }
+
+    // ---- Mis grupos ------------------------------------------------------
+
+    /**
+     * El índice por grupos: los tuyos primero, con su etiqueta, y los demás por
+     * etapa. Es lo que se pidió y lo que se busca casi siempre.
+     */
+    public function test_mis_grupos_pone_tus_grupos_primero()
+    {
+        $html = $this->render('single_stic_mis_grupos');
+
+        $this->assertStringContainsString('Tus grupos', $html);
+        $this->assertStringContainsString('Tu grupo', $html);
+        // g1 es el de David, que es quien está en sesión.
+        $this->assertStringContainsString('Los Peques', $html);
+        // Y va DELANTE de los demás, no en su sección de etapa.
+        $this->assertLessThan(
+            strpos($html, 'Los Micos'),
+            strpos($html, 'Los Peques'),
+            'Tu grupo tiene que ir el primero de la pantalla.'
+        );
+        // Enlaza dentro de «Mis grupos», no a marcar: aquí no se marca nada.
+        $this->assertStringContainsString('internalpage=single_stic_mis_grupos', $html);
+        $this->assertStringNotContainsString('single_stic_pasar_lista_marcar', $html);
+    }
+
+    /** Los recuentos que se pidieron, contados de la gente que hay de verdad. */
+    public function test_mis_grupos_enseña_los_recuentos_de_cada_grupo()
+    {
+        $html = $this->render('single_stic_mis_grupos');
+
+        // g1 tiene tres participantes vigentes (c1, c2 y la adulta c3) y un
+        // monitor (m1). Se cuentan del mapa, no del recuento nocturno.
+        $this->assertStringContainsString('3 chavales', $html);
+        $this->assertStringContainsString('1 monitor', $html);
+    }
+
+    /**
+     * EL CERO INVENTADO. Con el mapa de la delegación inservible, un grupo no
+     * puede decir «0 chavales»: se lee como un dato y es un fallo. Sale el
+     * recuento que dejó el Guardián, o no sale nada.
+     */
+    public function test_mis_grupos_no_inventa_un_cero_cuando_el_mapa_falla()
+    {
+        $this->scp->sinEnlaces = true;
+        $html = $this->render('single_stic_mis_grupos');
+
+        $this->assertStringNotContainsString('0 chavales', $html);
+        // g2 lleva `ajmcm_n_participantes_c = 10` con recuento del 1/9, que a
+        // 15/11 ya no es fresco; g3 lo tiene del 14/11, o sea de anoche.
+        $this->assertStringContainsString('9 chavales', $html);
+    }
+
+    /** La ficha de un grupo: su gente, en dos secciones y sin marcar nada. */
+    public function test_mis_grupos_de_un_grupo_lista_a_su_gente()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_mis_grupos');
+
+        $this->assertStringContainsString('Solete Vilarroya', $html);
+        $this->assertStringContainsString('Jaume Pascual', $html);
+        $this->assertStringContainsString('Monitores', $html);
+        $this->assertStringContainsString('Participantes', $html);
+        // Filas que son ENLACES a la ficha, no botones de marcar.
+        $this->assertStringContainsString('pl-rowlink', $html);
+        $this->assertStringContainsString('single_stic_pasar_lista_ficha', $html);
+        $this->assertStringNotContainsString('pl-mark', $html);
+    }
+
+    /** La foto, que es lo que se pidió: en el avatar y por el endpoint propio. */
+    public function test_mis_grupos_pide_la_foto_de_cada_persona()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_mis_grupos');
+
+        $this->assertStringContainsString('action=stic_pl_photo', $html);
+        $this->assertStringContainsString('persona=c1', $html);
+        // Y las iniciales siguen debajo: si no hay foto, no queda un hueco.
+        $this->assertStringContainsString('pl-avatar', $html);
+        $this->assertStringContainsString('SV', $html);
+    }
+
+    /** La vista A-Z: toda la gente seguida y ordenada por apellido. */
+    public function test_mis_grupos_az_ordena_por_apellido_y_no_repite()
+    {
+        $_REQUEST = array('ver' => 'az');
+        $html = $this->render('single_stic_mis_grupos');
+
+        // Adulta, Pascual, Vilarroya: por apellido.
+        $this->assertLessThan(strpos($html, 'Jaume Pascual'), strpos($html, 'Marta Adulta'));
+        $this->assertLessThan(strpos($html, 'Solete Vilarroya'), strpos($html, 'Jaume Pascual'));
+        // Una sola ficha por persona, aunque tenga dos relaciones vigentes.
+        $this->assertSame(1, substr_count($html, 'Solete Vilarroya'));
+        // Los que no están en ningún grupo de Pasar Lista no salen aquí: esta
+        // pantalla es «mis grupos», y para esos está el resumen.
+        $this->assertStringNotContainsString('Sol Messeguer', $html);
+    }
+
+    /** La vista por curso, que cruza los grupos: era lo que faltaba. */
+    public function test_mis_grupos_por_curso_agrupa_cruzando_grupos()
+    {
+        $_REQUEST = array('ver' => 'cursos');
+        $html = $this->render('single_stic_mis_grupos');
+
+        // g1 es «1º ESO» en el doble: su gente sale bajo ese título, junta,
+        // aunque estuvieran repartidos en varios grupos.
+        $this->assertStringContainsString('1º ESO', $html);
+        $this->assertStringContainsString('Solete Vilarroya', $html);
+        // Y el título lleva su recuento.
+        $this->assertStringContainsString('participantes', $html);
+    }
+
+    /** El buscador: solo se pinta una vez y con su mensaje de «nada coincide». */
+    public function test_mis_grupos_lleva_buscador()
+    {
+        $html = $this->render('single_stic_mis_grupos');
+
+        $this->assertSame(1, substr_count($html, 'data-pl-filter '));
+        $this->assertStringContainsString('data-pl-filter-empty', $html);
+    }
+
+    /**
+     * Los monitores son de COORDINACIÓN. Un monitor raso que escriba
+     * `?quien=monitores` a mano no ve la lista de nadie: se le devuelve a los
+     * chavales, que es lo suyo.
+     */
+    public function test_mis_grupos_monitores_solo_con_alcance_de_coordinacion()
+    {
+        $_REQUEST = array('quien' => 'monitores');
+        $html = $this->render('single_stic_mis_grupos');
+
+        // Sin alcance no hay ni pestaña de monitores.
+        $this->assertStringNotContainsString('pl-tabs--quien', $html);
+        // Y lo que se pinta son los chavales.
+        $this->assertStringContainsString('Tus grupos', $html);
+    }
+
+    /** Con alcance, los monitores agrupados por etapa, como se pidió. */
+    public function test_mis_grupos_monitores_por_etapa_para_coordinacion()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_REQUEST = array('quien' => 'monitores');
+        $html = $this->render('single_stic_mis_grupos');
+
+        $this->assertStringContainsString('pl-tabs--quien', $html);
+        $this->assertStringContainsString('David Soler', $html);
+        // Enlaza a la ficha del monitor, no a la del participante.
+        $this->assertStringContainsString('single_stic_pasar_lista_monitor&monitor=', $html);
+    }
+
+    /** Un modo inventado en la URL no rompe nada: se cae al de por defecto. */
+    public function test_mis_grupos_ignora_un_modo_inventado()
+    {
+        $_REQUEST = array('ver' => '<script>');
+        $html = $this->render('single_stic_mis_grupos');
+
+        $this->assertStringNotContainsString('<script>', $html);
+        $this->assertStringContainsString('Tus grupos', $html);
+    }
 }

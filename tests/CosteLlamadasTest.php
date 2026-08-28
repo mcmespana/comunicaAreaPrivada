@@ -59,6 +59,13 @@ class CosteLlamadasTest extends TestCase
             // cargadores de colección, así que su coste NO puede depender de
             // cuántos grupos ni cuántos cursos tenga detrás.
             'single_stic_pasar_lista_monitor' => array('__coord' => 'COM', 'monitor' => 'm1'),
+            // «Mis grupos», en sus cuatro caras. No tiene ni un cargador
+            // propio: si alguna de estas líneas sube, es que alguien ha metido
+            // una consulta en una pantalla que se prometió gratis.
+            'single_stic_mis_grupos' => array(),
+            'single_stic_mis_grupos#az' => array('ver' => 'az'),
+            'single_stic_mis_grupos#grupo' => array('grupo' => 'g1'),
+            'single_stic_mis_grupos#monitores' => array('__coord' => 'COM', 'quien' => 'monitores'),
         );
 
         $lineas = array();
@@ -72,7 +79,9 @@ class CosteLlamadasTest extends TestCase
                     unset($req['__coord']);
                 }
                 $_REQUEST = $req;
-                $this->render($page);
+                // El sufijo tras `#` distingue dos vistas de la MISMA pantalla:
+                // se mide cada una por separado, pero el archivo es uno.
+                $this->render(strtok($page, '#'));
                 $n = count($this->scp->calls);
                 // Las TANDAS son lo que se nota: diez llamadas en tres tandas
                 // paralelas son tres viajes de ida y vuelta, no diez. Es el
@@ -139,6 +148,26 @@ class CosteLlamadasTest extends TestCase
             // costando CERO: si alguien mete un `foreach` con una consulta
             // dentro, salta aquí.
             'single_stic_pasar_lista_monitor' => array(array('__coord' => 'COM', 'monitor' => 'm1'), 15),
+            /* «MIS GRUPOS»: EL TOPE ES LA PROMESA DE LA PANTALLA.
+             *
+             * Se construyó sobre los cargadores que ya existen —los grupos, los
+             * míos y el mapa de relaciones de la delegación— y nada más. Los
+             * recuentos, las tres vistas y la gente de un grupo salen de ese
+             * mapa recorriéndolo en memoria.
+             *
+             * Por eso el tope es 4 y no «unas cuantas»: cualquier consulta
+             * nueva aquí es casi seguro una que ya se hizo. La vista de
+             * monitores cuesta lo mismo, y eso es lo que se está probando. */
+            'single_stic_mis_grupos' => array(array(), 4),
+            'single_stic_mis_grupos#az' => array(array('ver' => 'az'), 4),
+            'single_stic_mis_grupos#cursos' => array(array('ver' => 'cursos'), 4),
+            /* La ficha de UN grupo cuesta 2 más, y solo cuando el mapa de la
+             * delegación viene inservible: entonces cae al respaldo por grupo
+             * de `sticpa_pl_group_people()`, igual que marcar y la ficha. Es
+             * el precio de no enseñar un grupo vacío un sábado, y es UNA vez,
+             * no una por grupo — el índice usa `_bulk`, que nunca cae. */
+            'single_stic_mis_grupos#grupo' => array(array('grupo' => 'g1'), 5),
+            'single_stic_mis_grupos#monitores' => array(array('__coord' => 'COM', 'quien' => 'monitores'), 4),
         );
 
         // Viajes de ida y vuelta: ninguna pantalla puede pasar de esto.
@@ -161,7 +190,7 @@ class CosteLlamadasTest extends TestCase
                     unset($r['__coord']);
                 }
                 $_REQUEST = $r;
-                $this->render($page);
+                $this->render(strtok($page, '#'));
                 $n = count($this->scp->calls);
                 $this->assertLessThanOrEqual(
                     $tope,

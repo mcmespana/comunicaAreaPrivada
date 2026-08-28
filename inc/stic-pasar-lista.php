@@ -19,6 +19,29 @@ if (!defined('ABSPATH')) {
 }
 
 /**
+ * ¿Esta pantalla es de Pasar Lista?
+ *
+ * Decide quién se lleva `pasar-lista.css`, `stic-pasar-lista.js` y el service
+ * worker. Estaba escrito como `strpos($page, 'single_stic_pasar_lista') === 0`
+ * en tres sitios, y en cuanto apareció «Mis grupos» —que es de la misma familia
+ * pero no se llama igual— los tres se quedaron cortos a la vez. Con una sola
+ * regla, añadir una pantalla es añadir una línea AQUÍ.
+ *
+ * El JavaScript tiene su propia copia de la lista en `js/stic-pasar-lista-sw.js`
+ * (el service worker no ve PHP): si se toca esto, se toca allí.
+ */
+function sticpa_es_pantalla_pl($page)
+{
+    $page = (string) $page;
+    if (strpos($page, 'single_stic_pasar_lista') === 0) {
+        return true;
+    }
+    return in_array($page, apply_filters('sticpa_pl_pantallas_extra', array(
+        'single_stic_mis_grupos',
+    )), true);
+}
+
+/**
  * Los cuatro estados de `stic_Attendances.status` más el "sin marcar".
  *
  * Las claves son las REALES del CRM y aquí son constantes cerradas: la API no
