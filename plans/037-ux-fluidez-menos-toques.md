@@ -32,10 +32,32 @@ tarde, dentro de la webview de MCM App.
 >   27/08/2026 — «esto no hay que hacerlo, desde la ficha». Se llama desde la
 >   ficha, que está a un toque desde la hoja. No se retoma sin que lo pida.
 >   Queda escrito para que nadie lo proponga otra vez creyendo que es una mejora.
-> - **Fila 4 (skeletons):** después de ver cuánto queda de espera real con las
->   tandas paralelas ya desplegadas. Si marcar carga en 1,5 s, un skeleton
->   sobra.
-> - **Fila 6 (buscador de personas para coordinación).**
+> - **Fila 4 (skeletons): OBSOLETA, no pendiente.** Revisada el 28/08/2026. La
+>   premisa era «la CARGA fría no dice nada durante 2-4 s», y eso ya no es
+>   cierto: `bindLoadingLinks()` de `js/stic-ui.js` (plan 030) enseña el overlay
+>   **al pulsar el enlace**, delegado en `document`, y además avisa a la app por
+>   el puente para que pinte su indicador nativo. La espera está cubierta en la
+>   página que se DEJA.
+>
+>   Y un skeleton no cabría aunque se quisiera: esto son recargas completas
+>   servidas por WordPress, así que el navegador no pinta NADA de la pantalla de
+>   destino hasta que llega el HTML entero. Un skeleton en el destino sería
+>   código muerto por definición.
+>
+>   Lo que sí sirve es bajar la espera, y eso es lo que se hizo: marcar pasó de
+>   13 llamadas a 10, la ficha del participante de 13 esperas a 7, y cambiar de
+>   fecha cuesta 4 llamadas con la caché caliente. **No abrir esta fila otra
+>   vez sin cambiar antes a navegación sin recarga**, que es otro melón.
+> - **Fila 6 (buscador): HECHA A MEDIAS.** Hay buscador en el árbol de grupos
+>   (`data-pl-filter`, se pinta a partir de 8 grupos) y filtra por código,
+>   nombre, curso y **nombres de los monitores** — «el de Mercedes» funciona.
+>   Lo que NO hace es lo que pedía esta fila: buscar a **UN chaval por su
+>   nombre** y saltar a su ficha. «¿Cómo va Solete?» sigue sin resolverse.
+>
+>   Y no se resuelve aquí: es exactamente el mismo problema que **el navegador
+>   de fichas sin pasar lista** (ROADMAP, «Melones pendientes»), que está por
+>   hablar con el propietario. Cuando se decida aquello, esta fila se cierra con
+>   ello o desaparece.
 
 ## Lo que YA está bien (no tocar, no re-inventar)
 
@@ -74,8 +96,11 @@ demasiados toques. En la hoja del estado (donde ya se escribe el motivo):
 - Botón «Llamar a casa» (`tel:`) y «WhatsApp» con el teléfono de la familia,
   si existe (el dato ya se carga para la ficha; traerlo a la hoja no añade
   llamadas al CRM si viaja en el HTML de la fila).
-- Acceso directo «Poner aviso a coordinación» precargado con la persona y la
-  sesión (el alta de aviso ya existe en la ficha; esto es un deep-link).
+- ✅ **Hecho el 28/08/2026, la parte de la sesión:** el enlace a la ficha desde
+  cada fila de la lista lleva ya `&sesion=`, y el alta de aviso la escribe en
+  `stic_sessions_id_c`. Un aviso puesto un sábado queda atado a ESE sábado. Lo
+  que no se hace —y no se va a hacer— es poner el aviso desde la propia hoja:
+  se pone desde la ficha, que está a un toque.
 
 ### 3. La ficha como «tarjeta de sábado» (P1)
 
@@ -86,7 +111,16 @@ racha de ausencias, avisos abiertos. Después el resto (pañuelo, historial,
 familia). Misma idea en la ficha de monitor para coordinación (COORDINACION
 §4: lo esencial, no la ficha entera).
 
-### 4. Percepción de velocidad (P2, engancha con 034)
+### 4. Percepción de velocidad (P2, engancha con 034) — ❌ OBSOLETA
+
+> **Cerrada el 28/08/2026 sin hacer, y a propósito.** El texto de abajo se
+> queda como estaba escrito; lo que ha cambiado es la realidad que describe.
+>
+> «La CARGA fría no dice nada durante 2-4 s» ya no es verdad:
+> `bindLoadingLinks()` enseña el overlay al pulsar el enlace y avisa a la app.
+> Y un skeleton en el destino es imposible en un sitio de recargas completas:
+> el navegador no pinta nada hasta que llega el HTML. Ver el bloque de estado
+> de arriba.
 
 - Skeletons (contornos grises) en árbol/marcar/resumen mientras llega el CRM,
   en vez de página en blanco: la webview ya enseña el overlay al ENVIAR
@@ -104,7 +138,7 @@ familia). Misma idea en la ficha de monitor para coordinación (COORDINACION
   portada ya existe; revisar que reuniones ↔ monitores ↔ seguimientos se
   crucen entre sí sin volver a la portada.
 
-### 6. Búsqueda de persona para coordinación (P3)
+### 6. Búsqueda de persona para coordinación (P3) — 🟡 a medias
 
 Coordinación llega buscando a UN chaval («¿cómo va Solete?»). Un buscador
 simple (typeahead sobre los datos ya cacheados de `struct`, sin llamadas
