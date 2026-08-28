@@ -2113,3 +2113,324 @@ a.pl-group .pl-name { display: block; }
     width: 100%;
 }
 .pl-field--date { flex: 0 0 9rem; }
+
+/* ---- Seguimiento del monitor: las pistas de cuadraditos ----------------- */
+
+/* Una tarjeta con las filas dentro y un filete entre ellas: son tres medidas
+   del mismo curso, no tres tarjetas sueltas. */
+.pl-tracks {
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-xs);
+    overflow: hidden;
+}
+.pl-track {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.85rem 1rem 0.9rem;
+    border-top: 1px solid var(--gray-100);
+}
+.pl-track:first-child { border-top: 0; }
+
+.pl-track-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6rem; }
+.pl-track-title {
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    color: var(--gray-700);
+    min-width: 0;
+}
+/* El marcador va a la derecha y GRANDE, pero nunca solo: los cuadrados de
+   debajo son los que cuentan la historia. */
+.pl-track-score {
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    color: var(--primary-color);
+    flex-shrink: 0;
+}
+.pl-track-score i { font-size: 0.85rem; font-weight: 700; font-style: normal; margin-left: 0.06em; }
+/* «2 de 4» no es un porcentaje y no se pinta como si lo fuera: con tres o
+   cuatro reuniones al año, un 75 % suena a nota y es una falta. */
+.pl-track-frac { font-size: 1.02rem; font-weight: 800; letter-spacing: -0.01em; }
+.pl-track-score--none { font-size: 0.78rem; font-weight: 700; color: var(--gray-400); }
+
+.pl-track-sqs { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; }
+.pl-track-foot { font-size: 0.76rem; line-height: 1.4; color: var(--gray-500); }
+
+/* EL CUADRADITO. 11 px con 3 de hueco: veinticuatro sesiones son 336 px y caben
+   en los 390 de un móvil con sus márgenes. Más pequeño no se vería; si algún
+   curso trae más sesiones, la fila envuelve, que es mejor que encoger. */
+.pl-sq {
+    width: 11px;
+    height: 11px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    background: var(--gray-200);
+}
+/* El respiro de cambio de mes: sin fechas y sin etiquetas, pero cuatro faltas
+   seguidas de enero se leen como un bloque. */
+.pl-sq-gap { width: 7px; flex-shrink: 0; }
+
+.pl-sq--yes             { background: var(--success-color); }
+.pl-sq--partial         { background: var(--pl-partial); }
+.pl-sq--no_justified    { background: var(--warning-color); }
+.pl-sq--no_unjustified  { background: var(--danger-color); }
+/* Sin marcar: hueco de verdad, no un gris que parezca un estado. No cuenta en
+   el porcentaje y tiene que verse que no cuenta. */
+.pl-sq--none {
+    background: transparent;
+    border: 1.5px dashed var(--gray-300);
+}
+
+.pl-sq--suya    { background: var(--success-color); }
+.pl-sq--otra    { background: var(--primary-light); }
+.pl-sq--omitida { background: var(--gray-200); }
+.pl-sq--falta   { background: transparent; border: 1.5px solid var(--danger-color); }
+
+.pl-sq-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem 0.85rem;
+    padding: 0.15rem 1rem 0.8rem;
+    font-size: 0.7rem;
+    color: var(--gray-500);
+}
+.pl-sq-key { display: inline-flex; align-items: center; gap: 0.32rem; }
+
+/* ---- «En regla»: la lista de comprobación ------------------------------- */
+
+/* Se enseñan TODAS las filas, también las que están bien: es una lista de
+   comprobación y el valor está en verla entera de un vistazo. */
+.pl-chk {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.7rem;
+    padding: 0.72rem 0.85rem;
+    border-top: 1px solid var(--gray-100);
+}
+.pl-chk:first-child { border-top: 0; }
+.pl-chk-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+.pl-chk-icon svg { width: 13px; height: 13px; fill: none; stroke: var(--pl-on-brand); }
+.pl-chk--ok  .pl-chk-icon { background: var(--success-color); }
+.pl-chk--bad .pl-chk-icon { background: var(--danger-color); }
+/* Un permiso que no se ha dado NO es un incumplimiento: es una decisión suya, y
+   pintarla en rojo la convierte en una deuda que nadie tiene. */
+.pl-chk--opt .pl-chk-icon { background: var(--gray-300); }
+
+.pl-chk-body { display: flex; flex-direction: column; gap: 0.12rem; min-width: 0; }
+.pl-chk-label { font-size: 0.88rem; font-weight: 600; line-height: 1.35; }
+.pl-chk--bad .pl-chk-label { font-weight: 700; }
+.pl-chk-note { font-size: 0.74rem; color: var(--gray-500); line-height: 1.35; }
+
+.pl-flag--bad { background: var(--danger-soft); color: var(--danger-dark); }
+
+/* ---- Filas de dato: etiqueta izquierda, valor derecha ------------------- */
+
+.pl-kv {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.9rem;
+    padding: 0.62rem 0.85rem;
+    border-top: 1px solid var(--gray-100);
+}
+.pl-kv:first-child { border-top: 0; }
+.pl-kv-label { font-size: 0.8rem; color: var(--gray-500); flex-shrink: 0; }
+.pl-kv-value { font-size: 0.88rem; font-weight: 600; text-align: right; min-width: 0; }
+
+/* Lo que se mira una vez al año va plegado. `<details>` es nativo: funciona en
+   la webview, no necesita JS y el navegador ya sabe animarlo. */
+.pl-fold {
+    margin-top: 1.2rem;
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-xs);
+    overflow: hidden;
+}
+.pl-fold-sum {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.85rem 0.9rem;
+    font-size: 0.78rem;
+    font-weight: 800;
+    color: var(--gray-500);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    list-style: none;
+    min-height: 44px;
+}
+.pl-fold-sum::-webkit-details-marker { display: none; }
+.pl-fold-sum::after {
+    content: "";
+    width: 9px;
+    height: 9px;
+    border-right: 2px solid var(--gray-400);
+    border-bottom: 2px solid var(--gray-400);
+    transform: rotate(45deg) translate(-2px, -2px);
+    transition: transform 0.18s var(--ease-out);
+    flex-shrink: 0;
+}
+.pl-fold[open] .pl-fold-sum::after { transform: rotate(-135deg) translate(-3px, -3px); }
+.pl-fold .pl-list--data { border-top: 1px solid var(--gray-100); }
+
+/* ---- Pastillas de congresos y similares -------------------------------- */
+
+.pl-chips-wrap { display: flex; flex-direction: column; gap: 0.42rem; padding: 0.9rem 0.25rem 0; }
+.pl-chips-label {
+    font-size: 0.73rem;
+    font-weight: 800;
+    color: var(--gray-400);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.pl-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.pl-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.24rem 0.6rem;
+    border-radius: var(--radius-full);
+    background: var(--primary-50);
+    color: var(--primary-color);
+    font-size: 0.74rem;
+    font-weight: 700;
+}
+
+/* ---- Sus grupos --------------------------------------------------------- */
+
+.pl-grp {
+    display: block;
+    padding: 0.85rem 0.9rem;
+    border-top: 1px solid var(--gray-100);
+    color: inherit;
+    text-decoration: none;
+    position: relative;
+}
+.pl-grp:first-child { border-top: 0; }
+.pl-grp--link { padding-right: 2.2rem; }
+.pl-grp-go {
+    position: absolute;
+    right: 0.7rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--gray-300);
+}
+.pl-grp-go svg { width: 18px; height: 18px; }
+
+.pl-grp-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.4rem; }
+.pl-grp-code { font-size: 1rem; font-weight: 800; letter-spacing: -0.01em; }
+.pl-grp-name { font-size: 0.82rem; color: var(--gray-500); min-width: 0; }
+.pl-grp-role {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.1rem 0.45rem;
+    border-radius: var(--radius-full);
+    font-size: 0.63rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+/* Los dos papeles con dos colores de marca distintos: el grupo que LLEVA es su
+   trabajo, el suyo es su sitio. Confundirlos es el error que se comete al mirar
+   el CRM, donde las dos relaciones se llaman casi igual. */
+.pl-grp-role--lleva { background: var(--primary-50); color: var(--primary-color); }
+.pl-grp-role--suyo  { background: var(--secondary-50); color: var(--secondary-color); }
+
+.pl-grp-meta { margin-top: 0.28rem; font-size: 0.78rem; color: var(--gray-500); }
+.pl-grp-with { margin-top: 0.12rem; font-size: 0.78rem; color: var(--gray-600); }
+.pl-grp-off { margin-top: 0.3rem; font-size: 0.72rem; color: var(--pl-amber); }
+
+/* ---- Por dónde ha pasado: la línea de tiempo ---------------------------- */
+
+.pl-hist {
+    position: relative;
+    margin: 0;
+    padding: 0.2rem 0 0.2rem 1.15rem;
+    list-style: none;
+}
+/* El hilo vertical. Se para antes del final para que el último curso no cuelgue
+   de una línea que sigue hacia la nada. */
+.pl-hist::before {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 0.9rem;
+    bottom: 1.4rem;
+    width: 2px;
+    border-radius: var(--radius-full);
+    background: var(--gray-200);
+}
+.pl-hist-item { position: relative; padding: 0 0 1rem 0.85rem; }
+.pl-hist-item:last-child { padding-bottom: 0.2rem; }
+.pl-hist-dot {
+    position: absolute;
+    left: -1.15rem;
+    top: 0.42rem;
+    width: 10px;
+    height: 10px;
+    border-radius: var(--radius-full);
+    background: var(--gray-300);
+    box-shadow: 0 0 0 3px var(--surface-2);
+}
+/* El curso de ahora, con el color de marca y un poco más grande: es el ancla
+   desde la que se lee todo lo de abajo. */
+.pl-hist-item--now .pl-hist-dot {
+    background: var(--primary-color);
+    width: 12px;
+    height: 12px;
+    left: -1.21rem;
+    top: 0.36rem;
+}
+.pl-hist-curso {
+    font-size: 0.85rem;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    color: var(--gray-600);
+}
+.pl-hist-item--now .pl-hist-curso { color: var(--primary-color); }
+.pl-hist-now {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.06rem 0.4rem;
+    margin-left: 0.25rem;
+    border-radius: var(--radius-full);
+    background: var(--primary-50);
+    color: var(--primary-color);
+    font-size: 0.6rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.pl-hist-g { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.25rem; }
+.pl-hist-code { font-size: 0.92rem; font-weight: 700; }
+.pl-hist-name { font-size: 0.8rem; color: var(--gray-500); }
+.pl-hist-rol {
+    display: inline-flex;
+    padding: 0.06rem 0.4rem;
+    border-radius: var(--radius-full);
+    background: var(--secondary-50);
+    color: var(--secondary-color);
+    font-size: 0.6rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.pl-hist-with { font-size: 0.76rem; color: var(--gray-500); line-height: 1.4; }
+
+/* Una fila de contacto que ES un enlace (el correo): sin los dos botones, pero
+   con la misma altura y el mismo sitio que las de teléfono. */
+.pl-phone--link { color: inherit; text-decoration: none; }

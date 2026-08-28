@@ -50,6 +50,11 @@ class CosteLlamadasTest extends TestCase
             // Monitores hace falta AQUÍ: era la pantalla más lenta de todas y
             // nadie le contaba las llamadas.
             'single_stic_pasar_lista_monitores' => array('__coord' => 'COM'),
+            // Y la ficha de un monitor, que ahora enseña el seguimiento
+            // completo, sus grupos y el histórico: todo lo nuevo sale de
+            // cargadores de colección, así que su coste NO puede depender de
+            // cuántos grupos ni cuántos cursos tenga detrás.
+            'single_stic_pasar_lista_monitor' => array('__coord' => 'COM', 'monitor' => 'm1'),
         );
 
         $lineas = array();
@@ -87,16 +92,28 @@ class CosteLlamadasTest extends TestCase
      */
     public function testElCosteNoSePasaDeLosTopes()
     {
+        /* Los topes BAJARON el 28/08/2026 al juntar los dos cargadores que
+         * preguntaban lo mismo (los eventos de la delegación, y las relaciones
+         * de quien está conectado). Se bajan a la vez que se arregla: un tope
+         * que se queda holgado deja de proteger nada. */
         $topes = array(
             'single_stic_pasar_lista' => array(array(), 8),
-            'single_stic_pasar_lista_grupos' => array(array(), 8),
-            'single_stic_pasar_lista_marcar' => array(array('grupo' => 'g1'), 10),
+            'single_stic_pasar_lista_grupos' => array(array(), 7),
+            'single_stic_pasar_lista_marcar' => array(array('grupo' => 'g1'), 9),
             'single_stic_pasar_lista_resumen' => array(array(), 9),
             // Monitores: el tope importa MÁS que en las demás. Su coste no
             // puede depender de cuántos grupos haya en el CRM (hay ~150, casi
             // todos históricos), y eso es justo lo que pasaba: el respaldo por
             // grupo se disparaba en cada grupo vacío.
             'single_stic_pasar_lista_monitores' => array(array('__coord' => 'COM'), 11),
+            // La ficha del monitor. Sube respecto a la versión de antes porque
+            // ahora lee TAMBIÉN el evento de reuniones, sus sesiones, sus
+            // inscripciones y las asistencias de esa persona a las dos cosas:
+            // son datos nuevos en la pantalla, no consultas repetidas. Lo que
+            // este tope protege es que el histórico y los grupos sigan
+            // costando CERO: si alguien mete un `foreach` con una consulta
+            // dentro, salta aquí.
+            'single_stic_pasar_lista_monitor' => array(array('__coord' => 'COM', 'monitor' => 'm1'), 15),
         );
 
         foreach ($topes as $page => $spec) {
