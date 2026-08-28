@@ -43,8 +43,12 @@ $events = sticpa_pl_etapa_events($objSCP);
 // TANDA 2: las sesiones de cada etapa, todas juntas. Antes eran una llamada por
 // etapa, una detrás de otra.
 sticpa_pl_prime($objSCP, function () use ($objSCP, $events) {
-    foreach ($events as $ev) {
-        sticpa_pl_event_sessions($objSCP, $ev['id']);
+    // POR ID Y SIN REPETIR. `$events` va por etapa, y MIC y COM comparten el
+    // mismo evento: el bucle pedía sus sesiones DOS veces. Dentro de una tanda
+    // eso son dos peticiones de verdad, porque el memo se consume de un solo
+    // uso (la lección de las dos parejas de consultas del 28/08).
+    foreach (array_unique(array_column($events, 'id')) as $evId) {
+        sticpa_pl_event_sessions($objSCP, $evId);
     }
 });
 $course = sticpa_pl_course_for();

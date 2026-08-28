@@ -18,10 +18,10 @@ que se rompa en móvil se rompe en la app.
 
 | Si buscas… | Documento |
 |---|---|
-| **Estado, bugs abiertos y cómo probar** | [`PASAR-LISTA-ESTADO.md`](PASAR-LISTA-ESTADO.md) |
+| **Estado, bugs abiertos y cómo probar** — empieza por su §1, que es lo único abierto; lo cerrado vive en §1-bis | [`PASAR-LISTA-ESTADO.md`](PASAR-LISTA-ESTADO.md) |
 | Qué tiene que pasar y cómo son las pantallas | [`PASAR-LISTA.md`](PASAR-LISTA.md) |
 | Nombres exactos de campos y módulos del CRM | [`PASAR-LISTA-CAMPOS-CRM.md`](PASAR-LISTA-CAMPOS-CRM.md) |
-| Fases y melones pendientes | [`PASAR-LISTA-ROADMAP.md`](PASAR-LISTA-ROADMAP.md) |
+| Fases y melones pendientes — incluido **el navegador de fichas sin pasar lista**, que está por hablar | [`PASAR-LISTA-ROADMAP.md`](PASAR-LISTA-ROADMAP.md) |
 | Coordinación, monitores y quién ve qué | [`PASAR-LISTA-COORDINACION.md`](PASAR-LISTA-COORDINACION.md) |
 | Los recuentos que lleva el grupo en su ficha | [`PASAR-LISTA-RECUENTOS.md`](PASAR-LISTA-RECUENTOS.md) |
 | Seguimientos de monitores (`stic_FollowUps`) | [`PASAR-LISTA-SEGUIMIENTOS.md`](PASAR-LISTA-SEGUIMIENTOS.md) |

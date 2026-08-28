@@ -277,28 +277,60 @@ $email = trim($ficha['email1']);
  * teléfono de emergencias solo se PULSA: por eso el correo va en texto y el
  * otro teléfono cabe en un botón redondo al lado, con el número en su
  * `aria-label` para quien lo necesite. */
+/* CADA DATO EN SU FILA, y el correo con su botón de copiar.
+ *
+ * Antes el correo y el teléfono de emergencia compartían una sola fila: un
+ * correo de los largos («davidbadenes@movimientoconsolacion.com») se partía en
+ * dos líneas y quedaba cortado contra un botón redondo sin etiqueta que además
+ * NO era el teléfono de esa persona sino el otro, y eso no lo adivina nadie.
+ *
+ * Ahora: el correo ocupa su fila entera con un botón de COPIAR —que es lo que
+ * se hace de verdad con un correo: pegarlo en otro sitio— y el otro teléfono
+ * va en su propia fila, con su etiqueta y su número a la vista. */
 if ($email !== '' || $emergencia !== null) {
-    $html .= '<div class="pl-contactline">';
+    $html .= '<div class="pl-contactrows">';
+
     if ($email !== '') {
-        $html .= '<a class="pl-contactline-main" href="mailto:' . esc_attr($email) . '">'
+        $html .= '<div class="pl-contactrow">';
+        $html .= '<a class="pl-contactrow-main" href="mailto:' . esc_attr($email) . '">'
             . '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
             . '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></svg>'
-            . '<span>' . esc_html($email) . '</span></a>';
+            . '<span class="pl-contactrow-body">'
+            . '<span class="pl-contactrow-label">' . esc_html__('Correo', 'sticpa') . '</span>'
+            . '<span class="pl-contactrow-value">' . esc_html($email) . '</span>'
+            . '</span></a>';
+        // Copiar: un toque. El texto va en el `data-` y no se lee del DOM, que
+        // con puntos suspensivos devolvería el correo recortado.
+        $html .= '<button type="button" class="pl-copy" data-pl-copy="' . esc_attr($email) . '"'
+            . ' aria-label="' . esc_attr__('Copiar el correo', 'sticpa') . '"'
+            . ' data-pl-copied="' . esc_attr__('Correo copiado', 'sticpa') . '">'
+            . '<svg class="pl-copy-i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+            . '<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
+            . '<svg class="pl-copy-ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+            . '<path d="M20 6 9 17l-5-5"/></svg>'
+            . '</button>';
+        $html .= '</div>';
     } else {
-        $html .= '<span class="pl-contactline-main pl-contactline-main--empty">'
-            . esc_html__('Sin correo en el CRM', 'sticpa') . '</span>';
+        $html .= '<div class="pl-contactrow"><span class="pl-contactrow-main pl-contactrow-main--empty">'
+            . esc_html__('Sin correo en el CRM', 'sticpa') . '</span></div>';
     }
+
     if ($emergencia !== null) {
-        $html .= '<a class="pl-contactline-btn" href="tel:' . esc_attr($emergencia['tel']) . '"'
-            . ' aria-label="' . esc_attr(sprintf(
-                /* translators: %s: el otro teléfono de la persona */
-                __('Llamar al otro teléfono: %s', 'sticpa'),
-                $emergencia['display']
-            )) . '"'
-            . ' title="' . esc_attr($emergencia['display']) . '">'
-            . '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
-            . '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2 4.2 2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.4 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.4 1.8.6 2.8.8a2 2 0 0 1 1.7 2Z"/></svg></a>';
+        /* CON SU ETIQUETA. Este número NO es el suyo: es el que la ficha
+         * guarda como «otro teléfono» y sirve para una urgencia. Un botón
+         * redondo sin más se lee como «llamar a esta persona», que es
+         * justo lo contrario de lo que hace. */
+        $html .= '<div class="pl-contactrow">';
+        $html .= '<a class="pl-contactrow-main" href="tel:' . esc_attr($emergencia['tel']) . '">'
+            . '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+            . '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2 4.2 2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.4 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.4 1.8.6 2.8.8a2 2 0 0 1 1.7 2Z"/></svg>'
+            . '<span class="pl-contactrow-body">'
+            . '<span class="pl-contactrow-label">' . esc_html__('Otro teléfono · para una urgencia', 'sticpa') . '</span>'
+            . '<span class="pl-contactrow-value">' . esc_html($emergencia['display']) . '</span>'
+            . '</span></a>';
+        $html .= '</div>';
     }
+
     $html .= '</div>';
 }
 
@@ -789,7 +821,34 @@ foreach (sticpa_pl_monitor_bloques($ficha) as $bloque) {
     }
 
     if ($bloque['kind'] === 'flag') {
-        $html .= '<div class="pl-sec">' . esc_html($bloque['label']) . '</div>';
+        /* PLEGABLE, con lo que importa en la solapa.
+         *
+         * «Formación» son cinco filas más los congresos, y en dos años de
+         * coordinación se abre una vez: desplegada, empuja hacia abajo lo que
+         * sí se mira. Pero plegarla a secas escondería el dato que de verdad
+         * se busca —si tiene el MAT, si tiene el DAT—, así que ese resumen
+         * sube a la solapa y se lee sin abrir nada. Plegar sin perder.
+         */
+        $plegable = !empty($bloque['plegado']);
+        if ($plegable) {
+            $resumen = array();
+            foreach ($bloque['rows'] as $r) {
+                if (!empty($r['ok']) && $r['warn'] === '') {
+                    // Solo la sigla, que es como se nombran de verdad.
+                    $sigla = trim(strtok($r['label'], '·'));
+                    $resumen[] = ($sigla !== '') ? $sigla : $r['label'];
+                }
+            }
+            $html .= '<details class="pl-fold"><summary class="pl-fold-sum">'
+                . esc_html($bloque['label']);
+            if (!empty($resumen)) {
+                $html .= '<span class="pl-fold-count">'
+                    . esc_html(implode(' · ', array_slice($resumen, 0, 3))) . '</span>';
+            }
+            $html .= '</summary>';
+        } else {
+            $html .= '<div class="pl-sec">' . esc_html($bloque['label']) . '</div>';
+        }
         if (!empty($bloque['rows'])) {
             $html .= '<div class="pl-list pl-list--data">';
             foreach ($bloque['rows'] as $r) {
@@ -822,6 +881,9 @@ foreach (sticpa_pl_monitor_bloques($ficha) as $bloque) {
                 . '<span class="pl-data-label">' . esc_html($bloque['nota_label']) . '</span>'
                 . '<span class="pl-data-value">' . nl2br(esc_html($bloque['nota'])) . '</span>'
                 . '</div></div>';
+        }
+        if ($plegable) {
+            $html .= '</details>';
         }
         continue;
     }
