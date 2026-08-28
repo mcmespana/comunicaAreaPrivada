@@ -19,6 +19,68 @@ if (!defined('ABSPATH')) {
 }
 
 /**
+ * Cuánto «pesa» un curso en la escala escolar: 0 los peques, 1 los adultos.
+ *
+ * Sirve para GRADUAR el color de las cabeceras de la vista por curso — más
+ * intenso cuanto más mayores—, que es lo que permite ver de un vistazo por
+ * dónde vas en una lista larga sin leer los títulos.
+ *
+ * Sale del mismo `sticpa_pl_curso_rank()` que ordena la vista, así que el color
+ * y el orden NO PUEDEN CONTRADECIRSE: si un curso va antes, su color es más
+ * claro. Cada curso dentro de su etapa suma, para que 1.º y 6.º de primaria no
+ * salgan del mismo color.
+ *
+ * La escala es ABSOLUTA y no relativa a lo que haya en pantalla: «1.º de ESO»
+ * tiene que ser del mismo color en Castellón y en cualquier otra delegación, y
+ * no cambiar porque este año no haya grupo de infantil.
+ *
+ * @return float 0..1, o -1 si el curso no se reconoce (entonces no se colorea:
+ *               un color inventado sobre un dato que no se entiende miente).
+ */
+function sticpa_pl_curso_intensidad($cursos)
+{
+    $rank = sticpa_pl_curso_rank($cursos);
+    if ($rank >= 8000) {
+        return -1.0;   // sin curso, o un texto que no dice nada
+    }
+
+    /* Anclajes `rank => peso`, interpolando entre ellos.
+     *
+     * Se hace con tabla y NO descomponiendo el rank en «base + curso»: las
+     * bases de `sticpa_pl_curso_rank()` no son todas múltiplos de cien (FP es
+     * 350), así que dividir por cien colaba FP por delante de universidad. La
+     * tabla no puede equivocarse en eso porque es monótona escrita a mano.
+     *
+     * Cada etapa tiene DOS anclajes —su principio y su final— para que 1.º y
+     * 6.º de primaria no salgan del mismo color, que es medio grupo de una
+     * delegación pintado igual. */
+    $anclas = apply_filters('sticpa_pl_curso_tonos', array(
+        0 => 0.10,   // infantil: el suelo, para que se vea algo
+        100 => 0.18, 107 => 0.40,   // primaria
+        200 => 0.46, 205 => 0.62,   // ESO
+        300 => 0.68, 303 => 0.74,   // bachillerato
+        350 => 0.80,                // FP
+        400 => 0.88,                // universidad
+        500 => 1.00,                // adultos
+    ));
+
+    $prevR = null;
+    $prevP = 0.0;
+    foreach ($anclas as $r => $peso) {
+        if ($rank <= $r) {
+            if ($prevR === null || $r == $prevR) {
+                return $peso;
+            }
+            $t = ($rank - $prevR) / ($r - $prevR);
+            return max(0.0, min(1.0, $prevP + $t * ($peso - $prevP)));
+        }
+        $prevR = $r;
+        $prevP = $peso;
+    }
+    return 1.0;
+}
+
+/**
  * ¿Esta pantalla es de Pasar Lista?
  *
  * Decide quién se lleva `pasar-lista.css`, `stic-pasar-lista.js` y el service

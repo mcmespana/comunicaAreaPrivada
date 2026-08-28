@@ -3012,6 +3012,13 @@ a.pl-group .pl-name { display: block; }
 :root[data-stic-scheme="dark"] .pl-tabs--quien,
 .stic-container[data-stic-scheme="dark"] .pl-tabs--quien { background: none; }
 
+/* El punto graduado de la vista por curso. El COLOR es siempre el mismo —el
+   azul de la marca, que en oscuro ya viene aclarado por el token— y lo que
+   cambia es la opacidad, que la calcula PHP. Así la progresión funciona en los
+   dos temas sin dos escalas de color, y un curso tiene el mismo tono en todas
+   las delegaciones. */
+.pl-curso-dot { background: var(--primary-color); }
+
 /* La fila de una persona cuando es un ENLACE y no un botón de marcar. Hereda de
    `.pl-rowwrap` el filete y la caja; lo que añade es el relleno que en la lista
    de marcar pone el `<button>` de dentro, que aquí no existe. */
@@ -3128,4 +3135,31 @@ a.pl-group .pl-name { display: block; }
     font-weight: 700;
     color: var(--gray-400);
     white-space: nowrap;
+}
+
+/* ---- Sin grupo: la fila donde se vincula ---------------------------------
+   Hereda de `.pl-rowwrap` el filete y la caja, y añade el relleno que en la
+   lista de marcar pone el `<button>` de dentro. El select y el botón se
+   envuelven a la línea de abajo en cuanto no caben: en un móvil estrecho, un
+   nombre largo y un desplegable de grupos no comparten renglón. */
+.pl-suelto {
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    padding: 0.7rem 0.85rem;
+}
+.pl-suelto .pl-row-body { min-width: 8rem; }
+
+/* El desplegable y el botón van JUNTOS y al final: son un solo gesto —«este
+   chaval, a este grupo»— y separarlos convierte veinte asignaciones en
+   cuarenta. Ocupan la fila entera cuando se envuelven, para que el botón no
+   quede colgando solo. */
+.pl-suelto-act {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
+}
+.pl-suelto-act .pl-review-select { flex: 1 1 auto; min-width: 0; }
+@media (max-width: 26rem) {
+    .pl-suelto-act { width: 100%; margin-left: 0; }
 }

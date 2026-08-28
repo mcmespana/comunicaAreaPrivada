@@ -37,6 +37,33 @@ $pageSettings['fileName'] = basename(__FILE__, ".php");
 
 sticpa_pl_maybe_refresh($objSCP);
 
+// ---------------------------------------------------------------------------
+// Vincular a un grupo a quien no lo tiene (solo coordinación)
+// ---------------------------------------------------------------------------
+
+/* Va AQUÍ, antes de la tanda que lee: `sticpa_pl_assign_group()` vacía la caché
+ * al escribir, así que si se leyera primero, la persona recién vinculada
+ * seguiría saliendo suelta hasta recargar a mano.
+ *
+ * Es el MISMO escritor que usa el resumen de grupos —comprueba por su cuenta
+ * que quien lo llama coordina y que el grupo es de su delegación—, así que aquí
+ * no hay una segunda versión de la regla que pueda quedarse desfasada. Lo que
+ * sí se comprueba aquí es el nonce, que es de la pantalla. */
+$asignarMsg = '';
+if (!empty($_POST['pl_assign_rel'])) {
+    if (!isset($_POST['pl_nonce']) || !wp_verify_nonce($_POST['pl_nonce'], 'pl_mis_grupos')) {
+        $asignarMsg = __('La sesión ha caducado. Vuelve a cargar la pantalla.', 'sticpa');
+    } else {
+        $asignarMsg = sticpa_pl_assign_group(
+            $objSCP,
+            $_POST['pl_assign_rel'],
+            isset($_POST['pl_assign_group']) ? $_POST['pl_assign_group'] : ''
+        )
+            ? __('Vinculado. Ya sale en su grupo.', 'sticpa')
+            : __('No se ha podido vincular. Si no eres de coordinación, no puedes hacerlo desde aquí.', 'sticpa');
+    }
+}
+
 // La MISMA tanda que el árbol de grupos, menos las listas: aquí no se pregunta
 // «¿de qué grupo falta la lista?», se pregunta «¿quién está en este grupo?».
 sticpa_pl_prime($objSCP, function () use ($objSCP) {
@@ -49,7 +76,7 @@ $groups = sticpa_pl_groups($objSCP);
 $myGroups = sticpa_pl_my_groups($objSCP);
 
 $ver = isset($_REQUEST['ver']) ? (string) $_REQUEST['ver'] : 'grupos';
-if (!in_array($ver, array('grupos', 'cursos', 'az'), true)) {
+if (!in_array($ver, array('grupos', 'cursos', 'az', 'sueltos'), true)) {
     $ver = 'grupos';
 }
 $quien = (isset($_REQUEST['quien']) && $_REQUEST['quien'] === 'monitores') ? 'monitores' : 'participantes';
@@ -79,8 +106,11 @@ $url = function ($cambios = array()) use ($ver, $quien, $groupId) {
 // ---------------------------------------------------------------------------
 
 $html .= '<div class="pl-head">';
-if ($groupId !== '') {
-    $html .= '<a class="pl-back" href="' . esc_url($url(array('grupo' => null))) . '"'
+// La flecha de atrás en las dos vistas que son un desvío del índice: la ficha
+// de un grupo y la lista de sueltos. Sin ella, `ver=sueltos` no tiene ninguna
+// pestaña activa y se queda uno atrapado.
+if ($groupId !== '' || $ver === 'sueltos') {
+    $html .= '<a class="pl-back" href="' . esc_url($url(array('grupo' => null, 'ver' => 'grupos'))) . '"'
         . ' aria-label="' . esc_attr__('Volver a mis grupos', 'sticpa') . '">' . sticpa_pl_icon('back') . '</a>';
 }
 $html .= '<div class="pl-head-titles">';
@@ -92,10 +122,96 @@ $html .= '<a class="pl-session-pick" href="' . esc_url($url(array('refrescar' =>
     . ' aria-label="' . esc_attr__('Refrescar datos', 'sticpa') . '">' . sticpa_pl_icon('refresh') . '</a>';
 $html .= '</div>';
 
+if ($asignarMsg !== '') {
+    $html .= '<p class="pl-notice"><span>' . esc_html($asignarMsg) . '</span></p>';
+}
+
 if (empty($groups)) {
     $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
         . esc_html__('No hay grupos de tu delegación en este curso. Si crees que es un error, avisa a coordinación.', 'sticpa')
         . '</span></p>';
+    return;
+}
+
+// ---------------------------------------------------------------------------
+// Los que no están en ningún grupo
+// ---------------------------------------------------------------------------
+
+/* Una vista aparte y no una pestaña fija: la mayoría de los días esta lista
+ * está vacía, y una pestaña permanente para un caso excepcional es ruido. Se
+ * llega por la tarjeta del final del índice, que solo aparece cuando hay
+ * alguien — igual que la tarjeta ámbar del árbol de Pasar Lista.
+ *
+ * Aquí NO se enlaza a la ficha: sin grupo no hay ficha que enseñar (la ficha
+ * comprueba que la persona esté en el grupo de la URL, y ese es justo el dato
+ * que falta). Lo que se hace aquí es ponerle grupo, que es lo que desbloquea
+ * todo lo demás. */
+$sueltos = sticpa_pl_participants_without_group($objSCP);
+
+if ($ver === 'sueltos') {
+    $html .= '<div class="pl-sec-row"><div class="pl-sec">'
+        . esc_html__('Sin grupo', 'sticpa') . '</div>'
+        . '<span class="pl-etapa-count">' . esc_html(sprintf(
+            /* translators: %d: cuántas personas no están en ningún grupo */
+            _n('%d persona', '%d personas', count($sueltos), 'sticpa'),
+            count($sueltos)
+        )) . '</span></div>';
+
+    if (empty($sueltos)) {
+        $html .= '<p class="pl-hint">' . sticpa_pl_icon('check') . '<span>'
+            . esc_html__('Todo el mundo está en un grupo. Nada que revisar.', 'sticpa')
+            . '</span></p>';
+        return;
+    }
+
+    $puedo = sticpa_pl_is_coordinator($objSCP);
+    $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>' . esc_html(
+        $puedo
+            ? __('Estas personas tienen relación con la delegación pero no están en ningún grupo, así que no salen en ninguna lista. Elige su grupo y quedan vinculadas.', 'sticpa')
+            : __('Estas personas no están en ningún grupo, así que no salen en ninguna lista. Vincularlas es cosa de coordinación: avísales.', 'sticpa')
+    ) . '</span></p>';
+
+    $html .= '<form method="post">';
+    $html .= wp_nonce_field('pl_mis_grupos', 'pl_nonce', true, false);
+    $html .= '<div class="pl-list">';
+    foreach ($sueltos as $row) {
+        $html .= '<div class="pl-rowwrap pl-suelto">';
+        $html .= sticpa_pl_avatar_html($row, true);
+        $html .= '<span class="pl-row-body">';
+        $html .= '<span class="pl-name">' . esc_html($row['name']) . '</span>';
+        if ($row['age'] !== '') {
+            $html .= '<span class="pl-rowsub">' . esc_html(sprintf(
+                /* translators: %s: edad en años */
+                __('%s años', 'sticpa'),
+                $row['age']
+            )) . '</span>';
+        }
+        $html .= '</span>';
+        if ($puedo) {
+            // El desplegable y el botón, en la misma fila que el nombre: el
+            // trabajo aquí es «este chaval, a este grupo», y separarlo en dos
+            // pasos convierte veinte asignaciones en cuarenta gestos.
+            $html .= '<span class="pl-suelto-act">';
+            $html .= '<select name="pl_assign_group" class="pl-review-select"'
+                . ' aria-label="' . esc_attr(sprintf(
+                    /* translators: %s: nombre de la persona */
+                    __('Grupo para %s', 'sticpa'),
+                    $row['name']
+                )) . '">';
+            $html .= '<option value="">' . esc_html__('Elegir grupo…', 'sticpa') . '</option>';
+            foreach ($groups as $gid => $g) {
+                $html .= '<option value="' . esc_attr($gid) . '">'
+                    . esc_html(trim($g['code'] . ($g['name'] !== '' ? ' · ' . $g['name'] : '')
+                        . ($g['cursos'] !== '' ? ' (' . $g['cursos'] . ')' : ''))) . '</option>';
+            }
+            $html .= '</select>';
+            $html .= '<button type="submit" name="pl_assign_rel" value="' . esc_attr($row['rel_id'])
+                . '" class="pl-review-btn">' . esc_html__('Vincular', 'sticpa') . '</button>';
+            $html .= '</span>';
+        }
+        $html .= '</div>';
+    }
+    $html .= '</div></form>';
     return;
 }
 
@@ -401,6 +517,31 @@ if ($ver === 'grupos') {
         }
 
         $html .= sticpa_pl_buscador_vacio_html();
+
+        /* LOS QUE NO ESTÁN EN NINGÚN GRUPO. Va al final del índice y solo si hay
+         * alguien: es donde se nota el problema —falta gente en las listas— y
+         * desde aquí se arregla en dos gestos. La misma tarjeta ámbar que el
+         * árbol de Pasar Lista, pero esta lleva a poder vincularlos, no solo a
+         * verlos. No cuesta una llamada: sale del mapa que ya está cargado. */
+        if (!empty($sueltos)) {
+            $html .= '<a class="pl-orphans" href="' . esc_url($url(array('ver' => 'sueltos'))) . '">';
+            $html .= '<span class="pl-orphans-icon">' . sticpa_pl_icon('person') . '</span>';
+            $html .= '<span class="pl-orphans-body">';
+            $html .= '<span class="pl-orphans-title">' . esc_html(sprintf(
+                /* translators: %d: personas sin grupo asignado */
+                _n('%d persona sin grupo', '%d personas sin grupo', count($sueltos), 'sticpa'),
+                count($sueltos)
+            )) . '</span>';
+            $html .= '<span class="pl-orphans-sub">' . esc_html(
+                sticpa_pl_is_coordinator($objSCP)
+                    ? __('No salen en ninguna lista. Vincúlalas aquí.', 'sticpa')
+                    : __('No salen en ninguna lista', 'sticpa')
+            ) . '</span>';
+            $html .= '</span>';
+            $html .= '<span class="pl-detail">' . sticpa_pl_icon('next') . '</span>';
+            $html .= '</a>';
+        }
+
         $html .= sticpa_pl_grupos_ocultos_html($objSCP);
         return;
 }
@@ -492,10 +633,31 @@ uksort($porCurso, function ($a, $b) {
     return strcmp($a, $b);
 });
 
+/* EL COLOR DE CADA CURSO: más intenso cuanto más mayores.
+ *
+ * En una lista de trescientos, los títulos se leen uno a uno; el color se ve de
+ * un vistazo y dice por dónde vas sin leer nada. Sale de
+ * `sticpa_pl_curso_intensidad()`, que a su vez sale del MISMO rank que ordena
+ * esta vista: el color y el orden no pueden contradecirse.
+ *
+ * Es opacidad sobre `--primary-color` y no un color fijo, para que el modo
+ * oscuro siga funcionando: ahí el azul es claro sobre fondo oscuro, así que
+ * «más intenso» se sigue leyendo como «más mayores».
+ *
+ * Un curso que no se reconoce NO se colorea: un color inventado sobre un dato
+ * que no se entiende miente. */
 foreach ($porCurso as $curso => $gente) {
     usort($gente, 'sticpa_pl_cmp_person');
-    $html .= '<div class="pl-etapa-title">'
-        . esc_html(($curso === '?') ? __('Sin curso', 'sticpa') : $curso)
+    $intensidad = ($curso === '?') ? -1.0 : sticpa_pl_curso_intensidad($curso);
+    $html .= '<div class="pl-etapa-title">';
+    if ($intensidad >= 0) {
+        $html .= '<span class="pl-etapa-dot pl-curso-dot"'
+            . ' style="opacity:' . esc_attr(number_format(0.28 + 0.72 * $intensidad, 2, '.', '')) . '"'
+            . '></span>';
+    } else {
+        $html .= '<span class="pl-etapa-dot" style="background:var(--gray-300)"></span>';
+    }
+    $html .= esc_html(($curso === '?') ? __('Sin curso', 'sticpa') : $curso)
         . '<span class="pl-etapa-count">' . esc_html(sprintf(
             /* translators: %d: cuántos participantes hay en el curso */
             _n('%d participante', '%d participantes', count($gente), 'sticpa'),
