@@ -284,22 +284,7 @@ if (!empty($lastMarks)) {
     $html .= '</div>';
 }
 
-// Si hay grupos fuera de Pasar Lista por la casilla del CRM, se DICE. Un grupo
-// que existe y no aparece, sin explicación, se lee como que la pantalla está
-// mal — y alguien acaba buscando el fallo donde no está.
-$ocultos = sticpa_pl_grupos_ocultos($objSCP);
-if ($ocultos > 0) {
-    $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>' . esc_html(sprintf(
-        /* translators: %d: cuántos grupos no salen */
-        _n(
-            'Hay %d grupo más en el CRM que no está marcado para Pasar Lista.',
-            'Hay %d grupos más en el CRM que no están marcados para Pasar Lista.',
-            $ocultos,
-            'sticpa'
-        ),
-        $ocultos
-    )) . '</span></p>';
-}
+
 
 /* La línea de datos del artboard `Grupos`: monitores · curso · N participantes.
  * Los tres salen del recuento nocturno que el Guardián deja en el propio grupo,
@@ -392,4 +377,21 @@ if (!empty($sinGrupo)) {
     $html .= '</span>';
     $html .= '<span class="pl-detail">' . sticpa_pl_icon('next') . '</span>';
     $html .= '</a>';
+}
+
+// Los grupos que la casilla del CRM deja fuera. Va ABAJO y en gris pequeño: es
+// una nota al pie, no un aviso. Pero tiene que estar: un grupo que existe y no
+// aparece, sin explicación, se lee como que la pantalla está rota.
+$ocultos = sticpa_pl_grupos_ocultos($objSCP);
+if ($ocultos > 0) {
+    $html .= '<p class="pl-footnote">' . esc_html(sprintf(
+        /* translators: %d: cuántos grupos no salen */
+        _n(
+            '%d grupo más en el CRM sin marcar para Pasar Lista.',
+            '%d grupos más en el CRM sin marcar para Pasar Lista.',
+            $ocultos,
+            'sticpa'
+        ),
+        $ocultos
+    )) . '</p>';
 }

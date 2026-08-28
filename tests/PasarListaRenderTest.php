@@ -328,6 +328,14 @@ class FakeSCP
                     'grupo' => array('id' => 'g1', 'name' => 'Los Peques'),
                     'persona' => array('id' => 'c2', 'name' => 'Jaume Pascual', 'first_name' => 'Jaume', 'last_name' => 'Pascual', 'stic_age_c' => '13'),
                 ),
+                // Un monitor del grupo g3, que es MIC: sin él la pantalla de
+                // monitores tendría una sola etapa y no se podría comprobar que
+                // se parte en secciones (ni que los del MIC van arriba).
+                array(
+                    'fields' => array('id' => 'r10', 'relationship_type' => 'monitor', 'end_date' => ''),
+                    'grupo' => array('id' => 'g3', 'name' => 'Los Micos'),
+                    'persona' => array('id' => 'm10', 'name' => 'Jaime Bort', 'first_name' => 'Jaime', 'last_name' => 'Bort'),
+                ),
                 // El monitor del grupo g1: David Soler, que es quien esta en sesion.
                 array(
                     'fields' => array('id' => 'r4', 'relationship_type' => 'monitor', 'end_date' => ''),
@@ -2086,6 +2094,50 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame('no_unjustified', $writes[0]['data']['status']);
     }
 
+    /**
+     * EL DETALLE DEL FALLO LO VE TODO EL MUNDO. Estaba reservado a
+     * coordinación, y eso convertía cada fallo en un teléfono escacharrado: el
+     * monitor decía «no se guarda» y la respuesta del CRM —la que dice qué
+     * pasa— no la leía nadie hasta que otra persona lo reproducía.
+     */
+    public function test_el_detalle_del_fallo_lo_ve_cualquiera()
+    {
+        // Sin alcance de coordinación: un monitor normal.
+        $this->scp->coordEtapa = null;
+        $this->scp->failWrites = array('LIS_listas');
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => json_encode(array('c1' => 'yes')),
+        );
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertStringContainsString('Detalle técnico del fallo', $html);
+        $this->assertStringContainsString('Access Denied', $html);
+        // Dentro de un `details` cerrado: quien no quiera abrirlo ve el aviso
+        // en castellano y ya está.
+        $this->assertStringContainsString('<details', $html);
+    }
+
+    /** Y se puede apagar sin tocar código si algún día molesta. */
+    public function test_el_detalle_se_puede_apagar_con_un_filtro()
+    {
+        $GLOBALS['__stic_filters']['sticpa_pl_debug_allowed'] = false;
+        $this->scp->failWrites = array('LIS_listas');
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => json_encode(array('c1' => 'yes')),
+        );
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertStringNotContainsString('Detalle técnico del fallo', $html);
+        // Pero el aviso en castellano sigue estando: eso no se esconde nunca.
+        $this->assertStringContainsString('no se ha guardado del todo', mb_strtolower($html));
+    }
+
     // ---- UX: el paso siguiente y la salida a la ficha --------------------
 
     /**
@@ -2137,6 +2189,50 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('Ficha y teléfonos', $html);
     }
 
+    // ---- La lista de monitores: por etapa y por curso --------------------
+
+    /**
+     * Treinta monitores seguidos no se leen. Se parten en las mismas secciones
+     * que el árbol y con el mismo punto de color: MIC arriba (rojo), COM
+     * debajo (verde).
+     */
+    public function test_monitores_se_parte_por_etapa_con_los_mic_arriba()
+    {
+        $this->scp->coordEtapa = '';   // alcance amplio: MIC y COM
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        $mic = strpos($html, '>MIC<');
+        $com = strpos($html, '>COM<');
+        if ($mic === false || $com === false) {
+            $this->markTestSkipped('el doble no tiene monitores de las dos etapas');
+        }
+        $this->assertLessThan($com, $mic, 'los del MIC van arriba');
+        $this->assertStringContainsString('pl-etapa-dot', $html);
+    }
+
+    /**
+     * El curso escolar es TEXTO LIBRE en el CRM, así que ordenar alfabéticamente
+     * pone «1º ESO» antes que «4º Primaria» — justo al revés de como se lee una
+     * lista de grupos.
+     */
+    public function test_el_curso_se_ordena_como_se_lee()
+    {
+        $r = function ($t) { return sticpa_pl_curso_rank($t); };
+
+        // Primaria antes que ESO, y dentro por número.
+        $this->assertLessThan($r('5º Primaria'), $r('4º Primaria'));
+        $this->assertLessThan($r('1º ESO'), $r('6º Primaria'));
+        $this->assertLessThan($r('1º Bachillerato'), $r('4º ESO'));
+        // Valenciano y castellano, lo mismo.
+        $this->assertSame($r('6º Primaria'), $r('6é Primària'));
+        $this->assertSame($r('2º Bachillerato'), $r('2n Batxillerat'));
+        // Lo que no se reconoce va al final, pero no se pierde.
+        $this->assertGreaterThan($r('2º Bachillerato'), $r('Adultos'));
+        $this->assertGreaterThan($r('Adultos'), $r('Vete a saber'));
+        // Y sin curso, al final del todo pero antes que lo ilegible.
+        $this->assertGreaterThan($r('2º Bachillerato'), $r(''));
+    }
+
     // ---- La casilla de «este grupo entra en Pasar Lista» -----------------
 
     /**
@@ -2164,14 +2260,21 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame(2, sticpa_pl_grupos_ocultos($this->scp));
     }
 
-    /** El árbol lo dice, en vez de dejar que alguien busque un grupo que no ve. */
+    /**
+     * El árbol lo dice, en vez de dejar que alguien busque un grupo que no ve.
+     * Pero como NOTA AL PIE: gris, pequeña y al final. Es un dato que hay que
+     * poder saber, no un aviso que compita con la lista de grupos.
+     */
     public function test_el_arbol_avisa_de_los_grupos_no_marcados()
     {
         $this->scp->gruposActivos = array('g1');
         $html = $this->render('single_stic_pasar_lista_grupos');
 
-        $this->assertStringContainsString('no están marcados para Pasar Lista', $html);
+        $this->assertStringContainsString('sin marcar para Pasar Lista', $html);
         $this->assertStringContainsString('3 grupos', $html);
+        $this->assertStringContainsString('pl-footnote', $html);
+        // Y al final: después de la lista de grupos, no antes.
+        $this->assertGreaterThan(strpos($html, 'pl-group'), strpos($html, 'pl-footnote'));
     }
 
     /**
@@ -2309,19 +2412,41 @@ final class PasarListaRenderTest extends TestCase
         );
     }
 
-    /** Y un grupo vacío tampoco provoca una consulta propia. */
-    public function test_un_grupo_vacio_no_provoca_una_consulta()
+    /**
+     * Un grupo que se PINTA y sale vacío sí vuelve a preguntar: cuesta UNA
+     * llamada y es lo que rescata a un grupo que existe pero cuya gente no vino
+     * en el mapa de la delegación. Quitar esto dejó a C1 sin participantes un
+     * sábado; el problema nunca fue el respaldo, fue el bucle.
+     */
+    public function test_un_grupo_vacio_que_se_pinta_vuelve_a_preguntar()
     {
-        // g2 existe y no tiene relaciones en el doble.
         $antes = count($this->scp->calls);
         $people = sticpa_pl_group_people($this->scp, 'g2');
-        $this->assertSame(array(), $people['participants']);
-        $this->assertSame(array(), $people['monitors']);
-
         $nuevas = array_slice($this->scp->calls, $antes);
-        // La única llamada permitida es la del mapa de la delegación, que sirve
-        // para TODOS los grupos.
+
+        $this->assertSame(array(), $people['participants']);
+        $this->assertContains('ajmcm_GRUPOS:ajmcm_grupos_stic_contacts_relationships', $nuevas);
+    }
+
+    /** Pero la puerta del bucle NO pregunta nunca: ahí es donde era un 1+N. */
+    public function test_la_puerta_del_bucle_no_pregunta_por_grupo()
+    {
+        $antes = count($this->scp->calls);
+        sticpa_pl_group_people_bulk($this->scp, 'g2');
+        $nuevas = array_slice($this->scp->calls, $antes);
+
         $this->assertNotContains('ajmcm_GRUPOS:ajmcm_grupos_stic_contacts_relationships', $nuevas);
+    }
+
+    /** Y el filtro vuelve a su sitio: el siguiente grupo sí puede preguntar. */
+    public function test_la_puerta_del_bucle_no_deja_el_filtro_puesto()
+    {
+        sticpa_pl_group_people_bulk($this->scp, 'g2');
+
+        $antes = count($this->scp->calls);
+        sticpa_pl_group_people($this->scp, 'g2');
+        $nuevas = array_slice($this->scp->calls, $antes);
+        $this->assertContains('ajmcm_GRUPOS:ajmcm_grupos_stic_contacts_relationships', $nuevas);
     }
 
     /**
@@ -2916,7 +3041,9 @@ final class PasarListaRenderTest extends TestCase
     /** Un grupo sin nadie sigue devolviendo la forma, no un aviso. */
     public function testUnGrupoSinGenteDevuelveLosDosCubosVacios()
     {
-        $people = sticpa_pl_group_people($this->scp, 'g3');
+        // g2, que en el doble no tiene ninguna relación. (g3 sí tiene monitor
+        // desde que la pantalla de monitores necesita dos etapas para probarse.)
+        $people = sticpa_pl_group_people($this->scp, 'g2');
         $this->assertSame(array(), $people['participants']);
         $this->assertSame(array(), $people['monitors']);
     }

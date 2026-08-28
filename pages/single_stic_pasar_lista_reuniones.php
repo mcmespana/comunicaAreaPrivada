@@ -88,8 +88,15 @@ if (!empty($sessions)) {
         $html .= '<a class="pl-group" href="?internalpage=single_stic_pasar_lista_monitores&reunion=1&sesion='
             . esc_attr($s['id']) . '">';
         $html .= '<span class="pl-group-body">';
-        $html .= '<span class="pl-name">' . esc_html(sticpa_pl_session_label($s)) . '</span>';
+        // EL NOMBRE MANDA. Una reunión es «Programación del 2.º trimestre», y
+        // eso es lo que se busca en la lista; la fecha acompaña. En las sesiones
+        // semanales es al revés y por eso aquí no vale el mismo formato.
+        $nombre = (isset($s['name']) && $s['name'] !== '') ? $s['name'] : sticpa_pl_session_label($s);
+        $html .= '<span class="pl-name">' . esc_html($nombre) . '</span>';
         $meta = array();
+        if (isset($s['name']) && $s['name'] !== '') {
+            $meta[] = sticpa_pl_session_label($s);
+        }
         if ($hours > 0) {
             $meta[] = sprintf(
                 /* translators: %s: duración en horas */

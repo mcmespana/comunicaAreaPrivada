@@ -501,13 +501,22 @@ function sticpa_pl_next_steps_html($groupId = '')
 /**
  * ¿Se le puede enseñar a esta persona el detalle técnico de un fallo?
  *
- * Solo a coordinación (y forzable con el filtro para depurar). El detalle lleva
- * ids y respuestas del CRM: útil para arreglar, impropio para un monitor.
+ * SÍ, a todo el mundo, y es deliberado. Estaba reservado a coordinación, y eso
+ * convertía cada fallo en un teléfono escacharrado: el monitor decía «no se
+ * guarda», alguien tenía que reproducirlo con otra cuenta y, hasta entonces, la
+ * respuesta del CRM —que es la que dice qué pasa— no la leía nadie.
+ *
+ * Lo que se enseña son ids del CRM y el mensaje de error de la API. No hay
+ * datos personales ahí, y va dentro de un `<details>` cerrado: quien no quiera
+ * abrirlo ve solo el aviso en castellano.
+ *
+ * Si algún día molesta, se apaga sin tocar código:
+ *
+ *     add_filter('sticpa_pl_debug_allowed', '__return_false');
  */
-function sticpa_pl_debug_allowed($objSCP)
+function sticpa_pl_debug_allowed($objSCP = null)
 {
-    $allowed = function_exists('sticpa_pl_is_coordinator') ? sticpa_pl_is_coordinator($objSCP) : false;
-    return (bool) apply_filters('sticpa_pl_debug_allowed', $allowed, $objSCP);
+    return (bool) apply_filters('sticpa_pl_debug_allowed', true, $objSCP);
 }
 
 /**

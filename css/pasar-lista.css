@@ -696,6 +696,16 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
    motivo, así que con "sin marcar" el campo no pinta nada. */
 .pl-sheet[data-state=""] .pl-motive { display: none; }
 
+/* Nota al pie: lo que hay que poder saber sin que estorbe. Gris, pequeña y
+   al final — si compitiera con el contenido dejaría de ser una nota. */
+.pl-footnote {
+    margin: 1.1rem 0 0.3rem;
+    font-size: 0.72rem;
+    line-height: 1.45;
+    color: var(--gray-400);
+    text-align: center;
+}
+
 /* Los dos pasos siguientes tras guardar. Ocupan una fila, no una pantalla:
    la lista ya está pasada y esto es una salida, no una celebración. */
 .pl-next {
@@ -775,6 +785,16 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     letter-spacing: 0.06em;
 }
 .pl-etapa-dot { width: 8px; height: 8px; border-radius: var(--radius-full); }
+/* El recuento de la sección: a la derecha, gris y pequeño. Acompaña al título
+   sin competir con él. */
+.pl-etapa-count {
+    margin-left: auto;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--gray-400);
+    letter-spacing: 0;
+    text-transform: none;
+}
 
 .pl-group {
     display: flex;

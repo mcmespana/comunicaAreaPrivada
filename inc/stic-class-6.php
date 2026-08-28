@@ -335,6 +335,38 @@ class SugarRestApiCall
         return $method . '|' . md5(serialize($parameters));
     }
 
+    /**
+     * Quita de una página las filas cuyo id ya se traía, y dice si ha quedado
+     * alguna nueva.
+     *
+     * Es el seguro contra un servidor que IGNORE el `offset` y conteste siempre
+     * la misma página: sin esto, el bucle de paginación pediría lo mismo una y
+     * otra vez hasta el tope. Con esto se para en cuanto una página no aporta
+     * nada nuevo. Además protege de páginas que se solapan, que es lo que pasa
+     * cuando alguien crea un registro a mitad del recorrido.
+     *
+     * @param array $vistos ids ya traídos, por referencia.
+     * @return array las filas que aportan algo.
+     */
+    private static function soloNuevas($filas, &$vistos)
+    {
+        $nuevas = array();
+        foreach ((array) $filas as $fila) {
+            $id = isset($fila->name_value_list->id->value)
+                ? (string) $fila->name_value_list->id->value : '';
+            if ($id === '') {
+                $nuevas[] = $fila;   // sin id no se puede deduplicar: se conserva
+                continue;
+            }
+            if (isset($vistos[$id])) {
+                continue;
+            }
+            $vistos[$id] = true;
+            $nuevas[] = $fila;
+        }
+        return $nuevas;
+    }
+
     /** ¿Se puede paralelizar en este hosting? */
     public static function supportsMulti()
     {
@@ -345,6 +377,19 @@ class SugarRestApiCall
     public static function isCollecting()
     {
         return self::$collecting;
+    }
+
+    /**
+     * Tira las respuestas ya traídas que aún no ha consumido nadie.
+     *
+     * Hace falta al invalidar la caché: si en la misma petición se ESCRIBE algo
+     * y se tira la caché, una respuesta recolectada ANTES de esa escritura es
+     * una foto vieja — y el cargador que la consuma después la guardaría como
+     * si fuera fresca, con el TTL entero por delante.
+     */
+    public static function forgetMemo()
+    {
+        self::$memo = array();
     }
 
     /**
@@ -890,12 +935,73 @@ class SugarRestApiCall
         );
 
         if ($params['offset'] < 0) {
-            $params['offset'] = 0;
+            $get_relationship_params['offset'] = 0;
         }
-        $get_entry_list_result = $this->call("get_relationships", $get_relationship_params, $this->url);
-        $workarray = $get_entry_list_result->entry_list ?? null;
 
-        return self::attachLinkList($workarray, $get_entry_list_result->relationship_list ?? null);
+        // Se pagina por lo mismo que en getRecordsModule(): `limit` a 0 deja que
+        // el servidor ponga su tope y devuelva una parte, y aquí nadie se
+        // enteraba. Si quien llama pide un límite concreto, se respeta.
+        $pedido = (int) $params['limit'];
+        if ($pedido > 0) {
+            $get_entry_list_result = $this->call("get_relationships", $get_relationship_params, $this->url);
+            return self::attachLinkList(
+                $get_entry_list_result->entry_list ?? null,
+                $get_entry_list_result->relationship_list ?? null
+            );
+        }
+
+        $pagina = self::intSetting('sticpa_crm_page_size', 200);
+        $techo = self::intSetting('sticpa_crm_max_rows', 5000);
+        if ($pagina < 1) {
+            $pagina = 200;
+        }
+
+        $todas = array();
+        $vistos = array();
+        $offset = max(0, (int) $get_relationship_params['offset']);
+        $total = null;
+
+        while (true) {
+            $get_relationship_params['offset'] = $offset;
+            $get_relationship_params['limit'] = $pagina;
+            $res = $this->call("get_relationships", $get_relationship_params, $this->url);
+
+            $entries = isset($res->entry_list) && is_array($res->entry_list) ? $res->entry_list : array();
+            if (empty($entries)) {
+                break;
+            }
+
+            $juntas = self::soloNuevas(
+                self::attachLinkList(
+                    $entries,
+                    isset($res->relationship_list) ? $res->relationship_list : null
+                ),
+                $vistos
+            );
+            if (empty($juntas)) {
+                break;   // la página no aporta nada: el servidor no avanza
+            }
+            $todas = array_merge($todas, $juntas);
+
+            if ($total === null && isset($res->total_count)) {
+                $total = (int) $res->total_count;
+            }
+            $offset += count($entries);
+
+            if ($total !== null && $offset >= $total) {
+                break;
+            }
+            if ($offset >= $techo) {
+                error_log('[sticpa] ' . $params['module_name'] . ':' . $params['link_field_name']
+                    . ': cortado en ' . $offset . ' filas (tope sticpa_crm_max_rows).');
+                break;
+            }
+            if (self::$collecting) {
+                break;
+            }
+        }
+
+        return $todas;
     }
 
     /**
@@ -965,26 +1071,95 @@ class SugarRestApiCall
     }
 
     // Get all records from a module using a give query
+    /**
+     * Todos los registros de un módulo que cumplan la consulta. TODOS: pagina.
+     *
+     * ⚠️ `max_results = 0` NO ES «sin límite». Es un valor falsy, así que
+     * SuiteCRM no lo aplica y cae en su `list_max_entries_per_page` (20 por
+     * defecto). Esto pedía las 109 relaciones de una delegación y recibía las
+     * 20 primeras, sin que nadie leyera `total_count` — que la API sí devuelve.
+     * Los grupos cuya gente caía fuera de esa página salían con CERO
+     * participantes, indistinguibles de un grupo vacío de verdad. Así se quedó
+     * C1 sin participantes un sábado.
+     *
+     * Ahora se pide por páginas y se sigue pidiendo hasta traerlas todas. El
+     * corte lo decide `total_count` cuando viene; si no viene, se para cuando
+     * una página llega vacía. **No se para porque una página venga más corta de
+     * lo pedido**: el servidor puede tener su propio tope y devolver 20 aunque
+     * se le pidan 200, y ese era justo el fallo que había que evitar.
+     */
     public function getRecordsModule($moduleName, $query = '', $fieldsToReturn = array('id', 'name'), $relationshipFields = null)
     {
-        $getEntryList = array(
-            'session' => $this->session_id,
-            'module_name' => $moduleName,
-            'query' => $query,
-            'order_by' => '',
-            'offset' => 0,
-            'select_fields' => $fieldsToReturn,
-            'link_name_to_fields_array' => $this->parseRelationshipFields($relationshipFields),
-            'deleted' => 0,
-            'max_results' => 0,
-        );
-        $getEntryListResult = $this->call("get_entry_list", $getEntryList, $this->url);
+        $pagina = self::intSetting('sticpa_crm_page_size', 200);
+        $techo = self::intSetting('sticpa_crm_max_rows', 5000);
+        if ($pagina < 1) {
+            $pagina = 200;
+        }
 
-        return self::flattenRelationshipFields(
-            $getEntryListResult->entry_list ?? null,
-            $getEntryListResult->relationship_list ?? null,
-            $relationshipFields
-        );
+        $todas = array();
+        $vistos = array();
+        $offset = 0;
+        $total = null;
+
+        while (true) {
+            $getEntryList = array(
+                'session' => $this->session_id,
+                'module_name' => $moduleName,
+                'query' => $query,
+                'order_by' => '',
+                'offset' => $offset,
+                'select_fields' => $fieldsToReturn,
+                'link_name_to_fields_array' => $this->parseRelationshipFields($relationshipFields),
+                'deleted' => 0,
+                'max_results' => $pagina,
+            );
+            $res = $this->call("get_entry_list", $getEntryList, $this->url);
+
+            $entries = isset($res->entry_list) && is_array($res->entry_list) ? $res->entry_list : array();
+            if (empty($entries)) {
+                break;   // sin filas: se acabó (o la llamada falló, y quien llame ya lo trata)
+            }
+
+            // El aplanado empareja `entry_list` con `relationship_list` POR
+            // POSICIÓN, así que se hace página a página: mezclar primero las
+            // filas de varias páginas descolocaría los enlaces.
+            $planas = self::flattenRelationshipFields(
+                $entries,
+                isset($res->relationship_list) ? $res->relationship_list : null,
+                $relationshipFields
+            );
+            $planas = self::soloNuevas($planas, $vistos);
+            if (empty($planas)) {
+                break;   // la página no aporta nada: el servidor no avanza
+            }
+            $todas = array_merge($todas, $planas);
+
+            if ($total === null && isset($res->total_count)) {
+                $total = (int) $res->total_count;
+            }
+            $offset += count($entries);
+
+            if ($total !== null && $offset >= $total) {
+                break;
+            }
+            if ($offset >= $techo) {
+                error_log('[sticpa] ' . $moduleName . ': cortado en ' . $offset
+                    . ' filas (tope sticpa_crm_max_rows). Hay ' . ($total === null ? '¿?' : $total) . '.');
+                break;
+            }
+            // Sin `total_count` no hay forma de saber cuántas quedan: se sigue
+            // hasta que una página venga vacía.
+            if ($total === null && count($entries) < 1) {
+                break;
+            }
+            // En modo recolecta la primera «página» no existe: se ha apuntado
+            // la consulta y se ha devuelto null. No hay que pedir más.
+            if (self::$collecting) {
+                break;
+            }
+        }
+
+        return $todas;
     }
 
     /**

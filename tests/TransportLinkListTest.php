@@ -76,6 +76,86 @@ class TransportLinkListTest extends TestCase
     }
 
     /**
+     * LA PAGINACIÓN, QUE ES LO QUE DEJÓ A C1 SIN PARTICIPANTES.
+     *
+     * `max_results = 0` no es «sin límite»: SuiteCRM lo ignora y aplica su
+     * propio tope (20 por defecto). La delegación tiene 109 relaciones y
+     * llegaban las 20 primeras; los grupos que caían fuera salían con cero
+     * participantes, igual que un grupo vacío de verdad.
+     */
+    public function testTraeTodasLasPaginasAunqueElServidorLasCorte()
+    {
+        $scp = new FakeTransport();
+        $scp->todos = array();
+        for ($i = 1; $i <= 109; $i++) {
+            $scp->todos[] = 'r' . $i;
+        }
+        $scp->topePagina = 20;   // el servidor no da más de 20, pidas lo que pidas
+
+        $rows = $scp->getRecordsModule('stic_Contacts_Relationships', "q", array('id'));
+
+        $this->assertCount(109, $rows, 'tienen que llegar las 109, no las 20 primeras');
+        $this->assertSame('r109', $rows[108]->name_value_list->id->value);
+        // Seis páginas de 20: 109 filas no caben en menos.
+        $this->assertGreaterThanOrEqual(6, count($scp->llamadas));
+    }
+
+    /** Y lo mismo por `get_relationships`, que tiene su propio camino. */
+    public function testGetRelationshipsTambienPagina()
+    {
+        $scp = new FakeTransport();
+        $scp->todos = array();
+        for ($i = 1; $i <= 45; $i++) {
+            $scp->todos[] = 'x' . $i;
+        }
+        $scp->topePagina = 20;
+
+        $rows = $scp->getRelatedElementsForLoggedUser(array(
+            'module_name' => 'ajmcm_GRUPOS', 'module_id' => 'g1',
+            'link_field_name' => 'ajmcm_grupos_stic_contacts_relationships',
+            'related_fields' => array('id'),
+            'related_module_link_name_to_fields_array' => array(),
+            'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
+        ));
+
+        $this->assertCount(45, $rows);
+    }
+
+    /**
+     * Sin `total_count` también funciona: se para cuando llega una página
+     * vacía. Hay instancias que no lo mandan.
+     */
+    public function testSinTotalCountParaCuandoSeAcaban()
+    {
+        $scp = new FakeTransport();
+        $scp->todos = array('a', 'b', 'c', 'd', 'e');
+        $scp->topePagina = 2;
+        $scp->conTotal = false;
+
+        $rows = $scp->getRecordsModule('ajmcm_GRUPOS', '', array('id'));
+        $this->assertCount(5, $rows);
+    }
+
+    /**
+     * Y si el servidor IGNORA el offset y contesta siempre lo mismo, se para en
+     * vez de girar hasta el tope. Sin este seguro, un servidor así costaría
+     * veinticinco llamadas idénticas por pantalla.
+     */
+    public function testUnServidorQueNoAvanzaNoHaceGirarElBucle()
+    {
+        $scp = new FakeTransport();
+        $scp->canned = (object) array(
+            'entry_list' => array($this->entry('r1'), $this->entry('r2')),
+            'relationship_list' => array($this->linked('c1'), $this->linked('c2')),
+        );
+
+        $rows = $scp->getRecordsModule('ajmcm_GRUPOS', '', array('id'));
+
+        $this->assertCount(2, $rows, 'las dos filas, sin repetirlas');
+        $this->assertLessThanOrEqual(2, count($scp->llamadas), 'y sin girar');
+    }
+
+    /**
      * El de verdad: que el MÉTODO DEL TRANSPORTE junte las dos listas. Sin
      * esto, `attachLinkList` podría estar perfecta y no usarse — que es
      * exactamente el fallo que había.
@@ -307,6 +387,20 @@ class FakeTransport extends SugarRestApiCall
 {
     public $canned;
 
+    /**
+     * Un CRM QUE PAGINA, que es lo que hace el de verdad.
+     *
+     * Se le da una lista completa de ids y un tope de página, y contesta como
+     * SuiteCRM: la porción que toca según el `offset`, `total_count` con el
+     * total, y —lo importante— **ignorando un `max_results` mayor que su propio
+     * tope**. Ese detalle es el que convirtió «pedimos todo» en «nos dan 20»:
+     * `max_results = 0` era falsy y el servidor aplicaba su límite.
+     */
+    public $todos = null;      // array de ids
+    public $topePagina = 20;   // lo que el servidor da como mucho
+    public $conTotal = true;   // ¿manda `total_count`?
+    public $llamadas = array();
+
     public function __construct()
     {
         // A propósito vacío: ver arriba.
@@ -314,6 +408,39 @@ class FakeTransport extends SugarRestApiCall
 
     public function call($method, $parameters, $url, $retry = false)
     {
-        return $this->canned;
+        $this->llamadas[] = array(
+            'method' => $method,
+            'offset' => isset($parameters['offset']) ? (int) $parameters['offset'] : 0,
+            'pide' => isset($parameters['max_results'])
+                ? (int) $parameters['max_results']
+                : (isset($parameters['limit']) ? (int) $parameters['limit'] : 0),
+        );
+
+        if ($this->todos === null) {
+            return $this->canned;
+        }
+
+        $offset = isset($parameters['offset']) ? (int) $parameters['offset'] : 0;
+        $pide = isset($parameters['max_results'])
+            ? (int) $parameters['max_results']
+            : (isset($parameters['limit']) ? (int) $parameters['limit'] : 0);
+        // El servidor manda: nunca da más de su tope, pidas lo que pidas.
+        $cuantos = ($pide > 0) ? min($pide, $this->topePagina) : $this->topePagina;
+
+        $trozo = array_slice($this->todos, $offset, $cuantos);
+        $res = new stdClass();
+        $res->entry_list = array();
+        $res->relationship_list = array();
+        foreach ($trozo as $id) {
+            $fila = new stdClass();
+            $fila->name_value_list = new stdClass();
+            $fila->name_value_list->id = (object) array('name' => 'id', 'value' => $id);
+            $res->entry_list[] = $fila;
+            $res->relationship_list[] = new stdClass();
+        }
+        if ($this->conTotal) {
+            $res->total_count = count($this->todos);
+        }
+        return $res;
     }
 }
