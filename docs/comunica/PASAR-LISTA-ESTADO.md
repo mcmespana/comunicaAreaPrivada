@@ -379,7 +379,29 @@ ajustable con `sticpa_crm_page_size` y `sticpa_crm_max_rows`.
 > entera, no puede detectar un truncado. El de `TransportLinkListTest` simula un
 > servidor que pagina Y que ignora un `max_results` mayor que su tope.
 
-### 3.6 El tema de WordPress pinta tus `<button>`
+### 3.6 El tema de WordPress pinta tus `<button>`… y tus `<label>` y tus `<input>`
+
+**Ampliada el 28/08/2026: no eran solo los botones.** Son tres selectores del
+tema y de la base del área que le ganan por especificidad a una clase suelta, y
+los tres han producido un fallo visible que nadie vio leyendo el CSS del plugin:
+
+| Quién gana | A quién le gana | Qué se veía |
+|---|---|---|
+| `.entry-content button` del tema de WP | `.pl-all-present`, `.pl-opt`, `.pl-row`… | «Han venido todos» en letra blanca sobre verde claro |
+| `:is(.stic-tab-content, …) label { display: block }` de `stic-base.css` | `.pl-motive`, `.pl-avi-check`, `.pl-field` | El motivo de la hoja, una caja de 130 px con el lápiz ENCIMA del texto en vez de la pastilla de 48 px del artboard |
+| `input[type=text\|search] { border-width: 1.5px !important }` de `custom-style.css` §10 | `.pl-motive input`, `.pl-search input` | Una caja con borde DENTRO de la pastilla |
+
+Los tres se neutralizan en `css/pasar-lista.css` §0.b, §0.c y §0.d, con la misma
+receta: `!important` para desactivar lo del tema, y que el componente vuelva a
+declarar lo suyo también con `!important`.
+
+**La regla, para no repetirlo una cuarta vez: todo componente nuevo de Pasar
+Lista que sea un `<button>`, un `<label>` o lleve un `<input>` dentro pasa por
+§0.b/§0.c/§0.d antes de darse por bueno.** Y ojo con el efecto secundario: una
+regla de `display` con `!important` se come los `display: none` que la esconden,
+así que esos también tienen que llevarlo (le pasó al motivo).
+
+### 3.6-bis El texto original sobre los `<button>`
 
 El tema estila `.entry-content button`, con más especificidad que una clase.
 Todos los botones de Pasar Lista son `<button>` de verdad (accesibilidad), así

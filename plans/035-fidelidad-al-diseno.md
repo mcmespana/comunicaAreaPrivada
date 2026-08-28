@@ -135,6 +135,12 @@ Resumen, Ficha, Main, Estados.
 | Marcar | ✅ | ninguno vivo | ✅ (PR #60) | ✅ 28/08 (captura) |
 | Ficha | ✅ teléfonos | ✅ 5 + la estructura | ✅ teléfonos | ✅ 28/08 (captura) |
 | Grupos | ✅ [`fidelidad/grupos.md`](../docs/comunica/fidelidad/grupos.md) | ✅ 14 | ✅ 28/08 | ✅ 28/08 (captura) |
-| Resumen | | | | |
-| Main | | | | |
-| Estados | | | | |
+| Resumen | ✅ [`fidelidad/main-resumen-estados.md`](../docs/comunica/fidelidad/main-resumen-estados.md) | ✅ 2 (medidas) | ✅ 28/08 | ✅ 28/08 (captura) |
+| Main | ✅ ídem | ✅ 4 (medidas) | ✅ 28/08 | ✅ 28/08 (captura) |
+| Estados | ✅ ídem | ✅ 7, **dos de ellos de verdad** | ✅ 28/08 | ✅ 28/08 (captura) |
+
+**Las seis pantallas con artboard están hechas.** Lo que queda del plan es el
+método, no la lista: que cualquier componente nuevo pase por §0.b/§0.c/§0.d de
+`pasar-lista.css` antes de darse por bueno, porque los tres fallos de fondo que
+ha habido eran el tema de WordPress ganando por especificidad y ninguno se veía
+leyendo el CSS del plugin.
