@@ -2218,7 +2218,10 @@ a.pl-group .pl-name { display: block; }
     color: inherit;
     width: 100%;
 }
-.pl-field--date { flex: 0 0 9rem; }
+/* 10.5 rem y no 9: el control de fecha NATIVO necesita su sitio, y a 9 rem
+   Chrome recortaba el año («08/28/202…»). Se le da lo que pide en vez de
+   apretarlo: es un campo que se toca, no una etiqueta. */
+.pl-field--date { flex: 0 0 10.5rem; }
 
 /* ---- Seguimiento del monitor: las pistas de cuadraditos ----------------- */
 

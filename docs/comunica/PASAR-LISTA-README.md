@@ -29,6 +29,7 @@ que se rompa en móvil se rompe en la app.
 | ¿BBDD espejo? — análisis y decisión (27/08/2026) | [`DECISION-BBDD-ESPEJO.md`](DECISION-BBDD-ESPEJO.md) |
 | **Planes de trabajo ejecutables** (bug del guardado, rendimiento, fidelidad, funcionalidad, UX, seguimiento de monitores) | [`../../plans/`](../../plans/) — 033 a 038 |
 | Colores, tipografía, componentes | [`../design-system.md`](../design-system.md) |
+| **Fidelidad pantalla ↔ artboard** (la spec medida, y las divergencias deliberadas) | [`fidelidad/`](fidelidad/) |
 | El contrato con la app (webview) | [`CONTRATO-APP-WEBVIEW.md`](CONTRATO-APP-WEBVIEW.md) |
 
 **Y la regla que manda sobre todas:** los nombres de campo del CRM salen de
