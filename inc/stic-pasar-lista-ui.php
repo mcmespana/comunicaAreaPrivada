@@ -248,20 +248,31 @@ function sticpa_pl_person_link_html($person, $href, $sub = '', $extra = '', $con
  * grupos», donde volver a marcar sería justo el precio que esa pantalla existe
  * para no pagar.
  *
- * `vengo` lo dice, y solo acepta valores conocidos: lo que venga en la URL nunca
- * se convierte en un enlace tal cual. Devuelve '' si no es de los nuestros, y
- * quien llama decide su destino de siempre.
+ * `vengo` lo dice, y solo acepta valores CONOCIDOS: lo que venga en la URL nunca
+ * se convierte en un enlace tal cual, ni se propaga de una ficha a la siguiente.
+ * Esta función es la lista blanca, y devuelve '' para todo lo demás.
+ */
+function sticpa_pl_vengo_modo($vengo)
+{
+    $vengo = (string) $vengo;
+    $conocidos = array('grupo', 'grupos', 'cursos', 'az', 'monitores');
+    return in_array($vengo, $conocidos, true) ? $vengo : '';
+}
+
+/**
+ * El enlace de vuelta que corresponde a un `vengo`, o '' si no es de los
+ * nuestros. La lista blanca está en `sticpa_pl_vengo_modo()`, en un solo sitio.
  */
 function sticpa_pl_vengo_url($vengo, $vgrupo = '')
 {
-    $vengo = (string) $vengo;
+    $vengo = sticpa_pl_vengo_modo($vengo);
     $base = '?internalpage=single_stic_mis_grupos';
 
     if ($vengo === 'grupo') {
         $vgrupo = sticpa_pl_safe_id($vgrupo);
         return ($vgrupo !== '') ? ($base . '&grupo=' . rawurlencode($vgrupo)) : $base;
     }
-    if (in_array($vengo, array('grupos', 'cursos', 'az'), true)) {
+    if ($vengo === 'grupos' || $vengo === 'cursos' || $vengo === 'az') {
         return $base . '&ver=' . $vengo;
     }
     if ($vengo === 'monitores') {

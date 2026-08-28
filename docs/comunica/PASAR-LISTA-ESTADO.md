@@ -94,6 +94,11 @@ anterior-siguiente entre fichas. Para coordinación, los monitores por etapa.
 resolvieron las cinco preguntas que tenía abiertas. Lo que queda por decidir es
 menor y está en su §6.
 
+Lleva también el color graduado por curso, el orden de monitores por curso →
+grupo → apellido con sus flechas, y la vista de **quien no está en ningún
+grupo**, donde coordinación lo vincula en dos gestos con el mismo escritor que
+ya usaba el resumen.
+
 Lo que importa aquí: **no tiene ni un cargador propio**. Tres llamadas en una
 sola tanda partiendo de frío, cero con la caché caliente. Si alguien añade una
 consulta ahí, casi seguro está repitiendo una que ya existe — y salta el tope de
@@ -409,6 +414,7 @@ llamada fallaba en silencio y caía a respaldos 1+N).
 | **Mis grupos** (índice, y sus tres vistas) | **3** | **2** |
 | Mis grupos → un grupo | 3 (5 si el mapa falla) | 2 |
 | Mis grupos → monitores | 4 | 3 |
+| Mis grupos → sin grupo | 3 | 2 |
 | **Cambiar de fecha** (caché caliente) | **4** | 4 |
 
 Lo que bajó esos números el 28/08: matar el 1+N que resolvía a la gente de un

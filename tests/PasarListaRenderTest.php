@@ -4356,4 +4356,185 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringNotContainsString('evil.example', $html);
         $this->assertStringContainsString('single_stic_pasar_lista_marcar&grupo=g1', $html);
     }
+
+    // ---- Color por curso, orden de monitores y gente sin grupo -----------
+
+    /**
+     * El color de las cabeceras de curso: más intenso cuanto más mayores. Y NO
+     * puede contradecir al orden, porque sale del mismo rank.
+     */
+    public function test_intensidad_de_curso_crece_con_la_edad()
+    {
+        $escalera = array('Infantil 3', '1º Primaria', '6º Primaria', '1º ESO',
+            '4º ESO', '1º Bachillerato', 'FP', 'Universidad', 'Adultos');
+
+        $previo = -1.0;
+        foreach ($escalera as $curso) {
+            $hoy = sticpa_pl_curso_intensidad($curso);
+            $this->assertGreaterThan(
+                $previo,
+                $hoy,
+                $curso . ' tiene que ser MÁS intenso que el curso anterior.'
+            );
+            $this->assertLessThanOrEqual(1.0, $hoy);
+            $previo = $hoy;
+        }
+    }
+
+    /**
+     * FP tenía base 350, que no es múltiplo de cien: la primera versión lo
+     * descomponía con `% 100` y lo colaba por delante de universidad.
+     */
+    public function test_intensidad_no_se_rompe_con_las_etapas_de_base_rara()
+    {
+        $this->assertLessThan(
+            sticpa_pl_curso_intensidad('Universidad'),
+            sticpa_pl_curso_intensidad('FP'),
+            'FP va antes que universidad, así que tiene que ser menos intenso.'
+        );
+        $this->assertLessThan(
+            sticpa_pl_curso_intensidad('Adultos'),
+            sticpa_pl_curso_intensidad('Universidad')
+        );
+    }
+
+    /** Lo que no se reconoce no se colorea: un color inventado miente. */
+    public function test_intensidad_de_un_curso_desconocido_es_negativa()
+    {
+        $this->assertLessThan(0, sticpa_pl_curso_intensidad(''));
+        $this->assertLessThan(0, sticpa_pl_curso_intensidad('Lo que sea'));
+    }
+
+    /** Y en pantalla: cada curso lleva su punto graduado. */
+    public function test_mis_grupos_por_curso_pinta_los_puntos_graduados()
+    {
+        $_REQUEST = array('ver' => 'cursos');
+        $html = $this->render('single_stic_mis_grupos');
+
+        $this->assertStringContainsString('pl-curso-dot', $html);
+        $this->assertStringContainsString('opacity:', $html);
+        // «Sin curso» va en gris y sin punto graduado: no se colorea lo que no
+        // se entiende.
+        $this->assertStringContainsString('background:var(--gray-300)', $html);
+    }
+
+    /**
+     * ORDEN DE MONITORES: curso, luego GRUPO —los del mismo grupo seguidos— y
+     * luego apellido.
+     */
+    public function test_monitores_del_mismo_grupo_van_seguidos()
+    {
+        $this->scp->coordEtapa = '';        // alcance ancho: entran las dos etapas
+        $this->scp->monitorDeDosEtapas = true;
+        $groups = sticpa_pl_groups($this->scp);
+        $monitors = sticpa_pl_monitors_of($this->scp, $groups);
+
+        $this->assertNotEmpty($monitors);
+        // El orden por curso no se rompe...
+        $ranks = array();
+        $grupos = array();
+        foreach ($monitors as $m) {
+            $ranks[] = isset($m['rank']) ? (int) $m['rank'] : 99999;
+            $grupos[] = isset($m['grupo']) ? $m['grupo'] : '';
+        }
+        $ordenados = $ranks;
+        sort($ordenados);
+        $this->assertSame($ordenados, $ranks, 'Los monitores tienen que ir por curso.');
+
+        // ...y dentro de un mismo curso, los del mismo grupo van SEGUIDOS: un
+        // código de grupo no puede aparecer, desaparecer y volver.
+        $vistos = array();
+        $ultimo = null;
+        foreach ($grupos as $g) {
+            if ($g === $ultimo) {
+                continue;
+            }
+            $this->assertNotContains(
+                $g,
+                $vistos,
+                'El grupo ' . $g . ' sale en dos tramos: los del mismo grupo tienen que ir seguidos.'
+            );
+            $vistos[] = $g;
+            $ultimo = $g;
+        }
+    }
+
+    /** Las flechas también en la ficha del monitor. */
+    public function test_ficha_del_monitor_lleva_anterior_y_siguiente()
+    {
+        $this->scp->coordEtapa = '';
+        $_REQUEST = array('monitor' => 'm10');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $this->assertStringContainsString('pl-pager', $html);
+        $this->assertStringContainsString('David Soler', $html);
+        $this->assertStringContainsString('monitor=m1', $html);
+    }
+
+    /**
+     * Llegando desde un grupo, las flechas recorren LOS MONITORES DE ESE GRUPO.
+     * Pasar de un monitor de MIC a uno de LC porque tocaba alfabéticamente no
+     * es leer una lista, es perderse.
+     */
+    public function test_flechas_del_monitor_se_ciñen_al_grupo_del_que_vienes()
+    {
+        $this->scp->coordEtapa = '';
+        // g3 (Los Micos) solo tiene a Jaime Bort: sin vecinos, no hay pie.
+        $_REQUEST = array('monitor' => 'm10', 'vengo' => 'grupo', 'vgrupo' => 'g3');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $this->assertStringNotContainsString('pl-pager', $html);
+        // Pero la vuelta atrás sí lleva a ese grupo.
+        $this->assertStringContainsString('single_stic_mis_grupos&grupo=g3', $html);
+    }
+
+    /** La gente sin grupo: la tarjeta del final del índice, y su vista. */
+    public function test_mis_grupos_ofrece_vincular_a_quien_no_tiene_grupo()
+    {
+        $html = $this->render('single_stic_mis_grupos');
+        // c7 y c8 están en el doble sin grupo.
+        $this->assertStringContainsString('pl-orphans', $html);
+        $this->assertStringContainsString('2 personas sin grupo', $html);
+        $this->assertStringContainsString('ver=sueltos', $html);
+    }
+
+    /** Un monitor raso ve la lista, pero no puede vincular a nadie. */
+    public function test_vista_de_sueltos_no_deja_vincular_a_un_monitor_raso()
+    {
+        $_REQUEST = array('ver' => 'sueltos');
+        $html = $this->render('single_stic_mis_grupos');
+
+        $this->assertStringContainsString('Sol Messeguer', $html);
+        $this->assertStringNotContainsString('pl_assign_rel', $html);
+        $this->assertStringContainsString('cosa de coordinación', $html);
+    }
+
+    /** Coordinación lo arregla ahí mismo, con el curso del grupo a la vista. */
+    public function test_vista_de_sueltos_deja_vincular_a_coordinacion()
+    {
+        $this->scp->coordEtapa = '';
+        $_REQUEST = array('ver' => 'sueltos');
+        $html = $this->render('single_stic_mis_grupos');
+
+        $this->assertStringContainsString('pl_assign_rel', $html);
+        $this->assertStringContainsString('pl_assign_group', $html);
+        // El curso va en la opción: sin él no se puede decidir a dónde va nadie.
+        $this->assertStringContainsString('1º ESO', $html);
+    }
+
+    /** Sin nonce válido no se escribe nada, aunque coordines. */
+    public function test_vincular_sin_nonce_no_escribe()
+    {
+        $this->scp->coordEtapa = '';
+        $_REQUEST = array('ver' => 'sueltos');
+        $_POST = array('pl_assign_rel' => 'r7', 'pl_assign_group' => 'g1');
+
+        $html = $this->render('single_stic_mis_grupos');
+
+        $this->assertStringContainsString('sesión ha caducado', $html);
+        $escrituras = array_filter($this->scp->relationships, function ($r) {
+            return $r['module'] === 'stic_Contacts_Relationships';
+        });
+        $this->assertEmpty($escrituras, 'Sin nonce no se toca ni una relación.');
+    }
 }

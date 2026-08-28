@@ -26,6 +26,7 @@ poblaciones:
 | `?ver=az` | Toda la gente seguida, por apellido. |
 | `?grupo=<id>` | La gente de un grupo: monitores arriba, participantes debajo. |
 | `?quien=monitores` | **Solo coordinación.** Los monitores del alcance, agrupados por etapa. |
+| `?ver=sueltos` | Quien no está en ningún grupo, y el control para vincularlo. Se llega por la tarjeta del final del índice, que solo sale si hay alguien. |
 
 Más un buscador que filtra lo ya pintado, sin acentos ni mayúsculas, y sin ir
 al servidor.
@@ -131,7 +132,95 @@ viajes en una webview con datos móviles. El parámetro que lo decide es el
 
 ---
 
-## 5. Decisiones que parecen detalles y no lo son
+## 5. El color de la vista por curso
+
+Cada cabecera de curso lleva un punto **más intenso cuanto más mayores son**. En
+una lista de trescientos, los títulos se leen uno a uno; el color se ve de un
+vistazo y dice por dónde vas.
+
+Sale de `sticpa_pl_curso_intensidad()`, que a su vez sale del **mismo**
+`sticpa_pl_curso_rank()` que ordena la vista: el color y el orden no pueden
+contradecirse. Si un curso va antes, su punto es más claro.
+
+Tres decisiones que lo sostienen:
+
+- **La escala es ABSOLUTA**, no relativa a lo que haya en pantalla. «1.º de ESO»
+  tiene que ser del mismo color en Castellón y en cualquier otra delegación, y
+  no cambiar porque este año no haya grupo de infantil.
+- **Es opacidad sobre `--primary-color`, no un color fijo.** En oscuro el azul
+  ya viene aclarado por el token, así que «más intenso» se sigue leyendo como
+  «más mayores» sin mantener dos escalas de color.
+- **Lo que no se reconoce no se colorea.** «Sin curso» va en gris: un color
+  inventado sobre un dato que no se entiende miente.
+
+La conversión rank → intensidad es una **tabla de anclajes interpolada**, con dos
+por etapa (su principio y su final) para que 1.º y 6.º de primaria no salgan del
+mismo color. Se hace así y no descomponiendo el rank en «base + curso» porque
+las bases de `sticpa_pl_curso_rank()` no son todas múltiplos de cien —FP es
+350—, y dividir por cien colaba FP por delante de universidad. Está cubierto por
+un test que recorre la escalera entera y exige que sea monótona.
+
+---
+
+## 6. Los monitores: orden y flechas
+
+`sticpa_pl_monitors_of()` ordena por **curso → grupo → apellido**:
+
+- Por **curso**, porque es como empieza el sábado: los pequeños primero.
+- Por **grupo** dentro del curso, para que los dos o tres monitores del mismo
+  grupo salgan **seguidos**. Sin esto, con dos grupos del mismo curso salían
+  intercalados por apellido y no había forma de ver quién lleva qué. El código
+  se compara con `strnatcasecmp`, o C10 se cuela entre C1 y C2.
+- Por **apellido** al final, que es como se lee una lista de personas.
+
+Es el mismo orden que recorre el anterior/siguiente de la ficha del monitor, así
+que la lista y las flechas no pueden ir cada una por su lado.
+
+**Las flechas se ciñen a de dónde vienes.** Llegando desde un grupo concreto, la
+lista son los monitores **de ese grupo**; si no, los de todo el alcance. Pasar de
+la ficha de un monitor de MIC a la de uno de LC porque alfabéticamente tocaba no
+es leer una lista, es perderse.
+
+Los monitores **no** tienen vista por curso —se agrupan por etapa, que es como
+los mira coordinación—, pero el dato está: `sticpa_pl_monitors_of()` ya devuelve
+`curso` y `rank`.
+
+---
+
+## 7. La gente sin grupo
+
+Quien tiene relación con la delegación pero no está en ningún grupo **no sale en
+ninguna lista**: ni en el árbol, ni al pasar lista, ni aquí. Es una de las
+razones de que «falte gente» un sábado.
+
+La tarjeta del final del índice lo dice y lleva a `?ver=sueltos`, donde
+**coordinación lo arregla en dos gestos**: un desplegable con los grupos —con su
+curso al lado, que es lo que hace falta para decidir— y un botón. Un monitor
+raso ve la lista pero no el control, y se le dice a quién avisar.
+
+Escribe `sticpa_pl_assign_group()`, que es **el mismo** que ya usaba el resumen
+de grupos: comprueba por su cuenta que quien llama coordina y que el grupo es de
+su delegación, así que no hay una segunda copia de la regla que pueda quedarse
+desfasada. Lo que se comprueba en la pantalla es el nonce, que es suyo.
+
+Dos detalles que importan:
+
+- **El POST va antes de la tanda que lee.** `sticpa_pl_assign_group()` vacía la
+  caché al escribir; si se leyera primero, la persona recién vinculada seguiría
+  saliendo suelta hasta recargar a mano.
+- **Aquí no se enlaza a la ficha.** Sin grupo no hay ficha que enseñar: la ficha
+  comprueba que la persona esté en el grupo de la URL, y ese es justo el dato que
+  falta. Lo que se hace aquí es ponerle grupo, que es lo que desbloquea el resto.
+
+⚠️ **Lo que esto NO hace:** dar de alta a alguien que no tiene *ninguna*
+relación con la delegación. Aquí solo se le pone grupo a una relación que ya
+existe. Crear la relación desde cero es otra cosa —y otra conversación—, porque
+implica elegir el tipo de relación y la fecha de inicio, y eso hoy se hace en el
+CRM.
+
+---
+
+## 8. Decisiones que parecen detalles y no lo son
 
 **El cero inventado.** Si el mapa de relaciones viene a medias, contar da cero,
 y un «0 chavales» al lado de un grupo que tiene doce **se lee como un dato**, no
@@ -158,14 +247,13 @@ marcando. Era justo la pega de llegar a la ficha por la pantalla de marcar.
 
 ---
 
-## 6. Qué queda por decidir
+## 9. Qué queda por decidir
 
-- **Los monitores no tienen vista «por curso»**: se agrupan por etapa, que es
-  como los mira coordinación. Si alguien pide lo otro, el dato está
-  (`sticpa_pl_monitors_of()` ya trae `curso` y `rank`).
-- **No hay anterior/siguiente en la ficha del monitor.** La lista natural sería
-  la del alcance de coordinación, y ahí hay que decidir si el orden es el de la
-  pantalla de monitores o el de «Mis grupos».
-- **La gente sin grupo no sale aquí.** Está en el resumen, que es donde
-  coordinación puede arreglarlo. Es coherente con el nombre de la pantalla, pero
-  conviene confirmarlo con quien la use.
+- **El formulario de «datos por revisar» del resumen es ahora un duplicado.**
+  Hace lo mismo que `?ver=sueltos` pero peor (sin foto, sin edad, sin el curso
+  del grupo en el desplegable, y ordenado por nombre de pila). Habría que
+  quitarlo de ahí y dejar un enlace, pero eso toca una pantalla que no se pidió.
+- **No hay flechas en las vistas A-Z y por curso.** Recorrer trescientas fichas
+  con el pie es un gesto raro; hoy las flechas recorren el grupo, que es la
+  lista que alguien se lee entera de verdad.
+- **Nadie da de alta a una persona nueva desde aquí** (ver §7).

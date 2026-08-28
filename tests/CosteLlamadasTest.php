@@ -66,6 +66,7 @@ class CosteLlamadasTest extends TestCase
             'single_stic_mis_grupos#az' => array('ver' => 'az'),
             'single_stic_mis_grupos#grupo' => array('grupo' => 'g1'),
             'single_stic_mis_grupos#monitores' => array('__coord' => 'COM', 'quien' => 'monitores'),
+            'single_stic_mis_grupos#sueltos' => array('ver' => 'sueltos'),
         );
 
         $lineas = array();
@@ -168,6 +169,9 @@ class CosteLlamadasTest extends TestCase
              * no una por grupo — el índice usa `_bulk`, que nunca cae. */
             'single_stic_mis_grupos#grupo' => array(array('grupo' => 'g1'), 5),
             'single_stic_mis_grupos#monitores' => array(array('__coord' => 'COM', 'quien' => 'monitores'), 4),
+            // La lista de quien no tiene grupo sale del MISMO mapa que todo lo
+            // demás: si esto sube, alguien ha vuelto a preguntar por ellos.
+            'single_stic_mis_grupos#sueltos' => array(array('ver' => 'sueltos'), 4),
         );
 
         // Viajes de ida y vuelta: ninguna pantalla puede pasar de esto.

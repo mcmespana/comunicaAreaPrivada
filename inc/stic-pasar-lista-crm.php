@@ -3959,16 +3959,24 @@ function sticpa_pl_participants_without_group($objSCP)
             continue;
         }
         $name = $rel['person']['name'];
+        // La EDAD y el id viajan también: sin la edad no se puede decidir a qué
+        // grupo va alguien, que es lo único que se hace con esta lista, y sin el
+        // id no se puede pedir su foto ni saber quién es si hay dos que se
+        // llaman igual. Los dos salen del mapa: no cuestan nada.
         $out[] = array(
             'rel_id' => $rel['rel_id'],
+            'id' => $rel['person']['id'],
             'name' => ($name !== '') ? $name : __('(sin nombre)', 'sticpa'),
             'initials' => $rel['person']['initials'],
+            'sort' => isset($rel['person']['sort']) ? $rel['person']['sort'] : '',
+            'age' => isset($rel['person']['age']) ? $rel['person']['age'] : '',
         );
     }
 
-    usort($out, function ($a, $b) {
-        return strcmp($a['name'], $b['name']);
-    });
+    // Por APELLIDO, como todas las listas de personas de la aplicación. Antes
+    // era `strcmp` sobre el nombre compuesto, o sea por el nombre de pila: la
+    // única lista del plugin que se ordenaba distinta a las demás.
+    usort($out, 'sticpa_pl_cmp_person');
     return $out;
 }
 
@@ -4304,6 +4312,10 @@ function sticpa_pl_monitors_of($objSCP, $groups)
             $out[$id]['rank'] = $rank;
             $out[$id]['curso'] = isset($groups[$gid]['cursos']) ? (string) $groups[$gid]['cursos'] : '';
             $out[$id]['etapa'] = $etapaG;
+            // El código del grupo que manda, para ORDENAR por él: dos monitores
+            // del mismo grupo tienen que salir seguidos, que es como se piensan
+            // («los de C1») y como se reparten las tareas de un sábado.
+            $out[$id]['grupo'] = $code;
         }
     }
 
@@ -4318,6 +4330,7 @@ function sticpa_pl_monitors_of($objSCP, $groups)
                     $out[$m['id']] = $m;
                     $out[$m['id']]['groups'] = array();
                     $out[$m['id']]['etapas'] = array();
+                    $out[$m['id']]['grupo'] = $g['code'];
                 }
                 $etapaG = isset($g['etapa']) ? (string) $g['etapa'] : '';
                 if ($etapaG !== '' && !in_array($etapaG, $out[$m['id']]['etapas'], true)) {
@@ -4333,11 +4346,28 @@ function sticpa_pl_monitors_of($objSCP, $groups)
     $out = array_values($out);
     // Por curso primero (los de 4.º antes que los de 5.º) y, a igual curso,
     // alfabético por apellido, que es como se lee una lista de personas.
+    /* CURSO → GRUPO → APELLIDO, en ese orden y por ese motivo:
+     *
+     *   - Por CURSO, porque es como empieza el sábado: los pequeños primero.
+     *   - Por GRUPO dentro del curso, para que los DOS o TRES monitores del
+     *     mismo grupo salgan SEGUIDOS. Sin esto, con dos grupos del mismo curso
+     *     salían intercalados por apellido y no había forma de ver de un
+     *     vistazo quién lleva qué.
+     *   - Por APELLIDO al final, que es como se lee una lista de personas.
+     *
+     * Es el mismo orden que recorre el anterior/siguiente de la ficha, así que
+     * la lista y las flechas no pueden ir cada una por su lado. */
     usort($out, function ($a, $b) {
         $ra = isset($a['rank']) ? (int) $a['rank'] : 99999;
         $rb = isset($b['rank']) ? (int) $b['rank'] : 99999;
         if ($ra !== $rb) {
             return ($ra < $rb) ? -1 : 1;
+        }
+        $ga = isset($a['grupo']) ? (string) $a['grupo'] : '';
+        $gb = isset($b['grupo']) ? (string) $b['grupo'] : '';
+        if ($ga !== $gb) {
+            // Natural, no `strcmp`: si no, C10 se cuela entre C1 y C2.
+            return strnatcasecmp($ga, $gb);
         }
         return sticpa_pl_cmp_person($a, $b);
     });

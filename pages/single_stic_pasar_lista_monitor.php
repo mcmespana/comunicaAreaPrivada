@@ -923,3 +923,42 @@ foreach (sticpa_pl_monitor_bloques($ficha) as $bloque) {
     }
 }
 
+
+// ---------------------------------------------------------------------------
+// Anterior / siguiente
+// ---------------------------------------------------------------------------
+
+/* Las mismas flechas que en la ficha de un participante, y por lo mismo:
+ * leerse varias fichas seguidas sin volver al índice entre una y otra.
+ *
+ * La lista es `$monitors`, que YA está cargada aquí arriba —es la que decide si
+ * este monitor es de tu alcance— y viene ordenada por curso, grupo y apellido.
+ * Cero llamadas.
+ *
+ * Si has llegado desde un grupo concreto de «Mis grupos», la lista son LOS
+ * MONITORES DE ESE GRUPO y no los de todo el alcance: pasar de la ficha de un
+ * monitor de MIC a la de uno de LC porque alfabéticamente tocaba no es leer una
+ * lista, es perderse. */
+$vecinosDe = $monitors;
+if (isset($_REQUEST['vengo']) && $_REQUEST['vengo'] === 'grupo') {
+    $vgrupo = isset($_REQUEST['vgrupo']) ? sticpa_pl_safe_id($_REQUEST['vgrupo']) : '';
+    if ($vgrupo !== '' && isset($groups[$vgrupo])) {
+        $code = $groups[$vgrupo]['code'];
+        $vecinosDe = array_values(array_filter($monitors, function ($m) use ($code) {
+            return !empty($m['groups']) && in_array($code, $m['groups'], true);
+        }));
+    }
+}
+
+$html .= sticpa_pl_pager_html(
+    sticpa_pl_vecinos($vecinosDe, $monitorId),
+    function ($m) {
+        $q = array_filter(array(
+            'internalpage' => 'single_stic_pasar_lista_monitor',
+            'monitor' => $m['id'],
+            'vengo' => isset($_REQUEST['vengo']) ? sticpa_pl_vengo_modo($_REQUEST['vengo']) : '',
+            'vgrupo' => isset($_REQUEST['vgrupo']) ? sticpa_pl_safe_id($_REQUEST['vgrupo']) : '',
+        ));
+        return '?' . http_build_query($q);
+    }
+);
