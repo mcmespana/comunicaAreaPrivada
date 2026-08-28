@@ -46,7 +46,11 @@ class CosteLlamadasTest extends TestCase
             'single_stic_pasar_lista_grupos' => array(),
             'single_stic_pasar_lista_marcar' => array('grupo' => 'g1'),
             'single_stic_pasar_lista_resumen' => array(),
-            'single_stic_pasar_lista_ficha' => array('persona' => 'c1'),
+            // OJO: los parámetros tienen que ser los DE VERDAD. Esta línea
+            // decía `persona` en vez de `participante` y la ficha salía por la
+            // puerta de «no se ha indicado ningún participante»: el test medía
+            // 0 llamadas de una pantalla que no se pintaba.
+            'single_stic_pasar_lista_ficha' => array('participante' => 'c1', 'grupo' => 'g1'),
             // Monitores hace falta AQUÍ: era la pantalla más lenta de todas y
             // nadie le contaba las llamadas.
             'single_stic_pasar_lista_monitores' => array('__coord' => 'COM'),
@@ -70,7 +74,17 @@ class CosteLlamadasTest extends TestCase
                 $_REQUEST = $req;
                 $this->render($page);
                 $n = count($this->scp->calls);
-                $lineas[] = sprintf('%-34s %3d llamadas', str_replace('single_stic_pasar_lista', 'PL', $page), $n);
+                // Las TANDAS son lo que se nota: diez llamadas en tres tandas
+                // paralelas son tres viajes de ida y vuelta, no diez. Es el
+                // numero que hay que mirar cuando alguien dice «va lento».
+                $lineas[] = sprintf(
+                    '%-34s %3d llamadas en %d tandas (%s) + %d sueltas',
+                    str_replace('single_stic_pasar_lista', 'PL', $page),
+                    $n,
+                    count($this->scp->batches),
+                    implode('+', $this->scp->batches) ?: '-',
+                    $n - array_sum($this->scp->batches)
+                );
                 $cuenta = array_count_values($this->scp->calls);
                 arsort($cuenta);
                 foreach ($cuenta as $q => $veces) {
@@ -96,11 +110,22 @@ class CosteLlamadasTest extends TestCase
          * preguntaban lo mismo (los eventos de la delegación, y las relaciones
          * de quien está conectado). Se bajan a la vez que se arregla: un tope
          * que se queda holgado deja de proteger nada. */
+        // LOS NUMEROS SON LOS DEL MODO REALISTA (sin enlaces anidados), que
+        // es el unico que ocurre en esta instancia. Bajaron el 28/08/2026 al
+        // matar el 1+N que resolvia a la gente de un grupo una llamada por
+        // persona: la portada de 14 a 9, marcar de 13 a 10, la ficha de 16 a
+        // 13. El margen es de una llamada, no del doble.
         $topes = array(
-            'single_stic_pasar_lista' => array(array(), 8),
-            'single_stic_pasar_lista_grupos' => array(array(), 7),
-            'single_stic_pasar_lista_marcar' => array(array('grupo' => 'g1'), 9),
-            'single_stic_pasar_lista_resumen' => array(array(), 9),
+            'single_stic_pasar_lista' => array(array(), 10),
+            'single_stic_pasar_lista_grupos' => array(array(), 8),
+            'single_stic_pasar_lista_marcar' => array(array('grupo' => 'g1'), 11),
+            'single_stic_pasar_lista_resumen' => array(array(), 8),
+            // La ficha del participante. ANTES NO SE MEDIA: el test la pedia
+            // con el parametro equivocado y salia por la puerta de «no se ha
+            // indicado ningun participante», o sea 0 llamadas de una pantalla
+            // que no se pintaba. Y era la mas lenta de todas: TRECE viajes al
+            // CRM en fila, sin agrupar ni uno.
+            'single_stic_pasar_lista_ficha' => array(array('participante' => 'c1', 'grupo' => 'g1'), 14),
             // Monitores: el tope importa MÁS que en las demás. Su coste no
             // puede depender de cuántos grupos haya en el CRM (hay ~150, casi
             // todos históricos), y eso es justo lo que pasaba: el respaldo por
@@ -116,22 +141,51 @@ class CosteLlamadasTest extends TestCase
             'single_stic_pasar_lista_monitor' => array(array('__coord' => 'COM', 'monitor' => 'm1'), 15),
         );
 
+        // Viajes de ida y vuelta: ninguna pantalla puede pasar de esto.
+        $topeViajes = 8;
+
         foreach ($topes as $page => $spec) {
             list($req, $tope) = $spec;
-            $this->setUp();
-            if (isset($req['__coord'])) {
-                $this->scp->coordEtapa = $req['__coord'];
-                unset($req['__coord']);
+            // LOS DOS MODOS, Y EL QUE MANDA ES EL SEGUNDO.
+            //
+            // El tope solo se comprobaba con los enlaces anidados puestos, que
+            // es el modo que esta instancia NO tiene (§3.1). O sea: se medía el
+            // caso que no ocurre. Marcar costaba 8 llamadas medidas y 13 de
+            // verdad, y por ahí se iba el «cambiar de fecha es lentisimo».
+            foreach (array(false, true) as $sinEnlaces) {
+                $this->setUp();
+                $this->scp->sinEnlaces = $sinEnlaces;
+                $r = $req;
+                if (isset($r['__coord'])) {
+                    $this->scp->coordEtapa = $r['__coord'];
+                    unset($r['__coord']);
+                }
+                $_REQUEST = $r;
+                $this->render($page);
+                $n = count($this->scp->calls);
+                $this->assertLessThanOrEqual(
+                    $tope,
+                    $n,
+                    $page . ' hace ' . $n . ' llamadas al CRM (tope ' . $tope . ')'
+                        . ($sinEnlaces ? ' SIN enlaces anidados, que es como responde esta instancia' : '')
+                        . '. Cada una cuesta medio segundo largo en movil.'
+                );
+
+                // Y LOS VIAJES DE IDA Y VUELTA, que es lo que se NOTA. Diez
+                // llamadas en dos tandas paralelas son dos esperas; diez en
+                // fila son diez. La ficha del participante hacia TRECE en fila
+                // y por eso «va lentisimo» — la del monitor agrupaba, y por eso
+                // «la velocidad de monitores va bien».
+                $viajes = count($this->scp->batches)
+                    + ($n - array_sum($this->scp->batches));
+                $this->assertLessThanOrEqual(
+                    $topeViajes,
+                    $viajes,
+                    $page . ' espera ' . $viajes . ' veces al CRM (tope ' . $topeViajes . '). '
+                        . 'Lo que se nota no son las llamadas, son las esperas: '
+                        . 'lo que no dependa de nada tiene que ir en la misma tanda.'
+                );
             }
-            $_REQUEST = $req;
-            $this->render($page);
-            $n = count($this->scp->calls);
-            $this->assertLessThanOrEqual(
-                $tope,
-                $n,
-                $page . ' hace ' . $n . ' llamadas al CRM (tope ' . $tope . '). '
-                    . 'Cada una cuesta medio segundo largo en movil.'
-            );
         }
     }
 }

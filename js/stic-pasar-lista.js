@@ -1022,6 +1022,66 @@
     });
 
     /* =====================================================================
+     * Copiar un dato de un toque
+     * ---------------------------------------------------------------------
+     * El correo de un monitor se copia para pegarlo en otro sitio, y hasta
+     * ahora eso era seleccionar un texto con el dedo dentro de una webview,
+     * que es de las cosas más incómodas que hay en un móvil.
+     *
+     * El valor va en el `data-pl-copy` y NO se lee del DOM: en pantalla está
+     * recortado con puntos suspensivos y se copiaría a medias.
+     *
+     * `navigator.clipboard` necesita contexto seguro; si no está, se cae al
+     * `<textarea>` + `execCommand`, que sigue funcionando en las webviews
+     * viejas. Si tampoco, no se dice que se ha copiado.
+     * ===================================================================== */
+    document.addEventListener('click', function (ev) {
+        var btn = ev.target.closest && ev.target.closest('[data-pl-copy]');
+        if (!btn) { return; }
+        var text = btn.getAttribute('data-pl-copy') || '';
+        if (!text) { return; }
+
+        // Las dos etiquetas vienen del servidor en el propio botón: aquí no
+        // hay puente de traducción, y una cadena en castellano metida a mano
+        // en el JS se queda sin traducir para siempre.
+        var etiqueta = btn.getAttribute('aria-label') || '';
+        var hecho = btn.getAttribute('data-pl-copied') || etiqueta;
+
+        var done = function () {
+            btn.classList.add('is-done');
+            // El acuse de recibo también en voz alta: sin esto, quien navega
+            // con lector de pantalla no se entera de que ha pasado nada.
+            btn.setAttribute('aria-label', hecho);
+            window.setTimeout(function () {
+                btn.classList.remove('is-done');
+                btn.setAttribute('aria-label', etiqueta);
+            }, 1600);
+        };
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(done, function () { legacyCopy(text, done); });
+        } else {
+            legacyCopy(text, done);
+        }
+    });
+
+    function legacyCopy(text, done) {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        // Fuera de la vista pero enfocable: `display:none` no se puede
+        // seleccionar y `execCommand` no copiaría nada.
+        ta.style.position = 'fixed';
+        ta.style.top = '-1000px';
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = false;
+        try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+        document.body.removeChild(ta);
+        if (ok) { done(); }
+    }
+
+    /* =====================================================================
      * Ficha: poner un aviso de comportamiento
      * ---------------------------------------------------------------------
      * El formulario sale oculto y lo abre el botón, igual que el pañuelo:

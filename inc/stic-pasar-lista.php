@@ -1466,6 +1466,10 @@ function sticpa_pl_monitor_bloques($ficha)
             'key' => 'formacion',
             'label' => __('Formación', 'sticpa'),
             'kind' => 'flag',
+            // Plegada, con los títulos en la solapa: es la sección más larga de
+            // la ficha y la que menos se abre, pero el «tiene el MAT» se sigue
+            // leyendo sin desplegarla.
+            'plegado' => true,
             'rows' => $formacion,
             'chips' => $congresos,
             'chips_label' => __('Congresos de monitores', 'sticpa'),

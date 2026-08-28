@@ -169,6 +169,14 @@
 .stic-tab-content {
     margin-top: 0.65rem;
     padding: clamp(0.9rem, 2.5vw, 1.5rem);
+    /* LOS LADOS, MÁS ESTRECHOS QUE ARRIBA Y ABAJO.
+       En un móvil de 390 px esta tarjeta se comía 14 px por cada lado ANTES de
+       contar lo que mete el tema de WordPress por fuera, y dentro casi todo lo
+       que va son a su vez tarjetas con su propio margen: el hueco se pagaba dos
+       veces y el contenido —los nombres de una lista, un correo largo— se
+       quedaba sin sitio. Sigue habiendo aire, pero la mitad.
+       Se toca con `--stic-gutter` si alguna delegación lo quiere distinto. */
+    padding-inline: var(--stic-gutter, clamp(0.45rem, 1.4vw, 1.5rem));
     animation: stic-fade-up 0.5s var(--ease-out) both;
     background: var(--surface);
     border: 1px solid var(--gray-200);

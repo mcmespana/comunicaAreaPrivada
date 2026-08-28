@@ -19,12 +19,29 @@ $pageSettings['fileName'] = basename(__FILE__, ".php");
 
 $contactId = isset($_REQUEST['participante']) ? sticpa_pl_safe_id($_REQUEST['participante']) : '';
 $groupId = isset($_REQUEST['grupo']) ? sticpa_pl_safe_id($_REQUEST['grupo']) : '';
+// La sesión desde la que se ha abierto la ficha, si se ha abierto desde una.
+// Sirve para una sola cosa: que un aviso puesto hoy quede atado al sábado de
+// hoy. Es opcional — a la ficha se puede llegar sin sesión.
+$sessionId = isset($_REQUEST['sesion']) ? sticpa_pl_safe_id($_REQUEST['sesion']) : '';
 
 if ($contactId === '') {
     $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
         . esc_html__('No se ha indicado ningún participante.', 'sticpa') . '</span></p>';
     return;
 }
+
+/* TANDAS, y hacían mucha falta: esta pantalla hacía TRECE viajes al CRM uno
+ * detrás de otro, sin agrupar ni uno. En móvil, un sábado, eso son siete
+ * segundos mirando una pantalla en blanco para ver un teléfono. La ficha del
+ * MONITOR sí agrupaba —por eso «la velocidad de monitores va bien»— y aquí no
+ * se había aplicado.
+ *
+ * TANDA 1: lo que hace falta para saber si esta ficha se puede enseñar. Va
+ * ANTES de la comprobación de grupo, que es la que corta el paso. */
+sticpa_pl_prime($objSCP, function () use ($objSCP) {
+    sticpa_pl_groups($objSCP);
+    sticpa_pl_all_relationships($objSCP);
+});
 
 // El participante tiene que ser de un grupo de MI delegación. El CRM ya limita
 // por grupo de seguridad, pero comprobarlo aquí evita enseñar media pantalla
@@ -76,13 +93,30 @@ if (isset($_POST['pl_aviso_motivo'])) {
             $contactId,
             sanitize_textarea_field(wp_unslash($_POST['pl_aviso_motivo'])),
             isset($_POST['pl_aviso_fecha']) ? $_POST['pl_aviso_fecha'] : '',
-            !empty($_POST['pl_aviso_notificado'])
+            !empty($_POST['pl_aviso_notificado']),
+            isset($_POST['pl_aviso_sesion']) ? sticpa_pl_safe_id($_POST['pl_aviso_sesion']) : $sessionId
         );
+        // Se dice la verdad: «registrado» solo si se ha releído el CRM y el
+        // aviso estaba, con su persona. Un aviso que no queda enlazado no le
+        // sirve a nadie, y decir que sí lo esconde para siempre.
         $avisoMsg = $ok
             ? __('Aviso registrado.', 'sticpa')
-            : __('No se ha podido registrar el aviso. Revisa que hayas escrito el motivo.', 'sticpa');
+            : __('El aviso no ha quedado registrado a nombre de esta persona. Vuelve a intentarlo y, si sigue igual, avisa a coordinación.', 'sticpa');
     }
 }
+
+/* TANDA 2: el resto de lo que no depende de nada más. Va DESPUÉS de las
+ * escrituras a propósito: una tanda lanzada antes de guardar trae respuestas de
+ * antes de guardar, y la comprobación del aviso leería el CRM de hace un
+ * segundo y diría que no está. */
+sticpa_pl_prime($objSCP, function () use ($objSCP, $contactId) {
+    sticpa_pl_ficha($objSCP, $contactId);
+    sticpa_pl_family($objSCP, $contactId);
+    sticpa_pl_etapa_events($objSCP);
+    if (sticpa_pl_avisos_enabled()) {
+        sticpa_pl_avisos($objSCP, $contactId);
+    }
+});
 
 $ficha = sticpa_pl_ficha($objSCP, $contactId);
 if ($ficha === null) {
@@ -167,10 +201,30 @@ if ($avisoMsg !== '') {
  * Amontonarlo todo en el nombre («Sol Meseguer · Madre · REF») obliga a leer
  * una frase para encontrar a quién llamas.
  */
-$phoneCard = function ($label, $rawPhone, $whatsapp = true, $sub = '', $tag = '', $tagKind = 'ref') {
+$phoneCard = function ($label, $rawPhone, $whatsapp = true, $sub = '', $tag = '', $tagKind = 'ref', $siempre = false) {
     $phone = sticpa_pl_phone($rawPhone);
-    if ($phone === null) {
+    // SIN TELÉFONO TAMBIÉN SE PINTA, cuando quien llama lo pide.
+    //
+    // La familia se caía de la ficha entera si no tenía número: la madre existe
+    // en el CRM, está bien relacionada, y la pantalla decía «no hay ningún
+    // teléfono en la ficha» sin nombrarla. Así nadie podía ni avisar de que
+    // faltaba el número, porque nadie sabía que faltaba el de ELLA.
+    if ($phone === null && !$siempre) {
         return '';
+    }
+    if ($phone === null) {
+        $out = '<div class="pl-phone pl-phone--sinnum">';
+        $out .= '<div class="pl-phone-who">';
+        $out .= '<span class="pl-phone-name"><span class="pl-phone-label">' . esc_html($label) . '</span>';
+        if ($tag !== '') {
+            $out .= '<span class="pl-phone-tag pl-phone-tag--' . esc_attr($tagKind) . '">'
+                . esc_html($tag) . '</span>';
+        }
+        $out .= '</span>';
+        $out .= '<span class="pl-phone-num pl-phone-num--none">'
+            . esc_html($sub !== '' ? $sub . ' · ' . __('sin teléfono', 'sticpa') : __('sin teléfono', 'sticpa'))
+            . '</span></div></div>';
+        return $out;
     }
     $numero = ($sub !== '') ? $sub . ' · ' . $phone['display'] : $phone['display'];
     $out = '<div class="pl-phone">';
@@ -261,13 +315,15 @@ $phoneCards .= $phoneCard(
 foreach ($family as $rel) {
     // El parentesco, traducido y en su línea: el CRM lo guarda en inglés
     // («mother») y debajo del nombre de la madre eso se lee raro.
+    // `true` al final: la familia SIEMPRE sale, con número o sin él.
     $phoneCards .= $phoneCard(
         $rel['name'],
         $rel['mobile'],
         true,
         sticpa_pl_parentesco_label($rel['relationship']),
         $rel['reference'] ? __('REF', 'sticpa') : '',
-        'ref'
+        'ref',
+        true
     );
 }
 $emergency = sticpa_pl_phone($ficha['phone_other']);
@@ -276,11 +332,26 @@ if ($emergency !== null) {
 }
 
 if ($phoneCards !== '') {
-    $html .= '<div class="pl-sec">' . esc_html__('Teléfonos', 'sticpa') . '</div>';
+    // «Contacto» y no «Teléfonos»: ahora también salen los familiares que no
+    // tienen número, y una sección llamada «Teléfonos» con una fila sin
+    // teléfono se lee como un error.
+    $html .= '<div class="pl-sec">' . esc_html__('Contacto', 'sticpa') . '</div>';
     $html .= '<div class="pl-list">' . $phoneCards . '</div>';
+    if ($quick === null) {
+        $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
+            . esc_html__('Nadie de la familia tiene teléfono en el CRM. Avisa a coordinación para que lo completen.', 'sticpa')
+            . '</span></p>';
+    }
 } else {
+    /* NI FAMILIA NI TELÉFONOS, y decir solo «no hay teléfonos» manda a buscar
+     * en el sitio equivocado. Hay una causa concreta y conocida: el registro
+     * del entorno personal tiene que estar ASIGNADO A LA DELEGACIÓN, porque de
+     * ahí cuelga el grupo de seguridad. Si se creó con otro usuario (pasa: el
+     * de Solete está a nombre de «Administrador MCM»), existe en el CRM, está
+     * bien enlazado… y esta pantalla no lo ve. Se dice, para que coordinación
+     * sepa qué mirar. */
     $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
-        . esc_html__('No hay ningún teléfono en la ficha. Avisa a coordinación para que lo completen.', 'sticpa')
+        . esc_html__('Esta ficha no tiene familia ni teléfonos que esta pantalla pueda ver. Avisa a coordinación: o faltan en el CRM, o el entorno personal no está asignado a la delegación.', 'sticpa')
         . '</span></p>';
 }
 
@@ -296,12 +367,20 @@ $etapa = sticpa_pl_group_etapa($group['level']);
 $events = sticpa_pl_etapa_events($objSCP);
 
 if (isset($events[$etapa])) {
-    $sessions = sticpa_pl_event_sessions($objSCP, $events[$etapa]['id']);
-    $regMap = sticpa_pl_event_registrations($objSCP, $events[$etapa]['id']);
+    // TANDA 2: las sesiones y las inscripciones del evento, juntas. Necesitan
+    // el evento, así que no cabían en la primera.
+    $eventId = $events[$etapa]['id'];
+    sticpa_pl_prime($objSCP, function () use ($objSCP, $eventId) {
+        sticpa_pl_event_sessions($objSCP, $eventId);
+        sticpa_pl_event_registrations($objSCP, $eventId);
+    });
+
+    $sessions = sticpa_pl_event_sessions($objSCP, $eventId);
+    $regMap = sticpa_pl_event_registrations($objSCP, $eventId);
     $regId = array_search($contactId, $regMap, true);
 
     if ($regId !== false) {
-        $marks = sticpa_pl_contact_marks($objSCP, $regId);
+        $marks = sticpa_pl_contact_marks($objSCP, $regId, $sessions, $regMap);
         $track = sticpa_pl_att_track($sessions, $marks);
         $streak = sticpa_pl_absence_streak($sessions, $marks);
 
@@ -498,6 +577,9 @@ if (sticpa_pl_avisos_enabled()) {
 
     $html .= '<form method="post" class="pl-avi-form" data-pl-aviso-form hidden>';
     $html .= wp_nonce_field('pl_ficha_' . $contactId, 'pl_nonce', true, false);
+    if ($sessionId !== '') {
+        $html .= '<input type="hidden" name="pl_aviso_sesion" value="' . esc_attr($sessionId) . '">';
+    }
     $html .= '<div class="pl-field">';
     $html .= '<label class="pl-field-label" for="pl-aviso-motivo">'
         . esc_html__('Qué ha pasado', 'sticpa') . '</label>';
