@@ -79,11 +79,9 @@ sesión. Ahora, además, **la propia pantalla lo comprueba**: si dice «Lista
 guardada» es que ha releído el CRM y estaba. Si algo falla, lo dice y lo apunta
 en `?pl_diag=1`.
 
-### 🟡 Lo que sigue abierto de esto
+### ✅ Confirmado en producción el 27/08/2026
 
-- **Confirmarlo en producción.** Está verificado con tests (259 en verde, con
-  un doble que ahora sí modela escribir-y-releer) pero no todavía con un
-  guardado real.
+El propietario pasó lista de verdad y se guardó. **El bug está cerrado.**
 
 ### ✅ La lista de monitores ya se escribe (27/08/2026)
 
@@ -116,6 +114,26 @@ Ahora:
 > `LIS_listas` que hoy no existe**, y aquí no se inventan campos. Si hace falta,
 > se pide al CRM y se anota en `CAMPOS.md`.
 
+### ✅ C1 se quedó sin participantes, y la causa era de las gordas (27/08/2026)
+
+El grupo salía con «0 participantes» teniendo su gente viva en el CRM
+(verificado: la relación de Solete existe, vigente hasta el 31/08/2026).
+
+**La causa raíz: el CRM devolvía UNA PÁGINA y el plugin se la creía entera.**
+Está contada como trampa en §3.5, porque va a volver a morder a quien escriba
+una consulta nueva. En corto: `max_results = 0` no significa «sin límite»,
+llegaban 20 de 109 relaciones, y los grupos que caían fuera salían vacíos.
+
+Hubo además un agravante nuestro, y de ese día: por matar un 1+N en la pantalla
+de monitores se quitó **entero** el respaldo por grupo, que es justo lo que
+rescataba a un grupo cuya gente no venía en el mapa. El 1+N estaba en el bucle
+sobre ~150 grupos, no en pintar un grupo:
+
+- `sticpa_pl_group_people()` vuelve a rescatar el grupo que se está pintando.
+  Cuesta UNA llamada y solo cuando ese grupo sale vacío.
+- `sticpa_pl_group_people_bulk()` es la puerta para quien recorre grupos: no cae
+  al respaldo nunca. Es la que usa `sticpa_pl_monitors_of()`.
+
 ### ✅ La ficha ya encuentra a la familia y sus teléfonos (27/08/2026)
 
 Era el mismo tipo de trampa de §3.1, y llevaba a la ficha sin lo que más se
@@ -135,10 +153,19 @@ de la madre eso se leía raro.
 
 Detalle de campos, en [`PASAR-LISTA-CAMPOS-CRM.md`](PASAR-LISTA-CAMPOS-CRM.md).
 
-### 🟡 Falta crear una casilla en el CRM: `ajmcm_GRUPOS` → `ajmcm_pasar_lista_c`
+### ✅ La casilla `ajmcm_pasar_lista_c` ya existe y está en uso (27/08/2026)
 
-El código ya está puesto y desplegado, **y no hace nada hasta que exista el
-campo y haya al menos un grupo marcado**. Sirve para limpiar el árbol: en el CRM
+Creada en el CRM y rellenada: **20 grupos marcados de 28** en Castellón (fuera
+quedan L1, L2, L3, L4, L6, L7, L8 y el grupo de apoyo sin código). Cuatro de los
+que quedan fuera **tienen monitores** (L3, L4, L6, L8), así que esos monitores no
+salen en la pantalla de coordinación — es lo que la casilla hace, pero conviene
+saberlo antes de buscar el fallo en otro sitio.
+
+> ⚠️ **El valor llega de dos formas distintas** según por dónde salga: la cadena
+> `"1"` cuando está marcada y el booleano `false` cuando no. Por eso se normaliza
+> con `sticpa_pl_bool_crm()` y no se compara nunca con `=== true` ni con `== '0'`.
+
+Sirve para limpiar el árbol: en el CRM
 hay ~150 grupos y la mayoría son históricos.
 
 La regla de seguridad: **mientras no haya ninguna casilla marcada, no se esconde
@@ -191,7 +218,7 @@ relaciones cuando toque. Pero si a partir del 1 de septiembre C1 sale vacío,
 
 ## 3. Las trampas: por qué se rompió lo que se rompió
 
-Esta sección es la que ahorra días. Son cinco cosas que **volverán a morder** a
+Esta sección es la que ahorra días. Son seis cosas que **volverán a morder** a
 quien no las sepa.
 
 ### 3.1 Esta instancia NO devuelve los enlaces anidados
@@ -255,7 +282,37 @@ Dos más de la misma familia:
 `tests/TokensCssTest.php` impide que las tres vuelvan. **No pongas valores de
 reserva con color en `var()`**: es lo que esconde el fallo.
 
-### 3.5 El tema de WordPress pinta tus `<button>`
+### 3.5 `max_results = 0` NO es «sin límite» — y por eso un grupo salía vacío
+
+**La trampa más cara del proyecto, encontrada el 27/08/2026.** Todas las
+consultas de colección mandaban `'max_results' => 0` dando por hecho que
+significaba «tráelo todo». En SuiteCRM v4.1 es un valor **falsy**: no se aplica,
+y el servidor usa su `list_max_entries_per_page` — **20 filas** por defecto.
+
+La delegación de Castellón tiene **109 `stic_Contacts_Relationships`**. Llegaban
+las 20 primeras. Los grupos cuya gente caía fuera de esa página salían con
+**cero participantes**, exactamente igual que un grupo vacío de verdad. Así se
+quedó C1 sin participantes un sábado, con el dato intacto en el CRM.
+
+Y era invisible: `total_count`, `result_count` y `next_offset` —los tres campos
+que la API devuelve justo para esto— **no aparecían en ninguna línea del repo**,
+y los dobles de test construían respuestas sin `total_count`, así que ningún
+test podía verlo.
+
+**La regla:** una consulta de colección **pagina**, y el corte lo pone
+`total_count` o una página vacía. **NUNCA** una página más corta de lo pedido:
+el servidor tiene su propio tope y puede devolver 20 aunque le pidas 200 — que
+es el fallo entero. Y como seguro, si una página no trae ningún id nuevo, se
+para: hay servidores que ignoran el `offset`.
+
+Está resuelto en `getRecordsModule()` y `getRelatedElementsForLoggedUser()`;
+ajustable con `sticpa_crm_page_size` y `sticpa_crm_max_rows`.
+
+> **Corolario para los dobles:** si tu doble devuelve siempre la colección
+> entera, no puede detectar un truncado. El de `TransportLinkListTest` simula un
+> servidor que pagina Y que ignora un `max_results` mayor que su tope.
+
+### 3.6 El tema de WordPress pinta tus `<button>`
 
 El tema estila `.entry-content button`, con más especificidad que una clase.
 Todos los botones de Pasar Lista son `<button>` de verdad (accesibilidad), así
@@ -374,7 +431,7 @@ de colección nueva tiene que usarla**.
 
 ```bash
 composer install
-vendor/bin/phpunit                                        # 272 tests
+vendor/bin/phpunit                                        # 285 tests
 node --test .github/scripts/guardian/guardian.test.mjs    # 36 tests
 ```
 
