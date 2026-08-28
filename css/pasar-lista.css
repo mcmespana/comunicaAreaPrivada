@@ -398,7 +398,9 @@
     justify-content: center;
     width: 40px;
     height: 44px;
-    color: var(--gray-300);
+    /* El icono mide 17 px, como el artboard; la CAJA es de 40×44 porque es un
+       objetivo táctil. La fidelidad no manda sobre el dedo. */
+    color: var(--gray-400);
     flex-shrink: 0;
 }
 .pl-detail svg { width: 17px; height: 17px; }
@@ -424,7 +426,7 @@
 }
 .pl-legend-dot svg { width: 11px; height: 11px; stroke: var(--pl-on-brand); fill: none; }
 .pl-legend-dot .pl-glyph-half { fill: var(--pl-on-brand); stroke: none; width: 10px; height: 10px; }
-.pl-legend-label { font-size: 0.74rem; font-weight: 600; color: var(--gray-600); }
+.pl-legend-label { font-size: 0.72rem; font-weight: 600; color: var(--gray-500); }
 
 .pl-legend-dot--yes     { background: var(--success-color); }
 .pl-legend-dot--partial { background: var(--pl-partial); }
@@ -799,9 +801,11 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
 .pl-group {
     display: flex;
     align-items: center;
-    gap: 0.85rem;
+    /* `15px 16px` y hueco 14 px, del artboard `Grupos`. Ver la tabla completa
+       en docs/comunica/fidelidad/grupos.md. */
+    gap: 0.875rem;
     width: 100%;
-    padding: 0.9rem 1rem;
+    padding: 0.94rem 1rem;
     background: none;
     border: 0;
     border-top: 1px solid var(--gray-100);
@@ -811,7 +815,17 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     touch-action: manipulation;
 }
 .pl-group:first-child { border-top: 0; }
-.pl-group-body { display: flex; flex-direction: column; gap: 0.15rem; flex-grow: 1; min-width: 0; }
+.pl-group-body { display: flex; flex-direction: column; gap: 0.19rem; flex-grow: 1; min-width: 0; }
+
+/* El código y el nombre del grupo DENTRO de una fila no son el título de la
+   pantalla, y el artboard les da otro tamaño: 1.05 rem contra 1.15, y menos
+   apretado. Se veían iguales porque compartían clase. */
+.pl-group .pl-title,
+.pl-mine-inner .pl-title { gap: 0.5rem; }
+.pl-group .pl-title-code,
+.pl-mine-inner .pl-title-code { font-size: 1.05rem; letter-spacing: -0.01em; }
+.pl-group .pl-title-name,
+.pl-mine-inner .pl-title-name { font-size: 0.9rem; }
 .pl-group-meta { font-size: 0.82rem; color: var(--gray-500); }
 
 /* "Tu grupo": ni barrita azul ni pastilla en mayúsculas. Lo que dice que es
@@ -821,7 +835,7 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     position: relative;
     margin-bottom: 0.65rem;
     padding: 1.5px;
-    border-radius: calc(var(--radius-lg) + 1.5px);
+    border-radius: 1.15rem;
     background: var(--grad-brand);
     box-shadow: 0 12px 30px color-mix(in srgb, var(--primary-color) 16%, transparent);
     animation: pl-mine-rise 520ms var(--ease-out) both;
@@ -830,11 +844,11 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     position: relative;
     display: flex;
     align-items: center;
-    gap: 0.8rem;
+    gap: 0.81rem;
     width: 100%;
-    padding: 0.85rem 0.95rem;
+    padding: 0.875rem 0.94rem;
     border: 0;
-    border-radius: var(--radius-lg);
+    border-radius: 1.02rem;
     background: var(--surface);
     font-family: inherit;
     text-align: left;
@@ -879,20 +893,34 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     100% { transform: scale(1);    opacity: 1; }
 }
 
-/* Estado de la lista de un grupo, en el árbol. */
+/* Estado de la lista de un grupo, en el árbol.
+ *
+ * EN LA FILA es un glifo SUELTO de 20 px, no un disco de color. El artboard
+ * reserva el disco relleno para la tarjeta de «tu grupo», y tiene razón: en una
+ * columna de veintiocho filas, veintiocho discos de color pesan más que los
+ * nombres, que es lo que se viene a leer. El disco distingue a la tarjeta que
+ * ya está destacada; en el resto, el glifo basta.
+ *
+ * El «pendiente» sí es un círculo, pero HUECO: es la ausencia de una marca. */
 .pl-done {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 26px;
-    height: 26px;
+    width: 20px;
+    height: 20px;
     border-radius: var(--radius-full);
     flex-shrink: 0;
 }
-.pl-done--yes  { background: var(--success-color); }
-.pl-done--yes svg { width: 14px; height: 14px; stroke: var(--pl-on-brand); fill: none; }
-.pl-done--no   { border: 2px solid var(--gray-300); }
-.pl-done--skip { background: var(--gray-200); }
+.pl-done--yes svg  { width: 20px; height: 20px; stroke: var(--success-color); stroke-width: 3; fill: none; }
+.pl-done--no       { border: 2px solid var(--gray-300); }
+.pl-done--skip svg { width: 20px; height: 20px; stroke: var(--gray-400); fill: none; }
+
+/* La excepción: dentro de «tu grupo», el disco relleno del artboard. */
+.pl-mine-inner .pl-done       { width: 26px; height: 26px; }
+.pl-mine-inner .pl-done--yes  { background: var(--success-color); }
+.pl-mine-inner .pl-done--yes svg  { width: 14px; height: 14px; stroke: var(--pl-on-brand); stroke-width: 3.4; }
+.pl-mine-inner .pl-done--skip { background: var(--gray-200); }
+.pl-mine-inner .pl-done--skip svg { width: 14px; height: 14px; stroke: var(--gray-500); }
 
 /* La leyenda del árbol: los mismos tres estados que el círculo de cada grupo.
    Va arriba y una sola vez, igual que la leyenda de la lista de marcado. */
@@ -904,6 +932,11 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
    segundo, así que aquí se sube. Es lo que hacía que el título "no saliera
    igual": el mismo texto, la mitad de presencia. */
 .pl-title-code--main { font-size: 1.45rem; }
+/* La cabecera de una SECCIÓN del árbol («COM I»), del artboard `Grupos`: más
+   grande que el título de una pantalla normal porque, con el punto de color
+   delante y la pastilla del recuento detrás, es la línea que dice dónde estás. */
+.pl-title-code--seccion { font-size: 1.3rem; }
+.pl-title .pl-etapa-dot { width: 10px; height: 10px; }
 /* La barrita de marca: 4 × 26 px con las tres paradas del degradado. */
 .pl-title-code--main::before {
     content: '';
@@ -996,12 +1029,14 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
 /* El recuento de la cabecera de una sección: «COM I  5 grupos». */
 .pl-title-count {
     margin-left: 0.5rem;
-    padding: 0.14rem 0.5rem;
-    border-radius: 999px;
-    background: var(--surface-2);
-    color: var(--gray-500);
-    font-size: 0.78rem;
-    font-weight: 600;
+    /* Del artboard `Grupos`: gris de fondo y NEGRITA fuerte. Era una pastilla
+       apagada sobre `--surface-2` que se perdía al lado del título. */
+    padding: 0.16rem 0.6rem;
+    border-radius: var(--radius-full);
+    background: var(--gray-100);
+    color: var(--gray-600);
+    font-size: 0.72rem;
+    font-weight: 800;
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
 }
@@ -1009,14 +1044,17 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
 /* ---- «N participantes sin grupo asignado» ------------------------------
    Borde DISCONTINUO a propósito, como el artboard: no es una sección más del
    árbol, es un hueco en los datos. */
+/* `--warning-200` y no el `#fcd34d` exacto del artboard: ese hex no existe como
+   token, y aquí no se inventan tokens por cuenta propia (plan 035). La
+   diferencia es un punto de luminosidad en un borde discontinuo. */
 .pl-orphans {
     display: flex;
     align-items: center;
     gap: 0.75rem;
     margin: 1rem 0 0.5rem;
-    padding: 0.9rem 1rem;
-    border-radius: 14px;
-    border: 1.5px dashed var(--warning-color);
+    padding: 0.875rem 1rem;
+    border-radius: var(--radius-lg);
+    border: 1px dashed var(--warning-200);
     background: var(--warning-soft);
     text-decoration: none;
     color: inherit;
@@ -1024,19 +1062,19 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
 .pl-orphans:hover { background: var(--warning-soft); }
 .pl-orphans-icon { flex: 0 0 auto; display: inline-flex; }
 .pl-orphans-icon svg {
-    width: 22px;
-    height: 22px;
-    stroke: var(--warning-dark);
+    width: 18px;
+    height: 18px;
+    stroke: var(--warning-text);
     fill: none;
-    stroke-width: 1.8;
+    stroke-width: 2.2;
 }
 .pl-orphans-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
 .pl-orphans-title {
-    font-weight: 650;
-    font-size: 0.95rem;
-    color: var(--warning-dark);
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--warning-darker);
 }
-.pl-orphans-sub { font-size: 0.85rem; color: var(--gray-500); }
+.pl-orphans-sub { font-size: 0.76rem; color: var(--warning-text); }
 
 /* ---- El buscador del árbol ---------------------------------------------
    Del artboard `Grupos`. Va pegado arriba al hacer scroll: con veintiocho
@@ -1047,20 +1085,23 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     z-index: 3;
     display: flex;
     align-items: center;
-    gap: 0.55rem;
+    gap: 0.69rem;
     margin: 0 0 0.6rem;
-    padding: 0 0.85rem;
-    border-radius: 999px;
+    /* 48 px de alto y radio `--radius-lg`, del artboard: era una píldora de
+       44 px. El campo es el mismo; la caja, la que dibuja el diseño. */
+    min-height: 48px;
+    padding: 0 1rem;
+    border-radius: var(--radius-lg);
     background: var(--surface);
     border: 1px solid var(--gray-200);
     /* La sombra despega el campo del contenido que pasa por debajo. */
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
 }
 .pl-search svg {
-    width: 17px;
-    height: 17px;
+    width: 18px;
+    height: 18px;
     flex: 0 0 auto;
-    stroke: var(--gray-500);
+    stroke: var(--gray-400);
     fill: none;
     stroke-width: 2.2;
     stroke-linecap: round;
@@ -1068,8 +1109,8 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
 .pl-search input {
     flex: 1 1 auto;
     min-width: 0;
-    /* 44px de alto: es un objetivo táctil, no un campo de formulario. */
-    min-height: 44px;
+    /* 48px de alto: el del artboard, y de sobra como objetivo táctil. */
+    min-height: 48px;
     padding: 0;
     border: 0;
     background: transparent;
@@ -1080,6 +1121,10 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     box-shadow: none;
 }
 .pl-search input:focus { outline: none; }
+/* El texto ESCRITO se queda en 1 rem: por debajo de 16 px reales, iOS hace zoom
+   al enfocar y descoloca la webview entera. El PLACEHOLDER sí baja a los
+   0.92 rem del artboard — no lo escribe nadie, así que no dispara nada. */
+.pl-search input::placeholder { font-size: 0.92rem; color: var(--gray-400); }
 /* El foco se marca en el contenedor, que es lo que se ve como un control. */
 .pl-search:focus-within {
     border-color: var(--primary-color);
@@ -1101,10 +1146,10 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     flex-wrap: wrap;
     padding: 0 0.25rem 0.7rem;
 }
-.pl-tree-legend .pl-done { width: 16px; height: 16px; }
-.pl-tree-legend .pl-done svg { width: 10px; height: 10px; }
-.pl-tree-legend .pl-done--no { border-width: 2px; }
-.pl-tree-legend .pl-done--skip svg { width: 11px; height: 11px; stroke: var(--gray-500); }
+.pl-tree-legend .pl-done { width: 14px; height: 14px; }
+.pl-tree-legend .pl-done svg { width: 14px; height: 14px; }
+.pl-tree-legend .pl-done--no { width: 12px; height: 12px; border-width: 2px; }
+.pl-tree-legend .pl-done--skip svg { stroke: var(--gray-400); }
 
 /* El círculo "sin registro" lleva el mismo glifo de saltar que el botón: si el
    icono cambia entre la acción y su resultado, no se reconoce. */
@@ -2438,3 +2483,62 @@ a.pl-group .pl-name { display: block; }
 /* «Sin datos» ocupa el sitio del número grande, pero no grita como él: es la
    ausencia de un dato, no un dato malo. */
 .pl-att-pct--none { font-size: 1rem; font-weight: 700; color: var(--gray-400); }
+
+/* ---- Los remates de móvil de los bloques nuevos ------------------------- */
+
+/* Todo lo que se toca: sin el destello azul de la WebView, sin selección de
+   texto al mantener el dedo, y con una respuesta INMEDIATA al pulsar. Dentro de
+   la app, el overlay de «Cargando…» tarda un instante en aparecer; ese instante
+   es justo el que decide si el usuario cree que ha pasado algo. */
+.pl-grp--link,
+.pl-phone--link,
+.pl-fold-sum {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+.pl-fold-sum { -webkit-user-select: none; user-select: none; }
+.pl-grp--link:active,
+.pl-phone--link:active,
+.pl-fold-sum:active { background: var(--gray-50); }
+
+/* 44 px de alto mínimo en lo que se toca, que es la medida de un dedo. */
+.pl-grp--link, .pl-phone--link { min-height: 54px; }
+
+/* NADA se sale a lo ancho. Un correo largo, el nombre de un grupo o una
+   población compuesta partían la línea fuera de la pantalla y aparecía la barra
+   horizontal — que en una webview se siente como que la app está rota. */
+.pl-kv-value,
+.pl-grp-name,
+.pl-grp-with,
+.pl-hist-name,
+.pl-hist-with,
+.pl-chk-label,
+.pl-track-foot,
+.pl-phone-num { overflow-wrap: anywhere; }
+
+/* El foco visible del teclado en los bloques nuevos: mismo anillo que el resto
+   de la aplicación, y solo cuando se navega con teclado. */
+.pl-grp--link:focus-visible,
+.pl-phone--link:focus-visible,
+.pl-fold-sum:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: -2px;
+    border-radius: var(--radius-md);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pl-fold-sum::after { transition: none; }
+}
+
+/* ---- Ni un píxel de barra horizontal ------------------------------------ */
+
+/* Varios bloques de Pasar Lista SANGRAN a los lados con márgenes negativos —la
+   barra de guardar, la hoja de estados— contando con que el tema de WordPress
+   pone relleno alrededor del área. Si un día pone menos, o ninguno, eso son dos
+   o tres píxeles de barra de desplazamiento horizontal; y en una webview una
+   página que se mueve de lado se siente como que la app está rota.
+   `clip` y NO `hidden`: `hidden` crearía un contenedor de scroll y con él se
+   rompería el `position: sticky` de la barra de guardar. `clip` recorta sin
+   crear nada. Un navegador que no lo entienda ignora la línea y se queda como
+   estaba. Solo afecta a Pasar Lista: esta hoja únicamente se carga aquí. */
+.stic-container { overflow-x: clip; }

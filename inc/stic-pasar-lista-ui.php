@@ -604,17 +604,17 @@ function sticpa_pl_sq_meta($tipo)
 {
     if ($tipo === 'listas') {
         return array(
-            'suya' => array('class' => 'pl-sq--suya', 'label' => __('la pasó', 'sticpa')),
-            'otra' => array('class' => 'pl-sq--otra', 'label' => __('la pasó otra persona', 'sticpa')),
-            'omitida' => array('class' => 'pl-sq--omitida', 'label' => __('no hubo sesión', 'sticpa')),
-            'sin' => array('class' => 'pl-sq--falta', 'label' => __('sin lista', 'sticpa')),
+            'suya' => array('class' => 'pl-sq--suya', 'label' => __('La pasó', 'sticpa')),
+            'otra' => array('class' => 'pl-sq--otra', 'label' => __('La pasó otra persona', 'sticpa')),
+            'omitida' => array('class' => 'pl-sq--omitida', 'label' => __('No hubo sesión', 'sticpa')),
+            'sin' => array('class' => 'pl-sq--falta', 'label' => __('Sin lista', 'sticpa')),
         );
     }
     $out = array();
     foreach (sticpa_pl_states() as $key => $st) {
         $out[$key] = array('class' => 'pl-sq--' . $key, 'label' => $st['label']);
     }
-    $out[''] = array('class' => 'pl-sq--none', 'label' => __('sin marcar', 'sticpa'));
+    $out[''] = array('class' => 'pl-sq--none', 'label' => __('Sin marcar', 'sticpa'));
     return $out;
 }
 
