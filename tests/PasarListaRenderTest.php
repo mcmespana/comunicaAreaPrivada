@@ -328,6 +328,14 @@ class FakeSCP
                     'grupo' => array('id' => 'g1', 'name' => 'Los Peques'),
                     'persona' => array('id' => 'c2', 'name' => 'Jaume Pascual', 'first_name' => 'Jaume', 'last_name' => 'Pascual', 'stic_age_c' => '13'),
                 ),
+                // Un monitor del grupo g3, que es MIC: sin él la pantalla de
+                // monitores tendría una sola etapa y no se podría comprobar que
+                // se parte en secciones (ni que los del MIC van arriba).
+                array(
+                    'fields' => array('id' => 'r10', 'relationship_type' => 'monitor', 'end_date' => ''),
+                    'grupo' => array('id' => 'g3', 'name' => 'Los Micos'),
+                    'persona' => array('id' => 'm10', 'name' => 'Jaime Bort', 'first_name' => 'Jaime', 'last_name' => 'Bort'),
+                ),
                 // El monitor del grupo g1: David Soler, que es quien esta en sesion.
                 array(
                     'fields' => array('id' => 'r4', 'relationship_type' => 'monitor', 'end_date' => ''),
@@ -2181,6 +2189,50 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('Ficha y teléfonos', $html);
     }
 
+    // ---- La lista de monitores: por etapa y por curso --------------------
+
+    /**
+     * Treinta monitores seguidos no se leen. Se parten en las mismas secciones
+     * que el árbol y con el mismo punto de color: MIC arriba (rojo), COM
+     * debajo (verde).
+     */
+    public function test_monitores_se_parte_por_etapa_con_los_mic_arriba()
+    {
+        $this->scp->coordEtapa = '';   // alcance amplio: MIC y COM
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        $mic = strpos($html, '>MIC<');
+        $com = strpos($html, '>COM<');
+        if ($mic === false || $com === false) {
+            $this->markTestSkipped('el doble no tiene monitores de las dos etapas');
+        }
+        $this->assertLessThan($com, $mic, 'los del MIC van arriba');
+        $this->assertStringContainsString('pl-etapa-dot', $html);
+    }
+
+    /**
+     * El curso escolar es TEXTO LIBRE en el CRM, así que ordenar alfabéticamente
+     * pone «1º ESO» antes que «4º Primaria» — justo al revés de como se lee una
+     * lista de grupos.
+     */
+    public function test_el_curso_se_ordena_como_se_lee()
+    {
+        $r = function ($t) { return sticpa_pl_curso_rank($t); };
+
+        // Primaria antes que ESO, y dentro por número.
+        $this->assertLessThan($r('5º Primaria'), $r('4º Primaria'));
+        $this->assertLessThan($r('1º ESO'), $r('6º Primaria'));
+        $this->assertLessThan($r('1º Bachillerato'), $r('4º ESO'));
+        // Valenciano y castellano, lo mismo.
+        $this->assertSame($r('6º Primaria'), $r('6é Primària'));
+        $this->assertSame($r('2º Bachillerato'), $r('2n Batxillerat'));
+        // Lo que no se reconoce va al final, pero no se pierde.
+        $this->assertGreaterThan($r('2º Bachillerato'), $r('Adultos'));
+        $this->assertGreaterThan($r('Adultos'), $r('Vete a saber'));
+        // Y sin curso, al final del todo pero antes que lo ilegible.
+        $this->assertGreaterThan($r('2º Bachillerato'), $r(''));
+    }
+
     // ---- La casilla de «este grupo entra en Pasar Lista» -----------------
 
     /**
@@ -2989,7 +3041,9 @@ final class PasarListaRenderTest extends TestCase
     /** Un grupo sin nadie sigue devolviendo la forma, no un aviso. */
     public function testUnGrupoSinGenteDevuelveLosDosCubosVacios()
     {
-        $people = sticpa_pl_group_people($this->scp, 'g3');
+        // g2, que en el doble no tiene ninguna relación. (g3 sí tiene monitor
+        // desde que la pantalla de monitores necesita dos etapas para probarse.)
+        $people = sticpa_pl_group_people($this->scp, 'g2');
         $this->assertSame(array(), $people['participants']);
         $this->assertSame(array(), $people['monitors']);
     }

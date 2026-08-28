@@ -785,6 +785,16 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     letter-spacing: 0.06em;
 }
 .pl-etapa-dot { width: 8px; height: 8px; border-radius: var(--radius-full); }
+/* El recuento de la sección: a la derecha, gris y pequeño. Acompaña al título
+   sin competir con él. */
+.pl-etapa-count {
+    margin-left: auto;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--gray-400);
+    letter-spacing: 0;
+    text-transform: none;
+}
 
 .pl-group {
     display: flex;
