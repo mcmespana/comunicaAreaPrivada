@@ -821,7 +821,34 @@ foreach (sticpa_pl_monitor_bloques($ficha) as $bloque) {
     }
 
     if ($bloque['kind'] === 'flag') {
-        $html .= '<div class="pl-sec">' . esc_html($bloque['label']) . '</div>';
+        /* PLEGABLE, con lo que importa en la solapa.
+         *
+         * «Formación» son cinco filas más los congresos, y en dos años de
+         * coordinación se abre una vez: desplegada, empuja hacia abajo lo que
+         * sí se mira. Pero plegarla a secas escondería el dato que de verdad
+         * se busca —si tiene el MAT, si tiene el DAT—, así que ese resumen
+         * sube a la solapa y se lee sin abrir nada. Plegar sin perder.
+         */
+        $plegable = !empty($bloque['plegado']);
+        if ($plegable) {
+            $resumen = array();
+            foreach ($bloque['rows'] as $r) {
+                if (!empty($r['ok']) && $r['warn'] === '') {
+                    // Solo la sigla, que es como se nombran de verdad.
+                    $sigla = trim(strtok($r['label'], '·'));
+                    $resumen[] = ($sigla !== '') ? $sigla : $r['label'];
+                }
+            }
+            $html .= '<details class="pl-fold"><summary class="pl-fold-sum">'
+                . esc_html($bloque['label']);
+            if (!empty($resumen)) {
+                $html .= '<span class="pl-fold-count">'
+                    . esc_html(implode(' · ', array_slice($resumen, 0, 3))) . '</span>';
+            }
+            $html .= '</summary>';
+        } else {
+            $html .= '<div class="pl-sec">' . esc_html($bloque['label']) . '</div>';
+        }
         if (!empty($bloque['rows'])) {
             $html .= '<div class="pl-list pl-list--data">';
             foreach ($bloque['rows'] as $r) {
@@ -854,6 +881,9 @@ foreach (sticpa_pl_monitor_bloques($ficha) as $bloque) {
                 . '<span class="pl-data-label">' . esc_html($bloque['nota_label']) . '</span>'
                 . '<span class="pl-data-value">' . nl2br(esc_html($bloque['nota'])) . '</span>'
                 . '</div></div>';
+        }
+        if ($plegable) {
+            $html .= '</details>';
         }
         continue;
     }

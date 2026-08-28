@@ -636,24 +636,54 @@ function sticpa_pl_squares_html($squares, $tipo = 'asistencia', $aria = '')
         return '';
     }
     $meta = sticpa_pl_sq_meta($tipo);
-    $html = '<div class="pl-track-sqs" role="img" aria-label="' . esc_attr($aria) . '">';
 
-    $mesAnterior = '';
+    /* AGRUPADOS POR MES, Y CON EL MES ESCRITO.
+     *
+     * Antes eran veinticuatro cuadraditos en fila con un respiro sin etiqueta
+     * al cambiar de mes. A esa escala la fila no dice nada: se ve que «hay
+     * rojos» pero no CUÁNDO, y cuándo es justo el dato — cuatro faltas seguidas
+     * en enero y cuatro repartidas por el curso no son el mismo chaval.
+     *
+     * Con el mes debajo de cada grupo, la misma fila pasa a leerse como un
+     * calendario pequeño: se localiza el bache sin abrir nada.
+     */
+    $grupos = array();
     foreach ($squares as $sq) {
         $ts = isset($sq['start']) ? (int) $sq['start'] : 0;
-        $mes = ($ts > 0) ? date('Y-n', $ts) : '';
-        if ($mesAnterior !== '' && $mes !== '' && $mes !== $mesAnterior) {
-            $html .= '<span class="pl-sq-gap" aria-hidden="true"></span>';
+        $clave = ($ts > 0) ? date('Y-n', $ts) : '·';
+        if (!isset($grupos[$clave])) {
+            $grupos[$clave] = array('ts' => $ts, 'sqs' => array());
         }
-        $mesAnterior = $mes;
+        $grupos[$clave]['sqs'][] = $sq;
+    }
 
-        $state = isset($sq['state']) ? (string) $sq['state'] : '';
-        $m = isset($meta[$state]) ? $meta[$state] : $meta[''];
-        $cuando = ($ts > 0) ? date_i18n('j M', $ts) : '';
-        $titulo = ($cuando !== '') ? $cuando . ' · ' . $m['label'] : $m['label'];
+    $ultimo = count($squares) - 1;
+    $i = -1;
+    $html = '<div class="pl-track-sqs" role="img" aria-label="' . esc_attr($aria) . '">';
+    foreach ($grupos as $g) {
+        $html .= '<span class="pl-sq-mon">';
+        $html .= '<span class="pl-sq-row">';
+        foreach ($g['sqs'] as $sq) {
+            $i++;
+            $ts = isset($sq['start']) ? (int) $sq['start'] : 0;
+            $state = isset($sq['state']) ? (string) $sq['state'] : '';
+            $m = isset($meta[$state]) ? $meta[$state] : $meta[''];
+            $cuando = ($ts > 0) ? date_i18n('j M', $ts) : '';
+            $titulo = ($cuando !== '') ? $cuando . ' · ' . $m['label'] : $m['label'];
 
-        $html .= '<span class="pl-sq ' . esc_attr($m['class']) . '"'
-            . ' title="' . esc_attr($titulo) . '" aria-hidden="true"></span>';
+            // El ÚLTIMO lleva un anillo: «cómo va últimamente» es la pregunta
+            // que se hace de verdad, y sin marca hay que contar hasta el final
+            // para saber dónde acaba el curso vivido.
+            $ultima = ($i === $ultimo) ? ' pl-sq--last' : '';
+
+            $html .= '<span class="pl-sq ' . esc_attr($m['class']) . esc_attr($ultima) . '"'
+                . ' title="' . esc_attr($titulo) . '" aria-hidden="true"></span>';
+        }
+        $html .= '</span>';
+        // La inicial del mes, en minúscula y pequeñísima: sitúa sin competir.
+        $html .= '<span class="pl-sq-mlabel" aria-hidden="true">'
+            . esc_html($g['ts'] > 0 ? date_i18n('M', $g['ts']) : '') . '</span>';
+        $html .= '</span>';
     }
     $html .= '</div>';
     return $html;

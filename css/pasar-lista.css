@@ -1425,14 +1425,23 @@ a.pl-group .pl-name { display: block; }
 
 /* ---- Ficha del participante -------------------------------------------- */
 
+/* EL TÍTULO DE SECCIÓN PERTENECE A LO QUE VIENE DEBAJO, y el espacio tiene que
+   decirlo. Antes había 1,2 rem por arriba y 0,55 por abajo: una diferencia de
+   medio rem que, con todo en tarjetas blancas sobre una página casi blanca, no
+   se ve — y la ficha del monitor, que tiene ocho secciones seguidas, se leía
+   como un muro. Ahora el hueco de ARRIBA es más del triple que el de abajo, así
+   que cada título se pega a su contenido y se despega del bloque anterior.
+   Es separar por proximidad, sin meter una caja más ni una línea más. */
 .pl-sec {
-    padding: 1.2rem 0.25rem 0.55rem;
+    padding: 1.85rem 0.25rem 0.5rem;
     font-size: 0.78rem;
     font-weight: 800;
     color: var(--gray-500);
     text-transform: uppercase;
     letter-spacing: 0.06em;
 }
+/* El primero de la pantalla no necesita despegarse de nada. */
+.pl-sec:first-child { padding-top: 0.9rem; }
 
 .pl-list--data { padding: 0.2rem 0; }
 
@@ -1593,7 +1602,7 @@ a.pl-group .pl-name { display: block; }
     align-items: center;
     justify-content: space-between;
     gap: 0.75rem;
-    padding: 1.2rem 0.25rem 0.55rem;
+    padding: 1.85rem 0.25rem 0.5rem;   /* el mismo ritmo que `.pl-sec` */
 }
 .pl-sec-row .pl-sec { padding: 0; min-width: 0; }
 
@@ -1840,6 +1849,28 @@ a.pl-group .pl-name { display: block; }
     height: 100%;
     border-radius: var(--radius-full);
     background: var(--grad-brand);
+    /* LA BARRA CRECE AL ABRIR LA FICHA.
+       No es adorno: la barra es el titular de la pantalla, y verla llegar hasta
+       donde llega hace que el número de al lado se lea. Se anima `transform` y
+       no `width` —el ancho ya está puesto en línea— así que va por el
+       compositor y no recalcula el diseño ni una vez. */
+    transform-origin: left center;
+    animation: pl-att-grow 720ms var(--ease-out) 120ms both;
+}
+@keyframes pl-att-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* La pista de cuadraditos entra entera, no cuadrado a cuadrado: veinticuatro
+   animaciones escalonadas son veinticuatro cosas moviéndose a la vez, que es
+   ruido, no gracia. */
+.pl-track-sqs { animation: pl-sqs-in 420ms var(--ease-out) 60ms both; }
+@keyframes pl-sqs-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* El check de «copiado» aparece con un rebote pequeño: es el acuse de recibo de
+   una acción que, si no, no se ve por ningún lado. */
+.pl-copy.is-done .pl-copy-ok { animation: pl-copy-pop 380ms var(--ease-spring) both; }
+@keyframes pl-copy-pop {
+    from { transform: scale(0.3); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
 }
 .pl-att-pct {
     font-size: 2rem;
@@ -2025,6 +2056,15 @@ a.pl-group .pl-name { display: block; }
 @keyframes pl-status-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .pl-status { animation: none; } }
 
+/* Quien pide menos movimiento no pierde ningún dato: todo lo de arriba es
+   decoración del mismo contenido, así que se apaga entero. */
+@media (prefers-reduced-motion: reduce) {
+    .pl-att-fill,
+    .pl-track-sqs,
+    .pl-copy.is-done .pl-copy-ok { animation: none; }
+    .pl-att-fill { transform: none; }
+}
+
 /* El agarre de la hoja: la rayita se ve fina, pero el área por la que se puede
    arrastrar es alta. Un asidero de 4 px es imposible de coger con el pulgar. */
 .pl-sheet-griparea {
@@ -2135,8 +2175,15 @@ a.pl-group .pl-name { display: block; }
     border-color: var(--primary-color);
     box-shadow: var(--shadow-glow);
 }
-.pl-field-row { display: flex; gap: 0.6rem; }
-.pl-field--sm { flex: 0 0 5.5rem; }
+/* LA FILA SE PARTE ANTES DE APRETAR LOS CONTROLES.
+   Tres controles NATIVOS en un renglón de 360 px no caben: a la hora le
+   quedaban 88 px y Chrome la recortaba a «19:0», y a la fecha se le comía el
+   año. Un control nativo no se puede estrechar como una etiqueta —lo pinta el
+   navegador— así que cada uno declara el ancho que necesita de verdad y la
+   fila envuelve cuando no caben. En un móvil estrecho: el día en su renglón,
+   y hora y horas debajo compartiendo el siguiente. */
+.pl-field-row { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.pl-field--sm { flex: 1 1 7rem; min-width: 7rem; }
 
 /* El alcance de coordinación, dicho en el título de la sección: quien coordina
    una etapa tiene que ver cuál sin abrir nada. */
@@ -2224,7 +2271,33 @@ a.pl-group .pl-name { display: block; }
 /* 10.5 rem y no 9: el control de fecha NATIVO necesita su sitio, y a 9 rem
    Chrome recortaba el año («08/28/202…»). Se le da lo que pide en vez de
    apretarlo: es un campo que se toca, no una etiqueta. */
-.pl-field--date { flex: 0 0 10.5rem; }
+.pl-field--date { flex: 1 1 11rem; min-width: 11rem; }
+
+/* ---- Los controles nativos en OSCURO -----------------------------------
+   Las reglas de §44 que arreglan esto están escritas para `.stic-form`, y los
+   formularios de Pasar Lista son `.pl-field`: nunca les llegaron. El resultado
+   era un calendario y un reloj nativos con el glifo oscuro sobre fondo oscuro,
+   o sea invisibles, en la pantalla de crear una reunión.
+
+   `color-scheme` lo hereda del contenedor, que ya vale `dark`; lo que falta es
+   el icono, que el navegador pinta en negro. Se sustituye por el mismo rosa de
+   marca que usa el resto del área. */
+:root[data-stic-scheme="dark"] .pl-field :is(input[type="date"], input[type="time"], input[type="datetime-local"])::-webkit-calendar-picker-indicator {
+    filter: invert(1) hue-rotate(180deg) saturate(0.6) brightness(1.35);
+    opacity: 0.9;
+}
+
+/* ---- Los enlaces «pelados» ---------------------------------------------
+   Casi todos los enlaces de estas pantallas traen su color puesto, pero los
+   que no —un correo, una URL suelta— se quedaban con el azul del tema de
+   WordPress, que sobre la tarjeta oscura se lee mal y encima no es de marca.
+   Esto solo alcanza a los que no tienen color propio. */
+.stic-container :is(.pl-list, .pl-fold, .pl-avi, .pl-notice, .pl-hint) a:not([class]) {
+    color: var(--primary-color);
+    text-decoration-color: color-mix(in srgb, var(--primary-color) 45%, transparent);
+    text-underline-offset: 0.15em;
+    overflow-wrap: anywhere;
+}
 
 /* ---- Seguimiento del monitor: las pistas de cuadraditos ----------------- */
 
@@ -2269,21 +2342,45 @@ a.pl-group .pl-name { display: block; }
 .pl-track-frac { font-size: 1.02rem; font-weight: 800; letter-spacing: -0.01em; }
 .pl-track-score--none { font-size: 0.78rem; font-weight: 700; color: var(--gray-400); }
 
-.pl-track-sqs { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; }
+/* LA PISTA, POR MESES. Cada mes es un bloquecito con sus cuadrados y su nombre
+   debajo. La versión de antes era una fila corrida con un hueco mudo al cambiar
+   de mes: a veinticuatro sesiones se veía que «hay rojos» pero no cuándo, y el
+   cuándo es el dato — cuatro faltas seguidas en enero no son cuatro repartidas
+   por el curso. Con el mes escrito la misma fila se lee como un calendario. */
+.pl-track-sqs { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.3rem 0.6rem; }
+.pl-sq-mon { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.pl-sq-row { display: inline-flex; gap: 3px; }
+.pl-sq-mlabel {
+    font-size: 0.6rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--gray-400);
+    text-transform: lowercase;
+    letter-spacing: 0.02em;
+}
 .pl-track-foot { font-size: 0.76rem; line-height: 1.4; color: var(--gray-500); }
 
-/* EL CUADRADITO. 11 px con 3 de hueco: veinticuatro sesiones son 336 px y caben
-   en los 390 de un móvil con sus márgenes. Más pequeño no se vería; si algún
-   curso trae más sesiones, la fila envuelve, que es mejor que encoger. */
+/* EL CUADRADITO. 12 px con 3 de hueco: los meses ya separan, así que se puede
+   dar un píxel más de cuerpo sin que veinticuatro sesiones se salgan de un
+   móvil. Si un curso trae más, la fila envuelve por meses enteros, que es
+   mejor que partir un mes por la mitad. */
 .pl-sq {
-    width: 11px;
-    height: 11px;
+    width: 12px;
+    height: 12px;
     border-radius: 3px;
     flex-shrink: 0;
     background: var(--gray-200);
 }
-/* El respiro de cambio de mes: sin fechas y sin etiquetas, pero cuatro faltas
-   seguidas de enero se leen como un bloque. */
+/* EL ÚLTIMO, CON ANILLO. «Cómo va últimamente» es la pregunta que se hace de
+   verdad; sin marca hay que contar hasta el final para saber por dónde va el
+   curso vivido. El anillo va por fuera (`box-shadow`) para no mover ni un
+   píxel la rejilla. */
+.pl-sq--last {
+    box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--gray-400);
+}
+
+/* Compatibilidad: el respiro mudo de la versión anterior. Ya no se pinta, pero
+   la regla se queda por si alguna caché sirve HTML viejo. */
 .pl-sq-gap { width: 7px; flex-shrink: 0; }
 
 .pl-sq--yes             { background: var(--success-color); }

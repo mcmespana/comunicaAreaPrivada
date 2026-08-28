@@ -1813,6 +1813,46 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('Llamar a Solete Messeguer', $html);
     }
 
+    /**
+     * LOS CUADRADITOS, AGRUPADOS POR MES Y CON EL MES ESCRITO.
+     *
+     * A veinticuatro sesiones la fila corrida solo decía «hay rojos», no
+     * cuándo — y cuándo es el dato: cuatro faltas seguidas en enero y cuatro
+     * repartidas por el curso no son el mismo chaval.
+     */
+    public function test_las_sesiones_se_agrupan_por_mes_con_su_etiqueta()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringContainsString('pl-sq-mon', $html);
+        $this->assertStringContainsString('pl-sq-mlabel', $html);
+        // Y el hueco mudo de antes ya no se pinta.
+        $this->assertStringNotContainsString('pl-sq-gap', $html);
+        // El último lleva su anillo: «cómo va últimamente» sin contar hasta el
+        // final.
+        $this->assertStringContainsString('pl-sq--last', $html);
+    }
+
+    /**
+     * «Formación» va plegada, pero con los títulos en la solapa: es la sección
+     * más larga de la ficha y la que menos se abre, y aun así el «tiene el MAT»
+     * se tiene que leer sin desplegar nada.
+     */
+    public function test_formacion_se_pliega_sin_esconder_los_titulos()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $this->assertMatchesRegularExpression(
+            '/<summary class="pl-fold-sum">Formación<span class="pl-fold-count">[^<]*MAT/u',
+            $html
+        );
+        // Y el contenido sigue estando, no se ha perdido por el camino.
+        $this->assertStringContainsString('Director/a de tiempo libre', $html);
+    }
+
     /** El porcentaje también se ve sin leer números. */
     public function test_ficha_asistencia_lleva_barra()
     {
