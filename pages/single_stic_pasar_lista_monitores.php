@@ -236,7 +236,12 @@ if ($scope['etapa'] !== '') {
     $html .= '<span class="pl-title-name">' . esc_html($scope['etapa']) . '</span>';
 }
 $html .= '</div>';
-$html .= '<div class="pl-subtitle">' . esc_html(sticpa_pl_session_label($session)) . '</div>';
+// En una reunión, lo que identifica la lista es su NOMBRE («Programación del
+// 2.º trimestre»); la fecha va detrás. En el sábado semanal es al revés.
+$subtitulo = ($isReunion && !empty($session['name']))
+    ? $session['name'] . ' · ' . sticpa_pl_session_label($session)
+    : sticpa_pl_session_label($session);
+$html .= '<div class="pl-subtitle">' . esc_html($subtitulo) . '</div>';
 $html .= '</div>';
 if (!$isReunion) {
     // El mismo desplegable nativo que la lista de participantes: la pregunta
@@ -295,23 +300,64 @@ $html .= wp_nonce_field('pl_monitores', 'pl_nonce', true, false);
 $html .= '<input type="hidden" name="pl_action" value="save" data-pl-action>';
 $html .= '<input type="hidden" name="pl_marks" value="" data-pl-marks>';
 
-$html .= '<div class="pl-list">';
+/* POR ETAPA, Y LOS MIC PRIMERO.
+ *
+ * Una lista de treinta monitores seguidos no se lee: no se sabe dónde acaban
+ * los del sábado de los pequeños y dónde empiezan los del COM. Se parte en las
+ * mismas secciones que el árbol de grupos y con el mismo punto de color —rojo
+ * para MIC, verde para COM—, que ya es el idioma de la aplicación.
+ *
+ * Dentro de cada sección, por CURSO: los de 4.º antes que los de 5.º, y a igual
+ * curso por apellido. El orden lo pone sticpa_pl_monitors_of(); aquí solo se
+ * reparte, así que el reparto no puede desordenarlo. */
+$etapaDots = array('MIC' => 'var(--danger-color)', 'COM' => 'var(--success-color)', 'LC' => 'var(--primary-color)');
+
+$porEtapa = array();
 foreach ($monitors as $m) {
-    // El estado del CRM si lo hay; si no, verde, que es el defecto de esta
-    // pantalla y el que se va a escribir.
-    $state = isset($attendances[$m['id']]['status']) && $attendances[$m['id']]['status'] !== ''
-        ? $attendances[$m['id']]['status']
-        : 'yes';
-    $person = $m;
-    // La línea de debajo dice de qué grupos es: es lo que distingue a dos
-    // monitores con el mismo nombre de pila y lo que explica por qué está aquí.
-    if (!empty($m['groups'])) {
-        $person['name'] = $m['name'];
-    }
-    $fichaUrl = '?internalpage=single_stic_pasar_lista_monitor&monitor=' . rawurlencode($m['id']);
-    $html .= sticpa_pl_row_html($person, $state, 0, $fichaUrl, implode(' · ', $m['groups']));
+    $etapa = (isset($m['etapa']) && $m['etapa'] !== '') ? $m['etapa'] : '?';
+    $porEtapa[$etapa][] = $m;
 }
-$html .= '</div>';
+
+// Una sección sola no es una sección: si todos son de la misma etapa, la
+// cabecera solo añadiría ruido.
+$conSecciones = (count($porEtapa) > 1);
+
+foreach (array('MIC', 'COM', 'LC', '?') as $etapa) {
+    if (empty($porEtapa[$etapa])) {
+        continue;
+    }
+    if ($conSecciones) {
+        $dot = isset($etapaDots[$etapa]) ? $etapaDots[$etapa] : 'var(--gray-300)';
+        $titulo = ($etapa === '?') ? __('Sin etapa', 'sticpa') : $etapa;
+        $html .= '<div class="pl-etapa-title">'
+            . '<span class="pl-etapa-dot" style="background:' . esc_attr($dot) . '"></span>'
+            . esc_html($titulo)
+            . '<span class="pl-etapa-count">' . esc_html(sprintf(
+                /* translators: %d: cuántos monitores hay en la etapa */
+                _n('%d monitor', '%d monitores', count($porEtapa[$etapa]), 'sticpa'),
+                count($porEtapa[$etapa])
+            )) . '</span></div>';
+    }
+
+    $html .= '<div class="pl-list">';
+    foreach ($porEtapa[$etapa] as $m) {
+        // El estado del CRM si lo hay; si no, verde, que es el defecto de esta
+        // pantalla y el que se va a escribir.
+        $state = isset($attendances[$m['id']]['status']) && $attendances[$m['id']]['status'] !== ''
+            ? $attendances[$m['id']]['status']
+            : 'yes';
+        // La línea de debajo dice de qué grupos es y de qué curso: es lo que
+        // distingue a dos monitores con el mismo nombre de pila y lo que
+        // explica por qué está en esta lista y en este sitio de ella.
+        $sub = implode(' · ', $m['groups']);
+        if (!empty($m['curso'])) {
+            $sub = ($sub !== '') ? $sub . ' · ' . $m['curso'] : $m['curso'];
+        }
+        $fichaUrl = '?internalpage=single_stic_pasar_lista_monitor&monitor=' . rawurlencode($m['id']);
+        $html .= sticpa_pl_row_html($m, $state, 0, $fichaUrl, $sub);
+    }
+    $html .= '</div>';
+}
 
 $html .= sticpa_pl_legend_html();
 

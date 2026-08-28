@@ -345,6 +345,13 @@ function sticpa_pl_flush($objSCP = null, $scope = 'state')
     // clave lleva dentro el id del grupo o del evento, y no hay forma de saber
     // qué ids hay cacheados. Subiendo un contador que va DENTRO de la clave,
     // todas dejan de acertar a la vez y caducan solas.
+    // Y las respuestas que la tanda paralela trajo ANTES de esta escritura: son
+    // una foto vieja, y quien las consumiera después las guardaría como frescas
+    // con las 24 h por delante.
+    if (class_exists('SugarRestApiCall')) {
+        SugarRestApiCall::forgetMemo();
+    }
+
     $families = ($scope === 'all') ? array('state', 'struct') : array('state');
     foreach ($families as $family) {
         $option = sticpa_pl_cache_gen_option($family, $deleg);
@@ -743,6 +750,23 @@ function sticpa_pl_person_from_rel_row($v)
  * Devuelve array('participants' => [...], 'monitors' => [...]), cada persona con
  * id, nombre, iniciales y los campos de la ficha que se usan en la lista.
  */
+/**
+ * Las personas de un grupo SIN respaldo, para quien recorre muchos grupos.
+ *
+ * Existe para que el bucle no pueda equivocarse: `sticpa_pl_group_people()` cae
+ * al respaldo de UNA llamada cuando el grupo sale vacío —y eso está bien cuando
+ * se pinta un grupo—, pero multiplicado por ~150 grupos es lo que hacía eterna
+ * la pantalla de monitores.
+ */
+function sticpa_pl_group_people_bulk($objSCP, $groupId)
+{
+    $sin = function () { return false; };
+    add_filter('sticpa_pl_respaldo_por_grupo', $sin, 99);
+    $out = sticpa_pl_group_people($objSCP, $groupId);
+    remove_filter('sticpa_pl_respaldo_por_grupo', $sin, 99);
+    return $out;
+}
+
 function sticpa_pl_group_people($objSCP, $groupId)
 {
     $groupId = (string) $groupId;
@@ -753,14 +777,7 @@ function sticpa_pl_group_people($objSCP, $groupId)
     $out = array('participants' => array(), 'monitors' => array());
 
     // Camino normal: del mapa comun de la delegacion, sin una llamada propia.
-    //
-    // `$mapaSirve` se calcula AQUÍ, en el mismo recorrido, y es lo que decide
-    // si hace falta el respaldo. Ver el comentario largo de más abajo.
-    $mapaSirve = false;
     foreach (sticpa_pl_all_relationships($objSCP) as $rel) {
-        if ($rel['person']['id'] !== '') {
-            $mapaSirve = true;
-        }
         if ($rel['group_id'] !== $groupId || $rel['person']['id'] === '') {
             continue;
         }
@@ -780,16 +797,30 @@ function sticpa_pl_group_people($objSCP, $groupId)
     // vacío, y preguntar otra vez devuelve lo mismo. El respaldo solo tiene
     // sentido cuando el mapa entero viene vacío, que es la señal de que la
     // consulta de colección ha fallado.
-    // La condición es «el mapa no sirve», NO «este grupo está vacío»:
-    //
-    //   - Mapa con personas y este grupo vacío → el grupo está vacío de verdad,
-    //     y preguntar otra vez devuelve lo mismo. NO se pregunta.
-    //   - Mapa vacío, o con filas pero sin ninguna persona dentro (la trampa
-    //     §3.1: la instancia no devuelve ni el enlace anidado ni el campo
-    //     plano) → el mapa no sirve, y sin respaldo un monitor se queda sin
-    //     poder pasar lista un sábado.
-    if (empty($out['participants']) && empty($out['monitors']) && !$mapaSirve
-        && !sticpa_pl_collecting()) {
+    /* EL RESPALDO, Y LA LECCIÓN QUE COSTÓ UN GRUPO VACÍO.
+     *
+     * Primer intento: el respaldo saltaba cuando ESTE grupo salía vacío. Eso
+     * era un 1+N carísimo en la pantalla de monitores, que recorre TODOS los
+     * grupos del alcance (~150 en el CRM, casi todos históricos y vacíos).
+     *
+     * Segundo intento: se limitó a «solo si el mapa entero no sirve». Mató el
+     * 1+N... y también mató el respaldo justo donde hacía falta, porque el mapa
+     * de la delegación puede traer gente de OTROS grupos y no la de este (una
+     * respuesta a medias del CRM, por ejemplo). Resultado: C1 sin participantes
+     * un sábado, que es exactamente lo que no se puede permitir.
+     *
+     * Lo que estaba mal era el sitio, no el respaldo. Aquí se pregunta por UN
+     * grupo —el que se está pintando—, así que cuesta UNA llamada y solo
+     * cuando ese grupo sale vacío: la pantalla de marcar, la ficha y el atajo
+     * de la portada piden un grupo cada una. El bucle sobre muchos grupos vive
+     * en sticpa_pl_monitors_of(), y ES AHÍ donde el respaldo no puede correr.
+     *
+     * `sticpa_pl_group_people_bulk()` es la puerta para quien recorra grupos:
+     * no cae al respaldo nunca.
+     */
+    if (empty($out['participants']) && empty($out['monitors'])
+        && !sticpa_pl_collecting()
+        && apply_filters('sticpa_pl_respaldo_por_grupo', true, $groupId)) {
         $out = sticpa_pl_group_people_direct($objSCP, $groupId);
     }
 
@@ -1042,7 +1073,12 @@ function sticpa_pl_event_sessions($objSCP, $eventId)
         'module_name' => 'stic_Events',
         'module_id' => $eventId,
         'link_field_name' => 'stic_sessions_stic_events',
-        'related_fields' => array('id', 'start_date', 'end_date'),
+        // `name` hace falta para las REUNIONES: son «Programación del 2.º
+        // trimestre», no «sábado 21». En las sesiones semanales el nombre no
+        // aporta (es la fecha lo que se lee) y por eso no se pedía; pero no
+        // pedirlo dejaba la pantalla de reuniones sin lo único que identifica
+        // a cada una. Viene en la misma consulta: no cuesta nada.
+        'related_fields' => array('id', 'name', 'start_date', 'end_date'),
         'related_module_link_name_to_fields_array' => array(),
         'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
     ));
@@ -1059,6 +1095,7 @@ function sticpa_pl_event_sessions($objSCP, $eventId)
             $endRaw = isset($v->end_date->value) ? (string) $v->end_date->value : '';
             $sessions[] = array(
                 'id' => $id,
+                'name' => isset($v->name->value) ? trim((string) $v->name->value) : '',
                 'start' => sticpa_pl_ts($start),
                 'end' => $endRaw !== '' ? sticpa_pl_ts($endRaw) : 0,
             );
@@ -3497,6 +3534,58 @@ function sticpa_pl_scoped_groups($objSCP, $scope)
  * no pide nada. Un monitor de dos grupos sale una vez, con los dos grupos
  * anotados, porque en la lista de monitores es una sola persona.
  */
+/**
+ * El curso escolar de un grupo, convertido en un número que se puede ordenar.
+ *
+ * `cursos_c` es TEXTO LIBRE en el CRM («4º Primaria», «1º ESO», «2n
+ * Batxillerat», «Adultos»…), así que ordenar alfabéticamente pone «1º ESO»
+ * antes que «4º Primaria», que es justo al revés de como se lee una lista de
+ * grupos. Aquí se traduce a un número: primero primaria por curso, luego la
+ * ESO, luego bachillerato, y al final lo que no se reconozca.
+ *
+ * Se aceptan las formas en castellano y en valenciano porque en el CRM
+ * conviven las dos. Lo que no encaje va al final, nunca se pierde.
+ */
+function sticpa_pl_curso_rank($cursos)
+{
+    $txt = trim((string) $cursos);
+    if ($txt === '') {
+        return 9000;   // sin curso: al final, pero antes que lo desconocido
+    }
+
+    $norm = function_exists('mb_strtolower') ? mb_strtolower($txt) : strtolower($txt);
+    // Sin acentos, para que «Primària» y «Primaria» sean lo mismo.
+    $norm = strtr($norm, array('à' => 'a', 'á' => 'a', 'è' => 'e', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u', 'ï' => 'i', 'ü' => 'u'));
+
+    $etapas = apply_filters('sticpa_pl_rangos_curso', array(
+        'infantil' => 0,
+        'primaria' => 100,
+        'prim' => 100,
+        'eso' => 200,
+        'secundaria' => 200,
+        'bach' => 300,
+        'batxillerat' => 300,
+        'bachillerato' => 300,
+        'fp' => 350,
+        'universi' => 400,
+        'adult' => 500,
+    ));
+
+    $base = 8000;   // no reconocido: detrás de todo lo que sí lo está
+    foreach ($etapas as $aguja => $valor) {
+        if (strpos($norm, $aguja) !== false) {
+            $base = $valor;
+            break;
+        }
+    }
+
+    $curso = 0;
+    if (preg_match('/(\d+)/', $norm, $m)) {
+        $curso = (int) $m[1];
+    }
+    return $base + $curso;
+}
+
 function sticpa_pl_monitors_of($objSCP, $groups)
 {
     // UNA pasada por el mapa de relaciones, no una consulta por grupo.
@@ -3523,12 +3612,25 @@ function sticpa_pl_monitors_of($objSCP, $groups)
         if (!isset($out[$id])) {
             $out[$id] = $rel['person'];
             $out[$id]['groups'] = array();
+            // La etapa y el curso salen del grupo, y sirven para agrupar y
+            // ordenar la pantalla. Con varios grupos manda el PRIMERO por
+            // curso: un monitor de 4º de primaria y de 2º de la ESO se lee
+            // antes con los pequeños, que es donde empieza su sábado.
+            $out[$id]['etapa'] = '';
+            $out[$id]['curso'] = '';
+            $out[$id]['rank'] = 99999;
         }
         // Un monitor de dos grupos sale UNA vez con sus dos códigos, y sin
         // repetir el mismo código si tiene dos relaciones con el mismo grupo.
         $code = $groups[$gid]['code'];
         if (!in_array($code, $out[$id]['groups'], true)) {
             $out[$id]['groups'][] = $code;
+        }
+        $rank = sticpa_pl_curso_rank(isset($groups[$gid]['cursos']) ? $groups[$gid]['cursos'] : '');
+        if ($rank < $out[$id]['rank']) {
+            $out[$id]['rank'] = $rank;
+            $out[$id]['curso'] = isset($groups[$gid]['cursos']) ? (string) $groups[$gid]['cursos'] : '';
+            $out[$id]['etapa'] = isset($groups[$gid]['etapa']) ? (string) $groups[$gid]['etapa'] : '';
         }
     }
 
@@ -3537,7 +3639,7 @@ function sticpa_pl_monitors_of($objSCP, $groups)
     // monitores coordinación no puede pasar su lista.
     if (empty($out) && !$mapaSirve && !sticpa_pl_collecting()) {
         foreach ($groups as $gid => $g) {
-            $people = sticpa_pl_group_people($objSCP, $gid);
+            $people = sticpa_pl_group_people_bulk($objSCP, $gid);
             foreach ($people['monitors'] as $m) {
                 if (!isset($out[$m['id']])) {
                     $out[$m['id']] = $m;
@@ -3551,7 +3653,16 @@ function sticpa_pl_monitors_of($objSCP, $groups)
     }
 
     $out = array_values($out);
-    usort($out, 'sticpa_pl_cmp_person');
+    // Por curso primero (los de 4.º antes que los de 5.º) y, a igual curso,
+    // alfabético por apellido, que es como se lee una lista de personas.
+    usort($out, function ($a, $b) {
+        $ra = isset($a['rank']) ? (int) $a['rank'] : 99999;
+        $rb = isset($b['rank']) ? (int) $b['rank'] : 99999;
+        if ($ra !== $rb) {
+            return ($ra < $rb) ? -1 : 1;
+        }
+        return sticpa_pl_cmp_person($a, $b);
+    });
     return $out;
 }
 

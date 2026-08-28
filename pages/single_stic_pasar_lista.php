@@ -84,12 +84,6 @@ $html .= '<div class="pl-subtitle">' . esc_html(
         : $course['label']
 ) . '</div>';
 $html .= '</div>';
-// El panel de diagnóstico (`?pl_diag=1`, solo coordinación). Va arriba: cuando
-// se abre es porque algo no cuadra y lo que interesa es leerlo, no buscarlo.
-if (function_exists('sticpa_pl_diag_requested') && sticpa_pl_diag_requested($objSCP)) {
-    $html .= sticpa_pl_diag_html($objSCP);
-}
-
 $html .= '<a class="pl-session-pick" href="?internalpage=single_stic_pasar_lista&refrescar=1"'
     . ' aria-label="' . esc_attr__('Refrescar datos', 'sticpa') . '">' . sticpa_pl_icon('refresh') . '</a>';
 $html .= '</div>';
