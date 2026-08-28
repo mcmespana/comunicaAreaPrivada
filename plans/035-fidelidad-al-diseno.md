@@ -25,6 +25,31 @@ Esfuerzo: M. Depende de: nada (pero no pisar 033/034 en los mismos ficheros).
 > - **Pendientes**: `Grupos`, `Resumen`, `Main` y `Estados`. Y `monitores`,
 >   `monitor` y `reuniones`, que no tienen artboard y siguen la spec de su
 >   pantalla hermana (monitores = marcar; reuniones = árbol).
+>
+> ## Estado al 28/08/2026
+>
+> - **`Grupos`: spec extraída y catorce desvíos corregidos.** La tabla completa
+>   —y las cuatro divergencias deliberadas— está en
+>   [`../docs/comunica/fidelidad/grupos.md`](../docs/comunica/fidelidad/grupos.md),
+>   que es el formato que pedía el «Método» de abajo y que ahora existe para
+>   que la próxima pantalla se compare contra algo en vez de re-medirla.
+>   El desvío de fondo era estructural: **el estado de cada fila se pintaba como
+>   un disco de color de 26 px**, y el artboard reserva el disco para la tarjeta
+>   de «tu grupo». En una columna de veintiocho filas, veintiocho discos pesan
+>   más que los nombres.
+> - **Herramienta nueva y muy barata**: se puede renderizar cualquier pantalla
+>   contra el doble de test, envolverla igual que `menu.php`
+>   (`.stic-container > .stic-tab-content`) y hacerle una captura con Chromium
+>   en los DOS temas. Es lo que ha permitido comparar de verdad en vez de a ojo,
+>   y de paso encontró un desborde horizontal real (ver abajo). No vive en el
+>   repo: son treinta líneas y se reescriben en un minuto.
+> - **Desborde horizontal, encontrado y tapado.** Varios bloques sangran a los
+>   lados con márgenes negativos contando con el relleno del tema de WordPress;
+>   `.stic-tab-content` lo pone a **cero** en horizontal, así que en `marcar` y
+>   `monitores` eso eran 32 px de barra de desplazamiento lateral. Se recorta
+>   con `overflow-x: clip` en `.stic-container` (`clip`, no `hidden`: `hidden`
+>   crearía un contenedor de scroll y rompería el `sticky` de la barra de
+>   guardar). Comprobado que la hoja de estados sigue apareciendo igual.
 
 ## El problema
 
@@ -107,9 +132,15 @@ Resumen, Ficha, Main, Estados.
 
 | Pantalla | Spec extraída | Desvíos anotados | Corregida | Verificada (2 temas) |
 |---|---|---|---|---|
-| Marcar | ✅ | ninguno vivo | ✅ (PR #60) | pendiente en dispositivo |
-| Ficha | ✅ teléfonos | ✅ 5 + la estructura | ✅ teléfonos | pendiente en dispositivo |
-| Grupos | | | | |
-| Resumen | | | | |
-| Main | | | | |
-| Estados | | | | |
+| Marcar | ✅ | ninguno vivo | ✅ (PR #60) | ✅ 28/08 (captura) |
+| Ficha | ✅ teléfonos | ✅ 5 + la estructura | ✅ teléfonos | ✅ 28/08 (captura) |
+| Grupos | ✅ [`fidelidad/grupos.md`](../docs/comunica/fidelidad/grupos.md) | ✅ 14 | ✅ 28/08 | ✅ 28/08 (captura) |
+| Resumen | ✅ [`fidelidad/main-resumen-estados.md`](../docs/comunica/fidelidad/main-resumen-estados.md) | ✅ 2 (medidas) | ✅ 28/08 | ✅ 28/08 (captura) |
+| Main | ✅ ídem | ✅ 4 (medidas) | ✅ 28/08 | ✅ 28/08 (captura) |
+| Estados | ✅ ídem | ✅ 7, **dos de ellos de verdad** | ✅ 28/08 | ✅ 28/08 (captura) |
+
+**Las seis pantallas con artboard están hechas.** Lo que queda del plan es el
+método, no la lista: que cualquier componente nuevo pase por §0.b/§0.c/§0.d de
+`pasar-lista.css` antes de darse por bueno, porque los tres fallos de fondo que
+ha habido eran el tema de WordPress ganando por especificidad y ninguno se veía
+leyendo el CSS del plugin.

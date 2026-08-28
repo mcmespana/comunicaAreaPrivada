@@ -113,39 +113,50 @@ final class PasarListaTest extends TestCase
     public function test_porcentaje_sobre_sesiones_celebradas()
     {
         $marks = array('s1' => 'yes', 's2' => 'no_unjustified', 's3' => 'yes', 's4' => 'yes');
-        $a = sticpa_pl_attendance($this->sessions(), $marks, $this->saturday(17));
+        $a = sticpa_pl_att_track($this->sessions(), $marks, $this->saturday(17));
 
         // 2 de 3, no 3 de 4: la cuarta sesión aún no ha pasado.
         $this->assertSame(2, $a['attended']);
         $this->assertSame(3, $a['elapsed']);
+        $this->assertSame(3, $a['counted']);
         $this->assertSame(67, $a['pct']);
-        $this->assertStringContainsString('3 sesiones', $a['text']);
     }
 
     /** "Parcial" cuenta como haber venido, igual que en el CRM. */
     public function test_parcial_cuenta_como_asistencia()
     {
         $marks = array('s1' => 'partial', 's2' => 'partial', 's3' => 'partial');
-        $a = sticpa_pl_attendance($this->sessions(), $marks, $this->saturday(17));
+        $a = sticpa_pl_att_track($this->sessions(), $marks, $this->saturday(17));
         $this->assertSame(3, $a['attended']);
         $this->assertSame(100, $a['pct']);
     }
 
-    /** Las horas también se cuentan hasta hoy: 3 sesiones × 1,5 h. */
+    /**
+     * Las horas siguen la misma regla que el porcentaje: solo lo marcado.
+     *
+     * Tres sesiones de 1,5 h marcadas = 4,5 h. Con la cuarta sin marcar (y sin
+     * celebrar), ni suma ni resta.
+     */
     public function test_horas_hasta_hoy()
     {
         $marks = array('s1' => 'yes', 's2' => 'yes', 's3' => 'yes');
-        $a = sticpa_pl_attendance($this->sessions(), $marks, $this->saturday(17));
+        $a = sticpa_pl_att_track($this->sessions(), $marks, $this->saturday(17));
         $this->assertSame(4.5, $a['hours']);
         $this->assertSame(4.5, $a['hours_total']);
+
+        // Y si una de las tres no está marcada, sale del total: «3 h de 3 h» y
+        // no «3 h de 4,5 h», que insinuaría una hora y media perdida.
+        $b = sticpa_pl_att_track($this->sessions(), array('s1' => 'yes', 's3' => 'yes'), $this->saturday(17));
+        $this->assertSame(3.0, $b['hours']);
+        $this->assertSame(3.0, $b['hours_total']);
     }
 
     /** Sin sesiones celebradas no se enseña un 0 % acusador. */
     public function test_antes_de_la_primera_sesion_no_hay_porcentaje()
     {
-        $a = sticpa_pl_attendance($this->sessions(), array(), mktime(12, 0, 0, 10, 1, 2025));
+        $a = sticpa_pl_att_track($this->sessions(), array(), mktime(12, 0, 0, 10, 1, 2025));
         $this->assertSame(0, $a['elapsed']);
-        $this->assertStringNotContainsString('%', $a['text']);
+        $this->assertSame(-1, $a['pct'], 'no se sabe, que no es cero');
     }
 
     // ---- Ausencias seguidas ---------------------------------------------
@@ -638,4 +649,194 @@ final class PasarListaTest extends TestCase
         $this->assertSame('Ana', sticpa_pl_short_name('', '', 'Ana'));
         $this->assertSame('', sticpa_pl_short_name('', '', ''));
     }
+    // ---- Seguimiento de monitores: las pistas -----------------------------
+
+    /**
+     * UN HUECO NO ES UNA FALTA.
+     *
+     * Es la regla del bloque entero. Si el sábado que faltó nadie pasó la lista
+     * de monitores, ese hueco no es una ausencia suya: es un dato que no
+     * existe. Meterlo en el denominador acusa a alguien por un fallo de
+     * registro, y encima con un número que parece objetivo.
+     */
+    public function test_pista_de_asistencia_no_cuenta_los_huecos()
+    {
+        $marks = array('s1' => 'yes', 's3' => 'no_unjustified');   // s2 sin marcar
+        $t = sticpa_pl_att_track($this->sessions(), $marks, $this->saturday(20));
+
+        $this->assertSame(3, $t['elapsed'], 's4 todavía no ha pasado');
+        $this->assertSame(1, $t['attended']);
+        $this->assertSame(1, $t['missed']);
+        $this->assertSame(1, $t['unknown']);
+        $this->assertSame(2, $t['counted']);
+        $this->assertSame(50, $t['pct'], '1 de 2 marcadas, no 1 de 3');
+
+        // Y un cuadrado por sesión celebrada, en orden y con su estado.
+        $this->assertCount(3, $t['squares']);
+        $this->assertSame(array('yes', '', 'no_unjustified'), array_column($t['squares'], 'state'));
+    }
+
+    /** Sin nada marcado el porcentaje es «no se sabe», no un cero. */
+    public function test_pista_de_asistencia_sin_datos_no_es_cero()
+    {
+        $t = sticpa_pl_att_track($this->sessions(), array(), $this->saturday(20));
+        $this->assertSame(-1, $t['pct'], 'un 0 % diría que no vino nunca');
+        $this->assertSame(3, $t['unknown']);
+    }
+
+    /**
+     * La pista de listas distingue QUIÉN la pasó.
+     *
+     * No es un verde y un rojo: una lista de grupo la puede pasar cualquiera
+     * que cubra ese sábado, así que «la pasó otro» es un resultado correcto y
+     * tiene su propio color.
+     */
+    public function test_pista_de_listas_distingue_quien_la_paso()
+    {
+        $listas = array(
+            's1' => array('estado' => 'pasada', 'monitor_id' => 'm1'),
+            's2' => array('estado' => 'pasada', 'monitor_id' => 'm7'),
+            's3' => array('estado' => 'omitida', 'monitor_id' => 'm1'),
+        );
+        $t = sticpa_pl_listas_track($this->sessions(), $listas, 'm1', $this->saturday(20));
+
+        $this->assertSame(array('suya', 'otra', 'omitida'), array_column($t['squares'], 'state'));
+        $this->assertSame(1, $t['suyas']);
+        $this->assertSame(1, $t['otras']);
+        $this->assertSame(1, $t['omitidas']);
+        $this->assertSame(2, $t['con_lista']);
+        // Un sábado omitido NO es una lista que falte: sale del denominador.
+        $this->assertSame(2, $t['esperadas']);
+    }
+
+    /** Un sábado sin lista ninguna se ve, y cuenta como pendiente. */
+    public function test_pista_de_listas_marca_las_que_faltan()
+    {
+        $t = sticpa_pl_listas_track($this->sessions(), array(), 'm1', $this->saturday(20));
+        $this->assertSame(array('sin', 'sin', 'sin'), array_column($t['squares'], 'state'));
+        $this->assertSame(0, $t['con_lista']);
+        $this->assertSame(3, $t['esperadas']);
+    }
+
+    // ---- El curso escolar de una relación ---------------------------------
+
+    /**
+     * El CRM no guarda «2024-2025» en ninguna parte de una relación: el campo
+     * existe y está vacío en todas. Así que el curso se deduce de las fechas.
+     */
+    public function test_cursos_de_una_relacion_cerrada()
+    {
+        $inicio = mktime(0, 0, 0, 9, 1, 2024);
+        $fin = mktime(0, 0, 0, 7, 31, 2025);
+        $this->assertSame(
+            array('2024-2025'),
+            sticpa_pl_rel_cursos($inicio, $fin, $this->saturday(12))
+        );
+    }
+
+    /** Una relación de tres años sale en los tres cursos: los tres estuvo. */
+    public function test_cursos_de_una_relacion_larga()
+    {
+        $inicio = mktime(0, 0, 0, 9, 1, 2023);
+        $this->assertSame(
+            array('2023-2024', '2024-2025', '2025-2026'),
+            sticpa_pl_rel_cursos($inicio, 0, $this->saturday(12))
+        );
+    }
+
+    /** Sin fechas, el curso de hoy: es lo único que se puede afirmar. */
+    public function test_cursos_de_una_relacion_sin_fechas()
+    {
+        $this->assertSame(
+            array('2025-2026'),
+            sticpa_pl_rel_cursos(0, 0, $this->saturday(12))
+        );
+    }
+
+    /** Sin inicio pero con fin, el curso en que se cerró. */
+    public function test_cursos_de_una_relacion_solo_con_fin()
+    {
+        $fin = mktime(0, 0, 0, 6, 30, 2023);
+        $this->assertSame(
+            array('2022-2023'),
+            sticpa_pl_rel_cursos(0, $fin, $this->saturday(12))
+        );
+    }
+
+    // ---- Los bloques de datos del monitor ---------------------------------
+
+    /** Los multienum de SuiteCRM vienen con acentos circunflejos de adorno. */
+    public function test_multienum_quita_los_circunflejos()
+    {
+        $this->assertSame(
+            array('2019_godelleta', '2022_burriana'),
+            sticpa_pl_multienum('^2019_godelleta^,^2022_burriana^')
+        );
+        $this->assertSame(array(), sticpa_pl_multienum(''));
+    }
+
+    /**
+     * El orden de los bloques ES el diseño, así que se prueba.
+     *
+     * Lo pidió el propietario con estas palabras: «poniendo más arriba los
+     * datos de más interés (por ejemplo el de delitos sexuales pues el primero
+     * no hace falta)», y afinado después: «en regla, lo de trayectoria que
+     * llámale datos MCM, y la formación».
+     */
+    public function test_bloques_del_monitor_en_orden_de_interes()
+    {
+        $bloques = sticpa_pl_monitor_bloques(array(
+            'ajmcm_aut_del_sex_c' => '1',
+            'ajmcm_mat_c' => 'titulado', 'ajmcm_mat_file_c' => '1', 'ajmcm_mat_year_c' => '2013',
+            'ajmcm_nivel_com_c' => 'crecimiento',
+            'stic_identification_number_c' => '12345678Z',
+            'stic_identification_type_c' => 'nif',
+        ));
+        $this->assertSame(
+            array('regla', 'mcm', 'formacion', 'personales'),
+            array_column($bloques, 'key')
+        );
+        // Y los datos de padrón, plegados: se miran una vez al año.
+        $this->assertTrue($bloques[3]['plegado']);
+    }
+
+    /**
+     * Un permiso no dado no es un incumplimiento.
+     *
+     * La cesión de imágenes a «no» es una decisión de la persona. Pintarla como
+     * una obligación pendiente convierte un derecho en una deuda.
+     */
+    public function test_bloque_en_regla_separa_obligaciones_de_permisos()
+    {
+        $bloques = sticpa_pl_monitor_bloques(array('ajmcm_cesionimagenes_interne_c' => '0'));
+        $regla = $bloques[0]['rows'];
+
+        $porEtiqueta = array();
+        foreach ($regla as $r) {
+            $porEtiqueta[$r['label']] = $r;
+        }
+        $this->assertTrue($porEtiqueta['Código de conducta']['req'], 'es obligatorio');
+        $this->assertFalse($porEtiqueta['Cesión de imágenes']['req'], 'es un permiso');
+        $this->assertFalse($porEtiqueta['Cesión de imágenes']['ok']);
+    }
+
+    /** Lo que no tiene no se lista: se pregunta qué formación tiene. */
+    public function test_formacion_solo_lista_lo_que_tiene()
+    {
+        $bloques = sticpa_pl_monitor_bloques(array(
+            'ajmcm_mat_c' => 'titulado', 'ajmcm_mat_file_c' => '0',
+            'ajmcm_dat_c' => 'no',
+        ));
+        $formacion = null;
+        foreach ($bloques as $b) {
+            if ($b['key'] === 'formacion') {
+                $formacion = $b;
+            }
+        }
+        $this->assertNotNull($formacion);
+        $this->assertCount(1, $formacion['rows'], 'el DAT dice no, así que no sale');
+        // Titulado pero sin el archivo del título: el descuadre que hay que ver.
+        $this->assertSame('sin archivo', $formacion['rows'][0]['warn']);
+    }
+
 }

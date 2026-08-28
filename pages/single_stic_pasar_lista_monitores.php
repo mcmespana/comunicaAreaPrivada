@@ -172,7 +172,43 @@ if (!empty($_POST['pl_action'])) {
         . '</span></p>';
 }
 
+/* TANDA 3, y después del guardado a propósito: recolectar una lectura ANTES de
+ * escribir dejaría en el memo la respuesta de antes de escribir, y la pantalla
+ * enseñaría lo que había en vez de lo que acaba de guardarse. */
+$seguimientoOn = apply_filters('sticpa_pl_avisos_seguimiento', true);
+sticpa_pl_prime($objSCP, function () use ($objSCP, $session, $regMap, $sessions, $seguimientoOn) {
+    sticpa_pl_session_attendances($objSCP, $session['id'], $regMap);
+    if ($seguimientoOn) {
+        sticpa_pl_attendances_for_sessions($objSCP, $sessions, $regMap);
+    }
+});
+
 $attendances = sticpa_pl_session_attendances($objSCP, $session['id'], $regMap);
+
+/* EL SEGUIMIENTO, EN VERSIÓN MÍNIMA (plan 038 §4).
+ *
+ * En la ficha de un monitor se enseña el curso entero con sus cuadraditos. Aquí
+ * se busca otra cosa: **a quién hay que mirar** de los treinta. Así que solo
+ * sale una nota, en rojo y bajo el nombre, cuando algo no va —tres seguidas sin
+ * venir, o menos del 60 %—, y quien va bien no lleva número. Una lista con
+ * treinta porcentajes es una lista que nadie lee.
+ *
+ * Cuesta UNA consulta más, por rango de fechas y para todos a la vez, y viaja
+ * en la misma tanda que la de arriba: ni un viaje más. Ninguna por monitor: si
+ * aparece un 1+N aquí, el diseño está mal y hay que rehacerlo. */
+$avisos = array();
+if ($seguimientoOn) {
+    $porPersona = array();
+    foreach (sticpa_pl_attendances_for_sessions($objSCP, $sessions, $regMap) as $sid => $porContacto) {
+        foreach ($porContacto as $cid => $att) {
+            $porPersona[$cid][$sid] = isset($att['status']) ? (string) $att['status'] : '';
+        }
+    }
+    foreach ($monitors as $m) {
+        $marks = isset($porPersona[$m['id']]) ? $porPersona[$m['id']] : array();
+        $avisos[$m['id']] = sticpa_pl_seguimiento_aviso(sticpa_pl_att_track($sessions, $marks));
+    }
+}
 
 // La lista de monitores de esta sesión, releída del CRM. Se lee SIEMPRE (no
 // solo tras guardar) para poder decir si ya estaba pasada: es la misma pregunta
@@ -354,7 +390,8 @@ foreach (array('MIC', 'COM', 'LC', '?') as $etapa) {
             $sub = ($sub !== '') ? $sub . ' · ' . $m['curso'] : $m['curso'];
         }
         $fichaUrl = '?internalpage=single_stic_pasar_lista_monitor&monitor=' . rawurlencode($m['id']);
-        $html .= sticpa_pl_row_html($m, $state, 0, $fichaUrl, $sub);
+        $aviso = isset($avisos[$m['id']]) ? $avisos[$m['id']] : '';
+        $html .= sticpa_pl_row_html($m, $state, 0, $fichaUrl, $sub, '', $aviso);
     }
     $html .= '</div>';
 }

@@ -202,6 +202,15 @@ function sticpa_pl_warm_delegation($objSCP, $deleg)
         // en el CRM desde un calentador de caché sería una sorpresa desagradable.
         $reu = sticpa_pl_reuniones_event($objSCP, false);
         $out['reuniones'] = ($reu === null) ? 0 : 1;
+        // Y sus sesiones e inscripciones, que la ficha de un monitor necesita
+        // para la fila de reuniones. Son estructura —cambian tres veces al
+        // año—, así que calentarlas de madrugada las deja hechas todo el día.
+        if ($reu !== null && !empty($reu['id']) && !isset($eventIds[$reu['id']])) {
+            $ses = sticpa_pl_event_sessions($objSCP, $reu['id']);
+            $out['sesiones'] += is_array($ses) ? count($ses) : 0;
+            $regs = sticpa_pl_event_registrations($objSCP, $reu['id']);
+            $out['inscripciones'] += is_array($regs) ? count($regs) : 0;
+        }
     } catch (Exception $e) {
         // Un fallo calentando NO puede tumbar la respuesta: lo que se calienta es
         // opcional por definición, y la pantalla sabe pedir sus datos sola.

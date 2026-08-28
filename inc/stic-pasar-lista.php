@@ -116,6 +116,50 @@ function sticpa_pl_course_for($ts = null)
  * $GLOBALS['__stic_pl_now'] para poder probar "un sábado a las 15:00" sin
  * esperar al sábado.
  */
+/**
+ * Los cursos escolares que cubre una relación, de sus fechas.
+ *
+ * El CRM no guarda «2024-2025» en ningún campo de `stic_Contacts_Relationships`
+ * —se miró—, así que el curso se deduce de `start_date` y `end_date`. Una
+ * relación que duró tres años sale en los tres cursos, porque esos tres años
+ * estuvo: agruparla solo por el primero contaría mal la historia.
+ *
+ * Reglas de los huecos, que son la mitad de los casos reales:
+ *   - Sin fecha de inicio: se toma la de fin, y si tampoco hay, hoy.
+ *   - Sin fecha de fin: sigue abierta, así que llega hasta hoy.
+ *   - Con fecha de inicio en el futuro: solo su curso, sin inventar más.
+ *
+ * @return string[] etiquetas de curso, de la más antigua a la más reciente.
+ */
+function sticpa_pl_rel_cursos($startTs, $endTs, $nowTs = null)
+{
+    $nowTs = ($nowTs === null) ? sticpa_pl_now() : (int) $nowTs;
+    $startTs = (int) $startTs;
+    $endTs = (int) $endTs;
+
+    if ($startTs <= 0) {
+        $startTs = ($endTs > 0) ? $endTs : $nowTs;
+    }
+    $hasta = ($endTs > 0) ? min($endTs, $nowTs) : $nowTs;
+    if ($hasta < $startTs) {
+        $hasta = $startTs;
+    }
+
+    $out = array();
+    $cursor = $startTs;
+    // Tope de doce vueltas: doce cursos son más que la vida de monitor de
+    // nadie, y un bucle sobre fechas del CRM no puede quedarse colgado.
+    for ($i = 0; $i < 12; $i++) {
+        $curso = sticpa_pl_course_for($cursor);
+        $out[] = $curso['label'];
+        if ($curso['end'] >= $hasta) {
+            break;
+        }
+        $cursor = $curso['end'] + 86400;
+    }
+    return $out;
+}
+
 function sticpa_pl_now()
 {
     if (isset($GLOBALS['__stic_pl_now'])) {
@@ -237,60 +281,6 @@ function sticpa_pl_cmp_start($a, $b)
     return ($x < $y) ? -1 : 1;
 }
 
-/**
- * Asistencia de un participante HASTA HOY.
- *
- * $marks: array sessionId => clave de estado.
- * Devuelve array('attended','elapsed','pct','hours','hours_total','text').
- *
- * El 'text' lleva SIEMPRE el denominador ("82 % de 12 sesiones"). Un 82 % en
- * noviembre y un 82 % en mayo no son lo mismo, y sin denominador se leen igual.
- * Por eso tampoco se usa `attendance_percentage` de la inscripción, que el CRM
- * calcula sobre el evento completo y a mitad de curso da un número bajo que no
- * significa nada malo.
- */
-function sticpa_pl_attendance($sessions, $marks, $nowTs = null)
-{
-    $states = sticpa_pl_states();
-    $elapsed = sticpa_pl_elapsed_sessions($sessions, $nowTs);
-
-    $attended = 0;
-    $hours = 0.0;
-    $hoursTotal = 0.0;
-
-    foreach ($elapsed as $s) {
-        $dur = 0.0;
-        if (!empty($s['start']) && !empty($s['end']) && (int) $s['end'] > (int) $s['start']) {
-            $dur = ((int) $s['end'] - (int) $s['start']) / HOUR_IN_SECONDS;
-        }
-        $hoursTotal += $dur;
-
-        $key = isset($s['id'], $marks[$s['id']]) ? $marks[$s['id']] : '';
-        if (sticpa_pl_is_state($key) && $states[$key]['counts']) {
-            $attended++;
-            $hours += $dur;
-        }
-    }
-
-    $total = count($elapsed);
-    $pct = ($total > 0) ? (int) round(($attended / $total) * 100) : 0;
-
-    return array(
-        'attended' => $attended,
-        'elapsed' => $total,
-        'pct' => $pct,
-        'hours' => round($hours, 1),
-        'hours_total' => round($hoursTotal, 1),
-        'text' => ($total === 0)
-            ? __('Aún no ha habido sesiones', 'sticpa')
-            : sprintf(
-                /* translators: 1: porcentaje, 2: número de sesiones celebradas */
-                __('%1$d %% de %2$d sesiones', 'sticpa'),
-                $pct,
-                $total
-            ),
-    );
-}
 
 /**
  * Ausencias SEGUIDAS al final del histórico.
@@ -989,4 +979,633 @@ function sticpa_pl_short_name($first, $last, $full = '')
         }
     }
     return trim($first . ' ' . $last);
+}
+
+// ---------------------------------------------------------------------------
+// Seguimiento de monitores: las pistas de cuadraditos
+// ---------------------------------------------------------------------------
+
+/**
+ * La pista de asistencia: un cuadrado por sesión celebrada, y el porcentaje.
+ *
+ * LA REGLA de todo este bloque, y la usan también la ficha del participante y
+ * la lista de monitores: **una sesión sin marcar no cuenta en el porcentaje**. Si el
+ * sábado que Marta faltó nadie pasó la lista de monitores, ese hueco no es una
+ * falta suya, es un dato que no existe; meterlo en el denominador la acusa de
+ * algo que nadie ha registrado. Los huecos se cuentan aparte (`unknown`) y la
+ * pantalla los dice, que es lo honesto.
+ *
+ * `pct` vale -1 cuando no hay NINGUNA sesión marcada: no es un 0 %, es un «no
+ * se sabe», y pintar un 0 % ahí sería mentir con un número redondo.
+ *
+ * @return array squares[] (id, start, state), elapsed, attended, missed,
+ *               unknown, counted, pct.
+ */
+function sticpa_pl_att_track($sessions, $marks, $nowTs = null)
+{
+    $states = sticpa_pl_states();
+    $elapsed = sticpa_pl_elapsed_sessions($sessions, $nowTs);
+
+    $squares = array();
+    $vino = 0;
+    $falto = 0;
+    $sin = 0;
+    $horas = 0.0;
+    $horasTotal = 0.0;
+
+    foreach ($elapsed as $s) {
+        $id = isset($s['id']) ? (string) $s['id'] : '';
+        $key = ($id !== '' && isset($marks[$id])) ? $marks[$id] : '';
+        $dur = 0.0;
+        if (!empty($s['start']) && !empty($s['end']) && (int) $s['end'] > (int) $s['start']) {
+            $dur = ((int) $s['end'] - (int) $s['start']) / 3600;
+        }
+
+        if (!sticpa_pl_is_state($key)) {
+            $key = '';
+            $sin++;
+        } else {
+            // Las horas siguen la MISMA regla que el porcentaje: solo cuentan
+            // las sesiones marcadas. Si no, saldría «3 h de 12 h» con nueve de
+            // esas horas sin que nadie sepa si estuvo o no.
+            $horasTotal += $dur;
+            if (!empty($states[$key]['counts'])) {
+                $vino++;
+                $horas += $dur;
+            } else {
+                $falto++;
+            }
+        }
+
+        $squares[] = array(
+            'id' => $id,
+            'start' => isset($s['start']) ? (int) $s['start'] : 0,
+            'state' => $key,
+        );
+    }
+
+    $contadas = $vino + $falto;
+    return array(
+        'squares' => $squares,
+        'elapsed' => count($elapsed),
+        'attended' => $vino,
+        'missed' => $falto,
+        'unknown' => $sin,
+        'counted' => $contadas,
+        'pct' => ($contadas > 0) ? (int) round(($vino / $contadas) * 100) : -1,
+        'hours' => round($horas, 1),
+        'hours_total' => round($horasTotal, 1),
+    );
+}
+
+/**
+ * La pista de «listas pasadas» de un grupo, vista desde un monitor.
+ *
+ * ⚠️ Esta fila se lee JUNTO a la de sesiones o no se lee. Una lista de grupo la
+ * puede pasar cualquiera que cubra ese sábado, así que «no la pasó ella» puede
+ * significar «no vino y la pasó un compañero», que es lo correcto. Por eso hay
+ * dos verdes distintos —`suya` y `otro`— en vez de un verde y un rojo: el dato
+ * que importa es si el grupo quedó registrado, y de propina quién lo hizo.
+ *
+ * `omitida` (el grupo no se reunió ese sábado) sale del denominador: no es una
+ * lista que falte, es un sábado que no hubo.
+ *
+ * @param array  $listas    sessionId => datos de la lista de ESE grupo.
+ * @return array squares[] (id, start, state), elapsed, suyas, otras,
+ *               omitidas, sin, con_lista, esperadas.
+ */
+function sticpa_pl_listas_track($sessions, $listas, $monitorId, $nowTs = null)
+{
+    $elapsed = sticpa_pl_elapsed_sessions($sessions, $nowTs);
+    $estados = sticpa_pl_lista_estados();
+    $monitorId = (string) $monitorId;
+
+    $squares = array();
+    $suyas = 0;
+    $otras = 0;
+    $omitidas = 0;
+    $sin = 0;
+
+    foreach ($elapsed as $s) {
+        $id = isset($s['id']) ? (string) $s['id'] : '';
+        $lista = ($id !== '' && isset($listas[$id]) && is_array($listas[$id])) ? $listas[$id] : null;
+        $estado = isset($lista['estado']) ? (string) $lista['estado'] : '';
+
+        if ($lista === null || $estado === '') {
+            $state = 'sin';
+            $sin++;
+        } elseif ($estado === $estados['omitida']) {
+            $state = 'omitida';
+            $omitidas++;
+        } elseif ($monitorId !== '' && isset($lista['monitor_id'])
+            && (string) $lista['monitor_id'] === $monitorId) {
+            $state = 'suya';
+            $suyas++;
+        } else {
+            $state = 'otra';
+            $otras++;
+        }
+
+        $squares[] = array(
+            'id' => $id,
+            'start' => isset($s['start']) ? (int) $s['start'] : 0,
+            'state' => $state,
+        );
+    }
+
+    return array(
+        'squares' => $squares,
+        'elapsed' => count($elapsed),
+        'suyas' => $suyas,
+        'otras' => $otras,
+        'omitidas' => $omitidas,
+        'sin' => $sin,
+        'con_lista' => $suyas + $otras,
+        // Los sábados en los que TOCABA haber lista: los celebrados menos los
+        // que el propio grupo marcó como que no hubo.
+        'esperadas' => count($elapsed) - $omitidas,
+    );
+}
+
+/**
+ * Los umbrales del aviso de seguimiento. Conservadores a propósito.
+ *
+ * Es un dato sensible entre compañeros: un aviso de más quema la confianza en
+ * el aviso, y a la tercera vez que salta sin motivo nadie lo mira. Filtrables
+ * porque cada delegación sabe cómo es su curso.
+ */
+function sticpa_pl_seguimiento_umbrales()
+{
+    return apply_filters('sticpa_pl_seguimiento_umbrales', array(
+        // Por debajo de esto, la lista lo señala.
+        'pct_minimo' => 60,
+        // Faltas seguidas al final: es lo que de verdad hace llamar. Alguien
+        // que falta una de cada cinco desde octubre no preocupa; alguien que
+        // lleva tres seguidas, sí.
+        'seguidas' => 3,
+        // Y por debajo de esta cuenta de sesiones marcadas no se avisa de nada:
+        // con dos datos, un porcentaje es una anécdota.
+        'minimo_para_opinar' => 4,
+    ));
+}
+
+/**
+ * ¿Hay algo que mirar en este monitor? Una frase corta, o nada.
+ *
+ * Se calcula sobre una pista ya hecha (`sticpa_pl_att_track()`), así que no
+ * cuesta ninguna consulta: en la lista de monitores es lo que decide a quién
+ * hay que mirar de los treinta, que es la única pregunta que se hace ahí.
+ *
+ * Devuelve '' cuando no hay nada que decir, que es el caso normal y el que
+ * mantiene la lista limpia.
+ */
+function sticpa_pl_seguimiento_aviso($track, $nowTs = null)
+{
+    $u = sticpa_pl_seguimiento_umbrales();
+    if (!is_array($track) || (int) $track['counted'] < (int) $u['minimo_para_opinar']) {
+        return '';
+    }
+
+    // Las últimas seguidas, mirando hacia atrás y SALTÁNDOSE los huecos: un
+    // sábado sin marcar no rompe una racha de faltas ni la crea.
+    $states = sticpa_pl_states();
+    $seguidas = 0;
+    for ($i = count($track['squares']) - 1; $i >= 0; $i--) {
+        $key = $track['squares'][$i]['state'];
+        if ($key === '') {
+            continue;
+        }
+        if (!empty($states[$key]['counts'])) {
+            break;
+        }
+        $seguidas++;
+    }
+    if ($seguidas >= (int) $u['seguidas']) {
+        return sprintf(
+            /* translators: %d: cuántas sesiones seguidas lleva sin venir */
+            _n('%d sesión seguida sin venir', '%d seguidas sin venir', $seguidas, 'sticpa'),
+            $seguidas
+        );
+    }
+
+    $pct = (int) $track['pct'];
+    if ($pct >= 0 && $pct < (int) $u['pct_minimo']) {
+        return sprintf(
+            /* translators: %d: porcentaje de asistencia */
+            __('%d %% de asistencia', 'sticpa'),
+            $pct
+        );
+    }
+    return '';
+}
+
+// ---------------------------------------------------------------------------
+// Los datos de un monitor, agrupados
+// ---------------------------------------------------------------------------
+
+/**
+ * Los desplegables del CRM que aparecen en la ficha de un monitor.
+ *
+ * Las claves internas están verificadas contra el CRM (`get_module_fields` no
+ * devuelve las opciones en esta instancia, así que salen de `CAMPOS.md` y de
+ * los valores reales de los registros). Una clave que no esté en el mapa se
+ * pinta tal cual: es feo, pero es la verdad, y es mejor que esconder un dato
+ * porque no supimos traducirlo.
+ */
+function sticpa_pl_monitor_enums()
+{
+    return apply_filters('sticpa_pl_monitor_enums', array(
+        'ajmcm_nivel_com_c' => array(
+            'conocimiento' => __('I · Conocimiento', 'sticpa'),
+            'incorporacion' => __('II · Incorporación', 'sticpa'),
+            'crecimiento' => __('III · Crecimiento', 'sticpa'),
+            'opcion_responsable' => __('IV · Opción responsable', 'sticpa'),
+        ),
+        'ajmcm_monitor_de_c' => array(
+            'MIC' => 'MIC', 'COM' => 'COM', 'LC' => 'LC',
+            'apoyo' => __('Apoyo', 'sticpa'),
+            'otros' => __('Otros', 'sticpa'),
+        ),
+        'ajmcm_etapa_c' => array('MIC' => 'MIC', 'COM' => 'COM', 'LC' => 'LC'),
+        'stic_gender_c' => array(
+            'male' => __('Hombre', 'sticpa'),
+            'female' => __('Mujer', 'sticpa'),
+        ),
+        'stic_identification_type_c' => array(
+            'nif' => 'NIF', 'nie' => 'NIE', 'cif' => 'CIF',
+            'passport' => __('Pasaporte', 'sticpa'),
+        ),
+        // El estado de una titulación. `titulado` y `finalizado` son «la tiene»;
+        // el resto son escalones del camino y se dicen con esas palabras.
+        'formacion' => array(
+            'no' => __('No', 'sticpa'),
+            'en_curso' => __('En curso', 'sticpa'),
+            'practicas' => __('En prácticas', 'sticpa'),
+            'pendiente_titulo' => __('Pendiente del título', 'sticpa'),
+            'titulado' => __('Titulado', 'sticpa'),
+            'finalizado' => __('Finalizado', 'sticpa'),
+        ),
+        'ajmcm_mat_year_c' => array(
+            '2013' => __('MAT Castellón 2013', 'sticpa'),
+            '2018' => __('MAT Tortosa 2018', 'sticpa'),
+            '2022' => __('MAT El Campello 2022', 'sticpa'),
+            '2024' => __('MAT Godelleta 2024', 'sticpa'),
+            'otra_escuela' => __('Otra escuela', 'sticpa'),
+        ),
+        'ajmcm_congreso_monis_c' => array(
+            '2010_vlc' => __('2010 València', 'sticpa'),
+            '2012_cs' => __('2012 Castelló', 'sticpa'),
+            '2016_cs' => __('2016 Castelló', 'sticpa'),
+            '2019_godelleta' => __('2019 Godelleta', 'sticpa'),
+            '2022_burriana' => __('2022 Borriana', 'sticpa'),
+            '2025_benicassim' => __('2025 Benicàssim', 'sticpa'),
+            '2026_benicassim' => __('2026 Benicàssim', 'sticpa'),
+        ),
+    ));
+}
+
+/** La etiqueta de un valor de desplegable, o el valor crudo si no la hay. */
+function sticpa_pl_enum_label($campo, $valor)
+{
+    $valor = trim((string) $valor);
+    if ($valor === '') {
+        return '';
+    }
+    $mapas = sticpa_pl_monitor_enums();
+    if (isset($mapas[$campo][$valor])) {
+        return $mapas[$campo][$valor];
+    }
+    // Sin distinguir mayúsculas: en el CRM conviven `COM` y `com` para el mismo
+    // valor, y por una mayúscula no se pinta la clave interna en pantalla.
+    if (isset($mapas[$campo])) {
+        foreach ($mapas[$campo] as $clave => $etiqueta) {
+            if (strcasecmp((string) $clave, $valor) === 0) {
+                return $etiqueta;
+            }
+        }
+    }
+    return $valor;
+}
+
+/**
+ * Los valores de un multienum de SuiteCRM.
+ *
+ * Vienen así: `^2019_godelleta^,^2022_burriana^`. Los acentos circunflejos son
+ * del formato, no del dato.
+ */
+function sticpa_pl_multienum($raw)
+{
+    $raw = trim((string) $raw);
+    if ($raw === '') {
+        return array();
+    }
+    $out = array();
+    foreach (explode(',', $raw) as $trozo) {
+        $v = trim(trim($trozo), '^');
+        if ($v !== '') {
+            $out[] = $v;
+        }
+    }
+    return $out;
+}
+
+/** Un booleano del CRM: '1' es sí y todo lo demás es no. */
+function sticpa_pl_si_no($raw)
+{
+    return (trim((string) $raw) === '1');
+}
+
+/** Un año de una fecha ISO del CRM, o cadena vacía. */
+function sticpa_pl_anyo($raw)
+{
+    return sticpa_pl_monitor_since($raw);
+}
+
+/**
+ * Los datos de un monitor repartidos en bloques, y EN ORDEN DE INTERÉS.
+ *
+ * El orden lo dictó el propietario: **en regla**, después los **datos MCM**
+ * (nivel, etapa, pañuelo, desde cuándo) y después la **formación**. Al final,
+ * plegados, los datos de padrón, que casi nunca se miran. El certificado de
+ * delitos sexuales no abre la ficha: es obligatorio, sí, pero es una casilla, y
+ * una casilla no es la persona.
+ *
+ * Estos bloques van DESPUÉS del seguimiento, de sus grupos y de su histórico:
+ * son el papeleo, y el papeleo no es por lo que se abre la ficha de alguien.
+ *
+ * Cada bloque trae `kind`, que decide cómo se pinta:
+ *   - `check`: una lista de obligaciones, con su ✓ o su ✗. Se enseñan TODAS,
+ *     también las que están bien: es una lista de comprobación y el valor está
+ *     en verla entera.
+ *   - `flag`:  lo que tiene, con su pastilla. Lo que no tiene, no sale.
+ *   - `data`:  etiqueta y valor. Lo vacío no sale.
+ *
+ * Un bloque sin filas no se devuelve: media pantalla de secciones vacías dice
+ * «esto no funciona» aunque funcione.
+ */
+function sticpa_pl_monitor_bloques($ficha)
+{
+    $val = function ($key) use ($ficha) {
+        return isset($ficha[$key]) ? trim((string) $ficha[$key]) : '';
+    };
+    $bloques = array();
+
+    // --- En regla -----------------------------------------------------------
+    $ds = sticpa_pl_ds_state($ficha);
+    $dsNotas = array(
+        'auto' => __('Autorizó a pedirlo cada año', 'sticpa'),
+        'uploaded' => __('Entregado y archivado', 'sticpa'),
+        'missing' => __('Hay que reclamarlo', 'sticpa'),
+    );
+    $regla = array(
+        array(
+            'label' => __('Certificado de delitos sexuales', 'sticpa'),
+            'ok' => ($ds !== 'missing'),
+            'req' => true,
+            'note' => $dsNotas[$ds],
+        ),
+        array(
+            'label' => __('Formación en protección del menor', 'sticpa'),
+            'ok' => sticpa_pl_si_no($val('ajmcm_form_intera_proteccion_c')),
+            'req' => true,
+            'note' => '',
+        ),
+        array(
+            'label' => __('Código de conducta', 'sticpa'),
+            'ok' => sticpa_pl_si_no($val('stic_conduct_code_c')),
+            'req' => true,
+            'note' => '',
+        ),
+        array(
+            'label' => __('Acuerdo de confidencialidad', 'sticpa'),
+            'ok' => sticpa_pl_si_no($val('stic_confidentiality_agreement_c')),
+            'req' => true,
+            'note' => '',
+        ),
+        array(
+            'label' => __('Acuerdo de incorporación', 'sticpa'),
+            'ok' => sticpa_pl_si_no($val('ajmcm_vol_acuerdo_c')),
+            'req' => true,
+            'note' => '',
+        ),
+        array(
+            'label' => __('Compromiso firmado', 'sticpa'),
+            'ok' => sticpa_pl_si_no($val('ajmcm_compromiso_c')),
+            'req' => true,
+            'note' => '',
+        ),
+        // Los dos de abajo son PERMISOS, no obligaciones: un «no» aquí es una
+        // decisión suya, no un incumplimiento, y no se pinta en rojo.
+        array(
+            'label' => __('Protección de datos (LOPD)', 'sticpa'),
+            'ok' => sticpa_pl_si_no($val('ajmcm_acepta_lopd_c')),
+            'req' => false,
+            'note' => '',
+        ),
+        array(
+            'label' => __('Cesión de imágenes', 'sticpa'),
+            'ok' => sticpa_pl_si_no($val('ajmcm_cesionimagenes_interne_c')),
+            'req' => false,
+            'note' => '',
+        ),
+    );
+    $bloques[] = array(
+        'key' => 'regla',
+        'label' => __('En regla', 'sticpa'),
+        'kind' => 'check',
+        'rows' => $regla,
+    );
+
+    // --- Formación ----------------------------------------------------------
+    $formacion = array();
+    $titulos = array(
+        'ajmcm_premonitores1_c' => array(__('Premonitores I', 'sticpa'), 'ajmcm_premonitores_year_c', ''),
+        'ajmcm_premonitores2_c' => array(__('Premonitores II', 'sticpa'), 'ajmcm_premonitores_year_c', ''),
+        'ajmcm_mat_c' => array(__('MAT · Monitor/a de tiempo libre', 'sticpa'), 'ajmcm_mat_year_c', 'ajmcm_mat_file_c'),
+        'ajmcm_dat_c' => array(__('DAT · Director/a de tiempo libre', 'sticpa'), 'ajmcm_dat_year_c', 'ajmcm_dat_file_c'),
+        'ajmcm_fa_c' => array(__('FA · Formación de animadores', 'sticpa'), 'ajmcm_fa_year_c', ''),
+    );
+    foreach ($titulos as $campo => $meta) {
+        $estado = $val($campo);
+        if ($estado === '' || strtolower($estado) === 'no') {
+            continue;   // lo que no tiene no se lista: se pregunta qué tiene
+        }
+        $anyo = ($meta[1] !== '') ? sticpa_pl_enum_label($meta[1], $val($meta[1])) : '';
+        $conArchivo = ($meta[2] !== '') ? sticpa_pl_si_no($val($meta[2])) : null;
+        $completo = in_array(strtolower($estado), array('titulado', 'finalizado'), true);
+        $formacion[] = array(
+            'label' => $meta[0],
+            'value' => sticpa_pl_enum_label('formacion', $estado),
+            'note' => $anyo,
+            // El descuadre típico: dice que está titulado y no hay archivo del
+            // título. Meses después nadie sabe si falta el papel o falta el curso.
+            'warn' => ($completo && $conArchivo === false) ? __('sin archivo', 'sticpa') : '',
+            'ok' => $completo,
+        );
+    }
+    if (sticpa_pl_si_no($val('ajmcm_alimentos_c'))) {
+        $formacion[] = array(
+            'label' => __('Manipulación de alimentos', 'sticpa'),
+            'value' => __('Sí', 'sticpa'), 'note' => '', 'warn' => '', 'ok' => true,
+        );
+    }
+    if (sticpa_pl_si_no($val('ajmcm_cert_files_c'))) {
+        $formacion[] = array(
+            'label' => __('Otros certificados', 'sticpa'),
+            'value' => __('Archivados', 'sticpa'), 'note' => '', 'warn' => '', 'ok' => true,
+        );
+    }
+    $congresos = array();
+    foreach (sticpa_pl_multienum($val('ajmcm_congreso_monis_c')) as $c) {
+        $congresos[] = sticpa_pl_enum_label('ajmcm_congreso_monis_c', $c);
+    }
+    if (!empty($formacion) || !empty($congresos) || $val('ajmcm_formacion_academica_c') !== '') {
+        $bloques[] = array(
+            'key' => 'formacion',
+            'label' => __('Formación', 'sticpa'),
+            'kind' => 'flag',
+            'rows' => $formacion,
+            'chips' => $congresos,
+            'chips_label' => __('Congresos de monitores', 'sticpa'),
+            'nota' => $val('ajmcm_formacion_academica_c'),
+            'nota_label' => __('Formación académica', 'sticpa'),
+        );
+    }
+
+    // --- Datos MCM ----------------------------------------------------------
+    $panuelos = sticpa_pl_panuelos();
+    $panuelo = $val('ajmcm_panuelo_c');
+    $tray = array();
+    $añadir = function ($label, $value) use (&$tray) {
+        if (trim((string) $value) !== '') {
+            $tray[] = array('label' => $label, 'value' => $value);
+        }
+    };
+    $añadir(__('Nivel COM', 'sticpa'), sticpa_pl_enum_label('ajmcm_nivel_com_c', $val('ajmcm_nivel_com_c')));
+    $añadir(__('Etapa', 'sticpa'), sticpa_pl_enum_label('ajmcm_etapa_c', $val('ajmcm_etapa_c')));
+    if ($panuelo !== '' && $panuelo !== 'na') {
+        $añadir(__('Pañuelo', 'sticpa'), isset($panuelos[$panuelo]) ? $panuelos[$panuelo]['label'] : $panuelo);
+    }
+    $añadir(__('Monitor/a de', 'sticpa'), sticpa_pl_enum_label('ajmcm_monitor_de_c', $val('ajmcm_monitor_de_c')));
+    $añadir(__('Monitor/a desde', 'sticpa'), sticpa_pl_anyo($val('ajmcm_monitor_desde_c')));
+    $añadir(__('En el MCM desde', 'sticpa'), sticpa_pl_anyo($val('ajmcm_mcm_desde_c')));
+    $añadir(__('Incorporación a LC', 'sticpa'), $val('ajmcm_ano_incorporacion_lc_c'));
+    if (!empty($tray)) {
+        $bloques[] = array(
+            'key' => 'mcm',
+            'label' => __('Datos MCM', 'sticpa'),
+            'kind' => 'data',
+            'rows' => $tray,
+        );
+    }
+
+    // --- Datos personales ---------------------------------------------------
+    // Plegado: en dos años de coordinación esto se mira una vez, y ocupa media
+    // pantalla de las que hay que pasar para llegar al histórico.
+    $pers = array();
+    $añadirP = function ($label, $value) use (&$pers) {
+        if (trim((string) $value) !== '') {
+            $pers[] = array('label' => $label, 'value' => $value);
+        }
+    };
+    $doc = $val('stic_identification_number_c');
+    if ($doc !== '') {
+        $tipo = sticpa_pl_enum_label('stic_identification_type_c', $val('stic_identification_type_c'));
+        $añadirP(($tipo !== '') ? $tipo : __('Documento', 'sticpa'), $doc);
+    }
+    $añadirP(__('Fecha de nacimiento', 'sticpa'), $val('birthdate'));
+    $añadirP(__('Género', 'sticpa'), sticpa_pl_enum_label('stic_gender_c', $val('stic_gender_c')));
+    // La dirección, en UNA línea: calle, código postal y población. Tres filas
+    // para un dato que se lee de corrido es tres veces el mismo dato.
+    $direccion = array_filter(array(
+        $val('primary_address_street'),
+        trim($val('primary_address_postalcode') . ' ' . $val('primary_address_city')),
+    ), function ($x) {
+        return trim((string) $x) !== '';
+    });
+    if (!empty($direccion)) {
+        $añadirP(__('Dirección', 'sticpa'), implode(' · ', $direccion));
+    } else {
+        $añadirP(__('Población', 'sticpa'), $val('primary_address_city'));
+    }
+    $añadirP(__('Centro educativo', 'sticpa'), $val('ajmcm_centro_educativo_c'));
+    $añadirP(__('Nº de persona', 'sticpa'), $val('ajmcm_numero_persona_c'));
+    if (!empty($pers)) {
+        $bloques[] = array(
+            'key' => 'personales',
+            'label' => __('Datos personales', 'sticpa'),
+            'kind' => 'data',
+            'plegado' => true,
+            'rows' => $pers,
+        );
+    }
+
+    // EL ORDEN, en un solo sitio y explícito. Los bloques se construyen arriba
+    // en el orden que resulte más cómodo de leer en el código; el que se pinta
+    // es este, que es el que pidió el propietario.
+    $orden = array('regla', 'mcm', 'formacion', 'personales');
+    $porClave = array();
+    foreach ($bloques as $b) {
+        $porClave[$b['key']] = $b;
+    }
+    $out = array();
+    foreach ($orden as $clave) {
+        if (isset($porClave[$clave])) {
+            $out[] = $porClave[$clave];
+            unset($porClave[$clave]);
+        }
+    }
+    // Un bloque nuevo que alguien añada y se olvide de ordenar sale igual, al
+    // final: mejor descolocado que desaparecido.
+    foreach ($porClave as $b) {
+        $out[] = $b;
+    }
+    return $out;
+}
+
+/**
+ * Los seguimientos de un curso escolar (o de varios).
+ *
+ * La ficha enseña por defecto los de ESTE curso: una lista con las notas de
+ * cinco años es un archivo, no una pantalla de seguimiento. Los anteriores se
+ * traen con un botón, y no cuesta ninguna consulta más porque el CRM ya los
+ * devuelve todos en la misma lectura — lo único que cambia es el filtro.
+ *
+ * @param array $items    lo que devuelve `sticpa_pl_seguimientos()`.
+ * @param array $cursos   etiquetas de curso a dejar pasar («2025-2026»).
+ */
+function sticpa_pl_seg_del_curso($items, $cursos)
+{
+    $cursos = array_filter(array_map('strval', (array) $cursos));
+    if (empty($cursos)) {
+        return $items;
+    }
+    $out = array();
+    foreach ((array) $items as $it) {
+        $ts = isset($it['ts']) ? (int) $it['ts'] : 0;
+        // Sin fecha no se puede colocar en ningún curso, y esconderlo sería
+        // perderlo: sale siempre, que es el defecto seguro para una nota.
+        if ($ts <= 0) {
+            $out[] = $it;
+            continue;
+        }
+        $curso = sticpa_pl_course_for($ts);
+        if (in_array($curso['label'], $cursos, true)) {
+            $out[] = $it;
+        }
+    }
+    return $out;
+}
+
+/** La etiqueta del curso anterior al que se le pase (o al de hoy). */
+function sticpa_pl_curso_anterior($label = '')
+{
+    $label = trim((string) $label);
+    if ($label === '') {
+        $label = sticpa_pl_course_for()['label'];
+    }
+    if (!preg_match('/^(\d{4})-(\d{4})$/', $label, $m)) {
+        return '';
+    }
+    return ((int) $m[1] - 1) . '-' . ((int) $m[2] - 1);
 }

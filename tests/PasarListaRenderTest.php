@@ -133,7 +133,23 @@ class FakeSCP
 
     public function getRecordDetail($id, $module, $fields = null)
     {
-        $this->calls[] = 'getRecordDetail:' . $module;
+        // POR `servir()`, como todo lo demás. Contando la llamada a mano se
+        // saltaba la recolecta: la ficha se pedía una vez al recolectar y otra
+        // de verdad, o sea que el doble contaba DOS llamadas donde producción
+        // hace una... y, peor, un `prime()` que no metiera la ficha en la tanda
+        // habría pasado por bueno.
+        $self = $this;
+        return $this->servir(
+            'gd|' . md5(serialize(array($id, $module, $fields))),
+            'getRecordDetail:' . $module,
+            function () use ($self, $id, $module, $fields) {
+                return $self->detalleDeRegistro($id, $module, $fields);
+            }
+        );
+    }
+
+    public function detalleDeRegistro($id, $module, $fields = null)
+    {
         $data = array('id' => $id, 'assigned_user_id' => 'deleg-castellon');
         if (is_array($fields) && in_array('ajmcm_mat_c', $fields, true)) {
             // Los valores tal como están en la instancia de verdad.
@@ -148,6 +164,23 @@ class FakeSCP
                 'ajmcm_mat_c' => 'titulado', 'ajmcm_mat_year_c' => '2013', 'ajmcm_mat_file_c' => '1',
                 'ajmcm_dat_c' => 'titulado', 'ajmcm_dat_year_c' => '2021 - EADB', 'ajmcm_dat_file_c' => '0',
                 'ajmcm_fa_c' => 'no', 'ajmcm_alimentos_c' => '1',
+                'ajmcm_congreso_monis_c' => '^2019_godelleta^,^2022_burriana^',
+                'phone_other' => '964 200 300',
+                // «En regla»: casi todo bien y UNA cosa que falta, que es el
+                // caso que la pantalla tiene que saber contar. Y un permiso
+                // sin dar, que NO es lo mismo que una obligación incumplida.
+                'ajmcm_form_intera_proteccion_c' => '1',
+                'stic_conduct_code_c' => '0',
+                'stic_confidentiality_agreement_c' => '1',
+                'ajmcm_vol_acuerdo_c' => '1', 'ajmcm_compromiso_c' => '1',
+                'ajmcm_acepta_lopd_c' => '1', 'ajmcm_cesionimagenes_interne_c' => '0',
+                // Trayectoria y datos personales.
+                'ajmcm_nivel_com_c' => 'opcion_responsable', 'ajmcm_etapa_c' => 'LC',
+                'ajmcm_mcm_desde_c' => '2005-09-01',
+                'stic_gender_c' => 'male',
+                'stic_identification_type_c' => 'nif',
+                'stic_identification_number_c' => '12345678Z',
+                'primary_address_city' => 'Castelló de la Plana',
             ));
         } elseif (is_array($fields) && in_array('ajmcm_panuelo_c', $fields, true)) {
             $data = array_merge($data, array(
@@ -307,8 +340,11 @@ class FakeSCP
             // aplana. Se pasa por el aplanado de verdad para que estos tests
             // comprueben el contrato y no una version inventada.
             //
-            // La vigencia la filtra el SQL, asi que el doble NO devuelve
-            // relaciones caducadas: devolverlas seria mentir sobre la consulta.
+            // La vigencia se filtra EN PHP, no en SQL (ver el comentario largo
+            // de `sticpa_pl_all_relationships_raw()`), así que el CRM DEVUELVE
+            // también las relaciones terminadas y el doble tiene que hacer lo
+            // mismo. Si no las devolviera, el histórico «por dónde ha pasado»
+            // saldría vacío en los tests y lleno en producción.
             if ($this->sinEnlaces) {
                 // Ni enlaces anidados ni campos planos: solo el registro. Es lo
                 // que hace la instancia real con `get_relationships`, y lo que
@@ -362,6 +398,26 @@ class FakeSCP
                     'fields' => array('id' => 'r9', 'relationship_type' => 'monitor', 'end_date' => ''),
                     'persona' => array('id' => 'm9', 'name' => 'Un Monitor', 'first_name' => 'Un', 'last_name' => 'Monitor'),
                 ),
+                // EL CURSO PASADO, ya cerrado. David llevaba el grupo de los
+                // MIC, y con él estaba Jaime. Es lo que pinta el histórico de la
+                // ficha: «en 2024-2025 llevaba M1, con Jaime Bort».
+                array(
+                    'fields' => array('id' => 'r20', 'relationship_type' => 'monitor', 'start_date' => '2024-09-01', 'end_date' => '2025-07-31'),
+                    'grupo' => array('id' => 'g3', 'name' => 'Los Micos'),
+                    'persona' => array('id' => 'm1', 'name' => 'David Soler', 'first_name' => 'David', 'last_name' => 'Soler'),
+                ),
+                array(
+                    'fields' => array('id' => 'r21', 'relationship_type' => 'monitor', 'start_date' => '2024-09-01', 'end_date' => '2025-07-31'),
+                    'grupo' => array('id' => 'g3', 'name' => 'Los Micos'),
+                    'persona' => array('id' => 'm10', 'name' => 'Jaime Bort', 'first_name' => 'Jaime', 'last_name' => 'Bort'),
+                ),
+                // Y su relación `grupo` COM-LC, abierta desde 2022: es el grupo
+                // al que PERTENECE, distinto del que lleva.
+                array(
+                    'fields' => array('id' => 'r22', 'relationship_type' => 'grupo', 'start_date' => '2022-09-01', 'end_date' => ''),
+                    'grupo' => array('id' => 'g9', 'name' => 'Ruah'),
+                    'persona' => array('id' => 'm1', 'name' => 'David Soler', 'first_name' => 'David', 'last_name' => 'Soler'),
+                ),
             ), $rel);
         }
         if ($module === 'stic_Attendances') {
@@ -393,6 +449,11 @@ class FakeSCP
                     'fields' => array(
                         'id' => 'l1', 'estado' => 'pasada', 'pasada_el' => '2025-11-15 18:05:00',
                         'n_asistieron' => 2, 'n_faltaron' => 0, 'ajmcm_tipo_c' => 'participantes',
+                        // Quién la pasó, en el campo PLANO. Es la forma real:
+                        // verificado contra el CRM que `lis_listas_contactscontacts_ida`
+                        // viene poblado con el id del monitor. El enlace anidado
+                        // esta instancia no lo devuelve (trampa §3.1).
+                        'lis_listas_contactscontacts_ida' => 'm1',
                     ),
                     'sesion' => array('id' => 's3', 'name' => 'Sesion 3'),
                     'grupo' => array('id' => 'g1', 'name' => 'Los Peques'),
@@ -466,6 +527,10 @@ class FakeSCP
                 $this->nvl(array('id' => 'ev-lc', 'name' => 'LC | Sesiones semanales 2025-2026', 'ajmcm_etapa_c' => '')),
                 // Trampa: lleva "COM" pero no es el evento de la etapa.
                 $this->nvl(array('id' => 'ev-conv', 'name' => 'Convivencia de familias del COM 2025-2026', 'ajmcm_etapa_c' => '')),
+                // El evento de reuniones de programación. El nombre tiene que
+                // ser EXACTAMENTE el que compone `sticpa_pl_reuniones_event_name()`:
+                // así es como lo encuentra el plugin, por nombre y no por id.
+                $this->nvl(array('id' => 'ev-reu', 'name' => 'Monitores | Reuniones de programación 2025-2026', 'ajmcm_etapa_c' => '')),
             );
         }
         return array();
@@ -571,6 +636,19 @@ class FakeSCP
                     : array();
 
             case 'stic_Events:stic_sessions_stic_events':
+                // POR EVENTO, no un juego de sesiones para todos: el de
+                // reuniones y el de los sábados son dos eventos distintos y la
+                // ficha del monitor los pinta en dos filas separadas. Un doble
+                // que devolviera lo mismo para los dos daría las dos filas
+                // iguales y no probaría nada.
+                if (isset($p['module_id']) && $p['module_id'] === 'ev-reu') {
+                    return $this->apiShape(array(
+                        $this->nvl(array('id' => 'ru1', 'name' => 'Programación del 1.er trimestre', 'start_date' => '2025-09-20 10:00:00', 'end_date' => '2025-09-20 13:00:00')),
+                        $this->nvl(array('id' => 'ru2', 'name' => 'Programación del 2.º trimestre', 'start_date' => '2025-11-08 10:00:00', 'end_date' => '2025-11-08 13:00:00')),
+                        // Futura: no cuenta todavía.
+                        $this->nvl(array('id' => 'ru3', 'name' => 'Programación del 3.er trimestre', 'start_date' => '2026-02-14 10:00:00', 'end_date' => '2026-02-14 13:00:00')),
+                    ));
+                }
                 return $this->apiShape(array(
                     $this->nvl(array('id' => 's1', 'start_date' => '2025-11-01 16:30:00', 'end_date' => '2025-11-01 18:00:00')),
                     $this->nvl(array('id' => 's2', 'start_date' => '2025-11-08 16:30:00', 'end_date' => '2025-11-08 18:00:00')),
@@ -579,9 +657,18 @@ class FakeSCP
                 ));
 
             case 'stic_Events:stic_registrations_stic_events':
+                if (isset($p['module_id']) && $p['module_id'] === 'ev-reu') {
+                    return $this->apiShape(array(
+                        $this->nvl(array('id' => 'regr1', 'status' => 'confirmed'), array(array('id' => 'm1'))),
+                    ));
+                }
                 return $this->apiShape(array(
                     $this->nvl(array('id' => 'reg1', 'status' => 'confirmed'), array(array('id' => 'c1'))),
                     $this->nvl(array('id' => 'reg2', 'status' => 'confirmed'), array(array('id' => 'c2'))),
+                    // El monitor del g1 también está inscrito al evento semanal:
+                    // sin inscripción no hay asistencias suyas que contar, y la
+                    // fila de sábados de su ficha diría «no está inscrito».
+                    $this->nvl(array('id' => 'regm1', 'status' => 'confirmed'), array(array('id' => 'm1'))),
                     // Cancelada: su asistencia no debe aparecer.
                     $this->nvl(array('id' => 'reg9', 'status' => 'cancelled'), array(array('id' => 'c9'))),
                 ));
@@ -619,6 +706,23 @@ class FakeSCP
 
             // Histórico de un participante: todas sus asistencias del curso.
             case 'stic_Registrations:stic_attendances_stic_registrations':
+                // Las del monitor en el evento semanal: una sin marcar a
+                // propósito (s2), que es el hueco que NO puede contar como
+                // falta en el porcentaje.
+                if (isset($p['module_id']) && $p['module_id'] === 'regm1') {
+                    return $this->apiShape(array(
+                        $this->nvl(array('id' => 'am1', 'status' => 'yes'), array(array('id' => 's1'))),
+                        $this->nvl(array('id' => 'am3', 'status' => 'no_unjustified'), array(array('id' => 's3'))),
+                    ));
+                }
+                // Y las del mismo monitor en las reuniones: vino a la primera y
+                // faltó a la segunda.
+                if (isset($p['module_id']) && $p['module_id'] === 'regr1') {
+                    return $this->apiShape(array(
+                        $this->nvl(array('id' => 'ar1', 'status' => 'yes'), array(array('id' => 'ru1'))),
+                        $this->nvl(array('id' => 'ar2', 'status' => 'no_unjustified'), array(array('id' => 'ru2'))),
+                    ));
+                }
                 return $this->apiShape(array(
                     $this->nvl(array('id' => 'a1', 'status' => 'yes'), array(array('id' => 's1'))),
                     $this->nvl(array('id' => 'a2', 'status' => 'no_unjustified'), array(array('id' => 's2'))),
@@ -687,7 +791,10 @@ class FakeSCP
                         'name' => 'x',
                         'description' => $seg['texto'],
                         'type' => $seg['type'],
-                        'start_date' => '2026-01-10 12:00:00',
+                        // La fecha manda: la ficha enseña por defecto solo los
+                        // de ESTE curso, así que un seguimiento con `curso`
+                        // puesto se coloca en el que diga.
+                        'start_date' => isset($seg['fecha']) ? $seg['fecha'] : '2026-01-10 12:00:00',
                         'assigned_user_name' => 'MCM Castellón',
                     ));
                 }
@@ -1775,16 +1882,25 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('tel:600111222', $html);
     }
 
-    /** El porcentaje se dice con denominador, y sobre sesiones celebradas. */
+    /**
+     * El porcentaje se dice con denominador, y el denominador son las sesiones
+     * MARCADAS.
+     *
+     * Si el grupo pasó tres listas de diez, un chaval que vino a las tres no
+     * tiene un 30 %: tiene un 100 % de lo que se sabe y siete sábados sin
+     * datos. Los sábados sin lista se cuentan aparte y la ficha los dice.
+     */
     public function test_ficha_asistencia_con_denominador()
     {
         $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
         $html = $this->render('single_stic_pasar_lista_ficha');
 
-        // yes + partial cuentan: 2 de las 3 sesiones celebradas (s4 no ha llegado).
-        $this->assertStringContainsString('2 de 3 sesiones', $html);
+        // yes + partial cuentan: 2 de las 3 sesiones marcadas (s4 no ha llegado).
+        $this->assertStringContainsString('2 de 3 sesiones marcadas', $html);
         $this->assertStringContainsString('67', $html);
-        $this->assertStringContainsString('hasta hoy', $html);
+        // Y los cuadraditos, el mismo idioma que en la ficha de un monitor.
+        $this->assertStringContainsString('pl-sq--yes', $html);
+        $this->assertStringContainsString('pl-sq--partial', $html);
     }
 
     /** Solo los campos de salud con contenido: nada de etiquetas vacías. */
@@ -2363,9 +2479,13 @@ final class PasarListaRenderTest extends TestCase
         $this->render('single_stic_pasar_lista_monitores');
 
         $this->assertNotEmpty($this->scp->batches);
-        $this->assertLessThanOrEqual(2, count($this->scp->batches));
-        // Al menos cinco de sus consultas viajan agrupadas.
-        $this->assertGreaterThanOrEqual(5, array_sum($this->scp->batches));
+        // Tres tandas: lo independiente, lo que depende del evento, y las dos
+        // lecturas de asistencias —la de la sesión y la del curso entero para
+        // los avisos—, que van DESPUÉS del guardado y por eso no caben en la
+        // segunda. Tres viajes, no siete consultas en fila.
+        $this->assertLessThanOrEqual(3, count($this->scp->batches));
+        // Y la mayoría de sus consultas viajan agrupadas.
+        $this->assertGreaterThanOrEqual(7, array_sum($this->scp->batches));
     }
 
     /**
@@ -2550,18 +2670,57 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('1 vinieron, 0 faltas', $html);
     }
 
-    /** La ficha del monitor: certificado primero, y sin familia ni salud. */
+    /**
+     * La ficha del monitor: el ORDEN es el diseño.
+     *
+     * Primero cómo va, y el certificado de delitos sexuales dentro de «En
+     * regla», no abriendo la pantalla. Es lo que pidió el propietario y es lo
+     * que distingue esta ficha del CRM, así que se prueba el orden y no solo
+     * que los textos estén.
+     */
     public function test_ficha_del_monitor()
     {
         $this->scp->coordEtapa = 'COM';
         $_REQUEST = array('monitor' => 'm1');
         $html = $this->render('single_stic_pasar_lista_monitor');
 
-        // Lo primero es el certificado, porque es lo que se reclama.
-        $this->assertStringContainsString('Certificado de delitos sexuales', $html);
-        $this->assertLessThan(strpos($html, 'Titulaciones'), strpos($html, 'Certificado de delitos'));
-        $this->assertStringContainsString('Automático', $html);
-        // Titulaciones, con el descuadre del DAT sin archivo.
+        /* EL ORDEN COMPLETO, que es el que dictó el propietario:
+         *   cómo va → sus grupos → seguimientos → por dónde ha pasado → papeleo
+         * El papeleo va al final entero, y dentro de él «En regla» abre y los
+         * datos de padrón cierran. */
+        /* Con el `>` delante: son CABECERAS de sección, no texto suelto. Sin él,
+         * «Formación» acertaba en «Formación en protección del menor», que está
+         * dentro de «En regla», y el test daba por desordenada una pantalla que
+         * estaba bien. */
+        $orden = array(
+            '>Cómo va este curso<',
+            '>Sus grupos<',
+            '>Seguimientos<',
+            '>Por dónde ha pasado<',
+            '>En regla<',
+            '>Datos MCM<',
+            '>Formación<',
+            '>Datos personales<',
+        );
+        $anterior = -1;
+        foreach ($orden as $seccion) {
+            $donde = strpos($html, $seccion);
+            $this->assertNotFalse($donde, 'falta la sección «' . $seccion . '»');
+            $this->assertGreaterThan(
+                $anterior,
+                $donde,
+                '«' . $seccion . '» está fuera de sitio'
+            );
+            $anterior = $donde;
+        }
+        // Y el certificado, dentro del papeleo y no abriendo la pantalla.
+        $this->assertLessThan(
+            strpos($html, 'Certificado de delitos sexuales'),
+            strpos($html, 'Cómo va este curso'),
+            'el certificado ya no abre la ficha'
+        );
+
+        // Formación, con el descuadre del DAT sin archivo.
         $this->assertStringContainsString('2021 - EADB', $html);
         $this->assertStringContainsString('sin archivo', $html);
         // FA dice 'no', así que no sale.
@@ -2572,6 +2731,196 @@ final class PasarListaRenderTest extends TestCase
         // Y el año de "monitor desde", sin el 1 de enero.
         $this->assertStringContainsString('2012', $html);
         $this->assertStringNotContainsString('2012-01-01', $html);
+    }
+
+    /** «En regla»: cuenta lo que falta, y un permiso no dado NO es una falta. */
+    public function test_ficha_del_monitor_en_regla()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        // Solo el código de conducta está a cero de las OBLIGACIONES.
+        $this->assertStringContainsString('falta 1', $html);
+        $this->assertStringContainsString('pl-chk--bad', $html);
+        // La cesión de imágenes tampoco está dada, pero es un permiso: gris, no
+        // rojo, y con su explicación. Si esto se pintara en rojo, la ficha
+        // diría que alguien incumple algo por haber dicho que no a una foto.
+        $this->assertStringContainsString('pl-chk--opt', $html);
+        $this->assertStringContainsString('No lo ha autorizado', $html);
+        // Lo que sí está, con su check: la lista se enseña entera.
+        $this->assertStringContainsString('Autorizó a pedirlo cada año', $html);
+        $this->assertStringContainsString('Acuerdo de confidencialidad', $html);
+    }
+
+    /**
+     * Las tres pistas de cuadraditos, y la regla que las gobierna.
+     *
+     * El monitor del doble tiene: sábados con una sesión sin marcar (s2), dos
+     * reuniones (vino a una) y una lista pasada por él de tres sábados.
+     */
+    public function test_ficha_del_monitor_pistas_de_seguimiento()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        // SÁBADOS: vino a 1 y faltó a 1 de las DOS marcadas → 50 %. El hueco de
+        // s2 no cuenta: si contara serían 33 % y sería una falta que nadie ha
+        // registrado.
+        $this->assertStringContainsString('Sábados', $html);
+        $this->assertStringContainsString('50<i>%</i>', $html);
+        $this->assertStringContainsString('Vino a 1 de 2', $html);
+        $this->assertStringContainsString('sin marcar, fuera de la cuenta', $html);
+        $this->assertStringContainsString('pl-sq--none', $html);
+
+        // REUNIONES: separadas y con fracción, no con porcentaje. Con cuatro al
+        // año, un 75 % suena a nota y es una sola falta.
+        $this->assertStringContainsString('Reuniones', $html);
+        $this->assertStringContainsString('1 de 2', $html);
+
+        // LISTAS: la que pasó él en verde, y el aviso de que la puede pasar
+        // cualquiera que cubra el sábado.
+        $this->assertStringContainsString('Listas del C1', $html);
+        $this->assertStringContainsString('pl-sq--suya', $html);
+        $this->assertStringContainsString('quien cubra ese sábado', $html);
+    }
+
+    /** Sus grupos: el que lleva y el suyo, con los números calculados en vivo. */
+    public function test_ficha_del_monitor_sus_grupos()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $this->assertStringContainsString('Sus grupos', $html);
+        // El que lleva, con enlace a su lista y los recuentos del mapa de
+        // relaciones (3 participantes en g1: c1, c2 y la del rol `grupo`).
+        $this->assertStringContainsString('pl-grp-role--lleva', $html);
+        $this->assertStringContainsString('3 participantes', $html);
+        $this->assertStringContainsString('single_stic_pasar_lista_marcar&grupo=g1', $html);
+        // Y el suyo, el COM-LC, que en el CRM está en otra pestaña y aquí no.
+        $this->assertStringContainsString('pl-grp-role--suyo', $html);
+        $this->assertStringContainsString('Ruah', $html);
+        $this->assertStringContainsString('desde 2022', $html);
+    }
+
+    /**
+     * El histórico: curso a curso, con quién estaba, y SIN la relación de
+     * pertenencia repetida en cada año.
+     */
+    public function test_ficha_del_monitor_historico()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $this->assertStringContainsString('Por dónde ha pasado', $html);
+        $this->assertStringContainsString('2025-2026', $html);
+        $this->assertStringContainsString('2024-2025', $html);
+        // El curso pasado llevaba los MIC, y con Jaime.
+        $this->assertStringContainsString('con Jaime Bort', $html);
+        // Su relación `grupo` va de 2022 a hoy: si el histórico la incluyera,
+        // habría un 2022-2023 y un 2023-2024 con solo «Ruah», que es ruido.
+        $this->assertStringNotContainsString('2022-2023', $html);
+        $this->assertStringNotContainsString('2023-2024', $html);
+        // El curso de ahora, marcado.
+        $this->assertStringContainsString('pl-hist-item--now', $html);
+    }
+
+    /**
+     * El contacto no repite el móvil, y el otro teléfono no ocupa una fila.
+     *
+     * Los dos botones grandes de arriba YA son el móvil. Una fila más con el
+     * mismo número debajo es el mismo dato dos veces empujando hacia abajo lo
+     * que sí se viene a leer.
+     */
+    public function test_ficha_del_monitor_contacto_en_una_linea()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        // Los dos botones grandes, sí.
+        $this->assertStringContainsString('pl-contact-btn--wa', $html);
+        $this->assertStringContainsString('tel:608084613', $html);
+        // Pero NO una fila «Móvil» repitiendo el número.
+        $this->assertStringNotContainsString('>Móvil<', $html);
+
+        // El correo se LEE: va en texto.
+        $this->assertStringContainsString('pl-contactline', $html);
+        $this->assertStringContainsString('david@movimientoconsolacion.com', $html);
+        // El otro teléfono solo se PULSA: cabe en un botón, con el número en el
+        // `aria-label` para quien lo necesite de verdad.
+        $this->assertStringContainsString('tel:964200300', $html);
+        $this->assertStringContainsString('Llamar al otro teléfono', $html);
+        $this->assertStringNotContainsString('>Emergencias<', $html);
+    }
+
+    /**
+     * Sin seguimientos: un vacío tranquilo, y el formulario detrás de un botón.
+     *
+     * Cuatro campos desplegados al final de la ficha son cuatro campos que hay
+     * que pasar cada vez que se abre a alguien, y se escribe una nota de cada
+     * veinte visitas.
+     */
+    public function test_ficha_del_monitor_seguimientos_vacios()
+    {
+        $this->asOtherPerson();
+        $this->scp->coordEtapa = 'COM';
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $this->assertStringContainsString('pl-empty', $html);
+        $this->assertStringContainsString('Nada apuntado este curso', $html);
+        // Ni icono de aviso ni la frase de antes, que sonaba a que faltaba algo.
+        $this->assertStringNotContainsString('Todavía no hay seguimientos', $html);
+        // El formulario existe, pero escondido detrás del botón.
+        $this->assertStringContainsString('Escribir un seguimiento', $html);
+        $this->assertStringContainsString('id="pl-seg-form"', $html);
+        $this->assertMatchesRegularExpression('/<form[^>]*id="pl-seg-form"[^>]*hidden/', $html);
+    }
+
+    /**
+     * Solo los de ESTE curso, y un enlace para traer los del anterior.
+     *
+     * El CRM los devuelve todos en la misma lectura, así que traer los de antes
+     * no cuesta ninguna consulta: lo único que cambia es el filtro.
+     */
+    public function test_ficha_del_monitor_seguimientos_solo_de_este_curso()
+    {
+        $this->asOtherPerson();
+        $this->scp->coordEtapa = 'COM';
+        $this->scp->seguimientos = array(
+            array('type' => 'mcm_incidencia', 'texto' => 'LO DE ESTE CURSO', 'fecha' => '2025-11-08 12:00:00'),
+            array('type' => 'mcm_incidencia', 'texto' => 'LO DEL CURSO PASADO', 'fecha' => '2025-02-14 12:00:00'),
+        );
+
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+        $this->assertStringContainsString('LO DE ESTE CURSO', $html);
+        $this->assertStringNotContainsString('LO DEL CURSO PASADO', $html);
+        $this->assertStringContainsString('Ver también los de 2024-2025', $html);
+
+        // Y con el enlace pulsado, los dos.
+        $_REQUEST = array('monitor' => 'm1', 'seg' => 'antes');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+        $this->assertStringContainsString('LO DE ESTE CURSO', $html);
+        $this->assertStringContainsString('LO DEL CURSO PASADO', $html);
+        $this->assertStringContainsString('Ver solo los de 2025-2026', $html);
+    }
+
+    /** Sin nada de antes, no se ofrece traer nada de antes. */
+    public function test_ficha_del_monitor_sin_cursos_anteriores_no_hay_enlace()
+    {
+        $this->asOtherPerson();
+        $this->scp->coordEtapa = 'COM';
+        $this->scp->seguimientos = array(
+            array('type' => 'mcm_incidencia', 'texto' => 'Solo esto', 'fecha' => '2025-11-08 12:00:00'),
+        );
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+        $this->assertStringNotContainsString('Ver también los de', $html);
     }
 
     /** No se abre la ficha de un monitor fuera del alcance cambiando la URL. */
@@ -2598,12 +2947,13 @@ final class PasarListaRenderTest extends TestCase
 
         $this->assertStringContainsString('Reunión creada', $html);
 
-        // Se crea el evento de reuniones (no existía en el doble) y la sesión.
+        // El evento de reuniones del curso YA existe —es lo normal a partir de
+        // la segunda reunión—, así que no se crea otro. Crear un segundo evento
+        // con el mismo nombre partiría el histórico de asistencia en dos.
         $events = array_values(array_filter($this->scp->writes, function ($w) {
             return $w['module'] === 'stic_Events';
         }));
-        $this->assertCount(1, $events);
-        $this->assertStringContainsString('Reuniones de programación', $events[0]['data']['name']);
+        $this->assertSame(array(), $events, 'no se duplica el evento del curso');
 
         $sessions = array_values(array_filter($this->scp->writes, function ($w) {
             return $w['module'] === 'stic_Sessions';
