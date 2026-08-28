@@ -128,7 +128,7 @@ if ($groupId !== '' && isset($groups[$groupId])) {
             $html .= sticpa_pl_person_link_html(
                 $m,
                 '?internalpage=single_stic_pasar_lista_monitor&monitor=' . rawurlencode($m['id'])
-                    . '&vengo=' . rawurlencode($groupId),
+                    . '&vengo=grupo&vgrupo=' . rawurlencode($groupId),
                 '',
                 '',
                 true
@@ -153,7 +153,7 @@ if ($groupId !== '' && isset($groups[$groupId])) {
             $html .= sticpa_pl_person_link_html(
                 $p,
                 '?internalpage=single_stic_pasar_lista_ficha&participante=' . rawurlencode($p['id'])
-                    . '&grupo=' . rawurlencode($groupId) . '&vengo=' . rawurlencode($groupId),
+                    . '&grupo=' . rawurlencode($groupId) . '&vengo=grupo',
                 $sub,
                 '',
                 true
@@ -436,7 +436,13 @@ if (empty($personas)) {
     return;
 }
 
-/** La fila de una persona en las vistas de gente. */
+/** La fila de una persona en las vistas de gente.
+ *
+ * SIN FOTO, y a propósito. Aquí la lista es TODA la delegación —trescientas
+ * personas— y cada foto es una petición: con `loading="lazy"` solo bajan las
+ * que se ven, pero bajando la lista entera son trescientos viajes en una
+ * webview con datos móviles. Donde la lista la acota un grupo (veinte,
+ * veinticinco) sí van, y en la ficha —que es donde se pidieron— también. */
 $fila = function ($p) use ($ver) {
     $sub = implode(' · ', array_filter(array(
         $p['grupo'],
@@ -451,9 +457,7 @@ $fila = function ($p) use ($ver) {
         $p,
         '?internalpage=single_stic_pasar_lista_ficha&participante=' . rawurlencode($p['id'])
             . '&grupo=' . rawurlencode($p['grupo_id']) . '&vengo=' . rawurlencode($ver),
-        $sub,
-        '',
-        true
+        $sub
     );
 };
 

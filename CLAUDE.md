@@ -84,6 +84,7 @@ El mapa de los demás documentos está en
 | Campos del CRM (**la fuente de la verdad**) | `docs/comunica/CAMPOS.md` |
 | Eventos e inscripciones | `docs/comunica/EVENTOS.md` |
 | **Pasar Lista — índice de todo** | `docs/comunica/PASAR-LISTA-README.md` |
+| **Mis Grupos** (leer fichas sin pasar lista) | `docs/comunica/MIS-GRUPOS.md` |
 | **Pasar Lista — parte de estado: qué funciona, qué está roto** | `docs/comunica/PASAR-LISTA-ESTADO.md` |
 | Pasar Lista — diseño funcional | `docs/comunica/PASAR-LISTA.md` |
 | Pasar Lista — campos del CRM | `docs/comunica/PASAR-LISTA-CAMPOS-CRM.md` |

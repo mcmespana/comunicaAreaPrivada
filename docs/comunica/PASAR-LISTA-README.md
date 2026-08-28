@@ -22,7 +22,8 @@ que se rompa en móvil se rompe en la app.
 | Lo ya cerrado, con su causa: **por qué el código es como es** (no es el estado) | [`PASAR-LISTA-HISTORIAL.md`](PASAR-LISTA-HISTORIAL.md) |
 | Qué tiene que pasar y cómo son las pantallas | [`PASAR-LISTA.md`](PASAR-LISTA.md) |
 | Nombres exactos de campos y módulos del CRM | [`PASAR-LISTA-CAMPOS-CRM.md`](PASAR-LISTA-CAMPOS-CRM.md) |
-| Fases y melones pendientes — incluido **el navegador de fichas sin pasar lista**, que está por hablar | [`PASAR-LISTA-ROADMAP.md`](PASAR-LISTA-ROADMAP.md) |
+| **«Mis grupos»** — la sección para leer fichas sin pasar lista | [`MIS-GRUPOS.md`](MIS-GRUPOS.md) |
+| Fases y melones pendientes | [`PASAR-LISTA-ROADMAP.md`](PASAR-LISTA-ROADMAP.md) |
 | Coordinación, monitores y quién ve qué | [`PASAR-LISTA-COORDINACION.md`](PASAR-LISTA-COORDINACION.md) |
 | Los recuentos que lleva el grupo en su ficha | [`PASAR-LISTA-RECUENTOS.md`](PASAR-LISTA-RECUENTOS.md) |
 | Seguimientos de monitores (`stic_FollowUps`) | [`PASAR-LISTA-SEGUIMIENTOS.md`](PASAR-LISTA-SEGUIMIENTOS.md) |

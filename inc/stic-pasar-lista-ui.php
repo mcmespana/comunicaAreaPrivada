@@ -97,7 +97,10 @@ function sticpa_pl_icon($which)
 function sticpa_pl_avatar_html($person, $conFoto = false, $clase = 'pl-avatar')
 {
     $ini = isset($person['initials']) ? $person['initials'] : '';
-    $out = '<span class="' . esc_attr($clase) . '">' . esc_html($ini);
+    // `aria-hidden`: las iniciales y la foto son decoración — el nombre va al
+    // lado, y un lector de pantalla que lea «ese ve» antes de «Solete
+    // Vilarroya» solo estorba.
+    $out = '<span class="' . esc_attr($clase) . '" aria-hidden="true">' . esc_html($ini);
     if ($conFoto && !empty($person['id'])) {
         $src = admin_url('admin-post.php?action=stic_pl_photo&persona=' . rawurlencode($person['id']));
         $out .= '<img class="pl-avatar-img" src="' . esc_url($src) . '" alt=""'
@@ -234,6 +237,122 @@ function sticpa_pl_person_link_html($person, $href, $sub = '', $extra = '', $con
     $html .= '</span>';
     $html .= '<span class="pl-detail pl-detail--static">' . sticpa_pl_icon('next') . '</span>';
     $html .= '</a>';
+    return $html;
+}
+
+/**
+ * DE DÓNDE VIENES, para poder volver ahí.
+ *
+ * La ficha se abre desde dos sitios muy distintos: desde la lista de marcar —y
+ * entonces volver es volver a marcar, en mitad de un sábado— y desde «Mis
+ * grupos», donde volver a marcar sería justo el precio que esa pantalla existe
+ * para no pagar.
+ *
+ * `vengo` lo dice, y solo acepta valores conocidos: lo que venga en la URL nunca
+ * se convierte en un enlace tal cual. Devuelve '' si no es de los nuestros, y
+ * quien llama decide su destino de siempre.
+ */
+function sticpa_pl_vengo_url($vengo, $vgrupo = '')
+{
+    $vengo = (string) $vengo;
+    $base = '?internalpage=single_stic_mis_grupos';
+
+    if ($vengo === 'grupo') {
+        $vgrupo = sticpa_pl_safe_id($vgrupo);
+        return ($vgrupo !== '') ? ($base . '&grupo=' . rawurlencode($vgrupo)) : $base;
+    }
+    if (in_array($vengo, array('grupos', 'cursos', 'az'), true)) {
+        return $base . '&ver=' . $vengo;
+    }
+    if ($vengo === 'monitores') {
+        return $base . '&quien=monitores';
+    }
+    return '';
+}
+
+/**
+ * Los vecinos de alguien en una lista: quién va antes, quién después y en qué
+ * posición está.
+ *
+ * Es lo que hace falta para leer varias fichas seguidas sin volver al índice
+ * entre una y otra. La lista es la que ya tiene la pantalla —la gente del
+ * grupo, que llega ordenada por apellido—, así que esto no cuesta nada.
+ *
+ * NO da la vuelta al final a propósito: llegar al último y volver al primero
+ * sin avisar es leer dos veces la misma ficha creyendo que se avanza.
+ */
+function sticpa_pl_vecinos($lista, $id)
+{
+    $lista = array_values($lista);
+    $out = array('prev' => null, 'next' => null, 'pos' => 0, 'total' => count($lista));
+    foreach ($lista as $i => $p) {
+        if (!isset($p['id']) || $p['id'] !== $id) {
+            continue;
+        }
+        $out['pos'] = $i + 1;
+        if ($i > 0) {
+            $out['prev'] = $lista[$i - 1];
+        }
+        if ($i + 1 < count($lista)) {
+            $out['next'] = $lista[$i + 1];
+        }
+        break;
+    }
+    return $out;
+}
+
+/**
+ * El pie de «anterior / siguiente» de una ficha.
+ *
+ * Va AL FINAL y no en la cabecera: leer una ficha es bajar hasta abajo, y el
+ * sitio donde se decide pasar a la siguiente es donde se acaba la anterior.
+ *
+ * Lleva el NOMBRE de quien viene, no solo una flecha: saber a quién pasas es lo
+ * que convierte esto en «me leo el grupo entero» en vez de en un botón a
+ * ciegas. Y en medio, la posición: sin ella no se sabe cuánto queda.
+ *
+ * @param callable $href recibe la persona y devuelve su URL.
+ */
+function sticpa_pl_pager_html($vecinos, $href)
+{
+    if (empty($vecinos['prev']) && empty($vecinos['next'])) {
+        return '';   // una sola ficha: un pie que no lleva a ningún sitio es ruido
+    }
+
+    $lado = function ($p, $dir) use ($href) {
+        $clase = 'pl-pager-side pl-pager-side--' . $dir;
+        if (empty($p)) {
+            // El hueco se mantiene: sin él, el «siguiente» del último se
+            // desplaza al centro y parece otro botón.
+            return '<span class="' . $clase . ' pl-pager-side--none" aria-hidden="true"></span>';
+        }
+        $etiqueta = ($dir === 'prev') ? __('Anterior', 'sticpa') : __('Siguiente', 'sticpa');
+        $out = '<a class="' . $clase . '" href="' . esc_url($href($p)) . '">';
+        if ($dir === 'prev') {
+            $out .= '<span class="pl-pager-arrow">' . sticpa_pl_icon('back') . '</span>';
+        }
+        $out .= '<span class="pl-pager-body">'
+            . '<span class="pl-pager-label">' . esc_html($etiqueta) . '</span>'
+            . '<span class="pl-pager-name">' . esc_html($p['name']) . '</span>'
+            . '</span>';
+        if ($dir === 'next') {
+            $out .= '<span class="pl-pager-arrow">' . sticpa_pl_icon('next') . '</span>';
+        }
+        return $out . '</a>';
+    };
+
+    $html = '<nav class="pl-pager" aria-label="' . esc_attr__('Otras fichas del grupo', 'sticpa') . '">';
+    $html .= $lado(isset($vecinos['prev']) ? $vecinos['prev'] : null, 'prev');
+    if (!empty($vecinos['total']) && !empty($vecinos['pos'])) {
+        $html .= '<span class="pl-pager-pos">' . esc_html(sprintf(
+            /* translators: 1: posición de esta ficha, 2: cuántas hay en el grupo */
+            __('%1$d de %2$d', 'sticpa'),
+            $vecinos['pos'],
+            $vecinos['total']
+        )) . '</span>';
+    }
+    $html .= $lado(isset($vecinos['next']) ? $vecinos['next'] : null, 'next');
+    $html .= '</nav>';
     return $html;
 }
 

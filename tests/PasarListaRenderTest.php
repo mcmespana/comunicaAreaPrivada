@@ -4275,4 +4275,85 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringNotContainsString('<script>', $html);
         $this->assertStringContainsString('Tus grupos', $html);
     }
+
+    // ---- Anterior / siguiente en la ficha --------------------------------
+
+    /**
+     * Leer varias fichas seguidas sin volver al índice. El pie lleva el NOMBRE
+     * de quien viene, que es lo que lo hace usable, y la posición.
+     */
+    public function test_ficha_lleva_anterior_y_siguiente_con_nombre()
+    {
+        // g1 ordenado por apellido: Marta Adulta, Jaume Pascual, Solete
+        // Vilarroya. Jaume está en medio, así que tiene los dos lados.
+        $_REQUEST = array('participante' => 'c2', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringContainsString('pl-pager', $html);
+        $this->assertStringContainsString('Marta Adulta', $html);
+        $this->assertStringContainsString('Solete Vilarroya', $html);
+        $this->assertStringContainsString('2 de 3', $html);
+        $this->assertStringContainsString('participante=c1', $html);
+        $this->assertStringContainsString('participante=c3', $html);
+        // No arrastra la sesión: leer no es marcar.
+        $this->assertStringNotContainsString('&sesion=', $html);
+    }
+
+    /** El primero no tiene anterior, pero el hueco se mantiene: si no, el
+     *  «siguiente» se descoloca al centro y parece otro botón. */
+    public function test_ficha_del_primero_no_inventa_un_anterior()
+    {
+        $_REQUEST = array('participante' => 'c3', 'grupo' => 'g1');   // Marta Adulta
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringContainsString('pl-pager-side--none', $html);
+        $this->assertStringContainsString('1 de 3', $html);
+        // Y NO da la vuelta al último: eso es releer creyendo que avanzas.
+        $this->assertSame(1, substr_count($html, 'pl-pager-side--none'));
+    }
+
+    /** La foto en la ficha, que es donde se pidió que se viera. */
+    public function test_ficha_pide_la_foto_del_participante()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringContainsString('action=stic_pl_photo', $html);
+        $this->assertStringContainsString('persona=c1', $html);
+        $this->assertStringContainsString('pl-ident-avatar', $html);
+    }
+
+    /**
+     * DE DÓNDE VIENES. Llegando desde «Mis grupos», la flecha de atrás vuelve
+     * ahí: devolverte a la lista de marcar sería el precio que esa pantalla
+     * existe justo para no pagar.
+     */
+    public function test_ficha_vuelve_a_donde_venias()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1', 'vengo' => 'grupo');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+        $this->assertStringContainsString('single_stic_mis_grupos&grupo=g1', $html);
+
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1', 'vengo' => 'az');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+        $this->assertStringContainsString('single_stic_mis_grupos&ver=az', $html);
+
+        // Sin `vengo`, la de siempre: se ha llegado desde marcar.
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+        $this->assertStringContainsString('single_stic_pasar_lista_marcar&grupo=g1', $html);
+    }
+
+    /** Un `vengo` inventado no se convierte en un enlace: se cae al de siempre. */
+    public function test_ficha_ignora_un_vengo_inventado()
+    {
+        $_REQUEST = array(
+            'participante' => 'c1', 'grupo' => 'g1',
+            'vengo' => 'https://evil.example/x',
+        );
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringNotContainsString('evil.example', $html);
+        $this->assertStringContainsString('single_stic_pasar_lista_marcar&grupo=g1', $html);
+    }
 }
