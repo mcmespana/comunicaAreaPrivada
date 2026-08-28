@@ -4,6 +4,15 @@
 
 ---
 
+> **Última revisión contra el CRM: 28 de agosto de 2026.** Se verificaron los
+> campos que usa la ficha del monitor del área privada (`get_module_fields` de
+> `Contacts`, `ajmcm_GRUPOS` y `stic_Contacts_Relationships`). De ahí salen los
+> tres campos `stic_` que faltaban en §2, la corrección de `phone_mobile` y los
+> avisos de §1 sobre `ajmcm_pasar_lista_c` y `ajmcm_curso_escolar_c`.
+>
+> **Si cambias algo aquí, súbelo también al repo `comunicaFormularios`**, que
+> escribe en estos mismos campos.
+
 ## 1. Campos específicos de nuestra adaptación [Módulo personas, generalmente]
 
 ### Sección MCM
@@ -133,6 +142,47 @@
 
 ---
 
+### Grupos (`ajmcm_GRUPOS`)
+
+- `ajmcm_pasar_lista_c` — Este grupo entra en Pasar Lista — casilla de verificación
+  - Creado el 27/08/2026. En el CRM hay ~150 grupos y la mayoría son históricos:
+    esta casilla decide cuáles salen en el árbol, en el buscador y en el alcance
+    de coordinación.
+  - Regla de seguridad, y está en el código: **mientras no haya NINGUNA marcada,
+    no se esconde nada.** Sin eso, el día que se creó el campo Pasar Lista se
+    habría quedado sin un solo grupo y habría parecido que estaba roto.
+  - ⚠️ **Su `default` en el CRM es `1`**, aunque se pidió que naciera
+    desmarcada. Los grupos que ya existían nacieron sin valor —por eso el filtro
+    funciona hoy—, pero **un grupo creado a partir de ahora entrará solo en
+    Pasar Lista**. Probablemente es lo que se quiere; queda escrito para que
+    nadie lo descubra por sorpresa. (Comprobado el 28/08/2026.)
+
+Los demás campos del módulo (`code`, `name`, `level`, `cursos_c`, los recuentos
+nocturnos `ajmcm_n_participantes_c` / `ajmcm_n_monitores_c` / `ajmcm_monitores_c`
+/ `ajmcm_recuento_al_c`, y `ajmcm_segmento_com_c`) están en
+[`PASAR-LISTA-CAMPOS-CRM.md`](PASAR-LISTA-CAMPOS-CRM.md) §3.
+
+### Relaciones con personas (`stic_Contacts_Relationships`)
+
+- `ajmcm_curso_escolar_c` — Curso escolar (desplegable)
+  - ⚠️ **Existe y está VACÍO en todas las relaciones reales** (comprobado el
+    28/08/2026). Por eso el área privada deduce el curso de `start_date` y
+    `end_date` en vez de leerlo de aquí.
+  - Si algún día se empieza a rellenar, **hay que mirar antes las claves
+    internas de su desplegable**: si guarda `2024_2025` y el código calcula
+    `2024-2025`, el histórico de cada monitor se parte en dos entradas por curso.
+- `ajmcm_delegacion_c` — Delegación de la relación (desplegable)
+  - ⚠️ Sus claves NO son las de `ajmcm_procendencia_c` de personas: aquí
+    `vilareal`, allí `vila-real`. Dos enums de delegación con formatos distintos.
+- `end_reason` / `other_end_reasons` — Motivo del fin de la relación
+  - Existen, sin documentar y sin usar.
+
+El resto de campos de este módulo (`relationship_type` y sus valores,
+`start_date`, `end_date`, `active`, el vínculo con el grupo) están en
+[`PASAR-LISTA-CAMPOS-CRM.md`](PASAR-LISTA-CAMPOS-CRM.md) §3.
+
+---
+
 ## 2. Campos incluidos por SinergiaCRM
 
 *Se indica en "Usado por nosotros" si lo utilizamos o no.*
@@ -152,6 +202,19 @@ Fuente: https://wiki.sinergiatic.org/index.php?title=Estructura_de_datos:_m%C3%B
   - Usado por nosotros: **Sí**
 - `stic_relationship_type_c` — Tipo de relación actual (selección múltiple: Socio / Donante / Voluntario / Usuario / Trabajador / …)
   - Usado por nosotros: **Sí**
+- `stic_conduct_code_c` — Código de conducta
+  - Tipo: casilla. Verificado contra el CRM el 28/08/2026: **existe y estaba sin
+    documentar aquí**. El área privada lo enseña en el bloque «En regla» de la
+    ficha del monitor, como una de las obligaciones que hay que tener firmadas.
+  - Usado por nosotros: **Sí** (solo lectura)
+- `stic_confidentiality_agreement_c` — Acuerdo de confidencialidad
+  - Tipo: casilla. Igual que el anterior: existe, estaba sin documentar, y se
+    enseña en «En regla».
+  - Usado por nosotros: **Sí** (solo lectura)
+- `stic_time_availability_c` — Disponibilidad horaria
+  - Tipo: por confirmar. **Existe en el CRM y no se ha mirado para qué se usa.**
+    Anotado el 28/08/2026 para que no se cree otro campo igual sin querer.
+  - Usado por nosotros: **No, por ahora**
 - `stic_total_annual_donations_c` — Donación total anual (moneda)
   - Nota: útil para informes o certificados de donación tras generar el Modelo 182.
   - Usado por nosotros: **Por ahora no**
@@ -171,6 +234,21 @@ Fuente: https://wiki.sinergiatic.org/index.php?title=Estructura_de_datos:_m%C3%B
   - Usado por nosotros: **Sí**, se asigna al usuario de cada MCM Local.
 - `birthdate` — Fecha de nacimiento (dd/mm/aaaa)
   - Usado por nosotros: **Sí**
+- `phone_mobile` — Móvil
+  - Tipo: teléfono. **Es EL móvil de la persona** (participante, familiar o
+    monitor/a): de aquí salen los botones de llamar y de WhatsApp del área
+    privada. Verificado contra el CRM el 27/08/2026 y otra vez el 28/08/2026.
+  - Usado por nosotros: **Sí**. Estuvo listado como «no usar» en la §4 y por eso
+    la ficha del participante salió meses sin teléfonos.
+- `phone_other` — Otro teléfono
+  - Tipo: teléfono. En la práctica es el **contacto de emergencias** y suele ser
+    un fijo, así que el área privada le ofrece llamar pero no WhatsApp.
+  - Usado por nosotros: **Sí**
+- `do_not_call` — No llamar
+  - Tipo: casilla. Si está marcada, el área privada lo dice arriba en la ficha,
+    junto a los botones de llamar: es lo único que cambia lo que se puede hacer
+    con ellos.
+  - Usado por nosotros: **Sí** (solo lectura, no lo escribe el área)
 - `date_reviewed` — Fecha de la base legal revisada
   - Tipo: fecha. Se actualiza automáticamente al modificar los campos de "lawful basis" del contacto.
   - Usado por nosotros: **Sí**
@@ -211,8 +289,10 @@ Fuente: https://wiki.sinergiatic.org/index.php?title=Estructura_de_datos:_m%C3%B
   - Usado por nosotros: Automático
 - `phone_fax` — Fax — No usar
 - `phone_home` — Tel. casa — No usar
-- `phone_mobile` — Móvil — No usar
 - `phone_work` — Tel. oficina — No usar
+  - ⚠️ Ojo: `phone_mobile` **sí se usa** y ha subido a la §3. Estaba aquí como
+    «no usar» y es el móvil de verdad de participantes, familiares y monitores:
+    de ahí salen los botones de llamar y de WhatsApp del área privada.
 - `salutation` — Saludo (desplegable: Sr. / Srta. / Sra. / Dr. / Prof.) — No
 - `stic_182_error_c` — Error del Modelo 182 — No
 - `stic_182_exluded_c` — Excluir del Modelo 182 — No

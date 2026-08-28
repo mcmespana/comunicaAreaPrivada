@@ -5511,30 +5511,48 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 
 .stic-welcome-hero { position: relative; }
 
+/* TODO con `!important`, igual que `.stic-pass-toggle` de §7 y por la misma
+   razón: el tema de WordPress estila `.entry-content button`, que le gana por
+   especificidad a una clase suelta. Sin esto el botón se comía el ANCHO que le
+   da el tema y, como el radio es del 50 %, salía una elipse de 280 px con la
+   equis en medio: una mancha enorme en la esquina del saludo, en escritorio y
+   siempre. Se llegó a arreglar el `::after` (la sombra que pinta el tema) y se
+   olvidó la geometría, que era lo que se veía. */
 .stic-hero-close {
-    position: absolute;
-    top: 0.55rem;
-    right: 0.55rem;
+    position: absolute !important;
+    top: 0.55rem !important;
+    right: 0.55rem !important;
+    left: auto !important;
     z-index: 2;
-    display: grid;
-    place-items: center;
-    width: 34px;
-    height: 34px;
-    padding: 0;
-    border: 0;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.18);
-    color: #fff;
+    display: grid !important;
+    place-items: center !important;
+    width: 34px !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: 34px !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 50% !important;
+    background: rgba(255, 255, 255, 0.18) !important;
+    box-shadow: none !important;
+    color: #fff !important;
+    font-size: inherit !important;
+    line-height: 1 !important;
+    letter-spacing: normal !important;
+    text-transform: none !important;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
     transition: background 0.18s ease, transform 0.18s var(--ease-spring);
 }
-.stic-hero-close::after { display: none !important; }
-.stic-hero-close svg { width: 16px; height: 16px; }
-.stic-hero-close:hover { background: rgba(255, 255, 255, 0.32); transform: rotate(90deg); }
-.stic-hero-close:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.7); }
+.stic-hero-close::after,
+.stic-hero-close::before { display: none !important; content: none !important; }
+.stic-hero-close svg { width: 16px !important; height: 16px !important; }
+.stic-hero-close:hover { background: rgba(255, 255, 255, 0.32) !important; transform: rotate(90deg); }
+.stic-hero-close:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.7) !important; }
 @media (hover: none) {
-    .stic-hero-close:hover { transform: none; background: rgba(255, 255, 255, 0.18); }
+    .stic-hero-close:hover { transform: none; background: rgba(255, 255, 255, 0.18) !important; }
     .stic-hero-close:active { transform: scale(0.9); }
 }
 
