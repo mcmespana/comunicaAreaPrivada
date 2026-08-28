@@ -780,7 +780,8 @@ final class PasarListaTest extends TestCase
      *
      * Lo pidió el propietario con estas palabras: «poniendo más arriba los
      * datos de más interés (por ejemplo el de delitos sexuales pues el primero
-     * no hace falta)».
+     * no hace falta)», y afinado después: «en regla, lo de trayectoria que
+     * llámale datos MCM, y la formación».
      */
     public function test_bloques_del_monitor_en_orden_de_interes()
     {
@@ -792,7 +793,7 @@ final class PasarListaTest extends TestCase
             'stic_identification_type_c' => 'nif',
         ));
         $this->assertSame(
-            array('regla', 'formacion', 'trayectoria', 'personales'),
+            array('regla', 'mcm', 'formacion', 'personales'),
             array_column($bloques, 'key')
         );
         // Y los datos de padrón, plegados: se miran una vez al año.

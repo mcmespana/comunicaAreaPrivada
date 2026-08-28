@@ -88,6 +88,7 @@
 .pl-sheet-clear,
 .pl-avi-add,
 .pl-avi-submit,
+.pl-seg-add,
 .pl-panuelo-edit,
 .pl-panuelo-opt {
     -webkit-appearance: none !important;
@@ -117,6 +118,8 @@
 .pl-sheet-clear::before,
 .pl-avi-add::after,
 .pl-avi-add::before,
+.pl-seg-add::after,
+.pl-seg-add::before,
 .pl-avi-submit::after,
 .pl-avi-submit::before,
 .pl-panuelo-edit::after,
@@ -2606,3 +2609,131 @@ a.pl-group .pl-name { display: block; }
    crear nada. Un navegador que no lo entienda ignora la línea y se queda como
    estaba. Solo afecta a Pasar Lista: esta hoja únicamente se carga aquí. */
 .stic-container { overflow-x: clip; }
+
+/* ---- La línea de contacto de la ficha del monitor ----------------------- */
+
+/* Debajo de los dos botones grandes va UNA línea, no una lista de teléfonos:
+   el móvil ya está arriba y repetirlo empuja hacia abajo lo que sí se viene a
+   leer. Queda el correo, que se LEE, y el otro teléfono, que solo se PULSA. */
+.pl-contactline {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 52px;
+    padding: 0 0.4rem 0 0.9rem;
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-xs);
+}
+.pl-contactline-main {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: 0.6rem 0;
+    color: var(--gray-700);
+    font-size: 0.86rem;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+    -webkit-tap-highlight-color: transparent;
+}
+.pl-contactline-main svg { width: 17px; height: 17px; flex-shrink: 0; color: var(--gray-400); }
+.pl-contactline-main--empty { color: var(--gray-400); font-style: italic; }
+
+/* El otro teléfono cabe en un botón redondo: el número va en el `aria-label` y
+   en el `title`, así que quien lo necesite lo tiene y quien no, no lo lee.
+   Redondo y SIN texto a propósito: con la etiqueta «otro» al lado se comía
+   ochenta píxeles y el correo se partía en dos líneas. */
+.pl-contactline-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-full);
+    background: var(--primary-50);
+    color: var(--primary-color);
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+}
+.pl-contactline-btn svg { width: 18px; height: 18px; }
+.pl-contactline-main:active,
+.pl-contactline-btn:active { opacity: 0.72; }
+
+/* ---- El vacío, dicho con calma ------------------------------------------ */
+
+/* Un aviso con icono de información dice «algo falta o falla». Que no haya
+   seguimientos en octubre no es un problema: es lo normal. Así que ni icono de
+   aviso ni fondo de color, solo un contorno discontinuo y una frase corta. */
+.pl-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    min-height: 78px;
+    padding: 1rem;
+    border-radius: var(--radius-lg);
+    border: 1px dashed var(--gray-200);
+    color: var(--gray-400);
+    text-align: center;
+}
+.pl-empty-mark { display: inline-flex; }
+.pl-empty-mark svg { width: 17px; height: 17px; }
+.pl-empty-text { font-size: 0.85rem; }
+
+/* ---- Enlaces de texto discretos («¿y antes?») --------------------------- */
+
+.pl-ghost {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 0.25rem;
+    color: var(--primary-color);
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+}
+.pl-ghost:active { opacity: 0.72; }
+
+/* ---- «Escribir un seguimiento» ------------------------------------------ */
+
+/* Sale como un botón de contorno, no de marca: la acción de esta pantalla es
+   mirar, y escribir una nota es lo excepcional. El relleno de marca lo tiene el
+   «Guardar seguimiento» de dentro, que sí es el final del camino. */
+.pl-seg-add {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    min-height: 48px;
+    margin-top: 0.7rem;
+    border-radius: var(--radius-lg) !important;
+    background: var(--surface) !important;
+    border: 1px solid var(--gray-200) !important;
+    color: var(--gray-700) !important;
+    font-size: 0.9rem !important;
+    font-weight: 700 !important;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+.pl-seg-add svg { width: 17px; height: 17px; color: var(--gray-500); }
+.pl-seg-add:active { background: var(--gray-50) !important; }
+.pl-seg-add[aria-expanded="true"] { display: none !important; }
+
+/* El plegable del histórico lleva su cuenta de cursos a la derecha, antes de
+   la flecha: dice cuánto hay dentro sin tener que abrirlo. */
+.pl-fold-count {
+    margin-left: auto;
+    margin-right: 0.6rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--gray-400);
+    letter-spacing: 0;
+    text-transform: none;
+}
+.pl-fold--hist .pl-hist { padding-top: 0.4rem; }
+.pl-fold--hist .pl-footnote { padding-bottom: 0.8rem; }

@@ -3873,9 +3873,12 @@ function sticpa_pl_monitor_fields()
         'id', 'first_name', 'last_name', 'name',
         'birthdate', 'stic_age_c', 'stic_gender_c',
         'phone_mobile', 'phone_other', 'email1',
-        'primary_address_city',
+        'primary_address_street', 'primary_address_postalcode', 'primary_address_city',
         'stic_identification_type_c', 'stic_identification_number_c',
         'ajmcm_centro_educativo_c', 'ajmcm_numero_persona_c',
+        // `do_not_call` NO va con los datos de padrón: si alguien ha pedido que
+        // no se le llame, eso se dice ARRIBA, al lado de los botones de llamar.
+        'do_not_call',
         // Trayectoria
         'ajmcm_monitor_desde_c', 'ajmcm_monitor_de_c', 'ajmcm_mcm_desde_c',
         'ajmcm_ano_incorporacion_lc_c',

@@ -131,11 +131,15 @@ datos de más interés (por ejemplo el de delitos sexuales pues el primero no ha
 falta)». Tiene razón — es una obligación legal, sí, pero es una casilla, y una
 casilla no es la persona.
 
-El orden es el de la conversación real de seguimiento:
+El orden es el de la conversación real de seguimiento (afinado el 28/08/2026
+por el propietario: **el papeleo, al final**):
 
 1. **Quién es y cómo se le llama.** Nombre grande, la línea que le sitúa
    (grupos · curso · edad · desde cuándo es monitor) y los dos botones de
-   contacto. El de emergencias no lleva WhatsApp: suele ser un fijo.
+   WhatsApp y Llamar. Debajo, **una sola línea**: el correo, que se LEE, y el
+   otro teléfono, que solo se PULSA y por eso cabe en un botón redondo con el
+   número en su `aria-label`. El móvil no se repite: ya está en los botones.
+   Si ha pedido que no se le llame, se dice aquí y no enterrado abajo.
 2. **Cómo va este curso** — es el motivo de abrir la ficha. Tres pistas de
    cuadraditos **separadas y nunca promediadas** (plan 038):
    - *Sábados*, con porcentaje.
@@ -147,23 +151,24 @@ El orden es el de la conversación real de seguimiento:
      pasó un compañero», que es correcto. Está dicho en la propia pantalla.
    - Un sábado sin marcar es un hueco, no una falta: no cuenta en el
      porcentaje y se dice aparte.
-3. **En regla**: certificado de delitos sexuales, formación en protección del
-   menor, código de conducta, confidencialidad, acuerdo de incorporación y
-   compromiso — con la cuenta de lo que falta en la cabecera. Los **permisos**
-   (LOPD, cesión de imágenes) van en la misma lista pero en gris: un permiso no
-   dado es una decisión de la persona, no una deuda.
-4. **Formación**: solo lo que tiene, con su año y con el aviso de «titulado pero
-   sin archivo», que es el descuadre típico. Y los congresos, en pastillas.
-5. **Trayectoria**: nivel COM, etapa, pañuelo, desde cuándo.
-6. **Datos personales**, plegados: se miran una vez al año y ocupan media
-   pantalla de las que hay que pasar para llegar al final.
-7. **Sus grupos**: el que lleva y **el suyo** —la relación `grupo` COM-LC, que en
+3. **Sus grupos**: el que lleva y **el suyo** —la relación `grupo` COM-LC, que en
    el CRM está en otra pestaña y aquí no—, con los recuentos calculados en vivo
    y con quién los comparte. El que lleva enlaza a su lista.
-8. **Por dónde ha pasado**: curso a curso y con quién estaba. Solo las
-   relaciones de monitor: la de pertenencia dura años y saldría repetida en cada
-   uno, sepultando lo único que se viene a leer aquí.
-9. **Seguimientos** (§7), al final, porque son notas y no datos.
+4. **Seguimientos**, y solo los de ESTE curso: el CRM devuelve las notas de
+   todos los años en la misma lectura y una lista de cinco cursos es un
+   archivo, no una pantalla de seguimiento. Un enlace discreto trae los del
+   curso anterior, y no cuesta ninguna consulta porque los datos ya estaban.
+   Sin nada apuntado, un vacío tranquilo —contorno discontinuo y una frase—, no
+   un aviso con icono de información: que no haya notas en octubre es lo normal.
+   El alta va **detrás de un botón** que abre el formulario y pone el foco en el
+   desplegable: se escribe entera sin tocar la pantalla otra vez.
+5. **Por dónde ha pasado**: curso a curso y con quién estaba. Plegable y
+   abierto de partida, con la cuenta de cursos en la cabecera.
+6. **El papeleo, al final**: «En regla» (aquí dentro va el certificado de
+   delitos sexuales), «Datos MCM» (nivel, etapa, pañuelo, desde cuándo) y
+   «Formación» (solo lo que tiene, con el aviso de «titulado pero sin archivo»).
+   Y cerrando, plegados, los **datos personales**: documento, nacimiento,
+   dirección, centro educativo y nº de persona.
 
 **Sin familia y sin salud.** Un monitor es un adulto: sus datos de salud no son
 asunto de coordinación en esta pantalla.

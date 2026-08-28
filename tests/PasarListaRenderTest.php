@@ -791,7 +791,10 @@ class FakeSCP
                         'name' => 'x',
                         'description' => $seg['texto'],
                         'type' => $seg['type'],
-                        'start_date' => '2026-01-10 12:00:00',
+                        // La fecha manda: la ficha enseña por defecto solo los
+                        // de ESTE curso, así que un seguimiento con `curso`
+                        // puesto se coloca en el que diga.
+                        'start_date' => isset($seg['fecha']) ? $seg['fecha'] : '2026-01-10 12:00:00',
                         'assigned_user_name' => 'MCM Castellón',
                     ));
                 }
@@ -2681,19 +2684,41 @@ final class PasarListaRenderTest extends TestCase
         $_REQUEST = array('monitor' => 'm1');
         $html = $this->render('single_stic_pasar_lista_monitor');
 
-        $this->assertLessThan(
-            strpos($html, 'En regla'),
-            strpos($html, 'Cómo va este curso'),
-            'el seguimiento va ANTES que el papeleo'
+        /* EL ORDEN COMPLETO, que es el que dictó el propietario:
+         *   cómo va → sus grupos → seguimientos → por dónde ha pasado → papeleo
+         * El papeleo va al final entero, y dentro de él «En regla» abre y los
+         * datos de padrón cierran. */
+        /* Con el `>` delante: son CABECERAS de sección, no texto suelto. Sin él,
+         * «Formación» acertaba en «Formación en protección del menor», que está
+         * dentro de «En regla», y el test daba por desordenada una pantalla que
+         * estaba bien. */
+        $orden = array(
+            '>Cómo va este curso<',
+            '>Sus grupos<',
+            '>Seguimientos<',
+            '>Por dónde ha pasado<',
+            '>En regla<',
+            '>Datos MCM<',
+            '>Formación<',
+            '>Datos personales<',
         );
+        $anterior = -1;
+        foreach ($orden as $seccion) {
+            $donde = strpos($html, $seccion);
+            $this->assertNotFalse($donde, 'falta la sección «' . $seccion . '»');
+            $this->assertGreaterThan(
+                $anterior,
+                $donde,
+                '«' . $seccion . '» está fuera de sitio'
+            );
+            $anterior = $donde;
+        }
+        // Y el certificado, dentro del papeleo y no abriendo la pantalla.
         $this->assertLessThan(
             strpos($html, 'Certificado de delitos sexuales'),
             strpos($html, 'Cómo va este curso'),
             'el certificado ya no abre la ficha'
         );
-        // Y los grupos y el histórico, al final.
-        $this->assertLessThan(strpos($html, 'Sus grupos'), strpos($html, 'Formación'));
-        $this->assertLessThan(strpos($html, 'Por dónde ha pasado'), strpos($html, 'Sus grupos'));
 
         // Formación, con el descuadre del DAT sin archivo.
         $this->assertStringContainsString('2021 - EADB', $html);
@@ -2801,6 +2826,101 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringNotContainsString('2023-2024', $html);
         // El curso de ahora, marcado.
         $this->assertStringContainsString('pl-hist-item--now', $html);
+    }
+
+    /**
+     * El contacto no repite el móvil, y el otro teléfono no ocupa una fila.
+     *
+     * Los dos botones grandes de arriba YA son el móvil. Una fila más con el
+     * mismo número debajo es el mismo dato dos veces empujando hacia abajo lo
+     * que sí se viene a leer.
+     */
+    public function test_ficha_del_monitor_contacto_en_una_linea()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        // Los dos botones grandes, sí.
+        $this->assertStringContainsString('pl-contact-btn--wa', $html);
+        $this->assertStringContainsString('tel:608084613', $html);
+        // Pero NO una fila «Móvil» repitiendo el número.
+        $this->assertStringNotContainsString('>Móvil<', $html);
+
+        // El correo se LEE: va en texto.
+        $this->assertStringContainsString('pl-contactline', $html);
+        $this->assertStringContainsString('david@movimientoconsolacion.com', $html);
+        // El otro teléfono solo se PULSA: cabe en un botón, con el número en el
+        // `aria-label` para quien lo necesite de verdad.
+        $this->assertStringContainsString('tel:964200300', $html);
+        $this->assertStringContainsString('Llamar al otro teléfono', $html);
+        $this->assertStringNotContainsString('>Emergencias<', $html);
+    }
+
+    /**
+     * Sin seguimientos: un vacío tranquilo, y el formulario detrás de un botón.
+     *
+     * Cuatro campos desplegados al final de la ficha son cuatro campos que hay
+     * que pasar cada vez que se abre a alguien, y se escribe una nota de cada
+     * veinte visitas.
+     */
+    public function test_ficha_del_monitor_seguimientos_vacios()
+    {
+        $this->asOtherPerson();
+        $this->scp->coordEtapa = 'COM';
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $this->assertStringContainsString('pl-empty', $html);
+        $this->assertStringContainsString('Nada apuntado este curso', $html);
+        // Ni icono de aviso ni la frase de antes, que sonaba a que faltaba algo.
+        $this->assertStringNotContainsString('Todavía no hay seguimientos', $html);
+        // El formulario existe, pero escondido detrás del botón.
+        $this->assertStringContainsString('Escribir un seguimiento', $html);
+        $this->assertStringContainsString('id="pl-seg-form"', $html);
+        $this->assertMatchesRegularExpression('/<form[^>]*id="pl-seg-form"[^>]*hidden/', $html);
+    }
+
+    /**
+     * Solo los de ESTE curso, y un enlace para traer los del anterior.
+     *
+     * El CRM los devuelve todos en la misma lectura, así que traer los de antes
+     * no cuesta ninguna consulta: lo único que cambia es el filtro.
+     */
+    public function test_ficha_del_monitor_seguimientos_solo_de_este_curso()
+    {
+        $this->asOtherPerson();
+        $this->scp->coordEtapa = 'COM';
+        $this->scp->seguimientos = array(
+            array('type' => 'mcm_incidencia', 'texto' => 'LO DE ESTE CURSO', 'fecha' => '2025-11-08 12:00:00'),
+            array('type' => 'mcm_incidencia', 'texto' => 'LO DEL CURSO PASADO', 'fecha' => '2025-02-14 12:00:00'),
+        );
+
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+        $this->assertStringContainsString('LO DE ESTE CURSO', $html);
+        $this->assertStringNotContainsString('LO DEL CURSO PASADO', $html);
+        $this->assertStringContainsString('Ver también los de 2024-2025', $html);
+
+        // Y con el enlace pulsado, los dos.
+        $_REQUEST = array('monitor' => 'm1', 'seg' => 'antes');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+        $this->assertStringContainsString('LO DE ESTE CURSO', $html);
+        $this->assertStringContainsString('LO DEL CURSO PASADO', $html);
+        $this->assertStringContainsString('Ver solo los de 2025-2026', $html);
+    }
+
+    /** Sin nada de antes, no se ofrece traer nada de antes. */
+    public function test_ficha_del_monitor_sin_cursos_anteriores_no_hay_enlace()
+    {
+        $this->asOtherPerson();
+        $this->scp->coordEtapa = 'COM';
+        $this->scp->seguimientos = array(
+            array('type' => 'mcm_incidencia', 'texto' => 'Solo esto', 'fecha' => '2025-11-08 12:00:00'),
+        );
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+        $this->assertStringNotContainsString('Ver también los de', $html);
     }
 
     /** No se abre la ficha de un monitor fuera del alcance cambiando la URL. */

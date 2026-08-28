@@ -1324,11 +1324,14 @@ function sticpa_pl_anyo($raw)
 /**
  * Los datos de un monitor repartidos en bloques, y EN ORDEN DE INTERÉS.
  *
- * El orden lo dictó el propietario y es el de la conversación real de
- * coordinación: primero cómo va, después si está en regla, después qué
- * formación tiene, después su trayectoria, y al final los datos de padrón, que
- * casi nunca se miran. El certificado de delitos sexuales ya no abre la ficha:
- * es obligatorio, sí, pero es una casilla, y una casilla no es la persona.
+ * El orden lo dictó el propietario: **en regla**, después los **datos MCM**
+ * (nivel, etapa, pañuelo, desde cuándo) y después la **formación**. Al final,
+ * plegados, los datos de padrón, que casi nunca se miran. El certificado de
+ * delitos sexuales no abre la ficha: es obligatorio, sí, pero es una casilla, y
+ * una casilla no es la persona.
+ *
+ * Estos bloques van DESPUÉS del seguimiento, de sus grupos y de su histórico:
+ * son el papeleo, y el papeleo no es por lo que se abre la ficha de alguien.
  *
  * Cada bloque trae `kind`, que decide cómo se pinta:
  *   - `check`: una lista de obligaciones, con su ✓ o su ✗. Se enseñan TODAS,
@@ -1469,7 +1472,7 @@ function sticpa_pl_monitor_bloques($ficha)
         );
     }
 
-    // --- Trayectoria --------------------------------------------------------
+    // --- Datos MCM ----------------------------------------------------------
     $panuelos = sticpa_pl_panuelos();
     $panuelo = $val('ajmcm_panuelo_c');
     $tray = array();
@@ -1489,8 +1492,8 @@ function sticpa_pl_monitor_bloques($ficha)
     $añadir(__('Incorporación a LC', 'sticpa'), $val('ajmcm_ano_incorporacion_lc_c'));
     if (!empty($tray)) {
         $bloques[] = array(
-            'key' => 'trayectoria',
-            'label' => __('Trayectoria', 'sticpa'),
+            'key' => 'mcm',
+            'label' => __('Datos MCM', 'sticpa'),
             'kind' => 'data',
             'rows' => $tray,
         );
@@ -1512,7 +1515,19 @@ function sticpa_pl_monitor_bloques($ficha)
     }
     $añadirP(__('Fecha de nacimiento', 'sticpa'), $val('birthdate'));
     $añadirP(__('Género', 'sticpa'), sticpa_pl_enum_label('stic_gender_c', $val('stic_gender_c')));
-    $añadirP(__('Población', 'sticpa'), $val('primary_address_city'));
+    // La dirección, en UNA línea: calle, código postal y población. Tres filas
+    // para un dato que se lee de corrido es tres veces el mismo dato.
+    $direccion = array_filter(array(
+        $val('primary_address_street'),
+        trim($val('primary_address_postalcode') . ' ' . $val('primary_address_city')),
+    ), function ($x) {
+        return trim((string) $x) !== '';
+    });
+    if (!empty($direccion)) {
+        $añadirP(__('Dirección', 'sticpa'), implode(' · ', $direccion));
+    } else {
+        $añadirP(__('Población', 'sticpa'), $val('primary_address_city'));
+    }
     $añadirP(__('Centro educativo', 'sticpa'), $val('ajmcm_centro_educativo_c'));
     $añadirP(__('Nº de persona', 'sticpa'), $val('ajmcm_numero_persona_c'));
     if (!empty($pers)) {
@@ -1525,5 +1540,72 @@ function sticpa_pl_monitor_bloques($ficha)
         );
     }
 
-    return $bloques;
+    // EL ORDEN, en un solo sitio y explícito. Los bloques se construyen arriba
+    // en el orden que resulte más cómodo de leer en el código; el que se pinta
+    // es este, que es el que pidió el propietario.
+    $orden = array('regla', 'mcm', 'formacion', 'personales');
+    $porClave = array();
+    foreach ($bloques as $b) {
+        $porClave[$b['key']] = $b;
+    }
+    $out = array();
+    foreach ($orden as $clave) {
+        if (isset($porClave[$clave])) {
+            $out[] = $porClave[$clave];
+            unset($porClave[$clave]);
+        }
+    }
+    // Un bloque nuevo que alguien añada y se olvide de ordenar sale igual, al
+    // final: mejor descolocado que desaparecido.
+    foreach ($porClave as $b) {
+        $out[] = $b;
+    }
+    return $out;
+}
+
+/**
+ * Los seguimientos de un curso escolar (o de varios).
+ *
+ * La ficha enseña por defecto los de ESTE curso: una lista con las notas de
+ * cinco años es un archivo, no una pantalla de seguimiento. Los anteriores se
+ * traen con un botón, y no cuesta ninguna consulta más porque el CRM ya los
+ * devuelve todos en la misma lectura — lo único que cambia es el filtro.
+ *
+ * @param array $items    lo que devuelve `sticpa_pl_seguimientos()`.
+ * @param array $cursos   etiquetas de curso a dejar pasar («2025-2026»).
+ */
+function sticpa_pl_seg_del_curso($items, $cursos)
+{
+    $cursos = array_filter(array_map('strval', (array) $cursos));
+    if (empty($cursos)) {
+        return $items;
+    }
+    $out = array();
+    foreach ((array) $items as $it) {
+        $ts = isset($it['ts']) ? (int) $it['ts'] : 0;
+        // Sin fecha no se puede colocar en ningún curso, y esconderlo sería
+        // perderlo: sale siempre, que es el defecto seguro para una nota.
+        if ($ts <= 0) {
+            $out[] = $it;
+            continue;
+        }
+        $curso = sticpa_pl_course_for($ts);
+        if (in_array($curso['label'], $cursos, true)) {
+            $out[] = $it;
+        }
+    }
+    return $out;
+}
+
+/** La etiqueta del curso anterior al que se le pase (o al de hoy). */
+function sticpa_pl_curso_anterior($label = '')
+{
+    $label = trim((string) $label);
+    if ($label === '') {
+        $label = sticpa_pl_course_for()['label'];
+    }
+    if (!preg_match('/^(\d{4})-(\d{4})$/', $label, $m)) {
+        return '';
+    }
+    return ((int) $m[1] - 1) . '-' . ((int) $m[2] - 1);
 }
