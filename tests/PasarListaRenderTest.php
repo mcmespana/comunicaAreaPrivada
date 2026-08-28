@@ -36,6 +36,8 @@ class FakeSCP
     public $attSession = array();      // id de asistencia => sesión enlazada
     public $attReg = array();          // id de asistencia => inscripción enlazada
     public $listas = array();          // id de lista => campos escritos
+    public $avisos = array();          // id de aviso => campos escritos
+    public $avisosCiegos = false;      // el CRM acepta el aviso y no lo devuelve
 
     /** Módulos en los que set_entry falla, como cuando el CRM lo rechaza. */
     public $failWrites = array();
@@ -496,12 +498,35 @@ class FakeSCP
             return $this->entryListShape($rows, $rel);
         }
         if ($module === 'Contacts') {
-            // La consulta de la familia: UNA para todos los familiares.
+            // Contactos por id: la consulta de la familia (UNA para todos los
+            // familiares) y la de la gente de un grupo (UNA para todo el
+            // grupo, en vez de una por chaval, que era el 1+N que hacía lento
+            // cambiar de fecha).
             $fam = array(
                 'fam1' => array(
                     'id' => 'fam1', 'first_name' => 'Solete', 'last_name' => 'Messeguer',
                     'name' => 'Solete Messeguer', 'phone_mobile' => '600 333 444',
                     'email1' => 'sol@example.com',
+                ),
+                'c1' => array(
+                    'id' => 'c1', 'first_name' => 'Solete', 'last_name' => 'Vilarroya',
+                    'name' => 'Solete Vilarroya', 'stic_age_c' => '13',
+                    'phone_mobile' => '600111222', 'birthdate' => '2012-04-18',
+                ),
+                'c2' => array(
+                    'id' => 'c2', 'first_name' => 'Jaume', 'last_name' => 'Pascual',
+                    'name' => 'Jaume Pascual', 'stic_age_c' => '13',
+                ),
+                'c3' => array(
+                    'id' => 'c3', 'first_name' => 'Marta', 'last_name' => 'Adulta',
+                    'name' => 'Marta Adulta',
+                ),
+                'c9' => array(
+                    'id' => 'c9', 'first_name' => 'Se', 'last_name' => 'Fue', 'name' => 'Se Fue',
+                ),
+                'm1' => array(
+                    'id' => 'm1', 'first_name' => 'David', 'last_name' => 'Soler',
+                    'name' => 'David Soler',
                 ),
             );
             $out = array();
@@ -561,29 +586,35 @@ class FakeSCP
                 if ($p['module_id'] !== 'g1') {
                     return array();
                 }
+                // EL CAMPO PLANO VA SIEMPRE, con enlace anidado o sin él. Es
+                // lo que dice §3.1 del parte de estado y lo que hace el CRM de
+                // verdad: `..._ida` existe por relación y llega aunque el
+                // enlace no. Sin esto el doble mentía en el sentido contrario
+                // al de siempre —escondía un dato que sí está— y hacía
+                // parecer inevitable una llamada por persona.
                 return $this->apiShape(array(
                     $this->nvl(
-                        array('id' => 'r1', 'relationship_type' => 'participante_mic_com', 'start_date' => '2025-09-01', 'end_date' => ''),
+                        array('id' => 'r1', 'relationship_type' => 'participante_mic_com', 'start_date' => '2025-09-01', 'end_date' => '', 'stic_contacts_relationships_contactscontacts_ida' => 'c1'),
                         array(array('id' => 'c1', 'first_name' => 'Solete', 'last_name' => 'Vilarroya', 'stic_age_c' => '13', 'phone_mobile' => '600111222'))
                     ),
                     $this->nvl(
-                        array('id' => 'r2', 'relationship_type' => 'participante_mic_com', 'start_date' => '2025-09-01', 'end_date' => ''),
+                        array('id' => 'r2', 'relationship_type' => 'participante_mic_com', 'start_date' => '2025-09-01', 'end_date' => '', 'stic_contacts_relationships_contactscontacts_ida' => 'c2'),
                         array(array('id' => 'c2', 'first_name' => 'Jaume', 'last_name' => 'Pascual', 'stic_age_c' => '13'))
                     ),
                     // Relación caducada: no debe salir en la lista de hoy.
                     $this->nvl(
-                        array('id' => 'r3', 'relationship_type' => 'participante_mic_com', 'end_date' => '2025-10-01'),
+                        array('id' => 'r3', 'relationship_type' => 'participante_mic_com', 'end_date' => '2025-10-01', 'stic_contacts_relationships_contactscontacts_ida' => 'c9'),
                         array(array('id' => 'c9', 'first_name' => 'Se', 'last_name' => 'Fue'))
                     ),
                     $this->nvl(
-                        array('id' => 'r4', 'relationship_type' => 'monitor', 'end_date' => ''),
+                        array('id' => 'r4', 'relationship_type' => 'monitor', 'end_date' => '', 'stic_contacts_relationships_contactscontacts_ida' => 'm1'),
                         array(array('id' => 'm1', 'first_name' => 'David', 'last_name' => 'Soler'))
                     ),
                     // `grupo`: el papel de los +18 en su grupo de referencia. No
                     // lleva "participante_mic_com" pero cuenta igual como
                     // participante del grupo.
                     $this->nvl(
-                        array('id' => 'r5', 'relationship_type' => 'grupo', 'end_date' => ''),
+                        array('id' => 'r5', 'relationship_type' => 'grupo', 'end_date' => '', 'stic_contacts_relationships_contactscontacts_ida' => 'c3'),
                         array(array('id' => 'c3', 'first_name' => 'Marta', 'last_name' => 'Adulta'))
                     ),
                 ));
@@ -759,10 +790,20 @@ class FakeSCP
             // curso y uno del curso pasado, que NO tiene que contar: el
             // recuento «de 3» es del curso.
             case 'Contacts:avi_avisos_contacts':
-                if ($p['module_id'] !== 'c1') {
-                    return array();
+                // Los que se hayan creado en esta misma petición, que el CRM
+                // devuelve desde la persona en cuanto se guarda el campo plano.
+                $nuevos = array();
+                foreach (($this->avisosCiegos ? array() : $this->avisos) as $id => $a) {
+                    $suyo = isset($a['avi_avisos_contactscontacts_ida'])
+                        ? (string) $a['avi_avisos_contactscontacts_ida'] : '';
+                    if ($suyo !== '' && $suyo === (string) $p['module_id']) {
+                        $nuevos[] = $this->nvl($a);
+                    }
                 }
-                return $this->apiShape(array(
+                if ($p['module_id'] !== 'c1') {
+                    return $nuevos ? $this->apiShape($nuevos) : array();
+                }
+                return $this->apiShape(array_merge($nuevos, array(
                     // A propósito en orden inverso: el número sale de ordenar
                     // por fecha, no del orden en que los devuelve el CRM.
                     $this->nvl(array(
@@ -781,7 +822,7 @@ class FakeSCP
                         'ajmcm_puesto_por_c' => 'Alguien',
                         'ajmcm_notificado_familia_c' => '1',
                     )),
-                ));
+                )));
 
             case 'Contacts:stic_followups_contacts':
                 $out = array();
@@ -833,6 +874,14 @@ class FakeSCP
         if ($module === 'LIS_listas') {
             $previo = isset($this->listas[$id]) ? $this->listas[$id] : array();
             $this->listas[$id] = array_merge($previo, $data, array('id' => $id));
+        }
+        // Un aviso creado con su persona SE VE desde esa persona. El CRM crea
+        // la fila de la relación al guardar el campo plano, y el doble tiene
+        // que hacer lo mismo o mentiría sobre justo lo que se quiere probar:
+        // que el aviso queda a nombre de alguien.
+        if ($module === 'AVI_avisos') {
+            $previo = isset($this->avisos[$id]) ? $this->avisos[$id] : array();
+            $this->avisos[$id] = array_merge($previo, $data, array('id' => $id));
         }
         return $id;
     }
@@ -1378,6 +1427,15 @@ final class PasarListaRenderTest extends TestCase
      * no la cuenta en el porcentaje. Antes se lanzaba el enlace y nadie miraba
      * el resultado.
      */
+    /**
+     * SI NO SE PUEDE ATAR LA ASISTENCIA, NO SE ESCRIBE.
+     *
+     * Antes se creaba igual y se apuntaba el fallo del enlace. Esa asistencia
+     * huérfana es la que llenó el CRM de «Unknown - Unknown»: sin inscripción
+     * detrás no tiene nombre, no la cuenta el CRM y —lo grave— no se puede
+     * volver a encontrar, así que el guardado siguiente creaba OTRA. Escribir
+     * basura irrecuperable es peor que no escribir: no se nota.
+     */
     public function test_una_relacion_fallida_cuenta_como_fallo()
     {
         $this->scp->failRelationships = true;
@@ -1393,9 +1451,63 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringNotContainsString('Lista guardada', $html);
         $log = sticpa_pl_save_log();
         $pasos = array_column($log[0]['errores'], 'paso');
-        $this->assertContains('asistencia_enlazar_sesion', $pasos);
-        // Y se dice que esa persona no tiene inscripción, que es un dato y no ruido.
         $this->assertContains('sin_inscripcion', $pasos);
+
+        // Y NINGUNA asistencia escrita: ni una huérfana.
+        $att = array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Attendances';
+        });
+        $this->assertCount(0, $att, 'no se escribe una asistencia que no se puede atar');
+    }
+
+    /**
+     * Una asistencia nueva nace con TODO lo que necesita para existir: los dos
+     * enlaces en el propio registro (el CRM compone el nombre al guardar, así
+     * que llegar tarde con los enlaces deja «Unknown - Unknown» para siempre) y
+     * la fecha de la sesión, que es la columna por la que se consulta.
+     */
+    public function test_una_asistencia_nueva_nace_atada_y_con_fecha()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => json_encode(array('c3' => 'yes')),
+        );
+        $this->render('single_stic_pasar_lista_marcar');
+
+        $att = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Attendances' && !isset($w['data']['id']);
+        }));
+        $this->assertCount(1, $att);
+        $d = $att[0]['data'];
+        $this->assertNotSame('', $d['stic_attendances_stic_sessionsstic_sessions_ida']);
+        $this->assertNotSame('', $d['stic_attendances_stic_registrationsstic_registrations_ida']);
+        $this->assertArrayHasKey('start_date', $d);
+        // `end_date` NO existe en stic_Attendances: la API contesta 400 si se
+        // manda (verificado contra el CRM).
+        $this->assertArrayNotHasKey('end_date', $d);
+    }
+
+    /**
+     * A quien no está inscrito se le crea la inscripción, que es de donde
+     * cuelga la asistencia. Es el caso NORMAL en monitores, no la excepción.
+     */
+    public function test_a_quien_no_esta_inscrito_se_le_crea_la_inscripcion()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => json_encode(array('c3' => 'yes')),
+        );
+        $this->render('single_stic_pasar_lista_marcar');
+
+        $regs = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Registrations';
+        }));
+        $this->assertCount(1, $regs);
+        $this->assertSame('c3', $regs[0]['data']['stic_registrations_contactscontacts_ida']);
     }
 
     /**
@@ -1814,6 +1926,93 @@ final class PasarListaRenderTest extends TestCase
         // Y el campo que fija la relación con el monitor es `contact_id_c`
         // (confirmado con get_module_fields), no una suposición.
         $this->assertSame('m1', $writes[0]['data']['contact_id_c']);
+    }
+
+    /**
+     * LA PERSONA VA EN EL PROPIO REGISTRO, no solo en la relación.
+     *
+     * Los cuatro primeros avisos reales llegaron al CRM con «Persona del aviso»
+     * vacía: se creaba el registro y se ataba después con `set_relationship`,
+     * que escribe la tabla puente por detrás y deja el campo sin rellenar. El
+     * campo plano de la relación es el camino que usa la propia pantalla del
+     * CRM, y es el que hace que el aviso se vea a nombre de alguien.
+     */
+    public function test_ficha_el_aviso_lleva_la_persona_en_el_registro()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $_POST = array(
+            'pl_nonce' => wp_create_nonce('pl_ficha_c1'),
+            'pl_aviso_motivo' => 'Algo',
+        );
+        $this->render('single_stic_pasar_lista_ficha');
+
+        $writes = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'AVI_avisos';
+        }));
+        $this->assertSame('c1', $writes[0]['data']['avi_avisos_contactscontacts_ida']);
+    }
+
+    /**
+     * LA SESIÓN VA EN SU CAMPO DE ID, no en el que se pinta.
+     *
+     * `ajmcm_sesion_c` es el campo que se muestra; meterle un id de 36
+     * caracteres deja el registro con un texto ilegible y, aun así, sin sesión.
+     * El id vive en `stic_sessions_id_c`, igual que `contact_id_c` para «puesto
+     * por».
+     */
+    public function test_ficha_el_aviso_guarda_la_sesion_en_su_campo()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1', 'sesion' => 's2');
+        $_POST = array(
+            'pl_nonce' => wp_create_nonce('pl_ficha_c1'),
+            'pl_aviso_motivo' => 'Algo',
+        );
+        $this->render('single_stic_pasar_lista_ficha');
+
+        $writes = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'AVI_avisos';
+        }));
+        $this->assertSame('s2', $writes[0]['data']['stic_sessions_id_c']);
+        $this->assertArrayNotHasKey('ajmcm_sesion_c', $writes[0]['data']);
+    }
+
+    /**
+     * Y la sesión llega hasta ahí sola: la lista la pone en el enlace de la
+     * ficha, porque un aviso puesto un sábado es un aviso DE ese sábado.
+     */
+    public function test_marcar_pasa_la_sesion_al_enlace_de_la_ficha()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertMatchesRegularExpression(
+            '/single_stic_pasar_lista_ficha&participante=c1&grupo=g1&sesion=[^"&]+/',
+            $html
+        );
+    }
+
+    /**
+     * SI EL AVISO NO QUEDA A NOMBRE DE NADIE, SE DICE.
+     *
+     * El caso real: el CRM acepta el registro, contesta un id, y el aviso se
+     * queda sin persona. Antes la pantalla decía «Aviso registrado» y el
+     * monitor se iba tan tranquilo; el aviso no existía para nadie.
+     */
+    public function test_ficha_avisa_si_el_aviso_no_queda_enlazado()
+    {
+        $this->scp->failRelationships = true;
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $_POST = array(
+            'pl_nonce' => wp_create_nonce('pl_ficha_c1'),
+            'pl_aviso_motivo' => 'Algo',
+        );
+        // El doble deja de reconocer el campo plano: es el escenario de «se ha
+        // escrito y no está».
+        $this->scp->avisosCiegos = true;
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringNotContainsString('Aviso registrado', $html);
+        $this->assertStringContainsString('no ha quedado registrado', $html);
     }
 
     /** Sin motivo no hay aviso: un aviso vacío no le sirve a nadie. */
@@ -3469,11 +3668,63 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame('SV', $porId['c1']['initials']);
         // Y el monitor en su cubo.
         $this->assertSame(array('David Soler'), array_column($people['monitors'], 'name'));
-        // Alfabetico por apellido: Pascual antes de Vilarroya.
+        // Alfabetico por apellido: Adulta, Pascual, Vilarroya.
         $this->assertSame(
-            array('Jaume Pascual', 'Solete Vilarroya'),
+            array('Marta Adulta', 'Jaume Pascual', 'Solete Vilarroya'),
             array_column($people['participants'], 'name')
         );
+    }
+
+    /**
+     * LOS DOS CAMINOS TIENEN QUE DAR LA MISMA LISTA.
+     *
+     * El respaldo resolvía a la gente una llamada por persona, y esa consulta
+     * no encontraba a quien entra al grupo por el papel `grupo` (los +18 en su
+     * grupo de referencia): con enlaces salían tres participantes y sin ellos
+     * dos. Un grupo que cambia de tamaño según cómo conteste el CRM es un grupo
+     * en el que no se puede pasar lista.
+     */
+    public function testLosDosCaminosDanLaMismaGente()
+    {
+        $conEnlaces = sticpa_pl_group_people(new FakeSCP(), 'g1');
+
+        $GLOBALS['__stic_transients'] = array();
+        $otro = new FakeSCP();
+        $otro->sinEnlaces = true;
+        $sinEnlaces = sticpa_pl_group_people($otro, 'g1');
+
+        $this->assertSame(
+            array_column($conEnlaces['participants'], 'id'),
+            array_column($sinEnlaces['participants'], 'id')
+        );
+        $this->assertSame(
+            array_column($conEnlaces['monitors'], 'id'),
+            array_column($sinEnlaces['monitors'], 'id')
+        );
+    }
+
+    /**
+     * Y CUESTA UNA LLAMADA, NO UNA POR CHAVAL.
+     *
+     * Era un 1+N: `sticpa_pl_contact_of_relationship()` una vez por persona.
+     * Un C1 de doce son doce viajes al CRM, y en móvil eso son seis segundos
+     * con la pantalla quieta — el «cambiar de fecha es lentísimo».
+     */
+    public function testElRespaldoResuelveALaGenteEnUnaSolaConsulta()
+    {
+        $scp = new FakeSCP();
+        $scp->sinEnlaces = true;
+        sticpa_pl_group_people($scp, 'g1');
+
+        $porPersona = array_filter($scp->calls, function ($c) {
+            return $c === 'stic_Contacts_Relationships:stic_contacts_relationships_contacts';
+        });
+        $this->assertCount(0, $porPersona, 'ni una llamada por persona');
+
+        $bulk = array_filter($scp->calls, function ($c) {
+            return $c === 'getRecordsModule:Contacts';
+        });
+        $this->assertLessThanOrEqual(1, count($bulk), 'los contactos se piden juntos');
     }
 
     /** El respaldo tambien pinta la pantalla de marcado entera. */

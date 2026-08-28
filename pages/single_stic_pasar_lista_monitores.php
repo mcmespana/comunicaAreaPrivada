@@ -158,7 +158,15 @@ if (!empty($_POST['pl_action'])) {
                 }
             }
         }
-        $saved = sticpa_pl_save_monitors($objSCP, $session['id'], $monitors, $marks, $regMap);
+        $saved = sticpa_pl_save_monitors(
+            $objSCP,
+            $session['id'],
+            $monitors,
+            $marks,
+            $regMap,
+            $event['id'],
+            isset($session['start']) ? (int) $session['start'] : 0
+        );
     }
 } elseif ($isPost) {
     // Un POST sin acción: el mismo agujero que en la pantalla de participantes
