@@ -743,6 +743,23 @@ function sticpa_pl_person_from_rel_row($v)
  * Devuelve array('participants' => [...], 'monitors' => [...]), cada persona con
  * id, nombre, iniciales y los campos de la ficha que se usan en la lista.
  */
+/**
+ * Las personas de un grupo SIN respaldo, para quien recorre muchos grupos.
+ *
+ * Existe para que el bucle no pueda equivocarse: `sticpa_pl_group_people()` cae
+ * al respaldo de UNA llamada cuando el grupo sale vacío —y eso está bien cuando
+ * se pinta un grupo—, pero multiplicado por ~150 grupos es lo que hacía eterna
+ * la pantalla de monitores.
+ */
+function sticpa_pl_group_people_bulk($objSCP, $groupId)
+{
+    $sin = function () { return false; };
+    add_filter('sticpa_pl_respaldo_por_grupo', $sin, 99);
+    $out = sticpa_pl_group_people($objSCP, $groupId);
+    remove_filter('sticpa_pl_respaldo_por_grupo', $sin, 99);
+    return $out;
+}
+
 function sticpa_pl_group_people($objSCP, $groupId)
 {
     $groupId = (string) $groupId;
@@ -753,14 +770,7 @@ function sticpa_pl_group_people($objSCP, $groupId)
     $out = array('participants' => array(), 'monitors' => array());
 
     // Camino normal: del mapa comun de la delegacion, sin una llamada propia.
-    //
-    // `$mapaSirve` se calcula AQUÍ, en el mismo recorrido, y es lo que decide
-    // si hace falta el respaldo. Ver el comentario largo de más abajo.
-    $mapaSirve = false;
     foreach (sticpa_pl_all_relationships($objSCP) as $rel) {
-        if ($rel['person']['id'] !== '') {
-            $mapaSirve = true;
-        }
         if ($rel['group_id'] !== $groupId || $rel['person']['id'] === '') {
             continue;
         }
@@ -780,16 +790,30 @@ function sticpa_pl_group_people($objSCP, $groupId)
     // vacío, y preguntar otra vez devuelve lo mismo. El respaldo solo tiene
     // sentido cuando el mapa entero viene vacío, que es la señal de que la
     // consulta de colección ha fallado.
-    // La condición es «el mapa no sirve», NO «este grupo está vacío»:
-    //
-    //   - Mapa con personas y este grupo vacío → el grupo está vacío de verdad,
-    //     y preguntar otra vez devuelve lo mismo. NO se pregunta.
-    //   - Mapa vacío, o con filas pero sin ninguna persona dentro (la trampa
-    //     §3.1: la instancia no devuelve ni el enlace anidado ni el campo
-    //     plano) → el mapa no sirve, y sin respaldo un monitor se queda sin
-    //     poder pasar lista un sábado.
-    if (empty($out['participants']) && empty($out['monitors']) && !$mapaSirve
-        && !sticpa_pl_collecting()) {
+    /* EL RESPALDO, Y LA LECCIÓN QUE COSTÓ UN GRUPO VACÍO.
+     *
+     * Primer intento: el respaldo saltaba cuando ESTE grupo salía vacío. Eso
+     * era un 1+N carísimo en la pantalla de monitores, que recorre TODOS los
+     * grupos del alcance (~150 en el CRM, casi todos históricos y vacíos).
+     *
+     * Segundo intento: se limitó a «solo si el mapa entero no sirve». Mató el
+     * 1+N... y también mató el respaldo justo donde hacía falta, porque el mapa
+     * de la delegación puede traer gente de OTROS grupos y no la de este (una
+     * respuesta a medias del CRM, por ejemplo). Resultado: C1 sin participantes
+     * un sábado, que es exactamente lo que no se puede permitir.
+     *
+     * Lo que estaba mal era el sitio, no el respaldo. Aquí se pregunta por UN
+     * grupo —el que se está pintando—, así que cuesta UNA llamada y solo
+     * cuando ese grupo sale vacío: la pantalla de marcar, la ficha y el atajo
+     * de la portada piden un grupo cada una. El bucle sobre muchos grupos vive
+     * en sticpa_pl_monitors_of(), y ES AHÍ donde el respaldo no puede correr.
+     *
+     * `sticpa_pl_group_people_bulk()` es la puerta para quien recorra grupos:
+     * no cae al respaldo nunca.
+     */
+    if (empty($out['participants']) && empty($out['monitors'])
+        && !sticpa_pl_collecting()
+        && apply_filters('sticpa_pl_respaldo_por_grupo', true, $groupId)) {
         $out = sticpa_pl_group_people_direct($objSCP, $groupId);
     }
 
@@ -1042,7 +1066,12 @@ function sticpa_pl_event_sessions($objSCP, $eventId)
         'module_name' => 'stic_Events',
         'module_id' => $eventId,
         'link_field_name' => 'stic_sessions_stic_events',
-        'related_fields' => array('id', 'start_date', 'end_date'),
+        // `name` hace falta para las REUNIONES: son «Programación del 2.º
+        // trimestre», no «sábado 21». En las sesiones semanales el nombre no
+        // aporta (es la fecha lo que se lee) y por eso no se pedía; pero no
+        // pedirlo dejaba la pantalla de reuniones sin lo único que identifica
+        // a cada una. Viene en la misma consulta: no cuesta nada.
+        'related_fields' => array('id', 'name', 'start_date', 'end_date'),
         'related_module_link_name_to_fields_array' => array(),
         'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
     ));
@@ -1059,6 +1088,7 @@ function sticpa_pl_event_sessions($objSCP, $eventId)
             $endRaw = isset($v->end_date->value) ? (string) $v->end_date->value : '';
             $sessions[] = array(
                 'id' => $id,
+                'name' => isset($v->name->value) ? trim((string) $v->name->value) : '',
                 'start' => sticpa_pl_ts($start),
                 'end' => $endRaw !== '' ? sticpa_pl_ts($endRaw) : 0,
             );
@@ -3537,7 +3567,7 @@ function sticpa_pl_monitors_of($objSCP, $groups)
     // monitores coordinación no puede pasar su lista.
     if (empty($out) && !$mapaSirve && !sticpa_pl_collecting()) {
         foreach ($groups as $gid => $g) {
-            $people = sticpa_pl_group_people($objSCP, $gid);
+            $people = sticpa_pl_group_people_bulk($objSCP, $gid);
             foreach ($people['monitors'] as $m) {
                 if (!isset($out[$m['id']])) {
                     $out[$m['id']] = $m;

@@ -2086,6 +2086,50 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame('no_unjustified', $writes[0]['data']['status']);
     }
 
+    /**
+     * EL DETALLE DEL FALLO LO VE TODO EL MUNDO. Estaba reservado a
+     * coordinación, y eso convertía cada fallo en un teléfono escacharrado: el
+     * monitor decía «no se guarda» y la respuesta del CRM —la que dice qué
+     * pasa— no la leía nadie hasta que otra persona lo reproducía.
+     */
+    public function test_el_detalle_del_fallo_lo_ve_cualquiera()
+    {
+        // Sin alcance de coordinación: un monitor normal.
+        $this->scp->coordEtapa = null;
+        $this->scp->failWrites = array('LIS_listas');
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => json_encode(array('c1' => 'yes')),
+        );
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertStringContainsString('Detalle técnico del fallo', $html);
+        $this->assertStringContainsString('Access Denied', $html);
+        // Dentro de un `details` cerrado: quien no quiera abrirlo ve el aviso
+        // en castellano y ya está.
+        $this->assertStringContainsString('<details', $html);
+    }
+
+    /** Y se puede apagar sin tocar código si algún día molesta. */
+    public function test_el_detalle_se_puede_apagar_con_un_filtro()
+    {
+        $GLOBALS['__stic_filters']['sticpa_pl_debug_allowed'] = false;
+        $this->scp->failWrites = array('LIS_listas');
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => json_encode(array('c1' => 'yes')),
+        );
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertStringNotContainsString('Detalle técnico del fallo', $html);
+        // Pero el aviso en castellano sigue estando: eso no se esconde nunca.
+        $this->assertStringContainsString('no se ha guardado del todo', mb_strtolower($html));
+    }
+
     // ---- UX: el paso siguiente y la salida a la ficha --------------------
 
     /**
@@ -2164,14 +2208,21 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame(2, sticpa_pl_grupos_ocultos($this->scp));
     }
 
-    /** El árbol lo dice, en vez de dejar que alguien busque un grupo que no ve. */
+    /**
+     * El árbol lo dice, en vez de dejar que alguien busque un grupo que no ve.
+     * Pero como NOTA AL PIE: gris, pequeña y al final. Es un dato que hay que
+     * poder saber, no un aviso que compita con la lista de grupos.
+     */
     public function test_el_arbol_avisa_de_los_grupos_no_marcados()
     {
         $this->scp->gruposActivos = array('g1');
         $html = $this->render('single_stic_pasar_lista_grupos');
 
-        $this->assertStringContainsString('no están marcados para Pasar Lista', $html);
+        $this->assertStringContainsString('sin marcar para Pasar Lista', $html);
         $this->assertStringContainsString('3 grupos', $html);
+        $this->assertStringContainsString('pl-footnote', $html);
+        // Y al final: después de la lista de grupos, no antes.
+        $this->assertGreaterThan(strpos($html, 'pl-group'), strpos($html, 'pl-footnote'));
     }
 
     /**
@@ -2309,19 +2360,41 @@ final class PasarListaRenderTest extends TestCase
         );
     }
 
-    /** Y un grupo vacío tampoco provoca una consulta propia. */
-    public function test_un_grupo_vacio_no_provoca_una_consulta()
+    /**
+     * Un grupo que se PINTA y sale vacío sí vuelve a preguntar: cuesta UNA
+     * llamada y es lo que rescata a un grupo que existe pero cuya gente no vino
+     * en el mapa de la delegación. Quitar esto dejó a C1 sin participantes un
+     * sábado; el problema nunca fue el respaldo, fue el bucle.
+     */
+    public function test_un_grupo_vacio_que_se_pinta_vuelve_a_preguntar()
     {
-        // g2 existe y no tiene relaciones en el doble.
         $antes = count($this->scp->calls);
         $people = sticpa_pl_group_people($this->scp, 'g2');
-        $this->assertSame(array(), $people['participants']);
-        $this->assertSame(array(), $people['monitors']);
-
         $nuevas = array_slice($this->scp->calls, $antes);
-        // La única llamada permitida es la del mapa de la delegación, que sirve
-        // para TODOS los grupos.
+
+        $this->assertSame(array(), $people['participants']);
+        $this->assertContains('ajmcm_GRUPOS:ajmcm_grupos_stic_contacts_relationships', $nuevas);
+    }
+
+    /** Pero la puerta del bucle NO pregunta nunca: ahí es donde era un 1+N. */
+    public function test_la_puerta_del_bucle_no_pregunta_por_grupo()
+    {
+        $antes = count($this->scp->calls);
+        sticpa_pl_group_people_bulk($this->scp, 'g2');
+        $nuevas = array_slice($this->scp->calls, $antes);
+
         $this->assertNotContains('ajmcm_GRUPOS:ajmcm_grupos_stic_contacts_relationships', $nuevas);
+    }
+
+    /** Y el filtro vuelve a su sitio: el siguiente grupo sí puede preguntar. */
+    public function test_la_puerta_del_bucle_no_deja_el_filtro_puesto()
+    {
+        sticpa_pl_group_people_bulk($this->scp, 'g2');
+
+        $antes = count($this->scp->calls);
+        sticpa_pl_group_people($this->scp, 'g2');
+        $nuevas = array_slice($this->scp->calls, $antes);
+        $this->assertContains('ajmcm_GRUPOS:ajmcm_grupos_stic_contacts_relationships', $nuevas);
     }
 
     /**

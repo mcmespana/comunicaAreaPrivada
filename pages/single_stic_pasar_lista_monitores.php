@@ -236,7 +236,12 @@ if ($scope['etapa'] !== '') {
     $html .= '<span class="pl-title-name">' . esc_html($scope['etapa']) . '</span>';
 }
 $html .= '</div>';
-$html .= '<div class="pl-subtitle">' . esc_html(sticpa_pl_session_label($session)) . '</div>';
+// En una reunión, lo que identifica la lista es su NOMBRE («Programación del
+// 2.º trimestre»); la fecha va detrás. En el sábado semanal es al revés.
+$subtitulo = ($isReunion && !empty($session['name']))
+    ? $session['name'] . ' · ' . sticpa_pl_session_label($session)
+    : sticpa_pl_session_label($session);
+$html .= '<div class="pl-subtitle">' . esc_html($subtitulo) . '</div>';
 $html .= '</div>';
 if (!$isReunion) {
     // El mismo desplegable nativo que la lista de participantes: la pregunta

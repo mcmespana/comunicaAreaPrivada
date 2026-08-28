@@ -25,13 +25,40 @@ if (!defined('ABSPATH')) {
 }
 
 /** ¿Se ha pedido el panel, y puede verlo quien lo pide? */
-function sticpa_pl_diag_requested($objSCP)
+function sticpa_pl_diag_requested($objSCP = null)
 {
     if (empty($_GET['pl_diag'])) {
         return false;
     }
+    // Hace falta estar dentro del área privada. Más allá de eso, quien lo pide
+    // lo ve: es un panel de diagnóstico, y esconderlo solo consigue que el
+    // fallo lo tenga que reproducir otra persona.
+    if (empty($_SESSION['scp_user_id'])) {
+        return false;
+    }
     return sticpa_pl_debug_allowed($objSCP);
 }
+
+/**
+ * El panel se pinta EN EL PIE de cualquier pantalla del área privada.
+ *
+ * En el pie y no dentro de la página por dos razones: así vale en las ocho
+ * pantallas sin repetir la llamada en cada archivo, y sobre todo así los
+ * contadores están COMPLETOS — en mitad del render aún faltan por hacer la
+ * mitad de las llamadas al CRM, que es justo lo que se quiere medir.
+ */
+function sticpa_pl_diag_footer()
+{
+    if (empty($_GET['pl_diag'])) {
+        return;
+    }
+    $objSCP = class_exists('SugarRestApiCall') ? SugarRestApiCall::getObjSCP() : null;
+    if (!sticpa_pl_diag_requested($objSCP)) {
+        return;
+    }
+    echo '<div class="stic-container pl-diag">' . sticpa_pl_diag_html($objSCP) . '</div>';
+}
+add_action('wp_footer', 'sticpa_pl_diag_footer', 20);
 
 /** El coste de las llamadas al CRM de esta petición, en texto corto. */
 function sticpa_pl_diag_cost()
@@ -135,7 +162,8 @@ function sticpa_pl_diag_html($objSCP)
 
     // 3. Contra qué instancia estamos hablando: la confusión producción/aptest ya
     //    ha costado un diagnóstico entero. Sin credenciales, solo el destino.
-    $url = function_exists('get_option') ? (string) get_option('sticpa_scp_rest_url', '') : '';
+    $esCoord = function_exists('sticpa_pl_is_coordinator') && sticpa_pl_is_coordinator($objSCP);
+    $url = ($esCoord && function_exists('get_option')) ? (string) get_option('sticpa_scp_rest_url', '') : '';
     if ($url !== '') {
         $html .= '<p>' . esc_html__('CRM configurado:', 'sticpa') . ' <code>'
             . esc_html($url) . '</code></p>';
