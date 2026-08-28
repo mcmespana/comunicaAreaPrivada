@@ -1694,6 +1694,61 @@ function sticpa_pl_ensure_registration($objSCP, $eventId, $contactId, $regMap)
 }
 
 /**
+ * El payload de ACTUALIZAR una asistencia, en un solo sitio.
+ *
+ * Lo arman dos: la tanda paralela que se adelanta a las escrituras y la
+ * escritura de verdad. Tienen que mandar EXACTAMENTE lo mismo —el memo va por
+ * la firma de la petición— o la tanda no sirve de nada y se paga dos veces.
+ */
+function sticpa_pl_att_update_payload($existing, $personId, $key, $note = null)
+{
+    $payload = array('id' => $existing[$personId]['id'], 'status' => $key);
+    // El motivo SOLO si cambia: mandarlo igual en cada guardado ensucia el
+    // registro de auditoría del CRM con cambios que no son cambios. Una cadena
+    // vacía sí se escribe cuando antes había algo: borrar es deliberado.
+    if ($note !== null) {
+        $before = isset($existing[$personId]['description'])
+            ? (string) $existing[$personId]['description'] : '';
+        if ((string) $note !== $before) {
+            $payload['description'] = (string) $note;
+        }
+    }
+    return $payload;
+}
+
+/**
+ * Adelanta EN UNA TANDA todas las asistencias que solo hay que actualizar.
+ *
+ * Guardar la lista de un C1 de doce eran doce escrituras en fila, una detrás de
+ * otra, con el monitor mirando la rueda: en móvil, seis segundos largos. Son
+ * independientes entre sí —doce filas distintas de la misma tabla— así que
+ * salen juntas y después cada una encuentra su respuesta ya traída.
+ *
+ * Las que hay que CREAR no entran: necesitan el id que devuelve el CRM para
+ * atarlas, así que van en serie. Son la excepción, no el caso normal.
+ */
+function sticpa_pl_prime_attendance_updates($objSCP, $marks, $existing, $notes = array())
+{
+    $payloads = array();
+    foreach ((array) $marks as $personId => $key) {
+        $key = (string) $key;
+        if ($key === '' || !sticpa_pl_is_state($key) || !isset($existing[$personId]['id'])) {
+            continue;
+        }
+        $note = array_key_exists($personId, (array) $notes) ? (string) $notes[$personId] : null;
+        $payloads[] = sticpa_pl_att_update_payload($existing, $personId, $key, $note);
+    }
+    if (count($payloads) < 2) {
+        return;   // una sola escritura no gana nada por ir «en paralelo»
+    }
+    sticpa_pl_prime($objSCP, function () use ($objSCP, $payloads) {
+        foreach ($payloads as $p) {
+            $objSCP->set_entry('stic_Attendances', $p);
+        }
+    });
+}
+
+/**
  * Escribe la asistencia de una persona en una sesión: la actualiza o la crea.
  *
  * Está en UN sitio porque participantes y monitores hacían lo mismo con dos
@@ -1710,14 +1765,7 @@ function sticpa_pl_write_attendance($objSCP, $sessionId, $personId, $key, $exist
     // Ya existe: actualizar es lo normal, porque el CRM crea las asistencias al
     // crear la inscripción.
     if (isset($existing[$personId]['id'])) {
-        $payload = array('id' => $existing[$personId]['id'], 'status' => $key);
-        if ($note !== null) {
-            $before = isset($existing[$personId]['description'])
-                ? (string) $existing[$personId]['description'] : '';
-            if ((string) $note !== $before) {
-                $payload['description'] = (string) $note;
-            }
-        }
+        $payload = sticpa_pl_att_update_payload($existing, $personId, $key, $note);
         if ($objSCP->set_entry('stic_Attendances', $payload)) {
             return array('ok' => true, 'error' => null);
         }
@@ -2377,6 +2425,10 @@ function sticpa_pl_save($objSCP, $sessionId, $groupId, $marks, $omitida = false,
 
     if (!$omitida) {
         $existing = sticpa_pl_session_attendances($objSCP, $sessionId, $regMap);
+
+        // TODAS LAS ACTUALIZACIONES, EN UNA TANDA. Doce chavales eran doce
+        // escrituras en fila con el monitor mirando la rueda.
+        sticpa_pl_prime_attendance_updates($objSCP, $marks, $existing, $notes);
 
         foreach ((array) $marks as $contactId => $key) {
             $key = (string) $key;
@@ -4456,6 +4508,16 @@ function sticpa_pl_save_monitors($objSCP, $sessionId, $monitors, $marks, $regMap
 
     $states = sticpa_pl_states();
     $existing = sticpa_pl_session_attendances($objSCP, $sessionId, $regMap);
+
+    // Igual que en participantes, pero con las marcas EFECTIVAS: aquí el que no
+    // está marcado se guarda como «vino», que es una afirmación y no un hueco.
+    $efectivas = array();
+    foreach ($monitors as $m) {
+        $efectivas[$m['id']] = (isset($marks[$m['id']]) && sticpa_pl_is_state($marks[$m['id']]))
+            ? $marks[$m['id']]
+            : 'yes';
+    }
+    sticpa_pl_prime_attendance_updates($objSCP, $efectivas, $existing);
 
     foreach ($monitors as $m) {
         $key = isset($marks[$m['id']]) && sticpa_pl_is_state($marks[$m['id']])

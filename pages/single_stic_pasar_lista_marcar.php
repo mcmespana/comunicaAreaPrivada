@@ -228,6 +228,17 @@ if (!empty($_POST['pl_action'])) {
 // Estado actual
 // ---------------------------------------------------------------------------
 
+/* MEDIDO Y DESCARTADO: meter estas dos lecturas en una tanda SUBE el coste.
+ *
+ * Parece la jugada obvia —son independientes y eran dos esperas en fila— pero
+ * `sticpa_pl_session_attendances()` tiene un respaldo que NO corre en modo
+ * recolecta (`!sticpa_pl_collecting()`), así que la tanda trae la consulta
+ * principal, vuelve vacía en esta instancia, y el respaldo sale igual después:
+ * se paga la tanda Y el respaldo. Medido con `CosteLlamadasTest`: de 10 a 12
+ * llamadas en la primera carga y de 4 a 6 al cambiar de fecha.
+ *
+ * Queda escrito para que nadie lo intente otra vez. Para ganar aquí hay que
+ * arreglar antes el respaldo, no envolverlo en una tanda. */
 $attendances = sticpa_pl_session_attendances($objSCP, $session['id'], $regMap);
 $lista = sticpa_pl_lista($objSCP, $session['id'], $groupId);
 

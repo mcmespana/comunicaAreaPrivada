@@ -857,6 +857,40 @@ class FakeSCP
 
     public function set_entry($module, $data)
     {
+        // UNA ESCRITURA EN MODO RECOLECTA NO ESCRIBE NADA.
+        //
+        // Es lo que hace el transporte de verdad: `call()` mira `$collecting`,
+        // apunta la petición y sale sin tocar el CRM. El doble no lo modelaba y
+        // contaba la pasada de recolecta como una escritura más: una lista de
+        // doce habría parecido veinticuatro escrituras, y —peor— un `prime()`
+        // que se colara antes de un `set_entry` de verdad habría pasado por
+        // bueno escribiendo dos veces.
+        if ($this->recolectando) {
+            $sig = 'se|' . md5(serialize(array($module, $data)));
+            if (!isset($this->recolectado[$sig])) {
+                $self = $this;
+                $this->recolectado[$sig] = array(
+                    'sig' => $sig,
+                    'label' => 'set_entry:' . $module,
+                    'producer' => function () use ($self, $module, $data) {
+                        return $self->escribir($module, $data);
+                    },
+                );
+            }
+            return null;
+        }
+        $sig = 'se|' . md5(serialize(array($module, $data)));
+        if (array_key_exists($sig, $this->traido)) {
+            $datos = $this->traido[$sig];
+            unset($this->traido[$sig]);
+            return $datos;   // ya la escribió la tanda: no se repite
+        }
+        return $this->escribir($module, $data);
+    }
+
+    /** La escritura de verdad, para que la tanda y la llamada suelta compartan. */
+    public function escribir($module, $data)
+    {
         $this->writes[] = array('module' => $module, 'data' => $data);
 
         if (in_array($module, $this->failWrites, true)) {
@@ -1427,6 +1461,35 @@ final class PasarListaRenderTest extends TestCase
      * no la cuenta en el porcentaje. Antes se lanzaba el enlace y nadie miraba
      * el resultado.
      */
+    /**
+     * GUARDAR NO PUEDE SER UNA ESCRITURA DETRÁS DE OTRA.
+     *
+     * Un C1 de doce eran doce `set_entry` en fila con el monitor mirando la
+     * rueda: en móvil, seis segundos largos por pulsar Guardar. Son doce filas
+     * distintas de la misma tabla, independientes entre sí, así que salen en
+     * UNA tanda. Se escriben las mismas doce veces; lo que cambia es que no se
+     * esperan una a otra.
+     */
+    public function test_guardar_manda_las_asistencias_en_una_tanda()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => json_encode(array('c1' => 'yes', 'c2' => 'no_unjustified')),
+        );
+        $this->render('single_stic_pasar_lista_marcar');
+
+        // Las dos asistencias, escritas una vez cada una.
+        $att = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Attendances';
+        }));
+        $this->assertCount(2, $att);
+
+        // Y las dos en la MISMA tanda: alguna de las tandas lleva 2 peticiones.
+        $this->assertContains(2, $this->scp->batches, 'las asistencias no van juntas');
+    }
+
     /**
      * SI NO SE PUEDE ATAR LA ASISTENCIA, NO SE ESCRIBE.
      *
