@@ -82,6 +82,280 @@ function sticpa_pl_icon($which)
  * Es un <button> y no un <div> con onclick: así lo alcanza el teclado y lo
  * anuncia el lector de pantalla sin tener que añadir roles a mano.
  */
+/**
+ * El AVATAR de una persona: su foto si la tiene, y si no sus iniciales.
+ *
+ * La foto se pide al endpoint `stic_pl_photo`, que la sirve como miniatura
+ * cacheada en disco — no va incrustada en el HTML. Si esa persona no tiene
+ * foto, el endpoint contesta 404 y el `onerror` deja las iniciales, que están
+ * DEBAJO desde el principio: así no hay salto ni hueco mientras carga, y sin
+ * JavaScript se ven las iniciales de siempre.
+ *
+ * @param bool $conFoto false donde no se quiera pagar la descarga (una lista
+ *                      larga son tantas peticiones como filas).
+ */
+function sticpa_pl_avatar_html($person, $conFoto = false, $clase = 'pl-avatar')
+{
+    $ini = isset($person['initials']) ? $person['initials'] : '';
+    // `aria-hidden`: las iniciales y la foto son decoración — el nombre va al
+    // lado, y un lector de pantalla que lea «ese ve» antes de «Solete
+    // Vilarroya» solo estorba.
+    $out = '<span class="' . esc_attr($clase) . '" aria-hidden="true">' . esc_html($ini);
+    if ($conFoto && !empty($person['id'])) {
+        $src = admin_url('admin-post.php?action=stic_pl_photo&persona=' . rawurlencode($person['id']));
+        $out .= '<img class="pl-avatar-img" src="' . esc_url($src) . '" alt=""'
+            . ' loading="lazy" decoding="async"'
+            . ' onerror="this.remove()">';
+    }
+    $out .= '</span>';
+    return $out;
+}
+
+/**
+ * EL BUSCADOR, en un solo sitio.
+ *
+ * Nació en el árbol de grupos y ahora lo usan las dos pantallas. Filtra lo YA
+ * PINTADO, en el navegador: ni una consulta más, ni una recarga. Quien lo
+ * pinta decide sobre qué filtra (grupos o personas); el JavaScript de
+ * `stic-pasar-lista.js` se encarga del resto.
+ *
+ * @param string $placeholder lo que se busca en esta pantalla, en su idioma.
+ * @param string $aria        etiqueta para el lector de pantalla.
+ */
+function sticpa_pl_buscador_html($placeholder, $aria = '')
+{
+    if ($aria === '') {
+        $aria = __('Buscar', 'sticpa');
+    }
+    $html = '<div class="pl-search">';
+    $html .= sticpa_pl_icon('search');
+    $html .= '<input type="search" data-pl-filter'
+        . ' placeholder="' . esc_attr($placeholder) . '"'
+        . ' aria-label="' . esc_attr($aria) . '"'
+        . ' autocomplete="off" enterkeyhint="search">';
+    $html .= '</div>';
+    return $html;
+}
+
+/**
+ * El «no hay nada que coincida» del buscador.
+ *
+ * Va oculto y lo enseña el JavaScript cuando el filtro deja la lista vacía. Va
+ * SIEMPRE al final de lo filtrable, no junto al cuadro de búsqueda: escribir y
+ * ver desaparecer todo sin una palabra se lee como que la pantalla se ha roto.
+ */
+function sticpa_pl_buscador_vacio_html($msg = '')
+{
+    if ($msg === '') {
+        $msg = __('Nada coincide con lo que buscas.', 'sticpa');
+    }
+    return '<p class="pl-search-empty" data-pl-filter-empty hidden>' . esc_html($msg) . '</p>';
+}
+
+/**
+ * El recuento de un grupo: «12 chavales · 2 monitores».
+ *
+ * Se cuenta la gente que de verdad se ha pintado, no el recuento nocturno del
+ * grupo: aquí el mapa de relaciones ya está cargado, así que contar es gratis y
+ * el número es el de ahora mismo. El recuento del Guardián sigue siendo el que
+ * usa el árbol de Pasar Lista, donde no se recorre la gente
+ * (PASAR-LISTA-RECUENTOS.md).
+ *
+ * Los monitores solo salen si los hay: «· 0 monitores» en un grupo de MIC es
+ * un dato que nadie ha pedido y que además alarma.
+ */
+function sticpa_pl_recuento_texto($nParticipantes, $nMonitores = 0)
+{
+    $nParticipantes = (int) $nParticipantes;
+    $nMonitores = (int) $nMonitores;
+
+    $bits = array(sprintf(
+        /* translators: %d: cuántos participantes tiene el grupo */
+        _n('%d chaval', '%d chavales', $nParticipantes, 'sticpa'),
+        $nParticipantes
+    ));
+    if ($nMonitores > 0) {
+        $bits[] = sprintf(
+            /* translators: %d: cuántos monitores tiene el grupo */
+            _n('%d monitor', '%d monitores', $nMonitores, 'sticpa'),
+            $nMonitores
+        );
+    }
+    return implode(' · ', $bits);
+}
+
+/**
+ * La nota al pie de los grupos que la casilla del CRM deja fuera.
+ *
+ * En gris pequeño y al final: es una nota al pie, no un aviso. Pero tiene que
+ * estar, porque un grupo que existe y no aparece, sin explicación, se lee como
+ * que la pantalla está rota. No cuesta una llamada: el número lo dejó contado
+ * `sticpa_pl_groups()` al filtrar.
+ */
+function sticpa_pl_grupos_ocultos_html($objSCP)
+{
+    $ocultos = sticpa_pl_grupos_ocultos($objSCP);
+    if ($ocultos <= 0) {
+        return '';
+    }
+    return '<p class="pl-footnote">' . esc_html(sprintf(
+        /* translators: %d: cuántos grupos no salen */
+        _n(
+            '%d grupo más en el CRM sin marcar para Pasar Lista.',
+            '%d grupos más en el CRM sin marcar para Pasar Lista.',
+            $ocultos,
+            'sticpa'
+        ),
+        $ocultos
+    )) . '</p>';
+}
+
+/**
+ * Una persona como ENLACE a su ficha, con la misma pinta que una fila de lista.
+ *
+ * Es la fila de «Mis grupos». No reutiliza `sticpa_pl_row_html()` a propósito:
+ * aquella es un `<button>` que marca asistencia y lleva su gesto largo, su
+ * anillo y su hoja de estados. Aquí no se marca nada — se lee — y meter un
+ * modo dentro de aquella sería arriesgar la pantalla que de verdad importa un
+ * sábado para ahorrarse veinte líneas.
+ *
+ * Lo que SÍ se reutiliza es todo lo visible: las mismas clases, el mismo
+ * avatar, la misma tipografía, la misma flecha. Se ve igual porque ES igual.
+ */
+function sticpa_pl_person_link_html($person, $href, $sub = '', $extra = '', $conFoto = false)
+{
+    $html = '<a class="pl-rowwrap pl-rowlink" href="' . esc_url($href) . '">';
+    $html .= sticpa_pl_avatar_html($person, $conFoto);
+    $html .= '<span class="pl-row-body">';
+    $html .= '<span class="pl-name">' . esc_html($person['name']) . '</span>';
+    if ($sub !== '') {
+        $html .= '<span class="pl-rowsub">' . esc_html($sub) . '</span>';
+    }
+    if ($extra !== '') {
+        $html .= '<span class="pl-note" style="color:var(--danger-dark)">' . esc_html($extra) . '</span>';
+    }
+    $html .= '</span>';
+    $html .= '<span class="pl-detail pl-detail--static">' . sticpa_pl_icon('next') . '</span>';
+    $html .= '</a>';
+    return $html;
+}
+
+/**
+ * DE DÓNDE VIENES, para poder volver ahí.
+ *
+ * La ficha se abre desde dos sitios muy distintos: desde la lista de marcar —y
+ * entonces volver es volver a marcar, en mitad de un sábado— y desde «Mis
+ * grupos», donde volver a marcar sería justo el precio que esa pantalla existe
+ * para no pagar.
+ *
+ * `vengo` lo dice, y solo acepta valores conocidos: lo que venga en la URL nunca
+ * se convierte en un enlace tal cual. Devuelve '' si no es de los nuestros, y
+ * quien llama decide su destino de siempre.
+ */
+function sticpa_pl_vengo_url($vengo, $vgrupo = '')
+{
+    $vengo = (string) $vengo;
+    $base = '?internalpage=single_stic_mis_grupos';
+
+    if ($vengo === 'grupo') {
+        $vgrupo = sticpa_pl_safe_id($vgrupo);
+        return ($vgrupo !== '') ? ($base . '&grupo=' . rawurlencode($vgrupo)) : $base;
+    }
+    if (in_array($vengo, array('grupos', 'cursos', 'az'), true)) {
+        return $base . '&ver=' . $vengo;
+    }
+    if ($vengo === 'monitores') {
+        return $base . '&quien=monitores';
+    }
+    return '';
+}
+
+/**
+ * Los vecinos de alguien en una lista: quién va antes, quién después y en qué
+ * posición está.
+ *
+ * Es lo que hace falta para leer varias fichas seguidas sin volver al índice
+ * entre una y otra. La lista es la que ya tiene la pantalla —la gente del
+ * grupo, que llega ordenada por apellido—, así que esto no cuesta nada.
+ *
+ * NO da la vuelta al final a propósito: llegar al último y volver al primero
+ * sin avisar es leer dos veces la misma ficha creyendo que se avanza.
+ */
+function sticpa_pl_vecinos($lista, $id)
+{
+    $lista = array_values($lista);
+    $out = array('prev' => null, 'next' => null, 'pos' => 0, 'total' => count($lista));
+    foreach ($lista as $i => $p) {
+        if (!isset($p['id']) || $p['id'] !== $id) {
+            continue;
+        }
+        $out['pos'] = $i + 1;
+        if ($i > 0) {
+            $out['prev'] = $lista[$i - 1];
+        }
+        if ($i + 1 < count($lista)) {
+            $out['next'] = $lista[$i + 1];
+        }
+        break;
+    }
+    return $out;
+}
+
+/**
+ * El pie de «anterior / siguiente» de una ficha.
+ *
+ * Va AL FINAL y no en la cabecera: leer una ficha es bajar hasta abajo, y el
+ * sitio donde se decide pasar a la siguiente es donde se acaba la anterior.
+ *
+ * Lleva el NOMBRE de quien viene, no solo una flecha: saber a quién pasas es lo
+ * que convierte esto en «me leo el grupo entero» en vez de en un botón a
+ * ciegas. Y en medio, la posición: sin ella no se sabe cuánto queda.
+ *
+ * @param callable $href recibe la persona y devuelve su URL.
+ */
+function sticpa_pl_pager_html($vecinos, $href)
+{
+    if (empty($vecinos['prev']) && empty($vecinos['next'])) {
+        return '';   // una sola ficha: un pie que no lleva a ningún sitio es ruido
+    }
+
+    $lado = function ($p, $dir) use ($href) {
+        $clase = 'pl-pager-side pl-pager-side--' . $dir;
+        if (empty($p)) {
+            // El hueco se mantiene: sin él, el «siguiente» del último se
+            // desplaza al centro y parece otro botón.
+            return '<span class="' . $clase . ' pl-pager-side--none" aria-hidden="true"></span>';
+        }
+        $etiqueta = ($dir === 'prev') ? __('Anterior', 'sticpa') : __('Siguiente', 'sticpa');
+        $out = '<a class="' . $clase . '" href="' . esc_url($href($p)) . '">';
+        if ($dir === 'prev') {
+            $out .= '<span class="pl-pager-arrow">' . sticpa_pl_icon('back') . '</span>';
+        }
+        $out .= '<span class="pl-pager-body">'
+            . '<span class="pl-pager-label">' . esc_html($etiqueta) . '</span>'
+            . '<span class="pl-pager-name">' . esc_html($p['name']) . '</span>'
+            . '</span>';
+        if ($dir === 'next') {
+            $out .= '<span class="pl-pager-arrow">' . sticpa_pl_icon('next') . '</span>';
+        }
+        return $out . '</a>';
+    };
+
+    $html = '<nav class="pl-pager" aria-label="' . esc_attr__('Otras fichas del grupo', 'sticpa') . '">';
+    $html .= $lado(isset($vecinos['prev']) ? $vecinos['prev'] : null, 'prev');
+    if (!empty($vecinos['total']) && !empty($vecinos['pos'])) {
+        $html .= '<span class="pl-pager-pos">' . esc_html(sprintf(
+            /* translators: 1: posición de esta ficha, 2: cuántas hay en el grupo */
+            __('%1$d de %2$d', 'sticpa'),
+            $vecinos['pos'],
+            $vecinos['total']
+        )) . '</span>';
+    }
+    $html .= $lado(isset($vecinos['next']) ? $vecinos['next'] : null, 'next');
+    $html .= '</nav>';
+    return $html;
+}
+
 function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub = '', $motive = '', $aviso = '', $track = null)
 {
     $states = sticpa_pl_states();

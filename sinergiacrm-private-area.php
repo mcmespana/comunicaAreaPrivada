@@ -106,7 +106,7 @@ function dcms_insertar_js()
     $page = sticpa_current_internal_page();
     $isList = strpos($page, 'list_') === 0;
     $isCalendar = ($page === 'single_stic_activities_calendar');
-    $isPasarLista = (strpos($page, 'single_stic_pasar_lista') === 0);
+    $isPasarLista = function_exists('sticpa_es_pantalla_pl') && sticpa_es_pantalla_pl($page);
     $isSingleForm = (strpos($page, 'single_') === 0) && !$isCalendar && !$isPasarLista;
     $ibanPages = array(
         'single_stic_payment_form',
@@ -1363,7 +1363,7 @@ function sugar_crm_portal_style_and_script()
         // archivos: dos saltos DNS+TLS delante del primer pintado.
         // Capa BASE consolidada (UI-15: ex stic-style + stic-modern-style, en ese orden).
         wp_enqueue_style('stic-base', plugins_url('css/stic-base.css', __FILE__), array(), $ver('css/stic-base.css'));
-        $isPasarListaPage = (strpos($page, 'single_stic_pasar_lista') === 0);
+        $isPasarListaPage = function_exists('sticpa_es_pantalla_pl') && sticpa_es_pantalla_pl($page);
         if (strpos($page, 'single_') === 0 && $page !== 'single_stic_activities_calendar' && !$isPasarListaPage) {
             wp_enqueue_style('stic-multiselect', plugins_url('css/selectize.css', __FILE__), array('stic-base'), $ver('css/selectize.css'));
         }

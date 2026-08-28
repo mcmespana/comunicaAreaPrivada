@@ -131,13 +131,27 @@ $family = sticpa_pl_family($objSCP, $contactId);
 // Cabecera
 // ---------------------------------------------------------------------------
 
+/* La vuelta atrás lleva a DONDE VENÍAS. Desde marcar, a marcar; desde «Mis
+ * grupos», a «Mis grupos» — devolver ahí a la lista de marcar sería justo el
+ * precio que esa pantalla existe para no pagar. */
+$vengo = isset($_REQUEST['vengo']) ? (string) $_REQUEST['vengo'] : '';
+$volver = sticpa_pl_vengo_url($vengo, $groupId);
+$volverTexto = ($volver !== '') ? __('Volver a mis grupos', 'sticpa') : __('Volver a la lista', 'sticpa');
+if ($volver === '') {
+    // Un `vengo` que no es de los nuestros se TIRA aquí, y no solo se ignora al
+    // construir el enlace: si no, el pie de «siguiente» lo seguía arrastrando de
+    // ficha en ficha. Nunca se propaga lo que no se ha reconocido.
+    $vengo = '';
+    $volver = '?internalpage=single_stic_pasar_lista_marcar&grupo=' . rawurlencode($groupId);
+}
+
 /* La cabecera es solo la vuelta atrás y la palabra "Ficha": el nombre no va
  * aquí, va en el bloque de identidad de debajo. Meterlo en la cabecera lo dejaba
  * a 1,15 rem y compitiendo con la flecha; un nombre propio es la cara de esta
  * pantalla y merece su sitio y su tamaño. */
 $html .= '<div class="pl-head">';
-$html .= '<a class="pl-back" href="?internalpage=single_stic_pasar_lista_marcar&grupo=' . esc_attr($groupId) . '"'
-    . ' aria-label="' . esc_attr__('Volver a la lista', 'sticpa') . '">' . sticpa_pl_icon('back') . '</a>';
+$html .= '<a class="pl-back" href="' . esc_url($volver) . '"'
+    . ' aria-label="' . esc_attr($volverTexto) . '">' . sticpa_pl_icon('back') . '</a>';
 $html .= '<div class="pl-head-titles">';
 $html .= '<div class="pl-subtitle">' . esc_html__('Ficha', 'sticpa') . '</div>';
 $html .= '</div>';
@@ -166,8 +180,14 @@ if ($ficha['stic_age_c'] !== '') {
 }
 
 $html .= '<div class="pl-ident">';
-$html .= '<span class="pl-ident-avatar" aria-hidden="true">'
-    . esc_html(sticpa_pl_initials('', '', $ficha['name'])) . '</span>';
+/* LA FOTO, si la hay. Va aquí y no en la lista: una ficha es UNA persona, así
+ * que es una petición, no cincuenta. Debajo siguen las iniciales de siempre —si
+ * no tiene foto, o el CRM tarda, o falla, no queda un hueco. */
+$html .= sticpa_pl_avatar_html(
+    array('id' => $contactId, 'initials' => sticpa_pl_initials('', '', $ficha['name'])),
+    true,
+    'pl-ident-avatar'
+);
 $html .= '<span class="pl-ident-body">';
 $html .= '<span class="pl-ident-name">' . esc_html($ficha['name']) . '</span>';
 if (!empty($bits)) {
@@ -722,3 +742,30 @@ if (!empty($dataRows)) {
 // Los avisos de comportamiento llegan cuando exista el módulo AVI_avisos
 // (PASAR-LISTA-CAMPOS-CRM.md §6). No se pinta un bloque vacío: enseñar una
 // sección que no hace nada es peor que no enseñarla.
+
+// ---------------------------------------------------------------------------
+// Anterior / siguiente
+// ---------------------------------------------------------------------------
+
+/* Leer varias fichas seguidas sin volver al índice entre una y otra. Es lo que
+ * hace falta para prepararse un sábado: te lees el grupo entero de una sentada.
+ *
+ * Va al FINAL porque leer una ficha es bajar hasta abajo, y aquí es donde se
+ * decide pasar a la siguiente.
+ *
+ * La lista es la del grupo, que ya está cargada y ordenada por apellido: esto
+ * no cuesta ni una llamada más. Y NO depende de la sesión —que era justo la
+ * pega de llegar por marcar—, así que los enlaces no arrastran `sesion`: si se
+ * está leyendo, no se está marcando.
+ *
+ * `vengo` sí viaja: si vuelves atrás desde la cuarta ficha, vuelves al sitio
+ * del que saliste, no a la lista de marcar. */
+$html .= sticpa_pl_pager_html(
+    sticpa_pl_vecinos($people['participants'], $contactId),
+    function ($p) use ($groupId, $vengo) {
+        return '?internalpage=single_stic_pasar_lista_ficha'
+            . '&participante=' . rawurlencode($p['id'])
+            . '&grupo=' . rawurlencode($groupId)
+            . ($vengo !== '' ? '&vengo=' . rawurlencode($vengo) : '');
+    }
+);

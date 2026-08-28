@@ -84,43 +84,20 @@ Siguiente paso concreto, y en este orden:
 | 🟡 | `ajmcm_pasar_lista_c` (la casilla del grupo) tiene **`default: 1`** en el CRM: un grupo nuevo entrará solo en Pasar Lista. Probablemente es lo que se quiere; conviene saberlo. |
 | 🟡 | `end_date` **no existe** en `stic_Attendances` (la API devuelve 400 si se manda). Solo hay `start_date`. |
 
-### 💡 Anotado para hablarlo: un navegador de fichas sin pasar lista
+### ✅ El navegador de fichas ya está: es «Mis grupos» (28/08/2026)
 
-**No está hecho y no se ha empezado.** El propietario lo pidió el 28/08 y
-quiere hablarlo antes.
+Se pidió y se hizo el mismo día. Sección propia en el menú, al lado de Pasar
+Lista, con tres vistas (grupos / cursos / A-Z), buscador, recuentos, fotos y
+anterior-siguiente entre fichas. Para coordinación, los monitores por etapa.
 
-El problema: hoy, para ver los datos de un chaval o de un monitor, hay que
-**«pagar el precio» de entrar a pasar una lista** — portada → árbol de grupos →
-marcar → flecha de la fila → ficha. La ficha ya tiene todo lo que hace falta,
-pero está enterrada detrás de un flujo que es para otra cosa.
+**El detalle entero está en [`MIS-GRUPOS.md`](MIS-GRUPOS.md)**, incluido cómo se
+resolvieron las cinco preguntas que tenía abiertas. Lo que queda por decidir es
+menor y está en su §6.
 
-Lo que se quiere: una pantalla que lleve **directamente a fichas y a listas de
-personas**, sin pasar por marcar. Navegable por lo que tenga sentido —**por
-grupos, alfabética, por cursos**— y para las dos poblaciones: niños y monitores.
-
-Lo que ya está resuelto y se puede reaprovechar tal cual:
-
-- `sticpa_pl_all_relationships()` ya trae **toda** la gente de la delegación en
-  una consulta, con su grupo, su papel y su vigencia. El navegador no necesita
-  ni una consulta nueva: es re-presentar lo que ya se carga.
-- `sticpa_pl_contacts_bulk()` resuelve los datos de lista de mucha gente de una
-  vez (nombre, iniciales, edad, móvil).
-- Las dos fichas (`_ficha` para participantes, `_monitor` para monitores) ya
-  existen, ya agrupan sus consultas y ya son la pantalla que sustituye a abrir
-  el CRM.
-- La lista de monitores (`_monitores`) ya es medio navegador: tiene alcance por
-  etapa y buscador.
-
-Lo que hay que decidir (esto es lo que hay que hablar):
-
-1. **¿Una pantalla o dos?** ¿Niños y monitores juntos con un conmutador, o
-   separados como ahora?
-2. **¿Cuál es el orden por defecto?** Por grupo es lo que coincide con cómo se
-   piensa un sábado; alfabético es lo que sirve cuando buscas a alguien
-   concreto y no recuerdas su grupo.
-3. **¿Quién lo ve?** Un monitor solo su grupo, o toda la delegación (que es lo
-   que ya puede hacer hoy pasando lista de cualquier grupo).
-4. **¿Entra en el menú principal** o cuelga de la portada de Pasar Lista?
+Lo que importa aquí: **no tiene ni un cargador propio**. Tres llamadas en una
+sola tanda partiendo de frío, cero con la caché caliente. Si alguien añade una
+consulta ahí, casi seguro está repitiendo una que ya existe — y salta el tope de
+`CosteLlamadasTest`.
 
 ---
 
@@ -429,6 +406,9 @@ llamada fallaba en silencio y caía a respaldos 1+N).
 | Resumen | 7 | 3 |
 | Ficha del participante | 13 | 7 |
 | Lista de monitores | 10 | 4 |
+| **Mis grupos** (índice, y sus tres vistas) | **3** | **2** |
+| Mis grupos → un grupo | 3 (5 si el mapa falla) | 2 |
+| Mis grupos → monitores | 4 | 3 |
 | **Cambiar de fecha** (caché caliente) | **4** | 4 |
 
 Lo que bajó esos números el 28/08: matar el 1+N que resolvía a la gente de un

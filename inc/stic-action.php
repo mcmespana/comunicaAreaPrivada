@@ -1039,6 +1039,22 @@ function prefix_admin_stic_profile_photo()
         session_write_close();
     }
 
+    sticpa_serve_contact_photo($userId);
+}
+
+/**
+ * Sirve la foto de UN contacto como miniatura JPEG cacheada, y termina.
+ *
+ * Es el cuerpo que antes vivía dentro del endpoint del perfil. Se saca aquí
+ * porque «Mis grupos» necesita exactamente lo mismo para otra persona, y
+ * duplicar un pipeline con caché en disco, redimensionado y sus tres caminos de
+ * fallo es la forma segura de que uno de los dos se quede sin arreglar.
+ *
+ * OJO: esta función NO autoriza nada. Quien la llama tiene que haber decidido
+ * ya que ese contacto se le puede enseñar a quien está pidiendo.
+ */
+function sticpa_serve_contact_photo($userId)
+{
     $cachePath = sticpa_profile_photo_cache_path($userId);
 
     // Miniatura cacheada y fresca (< 24h) → se sirve directamente, sin CRM.
@@ -1099,6 +1115,62 @@ function prefix_admin_stic_profile_photo()
     header('Content-Length: ' . filesize($cachePath));
     readfile($cachePath);
     exit;
+}
+
+/**
+ * La foto de OTRA persona: la de un chaval o un monitor de tu delegación.
+ *
+ * LA AUTORIZACIÓN ES LO ÚNICO QUE IMPORTA AQUÍ, así que va explícita y en
+ * primer lugar. El endpoint del perfil no acepta un id del request a propósito
+ * («el id nunca viene del request»); este SÍ lo acepta, y por eso tiene que
+ * ganarse el derecho a hacerlo:
+ *
+ *  1. Quien pide tiene que ser MONITOR y estar mirando sus propias pantallas
+ *     (un familiar viendo la ficha de su hijo no navega fichas de nadie).
+ *  2. La persona pedida tiene que salir en el mapa de relaciones de SU
+ *     delegación. Es el mismo alcance que ya decide qué fichas puede abrir:
+ *     esto no enseña a nadie a quien no pudiera ver ya entero.
+ *
+ * El mapa está cacheado, así que la comprobación no cuesta ninguna llamada al
+ * CRM. Y si el id no está, se contesta 403 y no 404: un 404 diría «esa persona
+ * no tiene foto», que es contar algo de alguien que no te toca.
+ */
+add_action('admin_post_stic_pl_photo', 'sticpa_pl_photo_endpoint');
+add_action('admin_post_nopriv_stic_pl_photo', 'sticpa_pl_photo_endpoint');
+function sticpa_pl_photo_endpoint()
+{
+    if (empty($_SESSION['scp_user_id'])) {
+        status_header(403);
+        exit;
+    }
+    $role = function_exists('sticpa_get_comunica_role') ? sticpa_get_comunica_role() : '';
+    $audience = function_exists('sticpa_profile_audience') ? sticpa_profile_audience() : '';
+    if ($role !== 'monitor' || $audience === 'participante') {
+        status_header(403);
+        exit;
+    }
+
+    $id = isset($_REQUEST['persona']) ? sticpa_pl_safe_id($_REQUEST['persona']) : '';
+    if ($id === '') {
+        status_header(400);
+        exit;
+    }
+
+    $objSCP = SugarRestApiCall::getObjSCP();
+    if (!sticpa_pl_persona_de_mi_delegacion($objSCP, $id)) {
+        status_header(403);
+        exit;
+    }
+
+    // A partir de aquí no se escribe en la sesión: se suelta el candado para que
+    // las fotos de una lista se descarguen en paralelo y no en fila detrás del
+    // HTML de la página que las pide (la misma razón que en el endpoint del
+    // perfil, y aquí pesa más porque son varias).
+    if (session_id()) {
+        session_write_close();
+    }
+
+    sticpa_serve_contact_photo($id);
 }
 
 /**

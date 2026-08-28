@@ -203,9 +203,20 @@ $conNombres = function ($personas, $tope = 4) {
 // Cabecera e identidad
 // ---------------------------------------------------------------------------
 
+/* La vuelta atrás, a donde venías: desde «Mis grupos» se vuelve a «Mis
+ * grupos», no a la lista de monitores de coordinación. */
+$volver = sticpa_pl_vengo_url(
+    isset($_REQUEST['vengo']) ? $_REQUEST['vengo'] : '',
+    isset($_REQUEST['vgrupo']) ? $_REQUEST['vgrupo'] : ''
+);
+$volverTexto = ($volver !== '') ? __('Volver a mis grupos', 'sticpa') : __('Volver a monitores', 'sticpa');
+if ($volver === '') {
+    $volver = '?internalpage=single_stic_pasar_lista_monitores';
+}
+
 $html .= '<div class="pl-head">';
-$html .= '<a class="pl-back" href="?internalpage=single_stic_pasar_lista_monitores"'
-    . ' aria-label="' . esc_attr__('Volver a monitores', 'sticpa') . '">' . sticpa_pl_icon('back') . '</a>';
+$html .= '<a class="pl-back" href="' . esc_url($volver) . '"'
+    . ' aria-label="' . esc_attr($volverTexto) . '">' . sticpa_pl_icon('back') . '</a>';
 $html .= '<div class="pl-head-titles">';
 $html .= '<div class="pl-subtitle">' . esc_html__('Ficha del monitor', 'sticpa') . '</div>';
 $html .= '</div>';
@@ -238,8 +249,13 @@ if ($since !== '') {
 }
 
 $html .= '<div class="pl-ident">';
-$html .= '<span class="pl-ident-avatar" aria-hidden="true">'
-    . esc_html(sticpa_pl_initials('', '', $ficha['name'])) . '</span>';
+// La foto del monitor, igual que en la ficha de un participante: una persona,
+// una petición. Debajo quedan las iniciales si no la tiene.
+$html .= sticpa_pl_avatar_html(
+    array('id' => $monitorId, 'initials' => sticpa_pl_initials('', '', $ficha['name'])),
+    true,
+    'pl-ident-avatar'
+);
 $html .= '<span class="pl-ident-body">';
 $html .= '<span class="pl-ident-name">' . esc_html($ficha['name']) . '</span>';
 if (!empty($bits)) {

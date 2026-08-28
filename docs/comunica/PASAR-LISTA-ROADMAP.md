@@ -180,55 +180,25 @@ plantilla.
 
 ## Melones pendientes
 
-### 🥇 El navegador de fichas: ver los datos sin pasar lista
+### ✅ El navegador de fichas — HECHO: es «Mis grupos» (28/08/2026)
 
-**Pedido el 28/08/2026. Hay que hablarlo antes de tocar código.**
+Pedido y construido el mismo día. Vive en `pages/single_stic_mis_grupos.php` y
+en el menú al lado de Pasar Lista. El detalle está en
+[`MIS-GRUPOS.md`](MIS-GRUPOS.md); aquí queda solo cómo se decidieron las cinco
+preguntas que tenía abiertas:
 
-Hoy, para ver los datos de un chaval o de un monitor, hay que **«pagar el
-precio» de entrar a pasar una lista**: portada → árbol de grupos → marcar →
-flecha de la fila → ficha. La ficha ya tiene todo lo que hace falta —sustituye a
-abrir el CRM— pero está enterrada detrás de un flujo que es para otra cosa.
-
-Lo que se quiere: una pantalla que lleve **directamente a fichas y a listas de
-personas**, sin pasar por marcar. Navegable por lo que tenga sentido —**por
-grupos, alfabética, por cursos**— y para las dos poblaciones: niños y monitores.
-
-**Lo que ya está resuelto y se reaprovecha tal cual** (esto es lo que hace que
-sea barato):
-
-- `sticpa_pl_all_relationships()` trae **toda** la gente de la delegación en una
-  consulta, con su grupo, su papel y su vigencia. El navegador no necesita ni
-  una consulta nueva: es re-presentar lo que ya se carga en cada pantalla.
-- `sticpa_pl_contacts_bulk()` resuelve los datos de lista de mucha gente de una
-  vez: nombre, iniciales, edad, móvil.
-- Las dos fichas (`single_stic_pasar_lista_ficha` para participantes,
-  `single_stic_pasar_lista_monitor` para monitores) ya existen, ya agrupan sus
-  consultas en tandas y ya son la pantalla que sustituye al CRM.
-- La lista de monitores (`single_stic_pasar_lista_monitores`) ya es medio
-  navegador: alcance por etapa y buscador.
-- `sticpa_pl_curso_rank()` y `sticpa_pl_sort_key()` ya ordenan por curso y por
-  apellido.
-
-**Lo que hay que decidir, y por eso está sin empezar:**
-
-1. **¿Una pantalla o dos?** Niños y monitores juntos con un conmutador, o
-   separados como ahora.
-2. **¿Cuál es el orden por defecto?** Por grupo coincide con cómo se piensa un
-   sábado; alfabético es lo que sirve cuando buscas a alguien y no recuerdas su
-   grupo. Probablemente hacen falta los dos, pero uno tiene que ser el primero.
-3. **¿Quién lo ve?** Un monitor solo su grupo, o toda la delegación — que es lo
-   que ya puede hacer hoy pasando lista de cualquier grupo, así que restringirlo
-   aquí sería incoherente.
-4. **¿Entra en el menú principal** o cuelga de la portada de Pasar Lista?
-5. **¿Y la ficha de un participante, sin grupo en la URL?** Hoy
-   `single_stic_pasar_lista_ficha` exige `?grupo=` y comprueba que la persona
-   esté en él. Desde un navegador alfabético puede no haber grupo de partida:
-   hay que decidir si se deduce o si se hace opcional (y entonces cómo se
-   comprueba que la persona es de la delegación).
-
-**Ojo con lo que NO se puede romper:** el alcance sigue siendo la delegación, y
-nada interdelegacional. El navegador no puede convertirse en la puerta por la
-que alguien vea a gente de otra delegación.
+1. **¿Una pantalla o dos?** Una, con conmutador. Los monitores son una pestaña
+   que solo se pinta si tienes alcance de coordinación.
+2. **¿Orden por defecto?** Por grupos, y los tuyos primero. Alfabético y por
+   curso son las otras dos pestañas.
+3. **¿Quién lo ve?** Toda la delegación, igual que hoy puede pasar lista de
+   cualquier grupo. Restringirlo aquí habría sido incoherente.
+4. **¿Menú o portada?** Menú, al lado de Pasar Lista: es una sección, no un
+   rincón de otra.
+5. **¿Ficha sin grupo en la URL?** No hizo falta tocar la ficha: todas las
+   entradas de «Mis grupos» conocen el grupo de la persona y lo pasan. La ficha
+   sigue exigiendo `?grupo=` y comprobándolo, que es lo que impide que un id
+   cambiado a mano enseñe a alguien de otra delegación.
 
 ### 0. Recuentos y nombres de monitor en la ficha del grupo
 
