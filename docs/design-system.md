@@ -1,5 +1,11 @@
 # Sistema de diseño del Área Privada (Comunica / MCM)
 
+> **Relación con [`design.md`](../design.md):** `design.md` es **la ley** —qué se
+> decide y por qué, para las dos superficies de Comunica—. Este documento es **el
+> manual de la casa**: dónde está cada cosa en ESTE repo. Si los dos dicen algo
+> distinto sobre una decisión de diseño, manda `design.md`; sobre dónde vive un
+> fichero o una clase, manda este.
+>
 > **Para quién es esto:** cualquier persona o agente de IA que tenga que tocar la
 > interfaz del área privada. Léelo ANTES de escribir CSS o HTML nuevo. Si sigues
 > estas reglas, lo que hagas se verá "del sistema" sin esfuerzo; si no las sigues,
@@ -77,8 +83,9 @@ Definidos en `:root` de `custom-style.css` §1. Los importantes:
 --ease-out / --ease-spring   /* curvas de animación */
 ```
 
-Los grises (`--gray-50`…`--gray-900`) vienen de `stic-modern-style.css` y se
-usan por variable. **Regla de oro: para recolorear el área entera solo se
+Los grises (`--gray-50`…`--gray-900`) viven también en ese `:root` único de
+`custom-style.css` §1 (antes estaban en `stic-modern-style.css`, un fichero que
+ya no existe: lo consolidó UI-15 y el plan 018 fase 1 movió sus tokens aquí). **Regla de oro: para recolorear el área entera solo se
 editan `--primary-*` y `--secondary-*`.**
 
 ### Escala visual

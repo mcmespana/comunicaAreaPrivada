@@ -54,9 +54,13 @@ contexto**. Reglas:
 
 ## Convenciones del proyecto
 
-- **Diseño**: [`docs/design-system.md`](docs/design-system.md) es de lectura
-  obligada antes de tocar pantallas. Tokens en `css/custom-style.css` §1;
-  componentes que ya existen, se reutilizan.
+- **Diseño**: **[`design.md`](design.md) es LA ley de diseño** (marca, jerarquía,
+  tono, anti-patrones, cómo se verifica) y vale para las dos superficies —área
+  privada y formularios públicos—. Léelo antes de tocar pantallas.
+  [`docs/design-system.md`](docs/design-system.md) es el manual de la casa:
+  dónde está cada cosa en ESTE repo (ficheros, secciones de CSS, motor de
+  formularios). Tokens en `css/custom-style.css` §1; componentes que ya existen,
+  se reutilizan.
 - **Todo lo que se cree en el CRM va asignado a su delegación**
   (`assigned_user_id` = el usuario de la delegación), porque de ahí cuelga el
   grupo de seguridad y así cada delegación controla lo suyo. Un monitor solo ve
@@ -94,4 +98,6 @@ El mapa de los demás documentos está en
 | Pasar Lista — seguimientos de monitores | `docs/comunica/PASAR-LISTA-SEGUIMIENTOS.md` |
 | Contrato con MCM App (webview) | `docs/comunica/CONTRATO-APP-WEBVIEW.md` |
 | Guardián Nocturno del CRM (mantenimiento de madrugada) | `docs/comunica/GUARDIAN-NOCTURNO.md` |
-| Sistema de diseño | `docs/design-system.md` |
+| **Ley de diseño (las dos superficies)** | `design.md` |
+| Sistema de diseño de este repo | `docs/design-system.md` |
+| Deuda de diseño y unificación entre repos | `plans/039-unificar-el-lenguaje-visual-mcm.md` |
