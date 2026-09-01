@@ -65,6 +65,27 @@
     --shadow-glow: 0 0 0 4px color-mix(in srgb, var(--primary-color) 16%, transparent);
     --shadow-glow-pink: 0 0 0 4px color-mix(in srgb, var(--secondary-color) 16%, transparent);
 
+    /* ---- Encima de un relleno de MARCA (§44 NO los toca a propósito) ----
+       Los degradados de marca se fijan con los hex originales en los dos temas,
+       así que lo que va ENCIMA tampoco se puede tematizar.
+
+       `--on-brand` NO es `--white`: `--white` es un token de SUPERFICIE y en
+       oscuro vale #16171a, así que usarlo para el texto de un botón de marca lo
+       dejaba en negro sobre el degradado —ilegible— justo en el tema en el que
+       más se nota.
+
+       `--brand-blue-fixed` hace pareja: encima de un degradado, el fondo es
+       blanco de verdad y la letra el azul de verdad. `--primary-color` no sirve
+       porque en oscuro se aclara a #3f95d6 para leerse sobre oscuro, y ahí va
+       sobre blanco: 3,2:1, por debajo del AA.
+
+       Nacieron en pasar-lista.css (como `--pl-on-brand` / `--pl-brand-fixed`),
+       pero el problema es general: ~40 reglas de esta hoja ya lo resolvían a
+       mano con un #fff literal. Al escribir una regla nueva que pinte sobre
+       marca, usa estos. */
+    --on-brand: #fff;
+    --brand-blue-fixed: #1c6fb3;
+
     /* ---- Radios generosos ---- */
     --radius-sm: 0.55rem;
     --radius-md: 0.85rem;
@@ -1415,7 +1436,14 @@ span.stic-field {
 }
 
 /* ============================================================
-   17. MODO OSCURO (Desactivado a petición)
+   17. MODO OSCURO → ESTÁ EN LA §44
+   ------------------------------------------------------------
+   Esta sección se quedó vacía al implementar el tema claro/oscuro
+   automático (plan 016): todo el modo oscuro vive en la §44, que se
+   engancha a `data-stic-scheme`. El rótulo se conserva —en vez de
+   borrar el número— porque quien busque «modo oscuro» en este fichero
+   llega aquí primero, y antes leía «Desactivado a petición» y se creía
+   que no había.
    ============================================================ */
 
 /* ============================================================
@@ -2223,7 +2251,7 @@ span.stic-field {
 .fc .fc-toolbar.fc-header-toolbar { margin-bottom: 1rem !important; flex-wrap: wrap; gap: 0.5rem; }
 
 /* ============================================================
-   24. OPTIMIZACIÓN PANTALLA LOGIN PARA ORDENADOR (PC)
+   52. OPTIMIZACIÓN PANTALLA LOGIN PARA ORDENADOR (PC)   [antes §24, duplicado]
    ============================================================ */
 @media (min-width: 561px) {
     /* Convertir el contenedor exterior en la tarjeta lila principal en PC */
@@ -2668,10 +2696,10 @@ span.stic-field {
 }
 
 /* ============================================================
-   27. MODAL DE CONFIRMACIÓN DE BORRADO (custom, sin confirm nativo)
+   53. MODAL DE CONFIRMACIÓN DE BORRADO (custom, sin confirm nativo)   [antes §27, duplicado]
    ============================================================ */
 
-/* --- 27.a Overlay con fondo helado (backdrop-blur) --- */
+/* --- 53.a Overlay con fondo helado (backdrop-blur) --- */
 .stic-modal-overlay {
     position: fixed;
     inset: 0;
@@ -2694,7 +2722,7 @@ span.stic-field {
     visibility: visible;
 }
 
-/* --- 27.b Tarjeta central --- */
+/* --- 53.b Tarjeta central --- */
 .stic-modal-card {
     position: relative;
     width: 100%;
@@ -2716,7 +2744,7 @@ span.stic-field {
     opacity: 1;
 }
 
-/* --- 27.c Icono circular de advertencia --- */
+/* --- 53.c Icono circular de advertencia --- */
 .stic-modal-icon {
     display: inline-flex;
     align-items: center;
@@ -2731,7 +2759,7 @@ span.stic-field {
     stroke: var(--danger-color);
 }
 
-/* --- 27.d Tipografía --- */
+/* --- 53.d Tipografía --- */
 .stic-modal-title {
     margin: 0 0 0.45rem;
     font-size: 1.15rem;
@@ -2746,7 +2774,7 @@ span.stic-field {
     color: var(--gray-500, #6b7280);
 }
 
-/* --- 27.e Fila de botones --- */
+/* --- 53.e Fila de botones --- */
 .stic-modal-actions {
     display: flex;
     gap: 0.7rem;
@@ -2798,7 +2826,7 @@ span.stic-field {
     flex-shrink: 0;
 }
 
-/* --- 27.f Responsivo --- */
+/* --- 53.f Responsivo --- */
 @media (max-width: 480px) {
     .stic-modal-card {
         padding: 1.8rem 1.4rem 1.5rem;
@@ -4260,7 +4288,7 @@ span.stic-field {
 
 /* --- 44.f Calendario (FullCalendar 5) ------------------------------------
    FullCalendar expone sus propias variables CSS: se redefinen y el resto de
-   §23/§45 (que ya usa tokens) viene solo. */
+   §23/§45/§54 (que ya usa tokens) viene solo. */
 :root[data-stic-scheme="dark"] #calendar,
 :root[data-stic-scheme="dark"] .stic-calendar-wrap {
     --fc-page-bg-color: var(--surface);
@@ -4443,7 +4471,7 @@ span.stic-field {
 /* ---- Evento en la rejilla (Mes): render PROPIO vía eventContent (plan 022) ----
    Quitamos el "chrome" por defecto de FullCalendar (fondo/borde/punto) y pintamos
    nosotros un chip uniforme para TODOS los tipos (rango o sesión con hora):
-   ESCRITORIO = punto de color + título; MÓVIL (§45) = solo barra de color. */
+   ESCRITORIO = punto de color + título; MÓVIL (§54) = solo barra de color. */
 .fc .fc-daygrid-event {
     background: transparent !important;
     border: 0 !important;
@@ -4473,7 +4501,7 @@ span.stic-field {
 /* ---- Lista del día seleccionado (móvil): el detalle vive DEBAJO del
    calendario, como en los calendarios de iOS/Google. La pinta stic-init.js
    al tocar un día; en escritorio no se usa (allí la celda ya lleva el título). ---- */
-.stic-cal-day { display: none; } /* solo móvil (se activa en §45) */
+.stic-cal-day { display: none; } /* solo móvil (se activa en §54) */
 .stic-cal-day-head {
     font-weight: 800;
     font-size: 0.95rem;
@@ -4672,7 +4700,7 @@ span.stic-field {
 .stic-agenda-cta:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
 
 /* ============================================================
-   45. CALENDARIO EN MÓVIL — el sitio principal es la app (?app=1)
+   54. CALENDARIO EN MÓVIL — el sitio principal es la app (?app=1)   [antes §45, duplicado]
    ------------------------------------------------------------
    Un calendario en móvil siempre aprieta: aquí lo hacemos respirar.
    · Menos cajas: el calendario va a sangre (sin doble borde).
@@ -5290,7 +5318,7 @@ span.stic-field {
    ============================================================ */
 
 /* --- 50.a Tarjeta: en escritorio, dos columnas ---------------------------
-   OJO con la §24: a partir de 561px es el SHELL el que hace de tarjeta (con
+   OJO con la §52: a partir de 561px es el SHELL el que hace de tarjeta (con
    su borde, sombra y `overflow:hidden`) y la tarjeta interior queda
    transparente y sin padding, todo con `!important`. Aquí no se pelea contra
    eso: se aprovecha. El shell se ensancha y pierde su padding, y la tarjeta
@@ -5298,7 +5326,7 @@ span.stic-field {
    llega a sangre hasta el borde redondeado del shell. */
 /* --- 50.a-bis El control de apariencia necesita SU hueco -------------------
    `.stic-appearance` va `position:absolute; bottom:0` dentro del shell, y §43
-   reserva el hueco con `padding-bottom` en el shell. Pero §24 (≥561px) pisa el
+   reserva el hueco con `padding-bottom` en el shell. Pero §52 (≥561px) pisa el
    padding del shell con `!important` y se lleva por delante esa reserva: de
    561px para arriba el control se montaba encima del pie de la tarjeta
    ("¿Aún no tienes acceso?"). Por debajo de 561px nunca pasó, porque ahí manda
@@ -5598,7 +5626,7 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 }
 
 /* ============================================================
-   45. CÓDIGO DE ACCESO (OTP de 6 cifras)
+   55. CÓDIGO DE ACCESO (OTP de 6 cifras)   [antes §45, duplicado]
    ------------------------------------------------------------
    Pantalla a la que se llega tras pedir acceso por correo
    (`sticpa_access_code_form()`). En la app va abierta; en
