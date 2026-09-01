@@ -265,6 +265,61 @@ $html .= '</span>';
 $html .= '</div>';
 
 // ---------------------------------------------------------------------------
+// LO IMPRESCINDIBLE: la misma cajita que en la ficha de un chaval
+// ---------------------------------------------------------------------------
+
+/* Lo que coordinación tiene que ver ANTES de nada, en la misma tira compacta
+ * de pastillas que la ficha de un participante — mismas clases, mismos
+ * colores, mismo sitio: es el mismo gesto y no merece un segundo idioma.
+ *
+ * Lo que entra aquí, y NADA más:
+ *
+ *   - LOS REQUISITOS QUE FALTAN, por su nombre. El certificado de delitos
+ *     sexuales no es «un campo más de la ficha»: sin él esa persona no puede
+ *     estar con menores, y estaba enterrado bajo asistencia, grupos y
+ *     seguimientos, dentro de una lista de nueve filas donde ocho están bien.
+ *     Se nombran los dos primeros; si son más, se dice cuántos. Un «faltan 3
+ *     requisitos» sin decir cuáles obliga a bajar igualmente.
+ *   - Los permisos (LOPD, cesión de imágenes) NO cuentan: un «no» ahí es una
+ *     decisión suya, no un incumplimiento. Ya lo distingue `req` en
+ *     `sticpa_pl_monitor_bloques()`, y esta cajita respeta esa distinción.
+ *
+ * Si está todo en regla no se pinta nada: una cajita verde de «todo bien» en
+ * cada ficha enseña a no mirarla, y el día que se ponga roja tampoco se verá. */
+$faltan = array();
+foreach (sticpa_pl_monitor_bloques($ficha) as $bloque) {
+    if (!isset($bloque['key']) || $bloque['key'] !== 'regla') {
+        continue;
+    }
+    foreach ($bloque['rows'] as $fila) {
+        if (!empty($fila['req']) && empty($fila['ok'])) {
+            $faltan[] = $fila['label'];
+        }
+    }
+}
+
+if (!empty($faltan)) {
+    $nombres = array_slice($faltan, 0, 2);
+    $texto = implode(' · ', $nombres);
+    if (count($faltan) > count($nombres)) {
+        $texto .= ' ' . sprintf(
+            /* translators: %d: cuántos requisitos más faltan */
+            _n('y %d más', 'y %d más', count($faltan) - count($nombres), 'sticpa'),
+            count($faltan) - count($nombres)
+        );
+    }
+    $html .= '<div class="pl-urge">';
+    $html .= '<span class="pl-urge-bit pl-urge-bit--comida">'
+        . sticpa_pl_icon('warn')
+        . '<span>' . esc_html(sprintf(
+            /* translators: %s: los requisitos que le faltan */
+            __('Falta: %s', 'sticpa'),
+            $texto
+        )) . '</span></span>';
+    $html .= '</div>';
+}
+
+// ---------------------------------------------------------------------------
 // Contacto: los dos botones grandes, antes de cualquier dato
 // ---------------------------------------------------------------------------
 

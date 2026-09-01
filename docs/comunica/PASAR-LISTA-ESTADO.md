@@ -29,26 +29,50 @@ se toquen, la aplicación seguirá enseñando menos de lo que hay.
 | 🔴 | **Un centenar de asistencias basura `Unknown - Unknown \| `** (todas del 28/08 a la 01:10, colgando de la sesión del 02/05/2026, ninguna enlazada a nadie). El código que las creaba ya está arreglado, pero las que hay siguen ahí. | Borrado lógico (`deleted: true`) de las `stic_Attendances` cuyo `name` empiece por `Unknown` **y** no tengan inscripción enlazada. El propietario dijo que las borra él. **No tocar** las 24 de Solete ni ninguna con inscripción. |
 | 🟡 | **Dos `LIS_listas` para la sesión del 02/05/2026**: una de `monitores` (pasada, 24/5) y otra de `participantes` (omitida, 0/0). Convivir no es ilegal —son de tipos distintos— pero conviene revisar que la de participantes en `omitida` sea lo que se quiso. | Mirarla y decidir. El código ya elige siempre la misma cuando hay dos, y lo avisa en pantalla. |
 
-### ✅ La salud, arriba en la ficha (01/09/2026)
+### ✅ «Lo imprescindible»: una cajita arriba en las dos fichas (01/09/2026)
 
-Estaba tras contacto, asistencia y avisos: cuatro secciones de scroll hasta
-«Frutos secos (anafilaxia)». Ahora va justo debajo de los botones de contacto.
+Una tira compacta de pastillas bajo los botones de contacto, con lo que hay que
+saber ANTES de nada. Misma clase (`.pl-urge`), mismos colores y mismo sitio en
+la ficha de un participante y en la de un monitor: es el mismo gesto y no
+merece un segundo idioma.
 
-Sube **entera y sin partirse**: un resumen arriba y el detalle abajo es la forma
-segura de que alguien lea solo la mitad. Lo que cambia es el peso dentro del
-bloque — alergias e intolerancias con franja roja y una etiqueta «Ojo con la
-comida»; tratamientos, enfermedades y otras patologías como estaban—, porque una
-alergia y unas gafas no son la misma urgencia y pintarlas igual hace que ninguna
-destaque.
+**En la ficha de un chaval:** alergias e intolerancias **con su texto**, la
+racha de ausencias si pasa del umbral, y los avisos abiertos. Estaba todo tras
+contacto, asistencia y avisos: cuatro secciones de scroll hasta «Frutos secos
+(anafilaxia)».
 
-Si no hay ningún dato de salud, **no se pinta nada**: una tarjeta vacía en todas
-las fichas enseña a no mirarla, y el día que tenga contenido tampoco se mirará.
-Eso obligó a arreglar el doble de test, que devolvía la MISMA ficha para
-cualquier id — o sea que las fichas sin alergias no existían en los tests.
+**En la ficha de un monitor:** los requisitos que le faltan, **por su nombre**.
+El certificado de delitos sexuales no es un campo más — sin él esa persona no
+puede estar con menores— y estaba enterrado en una lista de nueve filas donde
+ocho están bien. Los permisos (LOPD, cesión de imágenes) **no** cuentan: un
+«no» ahí es una decisión suya, no un incumplimiento, y ya lo distingue `req` en
+`sticpa_pl_monitor_bloques()`.
 
-Cierra la fila 3 del plan 037 en su parte de urgencia.
+**Lo que NO se hizo, y por qué.** El primer intento subió el bloque de salud
+entero. Ocupaba media pantalla de campos etiquetados —tratamientos,
+enfermedades, otras patologías— para llegar al único dato urgente, y arriba el
+espacio es lo más caro que hay. Ahora arriba va el RESUMEN y los campos con su
+etiqueta se quedan abajo, en su sección de siempre.
 
-### 🟡 Lo que queda por comprobar en producción
+Sí, las alergias salen dos veces. Es a propósito: la cajita es para el vistazo
+de tres segundos y la sección para la consulta, y quitar el dato de una de las
+dos rompe justo el sitio donde se estaba mirando.
+
+Si no hay nada que decir **no se pinta nada**. Una cajita vacía —o una verde de
+«todo bien»— en cada ficha enseña a no mirarla, y el día que se ponga roja
+tampoco se verá.
+
+⚠️ Regla para quien venga: **cada pastilla que se añada resta a las otras.** Una
+tira con seis cosas ya no es «lo imprescindible», es otra sección.
+
+Esto obligó a arreglar dos mentiras del doble de test: devolvía la MISMA ficha
+para cualquier id (así que las fichas sin alergias no existían) y no había forma
+de pisar un campo para probar un requisito sin cumplir. Ahora hay
+`FakeSCP::$fichaOverrides`.
+
+Cierra la parte urgente de la fila 3 del plan 037.
+
+### 🟡 Lo que queda por comprobar en producción### 🟡 Lo que queda por comprobar en producción
 
 Todo lo del 28/08 por la tarde está probado con tests pero **no confirmado
 contra el CRM real**. Lo que hay que mirar la próxima vez que se pase lista:
@@ -85,7 +109,8 @@ cambia con el tema, con el ancho y con la plantilla.
 `.stic-tab-content`: medio contenedor menos medio viewport es exactamente lo que
 sobra a cada lado, **sea el que sea**. No hay número que medir ni que mantener.
 Después se devuelve el aire deseado con `padding-inline: var(--pl-gutter)`, que
-está en un solo sitio (hoy `0.85rem`).
+está en un solo sitio (hoy `0.6rem` ≈ 10 px: se pidió aprovechar al máximo el
+espacio, así que va apretado).
 
 Tres cosas que lo sostienen, y las tres tienen test (`TokensCssTest`):
 
@@ -113,7 +138,7 @@ ahí.
 | | Qué |
 |---|---|
 | ✅ | ~~Alguien puede ser monitor de dos grupos~~ — resuelto el 28/08/2026, ver §2. |
-| 🟡 | El grupo `Najar` no es de participantes MIC-COM y aparece en el árbol. Hay que decidir el filtro de qué grupos salen. |
+| ✅ | ~~El grupo `Najar` aparece en el árbol.~~ Comprobado el 01/09/2026 contra el CRM: su `ajmcm_pasar_lista_c` **ya está a 0**, y la lógica del filtro es correcta. Si se seguía viendo era la caché de estructura (24 h): con el botón de refrescar desaparece. Nada que tocar en código. |
 | 🟡 | Los «sectores» (COM I = los dos primeros cursos de la ESO, etc.) se agrupan **a mano**. No hay campo en el CRM y de momento no lo va a haber. |
 | 🟡 | El filtro plano por campo de enlace (`..._ida`) en `get_entry_list` devuelve **error 400 de base de datos** en `stic_Sessions`, `LIS_listas`, `stic_Registrations` y `stic_Contacts_Relationships`. Se puede LEER el campo, pero no FILTRAR por él. Para consultar por relación hay que ir por `get_relationships`. Ojo: no es lo mismo que la trampa de §3.1 — ahí el problema es el enlace anidado que no viene; aquí es el filtro que el CRM rechaza. |
 | 🟡 | `ajmcm_curso_escolar_c` **existe** en `stic_Contacts_Relationships` y está **vacío en todas** las relaciones reales. El curso del histórico se deduce de `start_date` y `end_date`. Si algún día se rellena, hay que mirar antes las claves internas de su desplegable. |

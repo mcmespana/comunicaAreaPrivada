@@ -2785,7 +2785,11 @@ a.pl-group .pl-name { display: block; }
 
    EL AIRE, en una variable y en un solo sitio: si hay que subirlo o bajarlo, se
    toca aquí y cambian las siete pantallas a la vez. */
-:root { --pl-gutter: 0.85rem; }
+/* 0.6rem ≈ 10 px. Se pidió «aprovechar al máximo el espacio», así que va
+   apretado: lo justo para que las tarjetas no parezcan pegadas al cristal.
+   Un número, un sitio: si se quiere más aire o menos, se cambia aquí y cambian
+   las ocho pantallas a la vez. */
+:root { --pl-gutter: 0.6rem; }
 
 .stic-tab-content {
     /* `width: auto` Y CON `!important`, que no es cosmético: `menu.php` pinta
@@ -3234,39 +3238,52 @@ a.pl-group .pl-name { display: block; }
     .pl-suelto-act { width: 100%; margin-left: 0; }
 }
 
-/* ---- Salud: lo que hay que ver ANTES de la merienda ----------------------
-   El bloque subió al principio de la ficha (estaba tras contacto, asistencia y
-   avisos: cuatro secciones de scroll hasta «Frutos secos (anafilaxia)»).
+/* ---- LO IMPRESCINDIBLE: la cajita de arriba -----------------------------
+   Una tira de pastillas bajo los botones de contacto con lo que hay que saber
+   ANTES de darle la merienda a alguien o de dejarle marchar: alergias e
+   intolerancias con su texto, la racha de ausencias y los avisos abiertos.
 
-   Dentro, alergias e intolerancias pesan más que el resto. No es decoración:
-   una alergia y unas gafas no son la misma urgencia, y pintarlas igual hace
-   que ninguna destaque. El resto de filas se quedan como estaban, para que el
-   rojo signifique algo. */
-.pl-list--urge {
-    border: 1px solid var(--danger-border);
-    box-shadow: none;
-}
-.pl-data--urge { background: var(--danger-100); }
-.pl-data--urge .pl-data-label { color: var(--danger-dark); }
-.pl-data--urge .pl-data-value { font-weight: 700; }
-/* La franja roja a la izquierda: se ve al pasar la pantalla sin leer, que es
-   como se mira una ficha con prisa. */
-.pl-data--urge {
-    border-left: 3px solid var(--danger-color);
-    padding-left: calc(0.85rem - 3px);
+   COMPACTA A PROPÓSITO. Se probó a subir el bloque de salud entero y ocupaba
+   media pantalla de campos etiquetados para llegar al único dato urgente.
+   Aquí el espacio de arriba es lo más caro que hay: pastillas que se envuelven,
+   sin etiquetas y sin cajas dentro de cajas.
+
+   El color dice el tipo sin leer: rojo lo médico, ámbar lo de comportamiento.
+   Si un día hay que añadir una cuarta pastilla, pensárselo dos veces — cada
+   una que entra resta a las otras, y una tira con seis cosas ya no es «lo
+   imprescindible», es otra sección. */
+.pl-urge {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding: 0.15rem 0 0.55rem;
 }
 
-/* La etiqueta de la cabecera de Salud, al lado del título. Dice de un vistazo
-   por qué esta ficha lleva rojo, sin tener que leer las filas. */
-.pl-health-flag {
+.pl-urge-bit {
     display: inline-flex;
     align-items: center;
-    gap: 0.3rem;
-    flex-shrink: 0;
-    font-size: 0.72rem;
-    font-weight: 800;
-    color: var(--danger-dark);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    gap: 0.35rem;
+    min-width: 0;
+    padding: 0.32rem 0.6rem;
+    border-radius: var(--radius-full);
+    font-size: 0.79rem;
+    font-weight: 700;
+    line-height: 1.25;
 }
-.pl-health-flag svg { width: 14px; height: 14px; }
+.pl-urge-bit svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* Lo médico: rojo. Es lo que puede acabar en urgencias. */
+.pl-urge-bit--comida {
+    background: var(--danger-100);
+    color: var(--danger-dark);
+    border: 1px solid var(--danger-border);
+}
+/* Lo de comportamiento y asistencia: ámbar. Reclama una llamada, no una
+   ambulancia, y mezclarlo con el rojo haría que el rojo dejara de significar
+   algo. */
+.pl-urge-bit--faltas,
+.pl-urge-bit--avisos {
+    background: var(--warning-100);
+    color: var(--warning-darker);
+    border: 1px solid var(--warning-border);
+}
