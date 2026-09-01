@@ -81,6 +81,12 @@ Definidos en `:root` de `custom-style.css` §1. Los importantes:
 --radius-sm … --radius-2xl, --radius-full
 --font-family     /* Inter + system stack */
 --ease-out / --ease-spring   /* curvas de animación */
+
+--on-brand         /* texto ENCIMA de un relleno de marca: blanco FIJO en los dos
+                      temas. No uses --white: en oscuro vale #16171a. */
+--brand-blue-fixed /* el azul de marca SIN tematizar, para cuando el fondo es
+                      blanco de verdad (encima de un degradado). No uses
+                      --primary-color: en oscuro se aclara y no llega a AA. */
 ```
 
 Los grises (`--gray-50`…`--gray-900`) viven también en ese `:root` único de
@@ -117,7 +123,7 @@ editan `--primary-*` y `--secondary-*`.**
 | Listados como tarjetas | `.stic-table-responsive`, `.stic-cell-title` | §22 CSS · `inc/stic-listController.php` |
 | Dropzone de archivos | `input[type=file]` + badge `.stic-file-uploaded-badge` | §26 CSS |
 | Toggle Sí/No (checkbox) | `input[type=checkbox]` estilizado como switch | §25 CSS |
-| Modal de confirmación | `.stic-modal-*` | §27 CSS · `js/stic-utils.js::confirmDelete` |
+| Modal de confirmación | `.stic-modal-*` | §53 CSS · `js/stic-utils.js::confirmDelete` |
 | Estado vacío | `.stic-empty-state` | §28 CSS |
 | Botones | `.stic-button` (primario degradado), `.stic-back-button` (secundario), `.stic-danger-button` (peligro), `.stic-soft-btn` (suave), `.stic-legal-link` (píldora outline) | §11, 23 CSS |
 | Overlay de carga | `.stic-loading-overlay` (form con clase `stic-loading-form` + `data-loading-text`) | §5 CSS · `js/stic-ui.js` |
@@ -482,7 +488,7 @@ offline con Chromium** (ya instalado, `/opt/pw-browsers/chromium-*`):
 4. Si algo no cuadra, **mide en el navegador** (`getBoundingClientRect`,
    `getComputedStyle`) en vez de adivinar la especificidad: en este CSS hay
    `!important` portantes y reglas antiguas que ganan por número de elementos
-   (ver §24 vs §50 en el login).
+   (ver §52 vs §50 en el login).
 
 **Contra el SITIO REAL (cuando el render offline no basta).** El área privada
 vive dentro de un WordPress con Astra + Elementor, y ahí pasan cosas que el

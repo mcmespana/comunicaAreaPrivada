@@ -99,9 +99,12 @@ Reglas del degradado:
 - **Los degradados llevan los hex fijos, no los tokens de acento.** En oscuro
   los acentos se aclaran para que el TEXTO se lea; el degradado tiene que
   seguir siendo el de la marca. No mezcles los dos papeles.
-- El texto que va **encima** de un relleno de marca es blanco fijo, no
+- El texto que va **encima** de un relleno de marca es `--on-brand`, no
   `--white` (que en oscuro vale `#16171a` y te deja letras negras sobre el
-  degradado).
+  degradado). Y si sobre ese degradado pones un fondo blanco de verdad, el azul
+  que va encima es `--brand-blue-fixed`, no `--primary-color` (que en oscuro se
+  aclara a `#3f95d6` y sobre blanco da 3,2:1, por debajo del AA). Los dos son
+  fijos en los dos temas, a propósito.
 
 **Verde.** Existe un verde de marca (`#0f8a50`) que identifica los formularios
 de participantes, y un verde de estado «éxito» (`#2f9e44`). **No son el mismo
@@ -403,10 +406,11 @@ con solución propuesta y orden de ejecución, en
 
 - Dos vocabularios de tokens (`--primary-*` vs `--mcm-*`) para los mismos hex.
 - Breakpoints inventados sobre la marcha en las dos superficies.
-- `custom-style.css` con números de sección repetidos (24, 27, 45×3) y una
-  §17 «modo oscuro desactivado» que la §44 desmiente.
-- Tokens de uso general atrapados en `pasar-lista.css` (`--pl-on-brand`,
-  `--pl-brand-fixed`).
+- ~~`custom-style.css` con números de sección repetidos y una §17 «modo oscuro
+  desactivado» que la §44 desmiente.~~ **Resuelto**: los duplicados pasaron a
+  §52-§55 (con nota del número viejo) y la §17 apunta a la §44.
+- ~~Tokens de uso general atrapados en `pasar-lista.css`.~~ **Resuelto**: son
+  `--on-brand` y `--brand-blue-fixed` en `custom-style.css` §1.
 - Inter autoalojada en el área privada y solo «si el dispositivo la tiene» en
   los formularios: las dos superficies de la misma marca no comparten letra.
 - `docs/design-system.md` §3 cita `stic-modern-style.css`, un fichero que ya no
