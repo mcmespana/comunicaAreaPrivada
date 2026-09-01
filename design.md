@@ -106,10 +106,23 @@ Reglas del degradado:
   aclara a `#3f95d6` y sobre blanco da 3,2:1, por debajo del AA). Los dos son
   fijos en los dos temas, a propósito.
 
-**Verde.** Existe un verde de marca (`#0f8a50`) que identifica los formularios
-de participantes, y un verde de estado «éxito» (`#2f9e44`). **No son el mismo
-color y no se usan el uno por el otro**: uno es identidad de formulario, el
-otro es «esto ha salido bien».
+**Verde.** Hay un verde de **identidad** (`--brand-green`, `#0f8a50`) que es el
+color del formulario de participantes, hermano del azul y del magenta; y un
+verde de **estado**, «esto ha salido bien». **No son el mismo color y no se usan
+el uno por el otro.**
+
+El verde de estado tiene dos hex según el papel que juegue, y es correcto que
+así sea:
+
+| Papel | Token | Hex | Contraste | Umbral |
+|---|---|---|---|---|
+| Texto de éxito (área privada) | `--success-dark` | `#076b4d` | 6,21:1 sobre `--success-soft` | 4,5 |
+| Texto de éxito (formularios) | `--success-dark` | `#15803d` | 4,79:1 sobre su fondo | 4,5 |
+| Borde / acento de éxito | `--success-color` | `#2f9e44` | 3,45:1 sobre blanco | 3,0 |
+
+Cada uno cumple **su** umbral. Igualarlos rompería uno de los dos: el borde no
+necesita 4,5 y el texto no se conforma con 3,45. Lo que sí está unificado es el
+**nombre del rol**, para que se vea de un vistazo cuál es texto y cuál no.
 
 **Recolorear.** Para cambiar el color de todo el producto se editan los tokens
 de marca y nada más. Si hay que tocar una regla para recolorear, esa regla
@@ -143,18 +156,36 @@ Tipografía  Inter + system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif
 Si necesitas un color que no existe: **créalo como token** con su valor claro y
 —en el área privada— su valor oscuro. No lo escribas en la regla.
 
-> ⚠️ Hoy las dos superficies llaman a los mismos hex con nombres distintos
-> (`--primary-color` vs `--mcm-brand-blue`). Está identificado y planificado en
-> [`plans/039-unificar-el-lenguaje-visual-mcm.md`](plans/039-unificar-el-lenguaje-visual-mcm.md).
-> **Mientras no se ejecute: usa el prefijo del repo en el que estés.** No
-> introduzcas un tercer nombre.
+### El nombre bueno es el semántico
+
+Los mismos hex tenían dos nombres según el repo. Ya no: **los formularios
+entienden también los nombres del área privada**, así que escribe siempre estos
+y funcionan en las dos superficies.
+
+| Concepto | Escribe esto | Alias vivo en formularios |
+|---|---|---|
+| Azul Comunica | `--primary-color` | `--mcm-brand-blue` |
+| Violeta puente | `--accent-color` | `--mcm-brand-violet` |
+| Magenta Consolación | `--secondary-color` | `--mcm-brand-magenta` |
+| Superficie / alterna | `--surface` / `--surface-2` | `--mcm-surface` / `--mcm-surface-alt` |
+| Tooltip oscuro | `--tip-bg` / `--tip-fg` | `--mcm-tip-bg` / `--mcm-tip-fg` |
+| Anillo de foco | `--shadow-glow` | sale de `--form-ring` (el acento del formulario) |
+| Texto sobre marca | `--on-brand` | — |
+
+Manda el semántico porque deja **recolorear sin renombrar**, que es lo que
+promete el sistema; `--mcm-brand-blue` obliga a que el azul sea azul para
+siempre. Los `--mcm-*` no se borran: son alias vivos, los usan cientos de reglas
+y el contrato de la app MCM los referencia. **Lo viejo se migra solo cuando se
+toca ese componente por otro motivo. Un tercer nombre, nunca.**
 
 ---
 
 ## 5. Tipografía y escala
 
-Una sola familia: **Inter**, con la pila del sistema detrás. En el área privada
-va autoalojada (`fonts/inter-latin-var.woff2`) y siempre se ve Inter.
+Una sola familia: **Inter**, con la pila del sistema detrás. Va **autoalojada en
+las dos superficies** (`fonts/inter-latin-var.woff2` y su `latin-ext`), así que
+siempre se ve Inter y no se depende de que el dispositivo la tenga. Nunca se
+carga desde Google Fonts.
 
 | Uso | Tamaño / peso |
 |---|---|
@@ -425,7 +456,8 @@ No la repitas y no la des por buena si te la encuentras. Está toda recogida,
 con solución propuesta y orden de ejecución, en
 [`plans/039-unificar-el-lenguaje-visual-mcm.md`](plans/039-unificar-el-lenguaje-visual-mcm.md):
 
-- Dos vocabularios de tokens (`--primary-*` vs `--mcm-*`) para los mismos hex.
+- ~~Dos vocabularios de tokens para los mismos hex.~~ **Resuelto**: los
+  formularios entienden ya los nombres semánticos (§4).
 - ~~Breakpoints inventados sobre la marcha en las dos superficies.~~
   **Escala fijada** (§5). Quedan los históricos, que se migran al tocarlos.
 - ~~`custom-style.css` con números de sección repetidos y una §17 «modo oscuro
@@ -433,8 +465,9 @@ con solución propuesta y orden de ejecución, en
   §52-§55 (con nota del número viejo) y la §17 apunta a la §44.
 - ~~Tokens de uso general atrapados en `pasar-lista.css`.~~ **Resuelto**: son
   `--on-brand` y `--brand-blue-fixed` en `custom-style.css` §1.
-- Inter autoalojada en el área privada y solo «si el dispositivo la tiene» en
-  los formularios: las dos superficies de la misma marca no comparten letra.
+- ~~Inter solo «si el dispositivo la tiene» en los formularios.~~ **Resuelto**:
+  autoalojada también allí, con los mismos woff2.
+- ~~Tres verdes para dos conceptos.~~ **Resuelto**: separados por rol (§3).
 - `docs/design-system.md` §3 cita `stic-modern-style.css`, un fichero que ya no
   existe.
 

@@ -34,13 +34,13 @@ La regla que ordena todo el plan: **un concepto, un nombre, un sitio.**
 
 | # | Qué | Repo | Esfuerzo | Riesgo | Estado |
 |---|---|---|---|---|---|
-| 1 | Un solo vocabulario de tokens entre las dos superficies | ambos | M | MED | TODO |
+| 1 | Un solo vocabulario de tokens entre las dos superficies | ambos | M | MED | **HECHO** (2026-08-31) |
 | 2 | Fijar la escala de breakpoints y dejar de inventar | ambos | S | BAJO | **HECHO** (2026-08-31) |
 | 3 | Renumerar las secciones de `custom-style.css` y matar la §17 | privada | S | BAJO | **HECHO** (2026-08-31) |
 | 4 | Subir `--pl-on-brand` y `--pl-brand-fixed` a tokens globales | privada | S | BAJO | **HECHO** (2026-08-31) |
-| 5 | Inter en los formularios: la misma letra en las dos superficies | formularios | S | BAJO | TODO |
+| 5 | Inter en los formularios: la misma letra en las dos superficies | formularios | S | BAJO | **HECHO** (2026-08-31) |
 | 6 | Limpiar las referencias muertas de `docs/design-system.md` | privada | S | NULO | **HECHO** (2026-08-31) |
-| 7 | Los dos verdes: separar identidad de estado, por nombre | ambos | S | BAJO | TODO |
+| 7 | Los dos verdes: separar identidad de estado, por nombre | ambos | S | BAJO | **HECHO** (2026-08-31) — con cambio de criterio |
 | 8 | `design.md` de los formularios: anexo, no copia | formularios | S | NULO | **HECHO** (2026-08-31) |
 | 9 | `CAMPOS.md`: un original y una copia que se sincroniza sola | ambos | S | BAJO | **HECHO** (2026-08-31) |
 
@@ -93,9 +93,21 @@ siempre. Además el área privada es la superficie grande y la que más crece.
 aspecto, es que ese nombre ya se usaba con otro valor: párate y dilo, no lo
 resuelvas por tu cuenta.
 
-**Verificación.** Captura de `monitores/monitores.html` y `com-lc/laicos.html`
-a 375 / 768 / 1100 antes y después. Deben ser idénticas al píxel: añadir alias
-no cambia nada.
+**Verificación.** Un diff del CSS **sin comentarios**: solo pueden aparecer
+líneas nuevas, ninguna modificada.
+
+**Resultado (2026-08-31).** Hecho: diecinueve declaraciones nuevas y cero
+modificadas. Como ninguna regla las usa todavía, no hay cambio visual posible y
+la captura no aporta nada sobre el diff.
+
+**Una trampa que costó dos intentos, y por eso está en el CSS con comentario
+largo.** `--shadow-glow` puesto en el `:root` se quedaba azul en los formularios
+magenta y verde: el `var()` de dentro de una custom property se resuelve **en el
+elemento donde se declara**, así que se congelaba con el acento por defecto del
+`:root`. Vive en el bloque `.crm-profile-app` de la §13 —el mismo elemento que
+lleva la clase `.theme-*`— y sale de `--form-ring`, que es el token que cada
+tema cambia (no `--mcm-accent-ring`, que es solo el valor azul por defecto).
+Comprobado en Chromium en los tres temas: azul, magenta y verde.
 
 ---
 
@@ -265,6 +277,22 @@ pero es coherente, que es más de lo que hay hoy.
 
 **STOP condition.** Si el LCP móvil empeora más de 150ms, para y pregunta.
 
+**Resultado (2026-08-31).** Hecho, con los dos subsets. Los woff2 van en
+`fonts/` del repo de formularios y el deploy FTP los sube a la **raíz** del
+hosting —no a `/formularios/`— porque las URL relativas de un CSS se resuelven
+contra el propio CSS, que se despliega en la raíz. El job falla si los woff2 no
+están, igual que ya hacía con el CSS.
+
+Sobre el peso: la idea de partir en `latin` (48 KB) y `latin-ext` (85 KB) es que
+el navegador pida solo el que necesite. En la prueba con texto español Chromium
+se trajo solo `latin`, pero en otra combinación se trajo los dos, así que el
+comentario del CSS cuenta con **136 KB en el peor caso** en vez de prometer un
+ahorro que no se pudo demostrar en el entorno de prueba. Se cachean.
+
+No se midió el LCP contra producción (no hay acceso desde aquí). Si alguien lo
+mide y se ha ido de los 150ms, la salida es servir solo el subset `latin`:
+cubre el español entero y son 48 KB.
+
 ---
 
 ## Fila 6 — Limpiar `docs/design-system.md`
@@ -328,6 +356,32 @@ en las dos superficies.
 
 **STOP condition.** Si el cambio de hex de «éxito» toca más de diez reglas,
 sepáralo a su propia sesión con capturas antes/después.
+
+## Resultado de la fila 7 (2026-08-31) — con cambio de criterio
+
+**El paso 2 de arriba estaba mal y NO se ha hecho.** Al mirar el uso real, los
+dos verdes de «éxito» no juegan el mismo papel:
+
+| | Se usa como | Contraste | Umbral |
+|---|---|---|---|
+| formularios `--mcm-success` `#15803d` | **solo** `color:` (4 usos, todos texto) | 4,79:1 sobre su fondo | 4,5 |
+| área privada `--success-color` `#2f9e44` | borde / acento | 3,45:1 sobre blanco | 3,0 |
+| área privada `--success-dark` `#076b4d` | texto | 6,21:1 | 4,5 |
+
+Cada uno cumple **su** umbral. Igualarlos rompería uno de los dos: el borde no
+necesita 4,5 y el texto no se conforma con 3,45. Unificar el hex habría sido un
+error, y la propuesta original lo daba por bueno mirando solo el contraste sobre
+blanco sin comprobar el rol.
+
+**Lo que sí se ha hecho** es unificar el nombre del ROL, que era el problema de
+verdad («ningún nombre decía cuál era cuál»). Los formularios declaran ya
+`--brand-green` (identidad), `--success-dark` (texto), `--success-soft` (fondo),
+`--success-border`, `--danger-color`, `--warning-dark` y `--warning-soft`.
+
+De paso: **`--mcm-brand-green` no lo usa ninguna regla.** El acento del tema
+verde sale de `--mcm-accent-green` (mismo hex) y el degradado lleva el hex fijo
+a propósito. Se conserva porque es el nombre del color de marca, y ahora lo dice
+su comentario.
 
 ---
 
@@ -399,9 +453,19 @@ pero eso sí necesita un token cruzado. Con la frecuencia real de cambios de
 
 ---
 
-## Cómo cerrar el plan
+## Estado: CERRADO (2026-08-31)
 
-El plan está cerrado cuando las nueve filas están en **HECHO** o en
-**DESCARTADA** con el motivo escrito. Una fila descartada por decisión del
-propietario es un resultado válido y hay que dejarla escrita: si no, alguien la
-vuelve a proponer dentro de tres meses.
+Las nueve filas están hechas. Lo que queda escrito para el futuro, y que **no**
+es deuda sino decisiones tomadas:
+
+- **`design.md` no se publica en una URL.** Se propuso (es como lo hace Vercel:
+  una URL a la que cualquier agente puede apuntar) y el propietario dijo que no.
+  El repo `comunicaAreaPrivada` es público, así que el `raw` de GitHub ya sirve
+  de facto si algún día hace falta. No volver a proponerlo.
+- **Los `--mcm-*` y los anchos históricos no se migran en bloque.** Se migran
+  cuando se toca ese componente por otro motivo. Un barrido masivo es QA visual
+  iterativo y ya se midió en el plan 018 que no es un batch seguro.
+- **Los dos verdes de «éxito» no comparten hex, y es correcto** (ver fila 7).
+- **El `≥ 860px` del login partido** sigue fuera de la escala. Su sitio es
+  `≥ 1024px`, pero moverlo cambia el layout del login y pide su propia captura.
+  Es el candidato número uno si alguien retoma esto.
