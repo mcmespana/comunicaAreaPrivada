@@ -35,11 +35,11 @@ La regla que ordena todo el plan: **un concepto, un nombre, un sitio.**
 | # | Qué | Repo | Esfuerzo | Riesgo | Estado |
 |---|---|---|---|---|---|
 | 1 | Un solo vocabulario de tokens entre las dos superficies | ambos | M | MED | TODO |
-| 2 | Fijar la escala de breakpoints y dejar de inventar | ambos | S | BAJO | TODO |
-| 3 | Renumerar las secciones de `custom-style.css` y matar la §17 | privada | S | BAJO | TODO |
-| 4 | Subir `--pl-on-brand` y `--pl-brand-fixed` a tokens globales | privada | S | BAJO | TODO |
+| 2 | Fijar la escala de breakpoints y dejar de inventar | ambos | S | BAJO | **HECHO** (2026-08-31) |
+| 3 | Renumerar las secciones de `custom-style.css` y matar la §17 | privada | S | BAJO | **HECHO** (2026-08-31) |
+| 4 | Subir `--pl-on-brand` y `--pl-brand-fixed` a tokens globales | privada | S | BAJO | **HECHO** (2026-08-31) |
 | 5 | Inter en los formularios: la misma letra en las dos superficies | formularios | S | BAJO | TODO |
-| 6 | Limpiar las referencias muertas de `docs/design-system.md` | privada | S | NULO | TODO |
+| 6 | Limpiar las referencias muertas de `docs/design-system.md` | privada | S | NULO | **HECHO** (2026-08-31) |
 | 7 | Los dos verdes: separar identidad de estado, por nombre | ambos | S | BAJO | TODO |
 | 8 | `design.md` de los formularios: anexo, no copia | formularios | S | NULO | **HECHO** (2026-08-31) |
 | 9 | `CAMPOS.md`: un original y una copia que se sincroniza sola | ambos | S | BAJO | **HECHO** (2026-08-31) |
@@ -101,24 +101,36 @@ no cambia nada.
 
 ## Fila 2 — Fijar la escala de breakpoints
 
-**Qué pasa.** `docs/design-system.md` §11.1 declara la escala
-`340 / 640 / 767 / 768 / 860 / 1024`. La realidad de `custom-style.css` es
-`400, 420, 480, 560, 561, 600, 640, 641, 767, 768, 860, 900` — y `340`, que la
-doc presenta como el rescate de móviles estrechos, **no aparece**. Los
-formularios usan otra colección distinta: `340, 480, 520, 560, 600, 720, 768,
-961, 1040, 1100`.
+**Qué pasa.** Contando **solo media queries reales** (el primer recuento coló
+`max-width` que eran propiedades, no consultas):
 
-Trece anchos para dos productos que son el mismo producto.
+- área privada (`custom-style.css` + `pasar-lista.css`): `340, 420, 480, 560,
+  561, 600, 640, 641, 767, 768, 860, 900, 1024` → **trece**
+- formularios: `480, 560, 600, 720, 768, 961, 1100` → **siete**
+- comunes a las dos: solo `480, 560, 600, 768`
 
-**Decisión propuesta.** Escala única de cinco, y solo cinco:
+Dos productos que son el mismo producto, con quince anchos distintos entre los
+dos. (Corrección sobre la primera redacción de este plan: el `340` **sí**
+existe, con un uso.)
+
+**Decisión tomada.** Escala única de cinco, y solo cinco:
 
 | Ancho | Para qué |
 |---|---|
-| `≤ 360px` | Rescate de móviles estrechos: lo de dos columnas pasa a una |
+| `≤ 340px` | Rescate de móviles estrechos: lo de dos columnas pasa a una |
 | `≤ 640px` | **El breakpoint móvil de referencia.** Densidad, tipografía, qué se cae |
 | `≤ 767px` | Navegación colapsada y calendario |
 | `≥ 768px` | Dos columnas en formularios y listados |
 | `≥ 1024px` | Layouts con columna lateral (home, login partido) |
+
+**El rescate va en 340 y no en 360**, rectificando la primera propuesta de este
+plan: 360px es el ancho de media Android, y pasar ahí a una columna rompería la
+home de seis accesos sin scroll justo en los móviles más comunes. 340 recoge los
+de verdad estrechos (320) sin tocar a los demás. Además ya existe en el CSS.
+
+El `≥ 860px` del login partido es el histórico que más se nota: su sitio es
+`≥ 1024px`, pero mover eso cambia el layout del login y pide su propia captura,
+así que no se hace aquí.
 
 **Pasos.**
 
@@ -169,7 +181,18 @@ moviendo bloques de CSS de sitio, para: el orden de la cascada es portante
 (lo midió el plan 018).
 
 **Verificación.** `git diff` no debe contener ninguna línea que no sea un
-comentario. Y una captura de la home antes/después idéntica al píxel.
+comentario.
+
+**Resultado (2026-08-31).** Hecho. Los duplicados posteriores pasaron a §52
+(login PC), §53 (modal de borrado, con sus subsecciones `53.a-f`), §54
+(calendario en móvil) y §55 (código de acceso), cada uno con `[antes §N,
+duplicado]` al lado. La §17 apunta a la §44 y explica por qué se conserva el
+rótulo vacío. Referencias cruzadas actualizadas en `docs/design-system.md` y en
+los propios comentarios del CSS.
+
+En vez de la captura se hizo algo más fuerte: **quitando los comentarios, el CSS
+es idéntico byte a byte** al de antes (1041 llaves de apertura y de cierre en los
+dos). Un cambio que no toca ninguna regla no puede cambiar el render.
 
 ---
 
@@ -200,8 +223,14 @@ mismo a mano**. Es un token global viviendo en el sitio equivocado.
 4. Migrar los `#fff` literales de `custom-style.css` que estén encima de marca
    es **opcional y por componente**. No lo hagas en bloque.
 
-**Verificación.** Captura de Pasar Lista (marcar y ficha) en los dos temas.
-Idéntica.
+**Verificación.** Comprobado en Chromium que los cuatro tokens resuelven al
+mismo valor que antes, en claro **y** en oscuro:
+`--on-brand` / `--pl-on-brand` → `#fff`, `--brand-blue-fixed` /
+`--pl-brand-fixed` → `#1c6fb3`.
+
+**Resultado (2026-08-31).** Hecho. Los `--pl-*` se quedan como alias porque los
+usan ~25 reglas de esa hoja y renombrarlas no aportaba nada. Documentados en
+`design.md` §3 y en `design-system.md` §3.
 
 ---
 
@@ -258,6 +287,10 @@ fantasma y acabe creando un token nuevo «porque no encontraba el sitio».
    tiene con `design.md`: **`design.md` = la ley (qué se decide y por qué);
    `design-system.md` = el manual de la casa (dónde está cada cosa en este
    repo)**. Sin esa línea acabaremos con dos fuentes de verdad.
+
+**Resultado (2026-08-31).** Hecho junto con la redacción de `design.md`: la §3
+dice ya que los grises viven en el `:root` único, y la cabecera lleva la línea
+de relación entre los dos documentos.
 
 ---
 

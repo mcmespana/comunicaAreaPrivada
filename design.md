@@ -174,6 +174,27 @@ Reglas:
   añade nada, bórralo: es la forma más barata de ganar una pantalla.
 - Nada de mayúsculas de caja completa en frases. Solo en chips y etiquetas cortas.
 
+### Breakpoints (usa estos cinco, no inventes)
+
+| Ancho | Para qué |
+|---|---|
+| `≤ 340px` | Rescate de móviles muy estrechos: lo que iba en dos columnas pasa a una |
+| `≤ 640px` | **El breakpoint móvil de referencia.** Densidad, tipografías, qué se cae |
+| `≤ 767px` | Navegación colapsada y calendario |
+| `≥ 768px` | Dos columnas en formularios y listados |
+| `≥ 1024px` | Layouts con columna lateral (home, login partido) |
+
+El rescate va en **340 y no en 360** a propósito: 360px es el ancho de media
+Android, y pasar ahí a una columna rompería la home de seis accesos sin scroll
+justo en los móviles más comunes. 340 recoge los de verdad estrechos (320) sin
+tocar a los demás.
+
+**Anchos históricos que siguen vivos** y que no se migran en bloque: `420, 480,
+560, 561, 600, 641, 860, 900` en el área privada y `480, 560, 600, 720, 961,
+1100` en los formularios. Si tocas un bloque que use uno de ellos por otro
+motivo, **súbelo a la escala de camino**. No añadas uno nuevo sin dejar escrito
+al lado por qué no servía ninguno de los cinco.
+
 ### Espaciado
 
 Los paddings se escriben con `clamp()` (p. ej. `clamp(1.1rem, 2.5vw, 1.6rem)`)
@@ -405,7 +426,8 @@ con solución propuesta y orden de ejecución, en
 [`plans/039-unificar-el-lenguaje-visual-mcm.md`](plans/039-unificar-el-lenguaje-visual-mcm.md):
 
 - Dos vocabularios de tokens (`--primary-*` vs `--mcm-*`) para los mismos hex.
-- Breakpoints inventados sobre la marcha en las dos superficies.
+- ~~Breakpoints inventados sobre la marcha en las dos superficies.~~
+  **Escala fijada** (§5). Quedan los históricos, que se migran al tocarlos.
 - ~~`custom-style.css` con números de sección repetidos y una §17 «modo oscuro
   desactivado» que la §44 desmiente.~~ **Resuelto**: los duplicados pasaron a
   §52-§55 (con nota del número viejo) y la §17 apunta a la §44.

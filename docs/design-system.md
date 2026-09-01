@@ -366,11 +366,19 @@ Sin JavaScript, `auto` se queda en claro (el comportamiento de siempre).
 | `≤ 640px` | **El breakpoint móvil de referencia.** Densidad, tipografías y "qué se oculta" |
 | `≤ 767px` | Navegación colapsada (hamburguesa) y calendario |
 | `≥ 768px` | Dos columnas en formularios y listados |
-| `≥ 860px` | Login partido en dos (marca + formulario) |
-| `≥ 1024px` | Home con la agenda en columna lateral |
+| `≥ 1024px` | Layouts con columna lateral (home con la agenda al lado, login partido) |
 
-Los `560/561px` y `600px` que verás en el CSS son históricos (auth y botones).
-No añadas breakpoints nuevos si uno de estos sirve.
+Cinco, y solo cinco. La escala es la misma en los formularios públicos
+(ver `design.md` §5), que hasta ahora usaban otra distinta.
+
+**Históricos que siguen vivos**, contados sobre las media queries reales de
+`custom-style.css` + `pasar-lista.css`: `420, 480, 560, 561, 600, 641, 860, 900`.
+El `≥ 860px` del login partido es el que más se nota: su sitio en la escala es
+`≥ 1024px`. **No los migres en bloque** —cada uno pide su captura— pero si tocas
+uno de esos bloques por otro motivo, súbelo de camino.
+
+No añadas un breakpoint nuevo si uno de los cinco sirve; y si de verdad no
+sirve, deja escrito al lado por qué.
 
 ### 11.2 UN solo lenguaje para "un registro" (la tarjeta)
 
