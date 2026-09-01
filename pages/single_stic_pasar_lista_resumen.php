@@ -359,29 +359,33 @@ if (!empty($noGroup) || !empty($noCode)) {
             count($noGroup)
         )) . '</div>';
 
-        $html .= '<form method="post">';
-        $html .= wp_nonce_field('pl_resumen', 'pl_nonce', true, false);
+        /* AQUÍ SOLO SE DICE QUIÉNES SON; VINCULARLOS SE HACE EN «MIS GRUPOS».
+         *
+         * Este bloque tenía su propio formulario de asignar, y desde el
+         * 01/09/2026 es un duplicado peor del de `?ver=sueltos`: allí la fila
+         * lleva foto, edad y el CURSO de cada grupo en el desplegable —que es
+         * lo que hace falta para decidir— y aquí no.
+         *
+         * Dos formularios que escriben lo mismo acaban divergiendo: se arregla
+         * un fallo en uno y el otro se queda como estaba. Así que este se queda
+         * como AVISO, que es lo que el resumen sabe hacer bien —enseñar lo que
+         * está mal en el conjunto—, y la acción vive en un solo sitio.
+         *
+         * El manejador del POST de arriba se deja: un enlace viejo o un botón
+         * atrás con el formulario ya enviado tiene que seguir funcionando. */
         foreach ($noGroup as $row) {
             $html .= '<div class="pl-review-row">';
-            $html .= '<span class="pl-avatar">' . esc_html($row['initials']) . '</span>';
+            $html .= '<span class="pl-avatar" aria-hidden="true">' . esc_html($row['initials']) . '</span>';
             $html .= '<span class="pl-review-name">' . esc_html($row['name']) . '</span>';
-
-            if ($isCoord) {
-                // Coordinación lo arregla aquí mismo: es más fácil de ver aquí
-                // que en el CRM, y por eso se puede tocar aquí.
-                $html .= '<select name="pl_assign_group" class="pl-review-select">';
-                $html .= '<option value="">' . esc_html__('Elegir grupo…', 'sticpa') . '</option>';
-                foreach ($groups as $gid => $g) {
-                    $html .= '<option value="' . esc_attr($gid) . '">'
-                        . esc_html($g['code'] . ($g['name'] !== '' ? ' · ' . $g['name'] : '')) . '</option>';
-                }
-                $html .= '</select>';
-                $html .= '<button type="submit" name="pl_assign_rel" value="' . esc_attr($row['rel_id'])
-                    . '" class="pl-review-btn">' . esc_html__('Asignar', 'sticpa') . '</button>';
-            }
             $html .= '</div>';
         }
-        $html .= '</form>';
+        if ($isCoord) {
+            $html .= '<div class="pl-review-row">';
+            $html .= '<a class="pl-review-link" href="?internalpage=single_stic_mis_grupos&ver=sueltos">'
+                . esc_html__('Vincularlos a su grupo', 'sticpa')
+                . sticpa_pl_icon('next') . '</a>';
+            $html .= '</div>';
+        }
     }
 
     if (!empty($noCode)) {
