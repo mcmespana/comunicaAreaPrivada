@@ -11,7 +11,8 @@ plan "explícamelo como si tuviera 5 años, pero sin mentirme".
 
 > 📋 **¿Vas a desarrollar algo?** Mira primero [`TODO.md`](TODO.md) (tareas priorizadas y
 > convenciones) y los análisis de fondo en [`docs/`](docs/):
-> [**sistema de diseño (léelo antes de tocar UI)**](docs/design-system.md) ·
+> [**design.md — la ley de diseño (léelo antes de tocar UI)**](design.md) ·
+> [sistema de diseño de este repo](docs/design-system.md) ·
 > [**contrato con la app MCM (WebView)**](docs/comunica/CONTRATO-APP-WEBVIEW.md) ·
 > [despliegue a producción (CI/CD)](docs/despliegue.md).
 >
