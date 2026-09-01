@@ -21,10 +21,10 @@ Reglas:
 - **No crees un campo nuevo sin comprobar que no existe ya.** Es fácil acabar
   con dos campos para lo mismo (p. ej. el nivel personal del COM ya existe como
   `ajmcm_nivel_com_c`; un «segmento» del grupo es otra cosa distinta).
-- **Si `CAMPOS.md` cambia, hay que subir el cambio también al repo
-  `comunicaFormularios`**, que es donde viven los formularios públicos que
-  escriben en esos mismos campos. Si se toca aquí y no allí, los formularios
-  empiezan a escribir en campos que ya no son.
+- **`CAMPOS.md` de ESTE repo es el original, y el único.** La copia de
+  `comunicaFormularios` la sincroniza sola una GitHub Action de aquel repo, que
+  abre un PR cuando esto cambia. Escribe siempre aquí; no edites la copia.
+  (Antes había que acordarse a mano y las dos llevaban meses divergiendo.)
 - Cuando encuentres una contradicción entre `CAMPOS.md` y los datos reales del
   CRM, **dilo** en vez de elegir por tu cuenta.
 

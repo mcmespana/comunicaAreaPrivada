@@ -42,6 +42,7 @@ La regla que ordena todo el plan: **un concepto, un nombre, un sitio.**
 | 6 | Limpiar las referencias muertas de `docs/design-system.md` | privada | S | NULO | TODO |
 | 7 | Los dos verdes: separar identidad de estado, por nombre | ambos | S | BAJO | TODO |
 | 8 | `design.md` de los formularios: anexo, no copia | formularios | S | NULO | **HECHO** (2026-08-31) |
+| 9 | `CAMPOS.md`: un original y una copia que se sincroniza sola | ambos | S | BAJO | **HECHO** (2026-08-31) |
 
 ---
 
@@ -312,9 +313,62 @@ URL y desaparece el problema.
 
 ---
 
+## Fila 9 — `CAMPOS.md`: un original y una copia que se sincroniza sola (HECHO)
+
+**Qué pasaba.** `CAMPOS.md` —la fuente de la verdad de los campos del CRM— vivía
+duplicado en los dos repos, y la regla era «acuérdate de subirlo también al
+otro». No funcionó: al comparar las dos copias el 31/08/2026, la del área
+privada tenía 88 líneas que la de formularios no, todas añadidas desde la
+revisión del 28/08 contra el CRM:
+
+- los tres campos `stic_conduct_code_c`, `stic_confidentiality_agreement_c` y
+  `stic_time_availability_c`;
+- **`phone_mobile`**, que en la copia vieja seguía listado como «No usar» siendo
+  el móvil de verdad de participantes, familiares y monitores;
+- `phone_other` y `do_not_call`;
+- los dos módulos nuevos (`ajmcm_GRUPOS` y `stic_Contacts_Relationships`), con
+  el aviso de que el `default` de `ajmcm_pasar_lista_c` es `1`.
+
+Es el peor sitio posible para divergir: los formularios públicos **escriben** en
+esos campos. Un agente trabajando solo en aquel repo habría leído «phone_mobile
+— No usar» y lo habría creído.
+
+Ninguna divergencia era un conflicto: el área privada era un superconjunto
+estricto. Por eso se pudo unificar sin decidir nada.
+
+**Qué se ha hecho.**
+
+1. **El original es `comunicaAreaPrivada/docs/comunica/CAMPOS.md`.** Lleva en la
+   cabecera que es el único y que la otra es una copia generada.
+2. La copia de `comunicaFormularios` se ha puesto al día (cuerpo idéntico byte a
+   byte) y lleva un banner HTML de «copia generada, no la edites».
+3. **`comunicaFormularios/.github/workflows/sync-campos.yml`**: cada día a las
+   6:10 UTC (y a mano con `workflow_dispatch`) descarga el original y, si
+   difiere, abre un PR con el cambio. El PR recuerda comprobar si algún
+   formulario escribe en un campo renombrado o retirado.
+4. `AGENTS.md` y `CLAUDE.md` ya no dicen «acuérdate de subirlo a mano».
+
+**Por qué el trabajo lo hace el repo privado.** `comunicaAreaPrivada` es
+**público**, así que su `raw.githubusercontent.com` se lee sin credenciales. Si
+lo hiciera al revés (el área privada empujando al otro) haría falta un token
+cruzado con permiso de escritura sobre un repo privado. Tirando en vez de
+empujar, no hace falta ningún secreto.
+
+**Guarda contra el fallo tonto.** Si la descarga falla o devuelve una página de
+error, el job comprueba que el fichero no está vacío y que empieza por
+`# Campos del CRM`; si no, falla sin tocar nada. Verificado en seco: con la copia
+al día no abre PR (es idempotente) y con basura descargada se planta.
+
+**Lo que queda por decidir** (no bloquea): el retardo es de hasta un día. Se
+puede bajar a instantáneo con un `repository_dispatch` desde el área privada,
+pero eso sí necesita un token cruzado. Con la frecuencia real de cambios de
+`CAMPOS.md`, un día parece de sobra.
+
+---
+
 ## Cómo cerrar el plan
 
-El plan está cerrado cuando las ocho filas están en **HECHO** o en
+El plan está cerrado cuando las nueve filas están en **HECHO** o en
 **DESCARTADA** con el motivo escrito. Una fila descartada por decisión del
 propietario es un resultado válido y hay que dejarla escrita: si no, alguien la
 vuelve a proponer dentro de tres meses.

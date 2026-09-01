@@ -389,8 +389,9 @@ grep -n ':hover' css/*.css | wc -l
 8. ¿`label[for]`, `aria-label` en botones de solo icono, foco visible, tooltips
    con teclado?
 9. ¿Un solo botón de marca? ¿Un solo bloque con degradado?
-10. ¿Los nombres de campo del CRM salen de `CAMPOS.md`? ¿Y si has tocado
-    `CAMPOS.md`, lo has subido **también al otro repo**?
+10. ¿Los nombres de campo del CRM salen de `docs/comunica/CAMPOS.md`? Si has
+    aprendido algo de un campo, apúntalo **ahí** (es el original; la copia de
+    los formularios se sincroniza sola).
 
 ---
 
