@@ -105,16 +105,19 @@ demasiados toques. En la hoja del estado (donde ya se escribe el motivo):
   que no se hace —y no se va a hacer— es poner el aviso desde la propia hoja:
   se pone desde la ficha, que está a un toque.
 
-### 3. La ficha como «tarjeta de sábado» (P1) — 🟡 la mitad hecha
+### 3. La ficha como «tarjeta de sábado» (P1) — ✅ hecha el 01/09/2026
 
-> **La parte urgente, hecha el 01/09/2026.** La SALUD sube al principio de la
-> ficha, justo debajo de los botones de contacto, con alergias e intolerancias
-> destacadas en rojo y una etiqueta «Ojo con la comida». Estaba tras contacto,
-> asistencia y avisos: cuatro secciones de scroll hasta «Frutos secos
-> (anafilaxia)». Ver `PASAR-LISTA-ESTADO.md` §1.
+> Una cajita de «lo imprescindible» bajo los botones de contacto, en LAS DOS
+> fichas y con las mismas clases y colores.
 >
-> Lo que queda de esta fila: la racha de ausencias y los avisos abiertos siguen
-> donde estaban, y la ficha del MONITOR no se ha reordenado.
+> - Participante: alergias e intolerancias con su texto, racha de ausencias y
+>   avisos abiertos.
+> - Monitor: los requisitos que le faltan, por su nombre (los permisos no
+>   cuentan: un «no» ahí es una decisión, no un incumplimiento).
+>
+> Se probó a subir la sección de salud entera y ocupaba media pantalla para
+> llegar al único dato urgente: arriba va el resumen, los campos con etiqueta se
+> quedan abajo. Detalle y reglas en `PASAR-LISTA-ESTADO.md` §1.
 
 La ficha existe y es completa; lo que falta es jerarquía de urgencia. Arriba
 del todo, sin scroll, lo que un monitor necesita EN la sesión: teléfono(s) de
