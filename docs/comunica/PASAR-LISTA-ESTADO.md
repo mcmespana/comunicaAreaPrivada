@@ -29,6 +29,25 @@ se toquen, la aplicación seguirá enseñando menos de lo que hay.
 | 🔴 | **Un centenar de asistencias basura `Unknown - Unknown \| `** (todas del 28/08 a la 01:10, colgando de la sesión del 02/05/2026, ninguna enlazada a nadie). El código que las creaba ya está arreglado, pero las que hay siguen ahí. | Borrado lógico (`deleted: true`) de las `stic_Attendances` cuyo `name` empiece por `Unknown` **y** no tengan inscripción enlazada. El propietario dijo que las borra él. **No tocar** las 24 de Solete ni ninguna con inscripción. |
 | 🟡 | **Dos `LIS_listas` para la sesión del 02/05/2026**: una de `monitores` (pasada, 24/5) y otra de `participantes` (omitida, 0/0). Convivir no es ilegal —son de tipos distintos— pero conviene revisar que la de participantes en `omitida` sea lo que se quiso. | Mirarla y decidir. El código ya elige siempre la misma cuando hay dos, y lo avisa en pantalla. |
 
+### ✅ La salud, arriba en la ficha (01/09/2026)
+
+Estaba tras contacto, asistencia y avisos: cuatro secciones de scroll hasta
+«Frutos secos (anafilaxia)». Ahora va justo debajo de los botones de contacto.
+
+Sube **entera y sin partirse**: un resumen arriba y el detalle abajo es la forma
+segura de que alguien lea solo la mitad. Lo que cambia es el peso dentro del
+bloque — alergias e intolerancias con franja roja y una etiqueta «Ojo con la
+comida»; tratamientos, enfermedades y otras patologías como estaban—, porque una
+alergia y unas gafas no son la misma urgencia y pintarlas igual hace que ninguna
+destaque.
+
+Si no hay ningún dato de salud, **no se pinta nada**: una tarjeta vacía en todas
+las fichas enseña a no mirarla, y el día que tenga contenido tampoco se mirará.
+Eso obligó a arreglar el doble de test, que devolvía la MISMA ficha para
+cualquier id — o sea que las fichas sin alergias no existían en los tests.
+
+Cierra la fila 3 del plan 037 en su parte de urgencia.
+
 ### 🟡 Lo que queda por comprobar en producción
 
 Todo lo del 28/08 por la tarde está probado con tests pero **no confirmado
@@ -51,26 +70,43 @@ monitor de David Soler tienen `end_date` = 2026-08-31. A partir del 1 de
 septiembre C1 saldrá vacío y **eso NO es el bug volviendo**: es que el curso
 2025-2026 se ha acabado en los datos. Mirar esto antes de buscar en el código.
 
-### 🟡 Los márgenes laterales: sigue abierto
+### ✅ Los márgenes laterales: resueltos (01/09/2026)
 
-El propietario lo dice desde el 28/08: «se pierde mucho espacio por los lados,
-hace falta un poco pero no tanto». **No está arreglado**, y el camino obvio es
-un callejón sin salida: el relleno lateral de `.stic-tab-content` ya es cero
-(§20.a lo pisa con `!important`), así que el hueco viene del **tema de
-WordPress, por fuera de `.stic-container`**.
+Pedido el 28/08 («se pierde mucho espacio por los lados, hace falta un poco pero
+no tanto») y arreglado el 01/09.
 
-Siguiente paso concreto, y en este orden:
+**Por qué no se arreglaba.** El relleno lateral de `.stic-tab-content` ya valía
+CERO (§20.a lo pisa con `!important`), así que tocarlo no movía un píxel. El
+hueco lo mete el tema de WordPress por fuera de `.stic-container`. El plan
+anterior era medirlo en el móvil y restarlo — o sea, adivinar un número que
+cambia con el tema, con el ancho y con la plantilla.
 
-1. **Medir.** Abrir el área privada en el móvil de verdad, inspeccionar y
-   apuntar el `padding-inline` (o el `max-width` + `margin: auto`) del envoltorio
-   del tema que contiene `.stic-container`. Sin ese número no se puede hacer
-   nada que no sea adivinar.
-2. Con el número, sangrar `.stic-container` esa cantidad exacta con margen
-   negativo y devolverle el aire que se quiera (el «un poco, pero no tanto»).
-3. **Comprobar que no reaparece el desbordamiento horizontal** de plan 035:
-   varios bloques de Pasar Lista YA sangran por su cuenta contando con ese
-   relleno, y si se sangra dos veces se salen. Hoy lo tapa `overflow-x: clip`,
-   que esconde el síntoma pero no la causa.
+**Lo que se hizo en vez de eso.** `margin-inline: calc(50% - 50vw)` sobre
+`.stic-tab-content`: medio contenedor menos medio viewport es exactamente lo que
+sobra a cada lado, **sea el que sea**. No hay número que medir ni que mantener.
+Después se devuelve el aire deseado con `padding-inline: var(--pl-gutter)`, que
+está en un solo sitio (hoy `0.85rem`).
+
+Tres cosas que lo sostienen, y las tres tienen test (`TokensCssTest`):
+
+1. **Se sangra el HIJO, no `.stic-container`.** `50vw` incluye la barra de
+   desplazamiento vertical en los navegadores de escritorio que la pintan
+   encima, y eso son ~15 px de desbordamiento; el `overflow-x: clip` del padre
+   —que ya estaba— los recorta. Sangrar el padre habría dejado ese recorte sin
+   nadie que lo aplicara.
+2. **`clip` y no `hidden`.** `hidden` crearía un contenedor de scroll y se
+   llevaría por delante el `position: sticky` de la barra de guardar.
+3. **`width: auto !important`.** `menu.php` pinta ese div con
+   `style="width:100%"` EN LÍNEA; con un ancho fijado, el margen negativo
+   desplaza la caja a la izquierda en vez de ensancharla — el sangrado
+   descoloca la página y no gana un píxel. Una hoja con `!important` gana a un
+   estilo en línea que no lo lleva.
+
+A partir de tablet (48rem) se desactiva: ahí no hay nada que recuperar, y
+estirar hasta el viewport dejaría una lista de nombres de un metro de ancha.
+
+Solo afecta a Pasar Lista y Mis Grupos: `pasar-lista.css` únicamente se carga
+ahí.
 
 ### 🟡 Otros abiertos, menores
 

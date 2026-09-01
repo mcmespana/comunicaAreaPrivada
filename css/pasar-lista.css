@@ -2019,6 +2019,20 @@ a.pl-group .pl-name { display: block; }
     font-family: inherit;
     font-size: 0.85rem;
 }
+/* El enlace que lleva a «Mis grupos» a vincularlos. Va como enlace y no como
+   botón a propósito: aquí no se escribe nada, se va a otro sitio a hacerlo. */
+.pl-review-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    min-height: 40px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--warning-darker);
+    text-decoration: none !important;
+}
+.pl-review-link svg { width: 15px; height: 15px; }
+
 .pl-review-btn {
     min-height: 40px;
     padding: 0 0.9rem;
@@ -2742,6 +2756,62 @@ a.pl-group .pl-name { display: block; }
    estaba. Solo afecta a Pasar Lista: esta hoja únicamente se carga aquí. */
 .stic-container { overflow-x: clip; }
 
+/* ---- LOS MÁRGENES LATERALES ---------------------------------------------
+   «Se pierde mucho espacio por los lados; hace falta un poco, pero no tanto».
+   Pedido el 28/08/2026 y sin resolver hasta el 01/09.
+
+   POR QUÉ NO SE ARREGLABA. El relleno lateral de `.stic-tab-content` ya vale
+   CERO (§20.a de custom-style lo pisa con `!important`), así que tocarlo no
+   movía un píxel. El hueco lo mete el TEMA DE WORDPRESS, por fuera de
+   `.stic-container`. El plan anterior era medirlo en el móvil y restarlo — o
+   sea, adivinar un número que cambia con el tema, con el ancho y con la
+   plantilla de la página.
+
+   LO QUE SE HACE EN VEZ DE ESO. `calc(50% - 50vw)` es medio contenedor menos
+   medio viewport: exactamente lo que sobra a cada lado, SEA EL QUE SEA. No hay
+   número que medir ni que mantener, y si mañana el tema cambia su relleno, esto
+   sigue valiendo. Después se devuelve el aire que se quiere, en un solo sitio.
+
+   POR QUÉ EN `.stic-tab-content` Y NO EN `.stic-container`. Porque `50vw`
+   incluye la barra de desplazamiento vertical en los navegadores de escritorio
+   que la pintan encima del contenido, y eso son ~15 px de desbordamiento
+   horizontal. Sangrando el hijo, el `overflow-x: clip` del padre —el de la
+   línea de arriba, que ya estaba— los recorta. Sangrar el padre habría dejado
+   ese recorte sin nadie que lo aplicara.
+
+   Y `clip` y no `hidden`, como dice el comentario de arriba: `hidden` crearía
+   un contenedor de scroll y se llevaría por delante el `position: sticky` de la
+   barra de guardar.
+
+   EL AIRE, en una variable y en un solo sitio: si hay que subirlo o bajarlo, se
+   toca aquí y cambian las siete pantallas a la vez. */
+:root { --pl-gutter: 0.85rem; }
+
+.stic-tab-content {
+    /* `width: auto` Y CON `!important`, que no es cosmético: `menu.php` pinta
+       este div con `style='width:100%'` EN LÍNEA, y con un ancho fijado el
+       margen negativo desplaza la caja hacia la izquierda en vez de
+       ensancharla — o sea, el sangrado descoloca la página y no gana ni un
+       píxel. Una hoja con `!important` gana a un estilo en línea que no lo
+       lleva; es la única forma de neutralizarlo sin tocar el HTML, que es
+       común a TODAS las secciones del área y no solo a Pasar Lista.
+       `auto` y no `100%`: con relleno lateral, `100%` desborda si algún día
+       alguien quita el `box-sizing: border-box`. */
+    width: auto !important;
+    margin-inline: calc(50% - 50vw);
+    padding-inline: var(--pl-gutter) !important;
+}
+
+/* En pantallas anchas no hay nada que recuperar: el área ya no llega a los
+   bordes y estirarla hasta el viewport dejaría una lista de nombres de un
+   metro de ancha. A partir de tablet se deja como estaba. */
+@media (min-width: 48rem) {
+    .stic-tab-content {
+        margin-inline: 0;
+        padding-inline: 0 !important;
+    }
+}
+
 /* Un familiar SIN teléfono también sale. Antes desaparecía de la ficha entera:
    la madre está en el CRM, bien relacionada, y la pantalla decía «no hay ningún
    teléfono» sin nombrarla — así nadie podía avisar de que faltaba SU número,
@@ -3163,3 +3233,40 @@ a.pl-group .pl-name { display: block; }
 @media (max-width: 26rem) {
     .pl-suelto-act { width: 100%; margin-left: 0; }
 }
+
+/* ---- Salud: lo que hay que ver ANTES de la merienda ----------------------
+   El bloque subió al principio de la ficha (estaba tras contacto, asistencia y
+   avisos: cuatro secciones de scroll hasta «Frutos secos (anafilaxia)»).
+
+   Dentro, alergias e intolerancias pesan más que el resto. No es decoración:
+   una alergia y unas gafas no son la misma urgencia, y pintarlas igual hace
+   que ninguna destaque. El resto de filas se quedan como estaban, para que el
+   rojo signifique algo. */
+.pl-list--urge {
+    border: 1px solid var(--danger-border);
+    box-shadow: none;
+}
+.pl-data--urge { background: var(--danger-100); }
+.pl-data--urge .pl-data-label { color: var(--danger-dark); }
+.pl-data--urge .pl-data-value { font-weight: 700; }
+/* La franja roja a la izquierda: se ve al pasar la pantalla sin leer, que es
+   como se mira una ficha con prisa. */
+.pl-data--urge {
+    border-left: 3px solid var(--danger-color);
+    padding-left: calc(0.85rem - 3px);
+}
+
+/* La etiqueta de la cabecera de Salud, al lado del título. Dice de un vistazo
+   por qué esta ficha lleva rojo, sin tener que leer las filas. */
+.pl-health-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: var(--danger-dark);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.pl-health-flag svg { width: 14px; height: 14px; }

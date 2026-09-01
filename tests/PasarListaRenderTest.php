@@ -200,6 +200,24 @@ class FakeSCP
                 'ajmcm_descripcion_allergies__c' => 'Frutos secos (anafilaxia)',
                 'ajmcm_descripcion_intoler_c' => '',
             ));
+            /* JAUME NO TIENE NADA DE SALUD, y hace falta que sea así.
+             *
+             * Este doble devolvía la MISMA ficha para cualquier id, así que la
+             * mitad de las fichas del CRM —las que no tienen alergias ni
+             * tratamientos— no existían en los tests. Con una sola ficha no se
+             * puede probar que una tarjeta vacía NO se pinta, que es justo lo
+             * que evita que todas las fichas lleven una franja roja y que el
+             * rojo deje de significar nada. */
+            if ((string) $id === 'c2') {
+                $data = array_merge($data, array(
+                    'first_name' => 'Jaume', 'last_name' => 'Pascual', 'name' => 'Jaume Pascual',
+                    'ajmcm_descripcion_allergies__c' => '',
+                    'ajmcm_descripcion_intoler_c' => '',
+                    'ajmcm_descripcion_tratam_c' => '',
+                    'ajmcm_descripcion_enfermed_c' => '',
+                    'ajmcm_descripcion_otros_c' => '',
+                ));
+            }
         }
         $out = new stdClass();
         $out->entry_list = array($this->nvl($data));
@@ -2482,14 +2500,50 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('no editarlo', $html);
     }
 
-    /** Coordinación sí tiene el desplegable y el botón de asignar. */
-    public function test_coordinacion_puede_asignar_grupo()
+    /**
+     * El resumen AVISA de quién no tiene grupo; vincularlos se hace en «Mis
+     * grupos».
+     *
+     * Tenía aquí su propio formulario, y desde el 01/09/2026 era un duplicado
+     * peor del de `?ver=sueltos` (sin foto, sin edad, sin el curso de cada
+     * grupo en el desplegable). Dos formularios que escriben lo mismo acaban
+     * divergiendo, así que la acción vive en un solo sitio y aquí queda el
+     * aviso, que es lo que el resumen sabe hacer bien.
+     */
+    public function test_el_resumen_manda_a_mis_grupos_para_vincular()
     {
         $GLOBALS['__stic_filters']['sticpa_pl_is_coordinator'] = true;
 
         $html = $this->render('single_stic_pasar_lista_resumen');
-        $this->assertStringContainsString('pl-review-select', $html);
-        $this->assertStringContainsString('Asignar', $html);
+        $this->assertStringContainsString('Sol Messeguer', $html);
+        $this->assertStringContainsString('single_stic_mis_grupos&ver=sueltos', $html);
+        // Ya no hay un segundo formulario que mantener.
+        $this->assertStringNotContainsString('pl-review-select', $html);
+        $this->assertStringNotContainsString('pl_assign_rel', $html);
+
+        unset($GLOBALS['__stic_filters']['sticpa_pl_is_coordinator']);
+    }
+
+    /**
+     * Y el manejador del POST sigue en pie: un enlace viejo, o el botón atrás
+     * con el formulario ya enviado, no puede dar un error raro.
+     */
+    public function test_el_resumen_sigue_aceptando_una_asignacion_por_post()
+    {
+        $GLOBALS['__stic_filters']['sticpa_pl_is_coordinator'] = true;
+        $_POST = array(
+            'pl_assign_rel' => 'r7',
+            'pl_assign_group' => 'g1',
+            'pl_nonce' => wp_create_nonce('pl_resumen'),
+        );
+
+        $html = $this->render('single_stic_pasar_lista_resumen');
+
+        $this->assertStringContainsString('Grupo asignado', $html);
+        $escrituras = array_filter($this->scp->relationships, function ($r) {
+            return $r['module'] === 'stic_Contacts_Relationships';
+        });
+        $this->assertCount(1, $escrituras);
 
         unset($GLOBALS['__stic_filters']['sticpa_pl_is_coordinator']);
     }
@@ -4536,5 +4590,72 @@ final class PasarListaRenderTest extends TestCase
             return $r['module'] === 'stic_Contacts_Relationships';
         });
         $this->assertEmpty($escrituras, 'Sin nonce no se toca ni una relación.');
+    }
+
+    // ---- Salud arriba ----------------------------------------------------
+
+    /**
+     * LO QUE PUEDE ACABAR EN URGENCIAS VA ARRIBA. Estaba tras contacto,
+     * asistencia y avisos: cuatro secciones de scroll hasta «Frutos secos
+     * (anafilaxia)». Un dato así no puede estar donde solo lo ve quien va
+     * buscándolo.
+     */
+    public function test_la_salud_va_antes_que_todo_lo_demas_en_la_ficha()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $salud = strpos($html, 'Frutos secos');
+        $this->assertNotFalse($salud, 'La ficha tiene que enseñar las alergias.');
+
+        foreach (array('Contacto', 'Asistencia', 'Avisos de comportamiento',
+            'Permisos', 'Pañuelo') as $seccion) {
+            $pos = strpos($html, $seccion);
+            $this->assertNotFalse($pos);
+            $this->assertLessThan(
+                $pos,
+                $salud,
+                'La salud tiene que ir ANTES de «' . $seccion . '».'
+            );
+        }
+    }
+
+    /** Y se ve que es urgente sin leerla: franja roja y etiqueta. */
+    public function test_las_alergias_se_pintan_como_urgentes()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringContainsString('pl-data--urge', $html);
+        $this->assertStringContainsString('pl-list--urge', $html);
+        $this->assertStringContainsString('Ojo con la comida', $html);
+    }
+
+    /**
+     * El dato sale UNA vez. Un resumen arriba y el detalle abajo es la forma
+     * segura de que alguien lea solo la mitad.
+     */
+    public function test_la_salud_no_sale_dos_veces()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertSame(1, substr_count($html, 'Frutos secos'));
+        $this->assertSame(1, substr_count($html, '>Salud<'));
+    }
+
+    /**
+     * Una ficha sin nada de salud no pinta la tarjeta, y sobre todo no pinta el
+     * rojo: una tarjeta vacía en todas las fichas enseña a no mirarla, y el día
+     * que tenga contenido tampoco se mirará.
+     */
+    public function test_sin_datos_de_salud_no_hay_tarjeta_ni_rojo()
+    {
+        $_REQUEST = array('participante' => 'c2', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringNotContainsString('>Salud<', $html);
+        $this->assertStringNotContainsString('pl-data--urge', $html);
+        $this->assertStringNotContainsString('Ojo con la comida', $html);
     }
 }

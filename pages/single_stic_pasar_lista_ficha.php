@@ -320,6 +320,57 @@ if ($quick !== null) {
     $html .= '</div>';
 }
 
+// ---------------------------------------------------------------------------
+// Salud: ARRIBA, porque es lo que hay que saber ANTES de la merienda
+// ---------------------------------------------------------------------------
+
+/* Esto estaba al final, después de contacto, asistencia y avisos: cuatro
+ * secciones de scroll hasta «Frutos secos (anafilaxia)». Un dato que puede
+ * acabar en urgencias no puede estar donde solo lo ve quien va buscándolo.
+ *
+ * Sube entero y NO se parte en dos: un resumen arriba y el detalle abajo es la
+ * forma segura de que alguien lea solo la mitad. Lo que cambia es el PESO
+ * dentro del bloque — alergias e intolerancias en rojo, el resto normal—,
+ * porque una alergia y unas gafas no son la misma urgencia y pintarlas igual
+ * hace que ninguna destaque.
+ *
+ * Y solo se pinta si hay algo: una tarjeta de salud vacía en todas las fichas
+ * enseña a no mirarla, y el día que tenga contenido tampoco se mirará. */
+$healthFields = array(
+    'ajmcm_descripcion_allergies__c' => array(__('Alergias', 'sticpa'), true),
+    'ajmcm_descripcion_intoler_c' => array(__('Intolerancias', 'sticpa'), true),
+    'ajmcm_descripcion_tratam_c' => array(__('Tratamientos', 'sticpa'), false),
+    'ajmcm_descripcion_enfermed_c' => array(__('Enfermedades', 'sticpa'), false),
+    'ajmcm_descripcion_otros_c' => array(__('Otras patologías', 'sticpa'), false),
+);
+$health = '';
+$healthUrge = false;
+foreach ($healthFields as $field => $spec) {
+    list($label, $urgente) = $spec;
+    if (trim($ficha[$field]) === '') {
+        continue;
+    }
+    if ($urgente) {
+        $healthUrge = true;
+    }
+    $health .= '<div class="pl-data' . ($urgente ? ' pl-data--urge' : '') . '">'
+        . '<span class="pl-data-label">' . esc_html($label) . '</span>'
+        . '<span class="pl-data-value">' . esc_html($ficha[$field]) . '</span></div>';
+}
+if ($health !== '') {
+    $html .= '<div class="pl-sec-row"><div class="pl-sec">'
+        . esc_html__('Salud', 'sticpa') . '</div>';
+    if ($healthUrge) {
+        // El triángulo es el icono de «esto reclama algo», no de «esto informa»:
+        // el mismo que las listas pendientes, y no se usa en nada decorativo.
+        $html .= '<span class="pl-health-flag">' . sticpa_pl_icon('warn')
+            . esc_html__('Ojo con la comida', 'sticpa') . '</span>';
+    }
+    $html .= '</div>';
+    $html .= '<div class="pl-list pl-list--data' . ($healthUrge ? ' pl-list--urge' : '') . '">'
+        . $health . '</div>';
+}
+
 $phoneCards = '';
 // El chaval primero si tiene móvil propio: en el COM lo tienen, y a veces es a
 // quien hay que llamar. El botón de WhatsApp respeta ajmcm_menorwhatsapp_c.
@@ -629,30 +680,6 @@ if (sticpa_pl_avisos_enabled()) {
     $html .= '</form>';
 
     $html .= '</div>';
-}
-
-// ---------------------------------------------------------------------------
-// Salud: los cinco campos en UNA tarjeta, y solo lo que tenga contenido
-// ---------------------------------------------------------------------------
-
-$healthFields = array(
-    'ajmcm_descripcion_allergies__c' => __('Alergias', 'sticpa'),
-    'ajmcm_descripcion_intoler_c' => __('Intolerancias', 'sticpa'),
-    'ajmcm_descripcion_tratam_c' => __('Tratamientos', 'sticpa'),
-    'ajmcm_descripcion_enfermed_c' => __('Enfermedades', 'sticpa'),
-    'ajmcm_descripcion_otros_c' => __('Otras patologías', 'sticpa'),
-);
-$health = '';
-foreach ($healthFields as $field => $label) {
-    if (trim($ficha[$field]) === '') {
-        continue;   // una ficha sin nada de salud no enseña la tarjeta
-    }
-    $health .= '<div class="pl-data"><span class="pl-data-label">' . esc_html($label) . '</span>'
-        . '<span class="pl-data-value">' . esc_html($ficha[$field]) . '</span></div>';
-}
-if ($health !== '') {
-    $html .= '<div class="pl-sec">' . esc_html__('Salud', 'sticpa') . '</div>';
-    $html .= '<div class="pl-list pl-list--data">' . $health . '</div>';
 }
 
 // ---------------------------------------------------------------------------

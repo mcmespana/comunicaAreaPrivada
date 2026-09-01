@@ -136,4 +136,65 @@ class TokensCssTest extends TestCase
         }
     }
 
+
+    /**
+     * EL SANGRADO LATERAL Y SU RED DE SEGURIDAD, que son inseparables.
+     *
+     * `.stic-tab-content` se estira hasta el viewport con `calc(50% - 50vw)`
+     * para comerse el relleno que mete el tema de WordPress. En escritorio,
+     * `50vw` incluye la barra de desplazamiento vertical, así que ese cálculo
+     * se pasa ~15 px: lo recorta el `overflow-x: clip` de `.stic-container`.
+     *
+     * Si alguien quita el `clip` —o lo cambia por `hidden`, que además se
+     * llevaría por delante el `position: sticky` de la barra de guardar— el
+     * sangrado deja de estar contenido y la página se mueve de lado. En una
+     * webview eso se siente como que la app está rota, y es un síntoma que no
+     * apunta a su causa. Por eso las dos reglas se prueban JUNTAS.
+     */
+    public function test_el_sangrado_lateral_va_con_su_recorte()
+    {
+        $css = $this->pasarLista();
+
+        $this->assertMatchesRegularExpression(
+            '/\.stic-tab-content\s*\{[^}]*margin-inline:\s*calc\(50%\s*-\s*50vw\)/',
+            $css,
+            'El sangrado lateral tiene que seguir siendo `calc(50% - 50vw)`: '
+                . 'un número medido a mano se queda obsoleto en cuanto cambia el tema.'
+        );
+        $this->assertMatchesRegularExpression(
+            '/\.stic-container\s*\{[^}]*overflow-x:\s*clip/',
+            $css,
+            'Sin `overflow-x: clip` en .stic-container, el sangrado de '
+                . '.stic-tab-content desborda por la barra de scroll.'
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/\.stic-container\s*\{[^}]*overflow-x:\s*hidden/',
+            $css,
+            '`hidden` crea un contenedor de scroll y rompe el sticky de la barra '
+                . 'de guardar. Tiene que ser `clip`.'
+        );
+        // Y el ancho tiene que quedar en `auto`: `menu.php` pinta el div con
+        // `style="width:100%"` en línea, y con un ancho fijado el margen
+        // negativo desplaza la caja en vez de ensancharla.
+        $this->assertMatchesRegularExpression(
+            '/\.stic-tab-content\s*\{[^}]*width:\s*auto\s*!important/',
+            $css,
+            'Sin `width: auto !important`, el `style="width:100%"` en línea de '
+                . 'menu.php gana y el sangrado descoloca la página sin ensancharla.'
+        );
+    }
+
+    /** El aire lateral se toca en UN sitio, no pantalla por pantalla. */
+    public function test_el_aire_lateral_sale_de_un_token()
+    {
+        $css = $this->pasarLista();
+
+        $this->assertStringContainsString('--pl-gutter:', $css);
+        $this->assertMatchesRegularExpression(
+            '/\.stic-tab-content\s*\{[^}]*padding-inline:\s*var\(--pl-gutter\)/',
+            $css,
+            'El relleno lateral tiene que salir de `--pl-gutter`, para poder '
+                . 'ajustarlo en las siete pantallas a la vez.'
+        );
+    }
 }
