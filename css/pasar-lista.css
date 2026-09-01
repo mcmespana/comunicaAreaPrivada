@@ -2010,6 +2010,20 @@ a.pl-group .pl-name { display: block; }
     font-family: inherit;
     font-size: 0.85rem;
 }
+/* El enlace que lleva a «Mis grupos» a vincularlos. Va como enlace y no como
+   botón a propósito: aquí no se escribe nada, se va a otro sitio a hacerlo. */
+.pl-review-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    min-height: 40px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--warning-darker);
+    text-decoration: none !important;
+}
+.pl-review-link svg { width: 15px; height: 15px; }
+
 .pl-review-btn {
     min-height: 40px;
     padding: 0 0.9rem;
@@ -2733,6 +2747,66 @@ a.pl-group .pl-name { display: block; }
    estaba. Solo afecta a Pasar Lista: esta hoja únicamente se carga aquí. */
 .stic-container { overflow-x: clip; }
 
+/* ---- LOS MÁRGENES LATERALES ---------------------------------------------
+   «Se pierde mucho espacio por los lados; hace falta un poco, pero no tanto».
+   Pedido el 28/08/2026 y sin resolver hasta el 01/09.
+
+   POR QUÉ NO SE ARREGLABA. El relleno lateral de `.stic-tab-content` ya vale
+   CERO (§20.a de custom-style lo pisa con `!important`), así que tocarlo no
+   movía un píxel. El hueco lo mete el TEMA DE WORDPRESS, por fuera de
+   `.stic-container`. El plan anterior era medirlo en el móvil y restarlo — o
+   sea, adivinar un número que cambia con el tema, con el ancho y con la
+   plantilla de la página.
+
+   LO QUE SE HACE EN VEZ DE ESO. `calc(50% - 50vw)` es medio contenedor menos
+   medio viewport: exactamente lo que sobra a cada lado, SEA EL QUE SEA. No hay
+   número que medir ni que mantener, y si mañana el tema cambia su relleno, esto
+   sigue valiendo. Después se devuelve el aire que se quiere, en un solo sitio.
+
+   POR QUÉ EN `.stic-tab-content` Y NO EN `.stic-container`. Porque `50vw`
+   incluye la barra de desplazamiento vertical en los navegadores de escritorio
+   que la pintan encima del contenido, y eso son ~15 px de desbordamiento
+   horizontal. Sangrando el hijo, el `overflow-x: clip` del padre —el de la
+   línea de arriba, que ya estaba— los recorta. Sangrar el padre habría dejado
+   ese recorte sin nadie que lo aplicara.
+
+   Y `clip` y no `hidden`, como dice el comentario de arriba: `hidden` crearía
+   un contenedor de scroll y se llevaría por delante el `position: sticky` de la
+   barra de guardar.
+
+   EL AIRE, en una variable y en un solo sitio: si hay que subirlo o bajarlo, se
+   toca aquí y cambian las siete pantallas a la vez. */
+/* 0.6rem ≈ 10 px. Se pidió «aprovechar al máximo el espacio», así que va
+   apretado: lo justo para que las tarjetas no parezcan pegadas al cristal.
+   Un número, un sitio: si se quiere más aire o menos, se cambia aquí y cambian
+   las ocho pantallas a la vez. */
+:root { --pl-gutter: 0.6rem; }
+
+.stic-tab-content {
+    /* `width: auto` Y CON `!important`, que no es cosmético: `menu.php` pinta
+       este div con `style='width:100%'` EN LÍNEA, y con un ancho fijado el
+       margen negativo desplaza la caja hacia la izquierda en vez de
+       ensancharla — o sea, el sangrado descoloca la página y no gana ni un
+       píxel. Una hoja con `!important` gana a un estilo en línea que no lo
+       lleva; es la única forma de neutralizarlo sin tocar el HTML, que es
+       común a TODAS las secciones del área y no solo a Pasar Lista.
+       `auto` y no `100%`: con relleno lateral, `100%` desborda si algún día
+       alguien quita el `box-sizing: border-box`. */
+    width: auto !important;
+    margin-inline: calc(50% - 50vw);
+    padding-inline: var(--pl-gutter) !important;
+}
+
+/* En pantallas anchas no hay nada que recuperar: el área ya no llega a los
+   bordes y estirarla hasta el viewport dejaría una lista de nombres de un
+   metro de ancha. A partir de tablet se deja como estaba. */
+@media (min-width: 48rem) {
+    .stic-tab-content {
+        margin-inline: 0;
+        padding-inline: 0 !important;
+    }
+}
+
 /* Un familiar SIN teléfono también sale. Antes desaparecía de la ficha entera:
    la madre está en el CRM, bien relacionada, y la pantalla decía «no hay ningún
    teléfono» sin nombrarla — así nadie podía avisar de que faltaba SU número,
@@ -3153,4 +3227,54 @@ a.pl-group .pl-name { display: block; }
 .pl-suelto-act .pl-review-select { flex: 1 1 auto; min-width: 0; }
 @media (max-width: 26rem) {
     .pl-suelto-act { width: 100%; margin-left: 0; }
+}
+
+/* ---- LO IMPRESCINDIBLE: la cajita de arriba -----------------------------
+   Una tira de pastillas bajo los botones de contacto con lo que hay que saber
+   ANTES de darle la merienda a alguien o de dejarle marchar: alergias e
+   intolerancias con su texto, la racha de ausencias y los avisos abiertos.
+
+   COMPACTA A PROPÓSITO. Se probó a subir el bloque de salud entero y ocupaba
+   media pantalla de campos etiquetados para llegar al único dato urgente.
+   Aquí el espacio de arriba es lo más caro que hay: pastillas que se envuelven,
+   sin etiquetas y sin cajas dentro de cajas.
+
+   El color dice el tipo sin leer: rojo lo médico, ámbar lo de comportamiento.
+   Si un día hay que añadir una cuarta pastilla, pensárselo dos veces — cada
+   una que entra resta a las otras, y una tira con seis cosas ya no es «lo
+   imprescindible», es otra sección. */
+.pl-urge {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding: 0.15rem 0 0.55rem;
+}
+
+.pl-urge-bit {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+    padding: 0.32rem 0.6rem;
+    border-radius: var(--radius-full);
+    font-size: 0.79rem;
+    font-weight: 700;
+    line-height: 1.25;
+}
+.pl-urge-bit svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* Lo médico: rojo. Es lo que puede acabar en urgencias. */
+.pl-urge-bit--comida {
+    background: var(--danger-100);
+    color: var(--danger-dark);
+    border: 1px solid var(--danger-border);
+}
+/* Lo de comportamiento y asistencia: ámbar. Reclama una llamada, no una
+   ambulancia, y mezclarlo con el rojo haría que el rojo dejara de significar
+   algo. */
+.pl-urge-bit--faltas,
+.pl-urge-bit--avisos {
+    background: var(--warning-100);
+    color: var(--warning-darker);
+    border: 1px solid var(--warning-border);
 }

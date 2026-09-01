@@ -29,7 +29,50 @@ se toquen, la aplicación seguirá enseñando menos de lo que hay.
 | 🔴 | **Un centenar de asistencias basura `Unknown - Unknown \| `** (todas del 28/08 a la 01:10, colgando de la sesión del 02/05/2026, ninguna enlazada a nadie). El código que las creaba ya está arreglado, pero las que hay siguen ahí. | Borrado lógico (`deleted: true`) de las `stic_Attendances` cuyo `name` empiece por `Unknown` **y** no tengan inscripción enlazada. El propietario dijo que las borra él. **No tocar** las 24 de Solete ni ninguna con inscripción. |
 | 🟡 | **Dos `LIS_listas` para la sesión del 02/05/2026**: una de `monitores` (pasada, 24/5) y otra de `participantes` (omitida, 0/0). Convivir no es ilegal —son de tipos distintos— pero conviene revisar que la de participantes en `omitida` sea lo que se quiso. | Mirarla y decidir. El código ya elige siempre la misma cuando hay dos, y lo avisa en pantalla. |
 
-### 🟡 Lo que queda por comprobar en producción
+### ✅ «Lo imprescindible»: una cajita arriba en las dos fichas (01/09/2026)
+
+Una tira compacta de pastillas bajo los botones de contacto, con lo que hay que
+saber ANTES de nada. Misma clase (`.pl-urge`), mismos colores y mismo sitio en
+la ficha de un participante y en la de un monitor: es el mismo gesto y no
+merece un segundo idioma.
+
+**En la ficha de un chaval:** alergias e intolerancias **con su texto**, la
+racha de ausencias si pasa del umbral, y los avisos abiertos. Estaba todo tras
+contacto, asistencia y avisos: cuatro secciones de scroll hasta «Frutos secos
+(anafilaxia)».
+
+**En la ficha de un monitor:** los requisitos que le faltan, **por su nombre**.
+El certificado de delitos sexuales no es un campo más — sin él esa persona no
+puede estar con menores— y estaba enterrado en una lista de nueve filas donde
+ocho están bien. Los permisos (LOPD, cesión de imágenes) **no** cuentan: un
+«no» ahí es una decisión suya, no un incumplimiento, y ya lo distingue `req` en
+`sticpa_pl_monitor_bloques()`.
+
+**Lo que NO se hizo, y por qué.** El primer intento subió el bloque de salud
+entero. Ocupaba media pantalla de campos etiquetados —tratamientos,
+enfermedades, otras patologías— para llegar al único dato urgente, y arriba el
+espacio es lo más caro que hay. Ahora arriba va el RESUMEN y los campos con su
+etiqueta se quedan abajo, en su sección de siempre.
+
+Sí, las alergias salen dos veces. Es a propósito: la cajita es para el vistazo
+de tres segundos y la sección para la consulta, y quitar el dato de una de las
+dos rompe justo el sitio donde se estaba mirando.
+
+Si no hay nada que decir **no se pinta nada**. Una cajita vacía —o una verde de
+«todo bien»— en cada ficha enseña a no mirarla, y el día que se ponga roja
+tampoco se verá.
+
+⚠️ Regla para quien venga: **cada pastilla que se añada resta a las otras.** Una
+tira con seis cosas ya no es «lo imprescindible», es otra sección.
+
+Esto obligó a arreglar dos mentiras del doble de test: devolvía la MISMA ficha
+para cualquier id (así que las fichas sin alergias no existían) y no había forma
+de pisar un campo para probar un requisito sin cumplir. Ahora hay
+`FakeSCP::$fichaOverrides`.
+
+Cierra la parte urgente de la fila 3 del plan 037.
+
+### 🟡 Lo que queda por comprobar en producción### 🟡 Lo que queda por comprobar en producción
 
 Todo lo del 28/08 por la tarde está probado con tests pero **no confirmado
 contra el CRM real**. Lo que hay que mirar la próxima vez que se pase lista:
@@ -51,33 +94,51 @@ monitor de David Soler tienen `end_date` = 2026-08-31. A partir del 1 de
 septiembre C1 saldrá vacío y **eso NO es el bug volviendo**: es que el curso
 2025-2026 se ha acabado en los datos. Mirar esto antes de buscar en el código.
 
-### 🟡 Los márgenes laterales: sigue abierto
+### ✅ Los márgenes laterales: resueltos (01/09/2026)
 
-El propietario lo dice desde el 28/08: «se pierde mucho espacio por los lados,
-hace falta un poco pero no tanto». **No está arreglado**, y el camino obvio es
-un callejón sin salida: el relleno lateral de `.stic-tab-content` ya es cero
-(§20.a lo pisa con `!important`), así que el hueco viene del **tema de
-WordPress, por fuera de `.stic-container`**.
+Pedido el 28/08 («se pierde mucho espacio por los lados, hace falta un poco pero
+no tanto») y arreglado el 01/09.
 
-Siguiente paso concreto, y en este orden:
+**Por qué no se arreglaba.** El relleno lateral de `.stic-tab-content` ya valía
+CERO (§20.a lo pisa con `!important`), así que tocarlo no movía un píxel. El
+hueco lo mete el tema de WordPress por fuera de `.stic-container`. El plan
+anterior era medirlo en el móvil y restarlo — o sea, adivinar un número que
+cambia con el tema, con el ancho y con la plantilla.
 
-1. **Medir.** Abrir el área privada en el móvil de verdad, inspeccionar y
-   apuntar el `padding-inline` (o el `max-width` + `margin: auto`) del envoltorio
-   del tema que contiene `.stic-container`. Sin ese número no se puede hacer
-   nada que no sea adivinar.
-2. Con el número, sangrar `.stic-container` esa cantidad exacta con margen
-   negativo y devolverle el aire que se quiera (el «un poco, pero no tanto»).
-3. **Comprobar que no reaparece el desbordamiento horizontal** de plan 035:
-   varios bloques de Pasar Lista YA sangran por su cuenta contando con ese
-   relleno, y si se sangra dos veces se salen. Hoy lo tapa `overflow-x: clip`,
-   que esconde el síntoma pero no la causa.
+**Lo que se hizo en vez de eso.** `margin-inline: calc(50% - 50vw)` sobre
+`.stic-tab-content`: medio contenedor menos medio viewport es exactamente lo que
+sobra a cada lado, **sea el que sea**. No hay número que medir ni que mantener.
+Después se devuelve el aire deseado con `padding-inline: var(--pl-gutter)`, que
+está en un solo sitio (hoy `0.6rem` ≈ 10 px: se pidió aprovechar al máximo el
+espacio, así que va apretado).
+
+Tres cosas que lo sostienen, y las tres tienen test (`TokensCssTest`):
+
+1. **Se sangra el HIJO, no `.stic-container`.** `50vw` incluye la barra de
+   desplazamiento vertical en los navegadores de escritorio que la pintan
+   encima, y eso son ~15 px de desbordamiento; el `overflow-x: clip` del padre
+   —que ya estaba— los recorta. Sangrar el padre habría dejado ese recorte sin
+   nadie que lo aplicara.
+2. **`clip` y no `hidden`.** `hidden` crearía un contenedor de scroll y se
+   llevaría por delante el `position: sticky` de la barra de guardar.
+3. **`width: auto !important`.** `menu.php` pinta ese div con
+   `style="width:100%"` EN LÍNEA; con un ancho fijado, el margen negativo
+   desplaza la caja a la izquierda en vez de ensancharla — el sangrado
+   descoloca la página y no gana un píxel. Una hoja con `!important` gana a un
+   estilo en línea que no lo lleva.
+
+A partir de tablet (48rem) se desactiva: ahí no hay nada que recuperar, y
+estirar hasta el viewport dejaría una lista de nombres de un metro de ancha.
+
+Solo afecta a Pasar Lista y Mis Grupos: `pasar-lista.css` únicamente se carga
+ahí.
 
 ### 🟡 Otros abiertos, menores
 
 | | Qué |
 |---|---|
 | ✅ | ~~Alguien puede ser monitor de dos grupos~~ — resuelto el 28/08/2026, ver §2. |
-| 🟡 | El grupo `Najar` no es de participantes MIC-COM y aparece en el árbol. Hay que decidir el filtro de qué grupos salen. |
+| ✅ | ~~El grupo `Najar` aparece en el árbol.~~ Comprobado el 01/09/2026 contra el CRM: su `ajmcm_pasar_lista_c` **ya está a 0**, y la lógica del filtro es correcta. Si se seguía viendo era la caché de estructura (24 h): con el botón de refrescar desaparece. Nada que tocar en código. |
 | 🟡 | Los «sectores» (COM I = los dos primeros cursos de la ESO, etc.) se agrupan **a mano**. No hay campo en el CRM y de momento no lo va a haber. |
 | 🟡 | El filtro plano por campo de enlace (`..._ida`) en `get_entry_list` devuelve **error 400 de base de datos** en `stic_Sessions`, `LIS_listas`, `stic_Registrations` y `stic_Contacts_Relationships`. Se puede LEER el campo, pero no FILTRAR por él. Para consultar por relación hay que ir por `get_relationships`. Ojo: no es lo mismo que la trampa de §3.1 — ahí el problema es el enlace anidado que no viene; aquí es el filtro que el CRM rechaza. |
 | 🟡 | `ajmcm_curso_escolar_c` **existe** en `stic_Contacts_Relationships` y está **vacío en todas** las relaciones reales. El curso del histórico se deduce de `start_date` y `end_date`. Si algún día se rellena, hay que mirar antes las claves internas de su desplegable. |

@@ -249,10 +249,10 @@ marcando. Era justo la pega de llegar a la ficha por la pantalla de marcar.
 
 ## 9. Qué queda por decidir
 
-- **El formulario de «datos por revisar» del resumen es ahora un duplicado.**
-  Hace lo mismo que `?ver=sueltos` pero peor (sin foto, sin edad, sin el curso
-  del grupo en el desplegable, y ordenado por nombre de pila). Habría que
-  quitarlo de ahí y dejar un enlace, pero eso toca una pantalla que no se pidió.
+- ~~El formulario de «datos por revisar» del resumen es un duplicado.~~
+  **Hecho el 01/09/2026:** el resumen se queda con el aviso —que es lo que sabe
+  hacer bien— y un enlace a `?ver=sueltos`. El manejador del POST se deja en pie
+  para que un enlace viejo o un botón atrás no den un error raro.
 - **No hay flechas en las vistas A-Z y por curso.** Recorrer trescientas fichas
   con el pie es un gesto raro; hoy las flechas recorren el grupo, que es la
   lista que alguien se lee entera de verdad.

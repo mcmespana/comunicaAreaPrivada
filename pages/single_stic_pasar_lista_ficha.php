@@ -320,6 +320,110 @@ if ($quick !== null) {
     $html .= '</div>';
 }
 
+// ---------------------------------------------------------------------------
+// Los datos de asistencia y avisos: se LEEN aquí, se PINTAN más abajo
+// ---------------------------------------------------------------------------
+
+/* La cajita de «lo imprescindible» va arriba del todo, y necesita la racha y
+ * los avisos, que antes se calculaban a mitad de página. Se adelanta el
+ * CÁLCULO y se deja el PINTADO donde estaba: son las mismas consultas, en la
+ * misma tanda y en el mismo orden, así que esto no cuesta ni una llamada más
+ * (lo vigila `CosteLlamadasTest`).
+ *
+ * La tanda va DESPUÉS de los manejadores del POST de arriba: si se leyera
+ * antes, un aviso recién puesto no saldría hasta recargar. */
+$etapa = sticpa_pl_group_etapa($group['level']);
+$events = sticpa_pl_etapa_events($objSCP);
+
+$track = null;
+$streak = 0;
+$sessions = array();
+$marks = array();
+
+if (isset($events[$etapa])) {
+    // TANDA 2: las sesiones y las inscripciones del evento, juntas. Necesitan
+    // el evento, así que no cabían en la primera.
+    $eventId = $events[$etapa]['id'];
+    sticpa_pl_prime($objSCP, function () use ($objSCP, $eventId) {
+        sticpa_pl_event_sessions($objSCP, $eventId);
+        sticpa_pl_event_registrations($objSCP, $eventId);
+    });
+
+    $sessions = sticpa_pl_event_sessions($objSCP, $eventId);
+    $regMap = sticpa_pl_event_registrations($objSCP, $eventId);
+    $regId = array_search($contactId, $regMap, true);
+
+    if ($regId !== false) {
+        $marks = sticpa_pl_contact_marks($objSCP, $regId, $sessions, $regMap);
+        $track = sticpa_pl_att_track($sessions, $marks);
+        $streak = sticpa_pl_absence_streak($sessions, $marks);
+    }
+}
+
+$avisos = sticpa_pl_avisos_enabled()
+    ? sticpa_pl_avisos($objSCP, $contactId)
+    : array();
+
+// ---------------------------------------------------------------------------
+// LO IMPRESCINDIBLE: una cajita, arriba, y nada más
+// ---------------------------------------------------------------------------
+
+/* Lo que hay que saber ANTES de darle la merienda a alguien o de dejarle
+ * marchar, en una sola tira compacta bajo el nombre.
+ *
+ * POR QUÉ UNA CAJITA Y NO LA SECCIÓN ENTERA. Se probó a subir el bloque de
+ * salud completo y ocupaba media pantalla de campos etiquetados —tratamientos,
+ * enfermedades, otras patologías— para llegar al único dato urgente. Aquí el
+ * espacio es lo más caro que hay: arriba va el RESUMEN, y los campos, cada uno
+ * con su etiqueta, se quedan abajo en su sección de siempre.
+ *
+ * LO QUE SÍ ENTRA, y por qué solo esto:
+ *   - Alergias e intolerancias, CON SU TEXTO. No un «tiene alergias, mira
+ *     abajo»: quien lea solo la cajita tiene que saber de qué, o la cajita no
+ *     sirve para nada y encima da la falsa sensación de estar informado.
+ *   - La racha de ausencias, si pasa del umbral (plan 037, fila 3).
+ *   - Los avisos abiertos, si los hay.
+ *
+ * Y NADA MÁS. Cada pastilla que se añada resta a las otras: una tira con seis
+ * cosas ya no es «lo imprescindible», es otra sección.
+ *
+ * Si no hay nada que decir, no se pinta: una cajita vacía en todas las fichas
+ * enseña a no mirarla, y el día que tenga contenido tampoco se mirará. */
+$urgente = array();
+
+$comida = array_filter(array(
+    trim($ficha['ajmcm_descripcion_allergies__c']),
+    trim($ficha['ajmcm_descripcion_intoler_c']),
+));
+if (!empty($comida)) {
+    $urgente[] = array('warn', 'comida', implode(' · ', $comida));
+}
+if ($streak >= sticpa_pl_streak_threshold()) {
+    $urgente[] = array('clock', 'faltas', sprintf(
+        /* translators: %d: ausencias consecutivas */
+        _n('%d falta seguida', '%d faltas seguidas', $streak, 'sticpa'),
+        $streak
+    ));
+}
+if ($avisos !== array()) {
+    $urgente[] = array('warn', 'avisos', sprintf(
+        /* translators: %d: avisos de comportamiento abiertos */
+        _n('%d aviso', '%d avisos', count($avisos), 'sticpa'),
+        count($avisos)
+    ));
+}
+
+if (!empty($urgente)) {
+    $html .= '<div class="pl-urge">';
+    foreach ($urgente as $bit) {
+        list($icono, $tipo, $texto) = $bit;
+        $html .= '<span class="pl-urge-bit pl-urge-bit--' . esc_attr($tipo) . '">'
+            . sticpa_pl_icon($icono)
+            . '<span>' . esc_html($texto) . '</span></span>';
+    }
+    $html .= '</div>';
+}
+
 $phoneCards = '';
 // El chaval primero si tiene móvil propio: en el COM lo tienen, y a veces es a
 // quien hay que llamar. El botón de WhatsApp respeta ajmcm_menorwhatsapp_c.
@@ -382,98 +486,80 @@ if ($phoneCards !== '') {
 /* Todo el histórico del participante en UNA llamada, desde su inscripción. El
  * porcentaje va sobre las sesiones YA CELEBRADAS y se escribe con denominador:
  * en febrero el curso no lleva 24 sesiones, y un 82 % de noviembre y uno de
- * mayo se leen igual si no se dice sobre cuántas. */
-$etapa = sticpa_pl_group_etapa($group['level']);
-$events = sticpa_pl_etapa_events($objSCP);
-
-if (isset($events[$etapa])) {
-    // TANDA 2: las sesiones y las inscripciones del evento, juntas. Necesitan
-    // el evento, así que no cabían en la primera.
-    $eventId = $events[$etapa]['id'];
-    sticpa_pl_prime($objSCP, function () use ($objSCP, $eventId) {
-        sticpa_pl_event_sessions($objSCP, $eventId);
-        sticpa_pl_event_registrations($objSCP, $eventId);
-    });
-
-    $sessions = sticpa_pl_event_sessions($objSCP, $eventId);
-    $regMap = sticpa_pl_event_registrations($objSCP, $eventId);
-    $regId = array_search($contactId, $regMap, true);
-
-    if ($regId !== false) {
-        $marks = sticpa_pl_contact_marks($objSCP, $regId, $sessions, $regMap);
-        $track = sticpa_pl_att_track($sessions, $marks);
-        $streak = sticpa_pl_absence_streak($sessions, $marks);
-
-        /* EL DENOMINADOR SON LAS SESIONES MARCADAS, no las celebradas.
-         *
-         * Es el mismo cambio que en la ficha de un monitor y por la misma
-         * razón: si el grupo pasó tres listas de diez, un chaval que vino a las
-         * tres salía al 30 %. Ese 70 % que faltaba no eran ausencias suyas, era
-         * la lista sin pasar — y el número quedaba escrito en su ficha como si
-         * lo fueran. Los sábados sin marcar se cuentan aparte y se dicen.
-         *
-         * El porcentaje grande, y a su lado SIEMPRE el denominador: un 79 % de
-         * noviembre y uno de mayo se leen igual si no se dice sobre cuántas.
-         * La barra dice el mismo dato sin números, para el vistazo de un
-         * segundo; el ancho se pone en línea porque es un dato, no un estilo. */
-        $pct = max(0, min(100, (int) $track['pct']));
-        $sinDatos = ((int) $track['pct'] < 0);
-        $html .= '<div class="pl-sec">' . esc_html__('Asistencia', 'sticpa') . '</div>';
-        $html .= '<div class="pl-att">';
-        $html .= '<div class="pl-att-top">';
-        $html .= $sinDatos
-            ? '<span class="pl-att-pct pl-att-pct--none">' . esc_html__('Sin datos', 'sticpa') . '</span>'
-            : '<span class="pl-att-pct">' . esc_html((string) $pct) . '<span>%</span></span>';
+ * mayo se leen igual si no se dice sobre cuántas.
+ *
+ * El cálculo está arriba, con el de los avisos: los necesita la cajita de «lo
+ * imprescindible». Aquí solo se pinta. */
+if ($track !== null) {
+    /* EL DENOMINADOR SON LAS SESIONES MARCADAS, no las celebradas.
+     *
+     * Es el mismo cambio que en la ficha de un monitor y por la misma
+     * razón: si el grupo pasó tres listas de diez, un chaval que vino a las
+     * tres salía al 30 %. Ese 70 % que faltaba no eran ausencias suyas, era
+     * la lista sin pasar — y el número quedaba escrito en su ficha como si
+     * lo fueran. Los sábados sin marcar se cuentan aparte y se dicen.
+     *
+     * El porcentaje grande, y a su lado SIEMPRE el denominador: un 79 % de
+     * noviembre y uno de mayo se leen igual si no se dice sobre cuántas.
+     * La barra dice el mismo dato sin números, para el vistazo de un
+     * segundo; el ancho se pone en línea porque es un dato, no un estilo. */
+    $pct = max(0, min(100, (int) $track['pct']));
+    $sinDatos = ((int) $track['pct'] < 0);
+    $html .= '<div class="pl-sec">' . esc_html__('Asistencia', 'sticpa') . '</div>';
+    $html .= '<div class="pl-att">';
+    $html .= '<div class="pl-att-top">';
+    $html .= $sinDatos
+        ? '<span class="pl-att-pct pl-att-pct--none">' . esc_html__('Sin datos', 'sticpa') . '</span>'
+        : '<span class="pl-att-pct">' . esc_html((string) $pct) . '<span>%</span></span>';
+    $html .= '<span class="pl-att-meta">' . esc_html(sprintf(
+        /* translators: 1: horas asistidas, 2: horas celebradas */
+        __('%1$s h de %2$s h', 'sticpa'),
+        $track['hours'],
+        $track['hours_total']
+    )) . '</span>';
+    $html .= '</div>';
+    $html .= '<div class="pl-att-bar" role="img" aria-label="' . esc_attr(sprintf(
+        /* translators: %d: porcentaje de asistencia */
+        __('%d %% de asistencia', 'sticpa'),
+        $pct
+    )) . '"><div class="pl-att-fill" style="width:' . esc_attr($pct) . '%"></div></div>';
+    $html .= '<div class="pl-att-body">';
+    $html .= '<span class="pl-att-main">' . esc_html(sprintf(
+        /* translators: 1: sesiones a las que vino, 2: sesiones con lista pasada */
+        __('%1$d de %2$d sesiones marcadas', 'sticpa'),
+        $track['attended'],
+        $track['counted']
+    )) . '</span>';
+    if ($track['unknown'] > 0) {
         $html .= '<span class="pl-att-meta">' . esc_html(sprintf(
-            /* translators: 1: horas asistidas, 2: horas celebradas */
-            __('%1$s h de %2$s h', 'sticpa'),
-            $track['hours'],
-            $track['hours_total']
+            /* translators: %d: sábados celebrados sin lista pasada */
+            _n('%d sábado sin lista', '%d sábados sin lista', $track['unknown'], 'sticpa'),
+            $track['unknown']
         )) . '</span>';
-        $html .= '</div>';
-        $html .= '<div class="pl-att-bar" role="img" aria-label="' . esc_attr(sprintf(
-            /* translators: %d: porcentaje de asistencia */
-            __('%d %% de asistencia', 'sticpa'),
-            $pct
-        )) . '"><div class="pl-att-fill" style="width:' . esc_attr($pct) . '%"></div></div>';
-        $html .= '<div class="pl-att-body">';
-        $html .= '<span class="pl-att-main">' . esc_html(sprintf(
-            /* translators: 1: sesiones a las que vino, 2: sesiones con lista pasada */
-            __('%1$d de %2$d sesiones marcadas', 'sticpa'),
+    }
+    $html .= '</div>';
+    $html .= sticpa_pl_squares_html(
+        $track['squares'],
+        'asistencia',
+        sprintf(
+            /* translators: 1: a cuántas vino, 2: cuántas se contaron */
+            __('Vino a %1$d de %2$d sesiones marcadas', 'sticpa'),
             $track['attended'],
             $track['counted']
-        )) . '</span>';
-        if ($track['unknown'] > 0) {
-            $html .= '<span class="pl-att-meta">' . esc_html(sprintf(
-                /* translators: %d: sábados celebrados sin lista pasada */
-                _n('%d sábado sin lista', '%d sábados sin lista', $track['unknown'], 'sticpa'),
-                $track['unknown']
-            )) . '</span>';
-        }
-        $html .= '</div>';
-        $html .= sticpa_pl_squares_html(
-            $track['squares'],
-            'asistencia',
-            sprintf(
-                /* translators: 1: a cuántas vino, 2: cuántas se contaron */
-                __('Vino a %1$d de %2$d sesiones marcadas', 'sticpa'),
-                $track['attended'],
-                $track['counted']
-            )
-        );
-        $html .= '</div>';
+        )
+    );
+    $html .= '</div>';
 
-        if ($streak >= sticpa_pl_streak_threshold()) {
-            // El aviso solo si son SEGUIDAS. Tres repartidas en el curso no
-            // dicen nada; tres seguidas sí, y merece una llamada a casa.
-            $html .= '<p class="pl-notice" style="color:var(--danger-dark);padding-top:0.5rem">'
-                . sticpa_pl_icon('clock') . '<span>' . esc_html(sprintf(
-                    /* translators: %d: ausencias consecutivas */
-                    _n('Lleva %d ausencia seguida.', 'Lleva %d ausencias seguidas.', $streak, 'sticpa'),
-                    $streak
-                )) . '</span></p>';
-        }
-    }
+    if ($streak >= sticpa_pl_streak_threshold()) {
+        // El aviso solo si son SEGUIDAS. Tres repartidas en el curso no
+        // dicen nada; tres seguidas sí, y merece una llamada a casa.
+        $html .= '<p class="pl-notice" style="color:var(--danger-dark);padding-top:0.5rem">'
+            . sticpa_pl_icon('clock') . '<span>' . esc_html(sprintf(
+                /* translators: %d: ausencias consecutivas */
+                _n('Lleva %d ausencia seguida.', 'Lleva %d ausencias seguidas.', $streak, 'sticpa'),
+                $streak
+            )) . '</span></p>';
+}
 }
 
 // ---------------------------------------------------------------------------
@@ -488,7 +574,6 @@ if (isset($events[$etapa])) {
  * el primero, y una sección que solo aparece cuando ya hay un problema no se
  * encuentra el día que hace falta. */
 if (sticpa_pl_avisos_enabled()) {
-    $avisos = sticpa_pl_avisos($objSCP, $contactId);
     $limite = sticpa_pl_avisos_limite();
     $puestos = count($avisos);
 
@@ -632,9 +717,17 @@ if (sticpa_pl_avisos_enabled()) {
 }
 
 // ---------------------------------------------------------------------------
-// Salud: los cinco campos en UNA tarjeta, y solo lo que tenga contenido
+// Salud: los cinco campos, cada uno con su etiqueta
 // ---------------------------------------------------------------------------
 
+/* AQUÍ ABAJO, y con todos los campos. Lo urgente ya se ha dicho arriba en la
+ * cajita —alergias e intolerancias, con su texto—, así que esto es la ficha
+ * médica completa para cuando se busca un dato concreto: qué tratamiento
+ * sigue, qué enfermedad tiene.
+ *
+ * Sí, las alergias salen dos veces. Es a propósito: la cajita de arriba es
+ * para el vistazo de tres segundos y esta sección para la consulta, y quitar
+ * el dato de una de las dos rompe justo el sitio donde se estaba mirando. */
 $healthFields = array(
     'ajmcm_descripcion_allergies__c' => __('Alergias', 'sticpa'),
     'ajmcm_descripcion_intoler_c' => __('Intolerancias', 'sticpa'),

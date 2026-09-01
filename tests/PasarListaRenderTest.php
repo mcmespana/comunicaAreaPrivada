@@ -18,6 +18,10 @@ class FakeSCP
     public $relationships = array();
     /** Cuando es distinto de null, el usuario coordina con este alcance. */
     public $coordEtapa = null;
+    /** Campos que se pisan en la ficha que devuelve el CRM, para probar los
+     *  casos que el registro de ejemplo no cubre (un requisito sin cumplir,
+     *  una ficha sin datos de salud). */
+    public $fichaOverrides = array();
     /** Cuando es true, el usuario acompaña. */
     public $isAcomp = false;
     /** Seguimientos que devuelve el CRM (claves ya del CRM: mcm_*). */
@@ -200,6 +204,27 @@ class FakeSCP
                 'ajmcm_descripcion_allergies__c' => 'Frutos secos (anafilaxia)',
                 'ajmcm_descripcion_intoler_c' => '',
             ));
+            /* JAUME NO TIENE NADA DE SALUD, y hace falta que sea así.
+             *
+             * Este doble devolvía la MISMA ficha para cualquier id, así que la
+             * mitad de las fichas del CRM —las que no tienen alergias ni
+             * tratamientos— no existían en los tests. Con una sola ficha no se
+             * puede probar que una tarjeta vacía NO se pinta, que es justo lo
+             * que evita que todas las fichas lleven una franja roja y que el
+             * rojo deje de significar nada. */
+            if ((string) $id === 'c2') {
+                $data = array_merge($data, array(
+                    'first_name' => 'Jaume', 'last_name' => 'Pascual', 'name' => 'Jaume Pascual',
+                    'ajmcm_descripcion_allergies__c' => '',
+                    'ajmcm_descripcion_intoler_c' => '',
+                    'ajmcm_descripcion_tratam_c' => '',
+                    'ajmcm_descripcion_enfermed_c' => '',
+                    'ajmcm_descripcion_otros_c' => '',
+                ));
+            }
+        }
+        if (!empty($this->fichaOverrides)) {
+            $data = array_merge($data, $this->fichaOverrides);
         }
         $out = new stdClass();
         $out->entry_list = array($this->nvl($data));
@@ -2482,14 +2507,50 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('no editarlo', $html);
     }
 
-    /** Coordinación sí tiene el desplegable y el botón de asignar. */
-    public function test_coordinacion_puede_asignar_grupo()
+    /**
+     * El resumen AVISA de quién no tiene grupo; vincularlos se hace en «Mis
+     * grupos».
+     *
+     * Tenía aquí su propio formulario, y desde el 01/09/2026 era un duplicado
+     * peor del de `?ver=sueltos` (sin foto, sin edad, sin el curso de cada
+     * grupo en el desplegable). Dos formularios que escriben lo mismo acaban
+     * divergiendo, así que la acción vive en un solo sitio y aquí queda el
+     * aviso, que es lo que el resumen sabe hacer bien.
+     */
+    public function test_el_resumen_manda_a_mis_grupos_para_vincular()
     {
         $GLOBALS['__stic_filters']['sticpa_pl_is_coordinator'] = true;
 
         $html = $this->render('single_stic_pasar_lista_resumen');
-        $this->assertStringContainsString('pl-review-select', $html);
-        $this->assertStringContainsString('Asignar', $html);
+        $this->assertStringContainsString('Sol Messeguer', $html);
+        $this->assertStringContainsString('single_stic_mis_grupos&ver=sueltos', $html);
+        // Ya no hay un segundo formulario que mantener.
+        $this->assertStringNotContainsString('pl-review-select', $html);
+        $this->assertStringNotContainsString('pl_assign_rel', $html);
+
+        unset($GLOBALS['__stic_filters']['sticpa_pl_is_coordinator']);
+    }
+
+    /**
+     * Y el manejador del POST sigue en pie: un enlace viejo, o el botón atrás
+     * con el formulario ya enviado, no puede dar un error raro.
+     */
+    public function test_el_resumen_sigue_aceptando_una_asignacion_por_post()
+    {
+        $GLOBALS['__stic_filters']['sticpa_pl_is_coordinator'] = true;
+        $_POST = array(
+            'pl_assign_rel' => 'r7',
+            'pl_assign_group' => 'g1',
+            'pl_nonce' => wp_create_nonce('pl_resumen'),
+        );
+
+        $html = $this->render('single_stic_pasar_lista_resumen');
+
+        $this->assertStringContainsString('Grupo asignado', $html);
+        $escrituras = array_filter($this->scp->relationships, function ($r) {
+            return $r['module'] === 'stic_Contacts_Relationships';
+        });
+        $this->assertCount(1, $escrituras);
 
         unset($GLOBALS['__stic_filters']['sticpa_pl_is_coordinator']);
     }
@@ -4536,5 +4597,152 @@ final class PasarListaRenderTest extends TestCase
             return $r['module'] === 'stic_Contacts_Relationships';
         });
         $this->assertEmpty($escrituras, 'Sin nonce no se toca ni una relación.');
+    }
+
+    // ---- Salud arriba ----------------------------------------------------
+
+    /**
+     * LO QUE PUEDE ACABAR EN URGENCIAS VA ARRIBA. Estaba tras contacto,
+     * asistencia y avisos: cuatro secciones de scroll hasta «Frutos secos
+     * (anafilaxia)». Un dato así no puede estar donde solo lo ve quien va
+     * buscándolo. Sube el RESUMEN, en una cajita; los campos con su etiqueta
+     * se quedan abajo, que el espacio de arriba es lo más caro que hay.
+     */
+    public function test_la_cajita_de_lo_urgente_va_antes_que_todo_lo_demas()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $salud = strpos($html, 'pl-urge');
+        $this->assertNotFalse($salud, 'La ficha tiene que enseñar la cajita.');
+
+        foreach (array('Contacto', 'Asistencia', 'Avisos de comportamiento',
+            'Permisos', 'Pañuelo') as $seccion) {
+            $pos = strpos($html, $seccion);
+            $this->assertNotFalse($pos);
+            $this->assertLessThan(
+                $pos,
+                $salud,
+                'La salud tiene que ir ANTES de «' . $seccion . '».'
+            );
+        }
+    }
+
+    /**
+     * La cajita lleva el TEXTO de la alergia, no un «tiene alergias, mira
+     * abajo»: quien lea solo la cajita tiene que saber de qué, o no sirve para
+     * nada y encima da la falsa sensación de estar informado.
+     */
+    public function test_la_cajita_dice_de_que_es_la_alergia()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $caja = substr($html, strpos($html, 'pl-urge'), 600);
+        $this->assertStringContainsString('Frutos secos (anafilaxia)', $caja);
+    }
+
+    /** Y los avisos abiertos, que es lo otro que hay que saber ya. */
+    public function test_la_cajita_cuenta_los_avisos_abiertos()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringContainsString('pl-urge-bit--avisos', $html);
+        $this->assertStringContainsString('2 avisos', $html);
+    }
+
+    /**
+     * La sección de Salud sigue ABAJO y con sus etiquetas. Arriba va el
+     * resumen para el vistazo de tres segundos; abajo, la ficha médica para
+     * cuando se busca un dato concreto.
+     */
+    public function test_la_seccion_de_salud_sigue_abajo_con_sus_etiquetas()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $caja = strpos($html, 'pl-urge');
+        $seccion = strpos($html, '>Salud<');
+        $this->assertNotFalse($seccion, 'La sección de Salud tiene que seguir existiendo.');
+        $this->assertGreaterThan($caja, $seccion, 'La sección va DEBAJO de la cajita.');
+        // Con su etiqueta, que es lo que la cajita no lleva.
+        $this->assertStringContainsString('>Alergias<', $html);
+    }
+
+    /**
+     * Una ficha sin nada de salud no pinta la tarjeta, y sobre todo no pinta el
+     * rojo: una tarjeta vacía en todas las fichas enseña a no mirarla, y el día
+     * que tenga contenido tampoco se mirará.
+     */
+    public function test_sin_datos_de_salud_no_hay_tarjeta_ni_rojo()
+    {
+        $_REQUEST = array('participante' => 'c2', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringNotContainsString('>Salud<', $html);
+        // Y sin nada urgente que decir, tampoco hay cajita: una vacía en todas
+        // las fichas enseña a no mirarla.
+        $this->assertStringNotContainsString('pl-urge', $html);
+    }
+
+    // ---- La ficha del monitor: lo que bloquea, arriba --------------------
+
+    /**
+     * EL CERTIFICADO DE DELITOS SEXUALES NO ES UN CAMPO MÁS. Sin él esa persona
+     * no puede estar con menores, y estaba enterrado bajo asistencia, grupos y
+     * seguimientos, dentro de una lista de nueve filas donde ocho están bien.
+     */
+    public function test_la_ficha_del_monitor_avisa_de_lo_que_falta()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $this->scp->fichaOverrides = array('ajmcm_cert_del_sex_c' => '0');
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $this->assertStringContainsString('pl-urge', $html);
+        $this->assertStringContainsString('Certificado de delitos sexuales', $html);
+        // Y va ANTES de todo lo demás.
+        $this->assertLessThan(
+            strpos($html, 'Cómo va este curso'),
+            strpos($html, 'pl-urge')
+        );
+    }
+
+    /**
+     * Con todo en regla no se pinta nada: una cajita verde de «todo bien» en
+     * cada ficha enseña a no mirarla, y el día que se ponga roja tampoco se
+     * verá.
+     */
+    public function test_la_ficha_del_monitor_no_pinta_cajita_si_esta_todo_bien()
+    {
+        $this->scp->coordEtapa = 'COM';
+        // El registro de ejemplo lleva `stic_conduct_code_c = 0`, que es el
+        // valor REAL de la instancia: David Soler tiene el código de conducta
+        // sin firmar. Para probar el caso «todo en regla» hay que ponerlo.
+        $this->scp->fichaOverrides = array('stic_conduct_code_c' => '1');
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $this->assertStringNotContainsString('pl-urge', $html);
+    }
+
+    /**
+     * Los PERMISOS no son incumplimientos. Un «no» en cesión de imágenes es una
+     * decisión suya, y meterla en la cajita roja la convertiría en una lista de
+     * reproches en vez de en lo que bloquea.
+     */
+    public function test_un_permiso_denegado_no_es_un_requisito_que_falta()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $this->scp->fichaOverrides = array(
+            'stic_conduct_code_c' => '1',   // lo único que le falta de verdad
+            'ajmcm_cesionimagenes_interne_c' => '0',
+            'ajmcm_acepta_lopd_c' => '0',
+        );
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $this->assertStringNotContainsString('pl-urge', $html);
     }
 }

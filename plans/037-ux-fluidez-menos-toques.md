@@ -105,7 +105,19 @@ demasiados toques. En la hoja del estado (donde ya se escribe el motivo):
   que no se hace —y no se va a hacer— es poner el aviso desde la propia hoja:
   se pone desde la ficha, que está a un toque.
 
-### 3. La ficha como «tarjeta de sábado» (P1)
+### 3. La ficha como «tarjeta de sábado» (P1) — ✅ hecha el 01/09/2026
+
+> Una cajita de «lo imprescindible» bajo los botones de contacto, en LAS DOS
+> fichas y con las mismas clases y colores.
+>
+> - Participante: alergias e intolerancias con su texto, racha de ausencias y
+>   avisos abiertos.
+> - Monitor: los requisitos que le faltan, por su nombre (los permisos no
+>   cuentan: un «no» ahí es una decisión, no un incumplimiento).
+>
+> Se probó a subir la sección de salud entera y ocupaba media pantalla para
+> llegar al único dato urgente: arriba va el resumen, los campos con etiqueta se
+> quedan abajo. Detalle y reglas en `PASAR-LISTA-ESTADO.md` §1.
 
 La ficha existe y es completa; lo que falta es jerarquía de urgencia. Arriba
 del todo, sin scroll, lo que un monitor necesita EN la sesión: teléfono(s) de
