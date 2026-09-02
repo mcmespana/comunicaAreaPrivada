@@ -68,8 +68,14 @@ jobs:
       - name: Minificar CSS y JS propios (solo en lo que se sube)
         run: |
           set -euo pipefail
-          for f in css/custom-style.css css/stic-base.css \
-                   js/stic-ui.js js/stic-utils.js js/stic-init.js js/stic-cropper.js; do
+          # Pasar Lista entró después de escribirse este paso y se quedó fuera de la
+          # lista: 124 KB de CSS y 56 KB de JS viajaban con todos sus comentarios
+          # justo a las pantallas que se usan en un patio, con datos móviles.
+          # No se mete `js/stic-pasar-lista-sw.js`: son 7 KB y un service worker
+          # tiene su propia semántica de actualización; no compensa el riesgo.
+          for f in css/custom-style.css css/stic-base.css css/pasar-lista.css \
+                   js/stic-ui.js js/stic-utils.js js/stic-init.js js/stic-cropper.js \
+                   js/stic-pasar-lista.js; do
             before=$(wc -c < "$f")
             npx --yes esbuild "$f" --minify-whitespace --allow-overwrite --outfile="$f"
             echo "$f: $before -> $(wc -c < "$f") bytes"
