@@ -6,6 +6,9 @@
 
 ## Status
 
+- **HECHO** (2026-09-01). Adelantado al resto de los planes de seguridad, que
+  quedan pospuestos por estar en periodo de pruebas conceptuales: este es de dos
+  líneas, sin riesgo y sin efecto visible, así que no había razón para esperar.
 - **Priority**: P1
 - **Effort**: S
 - **Risk**: LOW
@@ -79,11 +82,29 @@ Manual (sin suite; ver 013):
 
 ## Done criteria
 
-- [ ] `php -l` de ambos archivos exit 0
-- [ ] `session_regenerate_id(true)` se llama en las tres vías (2 puntos de código: contraseña y
+- [x] `php -l` de ambos archivos exit 0
+- [x] `session_regenerate_id(true)` se llama en las tres vías (2 puntos de código: contraseña y
       `sticpa_establish_session`)
-- [ ] La regeneración ocurre ANTES de escribir las claves `scp_*`
-- [ ] Fila 007 actualizada en `plans/README.md`
+- [x] La regeneración ocurre ANTES de escribir las claves `scp_*`
+- [x] Fila 007 actualizada en `plans/README.md`
+
+## Resultado (2026-09-01)
+
+Las dos llamadas puestas, cada una con su comentario:
+
+- `inc/stic-magic-login.php:202`, al principio de `sticpa_establish_session` —
+  cubre `?token=` y `?acceso_magico=`.
+- `sinergiacrm-private-area.php:883`, en `sugar_crm_portal_check_user_and_login`,
+  nada más validar y antes de la primera clave `scp_*`.
+
+Las dos van dentro de `if (session_status() === PHP_SESSION_ACTIVE)`, que es
+gratis y evita el warning si algún flujo llegara sin sesión abierta.
+
+**La prueba manual del plan sigue pendiente** (comparar la cookie antes y
+después de entrar por las tres vías): no hay entorno con WordPress desde aquí.
+Lo que sí está cubierto es que la sesión no se pierde al regenerar —los 366
+tests pasan, incluidos los de `sticpa_establish_session`— porque
+`session_regenerate_id(true)` conserva `$_SESSION` y solo cambia el id.
 
 ## STOP conditions
 
