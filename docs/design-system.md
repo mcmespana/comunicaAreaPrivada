@@ -201,6 +201,20 @@ Modelo de sesión (todo en `$_SESSION`):
 | `scp_tutor_is_user` | true si el familiar se está viendo a sí mismo |
 | `scp_available_profiles` | Participantes disponibles `[{id,name},…]` (caché para el selector) |
 | `scp_is_familia` | true si hay participantes a cargo |
+| `scp_role` | Rol del CRM (`monitor` / `laico` / `''`), **cacheado** |
+| `scp_role_resolved` | **La marca que importa**: si el rol se ha llegado a resolver |
+
+> **El rol se cachea, y hay una trampa.** `scp_role` sale de que
+> `stic_relationship_type_c` del contacto contenga «monitor» o «laic»/«com-lc»
+> (ver `inc/stic-comunica-roles.php`). **No** intervienen las fechas ni la
+> vigencia de `stic_Contacts_Relationships`.
+>
+> Un rol vacío tiene dos significados muy distintos: «esta persona no tiene rol»
+> y «no se pudo preguntar al CRM». Por eso la decisión de repreguntar mira
+> `scp_role_resolved` y **nunca el valor**. Si escribes código que toque esto,
+> no caches un rol que no hayas resuelto: guardar un `''` de un fallo dejaba a un
+> monitor sin «Pasar lista» ni «Mis grupos» durante el año que dura la cookie
+> (plan 040, pasó en producción).
 
 Piezas:
 - **Pantalla de selección**: `pages/single_stic_profile_selection.php`

@@ -66,8 +66,13 @@ function sticpa_detect_role_from_relationship($raw)
 function sticpa_store_comunica_role($entry, $module)
 {
     $raw = '';
+    // ¿Hemos llegado a SABER cuál es el rol, o simplemente no hemos podido
+    // preguntar? Distinguirlo es todo el arreglo: ver la nota de abajo.
+    $resolved = false;
+
     if (isset($entry->name_value_list->stic_relationship_type_c->value)) {
         $raw = $entry->name_value_list->stic_relationship_type_c->value;
+        $resolved = true;
     } elseif (!empty($entry->id) && class_exists('SugarRestApiCall')) {
         // El flujo de login no siempre trae el campo: lo pedimos al CRM.
         $detail = SugarRestApiCall::getObjSCP()->getRecordDetail(
@@ -75,15 +80,55 @@ function sticpa_store_comunica_role($entry, $module)
             $module,
             array('id', 'stic_relationship_type_c')
         );
-        if (isset($detail->entry_list[0]->name_value_list->stic_relationship_type_c->value)) {
-            $raw = $detail->entry_list[0]->name_value_list->stic_relationship_type_c->value;
+        // Que vuelva el registro es la señal de que el CRM ha CONTESTADO sobre
+        // este contacto. Si además el campo viene vacío, eso es un dato bueno
+        // (una persona sin rol), no un fallo, y se cachea igual.
+        if (isset($detail->entry_list[0])) {
+            $resolved = true;
+            if (isset($detail->entry_list[0]->name_value_list->stic_relationship_type_c->value)) {
+                $raw = $detail->entry_list[0]->name_value_list->stic_relationship_type_c->value;
+            }
         }
     }
 
     $role = sticpa_detect_role_from_relationship($raw);
+
+    // NO se cachea un rol que no se ha podido resolver.
+    //
+    // Antes se guardaba siempre, también cuando la llamada al CRM fallaba. Y
+    // como el rol solo se recalculaba si la clave NO existía, un único hipo del
+    // CRM dejaba `scp_role = ''` clavado en la sesión —y la cookie dura un año—.
+    // Traducido: a un monitor le desaparecían «Pasar lista» y «Mis grupos» para
+    // siempre, en silencio, sin nada que explicara por qué y sin más salida que
+    // cerrar sesión (si acertaba a probarlo). Pasó en producción.
+    //
+    // Coste de no cachear el fallo: mientras el CRM no conteste se repite una
+    // llamada por página. Es una llamada con timeout acotado (plan 027) y, si el
+    // CRM no contesta, el área entera está caída de todas formas.
+    if (!$resolved) {
+        return $role;
+    }
+
     $_SESSION['scp_relationship_raw'] = $raw;
     $_SESSION['scp_role'] = $role;
+    // Marca aparte del valor: un rol vacío RESUELTO es legítimo y no se vuelve a
+    // preguntar, mientras que un vacío sin resolver sí. Además cura solo las
+    // sesiones que ya venían con el rol pegado: no tienen esta clave, así que se
+    // les recalcula una vez y a partir de ahí quedan bien.
+    $_SESSION['scp_role_resolved'] = true;
     return $role;
+}
+
+/**
+ * ¿Hay que (re)preguntarle el rol al CRM?
+ *
+ * Mira la MARCA de resolución, no el valor: '' puede ser «esta persona no tiene
+ * rol» (resuelto, no se pregunta más) o «no se pudo preguntar» (sin resolver, se
+ * reintenta). Confundir los dos casos es lo que dejaba a los monitores sin menú.
+ */
+function sticpa_role_needs_resolution()
+{
+    return empty($_SESSION['scp_role_resolved']);
 }
 
 /**
@@ -93,7 +138,7 @@ function sticpa_get_comunica_role()
 {
     // Detección perezosa: si la sesión ya estaba abierta antes de tener esta lógica
     // (o el login no lo calculó), lo resolvemos al vuelo y lo cacheamos en sesión.
-    if (!isset($_SESSION['scp_role']) && !empty($_SESSION['scp_user_id']) && class_exists('SugarRestApiCall')) {
+    if (sticpa_role_needs_resolution() && !empty($_SESSION['scp_user_id']) && class_exists('SugarRestApiCall')) {
         $module = $_SESSION['scp_module'] ?? 'Contacts';
         $entry = new stdClass();
         $entry->id = $_SESSION['scp_user_id'];
