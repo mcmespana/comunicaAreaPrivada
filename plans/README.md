@@ -28,7 +28,7 @@ antes de empezar, respeta sus "STOP conditions" y actualiza su fila de estado al
 | 004 | Validar el destino del selector de participante | P0 | M | 001 | TODO |
 | 005 | Corregir el open redirect vía `scp_current_url` | P1 | S | — | TODO |
 | 006 | Escapar los valores del CRM al pintarlos (XSS almacenado) | P1 | M | — | TODO |
-| 007 | Regenerar el ID de sesión al autenticar (session fixation) | P1 | S | — | TODO |
+| 007 | Regenerar el ID de sesión al autenticar (session fixation) | P1 | S | — | **HECHO** (01/09) — adelantado al resto de seguridad por ser de dos líneas y sin riesgo |
 | 008 | Endurecer el transporte al CRM: TLS + queries de login | P0 | M | — | TODO |
 | 009 | Cachear `get_module_fields` también en `makeList` | P1 | S | — | **DONE** → `archive/` |
 | 010 | Servir el CSS de DataTables local + enqueue condicional | P1 | M | — | **DONE** → `archive/` |
@@ -59,6 +59,7 @@ antes de empezar, respeta sus "STOP conditions" y actualiza su fila de estado al
 | 035 | Pasar Lista: fidelidad al diseño de los artboards | P2 | M | — | **HECHO** (28/08) — las seis pantallas con artboard, verificadas con captura en los dos temas. Tres fallos de fondo, todos del tema de WordPress ganando por especificidad: los `<label>` sin su `display:flex`, los `<input>` con caja dentro de la caja, y 32 px de scroll lateral |
 | 036 | Pasar Lista: funcionalidad pendiente + doctrina de la API | P2 | por fila | 033 | TODO |
 | 037 | Pasar Lista: UX — fluidez, menos toques, ficha a un gesto | P1-P2 | S-M por fila | 033 | **PARCIAL** — filas 1, 3 y 5 hechas (la 3 completada el 28/08 con la ficha del monitor); la 2 DESCARTADA por el propietario (se llama desde la ficha); 4 y 6 esperan medición |
+| 040 | Rol de Comunica: no cachear un rol que no se ha podido resolver | P1 | S | — | **HECHO** (01/09) — a un monitor le desaparecieron «Pasar lista» y «Mis grupos» en producción |
 | 038 | Pasar Lista: seguimiento de monitores (asistencia y listas) | P2 | M | 033, paginación | **HECHO** (28/08/2026) — tres pistas en la ficha del monitor y el aviso mínimo en la lista. Con tres cambios de diseño sobre lo escrito, en §7 del plan |
 | 039 | Unificar el lenguaje visual MCM (tokens, breakpoints, deuda de diseño) | P2 | S por fila | — | **HECHO** (31/08) — las 9 filas. Tokens semánticos en las dos superficies, escala de breakpoints, secciones de CSS sin duplicados, CAMPOS.md sincronizado solo e Inter autoalojada también en los formularios. Sale de escribir [`../design.md`](../design.md) |
 

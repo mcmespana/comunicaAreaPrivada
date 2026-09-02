@@ -875,6 +875,13 @@ function sugar_crm_portal_check_user_and_login($html = "")
 
         $isLogin = $objSCP->PortalLogin($scp_username, $scp_password, $scp_module);
         if ((isset($isLogin->entry_list[0]) && $isLogin->entry_list[0] != null) && ($scp_username != null) && ($scp_password != null)) {
+            // Plan 007 — session fixation. Mismo motivo y mismo momento que en
+            // `sticpa_establish_session` (inc/stic-magic-login.php), que cubre
+            // las otras dos vías de entrada: rotar el id nada más validar y
+            // antes de escribir las claves `scp_*`.
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                session_regenerate_id(true);
+            }
             $_SESSION['scp_module'] = $scp_module;
             $_SESSION['scp_user_id'] = $isLogin->entry_list[0]->id;
             $_SESSION['scp_user_contact_name'] = $isLogin->entry_list[0]->name_value_list->name->value;
@@ -1179,6 +1186,7 @@ if (isset($_REQUEST['logout'])) // logout
             'scp_module',
             // Cachés por usuario (ver inc/stic-comunica-roles.php y menu.php).
             'scp_role',
+            'scp_role_resolved',
             'scp_relationship_raw',
             'scp_available_profiles',
             'scp_is_familia',
