@@ -2801,333 +2801,59 @@ a.pl-cell:active { opacity: 0.55; }
 
 /* ---- LOS MÁRGENES LATERALES ---------------------------------------------
    «Se pierde mucho espacio por los lados; hace falta un poco, pero no tanto».
-   Pedido el 28/08/2026 y sin resolver hasta el 01/09.
 
    POR QUÉ NO SE ARREGLABA. El relleno lateral de `.stic-tab-content` ya vale
    CERO (§20.a de custom-style lo pisa con `!important`), así que tocarlo no
    movía un píxel. El hueco lo mete el TEMA DE WORDPRESS, por fuera de
-   `.stic-container`. El plan anterior era medirlo en el móvil y restarlo — o
-   sea, adivinar un número que cambia con el tema, con el ancho y con la
-   plantilla de la página.
+   `.stic-container`.
 
-   LO QUE SE HACE EN VEZ DE ESO. `calc(50% - 50vw)` es medio contenedor menos
-   medio viewport: exactamente lo que sobra a cada lado, SEA EL QUE SEA. No hay
-   número que medir ni que mantener, y si mañana el tema cambia su relleno, esto
-   sigue valiendo. Después se devuelve el aire que se quiere, en un solo sitio.
+   LO QUE SE HACE. `calc(50% - 50vw)` es medio contenedor menos medio viewport:
+   exactamente lo que sobra a cada lado, SEA EL QUE SEA. No hay número que
+   medir ni que mantener, y si mañana el tema cambia su relleno esto sigue
+   valiendo. Después se devuelve el aire que se quiere, en un solo sitio.
 
-   POR QUÉ EN `.stic-tab-content` Y NO EN `.stic-container`. Porque `50vw`
-   incluye la barra de desplazamiento vertical en los navegadores de escritorio
-   que la pintan encima del contenido, y eso son ~15 px de desbordamiento
-   horizontal. Sangrando el hijo, el `overflow-x: clip` del padre —el de la
-   línea de arriba, que ya estaba— los recorta. Sangrar el padre habría dejado
-   ese recorte sin nadie que lo aplicara.
+   EL PRIMER INTENTO ESTABA ROTO, y así se vio: se sangró `.stic-tab-content`,
+   que va DENTRO de `.stic-container`… que tiene `overflow-x: clip`. Y `clip`
+   recorta a los hijos que se salen de la caja: el padre le cortaba al hijo el
+   sangrado ENTERO. La página se veía exactamente igual que antes, y el aire
+   parecía «mucho» cuando lo que pasaba es que no se estaba comiendo nada.
 
-   Y `clip` y no `hidden`, como dice el comentario de arriba: `hidden` crearía
-   un contenedor de scroll y se llevaría por delante el `position: sticky` de la
-   barra de guardar.
+   Así que sangra `.stic-container`, que es quien tiene el clip: un elemento no
+   se recorta a sí mismo, y su clip sigue conteniendo a los bloques de dentro
+   que sangran por su cuenta (los del plan 035, que es para lo que se puso).
+
+   Y para contener al PROPIO contenedor —`50vw` incluye la barra de
+   desplazamiento en los escritorios que la pintan encima, y eso son ~15 px— el
+   recorte se pone en el `body`, acotado con `:has()` para no tocar el resto del
+   sitio de WordPress. Si un navegador no entiende `:has()`, ignora la línea y
+   se queda como estaba: el sangrado sigue funcionando y solo se pierde esa
+   red de seguridad.
 
    EL AIRE, en una variable y en un solo sitio: si hay que subirlo o bajarlo, se
-   toca aquí y cambian las siete pantallas a la vez. */
-/* 0.6rem ≈ 10 px. Se pidió «aprovechar al máximo el espacio», así que va
-   apretado: lo justo para que las tarjetas no parezcan pegadas al cristal.
-   Un número, un sitio: si se quiere más aire o menos, se cambia aquí y cambian
-   las ocho pantallas a la vez. */
-:root { --pl-gutter: 0.6rem; }
+   toca aquí y cambian las ocho pantallas a la vez. */
+:root { --pl-gutter: 0.25rem; }
 
-.stic-tab-content {
-    /* `width: auto` Y CON `!important`, que no es cosmético: `menu.php` pinta
-       este div con `style='width:100%'` EN LÍNEA, y con un ancho fijado el
-       margen negativo desplaza la caja hacia la izquierda en vez de
-       ensancharla — o sea, el sangrado descoloca la página y no gana ni un
-       píxel. Una hoja con `!important` gana a un estilo en línea que no lo
-       lleva; es la única forma de neutralizarlo sin tocar el HTML, que es
-       común a TODAS las secciones del área y no solo a Pasar Lista.
-       `auto` y no `100%`: con relleno lateral, `100%` desborda si algún día
-       alguien quita el `box-sizing: border-box`. */
-    width: auto !important;
+body:has(.stic-container) { overflow-x: clip; }
+
+.stic-container {
     margin-inline: calc(50% - 50vw);
-    padding-inline: var(--pl-gutter) !important;
+    padding-inline: var(--pl-gutter);
 }
 
-/* En pantallas anchas no hay nada que recuperar: el área ya no llega a los
+/* A partir de tablet no hay nada que recuperar: el área ya no llega a los
    bordes y estirarla hasta el viewport dejaría una lista de nombres de un
-   metro de ancha. A partir de tablet se deja como estaba. */
-@media (min-width: 48rem) {
-    .stic-tab-content {
+   metro de ancha. Además deja fuera el único caso donde la barra de scroll
+   podría asomar: una ventana de escritorio ancha.
+
+   768px y no «48rem»: la escala de anchos del plan 039 (fila 2) está en px, y
+   los dos no son lo mismo — `rem` se mueve si alguien cambia el tamaño de letra
+   del navegador. Un concepto, un nombre, un sitio. */
+@media (min-width: 768px) {
+    .stic-container {
         margin-inline: 0;
-        padding-inline: 0 !important;
+        padding-inline: 0;
     }
 }
-
-/* Un familiar SIN teléfono también sale. Antes desaparecía de la ficha entera:
-   la madre está en el CRM, bien relacionada, y la pantalla decía «no hay ningún
-   teléfono» sin nombrarla — así nadie podía avisar de que faltaba SU número,
-   porque nadie sabía que ella existía. Sale en gris y sin botones: es una fila
-   informativa, no un contacto al que se pueda llamar. */
-.pl-phone--sinnum { opacity: 0.72; }
-.pl-phone-num--none { font-style: italic; color: var(--gray-400); }
-
-/* EL PORCENTAJE DE LA FILA. Va al final de la línea de los grupos, pequeño y
-   gris: coordinación quiere el número, pero treinta porcentajes en fila no se
-   leen —todos pesan lo mismo y ninguno destaca—. Se encuentra cuando se busca
-   y no compite cuando se escanea. Lo que salta a la vista sigue siendo la nota
-   roja de debajo, que solo sale cuando hay algo que mirar. */
-.pl-rowpct {
-    margin-left: 0.45rem;
-    padding-left: 0.45rem;
-    border-left: 1px solid var(--gray-200);
-    font-variant-numeric: tabular-nums;   /* dos filas seguidas se comparan */
-    color: var(--gray-400);
-}
-/* Por debajo del umbral toma el color del aviso: es el MISMO mensaje que la
-   nota roja de debajo, y dos idiomas para lo mismo en la misma fila se leen
-   como dos problemas distintos. */
-.pl-rowpct--bajo { color: var(--danger-dark); font-weight: 700; }
-
-/* ---- Las filas de contacto de la ficha del monitor ----------------------
-   UNA FILA POR DATO, con su etiqueta. Antes el correo y el otro teléfono
-   compartían una línea: un correo largo se partía en dos y quedaba cortado
-   contra un botón redondo sin etiqueta que —encima— no era el teléfono de esa
-   persona sino el de urgencias. Dos datos distintos peleando por el mismo
-   renglón. Ahora cada uno tiene su fila, su etiqueta y su sitio. */
-.pl-contactrows {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;                       /* la separación la hace la línea, no el hueco */
-    border-radius: var(--radius-lg);
-    background: var(--gray-200);
-    overflow: hidden;
-    box-shadow: var(--shadow-xs);
-}
-.pl-contactrow {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    min-height: 56px;
-    padding-right: 0.35rem;
-    background: var(--surface);
-}
-.pl-contactrow-main {
-    display: flex;
-    align-items: center;
-    gap: 0.7rem;
-    flex: 1 1 auto;
-    min-width: 0;
-    padding: 0.55rem 0.35rem 0.55rem 0.9rem;
-    color: var(--gray-800);
-    text-decoration: none;
-    -webkit-tap-highlight-color: transparent;
-}
-.pl-contactrow-main > svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--gray-400); }
-.pl-contactrow-body { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
-.pl-contactrow-label {
-    font-size: 0.7rem;
-    font-weight: 700;
-    color: var(--gray-500);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-}
-/* EN UNA LÍNEA Y CON PUNTOS SUSPENSIVOS. Un correo partido en dos renglones es
-   ilegible y descoloca la fila entera; el valor completo se lo lleva el botón
-   de copiar, que es lo que se hace con un correo de verdad. */
-.pl-contactrow-value {
-    font-size: 0.92rem;
-    font-weight: 600;
-    color: var(--gray-800);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-.pl-contactrow-main--empty {
-    color: var(--gray-400);
-    font-style: italic;
-    font-size: 0.86rem;
-}
-
-/* Copiar de un toque, con acuse de recibo: el icono cambia a un check verde
-   durante un segundo y medio. Sin eso no se sabe si ha funcionado y se pulsa
-   otra vez. */
-.pl-copy {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-    flex-shrink: 0;
-    width: 44px;
-    height: 44px;
-    padding: 0;
-    border: 0;
-    border-radius: var(--radius-full);
-    background: var(--primary-50);
-    color: var(--primary-color);
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-    transition: background-color 140ms ease, color 140ms ease;
-}
-.pl-copy svg { width: 18px; height: 18px; }
-.pl-copy .pl-copy-ok,
-.pl-copy.is-done .pl-copy-i { display: none; }
-.pl-copy.is-done .pl-copy-ok { display: block; }
-.pl-copy.is-done {
-    background: var(--success-light, var(--primary-50));
-    color: var(--success-dark);
-}
-.pl-contactrow-main:active { opacity: 0.72; }
-.pl-copy:active { transform: scale(0.92); }
-
-/* ---- El vacío, dicho con calma ------------------------------------------ */
-
-/* Un aviso con icono de información dice «algo falta o falla». Que no haya
-   seguimientos en octubre no es un problema: es lo normal. Así que ni icono de
-   aviso ni fondo de color, solo un contorno discontinuo y una frase corta. */
-.pl-empty {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.6rem;
-    min-height: 78px;
-    padding: 1rem;
-    border-radius: var(--radius-lg);
-    border: 1px dashed var(--gray-200);
-    color: var(--gray-400);
-    text-align: center;
-}
-.pl-empty-mark { display: inline-flex; }
-.pl-empty-mark svg { width: 17px; height: 17px; }
-.pl-empty-text { font-size: 0.85rem; }
-
-/* ---- Enlaces de texto discretos («¿y antes?») --------------------------- */
-
-.pl-ghost {
-    display: inline-flex;
-    align-items: center;
-    min-height: 44px;
-    padding: 0 0.25rem;
-    color: var(--primary-color);
-    font-size: 0.82rem;
-    font-weight: 700;
-    text-decoration: none;
-    -webkit-tap-highlight-color: transparent;
-}
-.pl-ghost:active { opacity: 0.72; }
-
-/* ---- «Escribir un seguimiento» ------------------------------------------ */
-
-/* Sale como un botón de contorno, no de marca: la acción de esta pantalla es
-   mirar, y escribir una nota es lo excepcional. El relleno de marca lo tiene el
-   «Guardar seguimiento» de dentro, que sí es el final del camino. */
-.pl-seg-add {
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    width: 100%;
-    min-height: 48px;
-    margin-top: 0.7rem;
-    border-radius: var(--radius-lg) !important;
-    background: var(--surface) !important;
-    border: 1px solid var(--gray-200) !important;
-    color: var(--gray-700) !important;
-    font-size: 0.9rem !important;
-    font-weight: 700 !important;
-    cursor: pointer;
-    touch-action: manipulation;
-}
-.pl-seg-add svg { width: 17px; height: 17px; color: var(--gray-500); }
-.pl-seg-add:active { background: var(--gray-50) !important; }
-.pl-seg-add[aria-expanded="true"] { display: none !important; }
-
-/* El plegable del histórico lleva su cuenta de cursos a la derecha, antes de
-   la flecha: dice cuánto hay dentro sin tener que abrirlo. */
-.pl-fold-count {
-    margin-left: auto;
-    margin-right: 0.6rem;
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: var(--gray-400);
-    letter-spacing: 0;
-    text-transform: none;
-}
-.pl-fold--hist .pl-hist { padding-top: 0.4rem; }
-.pl-fold--hist .pl-footnote { padding-bottom: 0.8rem; }
-
-/* ==========================================================================
-   MIS GRUPOS — leer las fichas sin pasar lista
-   --------------------------------------------------------------------------
-   Casi todo está reutilizado: la tarjeta de grupo, la cabecera de etapa, el
-   buscador, el avatar y la flecha son los MISMOS de Pasar Lista. Aquí solo va
-   lo que no existía: las pestañas, la fila que es un enlace en vez de un botón
-   y la foto dentro del avatar.
-   ========================================================================== */
-
-/* Las pestañas. Tres formas de mirar la misma gente, así que son pestañas y no
-   tres pantallas: cambiar de vista no debe sentirse como irse a otro sitio.
-   Se desplazan en horizontal porque en un móvil estrecho «Participantes» y
-   «Monitores» no caben, y partirlas en dos filas las convierte en un menú. */
-.pl-tabs {
-    display: flex;
-    gap: 0.35rem;
-    margin-bottom: 0.75rem;
-    padding: 0.28rem;
-    border-radius: var(--radius-lg);
-    background: var(--gray-100);
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-}
-.pl-tabs::-webkit-scrollbar { display: none; }
-
-.pl-tab {
-    flex: 1 1 0;
-    min-width: max-content;
-    padding: 0.5rem 0.85rem;
-    border-radius: calc(var(--radius-lg) - 0.28rem);
-    font-size: 0.86rem;
-    font-weight: 700;
-    color: var(--gray-500);
-    text-align: center;
-    text-decoration: none !important;
-    white-space: nowrap;
-    transition: background 160ms var(--ease-out), color 160ms var(--ease-out);
-}
-.pl-tab:hover { color: var(--gray-700); }
-.pl-tab.is-active {
-    background: var(--surface);
-    color: var(--gray-900);
-    box-shadow: var(--shadow-xs);
-}
-/* La segunda barra (chavales / monitores) es una decisión menor que la de
-   arriba, y se nota: más pequeña y sin fondo propio. Dos barras del mismo peso
-   una encima de otra no dicen cuál manda. */
-.pl-tabs--quien {
-    background: none;
-    padding: 0 0 0.15rem;
-    gap: 0.5rem;
-    margin-bottom: 0.9rem;
-}
-.pl-tabs--quien .pl-tab {
-    flex: 0 0 auto;
-    padding: 0.3rem 0.7rem;
-    border-radius: var(--radius-full);
-    font-size: 0.8rem;
-    border: 1px solid var(--gray-200);
-}
-.pl-tabs--quien .pl-tab.is-active {
-    background: var(--gray-900);
-    border-color: var(--gray-900);
-    color: var(--surface);
-    box-shadow: none;
-}
-
-/* EN OSCURO la pastilla activa no puede ser `--surface`: sobre la tira de
-   `--gray-100` queda MÁS OSCURA que el fondo, o sea hundida, y la sombra que en
-   claro la levanta no se ve. Se invierte: la tira baja y la pastilla sube. */
-:root[data-stic-scheme="dark"] .pl-tabs,
-.stic-container[data-stic-scheme="dark"] .pl-tabs { background: var(--gray-50); }
-:root[data-stic-scheme="dark"] .pl-tab.is-active,
-.stic-container[data-stic-scheme="dark"] .pl-tab.is-active { background: var(--gray-200); }
-:root[data-stic-scheme="dark"] .pl-tabs--quien,
-.stic-container[data-stic-scheme="dark"] .pl-tabs--quien { background: none; }
 
 /* El punto graduado de la vista por curso. El COLOR es siempre el mismo —el
    azul de la marca, que en oscuro ya viene aclarado por el token— y lo que
@@ -3277,7 +3003,11 @@ a.pl-cell:active { opacity: 0.55; }
     margin-left: auto;
 }
 .pl-suelto-act .pl-review-select { flex: 1 1 auto; min-width: 0; }
-@media (max-width: 26rem) {
+/* 640px es EL breakpoint móvil de la escala (plan 039, fila 2). Antes había
+   aquí un `26rem` inventado: en cualquier móvil el desplegable y el botón se
+   leen mejor bajo el nombre que apretados a su derecha, así que el ancho de
+   referencia vale y no hacía falta uno propio. */
+@media (max-width: 640px) {
     .pl-suelto-act { width: 100%; margin-left: 0; }
 }
 

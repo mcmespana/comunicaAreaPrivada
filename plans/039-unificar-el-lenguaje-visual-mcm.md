@@ -469,3 +469,26 @@ es deuda sino decisiones tomadas:
 - **El `≥ 860px` del login partido** sigue fuera de la escala. Su sitio es
   `≥ 1024px`, pero moverlo cambia el layout del login y pide su propia captura.
   Es el candidato número uno si alguien retoma esto.
+
+### Post-mortem de la fila 2 (2026-09-01): la escala se erosionó en un día
+
+La primera pantalla escrita DESPUÉS de cerrar el plan —«Mis grupos» y el
+sangrado lateral— metió **dos anchos fuera de la escala** sin que nada se
+quejara: un `48rem` (que es 768px, pero escrito en otra unidad) y un `26rem`
+inventado para una fila de formulario.
+
+No fue mala fe ni descuido raro: quien escribía no tenía el plan delante, y una
+escala que solo vive en un documento no se defiende sola. Corregidos a `768px` y
+`640px` el 01/09.
+
+**Lo que se hizo para que no vuelva a pasar:** `TokensCssTest` comprueba ahora
+que todas las media queries de `pasar-lista.css` estén en la escala, con la
+lista de anchos permitidos escrita en el propio test. Un ancho nuevo ya no entra
+en silencio: hay que añadirlo ahí, y ese es justo el momento de escribir el
+porqué que pide la fila 2.
+
+Queda pendiente el mismo cinturón para `custom-style.css` y para el repo de
+formularios. Ahí hay anchos históricos de verdad (la fila 2 dice
+explícitamente que **no** se migran en bloque), así que el test tendría que
+nacer con una lista de excepciones — y una lista de excepciones que nadie poda
+es otra forma de no tener regla. Merece su propia decisión, no colarlo aquí.

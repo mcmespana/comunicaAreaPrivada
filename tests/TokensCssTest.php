@@ -138,49 +138,52 @@ class TokensCssTest extends TestCase
 
 
     /**
-     * EL SANGRADO LATERAL Y SU RED DE SEGURIDAD, que son inseparables.
+     * EL SANGRADO LATERAL Y LOS DOS RECORTES, que van juntos.
      *
-     * `.stic-tab-content` se estira hasta el viewport con `calc(50% - 50vw)`
-     * para comerse el relleno que mete el tema de WordPress. En escritorio,
-     * `50vw` incluye la barra de desplazamiento vertical, así que ese cálculo
-     * se pasa ~15 px: lo recorta el `overflow-x: clip` de `.stic-container`.
+     * `.stic-container` se estira hasta el viewport con `calc(50% - 50vw)` para
+     * comerse el relleno que mete el tema de WordPress.
      *
-     * Si alguien quita el `clip` —o lo cambia por `hidden`, que además se
-     * llevaría por delante el `position: sticky` de la barra de guardar— el
-     * sangrado deja de estar contenido y la página se mueve de lado. En una
-     * webview eso se siente como que la app está rota, y es un síntoma que no
-     * apunta a su causa. Por eso las dos reglas se prueban JUNTAS.
+     * EL PRIMER INTENTO SANGRABA EL HIJO (`.stic-tab-content`) y no funcionaba:
+     * `overflow-x: clip` recorta a los hijos que se salen, así que
+     * `.stic-container` le cortaba el sangrado entero y la página se veía igual
+     * que antes. Este test existe para que no se vuelva a mover ahí.
+     *
+     * Los dos recortes hacen cosas distintas y los dos hacen falta:
+     *   - el del `.stic-container` contiene a los bloques de DENTRO que sangran
+     *     por su cuenta (plan 035);
+     *   - el del `body` contiene al propio contenedor, porque `50vw` incluye la
+     *     barra de desplazamiento en los escritorios que la pintan encima.
      */
-    public function test_el_sangrado_lateral_va_con_su_recorte()
+    public function test_el_sangrado_lateral_va_en_el_contenedor()
     {
         $css = $this->pasarLista();
 
         $this->assertMatchesRegularExpression(
-            '/\.stic-tab-content\s*\{[^}]*margin-inline:\s*calc\(50%\s*-\s*50vw\)/',
+            '/\.stic-container\s*\{[^}]*margin-inline:\s*calc\(50%\s*-\s*50vw\)/',
             $css,
-            'El sangrado lateral tiene que seguir siendo `calc(50% - 50vw)`: '
-                . 'un número medido a mano se queda obsoleto en cuanto cambia el tema.'
+            'El sangrado va en `.stic-container`, no en un hijo suyo: el '
+                . '`overflow-x: clip` del contenedor recorta a los hijos que se salen.'
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/\.stic-tab-content\s*\{[^}]*margin-inline:\s*calc/',
+            $css,
+            'Sangrar `.stic-tab-content` NO funciona: su padre lo recorta. Ya pasó una vez.'
         );
         $this->assertMatchesRegularExpression(
             '/\.stic-container\s*\{[^}]*overflow-x:\s*clip/',
             $css,
-            'Sin `overflow-x: clip` en .stic-container, el sangrado de '
-                . '.stic-tab-content desborda por la barra de scroll.'
+            'Hace falta para contener los bloques que sangran por su cuenta (plan 035).'
+        );
+        $this->assertMatchesRegularExpression(
+            '/body:has\(\.stic-container\)\s*\{[^}]*overflow-x:\s*clip/',
+            $css,
+            'Sin el recorte del body, la barra de scroll del escritorio asoma ~15 px.'
         );
         $this->assertDoesNotMatchRegularExpression(
             '/\.stic-container\s*\{[^}]*overflow-x:\s*hidden/',
             $css,
             '`hidden` crea un contenedor de scroll y rompe el sticky de la barra '
                 . 'de guardar. Tiene que ser `clip`.'
-        );
-        // Y el ancho tiene que quedar en `auto`: `menu.php` pinta el div con
-        // `style="width:100%"` en línea, y con un ancho fijado el margen
-        // negativo desplaza la caja en vez de ensancharla.
-        $this->assertMatchesRegularExpression(
-            '/\.stic-tab-content\s*\{[^}]*width:\s*auto\s*!important/',
-            $css,
-            'Sin `width: auto !important`, el `style="width:100%"` en línea de '
-                . 'menu.php gana y el sangrado descoloca la página sin ensancharla.'
         );
     }
 
@@ -191,10 +194,50 @@ class TokensCssTest extends TestCase
 
         $this->assertStringContainsString('--pl-gutter:', $css);
         $this->assertMatchesRegularExpression(
-            '/\.stic-tab-content\s*\{[^}]*padding-inline:\s*var\(--pl-gutter\)/',
+            '/\.stic-container\s*\{[^}]*padding-inline:\s*var\(--pl-gutter\)/',
             $css,
             'El relleno lateral tiene que salir de `--pl-gutter`, para poder '
-                . 'ajustarlo en las siete pantallas a la vez.'
+                . 'ajustarlo en las ocho pantallas a la vez.'
         );
     }
+
+    /**
+     * LA ESCALA DE ANCHOS DEL PLAN 039 (fila 2).
+     *
+     * Dos productos que son el mismo producto llegaron a tener quince anchos
+     * distintos entre los dos. El plan fijó cinco y solo cinco, y la regla es
+     * que un ancho nuevo se justifica por escrito al lado o no entra.
+     *
+     * Este test existe porque la primera pantalla que se escribió DESPUÉS de
+     * cerrar el plan ya metió dos anchos fuera de la escala —un `48rem` y un
+     * `26rem` inventado— sin que nada se quejara. Una escala que solo vive en
+     * un documento se erosiona en la siguiente sesión.
+     *
+     * En `rem` tampoco: la escala está en px y los dos no son lo mismo, porque
+     * `rem` se mueve si alguien cambia el tamaño de letra del navegador.
+     */
+    public function test_los_anchos_estan_en_la_escala_del_plan_039()
+    {
+        $escala = array('340px', '640px', '767px', '768px', '1024px');
+
+        preg_match_all(
+            '/@media[^{]*\((?:max|min)-width:\s*([^)]+)\)/',
+            $this->pasarLista(),
+            $m
+        );
+
+        $fuera = array_values(array_unique(array_diff(
+            array_map('trim', $m[1]),
+            $escala
+        )));
+
+        $this->assertSame(
+            array(),
+            $fuera,
+            'Anchos fuera de la escala del plan 039: ' . implode(', ', $fuera)
+                . '. La escala es ' . implode(' · ', $escala) . ', en px. '
+                . 'Si de verdad hace falta uno nuevo, se añade AQUÍ con el porqué.'
+        );
+    }
+
 }
