@@ -106,19 +106,28 @@ anterior era medirlo en el móvil y restarlo — o sea, adivinar un número que
 cambia con el tema, con el ancho y con la plantilla.
 
 **Lo que se hizo en vez de eso.** `margin-inline: calc(50% - 50vw)` sobre
-`.stic-tab-content`: medio contenedor menos medio viewport es exactamente lo que
+`.stic-container`: medio contenedor menos medio viewport es exactamente lo que
 sobra a cada lado, **sea el que sea**. No hay número que medir ni que mantener.
 Después se devuelve el aire deseado con `padding-inline: var(--pl-gutter)`, que
-está en un solo sitio (hoy `0.6rem` ≈ 10 px: se pidió aprovechar al máximo el
-espacio, así que va apretado).
+está en un solo sitio (hoy `0.25rem` ≈ 4 px: se pidió el mínimo).
+
+⚠️ **El primer intento (01/09, por la mañana) NO FUNCIONABA y se dio por bueno.**
+Sangraba `.stic-tab-content`, que va DENTRO de `.stic-container`… que tiene
+`overflow-x: clip`. Y `clip` recorta a los hijos que se salen de la caja: el
+padre le cortaba al hijo el sangrado entero. La página se veía exactamente igual
+que antes, y encima el aire parecía «mucho» cuando lo que pasaba es que no se
+estaba comiendo nada. Lo cazó el propietario mirándolo en el móvil, no los
+tests. Ahora sangra `.stic-container` —un elemento no se recorta a sí mismo— y
+el recorte que lo contiene a él vive en `body:has(.stic-container)`.
 
 Tres cosas que lo sostienen, y las tres tienen test (`TokensCssTest`):
 
-1. **Se sangra el HIJO, no `.stic-container`.** `50vw` incluye la barra de
-   desplazamiento vertical en los navegadores de escritorio que la pintan
-   encima, y eso son ~15 px de desbordamiento; el `overflow-x: clip` del padre
-   —que ya estaba— los recorta. Sangrar el padre habría dejado ese recorte sin
-   nadie que lo aplicara.
+1. **Se sangra `.stic-container`, NO un hijo suyo.** Su `overflow-x: clip`
+   recorta a los hijos que se salen, así que sangrar dentro no hace nada. Ese
+   clip sigue haciendo falta: contiene a los bloques de dentro que sangran por
+   su cuenta (plan 035). Al propio contenedor lo contiene un segundo recorte en
+   `body:has(.stic-container)`, porque `50vw` incluye la barra de scroll en los
+   escritorios que la pintan encima (~15 px).
 2. **`clip` y no `hidden`.** `hidden` crearía un contenedor de scroll y se
    llevaría por delante el `position: sticky` de la barra de guardar.
 3. **`width: auto !important`.** `menu.php` pinta ese div con
