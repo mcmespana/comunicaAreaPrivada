@@ -10,8 +10,16 @@
 > tres campos `stic_` que faltaban en §2, la corrección de `phone_mobile` y los
 > avisos de §1 sobre `ajmcm_pasar_lista_c` y `ajmcm_curso_escolar_c`.
 >
-> **Si cambias algo aquí, súbelo también al repo `comunicaFormularios`**, que
-> escribe en estos mismos campos.
+> ## Este fichero es EL ORIGINAL. No hay otro.
+>
+> `comunicaFormularios/CAMPOS.md` es una **copia generada** de este fichero: la
+> sincroniza sola una GitHub Action de aquel repo, que abre un PR cuando esto
+> cambia. No la edites allí — se pisa en la siguiente sincronización.
+>
+> **Todo cambio de campos del CRM se hace AQUÍ**, y llega al otro repo solo.
+> (Antes había que acordarse a mano, y por eso las dos copias llevaban meses
+> divergiendo: los tres campos `stic_`, `phone_mobile`, `do_not_call` y los dos
+> módulos nuevos existían solo en esta.)
 
 ## 1. Campos específicos de nuestra adaptación [Módulo personas, generalmente]
 

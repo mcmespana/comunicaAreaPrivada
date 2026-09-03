@@ -18,22 +18,13 @@
     --pl-partial-soft: #e6fffb;
     --pl-partial-dark: #0b6b62;
 
-    /* Texto ENCIMA de un relleno de marca. No es `--white`: `--white` es un
-       token de SUPERFICIE y en oscuro vale #16171a, así que usarlo para el
-       texto del atajo o del botón de guardar los dejaba en negro sobre el
-       degradado —ilegible— justo en el tema en el que más se nota.
-       Los degradados de marca se fijan con los hex originales (§44.5 del
-       sistema de diseño), así que el texto que va encima también es fijo. Es
-       lo que hacen ya las ~40 reglas de custom-style.css que pintan sobre
-       `--grad-brand`. */
-    --pl-on-brand: #fff;
+    /* Estos dos son ya tokens GLOBALES: viven en custom-style.css §1 (con el
+       comentario largo que explica por qué no valen `--white` ni
+       `--primary-color`). Aquí se conservan como alias porque los usan ~25
+       reglas de esta hoja y renombrarlas no aporta nada. */
+    --pl-on-brand: var(--on-brand);
 
-    /* El azul de marca SIN tematizar. Hace pareja con `--pl-on-brand`: encima
-       de un degradado de marca (que se fija con los hex originales) el fondo
-       es blanco de verdad y la letra el azul de verdad. `--primary-color` no
-       sirve porque en oscuro se aclara a #3f95d6 para leerse sobre oscuro, y
-       ahí va sobre blanco: 3,2:1, por debajo del AA. */
-    --pl-brand-fixed: #1c6fb3;
+    --pl-brand-fixed: var(--brand-blue-fixed);
 
     /* El ámbar del «sin marcar». En claro es el del artboard `Marcar`. */
     --pl-amber: var(--warning-dark);
