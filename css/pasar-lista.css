@@ -770,6 +770,21 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     text-align: center;
 }
 
+/* La puerta a «Mis grupos» al pie del árbol. Con la pinta de una nota al pie y
+   no de un botón: lo que se hace aquí el 95 % de las veces es entrar a marcar,
+   y esto es para quien venía a otra cosa. Con su objetivo táctil, eso sí — una
+   línea de 0.72 rem no se acierta con el pulgar. */
+.pl-footnote-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-height: 40px;
+    color: var(--gray-500);
+    text-decoration: none !important;
+}
+.pl-footnote-link svg { width: 13px; height: 13px; }
+.pl-footnote-link:active { color: var(--gray-700); }
+
 /* Los dos pasos siguientes tras guardar. Ocupan una fila, no una pantalla:
    la lista ya está pasada y esto es una salida, no una celebración. */
 .pl-next {
@@ -1958,12 +1973,49 @@ a.pl-group .pl-name { display: block; }
     text-decoration: none;
 }
 .pl-grouprow:first-child { border-top: 0; }
-.pl-grouprow-top { display: flex; align-items: center; gap: 0.75rem; }
+/* La CABECERA es el enlace al grupo, y la tira son enlaces propios: hermanos,
+   no anidados. Un `<a>` dentro de otro no es HTML válido y deja el de fuera
+   inalcanzable con el teclado. */
+.pl-grouprow-top {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: inherit;
+    text-decoration: none !important;
+}
 
 /* La tira: una marca por sesión celebrada, la más reciente a la derecha. Un
    hueco es una lista que falta, y se ve DÓNDE empezó el tramo de huecos. */
 .pl-strip { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; }
 .pl-cell { width: 14px; height: 7px; border-radius: 2px; flex-shrink: 0; }
+
+/* Cada celda abre SU lista, así que es un objetivo táctil de verdad: la marca
+   sigue midiendo 14×7 —el dato se lee igual— pero el área que responde al dedo
+   se estira con relleno vertical hasta los 22 px. Un rectángulo de 7 px de alto
+   no se acierta con el pulgar en un autobús.
+
+   El relleno va en vertical y no en horizontal: en horizontal separaría las
+   marcas y se perdería la lectura de «dónde empezó el tramo de huecos», que es
+   justo para lo que sirve la tira. */
+a.pl-cell {
+    position: relative;
+    display: block;
+}
+/* El área táctil se amplía con un pseudo-elemento transparente, NO con
+   relleno: `.pl-cell--gap` y `.pl-cell--future` dibujan su borde con
+   `box-shadow: inset`, y un inset se pinta sobre la caja de relleno — con
+   `padding-block` el borde se habría estirado a 21 px de alto y la tira habría
+   dejado de leerse. Así la marca sigue midiendo 14×7 y el dedo tiene 21.
+
+   Se amplía en VERTICAL y casi nada en horizontal: separar las marcas rompería
+   la lectura de «dónde empezó el tramo de huecos», que es para lo que existe
+   la tira. */
+a.pl-cell::after {
+    content: '';
+    position: absolute;
+    inset: -7px -1px;
+}
+a.pl-cell:active { opacity: 0.55; }
 .pl-cell--ok   { background: var(--success-color); }
 .pl-cell--gap  { background: var(--warning-100); box-shadow: inset 0 0 0 1px var(--warning-border); }
 .pl-cell--skip { background: var(--gray-200); }

@@ -214,8 +214,26 @@ foreach (array('MIC', 'COM', 'LC') as $etapa) {
                 $gaps++;
             }
             $lastMark = $mark;
-            $cells .= '<span class="pl-cell pl-cell--' . esc_attr($mark) . '"'
-                . ' title="' . esc_attr(sticpa_pl_session_label($cell['session'], false)) . '"></span>';
+            /* CADA CELDA ABRE SU LISTA. Antes la tira era decoración dentro del
+             * enlace de la fila: veías el hueco de hace tres sábados y para
+             * corregirlo tenías que entrar al grupo y buscar la fecha a mano.
+             * Ahora es un toque.
+             *
+             * Van FUERA del `<a>` de la fila y no dentro: un enlace dentro de
+             * otro no es HTML válido y deja el de fuera inalcanzable con el
+             * teclado — el mismo motivo por el que la fila de marcar y su
+             * flecha son hermanas y no una dentro de otra. */
+            $etiqueta = sticpa_pl_session_label($cell['session'], false);
+            $cells .= '<a class="pl-cell pl-cell--' . esc_attr($mark) . '"'
+                . ' href="?internalpage=single_stic_pasar_lista_marcar&grupo=' . esc_attr($gid)
+                . '&sesion=' . esc_attr($sid) . '"'
+                . ' title="' . esc_attr($etiqueta) . '"'
+                . ' aria-label="' . esc_attr(sprintf(
+                    /* translators: 1: código del grupo, 2: fecha de la sesión */
+                    __('Lista de %1$s del %2$s', 'sticpa'),
+                    $g['code'],
+                    $etiqueta
+                )) . '"></a>';
         }
 
         // La pastilla dice el estado de la ÚLTIMA sesión, que es la pregunta
@@ -230,8 +248,9 @@ foreach (array('MIC', 'COM', 'LC') as $etapa) {
             $badgeClass = 'pl-badge--skip';
         }
 
-        $stripHtml .= '<a class="pl-grouprow" href="?internalpage=single_stic_pasar_lista_marcar&grupo=' . esc_attr($gid) . '">';
-        $stripHtml .= '<div class="pl-grouprow-top">';
+        $stripHtml .= '<div class="pl-grouprow">';
+        $stripHtml .= '<a class="pl-grouprow-top" href="?internalpage=single_stic_pasar_lista_marcar&grupo='
+            . esc_attr($gid) . '">';
         $stripHtml .= '<span class="pl-group-body">';
         $stripHtml .= '<span class="pl-title"><span class="pl-title-code">' . esc_html($g['code']) . '</span>';
         if ($g['name'] !== '') {
@@ -239,7 +258,7 @@ foreach (array('MIC', 'COM', 'LC') as $etapa) {
         }
         $stripHtml .= '</span></span>';
         $stripHtml .= '<span class="pl-badge ' . esc_attr($badgeClass) . '">' . esc_html($badge) . '</span>';
-        $stripHtml .= '</div>';
+        $stripHtml .= '</a>';
         $stripHtml .= '<div class="pl-strip">' . $cells
             . '<span class="pl-strip-note' . ($gaps > 0 ? ' pl-strip-note--gap' : '') . '">'
             . esc_html($gaps === 0
@@ -250,7 +269,7 @@ foreach (array('MIC', 'COM', 'LC') as $etapa) {
                     $gaps
                 ))
             . '</span></div>';
-        $stripHtml .= '</a>';
+        $stripHtml .= '</div>';
 
         /* La última sesión de ESTA etapa: `$lastMark` acaba de quedarse con la
          * marca de la celda más a la derecha, que es justo esa. "Hecha" incluye

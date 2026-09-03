@@ -4745,4 +4745,58 @@ final class PasarListaRenderTest extends TestCase
 
         $this->assertStringNotContainsString('pl-urge', $html);
     }
+
+    // ---- Las dos puertas que faltaban ------------------------------------
+
+    /**
+     * Cada celda de la tira abre SU lista. Antes la tira era decoración dentro
+     * del enlace de la fila: veías el hueco de hace tres sábados y para
+     * corregirlo había que entrar al grupo y buscar la fecha a mano.
+     */
+    public function test_cada_celda_del_resumen_abre_su_lista()
+    {
+        $html = $this->render('single_stic_pasar_lista_resumen');
+
+        $this->assertMatchesRegularExpression(
+            '/<a class="pl-cell[^"]*" href="\?internalpage=single_stic_pasar_lista_marcar&grupo=g1&sesion=s\d+"/',
+            $html,
+            'Cada celda tiene que enlazar a la lista de ESA sesión.'
+        );
+    }
+
+    /**
+     * Y NO anidados: un `<a>` dentro de otro no es HTML válido y deja el de
+     * fuera inalcanzable con el teclado. La cabecera y la tira son hermanas.
+     */
+    public function test_la_fila_del_resumen_no_anida_enlaces()
+    {
+        $html = $this->render('single_stic_pasar_lista_resumen');
+
+        $fila = substr($html, strpos($html, 'pl-grouprow'), 1400);
+        $this->assertStringContainsString('<div class="pl-grouprow">', $fila);
+        $this->assertStringContainsString('<a class="pl-grouprow-top"', $fila);
+        // Entre la apertura de la cabecera y la tira tiene que haber un cierre.
+        $cabecera = strpos($fila, '<a class="pl-grouprow-top"');
+        $tira = strpos($fila, '<div class="pl-strip">');
+        $this->assertNotFalse($tira);
+        $this->assertStringContainsString('</a>', substr($fila, $cabecera, $tira - $cabecera));
+    }
+
+    /**
+     * El árbol tiene UNA puerta a «Mis grupos», al pie. Y solo una: veintiocho
+     * filas con dos acciones cada una convierten un árbol que se escanea en un
+     * menú que se lee.
+     */
+    public function test_el_arbol_lleva_a_mis_grupos_sin_cargar_las_filas()
+    {
+        $html = $this->render('single_stic_pasar_lista_grupos');
+
+        $this->assertSame(1, substr_count($html, 'internalpage=single_stic_mis_grupos'));
+        $this->assertStringContainsString('pl-footnote-link', $html);
+        // Las filas siguen llevando a marcar y a nada más.
+        $this->assertStringNotContainsString('pl-group"', substr(
+            $html,
+            strpos($html, 'pl-footnote-link')
+        ));
+    }
 }

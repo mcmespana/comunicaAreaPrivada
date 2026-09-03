@@ -143,12 +143,21 @@ familia). Misma idea en la ficha de monitor para coordinación (COORDINACION
 - Mantener el prefetch de 030 y, tras 034 fase 2, revisar si el skeleton casi
   nunca llega a verse (objetivo).
 
-### 5. Menos toques residuales (P2)
+### 5. Menos toques residuales (P2) — ✅ las dos primeras, el 01/09/2026
 
-- En el árbol, el toque en un grupo va a marcar (bien); añadir gesto/acceso
-  secundario visible a la FICHA del grupo (hoy hay que saberlo).
-- En resumen, cada tarjeta de sesión → toque = abrir esa lista en marcar
-  (ida y vuelta de corrección en 2 toques).
+> - **Acceso a las fichas del grupo:** una línea al pie del árbol que lleva a
+>   «Mis grupos». Al PIE y no un segundo botón en cada fila: veintiocho filas
+>   con dos acciones cada una convierten un árbol que se escanea en un menú que
+>   se lee, y lo que se hace aquí el 95 % de las veces es entrar a marcar.
+> - **Cada celda del resumen abre SU lista.** La tira era decoración dentro del
+>   enlace de la fila; ahora la cabecera y la tira son enlaces HERMANOS (uno
+>   dentro de otro no es HTML válido y deja el de fuera inalcanzable con el
+>   teclado). El área táctil se amplía con un pseudo-elemento y no con relleno,
+>   porque las celdas de hueco dibujan su borde con `box-shadow: inset` y el
+>   relleno se lo habría estirado a 21 px.
+>
+> Queda la tercera: cruzar reuniones ↔ monitores ↔ seguimientos sin volver a la
+> portada.
 - Monitores/coordinación: acceso a «pasar lista de monitores» desde la
   portada ya existe; revisar que reuniones ↔ monitores ↔ seguimientos se
   crucen entre sí sin volver a la portada.
