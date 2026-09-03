@@ -1,5 +1,11 @@
 # Sistema de diseño del Área Privada (Comunica / MCM)
 
+> **Relación con [`design.md`](../design.md):** `design.md` es **la ley** —qué se
+> decide y por qué, para las dos superficies de Comunica—. Este documento es **el
+> manual de la casa**: dónde está cada cosa en ESTE repo. Si los dos dicen algo
+> distinto sobre una decisión de diseño, manda `design.md`; sobre dónde vive un
+> fichero o una clase, manda este.
+>
 > **Para quién es esto:** cualquier persona o agente de IA que tenga que tocar la
 > interfaz del área privada. Léelo ANTES de escribir CSS o HTML nuevo. Si sigues
 > estas reglas, lo que hagas se verá "del sistema" sin esfuerzo; si no las sigues,
@@ -75,10 +81,17 @@ Definidos en `:root` de `custom-style.css` §1. Los importantes:
 --radius-sm … --radius-2xl, --radius-full
 --font-family     /* Inter + system stack */
 --ease-out / --ease-spring   /* curvas de animación */
+
+--on-brand         /* texto ENCIMA de un relleno de marca: blanco FIJO en los dos
+                      temas. No uses --white: en oscuro vale #16171a. */
+--brand-blue-fixed /* el azul de marca SIN tematizar, para cuando el fondo es
+                      blanco de verdad (encima de un degradado). No uses
+                      --primary-color: en oscuro se aclara y no llega a AA. */
 ```
 
-Los grises (`--gray-50`…`--gray-900`) vienen de `stic-modern-style.css` y se
-usan por variable. **Regla de oro: para recolorear el área entera solo se
+Los grises (`--gray-50`…`--gray-900`) viven también en ese `:root` único de
+`custom-style.css` §1 (antes estaban en `stic-modern-style.css`, un fichero que
+ya no existe: lo consolidó UI-15 y el plan 018 fase 1 movió sus tokens aquí). **Regla de oro: para recolorear el área entera solo se
 editan `--primary-*` y `--secondary-*`.**
 
 ### Escala visual
@@ -110,7 +123,7 @@ editan `--primary-*` y `--secondary-*`.**
 | Listados como tarjetas | `.stic-table-responsive`, `.stic-cell-title` | §22 CSS · `inc/stic-listController.php` |
 | Dropzone de archivos | `input[type=file]` + badge `.stic-file-uploaded-badge` | §26 CSS |
 | Toggle Sí/No (checkbox) | `input[type=checkbox]` estilizado como switch | §25 CSS |
-| Modal de confirmación | `.stic-modal-*` | §27 CSS · `js/stic-utils.js::confirmDelete` |
+| Modal de confirmación | `.stic-modal-*` | §53 CSS · `js/stic-utils.js::confirmDelete` |
 | Estado vacío | `.stic-empty-state` | §28 CSS |
 | Botones | `.stic-button` (primario degradado), `.stic-back-button` (secundario), `.stic-danger-button` (peligro), `.stic-soft-btn` (suave), `.stic-legal-link` (píldora outline) | §11, 23 CSS |
 | Overlay de carga | `.stic-loading-overlay` (form con clase `stic-loading-form` + `data-loading-text`) | §5 CSS · `js/stic-ui.js` |
@@ -188,6 +201,20 @@ Modelo de sesión (todo en `$_SESSION`):
 | `scp_tutor_is_user` | true si el familiar se está viendo a sí mismo |
 | `scp_available_profiles` | Participantes disponibles `[{id,name},…]` (caché para el selector) |
 | `scp_is_familia` | true si hay participantes a cargo |
+| `scp_role` | Rol del CRM (`monitor` / `laico` / `''`), **cacheado** |
+| `scp_role_resolved` | **La marca que importa**: si el rol se ha llegado a resolver |
+
+> **El rol se cachea, y hay una trampa.** `scp_role` sale de que
+> `stic_relationship_type_c` del contacto contenga «monitor» o «laic»/«com-lc»
+> (ver `inc/stic-comunica-roles.php`). **No** intervienen las fechas ni la
+> vigencia de `stic_Contacts_Relationships`.
+>
+> Un rol vacío tiene dos significados muy distintos: «esta persona no tiene rol»
+> y «no se pudo preguntar al CRM». Por eso la decisión de repreguntar mira
+> `scp_role_resolved` y **nunca el valor**. Si escribes código que toque esto,
+> no caches un rol que no hayas resuelto: guardar un `''` de un fallo dejaba a un
+> monitor sin «Pasar lista» ni «Mis grupos» durante el año que dura la cookie
+> (plan 040, pasó en producción).
 
 Piezas:
 - **Pantalla de selección**: `pages/single_stic_profile_selection.php`
@@ -353,11 +380,19 @@ Sin JavaScript, `auto` se queda en claro (el comportamiento de siempre).
 | `≤ 640px` | **El breakpoint móvil de referencia.** Densidad, tipografías y "qué se oculta" |
 | `≤ 767px` | Navegación colapsada (hamburguesa) y calendario |
 | `≥ 768px` | Dos columnas en formularios y listados |
-| `≥ 860px` | Login partido en dos (marca + formulario) |
-| `≥ 1024px` | Home con la agenda en columna lateral |
+| `≥ 1024px` | Layouts con columna lateral (home con la agenda al lado, login partido) |
 
-Los `560/561px` y `600px` que verás en el CSS son históricos (auth y botones).
-No añadas breakpoints nuevos si uno de estos sirve.
+Cinco, y solo cinco. La escala es la misma en los formularios públicos
+(ver `design.md` §5), que hasta ahora usaban otra distinta.
+
+**Históricos que siguen vivos**, contados sobre las media queries reales de
+`custom-style.css` + `pasar-lista.css`: `420, 480, 560, 561, 600, 641, 860, 900`.
+El `≥ 860px` del login partido es el que más se nota: su sitio en la escala es
+`≥ 1024px`. **No los migres en bloque** —cada uno pide su captura— pero si tocas
+uno de esos bloques por otro motivo, súbelo de camino.
+
+No añadas un breakpoint nuevo si uno de los cinco sirve; y si de verdad no
+sirve, deja escrito al lado por qué.
 
 ### 11.2 UN solo lenguaje para "un registro" (la tarjeta)
 
@@ -475,7 +510,7 @@ offline con Chromium** (ya instalado, `/opt/pw-browsers/chromium-*`):
 4. Si algo no cuadra, **mide en el navegador** (`getBoundingClientRect`,
    `getComputedStyle`) en vez de adivinar la especificidad: en este CSS hay
    `!important` portantes y reglas antiguas que ganan por número de elementos
-   (ver §24 vs §50 en el login).
+   (ver §52 vs §50 en el login).
 
 **Contra el SITIO REAL (cuando el render offline no basta).** El área privada
 vive dentro de un WordPress con Astra + Elementor, y ahí pasan cosas que el

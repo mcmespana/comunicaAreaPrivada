@@ -384,4 +384,18 @@ if (!empty($sinGrupo)) {
 // Los grupos que la casilla del CRM deja fuera. Va ABAJO y en gris pequeño: es
 // una nota al pie, no un aviso. Pero tiene que estar: un grupo que existe y no
 // aparece, sin explicación, se lee como que la pantalla está rota.
+/* LA PUERTA A «MIS GRUPOS», y una sola.
+ *
+ * El árbol lleva a marcar, que es lo que se hace un sábado, pero la sección
+ * para LEER fichas solo se alcanzaba por el menú: estabas mirando C1 y para ver
+ * a su gente había que salir y volver a buscarlo.
+ *
+ * Va como nota al pie y NO como un segundo botón en cada fila. Veintiocho filas
+ * con dos acciones cada una convierten un árbol que se escanea en un menú que
+ * se lee, y lo que se hace aquí el 95 % de las veces es entrar a marcar. Una
+ * línea, al final, para quien venía a otra cosa. */
+$html .= '<p class="pl-footnote"><a class="pl-footnote-link" href="?internalpage=single_stic_mis_grupos">'
+    . esc_html__('¿Solo quieres mirar las fichas? Están en Mis grupos', 'sticpa')
+    . sticpa_pl_icon('next') . '</a></p>';
+
 $html .= sticpa_pl_grupos_ocultos_html($objSCP);

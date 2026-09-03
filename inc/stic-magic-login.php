@@ -192,6 +192,16 @@ function sticpa_establish_session($entry, $module)
 {
     $nvl = $entry->name_value_list;
 
+    // Plan 007 — session fixation. Se rota el id de sesión AL AUTENTICAR y antes
+    // de escribir ninguna clave `scp_*`: quien conociera o hubiera fijado el id
+    // anterior se queda con una sesión que ya no vale. Importa especialmente
+    // aquí porque la cookie dura un año y se reutiliza dentro de la WebView.
+    // `true` borra el fichero de sesión viejo; los datos de $_SESSION se
+    // conservan, así que el login no se pierde.
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_regenerate_id(true);
+    }
+
     $_SESSION['scp_module'] = $module;
     $_SESSION['scp_user_id'] = $entry->id;
     $_SESSION['scp_user_contact_name'] = $nvl->name->value ?? '';

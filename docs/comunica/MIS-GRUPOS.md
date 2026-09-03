@@ -14,6 +14,16 @@ mirando la ficha de un participante.
 
 ---
 
+## 0. Cómo se llega
+
+Por el **menú**, al lado de Pasar Lista, y por una línea al **pie del árbol de
+grupos** («¿Solo quieres mirar las fichas?»). Esa línea va al pie y no como un
+segundo botón en cada fila: veintiocho filas con dos acciones cada una
+convierten un árbol que se escanea en un menú que se lee, y lo que se hace ahí
+el 95 % de las veces es entrar a marcar.
+
+---
+
 ## 1. Lo que hace
 
 Tres vistas de la misma gente, que son tres formas de buscar a alguien, y dos
