@@ -72,6 +72,46 @@ de pisar un campo para probar un requisito sin cumplir. Ahora hay
 
 Cierra la parte urgente de la fila 3 del plan 037.
 
+### ✅ Mirado en el ENTORNO REAL por primera vez (04/09/2026)
+
+Hasta hoy todo se comprobaba con tests contra un doble. Se entró a
+`/aptest` con la cuenta de pruebas, se descargaron las pantallas y se
+renderizaron en local contra el CSS del repo. **Tres cosas que los tests no
+veían:**
+
+1. **«0 chavales · 2 monitores» en 18 de los 19 grupos.** Bug de la guarda del
+   recuento: preguntaba `isset($recuentos[$gid])`, y con un solo monitor esa
+   clave YA existe, así que el respaldo al recuento del Guardián no saltaba
+   nunca. La pregunta buena es por los PARTICIPANTES, que es el número que se
+   está tapando. Arreglado, con un test que reproduce el texto exacto.
+
+2. **El curso se ha cerrado y la pantalla no lo dice.** Las relaciones de
+   participante llevan fecha de fin y las de un curso se cierran el 31 de
+   agosto; las de monitor no caducan a la vez. Resultado: 19 grupos, cero
+   participantes vigentes, A-Z con UNA persona y ni una palabra que lo
+   explique. Quien abre eso concluye que la aplicación está rota. Ahora hay un
+   aviso ámbar que lo dice, y la señal es la CONTRADICCIÓN —grupos con gente
+   apuntada según el Guardián y ningún vigente—, no el cero a secas: un aviso
+   que sale siempre no avisa.
+
+3. **`padding-inline` no se aplicaba.** `.stic-container` lleva
+   `padding: 0 !important` en custom-style §2, así que el aire lateral se
+   quedaba en cero y las tarjetas iban pegadas al cristal. Medido en el
+   navegador: `paddingLeft: 0px` con la regla escrita. Con `!important`, 4.1 px.
+
+**Cómo se hizo, por si hace falta repetirlo.** El navegador no puede salir a
+internet en este entorno (el relay corta los túneles a los 6 s; le pasa a
+cualquier dominio). Pero `curl` sí: se hace login con `curl -c/-b`, se bajan
+las pantallas, se reescriben los `<link>` del plugin a los ficheros locales del
+repo y se sirve con `python3 -m http.server`. Chromium mide contra `localhost`,
+que no pasa por el relay. Así se ve HTML real con datos reales y el CSS que se
+está tocando.
+
+⚠️ **Trampa del montaje:** los `<link>` del HTML descargado incluyen las hojas
+DEL PROPIO PLUGIN. Si se bajan sin filtrar, entran duplicadas en la versión de
+producción y ganan por orden de cascada — se mide la versión vieja creyendo que
+es la nueva. Hay que quitarlas y dejar solo las del tema.
+
 ### 🟡 Lo que queda por comprobar en producción### 🟡 Lo que queda por comprobar en producción
 
 Todo lo del 28/08 por la tarde está probado con tests pero **no confirmado
