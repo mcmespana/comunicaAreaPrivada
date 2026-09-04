@@ -22,6 +22,13 @@ class FakeSCP
      *  casos que el registro de ejemplo no cubre (un requisito sin cumplir,
      *  una ficha sin datos de salud). */
     public $fichaOverrides = array();
+    /** Cuando es true, las relaciones de PARTICIPANTE llevan `end_date` en el
+     *  pasado y las de monitor no: es el estado real de la instancia a partir
+     *  del 1 de septiembre, cuando el curso se cierra y los chavales
+     *  desaparecen de todas las listas mientras los monitores siguen. Hasta
+     *  el 04/09/2026 ningún test cubría ese día, y es el que hace que la
+     *  pantalla parezca rota. */
+    public $cursoCerrado = false;
     /** Cuando es true, el usuario acompaña. */
     public $isAcomp = false;
     /** Seguimientos que devuelve el CRM (claves ya del CRM: mcm_*). */
@@ -385,14 +392,16 @@ class FakeSCP
                     $this->nvl(array('id' => 'r1', 'name' => 'Solete Vilarroya - Participante MIC-COM', 'relationship_type' => 'participante_mic_com', 'end_date' => '')),
                 );
             }
+            // El curso cerrado: las de participante caducan, las de monitor no.
+            $fin = $this->cursoCerrado ? '2026-08-31' : '';
             return $this->entryListShape(array(
                 array(
-                    'fields' => array('id' => 'r1', 'relationship_type' => 'participante_mic_com', 'start_date' => '2025-09-01', 'end_date' => ''),
+                    'fields' => array('id' => 'r1', 'relationship_type' => 'participante_mic_com', 'start_date' => '2025-09-01', 'end_date' => $fin),
                     'grupo' => array('id' => 'g1', 'name' => 'Los Peques'),
                     'persona' => array('id' => 'c1', 'name' => 'Solete Vilarroya', 'first_name' => 'Solete', 'last_name' => 'Vilarroya', 'stic_age_c' => '13', 'phone_mobile' => '600111222'),
                 ),
                 array(
-                    'fields' => array('id' => 'r2', 'relationship_type' => 'participante_mic_com', 'start_date' => '2025-09-01', 'end_date' => ''),
+                    'fields' => array('id' => 'r2', 'relationship_type' => 'participante_mic_com', 'start_date' => '2025-09-01', 'end_date' => $fin),
                     'grupo' => array('id' => 'g1', 'name' => 'Los Peques'),
                     'persona' => array('id' => 'c2', 'name' => 'Jaume Pascual', 'first_name' => 'Jaume', 'last_name' => 'Pascual', 'stic_age_c' => '13'),
                 ),
@@ -420,7 +429,7 @@ class FakeSCP
                 ) : null,
                 // El rol `grupo` de los +18: cuenta como participante.
                 array(
-                    'fields' => array('id' => 'r5', 'relationship_type' => 'grupo', 'end_date' => ''),
+                    'fields' => array('id' => 'r5', 'relationship_type' => 'grupo', 'end_date' => $fin),
                     'grupo' => array('id' => 'g1', 'name' => 'Los Peques'),
                     'persona' => array('id' => 'c3', 'name' => 'Marta Adulta', 'first_name' => 'Marta', 'last_name' => 'Adulta'),
                 ),
@@ -454,7 +463,7 @@ class FakeSCP
                 // Y su relación `grupo` COM-LC, abierta desde 2022: es el grupo
                 // al que PERTENECE, distinto del que lleva.
                 array(
-                    'fields' => array('id' => 'r22', 'relationship_type' => 'grupo', 'start_date' => '2022-09-01', 'end_date' => ''),
+                    'fields' => array('id' => 'r22', 'relationship_type' => 'grupo', 'start_date' => '2022-09-01', 'end_date' => $fin),
                     'grupo' => array('id' => 'g9', 'name' => 'Ruah'),
                     'persona' => array('id' => 'm1', 'name' => 'David Soler', 'first_name' => 'David', 'last_name' => 'Soler'),
                 ),
@@ -4215,6 +4224,29 @@ final class PasarListaRenderTest extends TestCase
     }
 
     /**
+     * EL CERO INVENTADO, CASO REAL: grupo CON monitores y SIN participantes.
+     *
+     * Visto el 04/09/2026 en el entorno de pruebas, en 18 de los 19 grupos: el
+     * curso había terminado, las relaciones de participante ya no estaban
+     * vigentes y las de monitor sí. La guarda preguntaba `isset($recuentos[$gid])`
+     * y con un monitor la clave YA existe, así que no saltaba y se pintaba
+     * «0 chavales · 2 monitores» en toda la pantalla.
+     *
+     * g3 es ese caso en el doble: tiene monitor (m10) y ningún participante
+     * vigente, con recuento nocturno fresco de 9.
+     */
+    public function test_un_grupo_con_monitores_y_sin_chavales_no_dice_cero()
+    {
+        $html = $this->render('single_stic_mis_grupos');
+
+        $this->assertStringNotContainsString('0 chavales', $html);
+        // Sale el recuento del Guardián, que es el que sabe cuántos había.
+        $this->assertStringContainsString('9 chavales', $html);
+        // Y los monitores contados de verdad, que es el dato de hoy.
+        $this->assertStringContainsString('1 monitor', $html);
+    }
+
+    /**
      * EL CERO INVENTADO. Con el mapa de la delegación inservible, un grupo no
      * puede decir «0 chavales»: se lee como un dato y es un fallo. Sale el
      * recuento que dejó el Guardián, o no sale nada.
@@ -4798,5 +4830,41 @@ final class PasarListaRenderTest extends TestCase
             $html,
             strpos($html, 'pl-footnote-link')
         ));
+    }
+
+    // ---- El curso que se acaba -------------------------------------------
+
+    /**
+     * A PARTIR DEL 1 DE SEPTIEMBRE LOS CHAVALES DESAPARECEN, y hay que decirlo.
+     *
+     * Las relaciones de un curso se cierran el 31 de agosto. Al día siguiente el
+     * mapa deja de traer participantes vigentes: los grupos siguen ahí, los
+     * monitores también —sus relaciones no caducan a la vez— y los chavales se
+     * esfuman de todas las listas.
+     *
+     * Visto el 04/09/2026 en el entorno real: 19 grupos, cero participantes
+     * vigentes y ni una palabra que lo explicara. Quien abre eso concluye que la
+     * aplicación se ha roto.
+     */
+    public function test_avisa_cuando_el_curso_se_ha_cerrado()
+    {
+        $this->scp->cursoCerrado = true;
+        $GLOBALS['__stic_pl_now'] = mktime(12, 0, 0, 10, 1, 2026);
+        $html = $this->render('single_stic_mis_grupos');
+
+        $this->assertStringContainsString('pl-hint--warn', $html);
+        $this->assertStringContainsString('relación vigente', $html);
+        $this->assertStringContainsString('No es un fallo de la aplicación', $html);
+    }
+
+    /**
+     * Y la señal es la CONTRADICCIÓN, no el cero: en pleno curso, con gente
+     * vigente, ese aviso no puede salir. Un aviso que sale siempre no avisa.
+     */
+    public function test_en_pleno_curso_no_avisa_de_nada()
+    {
+        $html = $this->render('single_stic_mis_grupos');
+
+        $this->assertStringNotContainsString('pl-hint--warn', $html);
     }
 }

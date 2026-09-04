@@ -148,6 +148,64 @@ if (empty($groups)) {
  * todo lo demás. */
 $sueltos = sticpa_pl_participants_without_group($objSCP);
 
+/* LOS RECUENTOS DE TODOS LOS GRUPOS, EN UNA SOLA PASADA.
+ *
+ * La tentación era llamar a `sticpa_pl_group_people()` por grupo. No cuesta
+ * llamadas al CRM —el mapa ya está cargado— pero recorre el mapa entero una vez
+ * por grupo: con ~28 grupos y ~600 relaciones son diecisiete mil vueltas para
+ * pintar veintiocho números. Aquí se recorre UNA vez y se cuenta todo.
+ *
+ * Se cuenta por id de persona y no con `count()` sobre las relaciones: quien
+ * tiene dos relaciones vigentes con el mismo grupo es UNA persona, igual que en
+ * `sticpa_pl_group_people()`.
+ *
+ * Va arriba y no dentro de la vista de grupos porque lo usan dos cosas: la
+ * línea de cada grupo y el aviso de «curso cerrado» de aquí abajo. */
+$recuentosTodos = array();
+foreach (sticpa_pl_all_relationships($objSCP) as $rel) {
+    $gid = $rel['group_id'];
+    if ($gid === '' || $rel['person']['id'] === '' || !isset($groups[$gid])) {
+        continue;
+    }
+    $bucket = ($rel['role'] === 'monitor') ? 'monitors' : 'participants';
+    $recuentosTodos[$gid][$bucket][$rel['person']['id']] = true;
+}
+
+/* ¿SE HA ACABADO EL CURSO? Es la explicación de un vacío que si no se lee como
+ * avería.
+ *
+ * Las relaciones de `stic_Contacts_Relationships` llevan fecha de fin, y las de
+ * un curso se cierran todas el 31 de agosto. A partir del 1 de septiembre el
+ * mapa deja de traer participantes vigentes: los grupos siguen ahí, los
+ * monitores también —sus relaciones no caducan a la vez— y los chavales
+ * desaparecen de golpe de todas las listas.
+ *
+ * Visto el 04/09/2026 en el entorno real: 19 grupos, cero participantes
+ * vigentes, y la pantalla sin una palabra que lo explicara. Alguien que abre
+ * eso un martes concluye que la aplicación se ha roto, y con razón.
+ *
+ * La señal es la CONTRADICCIÓN, no el cero a secas: hay grupos con gente
+ * apuntada según el recuento del Guardián, y ni un participante vigente. Un
+ * grupo vacío de verdad no tiene recuento que lo contradiga. */
+$hayApuntados = false;
+foreach ($groups as $g) {
+    if ($g['n_participantes'] > 0) {
+        $hayApuntados = true;
+        break;
+    }
+}
+$vigentes = 0;
+foreach ($recuentosTodos as $n) {
+    $vigentes += isset($n['participants']) ? count($n['participants']) : 0;
+}
+$cursoCerrado = ($hayApuntados && $vigentes === 0);
+
+$avisoCursoCerrado = $cursoCerrado
+    ? '<p class="pl-hint pl-hint--warn">' . sticpa_pl_icon('warn') . '<span>'
+        . esc_html__('Los grupos tienen gente apuntada, pero ningún participante tiene la relación vigente: es lo que pasa cuando el curso anterior se ha cerrado y el nuevo no está abierto todavía. Las relaciones llevan fecha de fin y coordinación las renueva en el CRM. No es un fallo de la aplicación.', 'sticpa')
+        . '</span></p>'
+    : '';
+
 if ($ver === 'sueltos') {
     $html .= '<div class="pl-sec-row"><div class="pl-sec">'
         . esc_html__('Sin grupo', 'sticpa') . '</div>'
@@ -393,50 +451,50 @@ if ($quien === 'monitores') {
 // ---- Vista GRUPOS ---------------------------------------------------------
 
 if ($ver === 'grupos') {
-
-    /* LOS RECUENTOS DE TODOS LOS GRUPOS, EN UNA SOLA PASADA.
-     *
-     * La tentación era llamar a `sticpa_pl_group_people()` por grupo. No cuesta
-     * llamadas al CRM —el mapa ya está cargado— pero recorre el mapa entero una vez
-     * por grupo: con ~28 grupos y ~600 relaciones son diecisiete mil vueltas para
-     * pintar veintiocho números. Aquí se recorre UNA vez y se cuenta todo.
-     *
-     * Se cuenta por id de persona y no con `count()` sobre las relaciones: quien
-     * tiene dos relaciones vigentes con el mismo grupo es UNA persona, igual que en
-     * `sticpa_pl_group_people()`. */
-    $recuentos = array();
-    foreach (sticpa_pl_all_relationships($objSCP) as $rel) {
-        $gid = $rel['group_id'];
-        if ($gid === '' || $rel['person']['id'] === '' || !isset($groups[$gid])) {
-            continue;
-        }
-        $bucket = ($rel['role'] === 'monitor') ? 'monitors' : 'participants';
-        $recuentos[$gid][$bucket][$rel['person']['id']] = true;
-    }
+    $html .= $avisoCursoCerrado;
 
     /** La línea de debajo del nombre de un grupo: etapa, curso y recuentos.
      *
-     * EL CERO INVENTADO. Si el mapa de relaciones viene mal —una respuesta a
-     * medias del CRM— este grupo no sale en `$recuentos` y contar da cero. Un
-     * «0 chavales» al lado de un grupo que tiene doce es peor que no decir
-     * nada: se lee como un dato, no como un fallo.
+     * EL CERO INVENTADO, y la guarda mal puesta que costó verlo en producción.
      *
-     * Así que cuando no hay a quién contar se usa el recuento que el Guardián
-     * dejó escrito en el propio grupo por la noche —que es justo para lo que
-     * está, y es el que enseña el árbol de Pasar Lista— y si tampoco ese sirve,
-     * el hueco. Un número viejo lo tapa `sticpa_pl_recuento_fresco()`. */
-    $groupMeta = function ($gid, $g) use ($recuentos) {
-        if (isset($recuentos[$gid])) {
-            $n = $recuentos[$gid];
-            $texto = sticpa_pl_recuento_texto(
-                isset($n['participants']) ? count($n['participants']) : 0,
-                isset($n['monitors']) ? count($n['monitors']) : 0
-            );
+     * Si el mapa no trae participantes de este grupo, contar da cero. Un
+     * «0 chavales» al lado de un grupo que tiene doce es peor que no decir
+     * nada: se lee como un dato, no como un fallo. Cuando no hay a quién
+     * contar se usa el recuento que el Guardián dejó escrito en el propio
+     * grupo por la noche, y si tampoco ese sirve, el hueco.
+     *
+     * LA PRIMERA VERSIÓN PREGUNTABA `isset($recuentos[$gid])`, y eso estaba
+     * mal: en cuanto el grupo tiene UN MONITOR la clave existe, así que la
+     * guarda no saltaba y se pintaba «0 chavales · 2 monitores». Se vio el
+     * 04/09 en el entorno real, en 18 de los 19 grupos —el curso 2025-2026
+     * había terminado y las relaciones de participante ya no estaban
+     * vigentes, pero las de monitor sí—. La pregunta buena es por los
+     * PARTICIPANTES, que es el número que se está tapando. */
+    $groupMeta = function ($gid, $g) use ($recuentosTodos) {
+        $vivos = isset($recuentosTodos[$gid]['participants'])
+            ? count($recuentosTodos[$gid]['participants'])
+            : 0;
+        $monis = isset($recuentosTodos[$gid]['monitors'])
+            ? count($recuentosTodos[$gid]['monitors'])
+            : 0;
+
+        if ($vivos > 0) {
+            $texto = sticpa_pl_recuento_texto($vivos, $monis);
         } elseif ($g['n_participantes'] >= 0
             && sticpa_pl_recuento_fresco(isset($g['recuento_al']) ? $g['recuento_al'] : '')) {
+            // Los participantes del Guardián, pero los MONITORES contados de
+            // verdad si los hay: es el dato de hoy y no cuesta nada.
             $texto = sticpa_pl_recuento_texto(
                 $g['n_participantes'],
-                ($g['n_monitores'] > 0) ? $g['n_monitores'] : 0
+                ($monis > 0) ? $monis : (($g['n_monitores'] > 0) ? $g['n_monitores'] : 0)
+            );
+        } elseif ($monis > 0) {
+            // Sin participantes que contar y sin recuento fresco: al menos se
+            // dice quién lleva el grupo, sin inventarse un cero.
+            $texto = sprintf(
+                /* translators: %d: cuántos monitores tiene el grupo */
+                _n('%d monitor', '%d monitores', $monis, 'sticpa'),
+                $monis
             );
         } else {
             $texto = '';
@@ -571,11 +629,17 @@ foreach (sticpa_pl_all_relationships($objSCP) as $rel) {
 }
 
 if (empty($personas)) {
-    $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
-        . esc_html__('No hay participantes con relación vigente en los grupos de tu delegación.', 'sticpa')
-        . '</span></p>';
+    // El aviso de «curso cerrado» EXPLICA el vacío; el genérico solo lo
+    // constata. Si tenemos la explicación buena, se da esa.
+    $html .= ($avisoCursoCerrado !== '')
+        ? $avisoCursoCerrado
+        : '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
+            . esc_html__('No hay participantes con relación vigente en los grupos de tu delegación.', 'sticpa')
+            . '</span></p>';
     return;
 }
+
+$html .= $avisoCursoCerrado;
 
 /** La fila de una persona en las vistas de gente.
  *

@@ -174,6 +174,18 @@ class TokensCssTest extends TestCase
             $css,
             'Hace falta para contener los bloques que sangran por su cuenta (plan 035).'
         );
+        /* Y EL ANCHO, que es la mitad que faltaba. El margen negativo solo
+         * ensancha en flujo normal; aquí el área cuelga de contenedores flex de
+         * Elementor y ahí DESPLAZA sin ensanchar. Medido en el DOM real el
+         * 04/09: con solo el margen, 0..330 en un viewport de 390 —sesenta
+         * píxeles muertos a la derecha—. Con `width: 100vw`, 0..390. */
+        $this->assertMatchesRegularExpression(
+            '/\.stic-container\s*\{[^}]*width:\s*100vw/',
+            $css,
+            'Falta `width: 100vw`: sin él el margen negativo desplaza el área pero '
+                . 'no la ensancha, porque cuelga de contenedores flex de Elementor. '
+                . 'Se ve como un hueco asimétrico a la derecha.'
+        );
         /* Y el `body` NO lleva recorte, a propósito: `clip` —al contrario que
          * `hidden`— recorta también a los `position: fixed`, y `.pl-sheet` (la
          * hoja con la que se marca asistencia) es fixed. Se probó y se quitó:
@@ -201,10 +213,11 @@ class TokensCssTest extends TestCase
 
         $this->assertStringContainsString('--pl-gutter:', $css);
         $this->assertMatchesRegularExpression(
-            '/\.stic-container\s*\{[^}]*padding-inline:\s*var\(--pl-gutter\)/',
+            '/\.stic-container\s*\{[^}]*padding-inline:\s*var\(--pl-gutter\)\s*!important/',
             $css,
-            'El relleno lateral tiene que salir de `--pl-gutter`, para poder '
-                . 'ajustarlo en las ocho pantallas a la vez.'
+            'El relleno lateral sale de `--pl-gutter` Y con `!important`: '
+                . '`.stic-container` lleva `padding: 0 !important` en custom-style §2, '
+                . 'y sin él se queda en cero. Medido en un render real el 04/09.'
         );
     }
 
