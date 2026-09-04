@@ -410,3 +410,66 @@ function sticpa_record_detail_html($spec)
     $html .= "</div>";
     return $html;
 }
+
+/**
+ * TONO de un estado del CRM a partir de su clave interna.
+ *
+ * El color de un chip no puede salir de la ETIQUETA (cambia con el idioma y
+ * con quien la edite en el CRM), así que sale de la clave interna, que es
+ * estable. Y no puede salir de una lista cerrada de claves, porque cada
+ * instancia de SinergiaCRM añade las suyas: lo que hay es un juego de raíces
+ * que cubre las familias de estados de SuiteCRM (`Confirmed`, `pending`,
+ * `cancelled`, `rejected`…), en inglés y en castellano.
+ *
+ * Lo importante: si no reconoce nada, devuelve '' y el chip sale NEUTRO. Nunca
+ * pinta de verde algo que no ha entendido — un "cobrado" falso es peor que un
+ * chip gris. La etiqueta que se lee siempre es la del CRM; esto solo elige el
+ * color de fondo.
+ *
+ * @param string $key Clave interna del enum (no la etiqueta).
+ */
+function sticpa_record_status_tone($key)
+{
+    $k = strtolower(trim((string) $key));
+    if ($k === '') {
+        return '';
+    }
+    $familias = array(
+        'danger' => array('cancel', 'reject', 'denied', 'denegad', 'rechaz', 'anulad', 'devuelt', 'returned', 'failed', 'fallid', 'error', 'impagad', 'unpaid', 'baja'),
+        'ok'     => array('confirm', 'accept', 'aceptad', 'complet', 'finaliz', 'paid', 'pagad', 'cobrad', 'settled', 'active', 'activ', 'attended', 'asistio', 'validat', 'aprobad', 'approved', 'held', 'realizad'),
+        'warn'   => array('pending', 'pendient', 'draft', 'borrador', 'waiting', 'espera', 'reserva', 'preinscr', 'process', 'tramit', 'partial', 'parcial', 'planned', 'planificad', 'previst'),
+    );
+    foreach ($familias as $tone => $raices) {
+        foreach ($raices as $raiz) {
+            if (strpos($k, $raiz) !== false) {
+                return $tone;
+            }
+        }
+    }
+    return '';
+}
+
+/**
+ * Etiqueta traducida de un valor de desplegable, tal y como está en el CRM.
+ *
+ * Nunca se le enseña a nadie la clave cruda (`Confirmed`, `not_participating`):
+ * eso es jerga de base de datos. Si el CRM no sabe traducirla, se devuelve ''
+ * y quien llama decide si pinta algo o nada — nunca el código.
+ *
+ * @param array  $definition Definición cacheada del módulo (sticpa_cached_field_definition).
+ * @param string $field      Nombre del campo.
+ * @param string $key        Valor crudo del registro.
+ */
+function sticpa_record_enum_label($definition, $field, $key)
+{
+    $key = (string) $key;
+    if ($key === '' || empty($definition[$field]['options'])) {
+        return '';
+    }
+    $options = $definition[$field]['options'];
+    if (!isset($options[$key])) {
+        return '';
+    }
+    $option = $options[$key];
+    return is_array($option) ? (string) ($option['value'] ?? '') : (string) $option;
+}

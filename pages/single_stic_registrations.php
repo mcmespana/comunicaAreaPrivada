@@ -1,4 +1,61 @@
 <?php
+/**
+ * INSCRIPCIÓN — ficha (detail) y alta/edición (create/edit).
+ * ----------------------------------------------------------------------------
+ * `action=detail` ya NO es el formulario genérico con todos los campos
+ * deshabilitados. Eso eran cajas grises que no se pueden tocar, con las
+ * etiquetas crudas del CRM: parecía un formulario roto, no la ficha de nada.
+ * Ahora es una ficha de verdad, la misma que Eventos: cabecera, importe,
+ * avisos, datos clave y las personas de contacto
+ * (sticpa_registration_detail_html, en inc/stic-registrations.php).
+ *
+ * El alta y la edición siguen con el motor de formularios, que es lo suyo.
+ */
+
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+// --- FICHA -----------------------------------------------------------------
+// Se resuelve antes que nada y se sale: no hace falta montar $fieldList ni
+// llamar al motor para enseñar un registro que ya se sabe leer.
+if (($_REQUEST['action'] ?? '') === 'detail') {
+    $registrationId = isset($_REQUEST['id']) ? sanitize_text_field($_REQUEST['id']) : '';
+
+    if ($registrationId === '') {
+        $html .= sticpa_record_empty_html(
+            'check',
+            __('No hemos encontrado la inscripción', 'sticpa'),
+            __('Puede que el enlace esté incompleto. Vuelve a tus inscripciones y entra de nuevo.', 'sticpa'),
+            array('label' => __('Ver mis inscripciones', 'sticpa'), 'url' => '?internalpage=list_stic_registrations', 'primary' => true)
+        );
+        return;
+    }
+
+    $detail = $objSCP->getRecordDetail($registrationId, 'stic_Registrations', sticpa_registration_detail_fields());
+    $nvl = $detail->entry_list[0]->name_value_list ?? null;
+    $registration = $nvl ? sticpa_registration_view_model($nvl, sticpa_registration_event_index()) : null;
+
+    if (!$registration) {
+        $html .= sticpa_record_empty_html(
+            'check',
+            __('Esta inscripción ya no está disponible', 'sticpa'),
+            __('Es posible que se haya retirado. Consulta el resto de tus inscripciones.', 'sticpa'),
+            array('label' => __('Ver mis inscripciones', 'sticpa'), 'url' => '?internalpage=list_stic_registrations', 'primary' => true)
+        );
+        return;
+    }
+
+    // Definición cacheada 6h: de aquí salen las etiquetas traducidas de los
+    // desplegables. Nunca se le enseña a nadie la clave cruda del CRM.
+    $definition = sticpa_cached_field_definition($objSCP, 'stic_Registrations', array(
+        'status', 'participation_type', 'ajmcm_tutor1_relationship_c', 'ajmcm_tutor2_relationship_c',
+    ));
+
+    $html .= sticpa_registration_detail_html($registration, $definition);
+    return;
+}
+
 #########################################################
 # Form settings                                         #
 #########################################################

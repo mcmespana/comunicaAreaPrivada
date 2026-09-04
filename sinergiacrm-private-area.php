@@ -63,6 +63,7 @@ include plugin_dir_path(__FILE__) . 'inc/stic-calendar.php';
 // resto): les presta los iconos, las fechas en lenguaje humano y el formato.
 include plugin_dir_path(__FILE__) . 'inc/stic-record-view.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-events.php';
+include plugin_dir_path(__FILE__) . 'inc/stic-registrations.php';
 // Pasar Lista: la lógica pura (curso, sesión que toca, porcentajes) va primero
 // porque las otras dos la usan.
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista.php';
