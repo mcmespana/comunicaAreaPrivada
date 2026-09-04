@@ -148,11 +148,11 @@ class TokensCssTest extends TestCase
      * `.stic-container` le cortaba el sangrado entero y la página se veía igual
      * que antes. Este test existe para que no se vuelva a mover ahí.
      *
-     * Los dos recortes hacen cosas distintas y los dos hacen falta:
+     * Sobre los recortes:
      *   - el del `.stic-container` contiene a los bloques de DENTRO que sangran
      *     por su cuenta (plan 035);
-     *   - el del `body` contiene al propio contenedor, porque `50vw` incluye la
-     *     barra de desplazamiento en los escritorios que la pintan encima.
+     *   - al propio contenedor NO lo contiene nadie, y es deliberado: `clip`
+     *     recorta también a los `position: fixed`, y la hoja de marcar lo es.
      */
     public function test_el_sangrado_lateral_va_en_el_contenedor()
     {
@@ -174,10 +174,17 @@ class TokensCssTest extends TestCase
             $css,
             'Hace falta para contener los bloques que sangran por su cuenta (plan 035).'
         );
-        $this->assertMatchesRegularExpression(
-            '/body:has\(\.stic-container\)\s*\{[^}]*overflow-x:\s*clip/',
+        /* Y el `body` NO lleva recorte, a propósito: `clip` —al contrario que
+         * `hidden`— recorta también a los `position: fixed`, y `.pl-sheet` (la
+         * hoja con la que se marca asistencia) es fixed. Se probó y se quitó:
+         * era arriesgar la pantalla del sábado para tapar un desbordamiento
+         * que pide un escritorio con barra clásica Y una ventana de menos de
+         * 768 px, donde el sangrado ya se desactiva solo. */
+        $this->assertDoesNotMatchRegularExpression(
+            '/body[^{]*\{[^}]*overflow-x:\s*clip/',
             $css,
-            'Sin el recorte del body, la barra de scroll del escritorio asoma ~15 px.'
+            'Un `overflow-x: clip` en el body recorta `.pl-sheet`, que es fixed. '
+                . 'Si hace falta contener el sangrado, se mide la barra de scroll.'
         );
         $this->assertDoesNotMatchRegularExpression(
             '/\.stic-container\s*\{[^}]*overflow-x:\s*hidden/',
@@ -237,6 +244,144 @@ class TokensCssTest extends TestCase
             'Anchos fuera de la escala del plan 039: ' . implode(', ', $fuera)
                 . '. La escala es ' . implode(' · ', $escala) . ', en px. '
                 . 'Si de verdad hace falta uno nuevo, se añade AQUÍ con el porqué.'
+        );
+    }
+
+    /**
+     * LA HOJA DE MARCAR Y EL SANGRADO ESTÁN ACOPLADOS.
+     *
+     * `.pl-sheet` se pinta dentro de `.stic-container` y es `position: fixed`
+     * con `left: 0; right: 0`: quiere el ancho del viewport. El
+     * `overflow-x: clip` del contenedor la recorta al ancho de este, así que
+     * mientras el contenedor sea más estrecho que la pantalla, la hoja sale
+     * cortada por los lados.
+     *
+     * El sangrado lo arregla de rebote —el contenedor llega al viewport— pero
+     * eso significa que quitarlo REROMPE la hoja. Este test deja el acoplamiento
+     * por escrito para que quien quite el sangrado se entere aquí y no un
+     * sábado.
+     */
+    public function test_la_hoja_de_marcar_depende_del_sangrado()
+    {
+        $css = $this->pasarLista();
+
+        $hojaEsFixed = (bool) preg_match(
+            '/\.pl-sheet\s*\{[^}]*position:\s*fixed/',
+            $css
+        );
+        if (!$hojaEsFixed) {
+            $this->markTestSkipped('La hoja ya no es fixed: el acoplamiento no aplica.');
+        }
+
+        $this->assertMatchesRegularExpression(
+            '/\.stic-container\s*\{[^}]*margin-inline:\s*calc\(50%\s*-\s*50vw\)/',
+            $css,
+            'Sin el sangrado, el `overflow-x: clip` de `.stic-container` recorta '
+                . '`.pl-sheet` por los lados: es fixed y quiere el ancho del viewport. '
+                . 'Si de verdad se quita el sangrado, hay que sacar la hoja del '
+                . 'contenedor o quitarle el clip.'
+        );
+    }
+
+    /** Los anchos de la escala del plan 039 (fila 2). En px, no en rem. */
+    private function escalaDeAnchos()
+    {
+        return array('340px', '640px', '767px', '768px', '1024px');
+    }
+
+    /**
+     * LOS ANCHOS HISTÓRICOS de `custom-style.css`, congelados.
+     *
+     * La fila 2 del plan 039 dice explícitamente que estos NO se migran en
+     * bloque: un barrido masivo es QA visual iterativo y el plan 018 ya midió
+     * que no es un batch seguro. Se migran cuando se toca ese componente por
+     * otro motivo.
+     *
+     * Pero «no migrarlos» no puede significar «vale todo». Esta lista es un
+     * TRINQUETE: los dos tests de abajo hacen que solo pueda ENCOGER — no
+     * entran anchos nuevos, y un histórico que ya no se usa hay que borrarlo de
+     * aquí. Una lista de excepciones que nadie poda es otra forma de no tener
+     * regla.
+     *
+     * Cuando migres uno, quítalo de esta lista en el mismo commit.
+     */
+    private function anchosHistoricos()
+    {
+        return array(
+            '900px',   // pendiente: candidato a 1024px
+            '860px',   // login partido — el plan 039 lo nombra: su sitio es 1024px
+            '641px',   // pareja de 640px, escrita a mano
+            '600px',   // botonera de formularios
+            '561px',   // pareja de 560px
+            '560px',
+            '480px',
+            '420px',
+        );
+    }
+
+    private function anchosDeHoja($ruta)
+    {
+        preg_match_all(
+            '/@media[^{]*\((?:max|min)-width:\s*([^)]+)\)/',
+            file_get_contents($ruta),
+            $m
+        );
+        return array_map('trim', $m[1]);
+    }
+
+    /**
+     * En `custom-style.css` no entra un ancho que no esté ni en la escala ni en
+     * la lista de históricos. O sea: no entran anchos NUEVOS.
+     */
+    public function test_custom_style_no_admite_anchos_nuevos()
+    {
+        $ruta = dirname(__DIR__) . '/css/custom-style.css';
+        if (!is_file($ruta)) {
+            $this->markTestSkipped('No hay custom-style.css.');
+        }
+
+        $permitidos = array_merge($this->escalaDeAnchos(), $this->anchosHistoricos());
+        $fuera = array_values(array_unique(array_diff(
+            $this->anchosDeHoja($ruta),
+            $permitidos
+        )));
+
+        $this->assertSame(
+            array(),
+            $fuera,
+            'Anchos nuevos fuera de la escala: ' . implode(', ', $fuera) . '. '
+                . 'La escala es ' . implode(' · ', $this->escalaDeAnchos()) . '. '
+                . 'Los históricos están congelados en anchosHistoricos() y esa lista '
+                . 'solo puede encoger.'
+        );
+    }
+
+    /**
+     * Y LA OTRA MITAD DEL TRINQUETE: un histórico que ya no se usa tiene que
+     * salir de la lista. Sin esto, la lista se convierte en un cajón donde todo
+     * cabe y nadie mira — que es justo la pega de tener excepciones.
+     */
+    public function test_la_lista_de_historicos_no_se_pudre()
+    {
+        $ruta = dirname(__DIR__) . '/css/custom-style.css';
+        if (!is_file($ruta)) {
+            $this->markTestSkipped('No hay custom-style.css.');
+        }
+
+        $enUso = $this->anchosDeHoja($ruta);
+        $muertos = array_values(array_filter(
+            $this->anchosHistoricos(),
+            function ($ancho) use ($enUso) {
+                return !in_array($ancho, $enUso, true);
+            }
+        ));
+
+        $this->assertSame(
+            array(),
+            $muertos,
+            'Estos anchos históricos ya no se usan: ' . implode(', ', $muertos)
+                . '. Bórralos de anchosHistoricos() — la lista solo vale mientras '
+                . 'describa la realidad.'
         );
     }
 

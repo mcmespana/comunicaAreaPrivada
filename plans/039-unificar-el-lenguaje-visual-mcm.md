@@ -487,8 +487,21 @@ lista de anchos permitidos escrita en el propio test. Un ancho nuevo ya no entra
 en silencio: hay que añadirlo ahí, y ese es justo el momento de escribir el
 porqué que pide la fila 2.
 
-Queda pendiente el mismo cinturón para `custom-style.css` y para el repo de
-formularios. Ahí hay anchos históricos de verdad (la fila 2 dice
-explícitamente que **no** se migran en bloque), así que el test tendría que
-nacer con una lista de excepciones — y una lista de excepciones que nadie poda
-es otra forma de no tener regla. Merece su propia decisión, no colarlo aquí.
+**Y el mismo cinturón para `custom-style.css`, con trinquete** (01/09/2026).
+Ahí la mitad de los anchos están fuera de la escala (15 de 30) y la fila 2 dice
+explícitamente que **no** se migran en bloque. La pega de una lista de
+excepciones es que nadie la poda, así que son DOS tests que la obligan a
+encoger:
+
+1. `test_custom_style_no_admite_anchos_nuevos` — no entra un ancho que no esté
+   ni en la escala ni en la lista congelada. O sea: no entran nuevos.
+2. `test_la_lista_de_historicos_no_se_pudre` — un histórico que ya no se usa
+   hace fallar el test hasta que se borra de la lista. La lista solo vale
+   mientras describa la realidad.
+
+Congelados hoy: `900px`, `860px` (el login partido que nombra esta sección),
+`641px`, `600px`, `561px`, `560px`, `480px`, `420px`. Cuando migres uno, quítalo
+de `anchosHistoricos()` en el mismo commit.
+
+Queda el repo de **formularios**, que este repo no puede vigilar desde sus
+tests.
