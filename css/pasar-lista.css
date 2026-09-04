@@ -2822,18 +2822,37 @@ a.pl-cell:active { opacity: 0.55; }
    se recorta a sí mismo, y su clip sigue conteniendo a los bloques de dentro
    que sangran por su cuenta (los del plan 035, que es para lo que se puso).
 
-   Y para contener al PROPIO contenedor —`50vw` incluye la barra de
-   desplazamiento en los escritorios que la pintan encima, y eso son ~15 px— el
-   recorte se pone en el `body`, acotado con `:has()` para no tocar el resto del
-   sitio de WordPress. Si un navegador no entiende `:has()`, ignora la línea y
-   se queda como estaba: el sangrado sigue funcionando y solo se pierde esa
-   red de seguridad.
+   ¿Y QUIÉN CONTIENE AL PROPIO CONTENEDOR? Nadie, y es deliberado.
+
+   `50vw` incluye la barra de desplazamiento vertical en los escritorios que la
+   pintan encima del contenido, así que el sangrado se pasa ~15 px. La solución
+   evidente era un `overflow-x: clip` en el `body`… y se probó, y se quitó:
+   `clip` NO es `hidden`. `hidden` respeta la excepción de los `position: fixed`
+   cuyo bloque contenedor es el viewport; `clip` los recorta. Y `.pl-sheet` —la
+   hoja de los cuatro estados, con la que se marca asistencia— es justo eso.
+   Poner ese recorte era arriesgar LA pantalla del sábado para tapar un caso
+   que casi no ocurre: hace falta un escritorio con barra de scroll clásica Y
+   una ventana de menos de 768 px, porque a partir de ahí el sangrado ya se
+   desactiva solo. No compensa ni de lejos.
+
+   Si algún día aparece ese desbordamiento, el arreglo NO es clip en el body: es
+   restar la barra midiéndola (`100vw - document.documentElement.clientWidth`) y
+   guardarla en una custom property.
+
+   EFECTO SECUNDARIO QUE CONVIENE SABER: la hoja de los cuatro estados
+   (`.pl-sheet`) se pinta DENTRO de `.stic-container`, y es `position: fixed`
+   con `left: 0; right: 0` — o sea, quiere ocupar el ancho del viewport. Con el
+   contenedor más estrecho que la pantalla, su `overflow-x: clip` le recortaba
+   los lados. Ahora que el contenedor llega al viewport, el recorte coincide con
+   la hoja y esta se ve entera.
+
+   Es decir: el sangrado y esa hoja están ACOPLADOS. Si alguien quita el
+   sangrado, hay que sacar la hoja del contenedor o quitarle el clip, o volverá
+   a verse cortada por los lados.
 
    EL AIRE, en una variable y en un solo sitio: si hay que subirlo o bajarlo, se
    toca aquí y cambian las ocho pantallas a la vez. */
 :root { --pl-gutter: 0.25rem; }
-
-body:has(.stic-container) { overflow-x: clip; }
 
 .stic-container {
     margin-inline: calc(50% - 50vw);
