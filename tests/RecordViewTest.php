@@ -162,4 +162,61 @@ class RecordViewTest extends TestCase
         $this->assertStringContainsString('stic-empty-state', $html);
         $this->assertStringContainsString('Ir', $html);
     }
+
+    /** La barra de progreso no se sale de su carril aunque el CRM sume de más. */
+    public function testElProgresoSeRecortaAlCienPorCien()
+    {
+        $html = sticpa_record_detail_html(array(
+            'title' => 'R',
+            'progress' => array('label' => 'Este año', 'value' => 300, 'max' => 240,
+                'value_txt' => '300,00 €', 'max_txt' => '240,00 €'),
+        ));
+        $this->assertStringContainsString('width:100%', $html);
+        $this->assertStringContainsString('100%<', $html);
+    }
+
+    /** Sin total no hay barra: una barra sobre un máximo de cero no dice nada. */
+    public function testSinMaximoNoHayBarra()
+    {
+        foreach (array(array('value' => 10, 'max' => 0), array('value' => 10)) as $pr) {
+            $html = sticpa_record_detail_html(array('title' => 'R', 'progress' => $pr));
+            $this->assertStringNotContainsString('stic-rec-progress', $html);
+        }
+    }
+
+    /** El importe de la tarjeta se pinta a la derecha, y solo si lo hay. */
+    public function testElImporteDeLaTarjeta()
+    {
+        $con = sticpa_record_card_html(array('name' => 'X', 'amount' => '20,00 €', 'amount_note' => 'Mensual'));
+        $this->assertStringContainsString('stic-rec-amount-fig', $con);
+        $this->assertStringContainsString('Mensual', $con);
+
+        $sin = sticpa_record_card_html(array('name' => 'X'));
+        $this->assertStringNotContainsString('stic-rec-amount', $sin);
+    }
+
+    /**
+     * El tono del chip sale de la CLAVE interna, nunca de la etiqueta, y ante
+     * la duda es neutro: un "cobrado" en verde que en realidad no lo está es
+     * peor que un chip gris.
+     */
+    public function testElTonoSaleDeLaClaveYAnteLaDudaEsNeutro()
+    {
+        $this->assertSame('danger', sticpa_record_status_tone('returned'));
+        $this->assertSame('danger', sticpa_record_status_tone('cancelled'));
+        $this->assertSame('ok', sticpa_record_status_tone('settled'));
+        $this->assertSame('ok', sticpa_record_status_tone('Confirmed'));
+        $this->assertSame('warn', sticpa_record_status_tone('pending'));
+        $this->assertSame('', sticpa_record_status_tone('un_estado_que_nadie_ha_visto'));
+        $this->assertSame('', sticpa_record_status_tone(''));
+    }
+
+    /** Nunca se enseña la clave cruda de un desplegable. */
+    public function testLaEtiquetaDeUnEnum()
+    {
+        $def = array('status' => array('options' => array('settled' => array('value' => 'Cobrado'))));
+        $this->assertSame('Cobrado', sticpa_record_enum_label($def, 'status', 'settled'));
+        $this->assertSame('', sticpa_record_enum_label($def, 'status', 'inventado'));
+        $this->assertSame('', sticpa_record_enum_label(array(), 'status', 'settled'));
+    }
 }

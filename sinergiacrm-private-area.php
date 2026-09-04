@@ -64,6 +64,7 @@ include plugin_dir_path(__FILE__) . 'inc/stic-calendar.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-record-view.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-events.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-registrations.php';
+include plugin_dir_path(__FILE__) . 'inc/stic-payments.php';
 // Pasar Lista: la lógica pura (curso, sesión que toca, porcentajes) va primero
 // porque las otras dos la usan.
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista.php';
@@ -476,14 +477,6 @@ function sticpa_section_meta($key)
         'list_stic_attendances' => array(
             'desc' => __('Registro de asistencias.', 'sticpa'),
             'icon' => "<path d='M9 11l3 3L22 4'/><path d='M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'/>",
-        ),
-        'list_stic_job_offers' => array(
-            'desc' => __('Ofertas de empleo disponibles.', 'sticpa'),
-            'icon' => "<rect x='2' y='7' width='20' height='14' rx='2'/><path d='M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'/>",
-        ),
-        'list_stic_job_applications' => array(
-            'desc' => __('Tus candidaturas a ofertas.', 'sticpa'),
-            'icon' => "<path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><path d='M14 2v6h6'/>",
         ),
         'single_stic_unsubscribe' => array(
             'desc' => __('Gestiona tu baja.', 'sticpa'),

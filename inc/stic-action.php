@@ -503,50 +503,15 @@ function prefix_admin_single_stic_registrations()
     }
 }
 
-/**
- * Action that manages creating and modificating Job Applications records.
- * 
- * (Optional) If a Document ID is provided, the action will automatically related the Job Application to the Document record.
- * This is used to select an available Curriculum Vitae of the user when registering to a Job Offer.
+/*
+ * Ofertas de empleo y Candidaturas: RETIRADOS del área privada (04/09/2026).
+ * No se usan, y el usuario de la API ni siquiera tiene acceso a stic_Job_Offers
+ * ni a stic_Job_Applications (la llamada devuelve "Not Allowed"), así que las
+ * pantallas no podían funcionar aunque alguien las configurara en el menú.
+ *
+ * Con ellos se van dos endpoints `admin_post_nopriv_*` que escribían en el CRM
+ * sin comprobar la sesión — dos de los que el plan 001 lista como S1.
  */
-add_action('admin_post_single_stic_job_applications', 'prefix_admin_single_stic_job_applications'); 
-add_action('admin_post_nopriv_single_stic_job_applications', 'prefix_admin_single_stic_job_applications'); 
-function prefix_admin_single_stic_job_applications() 
-{
-    if ($_REQUEST['stic-action'] == 'detail') {
-        $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=list_stic_job_applications";
-        wp_redirect($redirectUrl);
-        exit;
-    } else {
-        $moduleName = 'stic_Job_Applications'; 
-
-        $objSCP = SugarRestApiCall::getObjSCP();
-
-        foreach ($_REQUEST as $key => $value) {
-            $moduleData[$key] = is_array($value) ? '^' . implode('^,^', stripslashes_deep($value)) . '^' : stripslashes_deep($value);
-        }
-        $action = $moduleData['stic-action'];
-        unset($moduleData['stic-action']); // to avoid passing the value to the API
-        if ($action === 'delete') {
-            $moduleData['deleted'] = 1;
-        }
-        $isUpdate = $objSCP->set_entry($moduleName, $moduleData);
-        if ($isUpdate != null) {
-            if ($documentID = $_REQUEST['selected_document']) {
-                $resultRelationship = $objSCP->set_relationship('Documents', $documentID, 'stic_job_applications_documents', array($isUpdate));
-            }
-
-
-            if ($action === 'delete') {
-                $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=list_stic_job_applications&msgDelete=true";
-            } else {
-                $redirectUrl = $_REQUEST['scp_current_url'] . '&msg=true' . '&id=' . $isUpdate .  '&action=detail';
-            }
-            wp_redirect($redirectUrl);
-            exit;
-        }
-    }
-}
 
 /**
  * Action used for redirecting to the registration page of the provided Event ID
@@ -559,22 +524,6 @@ function prefix_admin_single_stic_events()
         $redirect_url = explode('?', $_REQUEST['scp_current_url'], 2)[0] .'/?internalpage=single_stic_registrations&action=create&eventId='.$_REQUEST['id'];
     } else {
         $redirect_url = explode('?', $_REQUEST['scp_current_url'], 2)[0] .'/?internalpage=list_stic_registrations';
-    }
-    wp_redirect($redirect_url);
-    exit;
-}
-
-/**
- * Action used for redirecting to the job applications page of the provided Job Offer ID
- */
-add_action('admin_post_single_stic_job_offers', 'prefix_admin_single_stic_job_offers'); 
-add_action('admin_post_nopriv_single_stic_job_offers', 'prefix_admin_single_stic_job_offers'); 
-function prefix_admin_single_stic_job_offers() 
-{
-    if ($_REQUEST['id']) {
-        $redirect_url = explode('?', $_REQUEST['scp_current_url'], 2)[0] .'/?internalpage=single_stic_job_applications&action=create&offerId='.$_REQUEST['id'];
-    } else {
-        $redirect_url = explode('?', $_REQUEST['scp_current_url'], 2)[0] .'/?internalpage=list_stic_job_offers';
     }
     wp_redirect($redirect_url);
     exit;

@@ -40,6 +40,18 @@ function sticpa_payment_form_bounce($title, $sub, $link, $linkLabel)
 $eventId = !empty($_REQUEST['eventId']) ? $_REQUEST['eventId'] : '';
 $registrationId = !empty($_REQUEST['registrationId']) ? $_REQUEST['registrationId'] : '';
 
+// Importe sugerido (lo pone la ficha de un compromiso de pago al enlazar aquí:
+// llegas con la cifra puesta y solo tienes que elegir cómo pagas). Se SANEA a
+// un número con dos decimales: viaja por la URL, así que no se toca sin lavar.
+// Es una sugerencia, no una imposición: el campo se puede seguir editando.
+$suggestedAmount = '';
+if (isset($_REQUEST['amount']) && is_scalar($_REQUEST['amount'])) {
+    $raw = (float) str_replace(',', '.', (string) $_REQUEST['amount']);
+    if ($raw > 0 && $raw < 1000000) {
+        $suggestedAmount = number_format($raw, 2, '.', '');
+    }
+}
+
 // Guard SIN llamadas al CRM: si venimos de un evento pero no hay inscripción,
 // esta pantalla no tiene nada que cobrar. Se sale antes de gastar 3 round-trips.
 if ($eventId !== '' && $registrationId === '') {
@@ -198,7 +210,7 @@ $html .= '
             </span></td>
           <td id="td_stic_Payment_Commitments___amount" class="column_25"><span>
               <input id="stic_Payment_Commitments___amount" name="stic_Payment_Commitments___amount" type="number" min="0"
-                step="0.01" span="" sugar="slot" required/>
+                step="0.01" inputmode="decimal" span="" sugar="slot" required value="'.esc_attr($suggestedAmount).'"/>
             </span></td>
         </tr>
         <tr>

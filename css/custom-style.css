@@ -5146,11 +5146,6 @@ span.stic-field {
     justify-content: center;
     gap: 0.4rem;
     flex: 1;
-    /* Sin esto, un botón a lo ancho (width:100% o flex-basis:100%) se sale de
-       la pantalla 32px: el padding se SUMA al 100%. En el sitio real no se ve
-       porque Astra pone box-sizing global, pero este CSS no puede depender del
-       tema que lo hospede. Medido a 375px: 391px de ancho en 343 de hueco. */
-    box-sizing: border-box;
     min-height: 42px;
     padding: 0.5rem 0.9rem;
     border-radius: var(--radius-md);
@@ -5815,6 +5810,25 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
    · Tarjeta no pulsable, para registros que no tienen ficha propia.
    ============================================================ */
 
+/* --- 56.0  box-sizing de la familia --------------------------------- */
+/* Esto ha costado dos veces lo mismo. Cualquier hijo a lo ancho (`width:100%`
+   o `flex-basis:100%`) se salía de la pantalla tantos píxeles como padding
+   tuviera, porque con `content-box` el padding se SUMA al 100%: medidos 32px
+   en el botón grande de la ficha y 18 más en la nota del pie del CTA.
+
+   En el sitio real no se nota porque Astra pone un `box-sizing` global, y por
+   eso pasó desapercibido — pero este CSS se inyecta dentro de WordPress y no
+   puede dar por hecho el tema que lo hospede. Una regla ACOTADA a la familia,
+   y se acaba la clase entera de fallo. No es una regla universal de las que
+   prohíbe design.md §8: aquella aplana la jerarquía (tipografías, colores);
+   esta solo dice cómo se mide una caja. */
+.stic-rec-list,
+.stic-rec-list *,
+.stic-rec-detail,
+.stic-rec-detail * {
+    box-sizing: border-box;
+}
+
 /* --- 56.a  Tonos del chip de estado --------------------------------- */
 .stic-rec-chip--ok     { background: var(--success-soft); color: var(--success-dark); }
 .stic-rec-chip--warn   { background: var(--warning-soft); color: var(--warning-dark); }
@@ -5896,7 +5910,6 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
    evento") hacen falta el reparto y el salto de línea en móvil. */
 .stic-rec-cta-row {
     display: flex;
-    box-sizing: border-box;
     flex-wrap: wrap;
     align-items: center;
     gap: 0.6rem;
@@ -5971,3 +5984,146 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 .stic-rec-person-call::after { display: none !important; }
 .stic-rec-person-call svg { width: 20px; height: 20px; }
 .stic-rec-person-call:active { transform: scale(0.94); }
+
+/* --- 56.f2  Las líneas de la tarjeta: dos, no una cortada ----------- */
+/* La §49 truncaba a una línea con puntos suspensivos, que venía de Eventos:
+   allí la línea es una dirección larga y cortarla no pierde nada. En Pagos la
+   línea es la forma de pago y quedaba "Domiciliación banc…", que es fea sin
+   ganar nada — ahora que la tarjeta lleva UNA sola línea, hay sitio de sobra.
+   Dos líneas y luego sí se corta: una tarjeta no puede crecer sin límite. */
+.stic-rec-where span {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    white-space: normal;
+    overflow: hidden;
+}
+
+/* --- 56.g  El importe en la tarjeta --------------------------------- */
+/* En un pago el importe no es un dato más de la fila: es a lo que se entra.
+   Va a la derecha y alineado, para que una lista de recibos se recorra de un
+   vistazo — y con cifras tabulares, para que la columna no baile. */
+.stic-rec-amount {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-left: auto;
+    padding-left: 0.5rem;
+    text-align: right;
+}
+
+.stic-rec-amount-fig {
+    font-size: 1.05rem;
+    font-weight: 800;
+    line-height: 1.2;
+    color: var(--gray-900);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.stic-rec-amount-note {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--gray-500);
+    white-space: nowrap;
+}
+
+/* A 340px el importe y el título se pelean por el ancho: el importe baja
+   debajo del texto en vez de estrujarlo hasta partir las palabras. */
+@media (max-width: 340px) {
+    .stic-rec-main { flex-wrap: wrap; }
+    .stic-rec-amount {
+        width: 100%;
+        margin-left: 0;
+        padding-left: 0;
+        align-items: flex-start;
+        text-align: left;
+    }
+}
+
+/* --- 56.h  "Llevas X de Y" ------------------------------------------ */
+/* Un compromiso de pago traía tres datos —total del año, aportado, pendiente—
+   en tres cajas seguidas, más un aviso que repetía el pendiente: la misma
+   cuenta contada cuatro veces en media pantalla. Es UNA historia y se cuenta
+   una vez, con su barra. La barra es lo único que no dice ya el texto: cuánto
+   falta, de un vistazo y sin restar. */
+.stic-rec-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-top: 0.9rem;
+    padding: clamp(0.85rem, 2.5vw, 1.1rem);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+}
+
+.stic-rec-progress-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--gray-500);
+}
+
+.stic-rec-progress-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.stic-rec-progress-fig {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--gray-900);
+    font-variant-numeric: tabular-nums;
+}
+
+.stic-rec-progress-of {
+    margin-left: 0.3rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--gray-500);
+}
+
+.stic-rec-progress-pct {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--primary-color);
+    font-variant-numeric: tabular-nums;
+}
+
+.stic-rec-progress-bar {
+    height: 8px;
+    border-radius: var(--radius-full);
+    background: var(--surface-2);
+    overflow: hidden;
+}
+
+.stic-rec-progress-fill {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    /* Los hex fijos del degradado de marca, no los tokens de acento: en oscuro
+       los acentos se aclaran para que se lea el TEXTO, y aquí no hay texto
+       encima — la firma tiene que seguir siendo la de la marca (design.md §3).
+
+       Y sí, en la ficha del compromiso esto convive con la cabecera y con el
+       botón: son 8px de alto, un ACENTO, no un tercer bloque con degradado.
+       El mismo criterio por el que la cápsula de fecha lo lleva y aparece una
+       vez por tarjeta. Si algún día hay que recortar, se recorta aquí. */
+    background: linear-gradient(90deg, #1c6fb3 0%, #6c4b9e 60%, #9d1e74 100%);
+    transition: width 0.45s var(--ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .stic-rec-progress-fill { transition: none; }
+}
+
+.stic-rec-progress-note {
+    font-size: 0.84rem;
+    color: var(--gray-500);
+}

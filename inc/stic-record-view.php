@@ -195,6 +195,12 @@ function sticpa_record_action_html($action, $extraClass = '')
  *   'lines'   => array de array('icon','text') — dos como mucho, es una tarjeta,
  *   'chips'   => array de array('label','tone'),
  *   'is_past' => bool, apaga la tarjeta,
+ *   'amount'  => texto ya formateado ("120,00 €"). Se pinta a la derecha, en
+ *                grande. En un pago el importe NO es un dato más de la fila:
+ *                es a lo que se entra, y una columna de importes alineada se
+ *                recorre de un vistazo. Lleva cifras tabulares para que no
+ *                baile,
+ *   'amount_note' => línea pequeña bajo el importe ("al mes", "pendiente"),
  *   'actions' => array de acciones (ver sticpa_record_normalize_actions),
  * }
  */
@@ -225,6 +231,17 @@ function sticpa_record_card_html($card)
         $inner .= "<span class='stic-rec-chips'>{$chips}</span>";
     }
     $inner .= "</span>";
+
+    $amount = trim((string) ($card['amount'] ?? ''));
+    if ($amount !== '') {
+        $inner .= "<span class='stic-rec-amount'>";
+        $inner .= "<span class='stic-rec-amount-fig'>" . esc_html($amount) . "</span>";
+        $note = trim((string) ($card['amount_note'] ?? ''));
+        if ($note !== '') {
+            $inner .= "<span class='stic-rec-amount-note'>" . esc_html($note) . "</span>";
+        }
+        $inner .= "</span>";
+    }
 
     $html = "<article class='stic-rec-card" . ($isPast ? ' is-past' : '') . "'>";
     if (!empty($card['url'])) {
@@ -291,6 +308,10 @@ function sticpa_record_empty_html($icon, $title, $sub = '', $action = null)
  *   'chips'    => array de array('label','tone'),
  *   'headline' => array('label','text') — EL dato de la ficha en grande
  *                 (el importe de un pago, la cuota de un compromiso). Opcional,
+ *   'progress' => array('label','value','max','value_txt','max_txt','note') —
+ *                 una historia de "llevas X de Y". Es UN bloque, no tres datos
+ *                 sueltos: "Total del año / Aportado / Pendiente" en tres
+ *                 cajas es la misma cuenta contada tres veces,
  *   'facts'    => array de array('icon','label','text') — los datos clave,
  *   'notes'    => array de array('tone','icon','text') — avisos,
  *   'sections' => array de array('title','body','raw'?) — bloques de texto,
@@ -357,6 +378,38 @@ function sticpa_record_detail_html($spec)
         $html .= "<p class='stic-rec-note stic-rec-note--" . esc_attr($tone) . "'>"
             . sticpa_record_icon($note['icon'] ?? ($tone === 'ok' ? 'check' : ($tone === 'info' ? 'info' : 'alert')))
             . "<span>" . esc_html($text) . "</span></p>";
+    }
+
+    // --- El progreso, si la ficha cuenta una historia de "llevas X de Y" ---
+    if (isset($spec['progress']['max']) && (float) $spec['progress']['max'] > 0) {
+        $pr = $spec['progress'];
+        $max = (float) $pr['max'];
+        $value = max(0.0, (float) ($pr['value'] ?? 0));
+        // Se recorta al 100%: un CRM puede tener aportado de más y una barra
+        // que se sale de su carril se lee como un fallo, no como buena noticia.
+        $pct = (int) round(min(100, ($value / $max) * 100));
+
+        $html .= "<div class='stic-rec-progress'>";
+        if (!empty($pr['label'])) {
+            $html .= "<span class='stic-rec-progress-label'>" . esc_html($pr['label']) . "</span>";
+        }
+        $html .= "<div class='stic-rec-progress-top'>";
+        $html .= "<span class='stic-rec-progress-fig'>"
+            . esc_html($pr['value_txt'] ?? (string) $value)
+            /* translators: separador de "X de Y" en una barra de progreso */
+            . "<span class='stic-rec-progress-of'>" . esc_html__('de', 'sticpa') . " "
+            . esc_html($pr['max_txt'] ?? (string) $max) . "</span></span>";
+        $html .= "<span class='stic-rec-progress-pct'>" . esc_html($pct) . "%</span>";
+        $html .= "</div>";
+        // role=img + aria-label: la barra es decorativa para un lector de
+        // pantalla; lo que importa es la frase, y ya está escrita arriba.
+        $html .= "<div class='stic-rec-progress-bar' role='img' aria-label='"
+            . esc_attr(sprintf(__('%d %% completado', 'sticpa'), $pct)) . "'>"
+            . "<span class='stic-rec-progress-fill' style='width:" . (int) $pct . "%'></span></div>";
+        if (!empty($pr['note'])) {
+            $html .= "<span class='stic-rec-progress-note'>" . esc_html($pr['note']) . "</span>";
+        }
+        $html .= "</div>";
     }
 
     // --- Datos clave (solo los que tengan valor) ---

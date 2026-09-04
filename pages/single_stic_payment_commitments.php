@@ -1,4 +1,55 @@
 <?php
+/**
+ * COMPROMISO DE PAGO — ficha (detail) y alta/edición.
+ * ----------------------------------------------------------------------------
+ * `action=detail` ya NO es el formulario genérico con todo deshabilitado. Un
+ * compromiso son dos datos que solo significan algo juntos —cuánto y cada
+ * cuánto— y quedaban en dos cajas grises separadas por otras tres.
+ *
+ * La ficha (sticpa_commitment_detail_html, en inc/stic-payments.php) pone el
+ * importe arriba con su periodicidad, dice lo que queda por aportar del año y
+ * ofrece hacer una aportación cuando el compromiso está vivo.
+ */
+
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+// --- FICHA -----------------------------------------------------------------
+if (($_REQUEST['action'] ?? '') === 'detail') {
+    $commitmentId = isset($_REQUEST['id']) ? sanitize_text_field($_REQUEST['id']) : '';
+
+    if ($commitmentId === '') {
+        $html .= sticpa_record_empty_html(
+            'repeat',
+            __('No hemos encontrado el compromiso', 'sticpa'),
+            __('Puede que el enlace esté incompleto. Vuelve a tus compromisos y entra de nuevo.', 'sticpa'),
+            array('label' => __('Ver mis compromisos', 'sticpa'), 'url' => '?internalpage=list_stic_payment_commitments', 'primary' => true)
+        );
+        return;
+    }
+
+    $detail = $objSCP->getRecordDetail($commitmentId, 'stic_Payment_Commitments', sticpa_commitment_detail_fields());
+    $nvl = $detail->entry_list[0]->name_value_list ?? null;
+    $commitment = $nvl ? sticpa_commitment_view_model($nvl) : null;
+
+    if (!$commitment) {
+        $html .= sticpa_record_empty_html(
+            'repeat',
+            __('Este compromiso ya no está disponible', 'sticpa'),
+            __('Consulta el resto de tus compromisos de pago.', 'sticpa'),
+            array('label' => __('Ver mis compromisos', 'sticpa'), 'url' => '?internalpage=list_stic_payment_commitments', 'primary' => true)
+        );
+        return;
+    }
+
+    $definition = sticpa_cached_field_definition($objSCP, 'stic_Payment_Commitments', array(
+        'periodicity', 'payment_method', 'payment_type', 'destination',
+    ));
+
+    $html .= sticpa_commitment_detail_html($commitment, $definition);
+    return;
+}
 
 switch (getDestinationModule()) {
     case 'Accounts':
