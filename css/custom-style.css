@@ -5013,32 +5013,38 @@ span.stic-field {
 }
 
 /* ============================================================
-   49. EVENTOS — tarjetas del listado y ficha de detalle
+   49. FICHA DE REGISTRO — tarjetas del listado y ficha de detalle
    ------------------------------------------------------------
-   "Eventos" se pintaba con el renderizador genérico de listados: tres filas
-   "ETIQUETA: valor" (Estado / Fecha inicio / Fecha fin) para decir cuándo es
-   algo. Mucha tinta administrativa y poca información útil, sobre todo en
-   móvil, donde dos eventos ya llenaban la pantalla.
+   El vocabulario común de "un registro del CRM" (`stic-rec-*`), que pinta
+   inc/stic-record-view.php y comparten Eventos, Inscripciones, Pagos,
+   Compromisos, Documentos, Sesiones y Asistencias. Las piezas que solo
+   necesitan los módulos posteriores a Eventos están en la §56.
 
-   Ahora el evento tiene formato propio (inc/stic-events.php):
+   Nació en Eventos, que se pintaba con el renderizador genérico de listados:
+   tres filas "ETIQUETA: valor" (Estado / Fecha inicio / Fecha fin) para decir
+   cuándo es algo. Mucha tinta administrativa y poca información útil, sobre
+   todo en móvil, donde dos eventos ya llenaban la pantalla. Se llamaba
+   `stic-ev-*` hasta que dejó de ser cosa de eventos.
+
+   El formato:
    · Cápsula de fecha a la izquierda — el "cuándo" se lee de un vistazo.
    · Nombre, fecha en lenguaje humano ("del 1 al 10 de julio de 2026") y,
-     si el CRM lo tiene, el lugar.
-   · Dos acciones claras y separadas: "Ver detalle" (secundaria) e
-     "Inscribirme" (primaria). Antes solo había "Inscribirse", sin manera de
-     saber a qué te apuntabas.
+     si el CRM lo tiene, una línea más (el lugar, quién, cuánto).
+   · Dos acciones claras y separadas al pie: la principal con degradado, las
+     demás fantasma. Antes solo había "Inscribirse", sin manera de saber a qué
+     te apuntabas.
    ============================================================ */
 
-.stic-ev-list {
+.stic-rec-list {
     display: grid;
     grid-template-columns: 1fr;
     gap: 0.7rem;
 }
 @media (min-width: 900px) {
-    .stic-ev-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.9rem; }
+    .stic-rec-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.9rem; }
 }
 
-.stic-ev-card {
+.stic-rec-card {
     display: flex;
     flex-direction: column;
     background: var(--surface);
@@ -5049,13 +5055,13 @@ span.stic-field {
     transition: box-shadow 0.2s ease, transform 0.15s var(--ease-spring), border-color 0.2s ease;
     animation: stic-fade-up 0.45s var(--ease-out) both;
 }
-.stic-ev-card:hover { box-shadow: var(--shadow-md); border-color: color-mix(in srgb, var(--primary-color) 35%, transparent); }
-@media (hover: none) { .stic-ev-card:hover { box-shadow: var(--shadow-xs); transform: none; } }
+.stic-rec-card:hover { box-shadow: var(--shadow-md); border-color: color-mix(in srgb, var(--primary-color) 35%, transparent); }
+@media (hover: none) { .stic-rec-card:hover { box-shadow: var(--shadow-xs); transform: none; } }
 /* Ya celebrado: presente pero apagado (sigue siendo consultable). */
-.stic-ev-card.is-past { opacity: 0.78; }
+.stic-rec-card.is-past { opacity: 0.78; }
 
 /* Zona principal: toda ella es el enlace al detalle. */
-.stic-ev-main {
+.stic-rec-main {
     display: flex;
     align-items: flex-start;
     gap: 0.85rem;
@@ -5068,10 +5074,10 @@ span.stic-field {
     color: inherit !important;
     -webkit-tap-highlight-color: transparent;
 }
-.stic-ev-main:active { background: var(--surface-2); }
+.stic-rec-main:active { background: var(--surface-2); }
 
 /* Cápsula de fecha (día grande + mes). */
-.stic-ev-badge {
+.stic-rec-badge {
     flex-shrink: 0;
     display: grid;
     place-content: center;
@@ -5084,22 +5090,22 @@ span.stic-field {
     line-height: 1.05;
     box-shadow: var(--shadow-sm);
 }
-.stic-ev-badge-day { font-size: 1.35rem; font-weight: 800; }
-.stic-ev-badge-mon { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.92; }
-.stic-ev-badge.is-past { background: var(--gray-400); box-shadow: none; }
-.stic-ev-badge--empty { background: var(--surface-2); color: var(--gray-400); height: 52px; }
-.stic-ev-badge--empty svg { width: 22px; height: 22px; }
+.stic-rec-badge-day { font-size: 1.35rem; font-weight: 800; }
+.stic-rec-badge-mon { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.92; }
+.stic-rec-badge.is-past { background: var(--gray-400); box-shadow: none; }
+.stic-rec-badge--empty { background: var(--surface-2); color: var(--gray-400); height: 52px; }
+.stic-rec-badge--empty svg { width: 22px; height: 22px; }
 
-.stic-ev-body { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; flex: 1; }
-.stic-ev-name {
+.stic-rec-body { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; flex: 1; }
+.stic-rec-name {
     font-size: 1.02rem;
     font-weight: 800;
     line-height: 1.25;
     letter-spacing: -0.01em;
     color: var(--gray-900);
 }
-.stic-ev-when,
-.stic-ev-where {
+.stic-rec-when,
+.stic-rec-where {
     display: flex;
     align-items: center;
     gap: 0.35rem;
@@ -5107,12 +5113,12 @@ span.stic-field {
     color: var(--gray-600);
     min-width: 0;
 }
-.stic-ev-when svg,
-.stic-ev-where svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--primary-color); }
-.stic-ev-where span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.stic-ev-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.15rem; }
+.stic-rec-when svg,
+.stic-rec-where svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--primary-color); }
+.stic-rec-where span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stic-rec-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.15rem; }
 
-.stic-ev-chip {
+.stic-rec-chip {
     display: inline-flex;
     align-items: center;
     padding: 0.16rem 0.55rem;
@@ -5124,22 +5130,27 @@ span.stic-field {
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
-.stic-ev-chip--past { background: var(--gray-100); color: var(--gray-500); }
+.stic-rec-chip--past { background: var(--gray-100); color: var(--gray-500); }
 
 /* Fila de acciones, separada del cuerpo por una línea. */
-.stic-ev-actions {
+.stic-rec-actions {
     display: flex;
     gap: 0.5rem;
     padding: 0.6rem 0.7rem;
     border-top: 1px solid var(--gray-100);
     background: var(--surface-2);
 }
-.stic-ev-btn {
+.stic-rec-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.4rem;
     flex: 1;
+    /* Sin esto, un botón a lo ancho (width:100% o flex-basis:100%) se sale de
+       la pantalla 32px: el padding se SUMA al 100%. En el sitio real no se ve
+       porque Astra pone box-sizing global, pero este CSS no puede depender del
+       tema que lo hospede. Medido a 375px: 391px de ancho en 343 de hueco. */
+    box-sizing: border-box;
     min-height: 42px;
     padding: 0.5rem 0.9rem;
     border-radius: var(--radius-md);
@@ -5148,64 +5159,69 @@ span.stic-field {
     text-decoration: none !important;
     transition: transform 0.15s var(--ease-out), box-shadow 0.15s var(--ease-out), background 0.15s ease;
 }
-.stic-ev-btn::after { display: none !important; }
-.stic-ev-btn svg { width: 16px; height: 16px; }
-.stic-ev-btn--ghost {
+.stic-rec-btn::after { display: none !important; }
+.stic-rec-btn svg { width: 16px; height: 16px; }
+.stic-rec-btn--ghost {
     background: var(--surface);
     border: 1px solid var(--gray-200);
     color: var(--gray-700) !important;
 }
-.stic-ev-btn--ghost:hover { background: var(--gray-50); color: var(--gray-900) !important; }
-.stic-ev-btn--primary {
+.stic-rec-btn--ghost:hover { background: var(--gray-50); color: var(--gray-900) !important; }
+.stic-rec-btn--primary {
     background: var(--grad-brand);
     color: #fff !important;
     box-shadow: var(--shadow-sm);
 }
-.stic-ev-btn--primary:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
-.stic-ev-btn:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+.stic-rec-btn--primary:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+.stic-rec-btn:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
 @media (hover: none) {
-    .stic-ev-btn--primary:hover { transform: none; box-shadow: var(--shadow-sm); }
-    .stic-ev-btn:active { transform: scale(0.98); }
+    .stic-rec-btn--primary:hover { transform: none; box-shadow: var(--shadow-sm); }
+    .stic-rec-btn:active { transform: scale(0.98); }
 }
 
 /* --- 49.b Ficha de detalle del evento --- */
-.stic-ev-detail { animation: stic-fade-up 0.5s var(--ease-out) both; }
+.stic-rec-detail { animation: stic-fade-up 0.5s var(--ease-out) both; }
 
-.stic-ev-hero {
+.stic-rec-hero {
     position: relative;
     overflow: hidden;
     padding: clamp(1.1rem, 3vw, 1.75rem);
     border-radius: var(--radius-xl);
     background: var(--grad-brand);
-    color: #fff;
+    color: var(--on-brand);
     box-shadow: var(--shadow-md);
 }
-.stic-ev-hero::after {
+.stic-rec-hero::after {
     content: '';
     position: absolute;
     inset: 0;
     background: radial-gradient(60% 80% at 100% 0%, rgba(255, 255, 255, 0.2), transparent 60%);
     pointer-events: none;
 }
-.stic-ev-hero > * { position: relative; z-index: 1; }
-.stic-ev-back {
+.stic-rec-hero > * { position: relative; z-index: 1; }
+/* 44px de alto, no 25. Medido en el render offline: era el único pulsable de
+   la ficha por debajo del mínimo táctil, y es la SALIDA de todas las fichas —
+   lo que más se toca después de la acción principal. design.md §2 regla 1: el
+   objetivo táctil gana a lo compacto, y la divergencia se documenta. Aquí. */
+.stic-rec-back {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
+    min-height: 44px;
     margin-bottom: 0.7rem;
-    padding: 0.3rem 0.7rem 0.3rem 0.5rem;
+    padding: 0 0.9rem 0 0.75rem;
     border-radius: var(--radius-full);
     background: rgba(255, 255, 255, 0.18);
-    color: #fff !important;
+    color: var(--on-brand) !important;
     font-size: 0.82rem;
     font-weight: 700;
     text-decoration: none !important;
 }
-.stic-ev-back::after { display: none !important; }
-.stic-ev-back svg { width: 15px; height: 15px; }
-.stic-ev-back:hover { background: rgba(255, 255, 255, 0.3); }
-.stic-container .stic-ev-hero-title,
-.stic-ev-hero-title {
+.stic-rec-back::after { display: none !important; }
+.stic-rec-back svg { width: 15px; height: 15px; }
+.stic-rec-back:hover { background: rgba(255, 255, 255, 0.3); }
+.stic-container .stic-rec-hero-title,
+.stic-rec-hero-title {
     margin: 0 0 0.5rem;
     font-size: clamp(1.3rem, 4vw, 1.9rem);
     font-weight: 800;
@@ -5215,14 +5231,16 @@ span.stic-field {
     background: none !important;
     -webkit-text-fill-color: #fff !important;
 }
-.stic-ev-hero-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.8rem; }
-.stic-ev-hero-when { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.95rem; font-weight: 600; }
-.stic-ev-hero-when svg { width: 16px; height: 16px; }
-.stic-ev-hero-meta .stic-ev-chip { background: rgba(255, 255, 255, 0.22); color: #fff; }
-.stic-ev-hero-meta .stic-ev-chip--past { background: rgba(0, 0, 0, 0.22); color: #fff; }
+.stic-rec-hero-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.8rem; }
+.stic-rec-hero-when { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.95rem; font-weight: 600; }
+.stic-rec-hero-when svg { width: 16px; height: 16px; }
+/* Encima del degradado de marca el texto es --on-brand, nunca --white
+   (que en oscuro vale #16171a y deja letras negras sobre el degradado). */
+.stic-rec-hero-meta .stic-rec-chip { background: rgba(255, 255, 255, 0.22); color: var(--on-brand); }
+.stic-rec-hero-meta .stic-rec-chip--past { background: rgba(0, 0, 0, 0.22); color: var(--on-brand); }
 
 /* Datos clave: solo salen los que el CRM tenga rellenos. */
-.stic-ev-facts {
+.stic-rec-facts {
     list-style: none;
     margin: 1rem 0 0;
     padding: 0;
@@ -5230,7 +5248,7 @@ span.stic-field {
     grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr));
     gap: 0.6rem;
 }
-.stic-ev-fact {
+.stic-rec-fact {
     display: flex;
     align-items: center;
     gap: 0.65rem;
@@ -5239,7 +5257,7 @@ span.stic-field {
     border: 1px solid var(--gray-200);
     border-radius: var(--radius-md);
 }
-.stic-ev-fact-ico {
+.stic-rec-fact-ico {
     display: grid;
     place-items: center;
     width: 34px;
@@ -5249,35 +5267,35 @@ span.stic-field {
     background: var(--primary-50);
     color: var(--primary-color);
 }
-.stic-ev-fact-ico svg { width: 18px; height: 18px; }
-.stic-ev-fact-body { display: flex; flex-direction: column; min-width: 0; }
-.stic-ev-fact-label {
+.stic-rec-fact-ico svg { width: 18px; height: 18px; }
+.stic-rec-fact-body { display: flex; flex-direction: column; min-width: 0; }
+.stic-rec-fact-label {
     font-size: 0.66rem;
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: var(--gray-500);
 }
-.stic-ev-fact-text { font-size: 0.92rem; font-weight: 600; color: var(--gray-900); }
+.stic-rec-fact-text { font-size: 0.92rem; font-weight: 600; color: var(--gray-900); }
 
-.stic-ev-desc { margin-top: 1.25rem; }
-.stic-container .stic-ev-desc h4,
-.stic-ev-desc h4 {
+.stic-rec-desc { margin-top: 1.25rem; }
+.stic-container .stic-rec-desc h4,
+.stic-rec-desc h4 {
     margin: 0 0 0.5rem;
     font-size: 1rem;
     font-weight: 800;
     color: var(--gray-900);
 }
-.stic-ev-desc-body {
+.stic-rec-desc-body {
     font-size: 0.95rem;
     line-height: 1.65;
     color: var(--gray-700);
     max-width: 70ch;
 }
 
-.stic-ev-cta-row { margin-top: 1.35rem; }
-.stic-ev-btn--lg { flex: 0 1 auto; min-height: 50px; padding: 0.7rem 1.5rem; font-size: 0.98rem; }
-.stic-ev-cta-note {
+.stic-rec-cta-row { margin-top: 1.35rem; }
+.stic-rec-btn--lg { flex: 0 1 auto; min-height: 50px; padding: 0.7rem 1.5rem; font-size: 0.98rem; }
+.stic-rec-cta-note {
     margin: 0;
     padding: 0.8rem 1rem;
     border-radius: var(--radius-md);
@@ -5288,14 +5306,14 @@ span.stic-field {
 }
 
 @media (max-width: 640px) {
-    .stic-ev-main { padding: 0.8rem 0.85rem; gap: 0.7rem; }
-    .stic-ev-badge { width: 46px; }
-    .stic-ev-badge-day { font-size: 1.2rem; }
-    .stic-ev-name { font-size: 0.98rem; }
-    .stic-ev-actions { padding: 0.5rem 0.55rem; }
-    .stic-ev-facts { grid-template-columns: 1fr; gap: 0.5rem; }
+    .stic-rec-main { padding: 0.8rem 0.85rem; gap: 0.7rem; }
+    .stic-rec-badge { width: 46px; }
+    .stic-rec-badge-day { font-size: 1.2rem; }
+    .stic-rec-name { font-size: 0.98rem; }
+    .stic-rec-actions { padding: 0.5rem 0.55rem; }
+    .stic-rec-facts { grid-template-columns: 1fr; gap: 0.5rem; }
     /* El CTA de la ficha, a lo ancho: es LA acción de la pantalla. */
-    .stic-ev-btn--lg { display: flex; width: 100%; }
+    .stic-rec-btn--lg { display: flex; width: 100%; }
 }
 
 /* ============================================================
@@ -5777,4 +5795,116 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 
 @media (prefers-reduced-motion: reduce) {
     .stic-code-input.is-wrong { animation: none; }
+}
+
+/* ============================================================
+   56. FICHA DE REGISTRO — lo que Eventos no necesitaba
+   ------------------------------------------------------------
+   La §49 nació para Eventos y se generalizó: el mismo vocabulario
+   (`stic-rec-*`) lo usan ahora inscripciones, pagos, compromisos,
+   documentos, sesiones y asistencias, desde inc/stic-record-view.php.
+   Aquí van las piezas que aquellos módulos piden y un evento no:
+
+   · El chip con TONO. Un evento solo necesitaba "ya celebrado"; una
+     inscripción necesita distinguir confirmada de pendiente y de
+     rechazada, y un pago, cobrado de devuelto. El color es el que ya
+     usa el resto del área para cada estado, sin hex nuevos.
+   · El DATO que manda. En un pago, el importe no es un dato más de la
+     rejilla: es a lo que se entra. Se pinta grande y solo.
+   · El AVISO dentro de la ficha ("esta cuota se cobra el día 1").
+   · Tarjeta no pulsable, para registros que no tienen ficha propia.
+   ============================================================ */
+
+/* --- 56.a  Tonos del chip de estado --------------------------------- */
+.stic-rec-chip--ok     { background: var(--success-soft); color: var(--success-dark); }
+.stic-rec-chip--warn   { background: var(--warning-soft); color: var(--warning-dark); }
+.stic-rec-chip--danger { background: var(--danger-soft);  color: var(--danger-dark); }
+.stic-rec-chip--info   { background: var(--info-light);   color: var(--info-dark); }
+
+/* Sobre el degradado de la cabecera los tonos no se leen (fondo claro sobre
+   fondo de marca): allí todos los chips se visten de cristal, como el neutro.
+   Lo hace la §49 con .stic-rec-hero-meta .stic-rec-chip; esto solo evita que
+   los modificadores le ganen por especificidad. */
+.stic-rec-hero-meta .stic-rec-chip--ok,
+.stic-rec-hero-meta .stic-rec-chip--warn,
+.stic-rec-hero-meta .stic-rec-chip--danger,
+.stic-rec-hero-meta .stic-rec-chip--info {
+    background: rgba(255, 255, 255, 0.22);
+    color: var(--on-brand);
+}
+
+/* --- 56.b  El dato que manda en la ficha ---------------------------- */
+.stic-rec-headline {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    margin-top: 1.1rem;
+    padding: clamp(0.9rem, 2.5vw, 1.2rem);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    background: var(--surface-2);
+}
+
+.stic-rec-headline-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--gray-500);
+}
+
+.stic-rec-headline-text {
+    font-size: clamp(1.6rem, 5vw, 2.1rem);
+    font-weight: 800;
+    line-height: 1.1;
+    color: var(--gray-900);
+    /* Cifras de la misma anchura: una columna de importes que no baila. */
+    font-variant-numeric: tabular-nums;
+}
+
+.stic-rec-headline-sub {
+    font-size: 0.85rem;
+    color: var(--gray-500);
+}
+
+/* --- 56.c  Avisos dentro de la ficha -------------------------------- */
+.stic-rec-note {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+    margin: 0.9rem 0 0;
+    padding: 0.7rem 0.9rem;
+    border-radius: var(--radius-md);
+    font-size: 0.88rem;
+    line-height: 1.45;
+}
+
+.stic-rec-note svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 0.1rem; }
+
+.stic-rec-note--info   { background: var(--info-light);   color: var(--info-dark); }
+.stic-rec-note--ok     { background: var(--success-soft); color: var(--success-dark); }
+.stic-rec-note--warn   { background: var(--warning-soft); color: var(--warning-dark); }
+.stic-rec-note--danger { background: var(--danger-soft);  color: var(--danger-dark); }
+
+/* --- 56.d  Tarjeta sin ficha propia --------------------------------- */
+/* Mismo aspecto, sin la respuesta al toque: nada que abrir detrás. */
+.stic-rec-main--static { cursor: default; }
+.stic-rec-main--static:active { background: transparent; }
+
+/* --- 56.e  La botonera de la ficha, con más de un botón ------------- */
+/* La §49 daba por hecho un solo CTA. Con dos (p. ej. "Pagar" + "Ver el
+   evento") hacen falta el reparto y el salto de línea en móvil. */
+.stic-rec-cta-row {
+    display: flex;
+    box-sizing: border-box;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.stic-rec-cta-row .stic-rec-cta-note { flex: 1 0 100%; margin: 0; }
+
+@media (max-width: 640px) {
+    /* En móvil, cada acción a lo ancho: el pulgar no persigue botones. */
+    .stic-rec-cta-row .stic-rec-btn { flex: 1 0 100%; justify-content: center; }
 }

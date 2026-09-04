@@ -59,6 +59,9 @@ include plugin_dir_path(__FILE__) . 'inc/stic-otp.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-app-links.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-comunica-roles.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-calendar.php';
+// La ficha de registro va ANTES que los módulos que la usan (Eventos y el
+// resto): les presta los iconos, las fechas en lenguaje humano y el formato.
+include plugin_dir_path(__FILE__) . 'inc/stic-record-view.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-events.php';
 // Pasar Lista: la lógica pura (curso, sesión que toca, porcentajes) va primero
 // porque las otras dos la usan.
