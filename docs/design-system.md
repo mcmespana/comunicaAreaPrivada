@@ -43,7 +43,7 @@
 
 | Archivo | Papel | ¿Se toca? |
 |---|---|---|
-| `css/stic-base.css` | Capa base consolidada (UI-15: ex `stic-style` + `stic-modern-style`, en ese orden) | ⚠️ solo arreglos |
+| `css/stic-base.css` | Capa base consolidada (UI-15: fusión de los dos ficheros base que había antes, `stic-style` y `stic-modern-style`, en ese orden; **ninguno de los dos existe ya como fichero**) | ⚠️ solo arreglos |
 | `css/selectize.css` | Librería multiselect | ❌ |
 | `js/fullcalendar/lib/main.css` | Calendario | ❌ |
 | `css/custom-style.css` | **LA capa premium. Carga la última: aquí mandas tú.** | ✅ SIEMPRE aquí |
@@ -91,7 +91,7 @@ Definidos en `:root` de `custom-style.css` §1. Los importantes:
 
 Los grises (`--gray-50`…`--gray-900`) viven también en ese `:root` único de
 `custom-style.css` §1 (antes estaban en `stic-modern-style.css`, un fichero que
-ya no existe: lo consolidó UI-15 y el plan 018 fase 1 movió sus tokens aquí). **Regla de oro: para recolorear el área entera solo se
+**ya no existe**: lo consolidó UI-15 y el plan 018 fase 1 movió sus tokens aquí). **Regla de oro: para recolorear el área entera solo se
 editan `--primary-*` y `--secondary-*`.**
 
 ### Escala visual
@@ -120,7 +120,8 @@ editan `--primary-*` y `--secondary-*`.**
 | Consentimiento legal (enlace + Sí/No) | `.stic-legal-row`, `.stic-legal-link` | §30 CSS · ver `single_stic_comunica_perfil.php` |
 | Tarjetas de opción (radio) | `.stic-option-grid`, `.stic-option-card` | §31 CSS · ver `single_stic_comunica_monitor.php` |
 | Selección de participante | `.stic-profiles-grid`, `.stic-profile-card` | §32 CSS · `pages/single_stic_profile_selection.php` |
-| Listados como tarjetas | `.stic-table-responsive`, `.stic-cell-title` | §22 CSS · `inc/stic-listController.php` |
+| **Ficha de registro (LA unidad de registro)** | `.stic-rec-*` — tarjeta, rejilla, cápsula, chip con tono, importe, acción rápida, ficha con cabecera, barra de progreso y avisos | §49 + §56 CSS · **`inc/stic-record-view.php`** |
+| Listados como tarjetas (genérico, en retirada) | `.stic-table-responsive`, `.stic-cell-title` | §22 CSS · `inc/stic-listController.php` |
 | Dropzone de archivos | `input[type=file]` + badge `.stic-file-uploaded-badge` | §26 CSS |
 | Toggle Sí/No (checkbox) | `input[type=checkbox]` estilizado como switch | §25 CSS |
 | Modal de confirmación | `.stic-modal-*` | §53 CSS · `js/stic-utils.js::confirmDelete` |
@@ -131,6 +132,75 @@ editan `--primary-*` y `--secondary-*`.**
 | Control de apariencia (Auto/Claro/Oscuro) | `.stic-appearance*` | §44.j CSS · `sticpa_appearance_switch_html()` |
 | Aviso ámbar en línea del motor | `.stic-warning-card` | §47 CSS |
 | Campo bloqueado (viene del CRM) | `.stic-locked-field` | §47 CSS |
+
+### 4.1 La ficha de registro (`stic-rec-*`) — empieza SIEMPRE por aquí
+
+Todo lo que sea **un registro del CRM** (un evento, una inscripción, un pago, un
+compromiso, un documento, una sesión, una asistencia) se pinta con
+[`inc/stic-record-view.php`](../inc/stic-record-view.php). Es **declarativo**: la
+página dice QUÉ se enseña y el componente decide CÓMO.
+
+```php
+// Un listado
+$html .= sticpa_record_list_html(array(
+    array(
+        'url'    => '?internalpage=…&action=detail&id=…',
+        'ts'     => $startTs,          // cápsula día/mes
+        'kind'   => 'PDF',             // …o texto corto, si no hay fecha
+        'icon'   => 'card',            // …o un icono, si no hay ninguna de las dos
+        'name'   => 'Cuota de agosto',
+        'lines'  => array(array('icon' => 'card', 'text' => 'Domiciliación')),
+        'chips'  => array(array('label' => $etiqueta, 'tone' => $tono)),
+        'amount' => '20,00 €', 'amount_note' => 'Mensual',
+        'quick'  => array('label' => 'Descargar X', 'url' => …, 'icon' => 'download'),
+        'is_past' => false,            // apaga la tarjeta
+    ),
+));
+
+// Una ficha
+$html .= sticpa_record_detail_html(array(
+    'back' => array('url' => …, 'label' => 'Mis pagos'),
+    'title' => …, 'meta' => …, 'chips' => …,
+    'headline' => array('label' => 'Importe', 'text' => '120,00 €', 'sub' => …),
+    'notes' => array(array('tone' => 'danger', 'text' => …)),
+    'progress' => array('label' => 'Este año', 'value' => 160, 'max' => 240,
+                        'value_txt' => '160,00 €', 'max_txt' => '240,00 €'),
+    'facts' => array(array('icon' => 'euro', 'label' => …, 'text' => …)),
+    'sections' => array(array('title' => …, 'body' => …, 'raw' => false)),
+    'actions' => array(array('label' => …, 'url' => …, 'primary' => true)),
+    'cta_note' => …,
+));
+```
+
+**Tres reglas las hace cumplir el componente**, no tu buena voluntad: una sola
+acción principal por pantalla, ni una etiqueta sin dato detrás, y todo escapado
+salvo lo que declares `'raw'`. Están cubiertas por `tests/RecordViewTest.php`.
+
+**Decisiones ya tomadas, para no volver a discutirlas:**
+
+- **La tarjeta que enlaza a su ficha NO lleva además un botón que haga lo
+  mismo.** Se probó dos veces en Inscripciones («Ver la inscripción», «Ver la
+  actividad») y las dos se quitó: son ~50px por tarjeta y un degradado de marca
+  por fila, que con tres registros deja de firmar nada. Barra de acciones solo
+  si lleva a OTRO sitio.
+- **Si hay algo que hacer que no es abrir el registro** (descargar, llamar), es
+  `'quick'`: un botón redondo de 44px al lado, no una barra.
+- **El botón `'quick'` es HERMANO del enlace de la tarjeta, nunca hijo.** Un
+  `<a>` dentro de otro `<a>` es HTML inválido y el navegador cierra el de
+  fuera. Ya pasó.
+- **El tono del chip sale de `sticpa_record_status_tone()`, que mira la CLAVE
+  interna y no la etiqueta**, y **ante la duda devuelve neutro**. Cuidado con
+  las negaciones: `no_attended` contiene `attended` y `not_paid` contiene
+  `paid`. La función ya lo trata; si tocas sus raíces, no rompas eso.
+- **Las etiquetas de los desplegables salen del CRM** con
+  `sticpa_record_enum_label($definition, $campo, $clave)`, sobre una definición
+  cacheada 6h (`sticpa_cached_field_definition`). Nunca se enseña la clave cruda.
+
+**Verificación**: hay arneses de render offline listos en `tests/manual/`
+(`render-record-view.php`, `render-registrations.php`, `render-payments.php`,
+`render-docs-sessions.php`). Se ejecutan con `php … > /tmp/x.html` y se capturan
+con Chromium. **De ahí salieron casi todos los cambios de diseño de estos
+módulos** — ver §11.8.
 
 ### Iconos
 SVG inline con `stroke='currentColor'`, 24×24, stroke-width 2. Generales en

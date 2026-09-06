@@ -17,39 +17,11 @@ switch (getDestinationModule()) {
         break;
 }
 $listSettings['moduleName'] = "stic_Sessions"; // list title
-$listSettings['title'] = __('Sessions', 'sticpa'); // list title
-$listSettings['linkDestination'] = '?internalpage=single_stic_sessions&action=create'; //The link destination of each record in the list
-// Columna que se pinta como cápsula de fecha en la cabecera de la tarjeta.
-$listSettings['cardDate'] = 'start_date';
-$listSettings['actions'] = array(
-    // array('label' => __('Edit', 'sticpa'), 'link' => '?internalpage=single_stic_sessions&action=edit'),
-    array('label' => __('View', 'sticpa'), 'link' => '?internalpage=single_stic_sessions&action=detail'),
-    // array('label' => __('Delete', 'sticpa'), 'link' => '?internalpage=single_stic_sessions&action=delete'),
-);
-// $listSettings['createButton'] = array('value' => true, 'label' => __('New registration', 'sticpa')); // show create button and its label
-$listSettings['datatables'] = array('value' => true, 'jsonSettings' => array( 'paging' =>false, 'searching' => true)); // if columns are sortable or filterable (this use jquery plugin datatables) /json Settings in json format from https://datatables.net/manual/options
-$listSettings['msgDelete'][] = array('value' => 'true', 'type' => 'success', 'msg' => __('Record successfully deleted.', 'sticpa')); //messages that will be shown on the screen after processing the data
-
-#########################################################
-# Columns list
-# Important: Include id field for update operations.
-# The field definition will be retrieved from the CRM. But it can also be specified like this:
-# $columnsList[] = array(
-#    'name' => '<field_name>',
-#    'label' => __('<field_label>', 'sticpa'),
-#    'format' => '<format_type>',   # currency, number, date... if "translate" it will transalate the value to a label
-#    'attributes' => array ()
-# "');
-#
-#########################################################
-$columnsList[] = array('name' => 'id');
-$columnsList[] = array('name' => 'name');
-$columnsList[] = array('name' => 'stic_sessions_stic_events_name');
-$columnsList[] = array('name' => 'start_date', 'format' => 'datetime');
-$columnsList[] = array('name' => 'end_date', 'format' => 'datetime');
-#########################################################
-
-$fieldsToRetrieve = array_column($columnsList, 'name');
+// NOTA: ya NO usa makeList(). Una sesión se leía en dos filas con el día
+// repetido y los segundos ("Fecha inicio: 04-11-2025 17:30:00 / Fecha fin:
+// 04-11-2025 19:00:00"). Ahora es una cápsula con el día y "17:30 – 19:00".
+// Se pinta con sticpa_sessions_list_html() (inc/stic-sessions.php).
+$listTitle = __('Mis sesiones', 'sticpa');
 
 #########################################################
 # Params for the API query to retrieve related beans
@@ -110,7 +82,7 @@ foreach((is_array($getRelatedRegistrations) ? $getRelatedRegistrations : array()
             "module_id" => $element->name_value_list->id->value, //Do not touch
             "link_field_name" => $relationship,
             // "related_module_query" => "(end_date is null OR end_date >curdate())", //sql where conditions
-            "related_fields" => array('id', 'name', 'start_date', 'end_date', 'stic_sessions_stic_events_name', 'stic_sessions_stic_eventsstic_events_ida'), //Do not touch
+            "related_fields" => sticpa_session_list_fields(), //Do not touch
             "related_module_link_name_to_fields_array" => array(),
             "deleted" => 0, //show or not deleted elements (usually 0)
             "order_by" => "",
@@ -129,6 +101,5 @@ foreach((is_array($getRelatedRegistrations) ? $getRelatedRegistrations : array()
 }
 #########################################################
 
-$listSettings['fileName'] = basename(__FILE__, ".php"); //The list name, from the filename. Don't touch.
-
-$html .= makeList($columnsList, $listSettings, $availableSessions);
+$html .= "<div class='stic-entry-header'><h3>" . esc_html($listTitle) . "</h3></div>";
+$html .= sticpa_sessions_list_html($availableSessions);

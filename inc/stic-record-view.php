@@ -110,10 +110,19 @@ function sticpa_record_date_line($startTs, $endTs = null)
  * @param int|null $ts     Marca de tiempo.
  * @param bool     $isPast Si el registro ya pasó (se apaga).
  * @param string   $icon   Icono de reserva cuando no hay fecha.
+ * @param string   $kind   Texto corto que sustituye al icono cuando no hay
+ *                         fecha ("PDF", "JPG"): en un documento, saber qué se
+ *                         va a bajar antes de tocarlo vale más que un icono
+ *                         genérico repetido diez veces.
  */
-function sticpa_record_date_badge($ts, $isPast = false, $icon = 'calendar')
+function sticpa_record_date_badge($ts, $isPast = false, $icon = 'calendar', $kind = '')
 {
     if (!$ts) {
+        $kind = trim((string) $kind);
+        if ($kind !== '') {
+            return "<span class='stic-rec-badge stic-rec-badge--kind" . ($isPast ? ' is-past' : '') . "' aria-hidden='true'>"
+                . "<span class='stic-rec-badge-kind'>" . esc_html($kind) . "</span></span>";
+        }
         return "<span class='stic-rec-badge stic-rec-badge--empty' aria-hidden='true'>" . sticpa_record_icon($icon) . "</span>";
     }
     return "<span class='stic-rec-badge" . ($isPast ? ' is-past' : '') . "' aria-hidden='true'>"
@@ -191,6 +200,9 @@ function sticpa_record_action_html($action, $extraClass = '')
  *   'url'     => enlace de la zona principal (opcional; sin él no es pulsable),
  *   'ts'      => marca de tiempo para la cápsula (opcional),
  *   'icon'    => icono de reserva de la cápsula,
+ *   'kind'    => texto corto DENTRO de la cápsula cuando no hay fecha ("PDF",
+ *                "JPG"). Un registro sin fecha deja la cápsula con un icono
+ *                genérico y ahí cabe algo que sí informa,
  *   'name'    => título del registro (obligatorio),
  *   'lines'   => array de array('icon','text') — dos como mucho, es una tarjeta,
  *   'chips'   => array de array('label','tone'),
@@ -201,6 +213,12 @@ function sticpa_record_action_html($action, $extraClass = '')
  *                recorre de un vistazo. Lleva cifras tabulares para que no
  *                baile,
  *   'amount_note' => línea pequeña bajo el importe ("al mes", "pendiente"),
+ *   'quick'   => array('label','url','icon','attrs'?) — UNA acción a la
+ *                derecha de la tarjeta, como botón redondo de 44px. Es para
+ *                cuando hay algo que hacer con el registro que no es abrirlo
+ *                (descargar un documento, llamar a alguien). Una barra de
+ *                acciones con un botón de marca por tarjeta llena la pantalla
+ *                de degradados y le come 50px a cada una; esto no,
  *   'actions' => array de acciones (ver sticpa_record_normalize_actions),
  * }
  */
@@ -212,7 +230,7 @@ function sticpa_record_card_html($card)
     }
     $isPast = !empty($card['is_past']);
 
-    $inner = sticpa_record_date_badge($card['ts'] ?? null, $isPast, $card['icon'] ?? 'calendar');
+    $inner = sticpa_record_date_badge($card['ts'] ?? null, $isPast, $card['icon'] ?? 'calendar', $card['kind'] ?? '');
     $inner .= "<span class='stic-rec-body'>";
     $inner .= "<span class='stic-rec-name'>" . esc_html($name) . "</span>";
     foreach ((array) ($card['lines'] ?? array()) as $line) {
@@ -243,12 +261,35 @@ function sticpa_record_card_html($card)
         $inner .= "</span>";
     }
 
+    // El botón rápido es HERMANO del enlace principal, nunca hijo. Un <a>
+    // dentro de otro <a> es HTML inválido: el navegador CIERRA el de fuera al
+    // encontrar el de dentro, y el botón acaba fuera de la tarjeta. Se vio en
+    // la captura (el icono de descarga colgando en una esquina) y se midió con
+    // `closest('.stic-rec-main')`, que devolvía null.
+    $quick = $card['quick'] ?? null;
+    $quickHtml = '';
+    if (!empty($quick['url']) && !empty($quick['label'])) {
+        $attrs = '';
+        foreach ((array) ($quick['attrs'] ?? array()) as $name => $value) {
+            $attrs .= ' ' . esc_attr($name) . "='" . esc_attr($value) . "'";
+        }
+        // aria-label y title: el botón es solo icono, así que el nombre
+        // accesible tiene que decir sobre QUÉ actúa, no solo "descargar".
+        $quickHtml = "<a class='stic-rec-quick' href='" . esc_url($quick['url']) . "'"
+            . " aria-label='" . esc_attr($quick['label']) . "'"
+            . " title='" . esc_attr($quick['label']) . "'{$attrs}>"
+            . sticpa_record_icon($quick['icon'] ?? 'go') . "</a>";
+    }
+
     $html = "<article class='stic-rec-card" . ($isPast ? ' is-past' : '') . "'>";
+    $html .= "<div class='stic-rec-row'>";
     if (!empty($card['url'])) {
         $html .= "<a class='stic-rec-main' href='" . esc_url($card['url']) . "'>{$inner}</a>";
     } else {
         $html .= "<div class='stic-rec-main stic-rec-main--static'>{$inner}</div>";
     }
+    $html .= $quickHtml;
+    $html .= "</div>";
 
     $actions = sticpa_record_normalize_actions($card['actions'] ?? array());
     if (!empty($actions)) {
@@ -492,8 +533,31 @@ function sticpa_record_status_tone($key)
         'ok'     => array('confirm', 'accept', 'aceptad', 'complet', 'finaliz', 'paid', 'pagad', 'cobrad', 'settled', 'active', 'activ', 'attended', 'asistio', 'validat', 'aprobad', 'approved', 'held', 'realizad'),
         'warn'   => array('pending', 'pendient', 'draft', 'borrador', 'waiting', 'espera', 'reserva', 'preinscr', 'process', 'tramit', 'partial', 'parcial', 'planned', 'planificad', 'previst'),
     );
-    foreach ($familias as $tone => $raices) {
-        foreach ($raices as $raiz) {
+
+    // 1) Lo malo, primero. Una clave puede decir dos cosas ("no_pagado_
+    //    rechazado") y ahí manda la mala.
+    foreach ($familias['danger'] as $raiz) {
+        if (strpos($k, $raiz) !== false) {
+            return 'danger';
+        }
+    }
+
+    // 2) LA NEGACIÓN. Esto costó un chip verde en una captura y es el fallo más
+    //    peligroso que ha tenido esta función: buscando la raíz `attended`
+    //    dentro de la clave, `no_attended` la contiene — y `not_paid` contiene
+    //    `paid`. O sea que "no vino" salía verde y, mucho peor, "no pagado"
+    //    salía de "cobrado". En una pantalla de dinero eso no es un fallo de
+    //    diseño: es decirle a alguien que está al día cuando no lo está.
+    //
+    //    Una clave negada NUNCA es 'ok'. Se devuelve neutro, que es la
+    //    respuesta segura: la ETIQUETA que se lee sigue siendo la del CRM y
+    //    dice la verdad; lo único que se pierde es el color.
+    if (preg_match('/(^|[_\s-])(no|not|non|sin|un|des)([_\s-]|$)/', $k)) {
+        return '';
+    }
+
+    foreach (array('ok', 'warn') as $tone) {
+        foreach ($familias[$tone] as $raiz) {
             if (strpos($k, $raiz) !== false) {
                 return $tone;
             }

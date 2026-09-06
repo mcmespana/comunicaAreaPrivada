@@ -65,6 +65,8 @@ include plugin_dir_path(__FILE__) . 'inc/stic-record-view.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-events.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-registrations.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-payments.php';
+include plugin_dir_path(__FILE__) . 'inc/stic-documents.php';
+include plugin_dir_path(__FILE__) . 'inc/stic-sessions.php';
 // Pasar Lista: la lógica pura (curso, sesión que toca, porcentajes) va primero
 // porque las otras dos la usan.
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista.php';

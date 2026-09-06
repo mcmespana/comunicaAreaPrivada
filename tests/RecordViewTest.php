@@ -219,4 +219,104 @@ class RecordViewTest extends TestCase
         $this->assertSame('', sticpa_record_enum_label($def, 'status', 'inventado'));
         $this->assertSame('', sticpa_record_enum_label(array(), 'status', 'settled'));
     }
+
+    /* ------------------------------------------------------------------
+       Comprobaciones MECÁNICAS del CSS de la familia (design.md §9). Son
+       las que se olvidan al añadir el módulo número nueve.
+       ------------------------------------------------------------------ */
+
+    private function css()
+    {
+        return file_get_contents(dirname(__DIR__) . '/css/custom-style.css');
+    }
+
+    /** Ni un color escrito a mano fuera de los tokens... */
+    public function testElCssDeLaFichaSoloUsaTokens()
+    {
+        // ...salvo el degradado de marca, que design.md §3 EXIGE con hex fijos:
+        // en oscuro los tokens de acento se aclaran para que se lea el texto, y
+        // la firma tiene que seguir siendo la de la marca.
+        $seccion56 = substr($this->css(), strpos($this->css(), '56. FICHA DE REGISTRO'));
+        $hexes = array();
+        preg_match_all('/#[0-9a-fA-F]{6}/', $seccion56, $hexes);
+        $permitidos = array('#1c6fb3', '#6c4b9e', '#9d1e74');
+        foreach ($hexes[0] as $hex) {
+            $this->assertContains(
+                strtolower($hex),
+                $permitidos,
+                "El hex {$hex} no es del degradado de marca: créalo como token"
+            );
+        }
+    }
+
+    /**
+     * Ningún `:hover` suelto. En táctil el navegador lo simula al tocar y se
+     * queda PEGADO: el feedback real es `:active`.
+     */
+    public function testNingunHoverSinSuMediaQuery()
+    {
+        $css = $this->css();
+        $seccion56 = substr($css, strpos($css, '56. FICHA DE REGISTRO'));
+        $sueltos = 0;
+        // Se cuentan los `:hover` que NO estén dentro de un bloque
+        // `@media (hover: hover)`.
+        foreach (preg_split('/@media \(hover: hover\) \{/', $seccion56) as $i => $trozo) {
+            if ($i > 0) {
+                // Dentro del media query: se salta hasta su llave de cierre.
+                $trozo = substr($trozo, strpos($trozo, "\n}") !== false ? strpos($trozo, "\n}") : 0);
+            }
+            $sueltos += substr_count($trozo, ':hover');
+        }
+        $this->assertSame(0, $sueltos, 'Un :hover fuera de @media (hover: hover) se queda pegado en táctil');
+    }
+
+    /** Todo `!important` nuevo lleva escrito al lado por qué hace falta. */
+    public function testCadaImportantSeExplica()
+    {
+        $css = $this->css();
+        $seccion56 = substr($css, strpos($css, '56. FICHA DE REGISTRO'));
+        foreach (explode("\n", $seccion56) as $linea) {
+            if (strpos($linea, '!important') === false) {
+                continue;
+            }
+            // O lo explica su propia línea, o es el `::after { display: none }`
+            // que mata la flecha que el tema de WordPress añade a los enlaces.
+            $seExplica = strpos($linea, '/*') !== false
+                || strpos($linea, '::after') !== false;
+            $this->assertTrue($seExplica, "!important sin explicar: {$linea}");
+        }
+    }
+
+    /**
+     * El botón rápido NO puede estar dentro del enlace de la tarjeta. Un <a>
+     * dentro de otro <a> es HTML inválido: el navegador cierra el de fuera y
+     * el botón se sale de la tarjeta. Ya pasó una vez.
+     */
+    public function testElBotonRapidoNoAnidaEnlaces()
+    {
+        $html = sticpa_record_card_html(array(
+            'name'  => 'X',
+            'url'   => '?internalpage=x',
+            'quick' => array('label' => 'Descargar X', 'url' => '#', 'icon' => 'download'),
+        ));
+        // La posición del botón rápido tiene que ser POSTERIOR al cierre del
+        // enlace principal.
+        $cierreMain = strpos($html, '</a>');
+        $this->assertLessThan(strpos($html, 'stic-rec-quick'), $cierreMain);
+        $this->assertStringContainsString('stic-rec-row', $html);
+    }
+
+    /** El botón rápido es solo icono: sin nombre accesible no existe. */
+    public function testElBotonRapidoTieneNombreAccesible()
+    {
+        $html = sticpa_record_card_html(array(
+            'name'  => 'X',
+            'quick' => array('label' => 'Descargar la autorización', 'url' => '#', 'icon' => 'download'),
+        ));
+        $this->assertStringContainsString("aria-label='Descargar la autorización'", $html);
+        // Sin etiqueta no se pinta: mejor sin botón que con un botón mudo.
+        $this->assertStringNotContainsString('stic-rec-quick', sticpa_record_card_html(array(
+            'name' => 'X', 'quick' => array('url' => '#'),
+        )));
+    }
 }

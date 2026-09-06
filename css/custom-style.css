@@ -5978,7 +5978,7 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     border-radius: var(--radius-full);
     background: var(--surface-2);
     color: var(--primary-color) !important;   /* gana al enlace del tema de WordPress */
-    text-decoration: none !important;
+    text-decoration: none !important;         /* ídem: Astra subraya todo enlace */
 }
 
 .stic-rec-person-call::after { display: none !important; }
@@ -6127,3 +6127,77 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     font-size: 0.84rem;
     color: var(--gray-500);
 }
+
+/* --- 56.i  La cápsula con el TIPO de archivo ------------------------ */
+/* Un documento no tiene "día y mes" que poner en la cápsula, y diez tarjetas
+   con el mismo icono de folio no distinguen nada. El tipo de archivo sí: un
+   PDF y una foto no se abren igual, y en móvil conviene saberlo ANTES de tocar
+   y esperar la descarga. Mismo hueco, misma cápsula, dato útil. */
+.stic-rec-badge--kind {
+    background: var(--surface-2);
+    color: var(--primary-color);
+    box-shadow: none;
+    border: 1px solid var(--border-color);
+}
+
+.stic-rec-badge-kind {
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.03em;
+    /* Una extensión de cuatro letras (HEIC, WEBP) no cabe a 0.68rem en 52px;
+       se encoge sola en vez de desbordar la cápsula. */
+    max-width: 100%;
+    padding: 0 0.15rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.stic-rec-badge--kind.is-past { color: var(--gray-500); }
+
+/* --- 56.j  La acción rápida de la tarjeta --------------------------- */
+/* Documentos tenía una barra de acciones por tarjeta con "Descargar" de marca:
+   cuatro documentos en pantalla eran CUATRO degradados, y el degradado que
+   aparece cuatro veces deja de firmar nada (design.md §3). Además la barra le
+   come ~50px a cada tarjeta.
+
+   Un botón redondo de 44px a la derecha resuelve las dos cosas: la descarga
+   sigue a un toque, la tarjeta sigue abriendo la ficha, y el degradado vuelve
+   a ser una sola cosa por pantalla. Mismo patrón que el teléfono pulsable de
+   las personas de contacto (§56.f). */
+/* La fila: el enlace principal ocupa lo que puede y el botón va al lado. Son
+   HERMANOS, no anidados — un <a> dentro de otro <a> es HTML inválido y el
+   navegador cierra el de fuera, que es exactamente lo que pasó la primera vez
+   que se escribió esto. */
+.stic-rec-row {
+    display: flex;
+    align-items: stretch;
+    padding-right: 0.6rem;
+}
+
+.stic-rec-row .stic-rec-main { flex: 1; min-width: 0; }
+
+.stic-rec-quick {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    align-self: center;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-full);
+    background: var(--surface-2);
+    color: var(--primary-color) !important;   /* gana al enlace del tema de WordPress */
+    text-decoration: none !important;         /* ídem: Astra subraya todo enlace */
+    transition: transform 0.15s var(--ease-out), background 0.15s ease;
+}
+
+.stic-rec-quick::after { display: none !important; }
+.stic-rec-quick svg { width: 20px; height: 20px; }
+.stic-rec-quick:active { transform: scale(0.94); }
+.stic-rec-quick:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+
+@media (hover: hover) {
+    .stic-rec-quick:hover { background: var(--surface); }
+}
+
