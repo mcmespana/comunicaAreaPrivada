@@ -262,68 +262,73 @@ Reglas de UX de formularios:
 
 ## 6. Perfiles de familia (participantes)
 
-Modelo de sesión (todo en `$_SESSION`):
+> **La regla de oro**: a un familiar que SOLO es familiar no se le enseña un
+> área privada suya, porque no la tiene. Se le lleva a la de su hijo o hija.
 
-| Clave | Contenido |
+Todo esto vive en **[`inc/stic-family.php`](../inc/stic-family.php)**, que es la
+única fuente. Antes estaba repartido entre el login, el menú, la pantalla de
+selección y la home, y cada sitio decidía por su cuenta.
+
+### 6.1 `scp_user_adult` NO significa "es mayor de edad"
+
+Es el error de lectura más caro de este código. Lo calcula `check_user_adult()`,
+que pregunta al CRM si esa persona tiene a alguien **a su cargo** y devuelve
+`true` cuando **no** tiene a nadie:
+
+| Valor | Significa |
 |---|---|
-| `scp_tutor_user_id` / `scp_tutor_user_contact_name` | El FAMILIAR que inició sesión (fijo) |
-| `scp_user_id` / `scp_user_contact_name` | El PARTICIPANTE activo (lo leen TODAS las páginas) |
-| `scp_tutor_is_user` | true si el familiar se está viendo a sí mismo |
-| `scp_available_profiles` | Participantes disponibles `[{id,name},…]` (caché para el selector) |
-| `scp_is_familia` | true si hay participantes a cargo |
-| `scp_role` | Rol del CRM (`monitor` / `laico` / `''`), **cacheado** |
-| `scp_role_resolved` | **La marca que importa**: si el rol se ha llegado a resolver |
+| `true` | Entra por sí misma, no representa a nadie |
+| `false` | **Es familiar**: tiene participantes a cargo |
 
-> **El rol se cachea, y hay una trampa.** `scp_role` sale de que
-> `stic_relationship_type_c` del contacto contenga «monitor» o «laic»/«com-lc»
-> (ver `inc/stic-comunica-roles.php`). **No** intervienen las fechas ni la
-> vigencia de `stic_Contacts_Relationships`.
->
-> Un rol vacío tiene dos significados muy distintos: «esta persona no tiene rol»
-> y «no se pudo preguntar al CRM». Por eso la decisión de repreguntar mira
-> `scp_role_resolved` y **nunca el valor**. Si escribes código que toque esto,
-> no caches un rol que no hayas resuelto: guardar un `''` de un fallo dejaba a un
-> monitor sin «Pasar lista» ni «Mis grupos» durante el año que dura la cookie
-> (plan 040, pasó en producción).
+Un padre de 45 años sale `false`. La clave no se renombra porque vive en cookies
+de sesión de un año: **usa `sticpa_es_familiar()`**.
 
-Piezas:
-- **Pantalla de selección**: `pages/single_stic_profile_selection.php`
-  (tarjetas grandes; primera pantalla del familiar tras login).
-- **Selector rápido**: `menu.php::sticpa_participant_switcher_html()` — visible
-  SIEMPRE en la barra para familias: se sabe en todo momento a quién se ve y se
-  cambia en dos toques.
-- **Cambio de modo**: handler `prefix_admin_single_stic_profile_selection`
-  (inc/stic-action.php) → reescribe `scp_user_*` y redirige.
-- **Datos del familiar**: `pages/single_stic_tutor_profile.php` (básicos,
-  contacto, dirección y medio de pago).
+### 6.2 Los tres casos
 
-**Estado de conexión con Sinergia:** las relaciones familiares
-(`stic_Personal_Environment`, tipos `RELATIONSHIP_TUTOR_TYPES`) aún no están
-montadas en el CRM de Comunica. Mientras tanto:
-- `?familia_demo=1` en la pantalla de selección pinta participantes de ejemplo
-  (badge "Vista previa") para revisar el diseño;
-- el filtro `sticpa_familia_participants` permite inyectarlos desde código;
-- el filtro `sticpa_is_familia` fuerza el modo familia.
-Cuando el CRM tenga las relaciones, todo funcionará sin tocar código.
+| Caso | Audiencia | Qué ve |
+|---|---|---|
+| Familiar **y nada más** | `familiar` | Solo sus datos: contacto, dirección, forma de pago, contraseña. Ni eventos, ni inscripciones, ni pagos — no son suyos |
+| Familiar **viendo a un hijo** | `participante` | El área entera, con los datos del hijo. El título dice su nombre («Datos de Lucía») |
+| Familiar **que además es del MCM**, o miembro a secas | `miembro` | Lo de cualquier miembro. **Manda el rol**, no la familia |
 
-**Audiencias de la pantalla de datos** (`sticpa_profile_audience()`):
-`single_stic_comunica_perfil.php` sirve a tres audiencias y decide título y
-secciones con `$sectionsByAudience` (+ filtro `sticpa_perfil_sections`):
-- `miembro` → "Mis datos" (con sección MCM). Incluye al adulto que es familiar
-  Y miembro a la vez (si tiene rol, manda el rol).
-- `participante` → "Sus datos" (familiar viendo a un menor; el menú también
-  cambia a "Sus datos" y se oculta "Monitor/a"). Futuro: añadir aquí las
-  autorizaciones de menores (ajmcm_actividadesout_c…, ver CAMPOS.md).
-- `familiar` → "Mis datos" del familiar sin rol (sin MCM); su parte
-  administrativa (pago) vive en single_stic_tutor_profile.php.
-Para divergir contenidos NO se crean páginas nuevas: se ajusta la lista de
-secciones y/o se añaden bloques `in_array('xxx', $sections)`.
+`sticpa_viewing_context()` responde las tres, y `sticpa_profile_audience()` es
+el nombre antiguo que delega en ella.
 
-**Medio de pago (front adelantado):** los campos `ajmcm_pago_metodo_c`,
-`ajmcm_pago_iban_c` y `ajmcm_pago_titular_c` de la pantalla del familiar son
-**provisionales** (el CRM ignora campos inexistentes, así que guardar es
-inocuo). Cuando Sinergia defina dónde viven, renombra los `'name'` en
-`single_stic_tutor_profile.php` y borra el aviso ⚙️ de la nota.
+> Ojo con el tercer caso: el rol que hay en sesión es el del **perfil activo**,
+> así que tras elegir participante es el del hijo. El rol de quien ha iniciado
+> sesión se guarda aparte (`scp_tutor_es_miembro`) nada más entrar. Sin eso, una
+> monitora dejaba de serlo al abrir la ficha de su hija.
+
+### 6.3 A dónde se aterriza (`sticpa_landing_page`)
+
+| Quién | A dónde |
+|---|---|
+| No es familiar | Su home |
+| Familiar **y** miembro del MCM | Su home (para ver a sus hijos, el selector de la barra) |
+| Familiar a secas, **un** participante | **Directo a la ficha del participante.** Una pantalla de «elige» con una sola opción es un toque para decir algo que ya sabíamos |
+| Familiar a secas, **varios** | La pantalla de selección |
+
+### 6.4 Qué se enseña (`sticpa_visible_sections`)
+
+Filtra las secciones del menú **y de la home** (la misma función en los dos
+sitios, para que no digan cosas distintas). Con audiencia `familiar` deja solo
+sus datos, y la lista es **blanca**: una sección nueva en el menú no aparece en
+el área de un familiar hasta que alguien decide a conciencia que le corresponde
+(filtro `sticpa_secciones_del_familiar`).
+
+### 6.5 Los participantes
+
+`sticpa_load_family_participants($objSCP)` es la única consulta, cacheada en
+`scp_available_profiles` para toda la sesión. Es un 1+N inevitable con esta API
+(una llamada para las relaciones y otra por relación), así que se paga una vez.
+Mientras la parte de relaciones familiares de Sinergia no esté montada, se
+pueden inyectar con el filtro `sticpa_familia_participants` o previsualizar con
+`?familia_demo=1`.
+
+Cambiar de participante es reescribir `scp_user_id` / `scp_user_contact_name`
+(lo hace `prefix_admin_single_stic_profile_selection`), y **hay que invalidar el
+rol** (`scp_role`, `scp_role_resolved`): si no, el hijo hereda el menú de su
+madre.
 
 ## 7. Formularios Comunica (monitores / laicos)
 

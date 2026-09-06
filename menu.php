@@ -252,7 +252,14 @@ function menu()
     // ¿Mostramos los items de navegación? (usuario adulto o familiar con perfil elegido).
     $showItems = (isset($_SESSION['scp_tutor_user_contact_name']) || (isset($_SESSION['scp_user_adult']) && $_SESSION['scp_user_adult']));
 
-    // Items: Inicio + las secciones configuradas.
+    // Items: Inicio + las secciones configuradas, filtradas por AUDIENCIA.
+    // A un familiar que solo es familiar, viéndose a sí mismo, no se le enseñan
+    // Eventos, Inscripciones ni Pagos: no son suyos —él no se apunta a nada— y
+    // ofrecerle ocho secciones vacías es prometerle cosas que no va a
+    // encontrar. La regla está en sticpa_visible_sections() (inc/stic-family.php).
+    if (function_exists('sticpa_visible_sections')) {
+        $menuElements = sticpa_visible_sections($menuElements);
+    }
     $items = array('single_stic_home' => __('Inicio', 'sticpa'));
     foreach ($menuElements as $key => $value) {
         $items[$key] = __($value, 'sticpa');

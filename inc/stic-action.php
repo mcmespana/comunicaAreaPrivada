@@ -35,6 +35,21 @@ function prefix_admin_single_stic_profile_selection()
         $_SESSION['scp_tutor_is_user'] = ($_SESSION['scp_tutor_user_id'] == $requestUserId);
         $_SESSION['scp_user_id'] = $requestUserId;
         $_SESSION['scp_user_contact_name'] = $requestUserName;
+
+        // Y EL ROL SE INVALIDA. El rol cacheado en sesión es el del PERFIL
+        // ACTIVO, y el perfil activo acaba de cambiar: sin esto, una madre que
+        // además es monitora abría la ficha de su hija y la hija salía con el
+        // menú de monitora —«Pasar lista», «Mis grupos»— porque el rol seguía
+        // siendo el de la madre. Se borra la marca de resolución para que
+        // sticpa_get_comunica_role() vuelva a preguntar por quien toca.
+        //
+        // Lo de la madre NO se pierde: sticpa_recordar_si_familiar_es_miembro()
+        // lo guardó aparte en `scp_tutor_es_miembro` al entrar
+        // (ver inc/stic-family.php).
+        unset($_SESSION['scp_role'], $_SESSION['scp_role_resolved'], $_SESSION['scp_relationship_raw']);
+        // La caché del calendario es POR PARTICIPANTE y su clave ya lo tiene en
+        // cuenta, así que no hace falta tirarla: la del nuevo participante se
+        // calentará sola.
     }
 
     // Sin sesión de familiar montada → de vuelta a la selección; si no, SIEMPRE a
