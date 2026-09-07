@@ -1,71 +1,50 @@
 <?php
+/**
+ * MIS INSCRIPCIONES — listado.
+ * ----------------------------------------------------------------------------
+ * Ya NO usa makeList() ni DataTables. Una inscripción no se lee bien como
+ * "ETIQUETA: valor", y sobre todo: la cápsula de fecha llevaba
+ * `registration_date`, el día en que te apuntaste. A una familia eso le da
+ * igual; lo que necesita saber es cuándo es la actividad. Y la acción
+ * principal de cada fila era "Editar", que no es lo que nadie viene a hacer.
+ *
+ * Se pinta con sticpa_registrations_list_html() (inc/stic-registrations.php).
+ */
 
-#########################################################
-# List settings                                         #
-#########################################################
+if (!defined('ABSPATH')) {
+    exit;
+}
+
 switch (getDestinationModule()) {
     case 'Accounts':
         $relationship = 'stic_registrations_accounts';
         $parentModule = 'Accounts';
         break;
     case 'Contacts':
+    default:
         $relationship = 'stic_registrations_contacts';
         $parentModule = 'Contacts';
         break;
 }
-$listSettings['moduleName'] = "stic_Registrations"; // list title
-$listSettings['title'] = __('Registrations', 'sticpa'); // list title
-$listSettings['linkDestination'] = '?internalpage=single_stic_registrations&action=create'; //The link destination of each record in the list
-// Columna que se pinta como cápsula de fecha en la cabecera de la tarjeta.
-$listSettings['cardDate'] = 'registration_date';
-$listSettings['actions'] = array(
-    array('label' => __('Edit', 'sticpa'), 'link' => '?internalpage=single_stic_registrations&action=edit'),
-    array('label' => __('View', 'sticpa'), 'link' => '?internalpage=single_stic_registrations&action=detail'),
-    // array('label' => __('Delete', 'sticpa'), 'link' => '?internalpage=single_stic_registrations&action=delete'),
-);
-// $listSettings['createButton'] = array('value' => true, 'label' => __('New registration', 'sticpa')); // show create button and its label
-$listSettings['datatables'] = array('value' => true, 'jsonSettings' => array( 'paging' =>false, 'searching' => true)); // if columns are sortable or filterable (this use jquery plugin datatables) /json Settings in json format from https://datatables.net/manual/options
-$listSettings['msgDelete'][] = array('value' => 'true', 'type' => 'success', 'msg' => __('Record successfully deleted.', 'sticpa')); //messages that will be shown on the screen after processing the data
 
-#########################################################
-# Columns list
-# Important: Include id field for update operations.
-# The field definition will be retrieved from the CRM. But it can also be specified like this:
-# $columnsList[] = array(
-#    'name' => '<field_name>',
-#    'label' => __('<field_label>', 'sticpa'),
-#    'format' => '<format_type>',   # currency, number, date... if "translate" it will transalate the value to a label
-#    'attributes' => array ()
-# "');
-#
-#########################################################
-$columnsList[] = array('name' => 'id');
-$columnsList[] = array('name' => 'stic_registrations_stic_events_name');
-$columnsList[] = array('name' => 'registration_date', 'format' => 'datetime');
-$columnsList[] = array('name' => 'status', 'format' => 'enum');
-#########################################################
+$listTitle = __('Mis inscripciones', 'sticpa');
 
-$fieldsToRetrieve = array_column($columnsList, 'name');
-
-#########################################################
-# Params for the API query to retrieve related beans
-#########################################################
-//set the params for the API query
-$params = array(
+$getRelatedElements = $objSCP->getRelatedElementsForLoggedUser(array(
     'module_name' => $parentModule,
-    "module_id" => $_SESSION['scp_user_id'], //Do not touch
-    "link_field_name" => $relationship,
-    // "related_module_query" => "(end_date is null OR end_date >curdate())", //sql where conditions
-    "related_fields" => $fieldsToRetrieve, //Do not touch
-    "related_module_link_name_to_fields_array" => array(),
-    "deleted" => 0, //show or not deleted elements (usually 0)
-    "order_by" => "",
-    "offset" => "",
-    "limit" => 0,
-);
-#########################################################
+    'module_id' => $_SESSION['scp_user_id'],
+    'link_field_name' => $relationship,
+    'related_fields' => sticpa_registration_list_fields(),
+    'related_module_link_name_to_fields_array' => array(),
+    'deleted' => 0,
+    'order_by' => '',
+    'offset' => '',
+    'limit' => 0,
+));
 
-$listSettings['fileName'] = basename(__FILE__, ".php"); //The list name, from the filename. Don't touch.
-$getRelatedElements = $objSCP->getRelatedElementsForLoggedUser($params);
+// Etiquetas de los desplegables, tal y como están traducidas en el CRM (el
+// valor crudo es un código tipo "Confirmed", que no se le enseña a nadie).
+// Cacheada 6h, así que no añade una llamada por vista.
+$definition = sticpa_cached_field_definition($objSCP, 'stic_Registrations', array('status', 'participation_type'));
 
-$html .= makeList($columnsList, $listSettings, $getRelatedElements);
+$html .= "<div class='stic-entry-header'><h3>" . esc_html($listTitle) . "</h3></div>";
+$html .= sticpa_registrations_list_html($getRelatedElements, $definition);

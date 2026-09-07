@@ -2284,7 +2284,7 @@ final class PasarListaRenderTest extends TestCase
         $html = $this->render('single_stic_pasar_lista_marcar');
 
         $this->assertMatchesRegularExpression(
-            '/single_stic_pasar_lista_ficha&participante=c1&grupo=g1&sesion=[^"&]+/',
+            '/single_stic_pasar_lista_ficha&amp;participante=c1&amp;grupo=g1&amp;sesion=[^"&]+/',
             $html
         );
     }
@@ -3331,7 +3331,7 @@ final class PasarListaRenderTest extends TestCase
         // relaciones (3 participantes en g1: c1, c2 y la del rol `grupo`).
         $this->assertStringContainsString('pl-grp-role--lleva', $html);
         $this->assertStringContainsString('3 participantes', $html);
-        $this->assertStringContainsString('single_stic_pasar_lista_marcar&grupo=g1', $html);
+        $this->assertStringContainsString('single_stic_pasar_lista_marcar&amp;grupo=g1', $html);
         // Y el suyo, el COM-LC, que en el CRM está en otra pestaña y aquí no.
         $this->assertStringContainsString('pl-grp-role--suyo', $html);
         $this->assertStringContainsString('Ruah', $html);
@@ -4356,7 +4356,7 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('pl-tabs--quien', $html);
         $this->assertStringContainsString('David Soler', $html);
         // Enlaza a la ficha del monitor, no a la del participante.
-        $this->assertStringContainsString('single_stic_pasar_lista_monitor&monitor=', $html);
+        $this->assertStringContainsString('single_stic_pasar_lista_monitor&amp;monitor=', $html);
     }
 
     /** Un modo inventado en la URL no rompe nada: se cae al de por defecto. */
@@ -4425,16 +4425,16 @@ final class PasarListaRenderTest extends TestCase
     {
         $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1', 'vengo' => 'grupo');
         $html = $this->render('single_stic_pasar_lista_ficha');
-        $this->assertStringContainsString('single_stic_mis_grupos&grupo=g1', $html);
+        $this->assertStringContainsString('single_stic_mis_grupos&amp;grupo=g1', $html);
 
         $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1', 'vengo' => 'az');
         $html = $this->render('single_stic_pasar_lista_ficha');
-        $this->assertStringContainsString('single_stic_mis_grupos&ver=az', $html);
+        $this->assertStringContainsString('single_stic_mis_grupos&amp;ver=az', $html);
 
         // Sin `vengo`, la de siempre: se ha llegado desde marcar.
         $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
         $html = $this->render('single_stic_pasar_lista_ficha');
-        $this->assertStringContainsString('single_stic_pasar_lista_marcar&grupo=g1', $html);
+        $this->assertStringContainsString('single_stic_pasar_lista_marcar&amp;grupo=g1', $html);
     }
 
     /** Un `vengo` inventado no se convierte en un enlace: se cae al de siempre. */
@@ -4447,7 +4447,7 @@ final class PasarListaRenderTest extends TestCase
         $html = $this->render('single_stic_pasar_lista_ficha');
 
         $this->assertStringNotContainsString('evil.example', $html);
-        $this->assertStringContainsString('single_stic_pasar_lista_marcar&grupo=g1', $html);
+        $this->assertStringContainsString('single_stic_pasar_lista_marcar&amp;grupo=g1', $html);
     }
 
     // ---- Color por curso, orden de monitores y gente sin grupo -----------
@@ -4578,7 +4578,7 @@ final class PasarListaRenderTest extends TestCase
 
         $this->assertStringNotContainsString('pl-pager', $html);
         // Pero la vuelta atrás sí lleva a ese grupo.
-        $this->assertStringContainsString('single_stic_mis_grupos&grupo=g3', $html);
+        $this->assertStringContainsString('single_stic_mis_grupos&amp;grupo=g3', $html);
     }
 
     /** La gente sin grupo: la tarjeta del final del índice, y su vista. */

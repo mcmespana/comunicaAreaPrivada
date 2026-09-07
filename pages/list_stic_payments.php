@@ -21,50 +21,19 @@ switch (getDestinationModule()) {
         }
         break;
 }
-$listSettings['moduleName'] = "stic_Payments"; // list title
-$listSettings['title'] = __('Payments', 'sticpa'); // list title
-$listSettings['linkDestination'] = '?internalpage=single_stic_payments&action=create'; //The link destination of each record in the list
-$listSettings['actions'] = array(
-    array('label' => __('Edit', 'sticpa'), 'link' => '?internalpage=single_stic_payments&action=edit'),
-    array('label' => __('View', 'sticpa'), 'link' => '?internalpage=single_stic_payments&action=detail'),
-    // array('label' => __('Delete', 'sticpa'), 'link' => '?internalpage=single_stic_payments&action=delete'),
-);
-$listSettings['datatables'] = array('value' => true, 'jsonSettings' => array( 'paging' =>false, 'searching' => true)); // if columns are sortable or filterable (this use jquery plugin datatables) /json Settings in json format from https://datatables.net/manual/options
-$listSettings['msgDelete'][] = array('value' => 'true', 'type' => 'success', 'msg' => __('Record successfully deleted.', 'sticpa')); //messages that will be shown on the screen after processing the data
-$listSettings['fileName'] = basename(__FILE__, ".php"); //The list name, from the filename. Don't touch.
+// NOTA: este listado ya NO usa makeList() ni DataTables. Un recibo no se lee
+// como "ETIQUETA: valor" — y el importe, que es LA columna, quedaba en medio de
+// la fila sin alinear. Se pinta con sticpa_payments_list_html()
+// (inc/stic-payments.php). La acción principal era "Editar" un pago: fuera.
+$listTitle = __('Mis pagos', 'sticpa');
 
 
-#########################################################
+// Los campos que se piden. La novedad es `payment_date`: el listado NO la pedía,
+// así que era una lista de recibos que no decía cuándo te habían cobrado.
+// `bank_account` sale del listado (en la tarjeta no cabe un IBAN, y entero no
+// se enseña nunca); sigue en la ficha, enmascarado.
+$fieldsToRetrieve = sticpa_payment_list_fields();
 
-#########################################################
-# Columns list
-# Important: Include id field for update operations.
-# The field definition will be retrieved from the CRM. But it can also be specified like this:
-# $columnsList[] = array(
-#    'name' => '<field_name>',
-#    'label' => __('<field_label>', 'sticpa'),
-#    'format' => '<format_type>',   # currency, number, date... if "translate" it will transalate the value to a label
-#    'attributes' => array ()
-# "');
-#
-#########################################################
-$columnsList[] = array('name' => 'id');
-$columnsList[] = array('name' => 'name');
-if (isset($_SESSION['scp_tutor_is_user']) && $_SESSION['scp_tutor_is_user']) {
-    $columnsList[] = array(
-        'name' => 'stic_payment_commitments_contacts_1_name',
-        'label' => __('Recipient contact', 'sticpa'),
-    );
-}
-$columnsList[] = array('name' => 'status', 'format' => 'enum');
-$columnsList[] = array('name' => 'payment_type', 'format' => 'enum');
-$columnsList[] = array('name' => 'amount', 'format' => 'currency');
-$columnsList[] = array('name' => 'payment_method', 'format' => 'enum');
-$columnsList[] = array('name' => 'bank_account');
-
-#########################################################
-
-$fieldsToRetrieve = array_column($columnsList, 'name');
 
 #########################################################
 # Params for the API query to retrieve related beans
@@ -85,34 +54,13 @@ if ((isset($_SESSION['scp_tutor_is_user']) && $_SESSION['scp_tutor_is_user']) ||
         "limit" => 0,
     );
 
-    $getRelatedElements = $objSCP->getRelatedElementsForLoggedUser($params);
-    // RENDIMIENTO: la columna "Contacto destinatario" solo se AÑADE a
-    // $columnsList (y por tanto solo se pinta) cuando el familiar se está viendo
-    // a sí mismo. Para el resto de personas adultas se hacía igualmente una
-    // llamada al CRM POR PAGO para rellenar un valor que makeList no muestra:
-    // con 50 pagos, 50 round-trips a la basura.
-    $showsRecipientColumn = isset($_SESSION['scp_tutor_is_user']) && $_SESSION['scp_tutor_is_user'];
-    if ($showsRecipientColumn && is_array($getRelatedElements)) {
-        foreach($getRelatedElements as $key => $payment) {
-            $params = array(
-                'module_name' => 'stic_Payments',
-                "module_id" => $payment->id, //Do not touch
-                "link_field_name" => 'stic_payments_stic_payment_commitments',
-                // "related_module_query" => "(end_date is null OR end_date >curdate())", //sql where conditions
-                "related_fields" => array('stic_payment_commitments_contacts_1_name'), //Do not touch
-                "related_module_link_name_to_fields_array" => array(),
-                "deleted" => 0, //show or not deleted elements (usually 0)
-                "order_by" => "",
-                "offset" => "",
-                "limit" => 0,
-            );
-            $getRelatedPC = $objSCP->getRelatedElementsForLoggedUser($params);
-            if (isset($getRelatedPC[0]->name_value_list->stic_payment_commitments_contacts_1_name)) {
-                $getRelatedElements[$key]->name_value_list->stic_payment_commitments_contacts_1_name = $getRelatedPC[0]->name_value_list->stic_payment_commitments_contacts_1_name;
-            }
-        }
-    }
-    $availablePayments = $getRelatedElements;
+    // RENDIMIENTO: aquí había un bucle que pedía al CRM, POR CADA PAGO, el
+    // compromiso del que colgaba, solo para rellenar la columna "Contacto
+    // destinatario". Con 50 pagos, 50 viajes. Esa columna ya no existe: en la
+    // tarjeta manda el importe, la fecha y el estado, y de quién es el pago ya
+    // lo dice la barra de identidad de arriba, que es de quien estás viendo.
+    $availablePayments = $objSCP->getRelatedElementsForLoggedUser($params);
+
 } else {
     $params = array(
         'module_name' => $parentModule,
@@ -141,6 +89,9 @@ if ((isset($_SESSION['scp_tutor_is_user']) && $_SESSION['scp_tutor_is_user']) ||
             "offset" => "",
             "limit" => 0,
         );
+        // 1+N que no se puede evitar con esta API: los pagos de un participante
+        // menor cuelgan de SUS compromisos, y no hay forma de pedirlos todos de
+        // una vez. Queda anotado en el plan 011; aquí no se empeora.
         $getRelatedPayments = $objSCP->getRelatedElementsForLoggedUser($params);
 
         if (is_array($getRelatedPayments)) {
@@ -152,4 +103,18 @@ if ((isset($_SESSION['scp_tutor_is_user']) && $_SESSION['scp_tutor_is_user']) ||
     }
 }
 
-$html .= makeList($columnsList, $listSettings, $availablePayments);
+// Etiquetas traducidas de los desplegables (definición cacheada 6h).
+$definition = sticpa_cached_field_definition($objSCP, 'stic_Payments', array('status', 'payment_method', 'payment_type'));
+
+$html .= "<div class='stic-entry-header'><h3>" . esc_html($listTitle) . "</h3></div>";
+$html .= sticpa_payments_list_html($availablePayments, $definition);
+
+// El certificado de donaciones, si el CRM tiene plantilla configurada, va al
+// final y como acción secundaria: no es a lo que se entra.
+if (!empty($listSettings['additionalButtons'])) {
+    $html .= "<div class='stic-rec-cta-row'>";
+    foreach ($listSettings['additionalButtons'] as $button) {
+        $html .= sticpa_record_action_html(array('label' => $button['label'], 'url' => $button['link'], 'icon' => 'download'));
+    }
+    $html .= "</div>";
+}

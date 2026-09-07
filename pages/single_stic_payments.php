@@ -1,4 +1,55 @@
 <?php
+/**
+ * PAGO — ficha (detail) y alta/edición.
+ * ----------------------------------------------------------------------------
+ * `action=detail` ya NO es el formulario genérico con todos los campos
+ * deshabilitados. En dinero eso era especialmente malo: un recibo devuelto se
+ * leía igual que uno cobrado, "Estado: Devuelto" en texto negro y en la cuarta
+ * caja gris. Ahora el importe manda, el estado es un chip con su color y, si el
+ * recibo no se pudo cobrar, lo primero que se lee es por qué y qué hacer
+ * (sticpa_payment_detail_html, en inc/stic-payments.php).
+ */
+
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+// --- FICHA -----------------------------------------------------------------
+if (($_REQUEST['action'] ?? '') === 'detail') {
+    $paymentId = isset($_REQUEST['id']) ? sanitize_text_field($_REQUEST['id']) : '';
+
+    if ($paymentId === '') {
+        $html .= sticpa_record_empty_html(
+            'card',
+            __('No hemos encontrado el pago', 'sticpa'),
+            __('Puede que el enlace esté incompleto. Vuelve a tus pagos y entra de nuevo.', 'sticpa'),
+            array('label' => __('Ver mis pagos', 'sticpa'), 'url' => '?internalpage=list_stic_payments', 'primary' => true)
+        );
+        return;
+    }
+
+    $detail = $objSCP->getRecordDetail($paymentId, 'stic_Payments', sticpa_payment_detail_fields());
+    $nvl = $detail->entry_list[0]->name_value_list ?? null;
+    $payment = $nvl ? sticpa_payment_view_model($nvl) : null;
+
+    if (!$payment) {
+        $html .= sticpa_record_empty_html(
+            'card',
+            __('Este pago ya no está disponible', 'sticpa'),
+            __('Consulta el resto de tus pagos.', 'sticpa'),
+            array('label' => __('Ver mis pagos', 'sticpa'), 'url' => '?internalpage=list_stic_payments', 'primary' => true)
+        );
+        return;
+    }
+
+    $definition = sticpa_cached_field_definition($objSCP, 'stic_Payments', array(
+        'status', 'payment_method', 'payment_type', 'sepa_rejected_reason', 'c19_rejected_reason',
+    ));
+
+    $html .= sticpa_payment_detail_html($payment, $definition);
+    return;
+}
+
 #########################################################
 # Form settings                                         #
 #########################################################

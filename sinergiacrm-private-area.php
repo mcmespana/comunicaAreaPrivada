@@ -58,8 +58,16 @@ include plugin_dir_path(__FILE__) . 'inc/stic-magic-login.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-otp.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-app-links.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-comunica-roles.php';
+include plugin_dir_path(__FILE__) . 'inc/stic-family.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-calendar.php';
+// La ficha de registro va ANTES que los módulos que la usan (Eventos y el
+// resto): les presta los iconos, las fechas en lenguaje humano y el formato.
+include plugin_dir_path(__FILE__) . 'inc/stic-record-view.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-events.php';
+include plugin_dir_path(__FILE__) . 'inc/stic-registrations.php';
+include plugin_dir_path(__FILE__) . 'inc/stic-payments.php';
+include plugin_dir_path(__FILE__) . 'inc/stic-documents.php';
+include plugin_dir_path(__FILE__) . 'inc/stic-sessions.php';
 // Pasar Lista: la lógica pura (curso, sesión que toca, porcentajes) va primero
 // porque las otras dos la usan.
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista.php';
@@ -472,14 +480,6 @@ function sticpa_section_meta($key)
         'list_stic_attendances' => array(
             'desc' => __('Registro de asistencias.', 'sticpa'),
             'icon' => "<path d='M9 11l3 3L22 4'/><path d='M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'/>",
-        ),
-        'list_stic_job_offers' => array(
-            'desc' => __('Ofertas de empleo disponibles.', 'sticpa'),
-            'icon' => "<rect x='2' y='7' width='20' height='14' rx='2'/><path d='M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'/>",
-        ),
-        'list_stic_job_applications' => array(
-            'desc' => __('Tus candidaturas a ofertas.', 'sticpa'),
-            'icon' => "<path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><path d='M14 2v6h6'/>",
         ),
         'single_stic_unsubscribe' => array(
             'desc' => __('Gestiona tu baja.', 'sticpa'),
@@ -926,6 +926,13 @@ function sugar_crm_portal_check_user_and_login($html = "")
     return $html;
 }
 
+/**
+ * OJO CON EL NOMBRE: esto NO comprueba si alguien es mayor de edad. Pregunta al
+ * CRM si tiene personas A SU CARGO (relaciones de padre/madre/tutor/cuidador) y
+ * devuelve `true` cuando NO tiene a ninguna. O sea que un padre de 45 años sale
+ * `false`. Se conserva el nombre porque su valor vive en cookies de sesión de un
+ * año; para leerlo con sentido está `sticpa_es_familiar()` (inc/stic-family.php).
+ */
 function check_user_adult($userId, $relationshipTypes = array()) {
     $objSCP = SugarRestApiCall::getObjSCP();
     if (empty($relationshipTypes)) {
@@ -987,16 +994,20 @@ function sugar_crm_portal_index($html = "")
 
     $html .= menu();
 
-    if (!isset($_SESSION['scp_tutor_user_id']) && !isset($_REQUEST['internalpage'])) {
-        if (isset($_SESSION['scp_user_adult']) && $_SESSION['scp_user_adult']) {
-            // Landing tras el login: pantalla de bienvenida con accesos a secciones.
-            $currentPage = 'single_stic_home';
-        } else {
-            $currentPage = 'single_stic_profile_selection';
-        }
+    if (!isset($_REQUEST['internalpage'])) {
+        // A DÓNDE SE ATERRIZA. Antes se decidía aquí con `scp_user_adult` (que
+        // no significa "es mayor de edad", ver inc/stic-family.php) y solo tenía
+        // dos salidas: la home, o la pantalla de elegir participante — también
+        // cuando había UN solo participante, o sea un toque para elegir entre
+        // una cosa. Y a un familiar que solo es familiar le dejaba en un área
+        // privada suya donde no hay nada suyo que ver.
+        //
+        // La regla vive ahora en sticpa_landing_page(), en un sitio, escrita.
+        $currentPage = function_exists('sticpa_landing_page')
+            ? sticpa_landing_page($objSCP)
+            : 'single_stic_home';
     } else {
-        // Con sesión de tutor pero sin página pedida (URL "pelada"): a la home.
-        $currentPage = $_REQUEST['internalpage'] ?? 'single_stic_home';
+        $currentPage = $_REQUEST['internalpage'];
     }
     $pageFile = sticpa_resolve_page_file($currentPage);
     if ($pageFile !== '') {

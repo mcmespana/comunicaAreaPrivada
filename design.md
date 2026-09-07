@@ -275,6 +275,35 @@ uno propio:
 **Prohibido presentar un registro como filas «ETIQUETA: valor».** Eso es un
 volcado de base de datos, no una pantalla.
 
+**Y esto ya no lo maquetas: lo declaras.** En el área privada, todo lo que sea
+un registro se pinta con la **ficha de registro** (`inc/stic-record-view.php`,
+clases `stic-rec-*`, CSS §49 y §56), que comparten Eventos, Inscripciones,
+Pagos, Compromisos, Documentos, Sesiones y Asistencias. Tú declaras qué se
+enseña —título, cápsula, líneas, chips, importe, acción rápida, avisos, barra
+de progreso, datos clave, acciones— y él decide cómo. El manual de uso, con las
+decisiones ya tomadas y por qué, está en
+[`docs/design-system.md`](docs/design-system.md) §4.1.
+
+Tres reglas las hace cumplir el componente y no tu buena voluntad: **una sola
+acción principal**, **ni una etiqueta sin dato detrás**, y **todo escapado**
+salvo lo que declares `'raw'`.
+
+Cuatro cosas que ya se decidieron mirando capturas, para no volver a discutirlas:
+
+- **Una tarjeta que enlaza a su ficha NO lleva además un botón que haga lo
+  mismo.** Son ~50px por tarjeta y un degradado por fila. Barra de acciones solo
+  si lleva a OTRO sitio.
+- **Si hay algo que hacer que no es abrir el registro** (descargar, llamar), es
+  un botón redondo de 44px al lado (`'quick'`), no una barra. Y es **hermano**
+  del enlace de la tarjeta, nunca hijo: un `<a>` dentro de otro `<a>` es HTML
+  inválido y el navegador cierra el de fuera.
+- **El color del chip sale de la CLAVE interna del CRM, no de la etiqueta**, y
+  ante la duda es neutro. Ojo con las negaciones: `no_attended` contiene
+  `attended` y `not_paid` contiene `paid`. Pintar de verde un «no pagado» no es
+  un fallo de diseño: es decirle a alguien que está al día cuando no lo está.
+- **Un dato que se cuenta en tres cajas es una historia, no tres datos.**
+  «Total del año / Aportado / Pendiente» son una barra de progreso.
+
 ### 6.2 Botones
 
 | Papel | Aspecto | Cuántos por pantalla |
@@ -468,7 +497,29 @@ con solución propuesta y orden de ejecución, en
 - ~~Inter solo «si el dispositivo la tiene» en los formularios.~~ **Resuelto**:
   autoalojada también allí, con los mismos woff2.
 - ~~Tres verdes para dos conceptos.~~ **Resuelto**: separados por rol (§3).
-- `docs/design-system.md` §3 cita `stic-modern-style.css`, un fichero que ya no
-  existe.
+- ~~`docs/design-system.md` §3 cita `stic-modern-style.css`, un fichero que ya
+  no existe.~~ **Resuelto**: las dos citas dicen ya que no existe y por qué.
+- ~~Ocho módulos del área pintados como volcado genérico «ETIQUETA: valor», con
+  el detalle en un formulario con TODOS los campos deshabilitados.~~
+  **Resuelto** (04/09/2026): Eventos, Inscripciones, Pagos, Compromisos,
+  Documentos, Sesiones y Asistencias usan ya la ficha de registro (§6.1).
+  Ofertas de empleo y Candidaturas se retiraron del área: no se usan, y el
+  usuario de la API ni siquiera tiene acceso a esos módulos del CRM.
+
+**Lo que queda, y sale de haber hecho lo anterior:**
+
+- **`makeList()` sigue vivo** (`inc/stic-listController.php`, CSS §22) para
+  Relaciones, Contactos y Organizaciones miembro. Es el volcado genérico, y la
+  ficha de registro es su sustituto. Al tocar uno de esos tres, se migra.
+- **`pages/single_stic_sessions.php` y `single_stic_attendances.php` quedan
+  huérfanos**: sus listados ya no enlazan a ellos, porque una tarjeta que lleva
+  a una pantalla que repite la tarjeta no es navegación, son dos toques para
+  leer lo mismo. Siguen ahí por si algo los enlaza; si nadie los reclama, se
+  borran.
+- **Enlazar un pago con SU compromiso** no se puede hacer desde el área: el
+  formulario de pago es un formulario web de SinergiaCRM que CREA una
+  aportación puntual y no tiene por dónde recibir un compromiso existente. La
+  ficha del compromiso lo dice con esas palabras en vez de fingir. Arreglarlo
+  de verdad es trabajo EN EL CRM.
 
 **Si estás tocando una de esas zonas, arréglala de camino y tacha su fila.**

@@ -14,42 +14,11 @@ switch (getDestinationModule()) {
         break;
 }
 $listSettings['moduleName'] = "stic_Attendances"; // list title
-$listSettings['title'] = __('Attendances', 'sticpa'); // list title
-$listSettings['linkDestination'] = '?internalpage=single_stic_attendances&action=create'; //The link destination of each record in the list
-// Columna que se pinta como cápsula de fecha en la cabecera de la tarjeta.
-$listSettings['cardDate'] = 'start_date';
-$listSettings['actions'] = array(
-    // array('label' => __('Edit', 'sticpa'), 'link' => '?internalpage=single_stic_attendances&action=edit'),
-    array('label' => __('View', 'sticpa'), 'link' => '?internalpage=single_stic_attendances&action=detail'),
-    // array('label' => __('Delete', 'sticpa'), 'link' => '?internalpage=single_stic_attendances&action=delete'),
-);
-// $listSettings['createButton'] = array('value' => true, 'label' => __('New registration', 'sticpa')); // show create button and its label
-$listSettings['datatables'] = array('value' => true, 'jsonSettings' => array( 'paging' =>false, 'searching' => true)); // if columns are sortable or filterable (this use jquery plugin datatables) /json Settings in json format from https://datatables.net/manual/options
-$listSettings['msgDelete'][] = array('value' => 'true', 'type' => 'success', 'msg' => __('Record successfully deleted.', 'sticpa')); //messages that will be shown on the screen after processing the data
-
-#########################################################
-# Columns list
-# Important: Include id field for update operations.
-# The field definition will be retrieved from the CRM. But it can also be specified like this:
-# $columnsList[] = array(
-#    'name' => '<field_name>',
-#    'label' => __('<field_label>', 'sticpa'),
-#    'format' => '<format_type>',   # currency, number, date... if "translate" it will transalate the value to a label
-#    'attributes' => array ()
-# "');
-#
-#########################################################
-$columnsList[] = array('name' => 'id');
-$columnsList[] = array('name' => 'name');
-$columnsList[] = array('name' => 'stic_attendances_stic_registrations_name');
-$columnsList[] = array('name' => 'stic_attendances_stic_sessions_name');
-$columnsList[] = array('name' => 'status', 'format' => 'enum');
-$columnsList[] = array('name' => 'start_date', 'format' => 'datetime');
-$columnsList[] = array('name' => 'duration');
-#########################################################
-
-$fieldsToRetrieve = array_column($columnsList, 'name');
-$listSettings['fileName'] = basename(__FILE__, ".php"); //The list name, from the filename. Don't touch.
+// NOTA: ya NO usa makeList(). `duration` se pintaba en crudo (un decimal:
+// "1.5") y el estado como texto suelto. Ahora es "1 h 30 min" y un chip con su
+// color. Se pinta con sticpa_attendances_list_html() (inc/stic-sessions.php).
+$listTitle = __('Mis asistencias', 'sticpa');
+$fieldsToRetrieve = sticpa_attendance_list_fields();
 
 #########################################################
 # Params for the API query to retrieve related beans
@@ -97,4 +66,8 @@ foreach((is_array($getRelatedRegistrations) ? $getRelatedRegistrations : array()
     }
 }
 
-$html .= makeList($columnsList, $listSettings, $availableAttendances);
+// Etiqueta traducida del estado (definición cacheada 6h).
+$definition = sticpa_cached_field_definition($objSCP, 'stic_Attendances', array('status'));
+
+$html .= "<div class='stic-entry-header'><h3>" . esc_html($listTitle) . "</h3></div>";
+$html .= sticpa_attendances_list_html($availableAttendances, $definition);

@@ -582,7 +582,7 @@ function sticpa_pl_grupos_ocultos($objSCP)
  * resultado era una lista vacía en un grupo que sí tiene gente.
  *
  * El camino que SÍ funciona aquí es `get_entry_list` con
- * `link_name_to_fields_array` — el mismo que usa `list_stic_job_offers.php`
+ * `link_name_to_fields_array` — el que usaba `list_stic_job_offers.php` (retirado)
  * desde siempre en producción. Así que se pide por ahí.
  *
  * Y se pide UNA VEZ para toda la delegación en vez de una por grupo: son las

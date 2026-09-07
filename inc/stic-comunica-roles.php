@@ -173,15 +173,19 @@ function sticpa_is_role($role)
  */
 function sticpa_profile_audience()
 {
-    $audience = 'miembro';
-    $enFamilia = function_exists('sticpa_is_familia') && sticpa_is_familia();
-    if ($enFamilia && isset($_SESSION['scp_tutor_user_id']) && empty($_SESSION['scp_tutor_is_user'])) {
-        // Viendo a un participante a cargo (no a sí mismo).
-        $audience = 'participante';
-    } elseif ($enFamilia && !sticpa_get_comunica_role()) {
-        // El familiar en su propia ficha, sin rol de miembro del MCM.
-        $audience = 'familiar';
-    }
+    // FUENTE ÚNICA. Esta función calculaba la audiencia por su cuenta y
+    // `sticpa_viewing_context()` (inc/stic-family.php) la calculaba otra vez
+    // para decidir el menú y el aterrizaje: dos respuestas a la misma pregunta,
+    // y por tanto dos oportunidades de que dijeran cosas distintas. Ahora hay
+    // una, y esto es el nombre viejo que sigue funcionando.
+    //
+    // Una diferencia real que trae el cambio: antes, para saber si el familiar
+    // es miembro del MCM se miraba el rol EN SESIÓN, que después de elegir
+    // participante es el del hijo, no el suyo. El contexto guarda el del
+    // familiar aparte (`scp_tutor_es_miembro`) en cuanto entra.
+    $audience = function_exists('sticpa_viewing_context')
+        ? sticpa_viewing_context()['audiencia']
+        : 'miembro';
     return apply_filters('sticpa_profile_audience', $audience);
 }
 

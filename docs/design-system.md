@@ -43,7 +43,7 @@
 
 | Archivo | Papel | ¿Se toca? |
 |---|---|---|
-| `css/stic-base.css` | Capa base consolidada (UI-15: ex `stic-style` + `stic-modern-style`, en ese orden) | ⚠️ solo arreglos |
+| `css/stic-base.css` | Capa base consolidada (UI-15: fusión de los dos ficheros base que había antes, `stic-style` y `stic-modern-style`, en ese orden; **ninguno de los dos existe ya como fichero**) | ⚠️ solo arreglos |
 | `css/selectize.css` | Librería multiselect | ❌ |
 | `js/fullcalendar/lib/main.css` | Calendario | ❌ |
 | `css/custom-style.css` | **LA capa premium. Carga la última: aquí mandas tú.** | ✅ SIEMPRE aquí |
@@ -91,7 +91,7 @@ Definidos en `:root` de `custom-style.css` §1. Los importantes:
 
 Los grises (`--gray-50`…`--gray-900`) viven también en ese `:root` único de
 `custom-style.css` §1 (antes estaban en `stic-modern-style.css`, un fichero que
-ya no existe: lo consolidó UI-15 y el plan 018 fase 1 movió sus tokens aquí). **Regla de oro: para recolorear el área entera solo se
+**ya no existe**: lo consolidó UI-15 y el plan 018 fase 1 movió sus tokens aquí). **Regla de oro: para recolorear el área entera solo se
 editan `--primary-*` y `--secondary-*`.**
 
 ### Escala visual
@@ -120,7 +120,8 @@ editan `--primary-*` y `--secondary-*`.**
 | Consentimiento legal (enlace + Sí/No) | `.stic-legal-row`, `.stic-legal-link` | §30 CSS · ver `single_stic_comunica_perfil.php` |
 | Tarjetas de opción (radio) | `.stic-option-grid`, `.stic-option-card` | §31 CSS · ver `single_stic_comunica_monitor.php` |
 | Selección de participante | `.stic-profiles-grid`, `.stic-profile-card` | §32 CSS · `pages/single_stic_profile_selection.php` |
-| Listados como tarjetas | `.stic-table-responsive`, `.stic-cell-title` | §22 CSS · `inc/stic-listController.php` |
+| **Ficha de registro (LA unidad de registro)** | `.stic-rec-*` — tarjeta, rejilla, cápsula, chip con tono, importe, acción rápida, ficha con cabecera, barra de progreso y avisos | §49 + §56 CSS · **`inc/stic-record-view.php`** |
+| Listados como tarjetas (genérico, en retirada) | `.stic-table-responsive`, `.stic-cell-title` | §22 CSS · `inc/stic-listController.php` |
 | Dropzone de archivos | `input[type=file]` + badge `.stic-file-uploaded-badge` | §26 CSS |
 | Toggle Sí/No (checkbox) | `input[type=checkbox]` estilizado como switch | §25 CSS |
 | Modal de confirmación | `.stic-modal-*` | §53 CSS · `js/stic-utils.js::confirmDelete` |
@@ -131,6 +132,75 @@ editan `--primary-*` y `--secondary-*`.**
 | Control de apariencia (Auto/Claro/Oscuro) | `.stic-appearance*` | §44.j CSS · `sticpa_appearance_switch_html()` |
 | Aviso ámbar en línea del motor | `.stic-warning-card` | §47 CSS |
 | Campo bloqueado (viene del CRM) | `.stic-locked-field` | §47 CSS |
+
+### 4.1 La ficha de registro (`stic-rec-*`) — empieza SIEMPRE por aquí
+
+Todo lo que sea **un registro del CRM** (un evento, una inscripción, un pago, un
+compromiso, un documento, una sesión, una asistencia) se pinta con
+[`inc/stic-record-view.php`](../inc/stic-record-view.php). Es **declarativo**: la
+página dice QUÉ se enseña y el componente decide CÓMO.
+
+```php
+// Un listado
+$html .= sticpa_record_list_html(array(
+    array(
+        'url'    => '?internalpage=…&action=detail&id=…',
+        'ts'     => $startTs,          // cápsula día/mes
+        'kind'   => 'PDF',             // …o texto corto, si no hay fecha
+        'icon'   => 'card',            // …o un icono, si no hay ninguna de las dos
+        'name'   => 'Cuota de agosto',
+        'lines'  => array(array('icon' => 'card', 'text' => 'Domiciliación')),
+        'chips'  => array(array('label' => $etiqueta, 'tone' => $tono)),
+        'amount' => '20,00 €', 'amount_note' => 'Mensual',
+        'quick'  => array('label' => 'Descargar X', 'url' => …, 'icon' => 'download'),
+        'is_past' => false,            // apaga la tarjeta
+    ),
+));
+
+// Una ficha
+$html .= sticpa_record_detail_html(array(
+    'back' => array('url' => …, 'label' => 'Mis pagos'),
+    'title' => …, 'meta' => …, 'chips' => …,
+    'headline' => array('label' => 'Importe', 'text' => '120,00 €', 'sub' => …),
+    'notes' => array(array('tone' => 'danger', 'text' => …)),
+    'progress' => array('label' => 'Este año', 'value' => 160, 'max' => 240,
+                        'value_txt' => '160,00 €', 'max_txt' => '240,00 €'),
+    'facts' => array(array('icon' => 'euro', 'label' => …, 'text' => …)),
+    'sections' => array(array('title' => …, 'body' => …, 'raw' => false)),
+    'actions' => array(array('label' => …, 'url' => …, 'primary' => true)),
+    'cta_note' => …,
+));
+```
+
+**Tres reglas las hace cumplir el componente**, no tu buena voluntad: una sola
+acción principal por pantalla, ni una etiqueta sin dato detrás, y todo escapado
+salvo lo que declares `'raw'`. Están cubiertas por `tests/RecordViewTest.php`.
+
+**Decisiones ya tomadas, para no volver a discutirlas:**
+
+- **La tarjeta que enlaza a su ficha NO lleva además un botón que haga lo
+  mismo.** Se probó dos veces en Inscripciones («Ver la inscripción», «Ver la
+  actividad») y las dos se quitó: son ~50px por tarjeta y un degradado de marca
+  por fila, que con tres registros deja de firmar nada. Barra de acciones solo
+  si lleva a OTRO sitio.
+- **Si hay algo que hacer que no es abrir el registro** (descargar, llamar), es
+  `'quick'`: un botón redondo de 44px al lado, no una barra.
+- **El botón `'quick'` es HERMANO del enlace de la tarjeta, nunca hijo.** Un
+  `<a>` dentro de otro `<a>` es HTML inválido y el navegador cierra el de
+  fuera. Ya pasó.
+- **El tono del chip sale de `sticpa_record_status_tone()`, que mira la CLAVE
+  interna y no la etiqueta**, y **ante la duda devuelve neutro**. Cuidado con
+  las negaciones: `no_attended` contiene `attended` y `not_paid` contiene
+  `paid`. La función ya lo trata; si tocas sus raíces, no rompas eso.
+- **Las etiquetas de los desplegables salen del CRM** con
+  `sticpa_record_enum_label($definition, $campo, $clave)`, sobre una definición
+  cacheada 6h (`sticpa_cached_field_definition`). Nunca se enseña la clave cruda.
+
+**Verificación**: hay arneses de render offline listos en `tests/manual/`
+(`render-record-view.php`, `render-registrations.php`, `render-payments.php`,
+`render-docs-sessions.php`). Se ejecutan con `php … > /tmp/x.html` y se capturan
+con Chromium. **De ahí salieron casi todos los cambios de diseño de estos
+módulos** — ver §11.8.
 
 ### Iconos
 SVG inline con `stroke='currentColor'`, 24×24, stroke-width 2. Generales en
@@ -192,68 +262,103 @@ Reglas de UX de formularios:
 
 ## 6. Perfiles de familia (participantes)
 
-Modelo de sesión (todo en `$_SESSION`):
+> **La regla de oro**: a un familiar que SOLO es familiar no se le enseña un
+> área privada suya, porque no la tiene. Se le lleva a la de su hijo o hija.
 
-| Clave | Contenido |
+Todo esto vive en **[`inc/stic-family.php`](../inc/stic-family.php)**, que es la
+única fuente. Antes estaba repartido entre el login, el menú, la pantalla de
+selección y la home, y cada sitio decidía por su cuenta.
+
+### 6.1 `scp_user_adult` NO significa "es mayor de edad"
+
+Es el error de lectura más caro de este código. Lo calcula `check_user_adult()`,
+que pregunta al CRM si esa persona tiene a alguien **a su cargo** y devuelve
+`true` cuando **no** tiene a nadie:
+
+| Valor | Significa |
 |---|---|
-| `scp_tutor_user_id` / `scp_tutor_user_contact_name` | El FAMILIAR que inició sesión (fijo) |
-| `scp_user_id` / `scp_user_contact_name` | El PARTICIPANTE activo (lo leen TODAS las páginas) |
-| `scp_tutor_is_user` | true si el familiar se está viendo a sí mismo |
-| `scp_available_profiles` | Participantes disponibles `[{id,name},…]` (caché para el selector) |
-| `scp_is_familia` | true si hay participantes a cargo |
-| `scp_role` | Rol del CRM (`monitor` / `laico` / `''`), **cacheado** |
-| `scp_role_resolved` | **La marca que importa**: si el rol se ha llegado a resolver |
+| `true` | Entra por sí misma, no representa a nadie |
+| `false` | **Es familiar**: tiene participantes a cargo |
 
-> **El rol se cachea, y hay una trampa.** `scp_role` sale de que
-> `stic_relationship_type_c` del contacto contenga «monitor» o «laic»/«com-lc»
-> (ver `inc/stic-comunica-roles.php`). **No** intervienen las fechas ni la
-> vigencia de `stic_Contacts_Relationships`.
->
-> Un rol vacío tiene dos significados muy distintos: «esta persona no tiene rol»
-> y «no se pudo preguntar al CRM». Por eso la decisión de repreguntar mira
-> `scp_role_resolved` y **nunca el valor**. Si escribes código que toque esto,
-> no caches un rol que no hayas resuelto: guardar un `''` de un fallo dejaba a un
-> monitor sin «Pasar lista» ni «Mis grupos» durante el año que dura la cookie
-> (plan 040, pasó en producción).
+Un padre de 45 años sale `false`. La clave no se renombra porque vive en cookies
+de sesión de un año: **usa `sticpa_es_familiar()`**.
 
-Piezas:
-- **Pantalla de selección**: `pages/single_stic_profile_selection.php`
-  (tarjetas grandes; primera pantalla del familiar tras login).
-- **Selector rápido**: `menu.php::sticpa_participant_switcher_html()` — visible
-  SIEMPRE en la barra para familias: se sabe en todo momento a quién se ve y se
-  cambia en dos toques.
-- **Cambio de modo**: handler `prefix_admin_single_stic_profile_selection`
-  (inc/stic-action.php) → reescribe `scp_user_*` y redirige.
-- **Datos del familiar**: `pages/single_stic_tutor_profile.php` (básicos,
-  contacto, dirección y medio de pago).
+### 6.2 Los tres casos
 
-**Estado de conexión con Sinergia:** las relaciones familiares
-(`stic_Personal_Environment`, tipos `RELATIONSHIP_TUTOR_TYPES`) aún no están
-montadas en el CRM de Comunica. Mientras tanto:
-- `?familia_demo=1` en la pantalla de selección pinta participantes de ejemplo
-  (badge "Vista previa") para revisar el diseño;
-- el filtro `sticpa_familia_participants` permite inyectarlos desde código;
-- el filtro `sticpa_is_familia` fuerza el modo familia.
-Cuando el CRM tenga las relaciones, todo funcionará sin tocar código.
+| Caso | Audiencia | Qué ve |
+|---|---|---|
+| Familiar **y nada más** | `familiar` | Solo sus datos: contacto, dirección, forma de pago, contraseña. Ni eventos, ni inscripciones, ni pagos — no son suyos |
+| Familiar **viendo a un hijo** | `participante` | El área entera, con los datos del hijo. El título dice su nombre («Datos de Lucía») |
+| Familiar **que además es del MCM**, o miembro a secas | `miembro` | Lo de cualquier miembro. **Manda el rol**, no la familia |
 
-**Audiencias de la pantalla de datos** (`sticpa_profile_audience()`):
-`single_stic_comunica_perfil.php` sirve a tres audiencias y decide título y
-secciones con `$sectionsByAudience` (+ filtro `sticpa_perfil_sections`):
-- `miembro` → "Mis datos" (con sección MCM). Incluye al adulto que es familiar
-  Y miembro a la vez (si tiene rol, manda el rol).
-- `participante` → "Sus datos" (familiar viendo a un menor; el menú también
-  cambia a "Sus datos" y se oculta "Monitor/a"). Futuro: añadir aquí las
-  autorizaciones de menores (ajmcm_actividadesout_c…, ver CAMPOS.md).
-- `familiar` → "Mis datos" del familiar sin rol (sin MCM); su parte
-  administrativa (pago) vive en single_stic_tutor_profile.php.
-Para divergir contenidos NO se crean páginas nuevas: se ajusta la lista de
-secciones y/o se añaden bloques `in_array('xxx', $sections)`.
+`sticpa_viewing_context()` responde las tres, y `sticpa_profile_audience()` es
+el nombre antiguo que delega en ella.
 
-**Medio de pago (front adelantado):** los campos `ajmcm_pago_metodo_c`,
-`ajmcm_pago_iban_c` y `ajmcm_pago_titular_c` de la pantalla del familiar son
-**provisionales** (el CRM ignora campos inexistentes, así que guardar es
-inocuo). Cuando Sinergia defina dónde viven, renombra los `'name'` en
-`single_stic_tutor_profile.php` y borra el aviso ⚙️ de la nota.
+> Ojo con el tercer caso: el rol que hay en sesión es el del **perfil activo**,
+> así que tras elegir participante es el del hijo. El rol de quien ha iniciado
+> sesión se guarda aparte (`scp_tutor_es_miembro`) nada más entrar. Sin eso, una
+> monitora dejaba de serlo al abrir la ficha de su hija.
+
+### 6.3 A dónde se aterriza (`sticpa_landing_page`)
+
+| Quién | A dónde |
+|---|---|
+| No es familiar | Su home |
+| Familiar **y** miembro del MCM | Su home (para ver a sus hijos, el selector de la barra) |
+| Familiar a secas, **un** participante | **Directo a la ficha del participante.** Una pantalla de «elige» con una sola opción es un toque para decir algo que ya sabíamos |
+| Familiar a secas, **varios** | La pantalla de selección |
+
+### 6.4 Qué se enseña (`sticpa_visible_sections`)
+
+Filtra las secciones del menú **y de la home** (la misma función en los dos
+sitios, para que no digan cosas distintas). Con audiencia `familiar` deja solo
+sus datos, y la lista es **blanca**: una sección nueva en el menú no aparece en
+el área de un familiar hasta que alguien decide a conciencia que le corresponde
+(filtro `sticpa_secciones_del_familiar`).
+
+### 6.5 El dinero: quién paga y quién recibe
+
+SinergiaCRM separa a propósito, en un compromiso de pago, la **persona pagadora**
+(obligatoria: la del IBAN y el mandato) de la **persona destinataria** (opcional:
+quien se beneficia). Su documentación pone justo nuestro caso: *«en el ámbito de
+la infancia, los adultos realizan el pago de una actividad en la que participa un
+menor»*, y rellenar ambas hace que el compromiso salga **en las dos fichas**.
+
+En el código son dos relaciones distintas, y ya se usaban bien:
+
+| Relación | Quién es |
+|---|---|
+| `stic_payment_commitments_contacts` | Quien **paga** (titular) |
+| `stic_payment_commitments_contacts_1` | Quien **recibe** (destinatario) |
+
+**Se ve en las dos fichas, completo.** Se probó a esconder los datos bancarios en
+la ficha del participante y se descartó: obligaba a mirar el dinero en la ficha
+del adulto y todo lo demás en la del niño —un incordio a diario— y, con padres
+separados, el problema real no es que uno vea la cuenta del otro (el IBAN ya sale
+enmascarado a cuatro cifras **para todo el mundo**, en cualquier pantalla) sino
+que cualquiera de los dos pueda saber **cómo se pagó** algo y pagarlo si hace
+falta.
+
+Lo único que cambia en la ficha del participante es que se **añade** un dato:
+«Lo paga: Marta Messeguer» (`sticpa_commitment_lo_paga_otra_persona()`). Un dato
+más, nunca uno menos.
+
+Por eso Pagos y Compromisos **sí** están en el menú de un familiar que solo es
+familiar: ese dinero sale de su cuenta.
+
+### 6.6 Los participantes
+
+`sticpa_load_family_participants($objSCP)` es la única consulta, cacheada en
+`scp_available_profiles` para toda la sesión. Es un 1+N inevitable con esta API
+(una llamada para las relaciones y otra por relación), así que se paga una vez.
+Mientras la parte de relaciones familiares de Sinergia no esté montada, se
+pueden inyectar con el filtro `sticpa_familia_participants` o previsualizar con
+`?familia_demo=1`.
+
+Cambiar de participante es reescribir `scp_user_id` / `scp_user_contact_name`
+(lo hace `prefix_admin_single_stic_profile_selection`), y **hay que invalidar el
+rol** (`scp_role`, `scp_role_resolved`): si no, el hijo hereda el menú de su
+madre.
 
 ## 7. Formularios Comunica (monitores / laicos)
 

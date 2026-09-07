@@ -43,7 +43,10 @@ $sections = apply_filters(
 );
 
 $formSettings['moduleName'] = 'Contacts';
-$formSettings['title'] = ($audience === 'participante') ? __('Datos participante', 'sticpa') : __('Mis datos', 'sticpa');
+// El título dice DE QUIÉN son los datos, con su nombre. "Datos participante"
+// no era castellano ni decía de quién: quien abre esta pantalla siendo familiar
+// puede tener tres hijos y necesita saber en cuál está.
+$formSettings['title'] = __('Mis datos', 'sticpa');
 $formSettings['msg'][] = array('value' => 'true', 'type' => 'success', 'msg' => __('Los datos se han guardado correctamente.', 'sticpa'));
 $formSettings['msg'][] = array('value' => 'error', 'type' => 'error', 'msg' => __('Error al guardar los datos.', 'sticpa'));
 $formSettings['msg'][] = array('value' => 'error_type', 'type' => 'error', 'msg' => __('El formato del archivo no es válido.', 'sticpa'));
@@ -62,6 +65,13 @@ $activeFirstName = $activeFullName;
 if (strpos($activeFullName, ',') !== false) {
     $parts = explode(',', $activeFullName, 2);
     $activeFirstName = trim($parts[1]) !== '' ? trim($parts[1]) : trim($parts[0]);
+}
+
+if ($audience === 'participante') {
+    $formSettings['title'] = ($activeFirstName !== '')
+        /* translators: %s = nombre de pila del participante */
+        ? sprintf(__('Datos de %s', 'sticpa'), $activeFirstName)
+        : __('Datos del participante', 'sticpa');
 }
 
 // Correo de la persona de referencia para solicitar cambios en los datos
