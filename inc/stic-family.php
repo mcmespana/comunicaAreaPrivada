@@ -234,12 +234,28 @@ function sticpa_visible_sections($secciones)
     // Lo único que es SUYO. Se filtra por lista blanca y no por lista negra: si
     // mañana alguien añade una sección al menú, el familiar no la ve hasta que
     // alguien decida a conciencia que le corresponde.
+    //
+    // EL DINERO SÍ ES SUYO, y esto se corrigió sobre la marcha. La primera
+    // versión le quitaba Pagos y Compromisos junto con todo lo demás, y estaba
+    // mal: un compromiso de pago es de QUIEN PAGA. El IBAN, el mandato SEPA y
+    // la autorización son suyos, no del niño. SinergiaCRM lo modela así a
+    // propósito —persona pagadora (obligatoria) y persona destinataria
+    // (opcional)— y su documentación pone justo este ejemplo: «en el ámbito de
+    // la infancia, los adultos realizan el pago de una actividad en la que
+    // participa un menor».
+    //
+    // Lo que NO es suyo es apuntarse: eventos, inscripciones, sesiones y
+    // asistencias son del participante y se ven en su ficha.
     $suyas = apply_filters('sticpa_secciones_del_familiar', array(
         'single_stic_tutor_profile',
         'single_stic_profile',
         'single_stic_comunica_perfil',
         'single_stic_password_change',
         'single_stic_profile_selection',
+        // El dinero que sale de SU cuenta.
+        'list_stic_payments',
+        'list_stic_payment_commitments',
+        'single_stic_payment_form',
         'custom_html',
     ));
 

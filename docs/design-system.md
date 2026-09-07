@@ -316,7 +316,37 @@ sus datos, y la lista es **blanca**: una sección nueva en el menú no aparece e
 el área de un familiar hasta que alguien decide a conciencia que le corresponde
 (filtro `sticpa_secciones_del_familiar`).
 
-### 6.5 Los participantes
+### 6.5 El dinero: quién paga y quién recibe
+
+SinergiaCRM separa a propósito, en un compromiso de pago, la **persona pagadora**
+(obligatoria: la del IBAN y el mandato) de la **persona destinataria** (opcional:
+quien se beneficia). Su documentación pone justo nuestro caso: *«en el ámbito de
+la infancia, los adultos realizan el pago de una actividad en la que participa un
+menor»*, y rellenar ambas hace que el compromiso salga **en las dos fichas**.
+
+En el código son dos relaciones distintas, y ya se usaban bien:
+
+| Relación | Quién es |
+|---|---|
+| `stic_payment_commitments_contacts` | Quien **paga** (titular) |
+| `stic_payment_commitments_contacts_1` | Quien **recibe** (destinatario) |
+
+**Se ve en las dos fichas, completo.** Se probó a esconder los datos bancarios en
+la ficha del participante y se descartó: obligaba a mirar el dinero en la ficha
+del adulto y todo lo demás en la del niño —un incordio a diario— y, con padres
+separados, el problema real no es que uno vea la cuenta del otro (el IBAN ya sale
+enmascarado a cuatro cifras **para todo el mundo**, en cualquier pantalla) sino
+que cualquiera de los dos pueda saber **cómo se pagó** algo y pagarlo si hace
+falta.
+
+Lo único que cambia en la ficha del participante es que se **añade** un dato:
+«Lo paga: Marta Messeguer» (`sticpa_commitment_lo_paga_otra_persona()`). Un dato
+más, nunca uno menos.
+
+Por eso Pagos y Compromisos **sí** están en el menú de un familiar que solo es
+familiar: ese dinero sale de su cuenta.
+
+### 6.6 Los participantes
 
 `sticpa_load_family_participants($objSCP)` es la única consulta, cacheada en
 `scp_available_profiles` para toda la sesión. Es un 1+N inevitable con esta API

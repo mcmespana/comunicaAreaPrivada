@@ -148,6 +148,7 @@ class FamilyContextTest extends TestCase
             'list_stic_events' => 'Eventos',
             'list_stic_registrations' => 'Inscripciones',
             'list_stic_payments' => 'Pagos',
+            'list_stic_payment_commitments' => 'Compromisos de pago',
             'list_stic_documents' => 'Documentos',
             'single_stic_tutor_profile' => 'Mis datos',
             'single_stic_password_change' => 'Contraseña',
@@ -155,11 +156,12 @@ class FamilyContextTest extends TestCase
     }
 
     /**
-     * A un familiar que SOLO es familiar no se le ofrecen Eventos ni Pagos: no
-     * son suyos, él no se apunta a nada, y un menú de secciones vacías es
-     * prometer cosas que no va a encontrar.
+     * A un familiar que SOLO es familiar no se le ofrece APUNTARSE a nada:
+     * eventos, inscripciones, sesiones y asistencias son del participante y se
+     * ven en su ficha. Un menú de secciones vacías es prometer cosas que no va
+     * a encontrar.
      */
-    public function testAlFamiliarSoloSeLeEnsenanSusDatos()
+    public function testAlFamiliarNoSeLeOfreceApuntarseANada()
     {
         $this->sesionFamiliar();
         $_SESSION['scp_tutor_user_id'] = 'f1';
@@ -169,10 +171,31 @@ class FamilyContextTest extends TestCase
         $secciones = sticpa_visible_sections($this->todasLasSecciones());
 
         $this->assertArrayNotHasKey('list_stic_events', $secciones);
-        $this->assertArrayNotHasKey('list_stic_payments', $secciones);
         $this->assertArrayNotHasKey('list_stic_registrations', $secciones);
+        $this->assertArrayNotHasKey('list_stic_documents', $secciones);
         $this->assertArrayHasKey('single_stic_tutor_profile', $secciones);
         $this->assertArrayHasKey('single_stic_password_change', $secciones);
+    }
+
+    /**
+     * PERO EL DINERO SÍ ES SUYO. Un compromiso de pago es de QUIEN PAGA: el
+     * IBAN, el mandato SEPA y la autorización son del familiar, no del niño.
+     * SinergiaCRM lo modela así a propósito (persona pagadora / persona
+     * destinataria) y su documentación pone justo este ejemplo.
+     *
+     * La primera versión de este filtro le quitaba los pagos junto con todo lo
+     * demás. Era un error: le escondía su propia cuenta bancaria.
+     */
+    public function testAlFamiliarSiSeLeEnsenaSuPropioDinero()
+    {
+        $this->sesionFamiliar();
+        $_SESSION['scp_tutor_user_id'] = 'f1';
+        $_SESSION['scp_tutor_is_user'] = true;
+        $_SESSION['scp_tutor_es_miembro'] = false;
+
+        $secciones = sticpa_visible_sections($this->todasLasSecciones());
+        $this->assertArrayHasKey('list_stic_payments', $secciones);
+        $this->assertArrayHasKey('list_stic_payment_commitments', $secciones);
     }
 
     /** En cuanto mira a un hijo, vuelve el menú entero: ahí sí hay de todo. */

@@ -98,7 +98,7 @@ $portalName = get_option('sticpa_scp_name');
                 <?php // Familiar y nada más: aquí solo están SUS datos. Decirlo
                       // evita que busque las inscripciones de su hijo donde no
                       // están, que es lo que pasaba antes. ?>
-                <?= esc_html__('Aquí están tus datos de contacto y de pago. Todo lo de quienes tienes a tu cargo —inscripciones, pagos y documentos— está en su ficha.', 'sticpa'); ?>
+                <?= esc_html__('Aquí están tus datos y lo que se cobra de tu cuenta. Las inscripciones y los documentos de quienes tienes a tu cargo están en su ficha.', 'sticpa'); ?>
             <?php else : ?>
                 <?= esc_html__('Tu espacio personal. Elige una sección para empezar.', 'sticpa'); ?>
             <?php endif; ?>

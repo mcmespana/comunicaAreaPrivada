@@ -336,6 +336,11 @@ function sticpa_commitment_list_fields()
 function sticpa_commitment_detail_fields()
 {
     return array_merge(sticpa_commitment_list_fields(), array(
+        // Quién paga: el nombre para enseñarlo y el id para SABER si es otra
+        // persona. En la ficha de un participante es LO que hay que decir,
+        // porque el compromiso no es suyo: es de quien lo paga por él.
+        'stic_payment_commitments_contacts_name',
+        'stic_payment_commitments_contactscontacts_ida',
         'bank_account',
         'banking_concept',
         'signature_date',
@@ -503,6 +508,40 @@ function sticpa_commitment_pay_url($amount = '')
     return $url;
 }
 
+/**
+ * ¿Este compromiso lo paga OTRA persona en nombre de quien estamos viendo?
+ *
+ * SinergiaCRM separa a propósito la persona PAGADORA (obligatoria, la del IBAN y
+ * el mandato) de la persona DESTINATARIA (opcional, quien se beneficia), y su
+ * documentación pone justo nuestro caso: «en el ámbito de la infancia, los
+ * adultos realizan el pago de una actividad en la que participa un menor».
+ * Rellenarlas hace que el compromiso salga EN LAS DOS FICHAS, y así se queda.
+ *
+ * ESTO SIRVE PARA AÑADIR UN DATO, NO PARA ESCONDER NINGUNO. Se probó a ocultar
+ * el banco en la ficha del participante y el propietario lo tumbó con razón:
+ * obligaba a mirar el dinero en la ficha del adulto y todo lo demás en la del
+ * niño, que es un incordio a diario; y con padres separados el problema real no
+ * es que uno vea la cuenta del otro —el IBAN ya sale enmascarado a cuatro
+ * cifras para todo el mundo, como en cualquier otra pantalla— sino que
+ * cualquiera de los dos pueda saber CÓMO se pagó algo y pagarlo si hace falta.
+ *
+ * Así que en la ficha del participante se ve el compromiso entero, se puede
+ * aportar, y encima se dice quién lo paga, que es la pregunta que se hace uno.
+ */
+function sticpa_commitment_lo_paga_otra_persona($com)
+{
+    $audiencia = function_exists('sticpa_profile_audience') ? sticpa_profile_audience() : 'miembro';
+    if ($audiencia !== 'participante') {
+        return false;
+    }
+    // Si el propio participante es el titular, no hay nada que aclarar.
+    $nvl = $com['nvl'];
+    $titularId = isset($nvl->stic_payment_commitments_contactscontacts_ida->value)
+        ? trim((string) $nvl->stic_payment_commitments_contactscontacts_ida->value)
+        : '';
+    return !($titularId !== '' && $titularId === ($_SESSION['scp_user_id'] ?? ''));
+}
+
 /** FICHA de un compromiso de pago. */
 function sticpa_commitment_detail_html($com, $definition = array())
 {
@@ -510,6 +549,11 @@ function sticpa_commitment_detail_html($com, $definition = array())
     $val = function ($field) use ($nvl) {
         return isset($nvl->$field->value) ? trim((string) $nvl->$field->value) : '';
     };
+
+    // Un compromiso que paga OTRA persona por quien estamos viendo: solo sirve
+    // para AÑADIR "lo paga fulanita". No se esconde nada.
+    $loPagaOtra = sticpa_commitment_lo_paga_otra_persona($com);
+    $titular = $val('stic_payment_commitments_contacts_name');
 
     $periodicity = sticpa_record_enum_label($definition, 'periodicity', $com['periodicity']);
     $method = sticpa_record_enum_label($definition, 'payment_method', $com['method']);
@@ -548,6 +592,11 @@ function sticpa_commitment_detail_html($com, $definition = array())
     $facts = array();
     if ($method !== '') {
         $facts[] = array('icon' => 'card', 'label' => __('Forma de pago', 'sticpa'), 'text' => $method);
+    }
+    // Quién lo paga, cuando no es quien estamos viendo. Es un dato MÁS, y de
+    // los útiles: responde a "¿esto quién lo tiene domiciliado?".
+    if ($loPagaOtra && $titular !== '') {
+        $facts[] = array('icon' => 'user', 'label' => __('Lo paga', 'sticpa'), 'text' => $titular);
     }
     $cuenta = sticpa_payment_mask_account($val('bank_account'));
     if ($cuenta !== '') {
@@ -604,6 +653,10 @@ function sticpa_commitment_detail_html($com, $definition = array())
         // Se dice lo que es. El formulario de pago registra una aportación
         // puntual; no liquida este compromiso por su cuenta.
         $ctaNote = __('Se registra como una aportación puntual. Tu delegación la asocia a este compromiso.', 'sticpa');
+        if ($loPagaOtra && $titular !== '') {
+            /* translators: %s = nombre de quien tiene domiciliado el compromiso */
+            $ctaNote .= ' ' . sprintf(__('La domiciliación sigue a nombre de %s.', 'sticpa'), $titular);
+        }
     }
     $actions[] = array('label' => __('Ver mis pagos', 'sticpa'), 'url' => '?internalpage=list_stic_payments');
 

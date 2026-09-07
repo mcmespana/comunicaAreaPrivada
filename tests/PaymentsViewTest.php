@@ -254,4 +254,58 @@ class PaymentsViewTest extends TestCase
         $this->assertStringContainsString('stic-empty-state', sticpa_payments_list_html(array(), array()));
         $this->assertStringContainsString('stic-empty-state', sticpa_commitments_list_html(array(), array()));
     }
+
+    /**
+     * En la ficha de un participante, un compromiso que paga su familia se ve
+     * ENTERO —cuenta incluida, ya enmascarada como para todo el mundo— y además
+     * dice quién lo paga.
+     *
+     * Se probó lo contrario (esconder el banco cuando el titular es otro) y el
+     * propietario lo tumbó: obligaba a mirar el dinero en la ficha del adulto y
+     * lo demás en la del niño, y con padres separados lo que hace falta es que
+     * cualquiera de los dos pueda saber cómo se pagó algo y pagarlo.
+     */
+    public function testEnLaFichaDelNinoElCompromisoSeVeEnteroYDiceQuienLoPaga()
+    {
+        $GLOBALS['__stic_filters']['sticpa_profile_audience'] = 'participante';
+        $_SESSION['scp_user_id'] = 'hijo-1';
+
+        $com = sticpa_commitment_view_model($this->nvl(array(
+            'id' => 'c1', 'name' => 'Cuota de socio', 'amount' => '20.00',
+            'active' => '1', 'periodicity' => 'monthly', 'payment_method' => 'direct_debit',
+            'bank_account' => 'ES1200491234567890123456',
+            'stic_payment_commitments_contacts_name' => 'Messeguer, Marta',
+            'stic_payment_commitments_contactscontacts_ida' => 'madre-1',
+        )));
+        $html = sticpa_commitment_detail_html($com, $this->defCom() + array(
+            'payment_method' => array('options' => array('direct_debit' => array('value' => 'Domiciliación bancaria'))),
+        ));
+
+        $this->assertStringContainsString('Lo paga', $html);
+        $this->assertStringContainsString('Messeguer, Marta', $html);
+        // Se ve TODO: cuenta (enmascarada) y forma de pago.
+        $this->assertStringContainsString('3456', $html);
+        $this->assertStringContainsString('Domiciliación bancaria', $html);
+        // Y se puede aportar desde aquí.
+        $this->assertStringContainsString('Hacer una aportación', $html);
+
+        unset($GLOBALS['__stic_filters']['sticpa_profile_audience']);
+    }
+
+    /** Si el titular es el propio participante, no hay nada que aclarar. */
+    public function testSiElTitularEsElPropioParticipanteNoSeDiceNada()
+    {
+        $GLOBALS['__stic_filters']['sticpa_profile_audience'] = 'participante';
+        $_SESSION['scp_user_id'] = 'yo-1';
+
+        $com = sticpa_commitment_view_model($this->nvl(array(
+            'id' => 'c1', 'name' => 'Cuota', 'amount' => '20.00', 'active' => '1',
+            'stic_payment_commitments_contacts_name' => 'Yo Mismo',
+            'stic_payment_commitments_contactscontacts_ida' => 'yo-1',
+        )));
+        $this->assertFalse(sticpa_commitment_lo_paga_otra_persona($com));
+        $this->assertStringNotContainsString('Lo paga', sticpa_commitment_detail_html($com, $this->defCom()));
+
+        unset($GLOBALS['__stic_filters']['sticpa_profile_audience']);
+    }
 }
