@@ -89,11 +89,26 @@ if (!function_exists('add_query_arg')) {
     }
 }
 if (!function_exists('__'))          { function __($t, $d = null) { return $t; } }
-if (!function_exists('esc_html'))    { function esc_html($t) { return $t; } }
-if (!function_exists('esc_attr'))    { function esc_attr($t) { return $t; } }
-if (!function_exists('esc_attr__'))  { function esc_attr__($t, $d = null) { return $t; } }
-if (!function_exists('esc_html__'))  { function esc_html__($t, $d = null) { return $t; } }
-if (!function_exists('esc_url'))     { function esc_url($u) { return $u; } }
+// Los esc_* ESCAPAN de verdad. Eran passthrough (`return $t`), así que ningún
+// test podía detectar jamás un escape que faltara: el doble de test decía que
+// sí a todo. Se pinta contenido escrito en el CRM por gente de fuera, y el
+// XSS almacenado es justo lo que los planes 006 y 002 persiguen.
+if (!function_exists('esc_html'))    { function esc_html($t) { return htmlspecialchars((string) $t, ENT_QUOTES, 'UTF-8'); } }
+if (!function_exists('esc_attr'))    { function esc_attr($t) { return htmlspecialchars((string) $t, ENT_QUOTES, 'UTF-8'); } }
+if (!function_exists('esc_attr__'))  { function esc_attr__($t, $d = null) { return esc_attr(__($t, $d)); } }
+if (!function_exists('esc_html__'))  { function esc_html__($t, $d = null) { return esc_html(__($t, $d)); } }
+// esc_url de WordPress descarta esquemas no permitidos (javascript:, data:…)
+// y escapa el resto. Esto es lo mínimo que reproduce ese comportamiento.
+if (!function_exists('esc_url')) {
+    function esc_url($u)
+    {
+        $u = trim((string) $u);
+        if ($u !== '' && preg_match('#^\s*(javascript|vbscript|data)\s*:#i', $u)) {
+            return '';
+        }
+        return htmlspecialchars($u, ENT_QUOTES, 'UTF-8');
+    }
+}
 // La URL de admin-post.php: la usa el avatar con foto de «Mis grupos».
 if (!function_exists('admin_url'))   { function admin_url($p = '') { return '/wp-admin/' . $p; } }
 if (!function_exists('is_singular')) { function is_singular($t = '') { return false; } }

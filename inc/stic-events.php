@@ -95,23 +95,6 @@ function sticpa_events_window_filter()
     return "(stic_events.start_date BETWEEN DATE_ADD(curdate(), INTERVAL -{$back} MONTH) AND DATE_ADD(curdate(), INTERVAL {$ahead} MONTH))";
 }
 
-/** Iconos en línea de la ficha (mismo trazo que el resto del área). */
-function sticpa_event_icon($name)
-{
-    $paths = array(
-        'calendar' => "<rect x='3' y='4' width='18' height='18' rx='2'/><path d='M16 2v4M8 2v4M3 10h18'/>",
-        'pin'      => "<path d='M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z'/><circle cx='12' cy='10' r='3'/>",
-        'clock'    => "<circle cx='12' cy='12' r='9'/><path d='M12 7v5l3 2'/>",
-        'users'    => "<path d='M16 21v-2a4 4 0 0 0-8 0v2'/><circle cx='12' cy='7' r='4'/>",
-        'euro'     => "<path d='M18 7a6 6 0 1 0 0 10'/><path d='M4 10h8M4 14h8'/>",
-        'tag'      => "<path d='M20.6 13.4 12 22l-9-9V4h9z'/><circle cx='7.5' cy='7.5' r='1.5'/>",
-        'go'       => "<path d='M5 12h14'/><path d='m13 6 6 6-6 6'/>",
-        'back'     => "<path d='M19 12H5'/><path d='m11 18-6-6 6-6'/>",
-    );
-    $d = $paths[$name] ?? $paths['calendar'];
-    return "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>{$d}</svg>";
-}
-
 /**
  * Normaliza un evento del CRM a lo que necesita la interfaz. Devuelve null si
  * el registro no tiene ni nombre (fila basura).
@@ -178,59 +161,42 @@ function sticpa_event_view_model($nvl)
 }
 
 /**
- * Rango de fechas en lenguaje natural. Un evento de un día no debe leerse
- * "01-07-2026 – 01-07-2026", y uno dentro del mismo mes no repite el mes.
+ * ALIAS de compatibilidad. El formato de evento se generalizó a "ficha de
+ * registro" (inc/stic-record-view.php) para que lo compartan los ocho módulos
+ * del área. Estos nombres se quedan porque los usan las plantillas y los tests
+ * y no aportan nada renombrarlos; delegan y no duplican una sola regla.
  */
-function sticpa_event_date_line($startTs, $endTs)
+function sticpa_event_icon($name)
 {
-    if (!$startTs) {
-        return '';
-    }
-    $long = function ($ts) {
-        return date_i18n('j \d\e F \d\e Y', $ts);
-    };
-    if (!$endTs || date('Y-m-d', $endTs) === date('Y-m-d', $startTs)) {
-        return $long($startTs);
-    }
-    // Mismo mes y año: "del 1 al 10 de julio de 2026".
-    if (date('Y-m', $startTs) === date('Y-m', $endTs)) {
-        return sprintf(
-            /* translators: 1: día inicio, 2: "10 de julio de 2026" */
-            __('del %1$s al %2$s', 'sticpa'),
-            date_i18n('j', $startTs),
-            $long($endTs)
-        );
-    }
-    return sprintf(__('del %1$s al %2$s', 'sticpa'), $long($startTs), $long($endTs));
+    return sticpa_record_icon($name);
 }
 
-/** Chip de estado del evento (usa el estado del CRM ya traducido). */
+function sticpa_event_date_line($startTs, $endTs)
+{
+    return sticpa_record_date_line($startTs, $endTs);
+}
+
+/** Chip de estado del evento (el estado del CRM, ya traducido). */
 function sticpa_event_status_chip($event, $statusLabel = '')
 {
-    if ($event['is_past']) {
-        return "<span class='stic-ev-chip stic-ev-chip--past'>" . esc_html__('Ya celebrado', 'sticpa') . "</span>";
+    if (!empty($event['is_past'])) {
+        return sticpa_record_chip(__('Ya celebrado', 'sticpa'), 'past');
     }
-    $label = $statusLabel !== '' ? $statusLabel : $event['status'];
-    if ($label === '') {
-        return '';
-    }
-    return "<span class='stic-ev-chip'>" . esc_html($label) . "</span>";
+    return sticpa_record_chip($statusLabel !== '' ? $statusLabel : $event['status'], '');
 }
 
 /** Cápsula de fecha (día grande + mes) a la izquierda de la tarjeta. */
 function sticpa_event_date_badge($event)
 {
-    if (!$event['start_ts']) {
-        return "<span class='stic-ev-badge stic-ev-badge--empty' aria-hidden='true'>" . sticpa_event_icon('calendar') . "</span>";
-    }
-    return "<span class='stic-ev-badge" . ($event['is_past'] ? ' is-past' : '') . "' aria-hidden='true'>"
-        . "<span class='stic-ev-badge-day'>" . esc_html(date_i18n('j', $event['start_ts'])) . "</span>"
-        . "<span class='stic-ev-badge-mon'>" . esc_html(date_i18n('M', $event['start_ts'])) . "</span>"
-        . "</span>";
+    return sticpa_record_date_badge($event['start_ts'] ?? null, !empty($event['is_past']), 'calendar');
 }
 
 /**
  * LISTADO DE EVENTOS como tarjetas.
+ *
+ * Dos acciones y bien separadas: "Ver detalle" (secundaria) e "Inscribirme"
+ * (la principal). Antes solo había "Inscribirse", sin manera de saber a qué te
+ * estabas apuntando.
  *
  * @param array $events    Registros del CRM (objetos con ->name_value_list).
  * @param array $statusMap Mapa valor→etiqueta del enum `status` (del CRM).
@@ -250,12 +216,12 @@ function sticpa_events_list_html($events, $statusMap = array())
     }
 
     if (empty($models)) {
-        return "
-        <div class='stic-empty-state'>
-            <span class='stic-empty-ico'>" . sticpa_event_icon('calendar') . "</span>
-            <p class='stic-empty-title'>" . esc_html__('No hay eventos abiertos ahora mismo', 'sticpa') . "</p>
-            <p class='stic-empty-sub'>" . esc_html__('Cuando se abra la inscripción de una actividad, aparecerá aquí. Los eventos en los que ya estás inscrito están en “Inscripciones”.', 'sticpa') . "</p>
-        </div>";
+        return sticpa_record_empty_html(
+            'calendar',
+            __('No hay eventos abiertos ahora mismo', 'sticpa'),
+            __('Cuando se abra la inscripción de una actividad, aparecerá aquí. Los eventos en los que ya estás inscrito están en “Inscripciones”.', 'sticpa'),
+            array('label' => __('Ver mis inscripciones', 'sticpa'), 'url' => '?internalpage=list_stic_registrations')
+        );
     }
 
     // Próximos primero (por fecha) y los ya celebrados al final: la pantalla
@@ -270,42 +236,47 @@ function sticpa_events_list_html($events, $statusMap = array())
         return $a['is_past'] ? -$cmp : $cmp;
     });
 
-    $html = "<div class='stic-ev-list'>";
+    $cards = array();
     foreach ($models as $event) {
         $detailUrl = '?internalpage=single_stic_events&action=detail&id=' . rawurlencode($event['id']);
         $signUpUrl = '?internalpage=single_stic_registrations&action=create&from=stic_events&id=' . rawurlencode($event['id']);
-        $dateLine = sticpa_event_date_line($event['start_ts'], $event['end_ts']);
-        $statusLabel = $statusMap[$event['status']] ?? '';
 
-        $html .= "<article class='stic-ev-card" . ($event['is_past'] ? ' is-past' : '') . "'>";
-        $html .= "<a class='stic-ev-main' href='" . esc_url($detailUrl) . "'>";
-        $html .= sticpa_event_date_badge($event);
-        $html .= "<span class='stic-ev-body'>";
-        $html .= "<span class='stic-ev-name'>" . esc_html($event['name']) . "</span>";
+        $lines = array();
+        $dateLine = sticpa_record_date_line($event['start_ts'], $event['end_ts']);
         if ($dateLine !== '') {
-            $html .= "<span class='stic-ev-when'>" . sticpa_event_icon('calendar') . "<span>" . esc_html($dateLine) . "</span></span>";
+            $lines[] = array('icon' => 'calendar', 'text' => $dateLine);
         }
-        // Una sola línea de datos extra (lugar si lo hay): en la tarjeta manda
-        // el "cuándo"; el resto se ve en el detalle.
+        // Una sola línea extra (el lugar): en la tarjeta manda el "cuándo";
+        // el resto se ve en la ficha.
         $place = $event['optional']['location']['text'] ?? ($event['optional']['city']['text'] ?? '');
         if ($place !== '') {
-            $html .= "<span class='stic-ev-where'>" . sticpa_event_icon('pin') . "<span>" . esc_html($place) . "</span></span>";
+            $lines[] = array('icon' => 'pin', 'text' => $place);
         }
-        $html .= "<span class='stic-ev-chips'>" . sticpa_event_status_chip($event, $statusLabel) . "</span>";
-        $html .= "</span>";
-        $html .= "</a>";
 
-        $html .= "<div class='stic-ev-actions'>";
-        $html .= "<a class='stic-ev-btn stic-ev-btn--ghost' href='" . esc_url($detailUrl) . "'>" . esc_html__('Ver detalle', 'sticpa') . "</a>";
+        $chips = array();
+        if ($event['is_past']) {
+            $chips[] = array('label' => __('Ya celebrado', 'sticpa'), 'tone' => 'past');
+        } elseif (!empty($statusMap[$event['status']])) {
+            $chips[] = array('label' => $statusMap[$event['status']], 'tone' => '');
+        }
+
+        $actions = array(array('label' => __('Ver detalle', 'sticpa'), 'url' => $detailUrl));
         if (!$event['is_past']) {
-            $html .= "<a class='stic-ev-btn stic-ev-btn--primary' href='" . esc_url($signUpUrl) . "'>" . esc_html__('Inscribirme', 'sticpa') . "</a>";
+            $actions[] = array('label' => __('Inscribirme', 'sticpa'), 'url' => $signUpUrl, 'primary' => true);
         }
-        $html .= "</div>";
-        $html .= "</article>";
-    }
-    $html .= "</div>";
 
-    return $html;
+        $cards[] = array(
+            'url'     => $detailUrl,
+            'ts'      => $event['start_ts'],
+            'name'    => $event['name'],
+            'lines'   => $lines,
+            'chips'   => $chips,
+            'is_past' => $event['is_past'],
+            'actions' => $actions,
+        );
+    }
+
+    return sticpa_record_list_html($cards);
 }
 
 /**
@@ -319,70 +290,53 @@ function sticpa_events_list_html($events, $statusMap = array())
  */
 function sticpa_event_detail_html($event, $statusLabel = '', $canSignUp = true)
 {
-    $dateLine = sticpa_event_date_line($event['start_ts'], $event['end_ts']);
+    $dateLine = sticpa_record_date_line($event['start_ts'], $event['end_ts']);
     $signUpUrl = '?internalpage=single_stic_registrations&action=create&from=stic_events&id=' . rawurlencode($event['id']);
 
-    $html = "<div class='stic-ev-detail'>";
-
-    // --- Cabecera con la identidad del evento ---
-    $html .= "<header class='stic-ev-hero'>";
-    $html .= "<a class='stic-ev-back' href='?internalpage=list_stic_events'>" . sticpa_event_icon('back') . "<span>" . esc_html__('Eventos', 'sticpa') . "</span></a>";
-    $html .= "<h3 class='stic-ev-hero-title'>" . esc_html($event['name']) . "</h3>";
-    $html .= "<div class='stic-ev-hero-meta'>";
-    if ($dateLine !== '') {
-        $html .= "<span class='stic-ev-hero-when'>" . sticpa_event_icon('calendar') . "<span>" . esc_html($dateLine) . "</span></span>";
+    $chips = array();
+    if ($event['is_past']) {
+        $chips[] = array('label' => __('Ya celebrado', 'sticpa'), 'tone' => 'past');
+    } elseif ($statusLabel !== '' || $event['status'] !== '') {
+        $chips[] = array('label' => $statusLabel !== '' ? $statusLabel : $event['status'], 'tone' => '');
     }
-    $html .= sticpa_event_status_chip($event, $statusLabel);
-    $html .= "</div>";
-    $html .= "</header>";
 
-    // --- Datos clave (solo los que el CRM tenga rellenos) ---
     $facts = array();
     if ($event['days'] !== null && $event['days'] > 1) {
         $facts[] = array(
-            'icon' => 'clock',
+            'icon'  => 'clock',
             'label' => __('Duración', 'sticpa'),
             /* translators: %d = número de días */
-            'text' => sprintf(_n('%d día', '%d días', $event['days'], 'sticpa'), $event['days']),
+            'text'  => sprintf(_n('%d día', '%d días', $event['days'], 'sticpa'), $event['days']),
         );
     }
     foreach ($event['optional'] as $item) {
         $facts[] = $item;
     }
-    if (!empty($facts)) {
-        $html .= "<ul class='stic-ev-facts'>";
-        foreach ($facts as $fact) {
-            $html .= "<li class='stic-ev-fact'>"
-                . "<span class='stic-ev-fact-ico'>" . sticpa_event_icon($fact['icon']) . "</span>"
-                . "<span class='stic-ev-fact-body'>"
-                . "<span class='stic-ev-fact-label'>" . esc_html($fact['label']) . "</span>"
-                . "<span class='stic-ev-fact-text'>" . esc_html($fact['text']) . "</span>"
-                . "</span></li>";
-        }
-        $html .= "</ul>";
-    }
 
-    // --- Descripción ---
-    if ($event['description'] !== '') {
-        $html .= "<section class='stic-ev-desc'>";
-        $html .= "<h4>" . esc_html__('Sobre esta actividad', 'sticpa') . "</h4>";
-        // nl2br + esc_html: el CRM guarda texto plano con saltos de línea.
-        $html .= "<div class='stic-ev-desc-body'>" . nl2br(esc_html($event['description'])) . "</div>";
-        $html .= "</section>";
-    }
-
-    // --- Llamada a la acción ---
-    $html .= "<div class='stic-ev-cta-row'>";
+    $actions = array();
+    $ctaNote = '';
     if ($event['is_past']) {
-        $html .= "<p class='stic-ev-cta-note'>" . esc_html__('Esta actividad ya se ha celebrado.', 'sticpa') . "</p>";
+        $ctaNote = __('Esta actividad ya se ha celebrado.', 'sticpa');
     } elseif ($canSignUp) {
-        $html .= "<a class='stic-ev-btn stic-ev-btn--primary stic-ev-btn--lg' href='" . esc_url($signUpUrl) . "'>"
-            . esc_html__('Inscribirme en esta actividad', 'sticpa') . sticpa_event_icon('go') . "</a>";
+        $actions[] = array(
+            'label'   => __('Inscribirme en esta actividad', 'sticpa'),
+            'url'     => $signUpUrl,
+            'primary' => true,
+            'icon'    => 'go',
+        );
     } else {
-        $html .= "<p class='stic-ev-cta-note'>" . esc_html__('Ya tienes una inscripción para esta actividad. Puedes verla en “Inscripciones”.', 'sticpa') . "</p>";
+        $actions[] = array('label' => __('Ver mi inscripción', 'sticpa'), 'url' => '?internalpage=list_stic_registrations');
+        $ctaNote = __('Ya tienes una inscripción para esta actividad.', 'sticpa');
     }
-    $html .= "</div>";
 
-    $html .= "</div>";
-    return $html;
+    return sticpa_record_detail_html(array(
+        'back'     => array('url' => '?internalpage=list_stic_events', 'label' => __('Eventos', 'sticpa')),
+        'title'    => $event['name'],
+        'meta'     => array(array('icon' => 'calendar', 'text' => $dateLine)),
+        'chips'    => $chips,
+        'facts'    => $facts,
+        'sections' => array(array('title' => __('Sobre esta actividad', 'sticpa'), 'body' => $event['description'])),
+        'actions'  => $actions,
+        'cta_note' => $ctaNote,
+    ));
 }

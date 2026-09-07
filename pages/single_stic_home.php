@@ -14,6 +14,17 @@ if (!defined('ABSPATH')) {
 
 list($menuElements, $defaultMenuElement) = getSticMenuElements();
 
+// Las secciones se filtran por AUDIENCIA, igual que en el menú (misma función,
+// para que la home y la barra no digan cosas distintas). A un familiar que solo
+// es familiar, viéndose a sí mismo, le quedan sus datos y poco más: lo suyo de
+// verdad está en la ficha de sus hijos.
+if (function_exists('sticpa_visible_sections')) {
+    $menuElements = sticpa_visible_sections($menuElements);
+}
+$ctx = function_exists('sticpa_viewing_context')
+    ? sticpa_viewing_context()
+    : array('solo_familiar' => false, 'participantes' => 0);
+
 // Nombre de pila a partir de "Apellidos, Nombre" o "Nombre Apellidos".
 $firstNameOf = function ($fullName) {
     $fullName = trim((string) $fullName);
@@ -83,6 +94,11 @@ $portalName = get_option('sticpa_scp_name');
                     esc_html__('Aquí ves los datos de %s y le inscribes a las actividades.', 'sticpa'),
                     '<strong>' . esc_html($participantFirst) . '</strong>'
                 ); ?>
+            <?php elseif (!empty($ctx['solo_familiar'])) : ?>
+                <?php // Familiar y nada más: aquí solo están SUS datos. Decirlo
+                      // evita que busque las inscripciones de su hijo donde no
+                      // están, que es lo que pasaba antes. ?>
+                <?= esc_html__('Aquí están tus datos y lo que se cobra de tu cuenta. Las inscripciones y los documentos de quienes tienes a tu cargo están en su ficha.', 'sticpa'); ?>
             <?php else : ?>
                 <?= esc_html__('Tu espacio personal. Elige una sección para empezar.', 'sticpa'); ?>
             <?php endif; ?>
@@ -96,6 +112,36 @@ $portalName = get_option('sticpa_scp_name');
     </div>
 
     <?php
+    // LA ACCIÓN de la home de un familiar: ir a la ficha de sus hijos. Es a lo
+    // único que entra, así que va arriba, antes que sus propios datos, y no
+    // escondida en el selector de la barra.
+    if (!empty($ctx['solo_familiar']) && !empty($ctx['participantes'])) {
+        $perfiles = function_exists('sticpa_available_profiles') ? sticpa_available_profiles() : array();
+        $tarjetas = array();
+        foreach ($perfiles as $perfil) {
+            $tarjetas[] = array(
+                'url'   => add_query_arg(array(
+                    'action' => 'single_stic_profile_selection',
+                    'profile_selected_id' => $perfil['id'],
+                    'profile_selected_name' => rawurlencode($perfil['name']),
+                    'scp_user_id' => $_SESSION['scp_tutor_user_id'] ?? '',
+                    'scp_user_contact_name' => rawurlencode($_SESSION['scp_tutor_user_contact_name'] ?? ''),
+                    'scp_current_url' => explode('?', $_SERVER['REQUEST_URI'], 2)[0],
+                ), admin_url('admin-post.php')),
+                'icon'  => 'user',
+                'name'  => $perfil['name'],
+                'lines' => array(array('icon' => 'go', 'text' => __('Ver su ficha, inscripciones y pagos', 'sticpa'))),
+            );
+        }
+        if (!empty($tarjetas) && function_exists('sticpa_record_list_html')) {
+            // Misma etiqueta de grupo que usa "Tu cuenta" más abajo: no se
+            // inventa una clase nueva para decir lo mismo.
+            echo "<p class='stic-section-label stic-section-label--mini'>"
+                . esc_html__('A quién tienes a tu cargo', 'sticpa') . "</p>";
+            echo sticpa_record_list_html($tarjetas);
+        }
+    }
+
     // Aviso accionable: monitor/a en modo manual sin el certificado de delitos
     // sexuales subido (sticpa_monitor_ds_pending consulta solo 2 campos al CRM).
     if (function_exists('sticpa_monitor_ds_pending') && sticpa_monitor_ds_pending()) {

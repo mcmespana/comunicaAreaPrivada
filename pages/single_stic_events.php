@@ -22,7 +22,7 @@ if ($eventId === '') {
     $html .= "<div class='stic-empty-state'>"
         . "<p class='stic-empty-title'>" . esc_html__('No hemos encontrado la actividad', 'sticpa') . "</p>"
         . "<p class='stic-empty-sub'>" . esc_html__('Puede que el enlace esté incompleto. Vuelve a Eventos y entra de nuevo.', 'sticpa') . "</p>"
-        . "<a class='stic-ev-btn stic-ev-btn--ghost' href='?internalpage=list_stic_events'>" . esc_html__('Ver eventos', 'sticpa') . "</a>"
+        . "<a class='stic-rec-btn stic-rec-btn--ghost' href='?internalpage=list_stic_events'>" . esc_html__('Ver eventos', 'sticpa') . "</a>"
         . "</div>";
     return;
 }
@@ -35,7 +35,7 @@ if (!$event) {
     $html .= "<div class='stic-empty-state'>"
         . "<p class='stic-empty-title'>" . esc_html__('Esta actividad ya no está disponible', 'sticpa') . "</p>"
         . "<p class='stic-empty-sub'>" . esc_html__('Es posible que se haya retirado. Consulta el resto de actividades abiertas.', 'sticpa') . "</p>"
-        . "<a class='stic-ev-btn stic-ev-btn--ghost' href='?internalpage=list_stic_events'>" . esc_html__('Ver eventos', 'sticpa') . "</a>"
+        . "<a class='stic-rec-btn stic-rec-btn--ghost' href='?internalpage=list_stic_events'>" . esc_html__('Ver eventos', 'sticpa') . "</a>"
         . "</div>";
     return;
 }

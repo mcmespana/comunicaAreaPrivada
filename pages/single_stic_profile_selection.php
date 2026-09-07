@@ -29,59 +29,13 @@
 $pageSettings['fileName'] = basename(__FILE__, ".php");
 
 // ---------- 1) Recuperar participantes a cargo desde el CRM ----------
-$parentModule = 'Contacts';
-$relationship = 'stic_personal_environment_contacts_1';
-$relationshipTypes = defined('RELATIONSHIP_TUTOR_TYPES') ? RELATIONSHIP_TUTOR_TYPES : array();
+// La consulta VIVE EN inc/stic-family.php y está cacheada en sesión: antes
+// estaba aquí dentro, así que para saber cuántos hijos tiene alguien había que
+// pintar esta pantalla entera — y por eso el aterrizaje tras el login no podía
+// decidir si valía la pena enseñarla.
+$availableContacts = sticpa_load_family_participants($objSCP);
 
-$availableContacts = array();
-if (!empty($relationshipTypes)) {
-    $query = "((stic_personal_environment.start_date <= DATE(NOW()) AND (stic_personal_environment.end_date >= DATE(NOW()) OR stic_personal_environment.end_date IS NULL)) AND stic_personal_environment.relationship_type in (";
-    foreach ($relationshipTypes as $key => $type) {
-        if ($key) {
-            $query .= ',';
-        }
-        $query .= "'" . $type . "'";
-    }
-    $query .= "))";
 
-    $getRelatedElements = $objSCP->getRelatedElementsForLoggedUser(array(
-        'module_name' => $parentModule,
-        'module_id' => $_SESSION['scp_tutor_user_id'] ?? $_SESSION['scp_user_id'],
-        'link_field_name' => $relationship,
-        'related_module_query' => $query,
-        'related_fields' => array('id'),
-        'related_module_link_name_to_fields_array' => array(),
-        'deleted' => 0,
-        'order_by' => '',
-        'offset' => '',
-        'limit' => 0,
-    ));
-
-    if (is_array($getRelatedElements)) {
-        foreach ($getRelatedElements as $element) {
-            $related = $objSCP->getRelatedElementsForLoggedUser(array(
-                'module_name' => 'stic_Personal_Environment',
-                'module_id' => $element->name_value_list->id->value,
-                'link_field_name' => 'stic_personal_environment_contacts',
-                'related_fields' => array('id', 'name'),
-                'related_module_link_name_to_fields_array' => array(),
-                'deleted' => 0,
-                'order_by' => '',
-                'offset' => '',
-                'limit' => 0,
-            ));
-            if (isset($related[0]->name_value_list)) {
-                $availableContacts[] = array(
-                    'id' => $related[0]->name_value_list->id->value,
-                    'name' => $related[0]->name_value_list->name->value,
-                );
-            }
-        }
-    }
-}
-
-// Punto de extensión: inyectar/transformar participantes sin tocar esta página.
-$availableContacts = apply_filters('sticpa_familia_participants', $availableContacts);
 
 // Modo DEMO (?familia_demo=1): participantes de prueba para revisar el diseño
 // mientras la parte de relaciones familiares de Sinergia no está montada.
