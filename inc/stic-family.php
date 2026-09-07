@@ -72,9 +72,14 @@ function sticpa_familiar_es_miembro()
     if (isset($_SESSION['scp_tutor_es_miembro'])) {
         return (bool) $_SESSION['scp_tutor_es_miembro'];
     }
-    // Sin sesión de familiar todavía, el rol en sesión ES el suyo.
-    $rol = function_exists('sticpa_get_comunica_role') ? sticpa_get_comunica_role() : '';
-    return $rol !== '';
+    // SOLO LEE LA SESIÓN, no resuelve nada. Antes llamaba a
+    // sticpa_get_comunica_role(), que si el rol no está resuelto PREGUNTA AL
+    // CRM — y esta función la acaba llamando sticpa_profile_audience(), que se
+    // invoca al pintar listados y fichas. O sea: una llamada al CRM por render,
+    // colada por la puerta de atrás, justo en un módulo escrito para no añadir
+    // ni un viaje. Resolver el rol se paga UNA vez, al entrar, en
+    // sticpa_recordar_si_familiar_es_miembro().
+    return !empty($_SESSION['scp_role']);
 }
 
 /**
