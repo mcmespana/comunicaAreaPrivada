@@ -255,4 +255,85 @@ class FamilyContextTest extends TestCase
         $_SESSION['scp_user_id'] = 'h1';
         $this->assertTrue(sticpa_familiar_es_miembro(), 'Sigue siendo monitora');
     }
+
+    /* ==================================================================
+       EL CASO DE SOL MESSEGUER (08/09/2026)
+       ------------------------------------------------------------------
+       Una madre dejó de poder ver a su hija en producción. El CRM estaba
+       BIEN: relación `mother` hacia la hija, con fecha de inicio y sin
+       fecha de fin. Eran tres fallos nuestros a la vez.
+       ================================================================== */
+
+    /**
+     * FALLO 1. "Es miembro del MCM" se decidía con el mapa de roles, que solo
+     * sabe de 'monitor' y 'laico' porque existe para el menú de Pasar Lista.
+     * El tipo de relación de Sol es `^familiar_menor^,^grupo^`: tiene su grupo,
+     * es del Movimiento, y no es ni monitora ni laica. El mapa devolvía '' y la
+     * dábamos por "solo familiar", recortándole el menú.
+     */
+    public function testTenerGrupoTeHaceMiembroAunqueNoSeasMonitorNiLaico()
+    {
+        // El caso real, tal cual viene del CRM.
+        $this->assertTrue(sticpa_es_miembro_por_tipo_de_relacion('^familiar_menor^,^grupo^'));
+        // Y el contrario: si SOLO dice que es familiar de un menor, no lo es.
+        $this->assertFalse(sticpa_es_miembro_por_tipo_de_relacion('^familiar_menor^'));
+        // Sin dato no se supone nada: se supone lo de menos privilegios.
+        $this->assertFalse(sticpa_es_miembro_por_tipo_de_relacion(''));
+        // Un rol reconocido zanja la pregunta aunque el campo venga vacío.
+        $this->assertTrue(sticpa_es_miembro_por_tipo_de_relacion('', 'monitor'));
+    }
+
+    /**
+     * FALLO 2, Y ES EL QUE LE QUITÓ A LA HIJA DE DELANTE. La rama de "familiar
+     * que además es miembro" salía por arriba SIN cargar los participantes, así
+     * que `scp_available_profiles` se quedaba vacío — y el selector de la barra,
+     * que se pinta igualmente, salía sin su hija dentro.
+     */
+    public function testElFamiliarQueEsMiembroTAMBIENCargaSusParticipantes()
+    {
+        $this->sesionFamiliar();
+        $_SESSION['scp_relationship_raw'] = '^familiar_menor^,^grupo^';
+        unset($_SESSION['scp_tutor_es_miembro']);
+
+        // SIN caché en sesión, a propósito: lo que se prueba es que el
+        // aterrizaje LLAMA al cargador. Si se precarga `scp_available_profiles`
+        // el test pasa igual con el código roto — pasó, y no valía para nada.
+        // Los participantes llegan por el filtro, que es la puerta que usa el
+        // cargador cuando no hay CRM.
+        $this->assertArrayNotHasKey('scp_available_profiles', $_SESSION);
+        $GLOBALS['__stic_filters']['sticpa_familia_participants'] = array(
+            array('id' => 'solete', 'name' => 'Messeguer, Solete'),
+        );
+
+        $this->assertSame('single_stic_home', sticpa_landing_page(null));
+        // Se ve a sí misma, que es lo correcto para un miembro...
+        $this->assertTrue($_SESSION['scp_tutor_is_user']);
+        // ...PERO su hija tiene que haber quedado cargada para el selector.
+        $this->assertArrayHasKey('scp_available_profiles', $_SESSION);
+        $this->assertSame('solete', $_SESSION['scp_available_profiles'][0]['id']);
+        $this->assertSame(1, sticpa_viewing_context()['participantes']);
+    }
+
+    /**
+     * FALLO 3. Un vacío que NO se ha podido resolver se cacheaba igual, y la
+     * sesión dura un año: un hipo del CRM y esa persona se queda sin hijos para
+     * siempre. Es literalmente la lección del plan 040, repetida.
+     */
+    public function testUnVacioQueNoSeHaPodidoResolverNoSeCachea()
+    {
+        $_SESSION = array('scp_user_id' => 'f1');
+
+        // Sin cliente del CRM no hay respuesta: no se cachea nada, y a la
+        // siguiente se vuelve a intentar.
+        $this->assertSame(array(), sticpa_load_family_participants(null));
+        $this->assertArrayNotHasKey('scp_available_profiles', $_SESSION);
+
+        // Y en cuanto haya participantes —da igual por dónde lleguen— se
+        // guardan y ya no se vuelve a preguntar.
+        $GLOBALS['__stic_filters']['sticpa_familia_participants'] = array(
+            array('id' => 'solete', 'name' => 'Messeguer, Solete'),
+        );
+        $this->assertCount(1, sticpa_load_family_participants(null));
+        $this->assertArrayHasKey('scp_available_profiles', $_SESSION);
+    }
 }
