@@ -299,6 +299,15 @@ el nombre antiguo que delega en ella.
 > sesión se guarda aparte (`scp_tutor_es_miembro`) nada más entrar. Sin eso, una
 > monitora dejaba de serlo al abrir la ficha de su hija.
 
+> **Y ser MIEMBRO no es lo mismo que tener ROL.** `sticpa_get_comunica_role()`
+> solo sabe decir 'monitor' o 'laico', porque su mapa existe para decidir si se
+> enseñan «Pasar lista» y «Mis grupos». Una madre con
+> `stic_relationship_type_c = ^familiar_menor^,^grupo^` tiene su grupo y es del
+> Movimiento, pero no es ni monitora ni laica: el mapa devolvía `''` y la
+> dábamos por «solo familiar». La pregunta correcta la responde
+> `sticpa_es_miembro_por_tipo_de_relacion()`: **¿dice su tipo de relación algo
+> más que “soy familiar de un menor”?** Pasó en producción el 08/09/2026.
+
 ### 6.3 A dónde se aterriza (`sticpa_landing_page`)
 
 | Quién | A dónde |

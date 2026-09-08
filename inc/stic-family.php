@@ -72,14 +72,68 @@ function sticpa_familiar_es_miembro()
     if (isset($_SESSION['scp_tutor_es_miembro'])) {
         return (bool) $_SESSION['scp_tutor_es_miembro'];
     }
-    // SOLO LEE LA SESIÓN, no resuelve nada. Antes llamaba a
-    // sticpa_get_comunica_role(), que si el rol no está resuelto PREGUNTA AL
-    // CRM — y esta función la acaba llamando sticpa_profile_audience(), que se
-    // invoca al pintar listados y fichas. O sea: una llamada al CRM por render,
-    // colada por la puerta de atrás, justo en un módulo escrito para no añadir
-    // ni un viaje. Resolver el rol se paga UNA vez, al entrar, en
-    // sticpa_recordar_si_familiar_es_miembro().
-    return !empty($_SESSION['scp_role']);
+    // SOLO LEE LA SESIÓN, no resuelve nada: sticpa_profile_audience() acaba
+    // llamando aquí al pintar listados y fichas, y resolver el rol pregunta al
+    // CRM. Eso se paga UNA vez, al entrar (sticpa_recordar_si_familiar_es_miembro).
+    return sticpa_es_miembro_por_tipo_de_relacion(
+        $_SESSION['scp_relationship_raw'] ?? '',
+        $_SESSION['scp_role'] ?? ''
+    );
+}
+
+/**
+ * Marcas de `stic_relationship_type_c` que significan SOLO «familiar de un
+ * menor». Cualquier otra cosa en ese campo es vínculo propio con el MCM.
+ */
+function sticpa_marcas_de_solo_familiar()
+{
+    return apply_filters('sticpa_marcas_de_solo_familiar', array('familiar_menor'));
+}
+
+/**
+ * ¿El tipo de relación de esta persona dice ALGO MÁS que «soy familiar de un
+ * menor»?
+ *
+ * ESTO ARREGLA UN FALLO REAL, y conviene entender por qué no vale el rol.
+ * `sticpa_get_comunica_role()` solo sabe decir 'monitor' o 'laico', porque su
+ * mapa existe para decidir si se enseñan «Pasar lista» y «Mis grupos». Pero ser
+ * MIEMBRO del MCM es más ancho que eso: una madre con `^familiar_menor^,^grupo^`
+ * tiene su grupo y es del Movimiento, y sin embargo no es monitora ni laica, así
+ * que el mapa devolvía '' y la dábamos por «solo familiar». A partir de ahí se le
+ * recortaba el menú y se le escondían secciones que sí son suyas.
+ *
+ * La pregunta correcta es la de arriba: si en su tipo de relación hay algo que
+ * NO sea una marca de «familiar de un menor», es miembro por derecho propio.
+ *
+ * Los valores salen del CRM (`^familiar_menor^,^grupo^`), no de una lista
+ * inventada: se separan por `^` y `,` y se compara en minúsculas.
+ *
+ * @param string $raw  Valor crudo de stic_relationship_type_c.
+ * @param string $role Rol ya detectado ('monitor', 'laico', …), si lo hay.
+ */
+function sticpa_es_miembro_por_tipo_de_relacion($raw, $role = '')
+{
+    // Un rol reconocido zanja la pregunta.
+    if (trim((string) $role) !== '') {
+        return true;
+    }
+    $raw = (string) $raw;
+    if (trim($raw) === '') {
+        // Sin dato NO se supone que sea miembro: se supone lo de menos
+        // privilegios, y el resto de la sesión ya sabe apañarse.
+        return false;
+    }
+    $marcas = array_map('strtolower', sticpa_marcas_de_solo_familiar());
+    foreach (preg_split('/[\^,]+/', $raw) as $trozo) {
+        $trozo = strtolower(trim($trozo));
+        if ($trozo === '') {
+            continue;
+        }
+        if (!in_array($trozo, $marcas, true)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**
@@ -94,7 +148,13 @@ function sticpa_recordar_si_familiar_es_miembro()
         return;
     }
     $rol = function_exists('sticpa_get_comunica_role') ? sticpa_get_comunica_role() : '';
-    $_SESSION['scp_tutor_es_miembro'] = ($rol !== '');
+    // sticpa_get_comunica_role() deja `scp_relationship_raw` puesto de camino,
+    // y ese valor crudo es el que sabe distinguir «solo familiar» de «familiar
+    // y además del MCM». El rol solo/'monitor'/'laico' se queda corto.
+    $_SESSION['scp_tutor_es_miembro'] = sticpa_es_miembro_por_tipo_de_relacion(
+        $_SESSION['scp_relationship_raw'] ?? '',
+        $rol
+    );
 }
 
 /**
@@ -121,6 +181,7 @@ function sticpa_load_family_participants($objSCP, $forzar = false)
 
     $tipos = defined('RELATIONSHIP_TUTOR_TYPES') ? RELATIONSHIP_TUTOR_TYPES : array();
     $participantes = array();
+    $huboRespuesta = false;
 
     if (!empty($tipos) && $objSCP) {
         $comillas = array();
@@ -136,30 +197,62 @@ function sticpa_load_family_participants($objSCP, $forzar = false)
             'module_id' => $_SESSION['scp_tutor_user_id'] ?? ($_SESSION['scp_user_id'] ?? ''),
             'link_field_name' => 'stic_personal_environment_contacts_1',
             'related_module_query' => $query,
-            'related_fields' => array('id'),
+            // EL CAMPO PLANO, ADEMÁS DEL id. Es la regla de la casa
+            // (docs/comunica/PASAR-LISTA-ESTADO.md §3.1): esta instancia no
+            // devuelve enlaces anidados, así que se pide siempre el `..._ida`
+            // y se usa el que llegue. Aquí trae directamente el id de la
+            // persona del otro lado de la relación.
+            'related_fields' => array('id', 'stic_personal_environment_contactscontacts_ida'),
             'related_module_link_name_to_fields_array' => array(),
             'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
         ));
 
+        // Que el CRM CONTESTE es lo que distingue "no tiene hijos" de "no he
+        // podido preguntar". Sin esta marca se cacheaba el fallo (ver abajo).
+        $huboRespuesta = is_array($relaciones);
+
         foreach ((is_array($relaciones) ? $relaciones : array()) as $relacion) {
-            $relId = $relacion->name_value_list->id->value ?? null;
-            if (!$relId) {
+            $nvl = $relacion->name_value_list ?? null;
+            $relId = $nvl->id->value ?? null;
+            $hijoId = isset($nvl->stic_personal_environment_contactscontacts_ida->value)
+                ? trim((string) $nvl->stic_personal_environment_contactscontacts_ida->value)
+                : '';
+            if (!$relId && $hijoId === '') {
                 continue;
             }
-            $persona = $objSCP->getRelatedElementsForLoggedUser(array(
-                'module_name' => 'stic_Personal_Environment',
-                'module_id' => $relId,
-                'link_field_name' => 'stic_personal_environment_contacts',
-                'related_fields' => array('id', 'name'),
-                'related_module_link_name_to_fields_array' => array(),
-                'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
-            ));
-            if (isset($persona[0]->name_value_list->id->value)) {
-                $participantes[] = array(
-                    'id' => $persona[0]->name_value_list->id->value,
-                    'name' => $persona[0]->name_value_list->name->value ?? '',
-                );
+
+            // El nombre hay que ir a buscarlo. Pero el id YA lo tenemos del
+            // campo plano, así que si esta llamada falla NO se pierde al
+            // participante: se le pinta con lo que haya.
+            //
+            // Antes se descartaba la fila entera cuando esta segunda llamada no
+            // devolvía nada (`if (isset($persona[0]...))`), o sea que un hipo
+            // del CRM hacía DESAPARECER a una hija de la lista de su madre.
+            $nombre = '';
+            if ($relId) {
+                $persona = $objSCP->getRelatedElementsForLoggedUser(array(
+                    'module_name' => 'stic_Personal_Environment',
+                    'module_id' => $relId,
+                    'link_field_name' => 'stic_personal_environment_contacts',
+                    'related_fields' => array('id', 'name'),
+                    'related_module_link_name_to_fields_array' => array(),
+                    'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
+                ));
+                if (isset($persona[0]->name_value_list->id->value)) {
+                    $hijoId = $persona[0]->name_value_list->id->value;
+                    $nombre = $persona[0]->name_value_list->name->value ?? '';
+                }
             }
+
+            if ($hijoId === '') {
+                continue;
+            }
+            $participantes[] = array(
+                'id' => $hijoId,
+                // Sin nombre se pinta algo antes que nada: una fila sin texto
+                // no se puede tocar, y perder el acceso es peor que un nombre feo.
+                'name' => $nombre !== '' ? $nombre : __('Participante', 'sticpa'),
+            );
         }
     }
 
@@ -167,7 +260,19 @@ function sticpa_load_family_participants($objSCP, $forzar = false)
     // relaciones familiares de Sinergia todavía no está montada).
     $participantes = apply_filters('sticpa_familia_participants', $participantes);
 
-    $_SESSION['scp_available_profiles'] = $participantes;
+    // NO SE CACHEA UN VACÍO QUE NO SE HA PODIDO RESOLVER. Es exactamente la
+    // lección del plan 040, que ya costó que a un monitor le desaparecieran
+    // «Pasar lista» y «Mis grupos» en producción: si el CRM no contesta y se
+    // guarda el resultado igual, la sesión —que dura un año— se queda pegada
+    // con «esta persona no tiene hijos» y no hay forma de recuperarse salvo
+    // cerrar sesión, si es que alguien acierta a probarlo.
+    //
+    // Una lista VACÍA con respuesta del CRM sí es un dato bueno («no tiene
+    // participantes a cargo») y se cachea. Una lista vacía porque la llamada
+    // falló, no.
+    if (!empty($participantes) || $huboRespuesta) {
+        $_SESSION['scp_available_profiles'] = $participantes;
+    }
     return $participantes;
 }
 
@@ -312,19 +417,25 @@ function sticpa_landing_page($objSCP = null)
         $_SESSION['scp_tutor_user_contact_name'] = $_SESSION['scp_user_contact_name'] ?? '';
     }
 
+    // LOS PARTICIPANTES SE CARGAN SIEMPRE, y esto arregla el fallo que dejó a
+    // una madre sin poder ver a su hija. Antes, la rama de "es miembro del MCM"
+    // salía por arriba SIN cargarlos: `scp_available_profiles` se quedaba sin
+    // poner, y el selector de la barra —que se pinta igualmente, porque
+    // sticpa_is_familia() ve la sesión de tutor— salía VACÍO. Con lo cual la
+    // persona tenía delante un selector de participantes en el que no estaba su
+    // hija. Antes de esta rama funcionaba de rebote: el aterrizaje llevaba a la
+    // pantalla de selección, y era ESA pantalla la que los cargaba.
+    //
+    // Va por el cargador aunque no venga cliente del CRM: con la caché caliente
+    // responde sin tocar el CRM, y se paga una vez por sesión.
+    $participantes = sticpa_load_family_participants($objSCP);
+
     if (sticpa_familiar_es_miembro()) {
         // Miembro del MCM que además es familiar: su casa es su home, y el
         // selector de la barra le lleva a sus hijos cuando quiera.
         $_SESSION['scp_tutor_is_user'] = true;
         return 'single_stic_home';
     }
-
-    // SIEMPRE por el cargador, aunque no venga cliente del CRM: si la caché de
-    // sesión está caliente, la respuesta sale de ahí sin tocar el CRM. Pasando
-    // por alto la caché cuando faltaba el cliente, un familiar con hijos
-    // acababa en SU home en vez de en la de ellos — que es justo lo que este
-    // fichero existe para evitar.
-    $participantes = sticpa_load_family_participants($objSCP);
 
     if (count($participantes) === 1) {
         // Un solo hijo: se entra directamente a lo suyo.

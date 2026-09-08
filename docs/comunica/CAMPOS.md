@@ -210,6 +210,26 @@ Fuente: https://wiki.sinergiatic.org/index.php?title=Estructura_de_datos:_m%C3%B
   - Usado por nosotros: **Sí**
 - `stic_relationship_type_c` — Tipo de relación actual (selección múltiple: Socio / Donante / Voluntario / Usuario / Trabajador / …)
   - Usado por nosotros: **Sí**
+  - **Claves internas vistas en el CRM real** (08/09/2026, por MCP). El campo es
+    multiselección y llega en formato SuiteCRM, `^clave^,^clave^`:
+
+    | Clave | Qué significa |
+    |---|---|
+    | `familiar_menor` | Es familiar de un participante menor. **Es la única marca que, ella sola, NO te hace miembro del MCM** |
+    | `grupo` | Tiene grupo: es del Movimiento por derecho propio |
+    | `participante_mic_com` | Participante de MIC/COM |
+
+    Esta lista **no es exhaustiva**: son los valores observados, no el
+    desplegable entero. Si necesitas uno que no esté, míralo en el CRM y
+    apúntalo aquí.
+  - **El área privada NO decide con esto quién es monitor o laico.** Para eso
+    está `sticpa_detect_role_from_relationship()`, cuyo mapa solo busca
+    'monitor' / 'laic' / 'com-lc' / 'grupo com' porque existe para saber si se
+    enseñan «Pasar lista» y «Mis grupos». **Ser MIEMBRO del MCM es más ancho que
+    tener rol**: lo resuelve `sticpa_es_miembro_por_tipo_de_relacion()`
+    (`inc/stic-family.php`), que pregunta si hay algo aparte de las marcas de
+    «solo familiar». Confundir las dos cosas dejó a una madre con
+    `^familiar_menor^,^grupo^` sin poder ver a su hija (08/09/2026).
 - `stic_conduct_code_c` — Código de conducta
   - Tipo: casilla. Verificado contra el CRM el 28/08/2026: **existe y estaba sin
     documentar aquí**. El área privada lo enseña en el bloque «En regla» de la
