@@ -992,8 +992,11 @@ function sugar_crm_portal_index($html = "")
 
     $objSCP = SugarRestApiCall::getObjSCP();
 
-    $html .= menu();
-
+    // EL ATERRIZAJE SE DECIDE ANTES DE PINTAR EL MENÚ. Estaba después, y por eso
+    // en la PRIMERA pantalla tras entrar el selector de participante se
+    // construía sin datos: sticpa_landing_page() es quien deja en sesión quién
+    // es el familiar y qué participantes tiene, y el menú los lee. Pintar
+    // primero y decidir después era pintar con la sesión a medio montar.
     if (!isset($_REQUEST['internalpage'])) {
         // A DÓNDE SE ATERRIZA. Antes se decidía aquí con `scp_user_adult` (que
         // no significa "es mayor de edad", ver inc/stic-family.php) y solo tenía
@@ -1009,6 +1012,9 @@ function sugar_crm_portal_index($html = "")
     } else {
         $currentPage = $_REQUEST['internalpage'];
     }
+
+    $html .= menu();
+
     $pageFile = sticpa_resolve_page_file($currentPage);
     if ($pageFile !== '') {
         ob_start();
