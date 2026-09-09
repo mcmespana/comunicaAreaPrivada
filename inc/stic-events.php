@@ -58,8 +58,17 @@ function sticpa_event_optional_fields()
  */
 function sticpa_event_fields_to_request($objSCP)
 {
-    $base = array('id', 'name', 'status', 'type', 'start_date', 'end_date', 'description');
+    // `assigned_user_id` es BASE y no opcional: es la delegación del evento, y
+    // de ella depende quién puede apuntarse (inc/stic-event-audience.php).
+    $base = array('id', 'name', 'status', 'type', 'start_date', 'end_date', 'description', 'assigned_user_id');
     $wanted = array_keys(sticpa_event_optional_fields());
+    // Los campos de AUDIENCIA se piden igual que los opcionales —solo si
+    // existen— para que el filtro se pueda desplegar antes de crearlos en el
+    // CRM: un campo que no está no restringe nada y no rompe la llamada.
+    if (function_exists('sticpa_event_audience_fields')) {
+        $wanted = array_merge($wanted, sticpa_event_audience_fields());
+    }
+    $wanted = array_values(array_unique($wanted));
     if (empty($wanted) || !function_exists('sticpa_cached_field_definition')) {
         return $base;
     }
@@ -157,6 +166,11 @@ function sticpa_event_view_model($nvl)
         'is_past' => $isPast,
         'days' => $days,
         'optional' => $optional,
+        // A quién va dirigido (delegación, perfiles, cursos). Va en el modelo
+        // para que listado y ficha decidan con lo mismo, igual que las fechas.
+        'audiencia' => function_exists('sticpa_event_audience_from_nvl')
+            ? sticpa_event_audience_from_nvl($nvl)
+            : array('delegacion' => $val('assigned_user_id'), 'ambito' => '', 'perfiles' => array(), 'cursos' => array()),
     );
 }
 
@@ -287,8 +301,13 @@ function sticpa_events_list_html($events, $statusMap = array())
  * @param array  $event       Modelo de sticpa_event_view_model().
  * @param string $statusLabel Etiqueta traducida del estado.
  * @param bool   $canSignUp   Si se ofrece el botón de inscripción.
+ * @param string $audienceNote Motivo por el que esta actividad no es para
+ *                             quien mira (audiencia). Si viene, NO se ofrece
+ *                             el botón y se explica por qué: a la ficha se
+ *                             llega por enlaces que se pasan por WhatsApp, y
+ *                             un «no puedes» sin motivo es la peor pantalla.
  */
-function sticpa_event_detail_html($event, $statusLabel = '', $canSignUp = true)
+function sticpa_event_detail_html($event, $statusLabel = '', $canSignUp = true, $audienceNote = '')
 {
     $dateLine = sticpa_record_date_line($event['start_ts'], $event['end_ts']);
     $signUpUrl = '?internalpage=single_stic_registrations&action=create&from=stic_events&id=' . rawurlencode($event['id']);
@@ -315,18 +334,28 @@ function sticpa_event_detail_html($event, $statusLabel = '', $canSignUp = true)
 
     $actions = array();
     $ctaNote = '';
+    $audienceNote = trim((string) $audienceNote);
+    // El ORDEN importa. «Ya estás inscrito» va antes que la audiencia porque
+    // es un hecho sobre esta persona: a quien ya tiene su plaza no se le dice
+    // «esta actividad no es para ti» aunque hoy no cumpla el filtro (le han
+    // cambiado el curso, se ha ido de la delegación…). Primero lo que ES, y
+    // solo después lo que puede hacer.
     if ($event['is_past']) {
         $ctaNote = __('Esta actividad ya se ha celebrado.', 'sticpa');
-    } elseif ($canSignUp) {
+    } elseif (!$canSignUp) {
+        $actions[] = array('label' => __('Ver mi inscripción', 'sticpa'), 'url' => '?internalpage=list_stic_registrations');
+        $ctaNote = __('Ya tienes una inscripción para esta actividad.', 'sticpa');
+    } elseif ($audienceNote !== '') {
+        // No es para ti: no se ofrece apuntarse, y se dice por qué.
+        $ctaNote = $audienceNote;
+        $actions[] = array('label' => __('Ver otras actividades', 'sticpa'), 'url' => '?internalpage=list_stic_events');
+    } else {
         $actions[] = array(
             'label'   => __('Inscribirme en esta actividad', 'sticpa'),
             'url'     => $signUpUrl,
             'primary' => true,
             'icon'    => 'go',
         );
-    } else {
-        $actions[] = array('label' => __('Ver mi inscripción', 'sticpa'), 'url' => '?internalpage=list_stic_registrations');
-        $ctaNote = __('Ya tienes una inscripción para esta actividad.', 'sticpa');
     }
 
     return sticpa_record_detail_html(array(

@@ -4,11 +4,22 @@
 
 ---
 
-> **Última revisión contra el CRM: 28 de agosto de 2026.** Se verificaron los
+> **Última revisión contra el CRM: 9 de septiembre de 2026.** Se verificaron
+> por MCP `stic_Events` (59 campos), `stic_Contacts_Relationships` (40) y
+> `ajmcm_GRUPOS` (31), más los valores reales de sus desplegables. De ahí sale
+> la sección nueva de **Eventos** en §1 —con los tres ejes de quién puede
+> apuntarse— y **la corrección de `ajmcm_curso_escolar_c`**, que este documento
+> daba por vacío y por «año académico» y es ni una cosa ni la otra.
+>
+> ⚠️ **El MCP no devuelve las opciones de los desplegables**, solo el tipo. Los
+> valores que se listan como «vistos» salen de datos reales, así que son «lo
+> que se usa», no necesariamente el dominio completo. Si necesitas una clave
+> que no esté, míralas en el CRM y apúntalas aquí.
+>
+> **Revisión anterior: 28 de agosto de 2026.** Se verificaron los
 > campos que usa la ficha del monitor del área privada (`get_module_fields` de
 > `Contacts`, `ajmcm_GRUPOS` y `stic_Contacts_Relationships`). De ahí salen los
-> tres campos `stic_` que faltaban en §2, la corrección de `phone_mobile` y los
-> avisos de §1 sobre `ajmcm_pasar_lista_c` y `ajmcm_curso_escolar_c`.
+> tres campos `stic_` que faltaban en §2 y la corrección de `phone_mobile`.
 >
 > ## Este fichero es EL ORIGINAL. No hay otro.
 >
@@ -173,12 +184,32 @@ nocturnos `ajmcm_n_participantes_c` / `ajmcm_n_monitores_c` / `ajmcm_monitores_c
 ### Relaciones con personas (`stic_Contacts_Relationships`)
 
 - `ajmcm_curso_escolar_c` — Curso escolar (desplegable)
-  - ⚠️ **Existe y está VACÍO en todas las relaciones reales** (comprobado el
-    28/08/2026). Por eso el área privada deduce el curso de `start_date` y
-    `end_date` en vez de leerlo de aquí.
-  - Si algún día se empieza a rellenar, **hay que mirar antes las claves
-    internas de su desplegable**: si guarda `2024_2025` y el código calcula
-    `2024-2025`, el histórico de cada monitor se parte en dos entradas por curso.
+  - ⚠️ **CORRECCIÓN DEL 09/09/2026, y es importante.** Este documento decía que
+    el campo estaba «VACÍO en todas las relaciones reales» (28/08/2026) y que
+    guardaría el curso escolar tipo `2024_2025`. Las dos cosas eran falsas:
+    - **Ya está relleno** en muchas relaciones (comprobado por MCP el
+      09/09/2026).
+    - **No guarda el año académico, guarda el NIVEL ESCOLAR.** Claves vistas:
+      `4_primaria`, `5_primaria`, `6_primaria`, `1_eso`, `2_eso`, `3_eso`,
+      `4_eso`, `1_bachillerato`, `2_bachillerato`, `universitario`, `otros`.
+      (Lista de valores OBSERVADOS, no el desplegable entero: el MCP no
+      devuelve las opciones de los enum. Si necesitas uno que no esté, míralo
+      en el CRM y apúntalo aquí.)
+  - **No hay bug que arreglar en Pasar Lista**: lo que allí se deduce de
+    `start_date`/`end_date` es el AÑO académico (`2025-2026`), que es otra cosa
+    y sigue sin vivir en ningún campo. Son dos ejes:
+    ```
+    Año académico  →  2025-2026  ·  se deduce de las fechas de la relación
+    Nivel escolar  →  1_eso      ·  ajmcm_curso_escolar_c
+    ```
+  - ⚠️ **TRAMPA CON LAS RELACIONES DE MONITOR.** En una relación de tipo
+    `monitor` este campo lleva el curso **del grupo que lleva**, no el de la
+    persona: hay monitoras adultas con `5_primaria`. Quien lea este campo como
+    «el curso de esta persona» tiene que **quedarse solo con las relaciones de
+    participante** (`participante_mic_com` y `grupo`). Lo hace
+    `sticpa_viewer_audience()` (`inc/stic-event-audience.php`).
+  - **Sus claves casan con `stic_Events.ajmcm_filtro_edades_c`** y de ahí sale
+    el filtro de «a qué cursos va dirigido este evento». Ver §1 → Eventos.
 - `ajmcm_delegacion_c` — Delegación de la relación (desplegable)
   - ⚠️ Sus claves NO son las de `ajmcm_procendencia_c` de personas: aquí
     `vilareal`, allí `vila-real`. Dos enums de delegación con formatos distintos.
@@ -188,6 +219,85 @@ nocturnos `ajmcm_n_participantes_c` / `ajmcm_n_monitores_c` / `ajmcm_monitores_c
 El resto de campos de este módulo (`relationship_type` y sus valores,
 `start_date`, `end_date`, `active`, el vínculo con el grupo) están en
 [`PASAR-LISTA-CAMPOS-CRM.md`](PASAR-LISTA-CAMPOS-CRM.md) §3.
+
+Claves de `relationship_type` observadas en el CRM (09/09/2026):
+`participante_mic_com`, `grupo`, `monitor`, `coordinacion_mic_com`,
+`acompanamiento_mic_com`, `familiar_menor`.
+
+### Eventos (`stic_Events`)
+
+El módulo tiene 59 campos. Aquí van los que usa el área privada y, sobre todo,
+**los que deciden QUIÉN PUEDE APUNTARSE**, que es la parte que se malinterpreta:
+los grupos de seguridad del CRM **no** filtran nada de lo que se ve en el área
+privada, porque el plugin se conecta con un usuario técnico y no con la persona
+que ha entrado. Todo lo que no filtre el plugin, se ve. La lógica está en
+[`inc/stic-event-audience.php`](../../inc/stic-event-audience.php) y el diseño
+funcional en [`EVENTOS.md`](EVENTOS.md) §5.
+
+**Los tres ejes de la audiencia**
+
+- `assigned_user_id` — Asignado a → **la delegación dueña del evento**
+  - Es lo que separa el evento local del de otra delegación. Un evento asignado
+    al «Administrador MCM» (id `1`) o sin asignar se entiende como de todas.
+- `ajmcm_ambito_c` — Ámbito 🔨 **POR CREAR** (ver la ficha en `EVENTOS.md` §5.2)
+  - Desplegable: `local` [Solo su delegación] · `nacional` [Todas las delegaciones]
+  - Si está vacío, el ámbito se deduce de `assigned_user_id` (con delegación =
+    local; sin delegación = nacional), así que el campo es opcional: sirve para
+    decir «este evento es de Castellón y AUN ASÍ es para todas».
+- `ajmcm_dirigido_a_c` — Dirigido a 🔨 **POR CREAR** (ficha en `EVENTOS.md` §5.2)
+  - Selección **múltiple**: `participante` [Participantes de MIC y COM] ·
+    `grupo_com_lc` [Miembros con grupo COM-LC] · `monitor` [Monitores/as] ·
+    `coordinacion` [Equipo de coordinación] · `familia` [Familias]
+  - Vacío = **para todos los perfiles**. Es el eje de «congreso solo para
+    monitores» y de «evento para miembros COM-LC».
+  - Las claves son **las mismas de `relationship_type`** a propósito, para no
+    mantener dos vocabularios que dicen lo mismo. El mapa vive en
+    `sticpa_event_audience_perfil_map()`.
+- `ajmcm_filtro_edades_c` — Cursos a los que va dirigido ✅ **YA EXISTE Y YA SE USA**
+  - Selección múltiple. Valores vistos: `4_primaria`, `5_primaria`,
+    `6_primaria`, `1_eso`, `2_eso`, `3_eso`, `4_eso`, `1_bachillerato`,
+    `2_bachillerato`.
+  - **No había que crearlo**: estaba creado y relleno (las sesiones semanales
+    del MIC llevan `^4_primaria^,^5_primaria^,^6_primaria^` y las del COM de
+    1.º de la ESO a 2.º de bachillerato). Lo que faltaba era que el área
+    privada lo mirara.
+  - Se compara con `stic_Contacts_Relationships.ajmcm_curso_escolar_c`, que usa
+    **las mismas claves**. ⚠️ Al de la persona le faltan en el del evento
+    `universitario` y `otros`: hay que **añadirlos al desplegable del evento**
+    para poder sacar un evento de universitarios.
+  - Vacío = para todos los cursos. Y **solo estrecha entre participantes**:
+    a quien no tiene curso propio (un monitor, una madre) no se le aplica, o
+    los monitores del MIC se quedarían fuera de las sesiones del MIC.
+
+⚠️ **NO se filtra por `ajmcm_etapa_c` del evento** (multienum `MIC`/`COM`/`LC`,
+obligatorio) aunque parezca el candidato natural. Ese campo dice a qué etapas
+**sirve el evento en Pasar Lista** —un sábado marcado `^MIC^,^COM^` comparte
+sesiones—, no a quién se le ofrece: un congreso de monitores marcado `^COM^`
+dejaría fuera a los monitores del MIC. Un campo, un significado.
+
+⚠️ **`target_audience` existe y NO lo usamos.** Es un enum de SinergiaCRM, de
+selección simple y con su propio dominio, y está vacío en todos los eventos.
+Se deja quieto: no se le mete nuestro vocabulario a un campo ajeno, y con uno
+solo no se puede decir «monitores Y coordinación». Anotado para que nadie cree
+otro campo pensando que este estaba libre.
+
+**Lo demás del módulo que ya existe** (y que corrige lo que `EVENTOS.md` pedía
+crear: varios estaban creados con otro nombre). Comprobado el 09/09/2026:
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `name` | texto | Obligatorio |
+| `start_date` / `end_date` | fecha | Solo fecha, sin hora |
+| `status` | desplegable | Valor visto: `registration` |
+| `type` | desplegable | Valor visto: `working_day` |
+| `description` | texto largo | |
+| `max_attendees` | entero | **Es el «aforo»**; no existe `capacity` |
+| `price` | decimal | |
+| `ajmcm_start_inscripcion_c` / `ajmcm_end_inscripcion_c` | fecha | **La ventana de inscripción**; no existe `registration_end` |
+| `timetable` | texto | El horario, en texto libre; no hay campo de hora |
+| `ajmcm_etapa_c` | selección múltiple | `MIC` · `COM` · `LC`. Para Pasar Lista, **no** para la audiencia |
+| `attendees`, `total_hours`, `budget`, `actual_cost`… | varios | Gestión, no se usan en el área |
+| `stic_events_fp_event_locations` | relación | **El lugar es una relación a un módulo de ubicaciones**, no un texto: no existen `location`, `city` ni `address` |
 
 ---
 

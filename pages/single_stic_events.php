@@ -27,7 +27,7 @@ if ($eventId === '') {
     return;
 }
 
-$detail = $objSCP->getRecordDetail($eventId, 'stic_Events');
+$detail = $objSCP->getRecordDetail($eventId, 'stic_Events', sticpa_event_fields_to_request($objSCP));
 $nvl = $detail->entry_list[0]->name_value_list ?? null;
 $event = $nvl ? sticpa_event_view_model($nvl) : null;
 
@@ -55,4 +55,17 @@ if (function_exists('prefix_user_has_active_registration')) {
     $canSignUp = !prefix_user_has_active_registration($objSCP, $eventId);
 }
 
-$html .= sticpa_event_detail_html($event, $statusLabel, $canSignUp);
+// AUDIENCIA. A esta ficha se llega por enlace directo, así que el filtro del
+// listado no basta: aquí se comprueba otra vez y, si la actividad no es para
+// quien mira, se le explica por qué en vez de ofrecerle un botón que el
+// guardado le va a rechazar. No cuesta una llamada más: el evento ya está
+// cargado y se le pasa su `name_value_list`.
+$audienceNote = '';
+if (function_exists('sticpa_event_audience_check')) {
+    $audienceNote = sticpa_event_audience_verdict_notice(
+        $objSCP,
+        sticpa_event_audience_check($objSCP, $eventId, $nvl)
+    );
+}
+
+$html .= sticpa_event_detail_html($event, $statusLabel, $canSignUp, $audienceNote);

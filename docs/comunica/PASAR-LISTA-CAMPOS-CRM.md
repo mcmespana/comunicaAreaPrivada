@@ -103,7 +103,14 @@ conviene dejarlo escrito, porque si no dentro de un año nadie se acuerda.
 
 | Campo | Tipo | Para qué |
 |---|---|---|
-| `ajmcm_etapa_c` | **selección múltiple** (`MIC`, `COM`, `LC`) | A qué etapas sirve el evento de sesiones semanales |
+| `ajmcm_etapa_c` ✅ **ya creado** | **selección múltiple** (`MIC`, `COM`, `LC`) | A qué etapas sirve el evento de sesiones semanales |
+
+Verificado el 09/09/2026: existe, es `multienum`, es **obligatorio**, y está
+relleno (`^MIC^,^COM^` en la convivencia inicial). Nada que crear.
+
+⚠️ **Este campo NO decide quién puede apuntarse a un evento.** Dice a qué
+etapas sirve el evento en Pasar Lista. La audiencia de la inscripción tiene sus
+propios campos y está en [`EVENTOS.md`](EVENTOS.md) §3.
 
 Es de selección **múltiple** a propósito: en una delegación pequeña el sábado es
 el mismo para MIC y para COM, y entonces hay UN evento marcado con las dos. El
@@ -240,19 +247,35 @@ por los dos porque puede estar creada en cualquier sentido.
 | ↳ `grupo` | El papel de los **+18** en su grupo de referencia. Cuenta como participante del grupo a todos los efectos (lista de marcado y recuento) — corregido el 24/08, `sticpa_pl_rel_types()` en PHP y `PAPELES` en el Guardián |
 | `ajmcm_grupos_stic_contacts_relationships_*` | **El vínculo persona ↔ grupo.** La pieza central |
 | `ajmcm_etapa_relacion_c` | Etapa de esa relación |
-| `ajmcm_curso_escolar_c` | **Existe y está VACÍO en todas las relaciones reales** (comprobado 28/08/2026). Ver el aviso de abajo |
+| `ajmcm_curso_escolar_c` | **El NIVEL escolar** (`1_eso`, `6_primaria`…), y **ya está relleno** (09/09/2026). No es el año académico. Ver el aviso de abajo |
 | `ajmcm_delegacion_c` | Delegación de la relación. Sus claves NO son las de `ajmcm_procendencia_c` de `Contacts`: aquí `vilareal`, allí `vila-real`. Sin documentar en `CAMPOS.md` |
 | `start_date` / `end_date` / `active` | Vigencia — permite el histórico por curso |
 | `end_reason` / `other_end_reasons` | Motivo del fin. Sin documentar, sin usar |
 
-⚠️ **El curso escolar del histórico se DEDUCE de las fechas**, no se lee de
-`ajmcm_curso_escolar_c`: el campo existe pero está vacío en todas las
-relaciones. Lo calcula `sticpa_pl_rel_cursos()`, con septiembre como corte, y
-una relación que duró tres años sale en los tres cursos porque los tres estuvo.
+⚠️ **El curso escolar del histórico se DEDUCE de las fechas**, y eso sigue
+estando bien, pero por otro motivo del que decía este documento. Lo calcula
+`sticpa_pl_rel_cursos()`, con septiembre como corte, y una relación que duró
+tres años sale en los tres cursos porque los tres estuvo.
 
-Si algún día se empieza a rellenar el campo, **hay que mirar antes las claves
-internas de su desplegable**: si guarda `2024_2025` y nosotros calculamos
-`2024-2025`, mezclarlos parte el histórico en dos entradas por curso.
+**CORRECCIÓN DEL 09/09/2026.** Aquí se decía que `ajmcm_curso_escolar_c` estaba
+vacío y que guardaría algo tipo `2024_2025`. Las dos cosas eran falsas: el campo
+**ya está relleno** y lo que guarda es el **NIVEL escolar**, no el año. Son dos
+ejes distintos y ninguno sustituye al otro:
+
+```
+Año académico  →  2025-2026  ·  se deduce de las fechas (esto es lo de aquí)
+Nivel escolar  →  1_eso      ·  ajmcm_curso_escolar_c
+```
+
+Claves vistas del nivel: `4_primaria`, `5_primaria`, `6_primaria`, `1_eso`,
+`2_eso`, `3_eso`, `4_eso`, `1_bachillerato`, `2_bachillerato`, `universitario`,
+`otros`. Casan con `stic_Events.ajmcm_filtro_edades_c`, y de ahí sale el filtro
+de audiencia de los eventos ([`EVENTOS.md`](EVENTOS.md) §3).
+
+⚠️ **Y ojo al leerlo: en las relaciones de `monitor` este campo lleva el curso
+DEL GRUPO que lleva**, no el de la persona (hay monitoras adultas con
+`5_primaria`). Quien quiera «el curso de esta persona» tiene que quedarse solo
+con las relaciones de participante (`participante_mic_com` y `grupo`).
 
 ⚠️ **La consulta de relaciones NO filtra por vigencia**: devuelve también las
 terminadas, y filtrarlas en SQL se descartó porque una consulta que el CRM
