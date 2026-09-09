@@ -4065,7 +4065,12 @@ function sticpa_pl_mis_rels($objSCP, $userId)
     if ($userId === '') {
         return array();
     }
-    $cacheKey = sticpa_pl_cache_key('misrels', $objSCP, $userId);
+    // Clave nueva ('misrels2') y no la de antes: a esta consulta se le añadieron
+    // `active` y `ajmcm_curso_escolar_c` para la audiencia de los eventos, y una
+    // caché escrita por la versión anterior no los trae. Con la clave vieja, el
+    // filtro de cursos se quedaría 24 h sin datos sin que nada fallara —la misma
+    // trampa que obligó a renombrar 'relshist'—.
+    $cacheKey = sticpa_pl_cache_key('misrels2', $objSCP, $userId);
     $ttl = sticpa_pl_ttl_structure();
     if ($ttl > 0) {
         $cached = get_transient($cacheKey);
@@ -4090,6 +4095,12 @@ function sticpa_pl_mis_rels_params($userId)
         'related_fields' => array(
             'id', 'relationship_type', 'end_date', 'ajmcm_etapa_relacion_c',
             'ajmcm_grupos_stic_contacts_relationshipsajmcm_grupos_ida',
+            // `active` y `ajmcm_curso_escolar_c` los usa la AUDIENCIA de los
+            // eventos (inc/stic-event-audience.php): con ellos aquí, saber a
+            // qué eventos puede apuntarse alguien no cuesta ni una llamada
+            // más, porque esta ya se hace y está cacheada. Dos campos más en
+            // la MISMA llamada son gratis; una llamada nueva no.
+            'active', 'ajmcm_curso_escolar_c',
         ),
         'related_module_link_name_to_fields_array' => array(
             array('name' => 'ajmcm_grupos_stic_contacts_relationships', 'value' => array('id')),

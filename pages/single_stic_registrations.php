@@ -202,6 +202,19 @@ if (!empty($_REQUEST['id']) && $_REQUEST['action'] !== 'create') {
     }
 }
 
+// El evento se lee UNA SOLA VEZ: lo necesitan el guard de audiencia y la
+// tarjeta de "Te inscribes a". Antes solo lo leía la tarjeta; ahora hay dos
+// clientes, y dos `getRecordDetail` del MISMO evento en la misma pantalla son
+// un viaje al CRM regalado en la webview de un sábado por la tarde.
+$eventNvl = null;
+if (!empty($eventId) && $_REQUEST['action'] !== 'edit' && $_REQUEST['action'] !== 'detail') {
+    $eventFields = function_exists('sticpa_event_fields_to_request')
+        ? sticpa_event_fields_to_request($objSCP)
+        : null;
+    $eventDetail = $objSCP->getRecordDetail($eventId, 'stic_Events', $eventFields);
+    $eventNvl = $eventDetail->entry_list[0]->name_value_list ?? null;
+}
+
 // Mismo guard que el guardado server-side (inc/stic-action.php): evita ofrecer
 // el formulario si ya hay una inscripción activa para este evento.
 $alreadyRegistered = false;
@@ -209,8 +222,25 @@ if ($_REQUEST['action'] == 'create' && !empty($eventId) && function_exists('pref
     $alreadyRegistered = prefix_user_has_active_registration($objSCP, $eventId);
 }
 
+// AUDIENCIA: y esta actividad, ¿es para quien la está pidiendo? El formulario
+// se alcanza por URL (`?action=create&from=stic_events&id=…`), así que no vale
+// con que el listado y la ficha no la ofrezcan. El guardado lo comprueba otra
+// vez (inc/stic-action.php): esto es solo para no enseñar un formulario que va
+// a acabar en un rechazo.
+$audienceBlocked = '';
+if ($_REQUEST['action'] == 'create' && !empty($eventId) && !$alreadyRegistered
+    && function_exists('sticpa_event_audience_check')) {
+    $audienceBlocked = sticpa_event_audience_verdict_notice(
+        $objSCP,
+        sticpa_event_audience_check($objSCP, $eventId, $eventNvl)
+    );
+}
+
 if ($eventId && $_REQUEST['action'] !== 'edit' && $_REQUEST['action'] !== 'detail') {
-    $event = $objSCP->getRecordDetail($eventId, 'stic_Events')->entry_list[0]->name_value_list;
+    // Si el CRM no devolvió el evento, la tarjeta sale vacía —como antes— pero
+    // sin avisos de "propiedad de null": el campo oculto con el id se añade
+    // igual al final del bloque, para no perder la relación al guardar.
+    $event = $eventNvl ?: new stdClass();
     $evName  = $event->name->value ?? '';
     $evStart = !empty($event->start_date->value) ? formatValue($event->start_date->value, 'date') : '';
     $evEnd   = !empty($event->end_date->value) ? formatValue($event->end_date->value, 'date') : '';
@@ -259,11 +289,29 @@ if ($eventId && $_REQUEST['action'] !== 'edit' && $_REQUEST['action'] !== 'detai
         'name' => 'stic_registrations_stic_eventsstic_events_ida',
         'type' => 'select',
         'label' => __('Event', 'sticpa'), // this field can't return label from API cause _ida field doesn't have label
-        'selectValues' => getRelatedRecord($objSCP, 'stic_Events', $eventsQuery)
+        // Al CREAR, el desplegable pasa por el filtro de audiencia: ofrecer un
+        // evento de otra delegación en una lista es ofrecerlo igual.
+        // Al EDITAR no se filtra, o el evento ya elegido podría desaparecer del
+        // desplegable y guardar perdería la relación.
+        'selectValues' => getRelatedRecord($objSCP, 'stic_Events', $eventsQuery, $isNewRegistration)
     );
 }
 
+// Dos razones distintas para NO ofrecer el formulario, y la misma pantalla:
+// tarjeta del evento + aviso + "Volver". Antes solo existía la de "ya estás
+// inscrito"; la audiencia (otra delegación, otro perfil, otro curso) entra por
+// aquí en vez de duplicar el montaje.
+$blockedTitle = '';
+$blockedText = '';
 if ($alreadyRegistered) {
+    $blockedTitle = __('Ya estás inscrito', 'sticpa');
+    $blockedText = __('Ya cuentas con una inscripción activa para este evento. No es necesario que te vuelvas a inscribir.', 'sticpa');
+} elseif ($audienceBlocked !== '') {
+    $blockedTitle = __('Esta actividad no es para ti', 'sticpa');
+    $blockedText = $audienceBlocked;
+}
+
+if ($blockedText !== '') {
     // Show warning card and only a "Back" button
     $formSettings['submitButton'] = array('back' => __('Volver', 'sticpa'));
     $formSettings['submitButtonType'] = array('back' => 'button');
@@ -286,8 +334,8 @@ if ($alreadyRegistered) {
             <li class="stic-warning-card">
                 <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 <div>
-                    <strong>' . __('Ya estás inscrito', 'sticpa') . '</strong>
-                    <span>' . __('Ya cuentas con una inscripción activa para este evento. No es necesario que te vuelvas a inscribir.', 'sticpa') . '</span>
+                    <strong>' . esc_html($blockedTitle) . '</strong>
+                    <span>' . esc_html($blockedText) . '</span>
                 </div>
             </li>',
     );
@@ -322,9 +370,22 @@ $html .= makeForm($fieldList, $formSettings, $data, $formSettings['action']);
  *
  * $query acota lo que se pide al CRM: sin ella se descarga el módulo ENTERO
  * (todo el histórico de eventos) para rellenar un desplegable.
+ *
+ * $filtrarAudiencia deja fuera los eventos que no son para quien mira. Solo se
+ * pide con los campos de audiencia cuando hace falta: el desplegable normal se
+ * conforma con id y nombre.
  */
-function getRelatedRecord($objSCP, $relatedModule, $query = '') {
-    $events = $objSCP->getRecordsModule($relatedModule, $query);
+function getRelatedRecord($objSCP, $relatedModule, $query = '', $filtrarAudiencia = false) {
+    $filtrarAudiencia = $filtrarAudiencia
+        && $relatedModule === 'stic_Events'
+        && function_exists('sticpa_filter_events_for_viewer')
+        && function_exists('sticpa_event_fields_to_request');
+
+    $fields = $filtrarAudiencia ? sticpa_event_fields_to_request($objSCP) : array('id', 'name');
+    $events = $objSCP->getRecordsModule($relatedModule, $query, $fields);
+    if ($filtrarAudiencia && is_array($events)) {
+        $events = sticpa_filter_events_for_viewer($objSCP, $events);
+    }
 
     $listEvents = array('');
     if (is_array($events)) {

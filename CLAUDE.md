@@ -66,6 +66,13 @@ contexto**. Reglas:
   grupo de seguridad y así cada delegación controla lo suyo. Un monitor solo ve
   lo de su delegación.
 - **Nada interdelegacional.**
+- ⚠️ **Los grupos de seguridad del CRM NO protegen el área privada.** El plugin
+  se conecta al CRM con **un usuario técnico**, no con la persona que ha
+  entrado, así que los grupos de seguridad no filtran ni una fila de lo que se
+  lee aquí: **todo lo que no filtre el plugin, se ve.** Por eso la delegación se
+  compara a mano (`assigned_user_id`, ver `sticpa_pl_delegation()`). Da por
+  hecho lo contrario y dejarás una pantalla abierta a otras delegaciones —le
+  pasó a «Eventos» hasta el 09/09/2026—.
 
 ---
 
