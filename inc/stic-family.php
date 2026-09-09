@@ -158,6 +158,70 @@ function sticpa_recordar_si_familiar_es_miembro()
 }
 
 /**
+ * ¿El perfil que ha accedido es de tipo "familia"? Solo en ese caso se muestran
+ * el selector rápido de participante y la pantalla de selección.
+ *
+ * Se considera familia cuando hay participantes disponibles en sesión
+ * (los carga pages/single_stic_profile_selection.php desde el CRM — relaciones
+ * stic_Personal_Environment — o vía el filtro 'sticpa_familia_participants').
+ * Mientras la parte de Sinergia no esté montada, puedes forzarlo con el filtro
+ * 'sticpa_is_familia' o previsualizar con ?familia_demo=1 en la selección.
+ */
+function sticpa_is_familia()
+{
+    $isFamilia = !empty($_SESSION['scp_is_familia'])
+        || (isset($_SESSION['scp_available_profiles']) && count((array) $_SESSION['scp_available_profiles']) > 0)
+        || isset($_SESSION['scp_tutor_user_id']);
+    return (bool) apply_filters('sticpa_is_familia', $isFamilia);
+}
+
+/**
+ * Participantes disponibles para el selector rápido (id + name), cacheados en
+ * sesión por la pantalla de selección. Devuelve array vacío si aún no se cargó.
+ */
+function sticpa_available_profiles()
+{
+    $profiles = isset($_SESSION['scp_available_profiles']) ? (array) $_SESSION['scp_available_profiles'] : array();
+    return apply_filters('sticpa_available_profiles', $profiles);
+}
+
+/**
+ * ¿Sigue viva una relación de `stic_Personal_Environment`?
+ *
+ * Ya empezó (o no dice cuándo empezó) y no ha terminado. Lo importante es cómo
+ * se trata una fecha de fin AUSENTE: significa «no termina», y hay muchas
+ * formas de estar ausente —el campo no viene, viene vacío, viene '0000-00-00'—
+ * y todas quieren decir lo mismo. Darlas por terminadas dejaría a una madre sin
+ * hijos, así que ante la duda la relación está VIVA.
+ */
+function sticpa_relacion_vigente($nvl)
+{
+    if (!$nvl) {
+        return false;
+    }
+    $fecha = function ($campo) use ($nvl) {
+        $v = isset($nvl->$campo->value) ? trim((string) $nvl->$campo->value) : '';
+        // '0000-00-00' es la fecha nula de MySQL: es «no hay fecha».
+        if ($v === '' || strpos($v, '0000-00-00') === 0) {
+            return null;
+        }
+        $ts = strtotime($v);
+        return $ts ?: null;
+    };
+
+    $hoy = strtotime('today');
+    $inicio = $fecha('start_date');
+    if ($inicio !== null && $inicio > $hoy) {
+        return false;   // todavía no ha empezado
+    }
+    $fin = $fecha('end_date');
+    if ($fin !== null && $fin < $hoy) {
+        return false;   // ya terminó
+    }
+    return true;
+}
+
+/**
  * Los participantes a cargo de quien ha iniciado sesión (id + nombre).
  *
  * FUENTE ÚNICA. Antes esta consulta vivía dentro de
@@ -188,9 +252,19 @@ function sticpa_load_family_participants($objSCP, $forzar = false)
         foreach ($tipos as $tipo) {
             $comillas[] = "'" . $tipo . "'";
         }
-        $query = "((stic_personal_environment.start_date <= DATE(NOW())"
-            . " AND (stic_personal_environment.end_date >= DATE(NOW()) OR stic_personal_environment.end_date IS NULL))"
-            . " AND stic_personal_environment.relationship_type in (" . implode(',', $comillas) . "))";
+        // EL FILTRO DE FECHAS SALE DEL SQL Y SE HACE EN PHP. Antes el WHERE
+        // incluía `end_date >= NOW() OR end_date IS NULL`, y eso da por hecho
+        // que una relación sin fin guarda NULL. Si el CRM guarda cadena vacía o
+        // '0000-00-00' —que es lo normal en SuiteCRM y no se puede comprobar
+        // desde el MCP, cuya herramienta no acepta filtros SQL— la relación se
+        // CAE del resultado y la persona se queda sin hijos, en silencio.
+        //
+        // Filtrar por `relationship_type` en SQL es seguro (igualdad sobre un
+        // enum, y ya funcionaba); las fechas son tres comparaciones sobre una
+        // lista de una o dos filas. No merece la pena arriesgar un WHERE que,
+        // además, este CRM rechaza con un 400 en algunos módulos
+        // (docs/comunica/PASAR-LISTA-ESTADO.md).
+        $query = "(stic_personal_environment.relationship_type in (" . implode(',', $comillas) . "))";
 
         $relaciones = $objSCP->getRelatedElementsForLoggedUser(array(
             'module_name' => 'Contacts',
@@ -202,7 +276,14 @@ function sticpa_load_family_participants($objSCP, $forzar = false)
             // devuelve enlaces anidados, así que se pide siempre el `..._ida`
             // y se usa el que llegue. Aquí trae directamente el id de la
             // persona del otro lado de la relación.
-            'related_fields' => array('id', 'stic_personal_environment_contactscontacts_ida'),
+            'related_fields' => array(
+                'id',
+                'stic_personal_environment_contactscontacts_ida',
+                // Las fechas viajan para poder decidir aquí si la relación
+                // sigue viva (ver el comentario del filtro, arriba).
+                'start_date',
+                'end_date',
+            ),
             'related_module_link_name_to_fields_array' => array(),
             'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
         ));
@@ -213,6 +294,9 @@ function sticpa_load_family_participants($objSCP, $forzar = false)
 
         foreach ((is_array($relaciones) ? $relaciones : array()) as $relacion) {
             $nvl = $relacion->name_value_list ?? null;
+            if (!sticpa_relacion_vigente($nvl)) {
+                continue;
+            }
             $relId = $nvl->id->value ?? null;
             $hijoId = isset($nvl->stic_personal_environment_contactscontacts_ida->value)
                 ? trim((string) $nvl->stic_personal_environment_contactscontacts_ida->value)
@@ -402,12 +486,20 @@ function sticpa_visible_sections($secciones)
  *
  * @param object $objSCP Cliente del CRM (para contar participantes si hace falta).
  */
-function sticpa_landing_page($objSCP = null)
+function sticpa_bootstrap_family($objSCP = null)
 {
+    // SE EJECUTA SIEMPRE, pida la URL la página que pida. Antes esto vivía
+    // dentro de sticpa_landing_page(), que solo corre cuando NO hay
+    // `?internalpage` — o sea, solo al entrar por la puerta principal. Con un
+    // enlace profundo (la app abriendo una sección, un marcador, una pestaña
+    // que el navegador restaura) la sesión de familia no se montaba NUNCA:
+    // sin `scp_tutor_user_id`, sin saber si es miembro y sin participantes
+    // cargados. Resultado: el selector vacío y, a un familiar, el menú
+    // recortado. El mismo síntoma que ya costó un arreglo, por otra puerta.
     sticpa_recordar_si_familiar_es_miembro();
 
     if (!sticpa_es_familiar()) {
-        return 'single_stic_home';
+        return;
     }
 
     // Es familiar: se recuerda quién es él, porque a partir de ahora
@@ -417,43 +509,58 @@ function sticpa_landing_page($objSCP = null)
         $_SESSION['scp_tutor_user_contact_name'] = $_SESSION['scp_user_contact_name'] ?? '';
     }
 
-    // LOS PARTICIPANTES SE CARGAN SIEMPRE, y esto arregla el fallo que dejó a
-    // una madre sin poder ver a su hija. Antes, la rama de "es miembro del MCM"
-    // salía por arriba SIN cargarlos: `scp_available_profiles` se quedaba sin
-    // poner, y el selector de la barra —que se pinta igualmente, porque
-    // sticpa_is_familia() ve la sesión de tutor— salía VACÍO. Con lo cual la
-    // persona tenía delante un selector de participantes en el que no estaba su
-    // hija. Antes de esta rama funcionaba de rebote: el aterrizaje llevaba a la
-    // pantalla de selección, y era ESA pantalla la que los cargaba.
-    //
-    // Va por el cargador aunque no venga cliente del CRM: con la caché caliente
-    // responde sin tocar el CRM, y se paga una vez por sesión.
+    // Los participantes SIEMPRE, incluso para quien además es miembro del MCM:
+    // son los que llenan el selector de la barra, y sin ellos una madre se
+    // queda mirando un selector en el que no está su hija.
     $participantes = sticpa_load_family_participants($objSCP);
 
     if (sticpa_familiar_es_miembro()) {
-        // Miembro del MCM que además es familiar: su casa es su home, y el
-        // selector de la barra le lleva a sus hijos cuando quiera.
-        $_SESSION['scp_tutor_is_user'] = true;
-        return 'single_stic_home';
+        // Miembro del MCM que además es familiar: su sitio es el suyo, y para
+        // ver a sus hijos tiene el selector.
+        if (!isset($_SESSION['scp_tutor_is_user'])) {
+            $_SESSION['scp_tutor_is_user'] = true;
+        }
+        return;
     }
 
-    if (count($participantes) === 1) {
-        // Un solo hijo: se entra directamente a lo suyo.
+    // Familiar y nada más, con UN solo participante: su área es la del hijo.
+    // Se elige solo, y también cuando se llega por enlace profundo — porque su
+    // propia área no tiene nada que enseñarle.
+    if (count($participantes) === 1 && !isset($_SESSION['scp_tutor_is_user'])) {
         $_SESSION['scp_user_id'] = $participantes[0]['id'];
         $_SESSION['scp_user_contact_name'] = $participantes[0]['name'];
         $_SESSION['scp_tutor_is_user'] = false;
-        // El rol de la sesión era el del familiar; ahora el perfil activo es
-        // otra persona y hay que volver a resolverlo.
-        unset($_SESSION['scp_role'], $_SESSION['scp_role_resolved']);
+        // El rol de la sesión era el del familiar; el perfil activo es otro y
+        // hay que volver a resolverlo, o el hijo hereda el menú de su madre.
+        unset($_SESSION['scp_role'], $_SESSION['scp_role_resolved'], $_SESSION['scp_relationship_raw']);
+        return;
+    }
+
+    if (empty($participantes) && !isset($_SESSION['scp_tutor_is_user'])) {
+        // Sin participantes localizados: su propia pantalla, que es lo único.
+        $_SESSION['scp_tutor_is_user'] = true;
+    }
+}
+
+/**
+ * A DÓNDE se aterriza tras el login, cuando la URL no pide página concreta.
+ * El estado de la sesión ya lo ha dejado montado sticpa_bootstrap_family().
+ */
+function sticpa_landing_page($objSCP = null)
+{
+    sticpa_bootstrap_family($objSCP);
+
+    if (!sticpa_es_familiar()) {
         return 'single_stic_home';
     }
 
-    if (count($participantes) > 1) {
+    // Varios participantes y solo familiar: hay algo que elegir de verdad.
+    // (Con uno solo, el bootstrap ya ha entrado en su ficha; con cero o siendo
+    // miembro, la home es la suya.)
+    if (!sticpa_familiar_es_miembro() && count(sticpa_available_profiles()) > 1
+        && empty($_SESSION['scp_tutor_is_user'])) {
         return 'single_stic_profile_selection';
     }
 
-    // Familiar sin participantes localizados (o la parte de relaciones del CRM
-    // todavía sin montar): su propia pantalla, que es lo único que hay.
-    $_SESSION['scp_tutor_is_user'] = true;
     return 'single_stic_home';
 }

@@ -204,8 +204,20 @@ if (in_array('foto', $sections, true)) {
     );
 }
 
-// ===== MCM (solo miembros: monitor / laico; los campos son comunes a ambos) =====
-if (in_array('mcm', $sections, true) && in_array($role, array('monitor', 'laico'), true)) {
+// ===== MCM (todo miembro del MCM; los campos son comunes) =====
+//
+// ESTO ESTABA ROTO Y NO SE VEÍA. La condición pedía además que el rol fuera
+// 'monitor' o 'laico', y 'laico' NO SE DETECTABA NUNCA porque su mapa buscaba
+// cadenas que no existen en el CRM (y porque no existe tal tipo de relación).
+// Resultado: un miembro del MCM con grupo pero sin ser monitor —86 personas de
+// las 236 con grupo, a día de hoy— no veía NUNCA su propia sección de MCM:
+// etapa, pañuelo, talla, grupo. Sus datos, invisibles para él.
+//
+// La condición correcta es la audiencia, y ya estaba escrita: 'mcm' solo está
+// en $sections para la audiencia 'miembro'. El rol sobraba. El modelo es que
+// todo el mundo rellena la MISMA ficha de miembro del MCM, sea del COM o laico,
+// y el monitor añade aparte sus campos de formación (single_stic_comunica_monitor).
+if (in_array('mcm', $sections, true)) {
     $fieldList[] = array('name' => 'mcm', 'type' => 'header', 'label' => __('MCM', 'sticpa'));
     $fieldList[] = array('name' => 'ajmcm_etapa_c', 'required' => false, 'label' => __('Etapa', 'sticpa'));
     $fieldList[] = array('name' => 'ajmcm_panuelo_c', 'required' => false, 'label' => __('Pañuelo', 'sticpa'));
