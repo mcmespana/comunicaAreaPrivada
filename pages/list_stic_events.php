@@ -38,6 +38,17 @@ $filterParam = function_exists('sticpa_events_window_filter') ? sticpa_events_wi
 $listSettings['fileName'] = basename(__FILE__, ".php"); //The list name, from the filename. Don't touch.
 $getElements = $objSCP->getRecordsModule($listSettings['moduleName'], $filterParam, $fields);
 
+// AUDIENCIA: fuera los eventos que no son para quien mira (otra delegación,
+// otro perfil, otro curso escolar). Va ANTES del filtro de "ya inscrito"
+// porque es más barato y porque reduce el trabajo del siguiente.
+//
+// OJO, esto no lo hace el CRM por nosotros: el área privada se conecta con UN
+// usuario técnico, así que los grupos de seguridad no filtran nada de lo que
+// se lee aquí. Ver inc/stic-event-audience.php.
+if (is_array($getElements) && function_exists('sticpa_filter_events_for_viewer')) {
+    $getElements = sticpa_filter_events_for_viewer($objSCP, $getElements);
+}
+
 // Ocultamos de "Eventos disponibles" los que el usuario YA tiene inscritos
 // (siguen visibles en "Inscripciones"). Evita ofrecer "Inscribirse" a algo ya hecho.
 if (is_array($getElements) && function_exists('prefix_user_active_event_ids')) {
