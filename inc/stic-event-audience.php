@@ -136,20 +136,28 @@ function sticpa_event_audience_fields()
 /**
  * PERFIL del evento  =>  claves del CRM que lo cumplen.
  *
- * Las de la derecha NO son inventadas: son las claves reales de
- * `stic_Contacts_Relationships.relationship_type` y de
- * `Contacts.stic_relationship_type_c` (observadas en el CRM el 09/09/2026).
- * Se eligió reutilizarlas en vez de crear un vocabulario nuevo para que nadie
- * tenga que mantener dos listas que significan lo mismo.
+ * LAS CLAVES DEL DESPLEGABLE SON LAS DEL CRM, literalmente. No son un
+ * vocabulario nuevo: son las de `relationship_type` y de
+ * `stic_relationship_type_c` (inventario completo en `CAMPOS.md` §2). Por eso
+ * el mapa es casi la identidad, y eso es exactamente lo que se quiere: dos
+ * listas que significan lo mismo acaban divergiendo, y una que no existe no.
+ *
+ * El único agrupador es `coordinacion`, que cubre las dos claves del equipo.
+ *
+ * ⚠️ **No hay clave «laico», y no se inventa.** Ser del MCM es tener `grupo`
+ * —del COM o laico, la ficha es la misma—; encima puedes ser monitor. El área
+ * ya tuvo un rol 'laico' que buscaba `com-lc`, `laic` y `grupo com`, tres
+ * cadenas que no existen en este CRM, y por eso no se disparó jamás. Así que
+ * «evento para miembros COM-LC» se dice con `grupo`.
  */
 function sticpa_event_audience_perfil_map()
 {
     return apply_filters('sticpa_event_audience_perfil_map', array(
-        'participante' => array('participante_mic_com'),
-        'grupo_com_lc' => array('grupo'),
-        'monitor'      => array('monitor'),
-        'coordinacion' => array('coordinacion_mic_com', 'acompanamiento_mic_com'),
-        'familia'      => array('familiar_menor'),
+        'grupo'                => array('grupo'),
+        'monitor'              => array('monitor'),
+        'participante_mic_com' => array('participante_mic_com'),
+        'coordinacion'         => array('coordinacion_mic_com', 'acompanamiento_mic_com'),
+        'familiar_menor'       => array('familiar_menor'),
     ));
 }
 
@@ -157,11 +165,11 @@ function sticpa_event_audience_perfil_map()
 function sticpa_event_audience_perfil_labels()
 {
     return apply_filters('sticpa_event_audience_perfil_labels', array(
-        'participante' => __('participantes de MIC y COM', 'sticpa'),
-        'grupo_com_lc' => __('miembros con grupo COM-LC', 'sticpa'),
-        'monitor'      => __('monitores y monitoras', 'sticpa'),
-        'coordinacion' => __('equipo de coordinación', 'sticpa'),
-        'familia'      => __('familias', 'sticpa'),
+        'grupo'                => __('miembros del MCM con grupo', 'sticpa'),
+        'monitor'              => __('monitores y monitoras', 'sticpa'),
+        'participante_mic_com' => __('participantes de MIC y COM', 'sticpa'),
+        'coordinacion'         => __('equipo de coordinación', 'sticpa'),
+        'familiar_menor'       => __('familias', 'sticpa'),
     ));
 }
 
@@ -325,12 +333,13 @@ function sticpa_viewer_audience($objSCP = null, $conRelaciones = true)
             $cursosConocidos = true;
             $papelesConocidos = true;
             $cursoField = sticpa_event_audience_field_curso_persona();
-            $participa = sticpa_event_audience_perfil_map();
-            $comoParticipante = array_merge(
-                (array) ($participa['participante'] ?? array()),
-                (array) ($participa['grupo_com_lc'] ?? array())
+            // Papeles que cuentan como «participante del grupo» a la hora de
+            // leer el CURSO: los menores llevan `participante_mic_com` y los
+            // +18 su relación de `grupo` (que cuenta como participante a todos
+            // los efectos, igual que en Pasar Lista).
+            $comoParticipante = sticpa_event_audience_keys(
+                apply_filters('sticpa_event_audience_roles_con_curso', array('participante_mic_com', 'grupo'))
             );
-            $comoParticipante = sticpa_event_audience_keys($comoParticipante);
 
             foreach ($rels as $rel) {
                 $v = isset($rel->name_value_list) ? $rel->name_value_list : null;

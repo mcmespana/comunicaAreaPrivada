@@ -70,7 +70,7 @@ Los dos casos reales que hay que poder expresar:
 |---|---|---|---|
 | Sesiones semanales del MIC de Castellón | local (asignado a Castellón) | *(vacío)* | 4.º, 5.º y 6.º de primaria |
 | Congreso nacional de monitores | nacional | monitores | *(vacío)* |
-| Encuentro de miembros COM-LC de la delegación | local | miembros con grupo COM-LC | *(vacío)* |
+| Encuentro de miembros COM-LC de la delegación | local | `grupo` (miembros del MCM) | *(vacío)* |
 
 ### 3.1 Por qué tres campos y no uno
 
@@ -186,20 +186,28 @@ Solo dos, y uno de ellos es opcional. El de los cursos **ya existía**.
 
 | Clave interna | Etiqueta |
 |---|---|
-| `participante` | Participantes de MIC y COM |
-| `grupo_com_lc` | Miembros con grupo COM-LC |
+| `grupo` | Miembros del MCM (con grupo) |
 | `monitor` | Monitores/as |
+| `participante_mic_com` | Participantes de MIC y COM |
 | `coordinacion` | Equipo de coordinación |
-| `familia` | Familias |
+| `familiar_menor` | Familias |
 
 **Por qué múltiple:** un encuentro puede ser de monitores **y** de coordinación,
 y con un desplegable simple habría que crear dos eventos.
 
-**Por qué estas claves:** son **las de `relationship_type`** (las que ya usa el
-CRM para decir qué es cada persona), no un vocabulario nuevo. Así no hay dos
-listas que signifiquen lo mismo y puedan divergir. `coordinacion` cubre
-`coordinacion_mic_com` y `acompanamiento_mic_com`; el mapa está en
-`sticpa_event_audience_perfil_map()`.
+**Por qué estas claves y no otras:** son **literalmente las de
+`relationship_type`**, las que ya usa el CRM para decir qué es cada persona. No
+es un vocabulario nuevo, y por eso el mapa
+(`sticpa_event_audience_perfil_map()`) es casi la identidad: dos listas que
+significan lo mismo acaban divergiendo, y una que no existe no. `coordinacion`
+es el único agrupador —cubre `coordinacion_mic_com` y
+`acompanamiento_mic_com`—.
+
+⚠️ **«Miembros COM-LC» se dice con `grupo`, y no hay clave «laico».** Ser del
+MCM es tener `grupo` —del COM o laico, la ficha es la misma—; encima puedes ser
+monitor. El área ya tuvo un rol 'laico' que buscaba `com-lc`, `laic` y
+`grupo com`, tres cadenas que no existen en este CRM, y que por tanto no se
+disparó jamás. Ver [`CAMPOS.md`](CAMPOS.md) §2.
 
 **Si se añade un valor nuevo al desplegable y se olvida el mapa**, no pasa nada
 grave: una clave que no está en el mapa casa con el papel del mismo nombre.

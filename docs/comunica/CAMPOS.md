@@ -222,7 +222,10 @@ El resto de campos de este módulo (`relationship_type` y sus valores,
 
 Claves de `relationship_type` observadas en el CRM (09/09/2026):
 `participante_mic_com`, `grupo`, `monitor`, `coordinacion_mic_com`,
-`acompanamiento_mic_com`, `familiar_menor`.
+`acompanamiento_mic_com`, `familiar_menor`. Son las mismas que las de
+`Contacts.stic_relationship_type_c` (inventario contado en §2), pero **son dos
+campos distintos**: aquí describen UNA relación con un grupo; allí, a la
+persona entera.
 
 ### Eventos (`stic_Events`)
 
@@ -245,14 +248,23 @@ funcional en [`EVENTOS.md`](EVENTOS.md) §5.
     local; sin delegación = nacional), así que el campo es opcional: sirve para
     decir «este evento es de Castellón y AUN ASÍ es para todas».
 - `ajmcm_dirigido_a_c` — Dirigido a 🔨 **POR CREAR** (ficha en `EVENTOS.md` §5.2)
-  - Selección **múltiple**: `participante` [Participantes de MIC y COM] ·
-    `grupo_com_lc` [Miembros con grupo COM-LC] · `monitor` [Monitores/as] ·
-    `coordinacion` [Equipo de coordinación] · `familia` [Familias]
+  - Selección **múltiple**. **Las claves son literalmente las de
+    `relationship_type`** (ver el inventario de §2), para no mantener dos
+    vocabularios que dicen lo mismo:
+
+    | Clave interna | Etiqueta |
+    |---|---|
+    | `grupo` | Miembros del MCM (con grupo) |
+    | `monitor` | Monitores/as |
+    | `participante_mic_com` | Participantes de MIC y COM |
+    | `coordinacion` | Equipo de coordinación |
+    | `familiar_menor` | Familias |
+
   - Vacío = **para todos los perfiles**. Es el eje de «congreso solo para
-    monitores» y de «evento para miembros COM-LC».
-  - Las claves son **las mismas de `relationship_type`** a propósito, para no
-    mantener dos vocabularios que dicen lo mismo. El mapa vive en
-    `sticpa_event_audience_perfil_map()`.
+    monitores» y de «evento para miembros COM-LC» — que se dice con `grupo`,
+    porque **no existe una clave «laico»** (§2). `coordinacion` es el único
+    agrupador: cubre `coordinacion_mic_com` y `acompanamiento_mic_com`. El mapa
+    vive en `sticpa_event_audience_perfil_map()`.
 - `ajmcm_filtro_edades_c` — Cursos a los que va dirigido ✅ **YA EXISTE Y YA SE USA**
   - Selección múltiple. Valores vistos: `4_primaria`, `5_primaria`,
     `6_primaria`, `1_eso`, `2_eso`, `3_eso`, `4_eso`, `1_bachillerato`,

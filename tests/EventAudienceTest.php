@@ -192,10 +192,10 @@ class EventAudienceTest extends TestCase
         $this->assertSame('perfil', $verdict['motivo']);
     }
 
-    /** «Evento para miembros COM-LC»: lo ve quien tiene grupo. */
-    public function testUnEventoDeGrupoComLcEsParaQuienTieneGrupo()
+    /** «Evento para miembros COM-LC»: se dice con `grupo`, que es la clave real. */
+    public function testUnEventoDeMiembrosConGrupoEsParaQuienTieneGrupo()
     {
-        $evento = array('delegacion' => '', 'ambito' => 'nacional', 'perfiles' => array('grupo_com_lc'), 'cursos' => array());
+        $evento = array('delegacion' => '', 'ambito' => 'nacional', 'perfiles' => array('grupo'), 'cursos' => array());
         $this->assertTrue(sticpa_event_audience_match($evento, $this->viewer(array('papeles' => array('grupo'))))['ok']);
         $this->assertFalse(sticpa_event_audience_match($evento, $this->viewer(array('papeles' => array('familiar_menor'))))['ok']);
     }
@@ -283,7 +283,7 @@ class EventAudienceTest extends TestCase
     public function testLosTresEjesSeCumplenALaVez()
     {
         $evento = array('delegacion' => 'deleg-castellon', 'ambito' => '',
-            'perfiles' => array('participante'), 'cursos' => array('5_primaria'));
+            'perfiles' => array('participante_mic_com'), 'cursos' => array('5_primaria'));
         $this->assertTrue(sticpa_event_audience_match($evento, $this->viewer())['ok']);
         // Mismo evento, otra delegación.
         $this->assertFalse(sticpa_event_audience_match($evento, $this->viewer(array(
