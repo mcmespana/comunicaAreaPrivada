@@ -213,23 +213,38 @@ Fuente: https://wiki.sinergiatic.org/index.php?title=Estructura_de_datos:_m%C3%B
   - **Claves internas vistas en el CRM real** (08/09/2026, por MCP). El campo es
     multiselección y llega en formato SuiteCRM, `^clave^,^clave^`:
 
-    | Clave | Qué significa |
-    |---|---|
-    | `familiar_menor` | Es familiar de un participante menor. **Es la única marca que, ella sola, NO te hace miembro del MCM** |
-    | `grupo` | Tiene grupo: es del Movimiento por derecho propio |
-    | `participante_mic_com` | Participante de MIC/COM |
+    **Inventario COMPLETO**, contado sobre los 256 contactos del CRM el
+    09/09/2026 (la API no devuelve las etiquetas del desplegable, solo las
+    claves, así que esto es lo que hay):
 
-    Esta lista **no es exhaustiva**: son los valores observados, no el
-    desplegable entero. Si necesitas uno que no esté, míralo en el CRM y
-    apúntalo aquí.
-  - **El área privada NO decide con esto quién es monitor o laico.** Para eso
-    está `sticpa_detect_role_from_relationship()`, cuyo mapa solo busca
-    'monitor' / 'laic' / 'com-lc' / 'grupo com' porque existe para saber si se
-    enseñan «Pasar lista» y «Mis grupos». **Ser MIEMBRO del MCM es más ancho que
-    tener rol**: lo resuelve `sticpa_es_miembro_por_tipo_de_relacion()`
+    | Clave | Personas | Qué significa |
+    |---|---|---|
+    | `grupo` | 236 | Tiene grupo: **es miembro del MCM**. Sea del COM o laico, da igual: la ficha es la misma |
+    | `monitor` | 150 | Además es monitor/a, y añade sus campos de formación |
+    | `familiar_menor` | 1 | Familiar de un participante menor. **Es la única marca que, ella sola, NO te hace miembro del MCM** |
+    | `participante_mic_com` | 1 | Participante de MIC/COM. Los participantes menores llevan SOLO esta, sin `grupo` |
+    | `acompanamiento_mic_com` | 1 | Acompañamiento del equipo |
+    | `coordinacion_mic_com` | 1 | Coordinación |
+
+    (8 contactos tienen el campo vacío.)
+
+    **NO EXISTE UN TIPO «LAICO».** Ser del MCM es tener `grupo`; encima puedes
+    ser monitor o no. Esto importa porque el área tuvo durante meses un rol
+    'laico' que buscaba `com-lc`, `laic` y `grupo com` — tres cadenas que no
+    existen aquí — y que por tanto **no se disparaba jamás**.
+  - **La API devuelve CLAVES, no etiquetas.** Llega `^grupo^,^monitor^`, no
+    `^Monitor/a^,^Grupo COM-LC^`. El mapa de roles se escribió contra etiquetas
+    y por eso 'monitor' acertaba de casualidad (la clave contiene la palabra) y
+    'laico' fallaba siempre. `sticpa_detect_role_from_relationship()` compara
+    ahora por **clave exacta**, y solo cae a la subcadena si el valor parece una
+    etiqueta antigua (lleva espacios o barras).
+  - **Solo hay UN rol: `monitor`.** Todo el que tiene `grupo` es miembro y
+    rellena la misma ficha; el monitor añade la suya. **Ser MIEMBRO no es un
+    rol**: lo resuelve `sticpa_es_miembro_por_tipo_de_relacion()`
     (`inc/stic-family.php`), que pregunta si hay algo aparte de las marcas de
     «solo familiar». Confundir las dos cosas dejó a una madre con
-    `^familiar_menor^,^grupo^` sin poder ver a su hija (08/09/2026).
+    `^familiar_menor^,^grupo^` sin poder ver a su hija (08/09/2026), y tuvo a 86
+    miembros sin ver su propia sección de MCM (09/09/2026).
 - `stic_conduct_code_c` — Código de conducta
   - Tipo: casilla. Verificado contra el CRM el 28/08/2026: **existe y estaba sin
     documentar aquí**. El área privada lo enseña en el bloque «En regla» de la

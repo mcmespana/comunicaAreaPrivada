@@ -100,17 +100,46 @@ final class RoleCacheTest extends TestCase
     }
 
     /**
-     * El mapa de roles, con los valores que hay HOY en el CRM. Se comprobó por
-     * MCP: unos 150 contactos con `^grupo^,^monitor^`.
+     * El mapa de roles, con las claves que hay DE VERDAD en el CRM
+     * (verificadas por MCP el 09/09/2026 sobre los 256 contactos):
+     * `grupo` 236, `monitor` 150, y sueltas `participante_mic_com`,
+     * `familiar_menor`, `acompanamiento_mic_com`, `coordinacion_mic_com`.
+     *
+     * EL ÚNICO ROL ES 'monitor'. Antes había también 'laico', y este mismo test
+     * lo afirmaba con `^Grupo COM-LC^` — una ETIQUETA que no existe en el CRM,
+     * porque la API devuelve claves y porque no hay ningún tipo de relación
+     * «laico». Todo el que tiene grupo es miembro del MCM y rellena la misma
+     * ficha; encima puede ser monitor. Lo único que hay que detectar es eso.
      */
     public function test_deteccion_desde_el_valor_crudo(): void
     {
         $this->assertSame('monitor', sticpa_detect_role_from_relationship('^grupo^,^monitor^'));
         $this->assertSame('monitor', sticpa_detect_role_from_relationship('^Monitor/a^'));
-        $this->assertSame('laico', sticpa_detect_role_from_relationship('^Grupo COM-LC^'));
+        // David Soler: acompañamiento y coordinación, además de grupo y monitor.
+        $this->assertSame('monitor', sticpa_detect_role_from_relationship(
+            '^acompanamiento_mic_com^,^coordinacion_mic_com^,^grupo^,^monitor^'
+        ));
+        // Miembro del MCM con grupo y sin ser monitor: no tiene rol, y no pasa
+        // nada — su ficha es la misma que la de todos.
+        $this->assertSame('', sticpa_detect_role_from_relationship('^grupo^'));
+        $this->assertSame('', sticpa_detect_role_from_relationship('^familiar_menor^,^grupo^'));
+        $this->assertSame('', sticpa_detect_role_from_relationship('^participante_mic_com^'));
         $this->assertSame('', sticpa_detect_role_from_relationship(''));
         $this->assertSame('', sticpa_detect_role_from_relationship('^Donante^'));
-        // Monitor manda sobre laico cuando están los dos.
-        $this->assertSame('monitor', sticpa_detect_role_from_relationship('^monitor^,^Grupo COM-LC^'));
+    }
+
+    /**
+     * La coincidencia es por CLAVE EXACTA, no por subcadena. Con subcadena, un
+     * `ex_monitor` o un `aspirante_monitor` saldrían monitores — el mismo tipo
+     * de falso positivo que ya nos pintó de verde un «no pagado».
+     * La subcadena solo se usa con el formato viejo de etiquetas, que se
+     * reconoce porque lleva espacios o barras.
+     */
+    public function test_la_clave_se_compara_entera(): void
+    {
+        $this->assertSame('', sticpa_detect_role_from_relationship('^ex_monitor^'));
+        $this->assertSame('', sticpa_detect_role_from_relationship('^aspirante_monitor^'));
+        // Etiqueta antigua: ahí sí vale la subcadena.
+        $this->assertSame('monitor', sticpa_detect_role_from_relationship('^Monitor/a de grupo^'));
     }
 }

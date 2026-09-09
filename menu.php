@@ -59,33 +59,12 @@ function defaultMenuElement()
     return $defaultMenuElement;
 }
 
-/**
- * ¿El perfil que ha accedido es de tipo "familia"? Solo en ese caso se muestran
- * el selector rápido de participante y la pantalla de selección.
- *
- * Se considera familia cuando hay participantes disponibles en sesión
- * (los carga pages/single_stic_profile_selection.php desde el CRM — relaciones
- * stic_Personal_Environment — o vía el filtro 'sticpa_familia_participants').
- * Mientras la parte de Sinergia no esté montada, puedes forzarlo con el filtro
- * 'sticpa_is_familia' o previsualizar con ?familia_demo=1 en la selección.
+/*
+ * `sticpa_is_familia()` y `sticpa_available_profiles()` VIVÍAN AQUÍ y se han
+ * movido a inc/stic-family.php, que es donde vive todo lo de "quién eres y qué
+ * ves". Eran dos accesores de datos dentro del fichero del menú, y por eso
+ * inc/stic-family.php no podía usarlos sin arrastrar menu.php detrás.
  */
-function sticpa_is_familia()
-{
-    $isFamilia = !empty($_SESSION['scp_is_familia'])
-        || (isset($_SESSION['scp_available_profiles']) && count((array) $_SESSION['scp_available_profiles']) > 0)
-        || isset($_SESSION['scp_tutor_user_id']);
-    return (bool) apply_filters('sticpa_is_familia', $isFamilia);
-}
-
-/**
- * Participantes disponibles para el selector rápido (id + name), cacheados en
- * sesión por la pantalla de selección. Devuelve array vacío si aún no se cargó.
- */
-function sticpa_available_profiles()
-{
-    $profiles = isset($_SESSION['scp_available_profiles']) ? (array) $_SESSION['scp_available_profiles'] : array();
-    return apply_filters('sticpa_available_profiles', $profiles);
-}
 
 /**
  * SELECTOR RÁPIDO DE PARTICIPANTE para la barra de navegación.

@@ -2,15 +2,15 @@
 
 /**
  * ============================================================================
- *  Detección de ROL en Comunica (monitor / laico / …)
+ *  Detección de ROL en Comunica (hoy solo: monitor)
  * ----------------------------------------------------------------------------
  *  El rol del contacto vive en el campo multienum `stic_relationship_type_c`
  *  del módulo Contacts (lista `stic_contacts_relationships_types_list`).
  *  Etiquetas conocidas: "Monitor/a", "Grupo COM-LC", "Socio AJ".
  *
- *  Un contacto puede tener VARIOS valores a la vez (p. ej. monitor Y laico).
+ *  Un contacto puede tener VARIOS valores a la vez (p. ej. `^grupo^,^monitor^`).
  *  Se prioriza por el orden del mapa: el primero que casa gana. Hoy:
- *      monitor  >  laico
+ *      monitor  >  (sin rol: miembro normal del MCM)
  *
  *  La detección es TOLERANTE (busca subcadena, sin distinguir mayúsculas) para
  *  no depender de la clave interna exacta del desplegable. Si en el futuro hay
@@ -29,15 +29,40 @@ if (!defined('ABSPATH')) {
 function sticpa_comunica_role_map()
 {
     return apply_filters('sticpa_comunica_role_map', array(
+        // CLAVES REALES del CRM, verificadas contra los 256 contactos el
+        // 09/09/2026: `grupo` (236), `monitor` (150), `participante_mic_com`,
+        // `familiar_menor`, `acompanamiento_mic_com`, `coordinacion_mic_com`.
+        //
+        // AQUÍ SOLO HAY UN ROL, Y ES A PROPÓSITO. Antes había también 'laico',
+        // buscando 'com-lc', 'laic' y 'grupo com' — tres cadenas que NO EXISTEN
+        // en el CRM, entre otras cosas porque **no existe un tipo de relación
+        // «laico»**. El mapa se escribió contra ETIQUETAS
+        // (`^Monitor/a^,^Grupo COM-LC^`, así lo decía su propio comentario) y la
+        // API devuelve CLAVES (`^monitor^,^grupo^`); 'monitor' acertaba de pura
+        // casualidad, porque la clave contiene la palabra.
+        //
+        // El modelo real es más simple: TODO el que tiene `grupo` es miembro del
+        // MCM y rellena la misma ficha, sea del COM o laico; encima puede ser
+        // monitor, y entonces añade sus campos de formación. O sea que lo único
+        // que hay que detectar es SI ES MONITOR. Ser miembro no es un rol: es
+        // no ser solo familiar, y eso lo responde
+        // sticpa_es_miembro_por_tipo_de_relacion() (inc/stic-family.php).
         'monitor' => array('monitor'),
-        'laico'   => array('com-lc', 'laic', 'grupo com'),
     ));
 }
 
 /**
- * Dado el valor crudo de `stic_relationship_type_c` (formato SuiteCRM
- * `^Monitor/a^,^Grupo COM-LC^`), devuelve el rol prioritario: 'monitor',
- * 'laico', … o '' si no se reconoce.
+ * Dado el valor crudo de `stic_relationship_type_c` —formato SuiteCRM, y lo que
+ * llega de verdad son CLAVES: `^monitor^,^grupo^`— devuelve el rol prioritario:
+ * 'monitor', o '' si no es monitor (que es el caso de la mayoría: miembros del
+ * MCM sin nada específico que rellenar).
+ *
+ * Compara por TOKEN EXACTO primero y solo después por subcadena. El orden
+ * importa: buscando `monitor` dentro de la cadena entera, un futuro
+ * `ex_monitor` o `aspirante_monitor` daría 'monitor' sin serlo — que es
+ * exactamente el tipo de falso positivo que ya nos costó pintar de verde un
+ * «no pagado» en la ficha de pagos. La subcadena se conserva porque el formato
+ * antiguo traía etiquetas («Monitor/a», «Grupo COM-LC») y puede quedar alguna.
  */
 function sticpa_detect_role_from_relationship($raw)
 {
@@ -45,7 +70,39 @@ function sticpa_detect_role_from_relationship($raw)
     if (trim($v) === '') {
         return '';
     }
-    foreach (sticpa_comunica_role_map() as $role => $needles) {
+    // Las claves sueltas, tal y como vienen entre ^ y comas.
+    $tokens = array();
+    foreach (preg_split('/[\^,]+/', $v) as $token) {
+        $token = trim($token);
+        if ($token !== '') {
+            $tokens[] = $token;
+        }
+    }
+
+    $mapa = sticpa_comunica_role_map();
+    // 1ª pasada: coincidencia EXACTA de clave. Es la que manda.
+    foreach ($mapa as $role => $needles) {
+        foreach ((array) $needles as $needle) {
+            if ($needle !== '' && in_array(strtolower($needle), $tokens, true)) {
+                return $role;
+            }
+        }
+    }
+    // 2ª pasada: subcadena, y SOLO si esto parece el formato viejo de etiquetas
+    // («Monitor/a», «Grupo COM-LC»), que se reconoce porque lleva espacios o
+    // barras. Las claves de verdad son [a-z_]+ y ahí la subcadena solo puede
+    // hacer daño: `ex_monitor` o `aspirante_monitor` darían 'monitor'.
+    $pareceEtiqueta = false;
+    foreach ($tokens as $token) {
+        if (strpos($token, ' ') !== false || strpos($token, '/') !== false) {
+            $pareceEtiqueta = true;
+            break;
+        }
+    }
+    if (!$pareceEtiqueta) {
+        return apply_filters('sticpa_comunica_role_default', '', $raw);
+    }
+    foreach ($mapa as $role => $needles) {
         foreach ((array) $needles as $needle) {
             if ($needle !== '' && strpos($v, strtolower($needle)) !== false) {
                 return $role;
