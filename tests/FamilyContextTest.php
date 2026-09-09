@@ -336,4 +336,112 @@ class FamilyContextTest extends TestCase
         $this->assertCount(1, sticpa_load_family_participants(null));
         $this->assertArrayHasKey('scp_available_profiles', $_SESSION);
     }
+
+    /**
+     * EL ENLACE PROFUNDO. La sesión de familia se montaba DENTRO de
+     * sticpa_landing_page(), que solo corre cuando la URL no pide página. Con
+     * un enlace profundo —la app abriendo una sección, un marcador, una pestaña
+     * que el navegador restaura— la persona entraba sin `scp_tutor_user_id`,
+     * sin participantes cargados y, siendo familiar, con el menú recortado y el
+     * selector vacío. El mismo síntoma que ya costó un arreglo, por otra puerta.
+     */
+    public function testConEnlaceProfundoTambienSeMontaLaSesionDeFamilia()
+    {
+        $this->sesionFamiliar();
+        $GLOBALS['__stic_filters']['sticpa_familia_participants'] = array(
+            array('id' => 'solete', 'name' => 'Messeguer, Solete'),
+        );
+
+        // NO se llama a sticpa_landing_page(): se simula que la URL traía ya
+        // ?internalpage=list_stic_payments, así que solo corre el arranque.
+        sticpa_bootstrap_family(null);
+
+        $this->assertSame('f1', $_SESSION['scp_tutor_user_id'], 'Se sabe quién ha entrado');
+        $this->assertArrayHasKey('scp_available_profiles', $_SESSION, 'Y sus participantes están cargados');
+        // Con un solo hijo y siendo solo familiar, se entra a lo del hijo.
+        $this->assertSame('solete', $_SESSION['scp_user_id']);
+        $this->assertFalse($_SESSION['scp_tutor_is_user']);
+    }
+
+    /**
+     * El arranque es IDEMPOTENTE: se ejecuta en cada petición, así que no puede
+     * deshacer la elección de participante que la persona acaba de hacer.
+     */
+    public function testElArranqueNoPisaLaEleccionDeParticipante()
+    {
+        $this->sesionFamiliar();
+        $GLOBALS['__stic_filters']['sticpa_familia_participants'] = array(
+            array('id' => 'solete', 'name' => 'Messeguer, Solete'),
+        );
+
+        // Ha elegido verse a SÍ MISMA en el selector.
+        $_SESSION['scp_tutor_user_id'] = 'f1';
+        $_SESSION['scp_tutor_is_user'] = true;
+        $_SESSION['scp_user_id'] = 'f1';
+
+        sticpa_bootstrap_family(null);
+
+        $this->assertTrue($_SESSION['scp_tutor_is_user'], 'Sigue viéndose a sí misma');
+        $this->assertSame('f1', $_SESSION['scp_user_id'], 'No se le mete en la ficha del hijo');
+    }
+
+    /** Construye el name_value_list de una relación de stic_Personal_Environment. */
+    private function relacion(array $campos)
+    {
+        $o = new stdClass();
+        foreach ($campos as $k => $v) {
+            $o->$k = (object) array('value' => $v);
+        }
+        return $o;
+    }
+
+    /**
+     * UNA FECHA DE FIN AUSENTE SIGNIFICA «NO TERMINA», Y HAY MUCHAS FORMAS DE
+     * ESTAR AUSENTE. Esto estaba en el WHERE del SQL como
+     * `end_date >= NOW() OR end_date IS NULL`, que da por hecho que el CRM
+     * guarda NULL. Si guarda cadena vacía o '0000-00-00' —lo normal en
+     * SuiteCRM— la relación se caía del resultado y la madre se quedaba sin
+     * hijos, en silencio. Ante la duda, la relación está VIVA.
+     */
+    public function testUnaFechaDeFinAusenteNoTerminaLaRelacion()
+    {
+        foreach (array('', '0000-00-00', '0000-00-00 00:00:00') as $vacia) {
+            $this->assertTrue(
+                sticpa_relacion_vigente($this->relacion(array(
+                    'start_date' => '2026-07-09', 'end_date' => $vacia,
+                ))),
+                "Una fecha de fin «{$vacia}» no puede terminar la relación"
+            );
+        }
+        // Y si el campo ni siquiera viene (que es lo que hace este CRM).
+        $this->assertTrue(sticpa_relacion_vigente($this->relacion(array('start_date' => '2026-07-09'))));
+        // Sin ninguna fecha tampoco se descarta a nadie.
+        $this->assertTrue(sticpa_relacion_vigente($this->relacion(array())));
+    }
+
+    /** Lo que sí termina una relación es una fecha de fin pasada de verdad. */
+    public function testUnaRelacionTerminadaOFuturaNoCuenta()
+    {
+        $this->assertFalse(sticpa_relacion_vigente($this->relacion(array(
+            'start_date' => '2020-01-01', 'end_date' => '2021-01-01',
+        ))), 'Terminada en 2021');
+
+        $this->assertFalse(sticpa_relacion_vigente($this->relacion(array(
+            'start_date' => '2099-01-01',
+        ))), 'Todavía no ha empezado');
+
+        $this->assertFalse(sticpa_relacion_vigente(null));
+    }
+
+    /**
+     * El caso real de Sol Messeguer, tal y como viene del CRM: madre de Solete
+     * desde el 09/07/2026, sin fecha de fin.
+     */
+    public function testLaRelacionRealDeSolSigueViva()
+    {
+        $this->assertTrue(sticpa_relacion_vigente($this->relacion(array(
+            'relationship_type' => 'mother',
+            'start_date' => '2026-07-09',
+        ))));
+    }
 }

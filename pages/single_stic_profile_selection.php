@@ -33,7 +33,17 @@ $pageSettings['fileName'] = basename(__FILE__, ".php");
 // estaba aquí dentro, así que para saber cuántos hijos tiene alguien había que
 // pintar esta pantalla entera — y por eso el aterrizaje tras el login no podía
 // decidir si valía la pena enseñarla.
-$availableContacts = sticpa_load_family_participants($objSCP);
+// Se RECARGA cuando se ha entrado aquí a propósito (hay `?internalpage`), y se
+// usa la caché cuando llegamos por el aterrizaje tras el login.
+//
+// Por qué: la lista se guarda en sesión, y la sesión dura un año. Sin esto, a
+// una familia que apunta a un segundo hijo el hijo NO le aparece hasta cerrar
+// sesión — y nadie cierra sesión. Esta pantalla es justo donde alguien va a
+// mirar "quiénes son los míos", así que es el sitio natural para volver a
+// preguntar. En el aterrizaje no se fuerza: ahí la acaba de cargar el arranque
+// y repetir la consulta sería pagarla dos veces en la pantalla más lenta.
+$recargar = isset($_REQUEST['internalpage']);
+$availableContacts = sticpa_load_family_participants($objSCP, $recargar);
 
 
 
