@@ -795,6 +795,131 @@ class EventAudienceTest extends TestCase
         $this->assertSame('', $block['texto']);
     }
 
+    // -----------------------------------------------------------------
+    // El lugar y el botón del mapa
+    // -----------------------------------------------------------------
+
+    /**
+     * EL BOTÓN DEL MAPA NO NECESITA EL CAMPO DEL ENLACE.
+     *
+     * Con el nombre del sitio ya se puede armar una búsqueda de Google Maps,
+     * así que el botón funciona desde el primer día con un solo campo de texto
+     * relleno. Si hiciera falta el enlace, no habría botón hasta que alguien
+     * se acordara de pegarlo en 40 eventos.
+     */
+    public function testConSoloElNombreDelSitioYaHayMapa()
+    {
+        $url = sticpa_event_map_url('', '', 'Casa de Espiritualidad, Benigànim');
+        $this->assertStringStartsWith('https://www.google.com/maps/search/', $url);
+        $this->assertStringContainsString(rawurlencode('Casa de Espiritualidad, Benigànim'), $url);
+    }
+
+    /** La dirección es más precisa que el nombre, así que gana. */
+    public function testLaDireccionGanaAlNombreDelSitio()
+    {
+        $url = sticpa_event_map_url('', 'C/ Mayor 3, Benigànim', 'Casa de Espiritualidad');
+        $this->assertStringContainsString(rawurlencode('C/ Mayor 3, Benigànim'), $url);
+        $this->assertStringNotContainsString(rawurlencode('Casa de Espiritualidad'), $url);
+    }
+
+    /** Y el enlace pegado a mano gana a todo: es para cuando no acierta. */
+    public function testElEnlaceExplicitoMandaSobreLaBusqueda()
+    {
+        $this->assertSame(
+            'https://maps.app.goo.gl/abc123',
+            sticpa_event_map_url('https://maps.app.goo.gl/abc123', 'C/ Mayor 3', 'Casa')
+        );
+    }
+
+    /** Sin nada que buscar, no hay botón. */
+    public function testSinLugarNiDireccionNoHayMapa()
+    {
+        $this->assertSame('', sticpa_event_map_url('', '', ''));
+    }
+
+    /**
+     * UN `javascript:` EN EL CAMPO DEL MAPA NO SE PINTA.
+     *
+     * El valor lo escribe una persona en el CRM, así que quien tenga cuenta
+     * podría dejar un enlace ejecutable donde después pulsa una familia. Se
+     * descarta el esquema y se cae a la búsqueda: mejor un mapa aproximado que
+     * un enlace que no debería existir.
+     */
+    public function testUnEnlaceQueNoEsHttpSeDescarta()
+    {
+        $url = sticpa_event_map_url('javascript:alert(1)', '', 'Benigànim');
+        $this->assertStringStartsWith('https://www.google.com/maps/search/', $url);
+
+        // Y sin nada a lo que caer, no hay enlace en absoluto.
+        $this->assertSame('', sticpa_event_map_url('javascript:alert(1)', '', ''));
+        $this->assertSame('', sticpa_record_safe_url('data:text/html,<script>x</script>'));
+        $this->assertSame('', sticpa_record_safe_url('ftp://ejemplo.org'));
+        $this->assertSame('https://ejemplo.org/a', sticpa_record_safe_url(' https://ejemplo.org/a '));
+    }
+
+    /** El dato «Lugar» de la ficha lleva el enlace, y es la tarjeta entera. */
+    public function testLaFichaCuelgaElMapaDelDatoDelLugar()
+    {
+        $event = sticpa_event_view_model($this->nvl(array(
+            'id' => 'e1', 'name' => 'Convivencia',
+            'start_date' => date('Y-m-d', strtotime('+2 months')),
+            'ajmcm_lugar_c' => 'Casa de Espiritualidad, Benigànim',
+            'ajmcm_direccion_c' => 'C/ Mayor 3, Benigànim',
+        )));
+        $html = sticpa_event_detail_html($event);
+
+        // La tarjeta entera del dato es el enlace (no un icono de 18px).
+        $this->assertStringContainsString('stic-rec-fact--link', $html);
+        $this->assertStringContainsString('google.com/maps/search/', $html);
+        // Se abre fuera y sin dejar acceso a la ventana de origen.
+        $this->assertStringContainsString("rel='noopener noreferrer'", $html);
+        // Y el lector de pantalla oye a dónde lleva, que una flecha no lo dice.
+        $this->assertStringContainsString('Ver en el mapa', $html);
+        // El enlace cuelga del LUGAR, no de la dirección: es donde se mira.
+        $this->assertStringContainsString('Casa de Espiritualidad', $html);
+    }
+
+    /** Sin lugar ni dirección, ningún dato se vuelve enlace. */
+    public function testSinLugarNingunDatoSeVuelveEnlace()
+    {
+        $event = sticpa_event_view_model($this->nvl(array(
+            'id' => 'e1', 'name' => 'Convivencia',
+            'start_date' => date('Y-m-d', strtotime('+2 months')),
+            'timetable' => 'De 17 a 19 h',
+        )));
+        $html = sticpa_event_detail_html($event);
+        $this->assertStringNotContainsString('stic-rec-fact--link', $html);
+        $this->assertStringContainsString('De 17 a 19 h', $html);
+    }
+
+    /** Y el lugar sale en la tarjeta del listado, que es donde más se busca. */
+    public function testElLugarSaleEnLaTarjetaDelListado()
+    {
+        $fila = new stdClass();
+        $fila->name_value_list = $this->nvl(array(
+            'id' => 'e1', 'name' => 'Convivencia',
+            'start_date' => date('Y-m-d', strtotime('+2 months')),
+            'ajmcm_lugar_c' => 'Casa de Espiritualidad, Benigànim',
+        ));
+        $this->assertStringContainsString(
+            'Casa de Espiritualidad, Benigànim',
+            sticpa_events_list_html(array($fila))
+        );
+    }
+
+    /** Los campos del lugar se le piden al CRM (y el del mapa también). */
+    public function testLosCamposDelLugarSePidenAlCrm()
+    {
+        $scp = new FakeAudienceSCP(array(
+            'id' => array(), 'name' => array(),
+            'ajmcm_lugar_c' => array(), 'ajmcm_direccion_c' => array(), 'ajmcm_mapa_c' => array(),
+        ));
+        $fields = sticpa_event_fields_to_request($scp);
+        foreach (array('ajmcm_lugar_c', 'ajmcm_direccion_c', 'ajmcm_mapa_c') as $f) {
+            $this->assertContains($f, $fields, $f . ' tiene que pedirse al CRM');
+        }
+    }
+
     private function rel(array $campos)
     {
         $fila = new stdClass();

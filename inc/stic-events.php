@@ -42,9 +42,20 @@ function sticpa_event_optional_fields()
         // `registration_end`, que NO EXISTEN: existen con otro nombre. O sea
         // que el aforo, el horario y la ventana de inscripción estaban en el
         // CRM y no se pintaban, y la lista invitaba a crear campos duplicados.
-        'location'          => array('label' => __('Lugar', 'sticpa'),        'icon' => 'pin',    'format' => 'text'),
-        'city'              => array('label' => __('Población', 'sticpa'),    'icon' => 'pin',    'format' => 'text'),
-        'address'           => array('label' => __('Dirección', 'sticpa'),    'icon' => 'pin',    'format' => 'text'),
+        //
+        // EL LUGAR va en dos campos de texto NUESTROS y no en el módulo de
+        // ubicaciones del CRM (`stic_events_fp_event_locations`), que existe:
+        // para un puñado de eventos por delegación y curso, mantener un
+        // catálogo de sitios es más trabajo del que ahorra. El precio de
+        // decidirlo así es que «Casa de Espiritualidad» se acabará escribiendo
+        // de cinco maneras, como ya pasa con `cursos_c`; se asume porque este
+        // dato se LEE, y no se filtra ni se agrupa por él.
+        //
+        // Y son DOS y no uno porque hacen dos cosas distintas: el nombre corto
+        // es lo que cabe en la tarjeta del listado, y la dirección completa es
+        // lo que hace falta para llegar (y lo que se le manda al mapa).
+        'ajmcm_lugar_c'     => array('label' => __('Lugar', 'sticpa'),        'icon' => 'building', 'format' => 'text'),
+        'ajmcm_direccion_c' => array('label' => __('Dirección', 'sticpa'),    'icon' => 'pin',    'format' => 'text'),
         // El horario es TEXTO LIBRE en el CRM («De 17 a 19 h»), no una hora:
         // se pinta tal cual, que es lo que quien lo escribió quería decir.
         'timetable'         => array('label' => __('Horario', 'sticpa'),      'icon' => 'clock',  'format' => 'text'),
@@ -75,6 +86,56 @@ function sticpa_event_registration_fields()
 }
 
 /**
+ * Campo con el ENLACE AL MAPA. Va aparte de los opcionales porque una URL
+ * cruda no es un dato que se le enseñe a nadie: se convierte en el botón del
+ * dato «Lugar». Ver sticpa_event_map_url().
+ */
+function sticpa_event_map_field()
+{
+    return (string) apply_filters('sticpa_event_map_field', 'ajmcm_mapa_c');
+}
+
+/**
+ * A dónde lleva el botón del mapa, y de dónde sale.
+ *
+ * LA IDEA IMPORTANTE: el botón NO necesita que exista el campo del enlace.
+ * Con el nombre del sitio ya se puede armar una búsqueda de Google Maps, así
+ * que el botón funciona desde el primer día con un solo campo de texto
+ * relleno. El campo `ajmcm_mapa_c` es el ARREGLO para cuando la búsqueda no
+ * acierta —«Casa de Espiritualidad» hay varias— o cuando alguien quiere pegar
+ * el enlace exacto que ya tiene. Si está, manda él.
+ *
+ * Orden: enlace explícito → búsqueda de la dirección → búsqueda del lugar.
+ * De más preciso a menos.
+ *
+ * @param string $explicito Valor de `ajmcm_mapa_c`.
+ * @param string $direccion Dirección completa.
+ * @param string $lugar     Nombre del sitio.
+ * @return string URL segura (http/https) o cadena vacía.
+ */
+function sticpa_event_map_url($explicito = '', $direccion = '', $lugar = '')
+{
+    $explicito = trim((string) $explicito);
+    if ($explicito !== '') {
+        // Se valida ANTES de pintar: este valor lo escribe una persona en el
+        // CRM y podría ser un `javascript:…`. Ver sticpa_record_safe_url().
+        $url = function_exists('sticpa_record_safe_url')
+            ? sticpa_record_safe_url($explicito) : '';
+        if ($url !== '') {
+            return $url;
+        }
+        // Un enlace que no vale se ignora y se cae a la búsqueda: mejor un
+        // mapa aproximado que ningún botón.
+    }
+    $consulta = trim((string) $direccion) !== '' ? trim((string) $direccion) : trim((string) $lugar);
+    if ($consulta === '') {
+        return '';
+    }
+    $base = (string) apply_filters('sticpa_event_map_search_url', 'https://www.google.com/maps/search/?api=1&query=');
+    return $base . rawurlencode($consulta);
+}
+
+/**
  * Campos que hay que PEDIR al CRM para pintar un evento: los básicos más los
  * opcionales QUE EXISTAN de verdad en este SinergiaCRM.
  *
@@ -97,6 +158,7 @@ function sticpa_event_fields_to_request($objSCP)
         $wanted = array_merge($wanted, sticpa_event_audience_fields());
     }
     $wanted = array_merge($wanted, sticpa_event_registration_fields());
+    $wanted[] = sticpa_event_map_field();
     $wanted = array_values(array_unique($wanted));
     if (empty($wanted) || !function_exists('sticpa_cached_field_definition')) {
         return $base;
@@ -203,6 +265,12 @@ function sticpa_event_view_model($nvl)
         'optional' => $optional,
         // La ventana de inscripción, ya resuelta contra el día de hoy.
         'registro' => sticpa_event_registration_window($nvl),
+        // A dónde lleva el botón del mapa (o '' si no hay nada que enseñar).
+        'mapa_url' => sticpa_event_map_url(
+            $val(sticpa_event_map_field()),
+            $val('ajmcm_direccion_c'),
+            $val('ajmcm_lugar_c')
+        ),
         // A quién va dirigido (delegación, perfiles, cursos). Va en el modelo
         // para que listado y ficha decidan con lo mismo, igual que las fechas.
         'audiencia' => function_exists('sticpa_event_audience_from_nvl')
@@ -500,7 +568,7 @@ function sticpa_events_list_html($events, $statusMap = array())
         }
         // Una sola línea extra (el lugar): en la tarjeta manda el "cuándo";
         // el resto se ve en la ficha.
-        $place = $event['optional']['location']['text'] ?? ($event['optional']['city']['text'] ?? '');
+        $place = $event['optional']['ajmcm_lugar_c']['text'] ?? ($event['optional']['ajmcm_direccion_c']['text'] ?? '');
         if ($place !== '') {
             $lines[] = array('icon' => 'pin', 'text' => $place);
         }
@@ -606,7 +674,24 @@ function sticpa_event_detail_html($event, $statusLabel = '', $canSignUp = true, 
     if (!$event['is_past'] && $regFact !== null) {
         $facts[] = $regFact;
     }
-    foreach ($event['optional'] as $item) {
+    // EL BOTÓN DEL MAPA cuelga del PRIMER dato del lugar que haya, y no de una
+    // acción propia abajo: se toca donde se lee el sitio. Y no compite con
+    // «Inscribirme», que sigue siendo la única acción principal de la pantalla
+    // (design.md §6.2).
+    $mapaUrl = (string) ($event['mapa_url'] ?? '');
+    $conMapa = '';
+    if ($mapaUrl !== '') {
+        foreach (array('ajmcm_lugar_c', 'ajmcm_direccion_c') as $campo) {
+            if (isset($event['optional'][$campo])) {
+                $conMapa = $campo;
+                break;
+            }
+        }
+    }
+    foreach ($event['optional'] as $campo => $item) {
+        if ($campo === $conMapa) {
+            $item['link'] = array('url' => $mapaUrl, 'label' => __('Ver en el mapa', 'sticpa'));
+        }
         $facts[] = $item;
     }
 

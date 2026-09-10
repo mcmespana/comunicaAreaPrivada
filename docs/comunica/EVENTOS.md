@@ -270,7 +270,7 @@ duplicados. Corregido el 10/09/2026:
 | `start_time` | **`timetable`** (texto libre con el horario) |
 | `registration_end` | **`ajmcm_end_inscripcion_c`** + `ajmcm_start_inscripcion_c` (§5.2) |
 | `price` | **`price`** ✅ coincidía |
-| `location` / `city` / `address` | No existen: el lugar es una **relación** al módulo de ubicaciones (`stic_events_fp_event_locations`). Se dejan declarados —si algún día se crea un `location` de texto, sale solo— |
+| `location` / `city` / `address` | No existen. Se sustituyen por `ajmcm_lugar_c` y `ajmcm_direccion_c`, **por crear** (§5.3) |
 
 ### 5.1 Un 0 no es una respuesta
 
@@ -333,12 +333,84 @@ add_filter('sticpa_event_registration_window', function ($w) {
 });
 ```
 
-### 5.3 Lo que sigue pendiente
+### 5.3 El lugar: tres campos por crear, y el botón del mapa
 
-**El lugar.** Es el dato que más se echa en falta y **es una relación**, no un
-texto: pintarlo cuesta una consulta más y hay que decidir dónde (probablemente
-en la misma llamada del listado, con `link_name_to_fields_array`). No está
-hecho.
+Es el dato que más se echa en falta. En el CRM existe un módulo de ubicaciones
+(`stic_events_fp_event_locations`, una relación) y **se ha decidido no usarlo**:
+para un puñado de eventos por delegación y curso, mantener un catálogo de
+sitios es más trabajo del que ahorra, y además costaría una consulta más por
+listado. El precio de decidirlo así es que «Casa de Espiritualidad» se acabará
+escribiendo de cinco maneras, como ya pasa con `cursos_c`; se asume **porque
+este dato se lee, y no se filtra ni se agrupa por él**.
+
+#### `ajmcm_lugar_c` — Lugar (texto) 🔨
+
+| | |
+|---|---|
+| **Módulo** | `stic_Events` |
+| **Tipo** | Texto (255) |
+| **Obligatorio** | No, pero es el que hay que rellenar siempre |
+
+El **nombre corto** del sitio: «Casa de Espiritualidad, Benigànim». Sale en la
+**tarjeta del listado** y en la ficha, así que conviene que quepa en una línea
+de móvil.
+
+#### `ajmcm_direccion_c` — Dirección (texto) 🔨
+
+| | |
+|---|---|
+| **Módulo** | `stic_Events` |
+| **Tipo** | Texto (255) |
+| **Obligatorio** | No |
+
+La **dirección completa**: «C/ Santiago 24, 28200 San Lorenzo de El Escorial».
+Solo en la ficha, y es lo que se le manda al mapa (es más preciso que el
+nombre). Son dos campos y no uno porque hacen dos cosas: uno cabe en la
+tarjeta y el otro sirve para llegar.
+
+#### `ajmcm_mapa_c` — Enlace del mapa (URL) 🔨 *(opcional de verdad)*
+
+| | |
+|---|---|
+| **Módulo** | `stic_Events` |
+| **Tipo** | URL (o texto) |
+| **Obligatorio** | No |
+
+**El botón del mapa NO necesita este campo.** Con el nombre del sitio ya se
+arma una búsqueda de Google Maps, así que el botón funciona desde el primer día
+con `ajmcm_lugar_c` relleno. Si hiciera falta pegar un enlace, no habría botón
+hasta que alguien se acordara de hacerlo en cuarenta eventos.
+
+Este campo es **el arreglo** para cuando la búsqueda no acierta —de «Casa de
+Espiritualidad» hay unas cuantas— o cuando ya se tiene el enlace bueno. Si está
+relleno, manda él.
+
+```
+ajmcm_mapa_c        →  se usa tal cual
+si no, dirección    →  búsqueda de Google Maps
+si no, lugar        →  búsqueda de Google Maps
+si no hay nada      →  no hay botón
+```
+
+⚠️ **Solo se aceptan `http` y `https`.** El valor lo escribe una persona en el
+CRM, así que quien tenga cuenta podría dejar un `javascript:…` en un enlace que
+después pulsa una familia. Un esquema que no valga se descarta y se cae a la
+búsqueda (`sticpa_record_safe_url()`).
+
+#### Cómo se ve
+
+El dato «Lugar» de la ficha **entero** es el enlace, no un icono al final: en un
+móvil, 44px de alto por todo el ancho se acierta con el pulgar y un icono de
+18px no. La flecha del final es la señal de que se puede tocar, no el objetivo.
+Se abre en otra pestaña con `rel="noopener noreferrer"`, y el lector de pantalla
+oye «Ver en el mapa: …», que una flecha sola no dice a dónde lleva.
+
+No compite con «Inscribirme»: sigue habiendo **una sola acción principal** por
+pantalla (design.md §6.2). Es un dato que además se puede tocar.
+
+Esto es genérico, no de eventos: `sticpa_record_detail_html()` acepta
+`'link' => array('url', 'label')` en cualquier dato clave, así que el día que un
+pago quiera enlazar a su recibo, ya está.
 
 > El plugin **pregunta primero al CRM qué campos existen**
 > (`sticpa_event_fields_to_request()`), así que declarar aquí un campo que aún
@@ -371,8 +443,9 @@ mirarlo, y aquí no hay WordPress:
 php tests/manual/render-events.php > /tmp/eventos.html
 ```
 
-Pinta los cinco estados de la tarjeta, el estado vacío y las cinco fichas
-(completa, con ceros, otra audiencia, fuera de plazo, ya inscrito). Los meses
+Pinta los cinco estados de la tarjeta, el estado vacío y las seis fichas
+(completa, con ceros, con enlace de mapa propio, otra audiencia, fuera de plazo,
+ya inscrito). Los meses
 salen en inglés y **no es un fallo**: el doble de `date_i18n()` no tiene
 idioma. Comprobado el 10/09/2026 en claro y en oscuro: sin scroll horizontal a
 375px, ningún objetivo táctil por debajo de 44px y los chips por encima de

@@ -52,7 +52,7 @@ $filas = array(
     harness_row(array(
         'id' => 'e1', 'name' => 'Convivencia de inicio de curso · Benigànim',
         'start_date' => $d('+45 days'), 'end_date' => $d('+47 days'),
-        'status' => 'registration', 'location' => 'Casa de Espiritualidad, Benigànim',
+        'status' => 'registration', 'ajmcm_lugar_c' => 'Casa de Espiritualidad, Benigànim',
         'ajmcm_start_inscripcion_c' => $d('-5 days'), 'ajmcm_end_inscripcion_c' => $d('+12 days'),
     )),
     // Todavía no se ha abierto: se dice cuándo, y no hay botón.
@@ -105,7 +105,8 @@ $completa = sticpa_event_detail_html(
         'start_date' => $d('+200 days'), 'end_date' => $d('+210 days'),
         'status' => 'registration',
         'description' => "Diez días de convivencia, juego y servicio en la sierra de Madrid.\n\nLa cuota incluye el alojamiento en pensión completa, el material de las actividades, el seguro y el transporte desde el punto de encuentro de cada delegación.",
-        'location' => 'Albergue Juvenil de San Lorenzo de El Escorial',
+        'ajmcm_lugar_c' => 'Albergue Juvenil de San Lorenzo de El Escorial',
+        'ajmcm_direccion_c' => 'C/ Santiago 24, 28200 San Lorenzo de El Escorial, Madrid',
         'timetable' => 'Salida el día 1 a las 9:00 desde la parroquia',
         'max_attendees' => '60', 'price' => '285.00',
         'ajmcm_start_inscripcion_c' => $d('-5 days'), 'ajmcm_end_inscripcion_c' => $d('+40 days'),
@@ -165,12 +166,28 @@ $yaInscrito = sticpa_event_detail_html(
     sticpa_event_view_model(harness_nvl(array(
         'id' => 'e1', 'name' => 'Convivencia de inicio de curso · Benigànim',
         'start_date' => $d('+45 days'), 'end_date' => $d('+47 days'),
-        'status' => 'registration', 'location' => 'Casa de Espiritualidad, Benigànim',
+        'status' => 'registration', 'ajmcm_lugar_c' => 'Casa de Espiritualidad, Benigànim',
         'ajmcm_end_inscripcion_c' => $d('+12 days'),
     ))),
     'Inscripción abierta',
     false,
     'Esta actividad es solo para Monitores/as.'
+);
+
+// Con el enlace del mapa pegado a mano: el botón usa ESE y no la búsqueda.
+$conMapaPropio = sticpa_event_detail_html(
+    sticpa_event_view_model(harness_nvl(array(
+        'id' => 'e7', 'name' => 'Convivencia de inicio de curso · Benigànim',
+        'start_date' => $d('+45 days'), 'end_date' => $d('+47 days'),
+        'status' => 'registration',
+        'description' => 'Un fin de semana para arrancar el curso.',
+        'ajmcm_lugar_c' => 'Casa de Espiritualidad, Benigànim',
+        'ajmcm_mapa_c' => 'https://maps.app.goo.gl/ejemplo123',
+        'ajmcm_end_inscripcion_c' => $d('+12 days'),
+    ))),
+    'Inscripción abierta',
+    true,
+    ''
 );
 
 $css = file_get_contents(__DIR__ . '/../../css/custom-style.css');
@@ -201,6 +218,8 @@ echo <<<HTML
   {$completa}
   <h2>Ficha con plazas 0 y precio 0,00 — NO deben aparecer</h2>
   {$conCeros}
+  <h2>Ficha con enlace de mapa propio (pegado a mano en el CRM)</h2>
+  {$conMapaPropio}
   <h2>Ficha que no es para ti (otro perfil)</h2>
   {$otroPerfil}
   <h2>Ficha fuera de plazo</h2>
