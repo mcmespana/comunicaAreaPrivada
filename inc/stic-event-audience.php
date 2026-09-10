@@ -214,6 +214,25 @@ function sticpa_event_audience_key($value)
     return strtolower(trim((string) $value));
 }
 
+/**
+ * Claves del desplegable de cursos que NO son un curso.
+ *
+ * `ajmcm_curso_escolar_c_list` tiene `na` [NA], que quiere decir «no aplica».
+ * Contarlo como un curso normal sería un error silencioso y de los caros: no
+ * casaría con ninguno, así que una persona marcada `na` quedaría FUERA de
+ * cualquier evento que restrinja cursos. Se trata como «esta persona no tiene
+ * curso», que es lo que el valor dice.
+ *
+ * `otros` NO está aquí a propósito: eso sí es un curso —uno que no está en la
+ * lista— y casa con los eventos marcados `otros`.
+ */
+function sticpa_event_audience_cursos_no_aplica()
+{
+    return sticpa_event_audience_keys(
+        apply_filters('sticpa_event_audience_cursos_no_aplica', array('na'))
+    );
+}
+
 /** Normaliza una lista de claves y quita las vacías y las repetidas. */
 function sticpa_event_audience_keys($values)
 {
@@ -364,7 +383,12 @@ function sticpa_viewer_audience($objSCP = null, $conRelaciones = true)
                     continue;
                 }
                 $curso = isset($v->$cursoField->value) ? sticpa_event_audience_key($v->$cursoField->value) : '';
-                if ($curso !== '' && !in_array($curso, $cursos, true)) {
+                // `na` («no aplica») no es un curso: ver
+                // sticpa_event_audience_cursos_no_aplica().
+                if ($curso === '' || in_array($curso, sticpa_event_audience_cursos_no_aplica(), true)) {
+                    continue;
+                }
+                if (!in_array($curso, $cursos, true)) {
                     $cursos[] = $curso;
                 }
             }
@@ -463,7 +487,12 @@ function sticpa_event_audience_match($audience, $viewer)
     // semanales del MIC, que están marcadas de 4.º a 6.º de primaria.
     $cursos = sticpa_event_audience_keys($audience['cursos'] ?? array());
     if (!empty($cursos)) {
-        $mios = sticpa_event_audience_keys($viewer['cursos'] ?? array());
+        // También se limpia aquí: `sticpa_viewer_audience()` ya lo hace, pero
+        // este mapa es filtrable y puede llegar un `na` de fuera.
+        $mios = array_diff(
+            sticpa_event_audience_keys($viewer['cursos'] ?? array()),
+            sticpa_event_audience_cursos_no_aplica()
+        );
         if (!empty($mios) && empty(array_intersect($cursos, $mios))) {
             return array('ok' => false, 'motivo' => 'curso');
         }

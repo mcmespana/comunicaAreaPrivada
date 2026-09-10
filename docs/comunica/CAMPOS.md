@@ -189,12 +189,34 @@ nocturnos `ajmcm_n_participantes_c` / `ajmcm_n_monitores_c` / `ajmcm_monitores_c
     guardaría el curso escolar tipo `2024_2025`. Las dos cosas eran falsas:
     - **Ya está relleno** en muchas relaciones (comprobado por MCP el
       09/09/2026).
-    - **No guarda el año académico, guarda el NIVEL ESCOLAR.** Claves vistas:
-      `4_primaria`, `5_primaria`, `6_primaria`, `1_eso`, `2_eso`, `3_eso`,
-      `4_eso`, `1_bachillerato`, `2_bachillerato`, `universitario`, `otros`.
-      (Lista de valores OBSERVADOS, no el desplegable entero: el MCP no
-      devuelve las opciones de los enum. Si necesitas uno que no esté, míralo
-      en el CRM y apúntalo aquí.)
+    - **No guarda el año académico, guarda el NIVEL ESCOLAR.**
+  - **Desplegable `ajmcm_curso_escolar_c_list`, DOMINIO COMPLETO** (leído en
+    Studio el 10/09/2026, no observado en datos — esta lista sí es exhaustiva):
+
+    | Clave | Etiqueta |
+    |---|---|
+    | *(vacío)* | -vacío- |
+    | `3_primaria` | 3º |
+    | `4_primaria` | 4º |
+    | `5_primaria` | 5º |
+    | `6_primaria` | 6º |
+    | `1_eso` | 1º ESO |
+    | `2_eso` | 2º ESO |
+    | `3_eso` | 3º ESO |
+    | `4_eso` | 4º ESO |
+    | `1_bachillerato` | 1º Bach |
+    | `2_bachillerato` | 2º Bach |
+    | `fp_gm` | FP GM |
+    | `fp_gs` | FP GS |
+    | `universitario` | Universitario |
+    | `otros` | Otros |
+    | `na` | NA |
+
+  - ⚠️ **`na` NO es un curso: es «no aplica».** Para el filtro de audiencia de
+    los eventos cuenta como *no tener curso*, no como un curso que no casa con
+    ninguno — si contara como curso, una persona marcada `na` quedaría fuera de
+    cualquier evento que restrinja cursos. `otros` sí es un curso (uno que no
+    está en la lista), y casa solo con `otros`.
   - **No hay bug que arreglar en Pasar Lista**: lo que allí se deduce de
     `start_date`/`end_date` es el AÑO académico (`2025-2026`), que es otra cosa
     y sigue sin vivir en ningún campo. Son dos ejes:
@@ -208,8 +230,11 @@ nocturnos `ajmcm_n_participantes_c` / `ajmcm_n_monitores_c` / `ajmcm_monitores_c
     «el curso de esta persona» tiene que **quedarse solo con las relaciones de
     participante** (`participante_mic_com` y `grupo`). Lo hace
     `sticpa_viewer_audience()` (`inc/stic-event-audience.php`).
-  - **Sus claves casan con `stic_Events.ajmcm_filtro_edades_c`** y de ahí sale
-    el filtro de «a qué cursos va dirigido este evento». Ver §1 → Eventos.
+  - ⚠️ **`stic_Events.ajmcm_filtro_edades_c` USA ESTE MISMO DESPLEGABLE**
+    (`ajmcm_curso_escolar_c_list`), no una copia. Por eso el filtro de «a qué
+    cursos va dirigido este evento» compara clave con clave y **no pueden
+    divergir nunca**: quien añada un curso aquí lo añade en los dos sitios a la
+    vez. Es la razón de que no haya nada que sincronizar. Ver §1 → Eventos.
 - `ajmcm_delegacion_c` — Delegación de la relación (desplegable)
   - ⚠️ Sus claves NO son las de `ajmcm_procendencia_c` de personas: aquí
     `vilareal`, allí `vila-real`. Dos enums de delegación con formatos distintos.
@@ -242,12 +267,12 @@ funcional en [`EVENTOS.md`](EVENTOS.md) §5.
 - `assigned_user_id` — Asignado a → **la delegación dueña del evento**
   - Es lo que separa el evento local del de otra delegación. Un evento asignado
     al «Administrador MCM» (id `1`) o sin asignar se entiende como de todas.
-- `ajmcm_ambito_c` — Ámbito 🔨 **POR CREAR** (ver la ficha en `EVENTOS.md` §5.2)
+- `ajmcm_ambito_c` — Ámbito 🔨 **POR CREAR** (ver la ficha en `EVENTOS.md` §4.2)
   - Desplegable: `local` [Solo su delegación] · `nacional` [Todas las delegaciones]
   - Si está vacío, el ámbito se deduce de `assigned_user_id` (con delegación =
     local; sin delegación = nacional), así que el campo es opcional: sirve para
     decir «este evento es de Castellón y AUN ASÍ es para todas».
-- `ajmcm_dirigido_a_c` — Dirigido a 🔨 **POR CREAR** (ficha en `EVENTOS.md` §5.2)
+- `ajmcm_dirigido_a_c` — Dirigido a 🔨 **POR CREAR** (ficha en `EVENTOS.md` §4.1)
   - Selección **múltiple**. **Las claves son literalmente las de
     `relationship_type`** (ver el inventario de §2), para no mantener dos
     vocabularios que dicen lo mismo:
@@ -265,21 +290,20 @@ funcional en [`EVENTOS.md`](EVENTOS.md) §5.
     porque **no existe una clave «laico»** (§2). `coordinacion` es el único
     agrupador: cubre `coordinacion_mic_com` y `acompanamiento_mic_com`. El mapa
     vive en `sticpa_event_audience_perfil_map()`.
-- `ajmcm_filtro_edades_c` — Cursos a los que va dirigido ✅ **YA EXISTE Y YA SE USA**
-  - Selección múltiple. Valores vistos: `4_primaria`, `5_primaria`,
-    `6_primaria`, `1_eso`, `2_eso`, `3_eso`, `4_eso`, `1_bachillerato`,
-    `2_bachillerato`.
-  - **No había que crearlo**: estaba creado y relleno (las sesiones semanales
-    del MIC llevan `^4_primaria^,^5_primaria^,^6_primaria^` y las del COM de
-    1.º de la ESO a 2.º de bachillerato). Lo que faltaba era que el área
-    privada lo mirara.
-  - Se compara con `stic_Contacts_Relationships.ajmcm_curso_escolar_c`, que usa
-    **las mismas claves**. ⚠️ Al de la persona le faltan en el del evento
-    `universitario` y `otros`: hay que **añadirlos al desplegable del evento**
-    para poder sacar un evento de universitarios.
+- `ajmcm_filtro_edades_c` — Cursos a los que va dirigido ✅ **YA EXISTE, NADA QUE TOCAR**
+  - Selección **múltiple**, y usa **el mismo desplegable
+    `ajmcm_curso_escolar_c_list` que el campo de la persona** (§1 → Relaciones
+    con Personas). No es una copia: es la misma lista, así que los dos lados
+    del filtro **no pueden divergir nunca** y no hay nada que sincronizar.
+    Dominio completo, allí.
+  - **No había que crearlo ni ampliarlo**: estaba creado y relleno (las
+    sesiones semanales del MIC llevan `^4_primaria^,^5_primaria^,^6_primaria^`
+    y las del COM de 1.º de la ESO a 2.º de bachillerato). Lo único que
+    faltaba era que el área privada lo mirara.
   - Vacío = para todos los cursos. Y **solo estrecha entre participantes**:
-    a quien no tiene curso propio (un monitor, una madre) no se le aplica, o
-    los monitores del MIC se quedarían fuera de las sesiones del MIC.
+    a quien no tiene curso propio (un monitor, una madre, o alguien marcado
+    `na`) no se le aplica, o los monitores del MIC se quedarían fuera de las
+    sesiones del MIC.
 
 **El lugar — tres campos 🔨 POR CREAR** (fichas completas en
 [`EVENTOS.md`](EVENTOS.md) §5.3). No existen `location`, `city` ni `address`:
