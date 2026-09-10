@@ -172,7 +172,33 @@ add_filter('sticpa_event_audience_non_delegation_users', fn() => array('1', '17'
 
 ## 4. Campos que hay que CREAR en SinergiaCRM
 
-Solo dos, y uno de ellos es opcional. El de los cursos **ya existía**.
+**LA LISTA COMPLETA, y es la única que queda en todo el proyecto.** Verificado
+contra el CRM el 10/09/2026: en Pasar Lista y en Coordinación no queda nada
+pendiente (`PASAR-LISTA-CAMPOS-CRM.md` §2 y `PASAR-LISTA-COORDINACION.md` §6
+tenían marcas de «por crear» obsoletas, ya corregidas).
+
+Los seis son de `stic_Events`. **Ninguno es obligatorio**, y mientras no existan
+el área funciona igual: los campos que no están ni se le piden al CRM.
+
+| # | Campo | Tipo | Para qué | Ficha |
+|---|---|---|---|---|
+| 1 | `ajmcm_dirigido_a_c` | **Selección múltiple** | A qué perfiles va dirigido (monitores, grupo COM-LC…) | §4.1 |
+| 2 | `ajmcm_ambito_c` | Desplegable | Local o de todas las delegaciones | §4.2 |
+| 3 | `ajmcm_filtro_edades_c` | *(ya existe)* | **Solo añadirle** `universitario` y `otros` | §4.3 |
+| 4 | `ajmcm_lugar_c` | Texto (255) | El nombre del sitio. **El más importante de los seis** | §5.3 |
+| 5 | `ajmcm_direccion_c` | Texto (255) | La dirección completa | §5.3 |
+| 6 | `ajmcm_mapa_c` | URL | El enlace al mapa, solo cuando la búsqueda no acierta | §5.3 |
+
+Si hay que priorizar: **el 4 es el que se nota** (hoy nadie sabe dónde es una
+actividad sin preguntar, y además enciende el botón del mapa él solo). El 1 y el
+2 son los que hacen falta para el congreso de monitores. El 3, 5 y 6 son
+refinamientos.
+
+---
+
+### Los dos de la audiencia
+
+Uno de ellos es opcional. El de los cursos **ya existía**.
 
 ### 4.1 `stic_Events` → `ajmcm_dirigido_a_c` 🔨
 
