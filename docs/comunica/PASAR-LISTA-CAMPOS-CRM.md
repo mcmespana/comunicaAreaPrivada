@@ -20,7 +20,15 @@ No hace falta ningún otro módulo nuevo. Todo lo demás son campos.
 
 ## 2. Lo que hay que crear
 
-### 🔨 `ajmcm_GRUPOS` → `ajmcm_pasar_lista_c`  ← **pedido el 27/08/2026**
+**Nada de este documento sigue pendiente.** Los dos campos de abajo **existen
+ya** en el CRM (verificado por MCP el 10/09/2026) y las marcas 🔨 estaban
+obsoletas. Se dejan las fichas porque explican POR QUÉ son como son, que es lo
+que hace falta el día que alguien se plantee cambiarlos.
+
+Lo único que queda por crear en todo el proyecto son los campos de EVENTOS, y
+están en [`EVENTOS.md`](EVENTOS.md) §4 y §5.3.
+
+### ✅ `ajmcm_GRUPOS` → `ajmcm_pasar_lista_c`  ← **pedido el 27/08/2026, hecho**
 
 | | |
 |---|---|
@@ -59,7 +67,7 @@ Y si se decide otro nombre, se ajusta con `sticpa_pl_grupo_activo_field`.
 **No hay que propagar nada a `comunicaFormularios`**: ningún formulario público
 escribe en este campo, es de gestión interna.
 
-### 🔨 `ajmcm_GRUPOS` → `ajmcm_segmento_com_c`
+### ✅ `ajmcm_GRUPOS` → `ajmcm_segmento_com_c`  ← **hecho**
 
 | | |
 |---|---|
@@ -93,9 +101,13 @@ las relaciones, tendríamos dos respuestas distintas a la misma pregunta. Como
 cada curso se crea una relación nueva a un grupo nuevo, el histórico del
 segmento queda registrado igual a través del grupo.
 
-❓ **Duda a resolver antes de crearlo:** ¿son 3 valores o hay que casarlos con
-los 4 niveles personales? Si COM III agrupa «Crecimiento + Opción Responsable»
-conviene dejarlo escrito, porque si no dentro de un año nadie se acuerda.
+**Creado, con los tres valores** (`com_1`, `com_2`, `com_3`; verificado el
+10/09/2026).
+
+❓ **La duda que quedó abierta y sigue abierta**, ahora que ya son 3: ¿COM III
+agrupa «Crecimiento + Opción Responsable» de los 4 niveles personales? Conviene
+dejarlo escrito aquí en cuanto se decida, porque si no dentro de un año nadie
+se acuerda de cómo casan los 3 segmentos con los 4 niveles.
 
 ---
 
