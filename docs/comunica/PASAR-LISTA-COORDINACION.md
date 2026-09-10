@@ -240,17 +240,6 @@ Lo que hay ahora:
   `sticpa_pl_coord_scope_label()`, que ahora **no se come el segmento**: antes
   un coordinador de COM II leía «COM» a secas.
 
-### Lo que esto NO arregla
-
-El menú lee `stic_relationship_type_c` **del contacto**, que es el resumen que
-el CRM mantiene de sus relaciones. Si un día alguien tiene la relación
-`coordinacion_mic_com` en `stic_Contacts_Relationships` pero el campo del
-contacto no lo refleja, verá Pasar lista solo si además es monitor, y las
-pantallas de coordinación seguirán abriéndosele por URL (el alcance real lo
-decide `sticpa_pl_coord_scope()`, que sí lee las relaciones). Es el precio de
-no meter una consulta al CRM en el menú de todas las páginas. Si algún día pasa
-de verdad, la salida es el filtro `sticpa_equipo_papeles`.
-
 ## 6. Campos y valores que hay que crear
 
 Pocos, y ninguno nuevo en Personas.

@@ -176,9 +176,44 @@
     Pasar Lista**. Probablemente es lo que se quiere; queda escrito para que
     nadie lo descubra por sorpresa. (Comprobado el 28/08/2026.)
 
-Los demás campos del módulo (`code`, `name`, `level`, `cursos_c`, los recuentos
+- `ajmcm_segmento_com_c` — Segmento COM — desplegable (`enum`, custom, len 100)
+  - **Qué es, y no es lo que parece por el nombre.** Es una **agrupación
+    organizativa interna**: se juntan varios grupos —a veces todos los del MIC
+    en uno, a veces media etapa del COM en uno y la otra media en otro— para
+    **ponerles un coordinador y que esa gente programe junta las actividades**.
+    Nada más. (Explicado por el propietario el 10/09/2026.)
+  - **No es la etapa** (eso es `level`, MIC/COM/LC) **y no es el nivel personal**
+    (`ajmcm_nivel_com_c` en Personas, el itinerario de cada chaval: I
+    Conocimiento, II Incorporación, III Crecimiento, IV Opción Responsable). Son
+    tres ejes distintos y confundirlos es fácil:
+
+    ```
+    level (grupo)      → de qué etapa es el grupo: MIC / COM / LC
+    segmento (grupo)   → con quién se coordina y programa ese grupo
+    nivel (persona)    → por dónde va cada chaval en su itinerario
+    ```
+  - **Valores EN USO** (leídos del CRM el 10/09/2026, sobre 105 grupos):
+    `com_1` (7 grupos) · `com_2` (3) · `com_3` (4) · **sin valor: 91**. Que la
+    inmensa mayoría esté vacío es normal: solo se rellena donde hay una
+    agrupación montada.
+  - ⚠️ **Estas son las claves OBSERVADAS, no el desplegable entero**: el MCP de
+    este CRM no devuelve las opciones de los `enum` (`get_module_fields` da solo
+    `name`, `type`, `len`, `custom`). Si hace falta una clave que no esté aquí,
+    míralas en el CRM y apúntalas — no te las inventes. Las **etiquetas**
+    legibles tampoco se pueden leer por API; el área privada enseña la clave con
+    los guiones bajos en espacios (`com_2` → «COM 2»), así que si se quiere que
+    se lea «COM II» hay que documentar aquí la etiqueta real.
+  - Lo usa Pasar Lista para el **alcance de coordinación**: quien coordina con
+    segmento ve solo los grupos de su segmento; sin segmento, toda su etapa o
+    toda la delegación (`sticpa_pl_coord_scope()`, y la frase que lo dice en
+    pantalla sale de `sticpa_pl_coord_scope_label()`).
+  - El nombre lleva `_com_` porque nació pensado para el COM, pero la idea vale
+    para cualquier etapa. Si algún día se agrupan grupos del MIC, **el campo
+    sirve igual** (es texto libre por dentro): no se crea otro.
+
+Los demás campos del módulo (`code`, `name`, `level`, `cursos_c` y los recuentos
 nocturnos `ajmcm_n_participantes_c` / `ajmcm_n_monitores_c` / `ajmcm_monitores_c`
-/ `ajmcm_recuento_al_c`, y `ajmcm_segmento_com_c`) están en
+/ `ajmcm_recuento_al_c`) están en
 [`PASAR-LISTA-CAMPOS-CRM.md`](PASAR-LISTA-CAMPOS-CRM.md) §3.
 
 ### Relaciones con personas (`stic_Contacts_Relationships`)

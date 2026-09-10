@@ -59,22 +59,28 @@ Y si se decide otro nombre, se ajusta con `sticpa_pl_grupo_activo_field`.
 **No hay que propagar nada a `comunicaFormularios`**: ningún formulario público
 escribe en este campo, es de gestión interna.
 
-### 🔨 `ajmcm_GRUPOS` → `ajmcm_segmento_com_c`
+### ✅ `ajmcm_GRUPOS` → `ajmcm_segmento_com_c` (creado y en uso)
 
 | | |
 |---|---|
 | **Módulo** | `ajmcm_GRUPOS` (Grupos MCM) |
 | **Etiqueta** | Segmento COM |
-| **Tipo** | Desplegable (enum) |
-| **Valores** | `com_1` [COM I] · `com_2` [COM II] · `com_3` [COM III] |
-| **Obligatorio** | No (solo aplica a grupos con `level = com`) |
+| **Tipo** | Desplegable (`enum`, custom, len 100) |
+| **Valores en uso** | `com_1` · `com_2` · `com_3` (claves observadas; el MCP no devuelve las opciones del desplegable) |
+| **Obligatorio** | No |
+
+> **Estado 10/09/2026: existe y está relleno.** Leído por MCP: de 105 grupos,
+> `com_1` en 7, `com_2` en 3, `com_3` en 4 y **91 sin valor**. Que la mayoría
+> esté vacío es lo esperado: solo se rellena donde hay una agrupación montada.
+> La ficha completa del campo está en [`CAMPOS.md`](CAMPOS.md) § Grupos, que es
+> la fuente de la verdad.
 
 **Por qué en Grupos y no en Personas ni en Relaciones con Personas.**
 
-El segmento es una propiedad **del grupo**: un grupo entero *es* COM II. No tiene
-sentido que dentro de un mismo grupo haya chavales de COM I y de COM II — si los
-hubiera, serían dos grupos. Por tanto el dato vive donde vive la cosa que
-describe.
+El segmento es una propiedad **del grupo**: lo que se agrupa para coordinar y
+programar juntos son grupos enteros, no personas sueltas. No tiene sentido que
+dentro de un mismo grupo haya chavales de dos segmentos — si los hubiera, serían
+dos grupos. Por tanto el dato vive donde vive la cosa que describe.
 
 Y sobre todo: **no se puede confundir con el nivel personal, que ya existe.**
 `ajmcm_nivel_com_c` en Personas es otra cosa — el itinerario personal de cada
@@ -82,7 +88,8 @@ uno (I Conocimiento, II Incorporación, III Crecimiento, IV Opción Responsable)
 Son dos ejes distintos:
 
 ```
-Segmento (grupo)   →  cómo organizamos los grupos del COM: COM I / II / III
+level (grupo)      →  de qué etapa es el grupo: MIC / COM / LC
+Segmento (grupo)   →  con quién se coordina y programa: com_1 / com_2 / com_3
 Nivel (persona)    →  por dónde va cada chaval en su itinerario: I / II / III / IV
 ```
 
@@ -93,9 +100,14 @@ las relaciones, tendríamos dos respuestas distintas a la misma pregunta. Como
 cada curso se crea una relación nueva a un grupo nuevo, el histórico del
 segmento queda registrado igual a través del grupo.
 
-❓ **Duda a resolver antes de crearlo:** ¿son 3 valores o hay que casarlos con
-los 4 niveles personales? Si COM III agrupa «Crecimiento + Opción Responsable»
-conviene dejarlo escrito, porque si no dentro de un año nadie se acuerda.
+✅ **Duda resuelta (10/09/2026, por el propietario): no hay que casarlo con
+nada.** El segmento **no es un nivel**: es una agrupación organizativa interna
+—a veces todos los grupos del MIC en uno, a veces media etapa del COM en uno y
+la otra media en otro— hecha para **ponerles un coordinador y que esa gente
+programe junta las actividades**. Que hoy sus tres claves se llamen `com_1/2/3`
+es una coincidencia de cómo está montado el COM ahora mismo, no una
+correspondencia con los cuatro niveles personales. Por eso no hay que
+sincronizarlo con `ajmcm_nivel_com_c` ni cuadrar los números.
 
 ---
 
