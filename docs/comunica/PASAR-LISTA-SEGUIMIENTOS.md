@@ -115,6 +115,26 @@ un dato de más.
 
 ---
 
+## 5 bis. ✅ El permiso ya está dado (10/09/2026)
+
+Lo que bloqueaba todo esto era que el usuario de la API contestaba **«The API
+user does not have access to this module»** al preguntar por `stic_FollowUps`.
+**Ya no.** Comprobado por MCP el 10/09/2026:
+
+- `stic_FollowUps` aparece entre los 38 módulos disponibles.
+- Los campos que usa el plugin existen tal cual: `name`, `description`, `type`,
+  `start_date`, y el enlace a personas `stic_followups_contacts`.
+- El listado responde y **ya hay registros** (media docena).
+
+`stic_Assessments` y `stic_Goals` siguen sin acceso, y da igual: no se usan (§1).
+
+⚠️ **Queda una cosa por confirmar a mano**: las tres claves de tipo
+(`mcm_incidencia`, `mcm_valoracion`, `mcm_acompanamiento`) no se pueden verificar
+por API, porque el MCP no devuelve las opciones de los desplegables. Y la API
+**no valida los enum**: si esas claves no están dadas de alta en el desplegable
+`type` de Seguimientos, el plugin guardará igual y en el CRM se leerá la clave en
+crudo. Hay que mirarlo en el CRM una vez.
+
 ## 6. Qué hay que hacer en el CRM
 
 ### 1. Dar acceso al usuario de la API a `stic_FollowUps`
