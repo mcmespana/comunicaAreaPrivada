@@ -55,17 +55,11 @@ if (function_exists('prefix_user_has_active_registration')) {
     $canSignUp = !prefix_user_has_active_registration($objSCP, $eventId);
 }
 
-// AUDIENCIA. A esta ficha se llega por enlace directo, así que el filtro del
-// listado no basta: aquí se comprueba otra vez y, si la actividad no es para
-// quien mira, se le explica por qué en vez de ofrecerle un botón que el
-// guardado le va a rechazar. No cuesta una llamada más: el evento ya está
-// cargado y se le pasa su `name_value_list`.
-$audienceNote = '';
-if (function_exists('sticpa_event_audience_check')) {
-    $audienceNote = sticpa_event_audience_verdict_notice(
-        $objSCP,
-        sticpa_event_audience_check($objSCP, $eventId, $nvl)
-    );
-}
+// ¿ADMITE ESTA ACTIVIDAD TU INSCRIPCIÓN? (audiencia + fechas del plazo). A
+// esta ficha se llega por enlace directo, así que el filtro del listado no
+// basta: aquí se comprueba otra vez y, si no, se le explica por qué en vez de
+// ofrecerle un botón que el guardado le va a rechazar. No cuesta una llamada
+// más: el evento ya está cargado y se le pasa su `name_value_list`.
+$block = sticpa_event_signup_block($objSCP, $eventId, $nvl);
 
-$html .= sticpa_event_detail_html($event, $statusLabel, $canSignUp, $audienceNote);
+$html .= sticpa_event_detail_html($event, $statusLabel, $canSignUp, $block['texto']);

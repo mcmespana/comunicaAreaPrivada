@@ -487,22 +487,22 @@ function prefix_admin_single_stic_registrations()
         // otra; se redirige a la pantalla de inscripción que mostrará el aviso
         // "Ya estás inscrito".
         //
-        // Y GUARD DE AUDIENCIA, que es EL de verdad. Que el listado no ofrezca
-        // un evento y que la ficha explique que no es para ti son cortesías de
-        // la interfaz: este endpoint se alcanza con un POST y el id del evento
-        // en la mano. Si la inscripción no debe existir, es AQUÍ donde no se
-        // crea. Mismo destino que el duplicado: la pantalla de inscripción, que
-        // ya sabe explicar por qué.
+        // Y GUARD DE AUDIENCIA Y DE PLAZO, que es EL de verdad. Que el listado
+        // no ofrezca un evento y que la ficha explique que no es para ti son
+        // cortesías de la interfaz: este endpoint se alcanza con un POST y el
+        // id del evento en la mano. Si la inscripción no debe existir, es AQUÍ
+        // donde no se crea. Mismo destino que el duplicado: la pantalla de
+        // inscripción, que ya sabe explicar por qué.
         if ($action !== 'delete' && empty($moduleData['id'])) {
             $eventId = $moduleData['stic_registrations_stic_eventsstic_events_ida'] ?? '';
             // $fresh = true a propósito: este guard decide si se CREA un registro,
             // así que pregunta al CRM en vez de fiarse de la caché de 5 minutos.
             $duplicada = !empty($eventId) && in_array($eventId, prefix_user_active_event_ids($objSCP, true), true);
-            $fueraDeAudiencia = false;
-            if (!$duplicada && !empty($eventId) && function_exists('sticpa_event_audience_check')) {
-                $fueraDeAudiencia = empty(sticpa_event_audience_check($objSCP, $eventId)['ok']);
+            $noAdmitida = false;
+            if (!$duplicada && !empty($eventId) && function_exists('sticpa_event_signup_block')) {
+                $noAdmitida = !empty(sticpa_event_signup_block($objSCP, $eventId)['bloqueado']);
             }
-            if ($duplicada || $fueraDeAudiencia) {
+            if ($duplicada || $noAdmitida) {
                 $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0]
                     . "?internalpage=single_stic_registrations&action=create&from=stic_events&id=" . urlencode($eventId);
                 wp_redirect($redirectUrl);

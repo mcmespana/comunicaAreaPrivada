@@ -1927,7 +1927,7 @@ span.stic-field {
     justify-content: center;
     gap: 0.4rem;
     flex: 1;
-    min-height: 42px;               /* target táctil cómodo */
+    min-height: 44px;               /* target táctil: el mínimo de design.md §9 */
     padding: 0.5rem 0.9rem;
     border-radius: var(--radius-md);
     font-size: 0.88rem;
@@ -5130,7 +5130,10 @@ span.stic-field {
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
-.stic-rec-chip--past { background: var(--gray-100); color: var(--gray-500); }
+/* gray-600 y no gray-500: sobre `--gray-100` el 500 da 4,39:1 y design.md §3
+   exige 4,5 para texto. Con el 600 son 6,78:1. Afecta a «Ya celebrado» y a
+   «Inscripción cerrada», que son los dos chips apagados del área. */
+.stic-rec-chip--past { background: var(--gray-100); color: var(--gray-600); }
 
 /* Fila de acciones, separada del cuerpo por una línea. */
 .stic-rec-actions {
@@ -5146,7 +5149,10 @@ span.stic-field {
     justify-content: center;
     gap: 0.4rem;
     flex: 1;
-    min-height: 42px;
+    /* 44px y no 42: es el mínimo que exige la comprobación 5 de design.md §9,
+       y este botón es el de las tarjetas y fichas de los ocho módulos del
+       área, o sea que estaba incumpliéndolo la mitad de la aplicación. */
+    min-height: 44px;
     padding: 0.5rem 0.9rem;
     border-radius: var(--radius-md);
     font-size: 0.88rem;

@@ -256,30 +256,89 @@ cuantos en los grupos del COM.
 
 ---
 
-## 5. Campos que el área ya sabría pintar (y una corrección)
+## 5. Los campos que se pintan, y los nombres que estaban mal
 
-`sticpa_event_optional_fields()` declara siete campos que la ficha pinta sola
-si existen en el CRM. **Y varios de ellos existen con OTRO nombre**, así que
-hoy no salen aunque el dato esté (comprobado el 09/09/2026):
+`sticpa_event_optional_fields()` declara los campos que la ficha pinta sola si
+existen en el CRM. Pedía tres que **NO EXISTEN**, y que sí existen con otro
+nombre: o sea que el aforo, el horario y la ventana de inscripción estaban
+rellenos en el CRM, no se pintaban, y la lista invitaba a crear campos
+duplicados. Corregido el 10/09/2026:
 
-| Lo que el código busca | Lo que hay de verdad en el CRM |
+| Lo que el código pedía | Lo que hay de verdad en el CRM |
 |---|---|
 | `capacity` | **`max_attendees`** (entero) |
-| `registration_end` | **`ajmcm_end_inscripcion_c`** (y su pareja `ajmcm_start_inscripcion_c`) |
 | `start_time` | **`timetable`** (texto libre con el horario) |
-| `price` | **`price`** ✅ coincide |
-| `location` / `city` / `address` | No existen: el lugar es una **relación** al módulo de ubicaciones (`stic_events_fp_event_locations`) |
+| `registration_end` | **`ajmcm_end_inscripcion_c`** + `ajmcm_start_inscripcion_c` (§5.2) |
+| `price` | **`price`** ✅ coincidía |
+| `location` / `city` / `address` | No existen: el lugar es una **relación** al módulo de ubicaciones (`stic_events_fp_event_locations`). Se dejan declarados —si algún día se crea un `location` de texto, sale solo— |
 
-**Pendiente, y no está hecho:** cambiar esos tres nombres en
-`sticpa_event_optional_fields()` para que el aforo, la ventana de inscripción y
-el horario salgan solos. Es una línea por campo y no toca ninguna otra lógica,
-pero **cambia lo que se ve en todas las tarjetas y fichas**, así que pasa por la
-verificación de pantalla de [`design.md`](../../design.md) §9-10. Se deja
-anotado aquí y no se cuela con el cambio de audiencia.
+### 5.1 Un 0 no es una respuesta
 
-El lugar es el dato que más se echa en falta y **es una relación**, no un texto:
-pintarlo cuesta una consulta más y hay que decidir dónde (probablemente en la
-misma llamada del listado, con `link_name_to_fields_array`).
+Los cinco eventos del CRM tienen `max_attendees = 0` y `price = 0.00`: es el
+valor por defecto de SuiteCRM, no un dato. Sin tratarlo, la ficha decía:
+
+- **«Plazas 0»**, que se lee como *no hay plazas* — exactamente lo contrario de
+  *sin límite*, que es lo que significa;
+- **«Precio 0,00 €»** en TODAS las actividades.
+
+Y con el precio no se arregla poniendo «Gratis»: nadie ha dicho que sea gratis,
+solo que el campo está sin rellenar, y equivocarse con el dinero es la peor
+forma de equivocarse. Así que un 0 en estos dos campos **no se enseña**
+(`'skip_zero' => true`).
+
+Por lo mismo, **la duración no se cuenta si no es una duración**: «Sesiones
+semanales 2026-2027» va de septiembre a junio y la ficha decía «Duración: 231
+días». Es cierto y no significa nada — eso no es una actividad de 231 días, es
+un curso. Por encima de un mes (`sticpa_event_max_dias_duracion`) el número es
+ruido y se deja fuera; las fechas ya están en la cabecera.
+
+### 5.2 La ventana de inscripción, que además cierra la inscripción
+
+`ajmcm_start_inscripcion_c` y `ajmcm_end_inscripcion_c` existían desde antes
+que esta pantalla y no se miraban. Ahora son un dato clave («Hasta el 25 de
+octubre», «Se abre el 1 de octubre») **y deciden si se puede apuntar**, que es
+justo lo que este documento llamaba «la forma limpia» de cerrar una inscripción
+sin que nadie tenga que acordarse de cambiar el estado a mano.
+
+| Estado | Cuándo | Qué pasa |
+|---|---|---|
+| `sin_datos` | los dos campos vacíos | **abierta** — ver la regla de abajo |
+| `antes` | aún no se ha abierto | sin botón, chip «Inscripción no abierta» |
+| `abierta` | dentro de plazo | botón, y la fecha límite a la vista |
+| `cerrada` | el plazo terminó | sin botón, chip «Inscripción cerrada» |
+
+**Regla de seguridad:** hoy solo **1 de los 5 eventos** del CRM tiene estas
+fechas, así que el vacío cuenta como *abierta*. Tratarlo como cerrada dejaría
+el área sin poder apuntarse a nada. Misma doctrina que la casilla de Pasar
+Lista.
+
+El día de fin **cuenta entero** (hasta las 23:59): un plazo «hasta el 25» que
+cierra a las 00:00 del 25 le roba un día a la gente.
+
+⚠️ **Y el chip lo dice, aunque el CRM diga otra cosa.** `status` está en
+`registration` («Inscripción abierta») en los cinco eventos, lo pongan al día o
+no. Sin esto, una tarjeta decía «INSCRIPCIÓN ABIERTA» y justo debajo «Cerrada
+el 6 de septiembre»: es la clase de pantalla que hace que nadie se crea nada de
+lo que pone. **Cuando hay fechas, mandan las fechas**
+(`sticpa_event_registration_chip()`).
+
+El bloqueo por fechas pasa por las MISMAS cuatro puertas que la audiencia
+(§3.4), guardado incluido, y por la misma fuente única:
+`sticpa_event_signup_block()`. Si las fechas del CRM estuvieran mal y hubiera
+que desactivarlo:
+
+```php
+add_filter('sticpa_event_registration_window', function ($w) {
+    return array('estado' => 'sin_datos', 'start_ts' => null, 'end_ts' => null, 'abierta' => true);
+});
+```
+
+### 5.3 Lo que sigue pendiente
+
+**El lugar.** Es el dato que más se echa en falta y **es una relación**, no un
+texto: pintarlo cuesta una consulta más y hay que decidir dónde (probablemente
+en la misma llamada del listado, con `link_name_to_fields_array`). No está
+hecho.
 
 > El plugin **pregunta primero al CRM qué campos existen**
 > (`sticpa_event_fields_to_request()`), así que declarar aquí un campo que aún
@@ -292,7 +351,7 @@ misma llamada del listado, con `link_name_to_fields_array`).
 
 | Pantalla | Archivo | Qué muestra |
 |----------|---------|-------------|
-| Listado | `pages/list_stic_events.php` | Tarjetas con fecha, nombre, lugar y estado. **Filtradas por audiencia.** Próximos primero; los ya inscritos se ocultan (están en "Inscripciones") |
+| Listado | `pages/list_stic_events.php` | Tarjetas con fecha, nombre, lugar y estado. **Filtradas por audiencia**, y sin botón fuera de plazo. Próximos primero; los ya inscritos se ocultan (están en "Inscripciones") |
 | Detalle | `pages/single_stic_events.php` | Ficha completa + botón de inscripción, o el motivo por el que no lo hay |
 | Inscripción | `pages/single_stic_registrations.php` | Formulario con la tarjeta del evento arriba; o el aviso de que no es para ti |
 
@@ -303,10 +362,34 @@ mucho, el sitio natural para un filtro (por tipo o por fecha) es
 
 ---
 
-## 7. Qué NO hace falta
+## 7. Cómo se verifica la pantalla
 
-- **No hace falta un campo «abierto a inscripción»**: se deduce de `status` +
-  fechas, y `ajmcm_end_inscripcion_c` ya existe para el control fino.
+Hay arnés de render offline, porque design.md §9 exige capturar a 375px y
+mirarlo, y aquí no hay WordPress:
+
+```bash
+php tests/manual/render-events.php > /tmp/eventos.html
+```
+
+Pinta los cinco estados de la tarjeta, el estado vacío y las cinco fichas
+(completa, con ceros, otra audiencia, fuera de plazo, ya inscrito). Los meses
+salen en inglés y **no es un fallo**: el doble de `date_i18n()` no tiene
+idioma. Comprobado el 10/09/2026 en claro y en oscuro: sin scroll horizontal a
+375px, ningún objetivo táctil por debajo de 44px y los chips por encima de
+4,5:1 de contraste.
+
+De hacer esa comprobación salieron dos arreglos que no eran de eventos:
+`.stic-rec-btn` tenía `min-height: 42px` —el botón de las tarjetas y fichas de
+los ocho módulos del área, incumpliendo la comprobación 5 de §9— y el chip
+apagado usaba `--gray-500` sobre `--gray-100`, que da 4,39:1 cuando §3 exige
+4,5. Ahora son 44px y `--gray-600` (6,87:1).
+
+---
+
+## 8. Qué NO hace falta
+
+- **No hace falta un campo «abierto a inscripción»**: lo hacen `status` y las
+  fechas de `ajmcm_start_inscripcion_c` / `ajmcm_end_inscripcion_c` (§5.2).
 - **No hace falta un campo de audiencia en `Contacts`.** El papel de cada
   persona ya está en `stic_relationship_type_c` y en sus relaciones, y el curso
   en `ajmcm_curso_escolar_c` de la relación. Crear un «perfil para eventos» en
