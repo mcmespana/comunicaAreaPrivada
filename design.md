@@ -534,11 +534,11 @@ con solución propuesta y orden de ejecución, en
 - **`makeList()` sigue vivo** (`inc/stic-listController.php`, CSS §22) para
   Relaciones, Contactos y Organizaciones miembro. Es el volcado genérico, y la
   ficha de registro es su sustituto. Al tocar uno de esos tres, se migra.
-- **`pages/single_stic_sessions.php` y `single_stic_attendances.php` quedan
-  huérfanos**: sus listados ya no enlazan a ellos, porque una tarjeta que lleva
-  a una pantalla que repite la tarjeta no es navegación, son dos toques para
-  leer lo mismo. Siguen ahí por si algo los enlaza; si nadie los reclama, se
-  borran.
+- ~~**`pages/single_stic_sessions.php` y `single_stic_attendances.php` quedan
+  huérfanos.**~~ **Revisado el 10/09/2026, y solo era verdad a medias**:
+  `single_stic_attendances.php` no lo enlazaba nadie y **se ha borrado**;
+  `single_stic_sessions.php` **NO es huérfano** —el calendario enlaza a él
+  (`inc/stic-calendar.php`), que es de donde se entra a una sesión—. Se queda.
 - **Enlazar un pago con SU compromiso** no se puede hacer desde el área: el
   formulario de pago es un formulario web de SinergiaCRM que CREA una
   aportación puntual y no tiene por dónde recibir un compromiso existente. La

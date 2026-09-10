@@ -6306,3 +6306,96 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 /* Mismo tratamiento que "Tu cuenta" (§45): un bloque a lo ancho al final de la
    página, con tarjetas mini. Lo único propio es que su etiqueta lleva chip. */
 .stic-home-equipo .stic-porque { max-width: 46rem; }
+
+/* ============================================================
+   58. «¿NO TE LLEGA NADA?» — el rescate de la pantalla del código
+   ------------------------------------------------------------
+   Esta es la pantalla donde la gente se quedaba tirada. El acceso
+   nunca dice si un correo existe (y hace bien: decirlo regala una
+   forma de enumerar el CRM), así que quien escribe la dirección
+   equivocada ve exactamente lo mismo que quien la escribe bien
+   —«mira tu correo»— y espera un correo que no va a llegar.
+
+   La solución no es un aviso más grande: son las cuatro cosas que
+   puede hacer, en orden de probabilidad, y una salida de verdad
+   —buscarse por el DNI—. Por eso esto no es un `stic-alert`: no
+   avisa de nada, es una lista de opciones y se lee como tal.
+
+   Discreto a propósito: el 95 % de la gente abre el correo y no
+   llega a leer esto. Gris, pequeño, al final, y el formulario del
+   documento dentro de un `<details>` cerrado.
+   ============================================================ */
+
+.stic-auth-rescue {
+    margin-top: var(--space-5);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--gray-200);
+    font-size: var(--font-size-sm);
+    color: var(--gray-600);
+}
+
+.stic-auth-rescue-title {
+    margin: 0 0 var(--space-2);
+    font-weight: 700;
+    color: var(--gray-700);
+}
+
+.stic-auth-rescue-list {
+    margin: 0;
+    padding-left: 1.15rem;      /* el sangrado de la viñeta, no un tabulador */
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    line-height: 1.5;
+}
+
+.stic-auth-rescue-list li { margin: 0; }
+.stic-auth-rescue-list strong { color: var(--gray-800); }
+
+.stic-auth-rescue-list a {
+    color: var(--primary-color);
+    font-weight: 600;
+    /* Es un mailto: que se vea que se puede pulsar, sin adornos. */
+    text-decoration: underline;
+    word-break: break-word;     /* un correo largo no puede ensanchar la tarjeta */
+}
+/* El resaltado del puntero va dentro de su media query: en táctil se queda
+   pegado después del toque (design.md §11.5, y hay un test que lo comprueba
+   contando apariciones, así que ni el comentario puede nombrarlo). */
+@media (hover: hover) {
+    .stic-auth-rescue-list a:hover { color: var(--primary-dark); }
+}
+
+/* El `<details>` del documento reutiliza .stic-code-reveal (§55): mismo
+   desplegable, misma flecha, mismo objetivo táctil. Aquí solo se le quita el
+   filete de arriba, porque ya lo pone el bloque de rescate. */
+.stic-auth-rescue .stic-dni-reveal {
+    border-top: 0;
+    padding-top: 0;
+    margin-top: var(--space-3);
+}
+
+/* El campo del documento: en mayúsculas, porque es como está en el CRM y
+   como se lee un DNI. `text-transform` es solo visual; la normalización de
+   verdad la hace el servidor (sticpa_dni_normalize). */
+.stic-dni-form input[type="text"] {
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+/* Un mensaje LARGO no se lee centrado y en negrita: eso es para «Usuario y/o
+   contraseña incorrectos», que son cuatro palabras. Estos explican qué ha
+   pasado y qué hacer, y llevan dentro una dirección de correo que, sin esto, se
+   salía de la tarjeta a 375px (visto en el arnés, no supuesto). */
+.stic-login-form .error.stic-msg-long,
+.stic-login-form .success.stic-msg-long {
+    text-align: left;
+    font-weight: 500;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.stic-dni-form .stic-code-hint {
+    text-align: left;
+    margin-bottom: var(--space-3);
+}

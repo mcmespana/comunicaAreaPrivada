@@ -611,6 +611,14 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
     if (isset($_REQUEST['success']) && $_REQUEST['success'] == true) {
         $magicMsg = "<span class='success' role='status'>" . __('¡Listo! Si tu correo está registrado, ya tienes el enlace en tu bandeja de entrada. 📩', 'sticpa') . "</span>";
     }
+    // El de la vía del documento SÍ es concreto (y por qué, en
+    // sticpa_handle_send_access_dni): quien llega aquí es alguien atascado, y
+    // un «ha habido un error» lo deja igual de atascado.
+    $dniError = isset($_REQUEST['dni_error']) ? sanitize_key($_REQUEST['dni_error']) : '';
+    $dniMsg = ($dniError !== '') ? sticpa_dni_error_message($dniError) : '';
+    if ($dniMsg !== '') {
+        $magicMsg .= "<span class='error stic-msg-long' role='alert'>" . esc_html($dniMsg) . "</span>";
+    }
 
     // Selector de idioma (opcional, según plugin de traducción activo).
     $languageHtml = "";
@@ -694,7 +702,9 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
                         </button>
                     </li>
                 </ul>
-            </form>
+            </form>"
+            // La salida de emergencia, cerrada y debajo del formulario normal.
+            . sticpa_dni_access_form_html($return_url) . "
         </div>";
 
     /* ---------- VISTA 2: USUARIO + CONTRASEÑA ---------- */
@@ -731,10 +741,13 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
 
     $html .= "</div>"; // .stic-auth
 
-    // Registro (común a ambas vistas).
+    // Alta (común a ambas vistas). Va FUERA del área privada a propósito: aquí
+    // no se da de alta nadie, y el enlace que había llevaba a una página que no
+    // existe (ver sticpa_signup_url).
     $html .= "
         <p class='stic-auth-links'>"
-        . __('¿Aún no tienes acceso?', 'sticpa') . " <a href='?internalpage=single_stic_signup'>" . __('Te contamos cómo', 'sticpa') . "</a>
+        . esc_html__('¿Aún no tienes acceso?', 'sticpa') . " <a href='" . esc_url(sticpa_signup_url()) . "' target='_blank' rel='noopener'>"
+        . esc_html__('Date de alta aquí', 'sticpa') . "</a>
         </p>";
 
     $html .= "</div>"; // .stic-auth-panel
@@ -768,6 +781,9 @@ function sticpa_access_code_form($html = "")
     // nada (se pidió en otro dispositivo), se pide el correo a mano.
     $pending = isset($_SESSION['sticpa_otp_email']) ? (string) $_SESSION['sticpa_otp_email'] : '';
     $masked = $pending !== '' ? sticpa_otp_mask_email($pending) : '';
+    // ¿Se ha llegado aquí escribiendo el DNI? Entonces la persona NO sabe cuál
+    // es su correo: se le enseña tapado y no se pinta en ningún sitio entero.
+    $viaDni = (isset($_SESSION['sticpa_otp_via']) && $_SESSION['sticpa_otp_via'] === 'dni');
 
     $error = isset($_REQUEST['otp_error']) ? sanitize_key($_REQUEST['otp_error']) : '';
     $errorMsg = '';
@@ -822,8 +838,14 @@ function sticpa_access_code_form($html = "")
                 (int) round(sticpa_otp_ttl() / MINUTE_IN_SECONDS)
             ) . "</p>";
 
-    if ($pending !== '') {
+    if ($pending !== '' && !$viaDni) {
         $codeForm .= "<input type='hidden' name='sticpa_otp_email' value='" . esc_attr($pending) . "'>";
+    } elseif ($viaDni) {
+        // POR DOCUMENTO NO SE PINTA LA DIRECCIÓN, ni siquiera oculta: quien
+        // mirara el código fuente vería entera la que estamos enseñando
+        // tapada, y entonces taparla no serviría de nada. El verificador la
+        // saca de la sesión cuando no viene en el formulario
+        // (`sticpa_handle_verify_code`).
     } else {
         // Se pidió el código en otro sitio (típico: correo en el ordenador, app
         // en el móvil). Necesitamos saber de quién es el código.
@@ -859,8 +881,11 @@ function sticpa_access_code_form($html = "")
             </details>";
     }
 
-    /* ---------- Reenvío / volver ---------- */
-    if ($pending !== '') {
+    /* ---------- Reenvío ---------- */
+    // Reenviar solo tiene sentido cuando escribió él el correo. Por la vía del
+    // documento no se pinta: la dirección iría en un campo oculto y volveríamos
+    // a enseñar entera la que estamos tapando.
+    if ($pending !== '' && !$viaDni) {
         $html .= "
             <form action='" . site_url() . "/wp-admin/admin-post.php' method='post' class='stic-code-resend'>
                 <input type='hidden' name='action' value='sticpa_send_access'>
@@ -870,6 +895,11 @@ function sticpa_access_code_form($html = "")
                 <button type='submit'>" . esc_html__('Envíamelo otra vez', 'sticpa') . "</button>
             </form>";
     }
+
+    // El bloque de rescate («¿no te llega nada?») vive en inc/stic-otp.php,
+    // con el resto del acceso: así se puede pintar en el arnés de render sin
+    // arrastrar medio WordPress, que es la única forma de mirarlo a 375px.
+    $html .= sticpa_access_rescue_html($masked, $return_url);
 
     $html .= "
         <p class='stic-auth-links'>
@@ -943,9 +973,6 @@ function sugar_crm_portal_check_user_and_login($html = "")
         $mode = (isset($_REQUEST['mode']) && $_REQUEST['mode'] === 'password') ? 'password' : 'magic';
         $html .= "<div class='stic-auth-shell'" . sticpa_theme_attr() . "><div class='stic-login-form stic-form'>";
         $html .= sugar_crm_portal_login_form("", $mode);
-        if (isset($_REQUEST['signup']) && $_REQUEST['signup'] == true) {
-            $html .= "<span class='success'>" . __('You have successfully signed up.', 'sticpa') . ".</span>";
-        }
         $html .= "</div>" . sticpa_appearance_switch_html() . "</div>";
     }
     return $html;
@@ -1065,28 +1092,6 @@ function sugar_crm_portal_index($html = "")
     return $html;
 }
 
-function sugar_crm_portal_signup($html = "")
-{
-    $current_url = explode('?', $_SERVER['REQUEST_URI'], 2);
-    $current_url = $current_url[0];
-
-    $html .='<div>';
-    //We include the corresponding form based on the content of $_REQUEST
-    $pageFile = sticpa_resolve_page_file($_REQUEST['internalpage'] ?? '');
-    if ($pageFile !== '') {
-        ob_start();
-        require_once $pageFile;
-        $returned = ob_get_contents();
-        ob_end_clean();
-        $html .= $returned;
-    }
-    $html .= "</div>
-        </div>";
-
-    return $html;
-
-}
-
 add_shortcode('sinergiacrm-private-area', 'sinergiacrm_private_area_shortcode'); // add shortcode [sinergiacrm-private-area]
 
 /**
@@ -1114,16 +1119,17 @@ function sinergiacrm_private_area_shortcode()
     if (isset($_SESSION['scp_user_id']) == true) {
         $content .= sugar_crm_portal_index();
     } else {
-        if (isset($_REQUEST['internalpage']) && $_REQUEST['internalpage'] == 'single_stic_signup') {
-            $content .= sugar_crm_portal_signup();
-
-        } else {
-            // Ya no hay pantalla de "he olvidado mi contraseña": se entra con el
-            // código o el enlace del correo (pestaña "Por correo" del login) y,
-            // una vez dentro, quien quiera contraseña se la pone en su perfil.
-            // Un ?internalpage=stic_forgot_password antiguo cae aquí, en el login.
-            $content .= sugar_crm_portal_check_user_and_login();
-        }
+        // Ya no hay pantalla de "he olvidado mi contraseña": se entra con el
+        // código o el enlace del correo (pestaña "Por correo" del login) y,
+        // una vez dentro, quien quiera contraseña se la pone en su perfil.
+        // Un ?internalpage=stic_forgot_password antiguo cae aquí, en el login.
+        //
+        // TAMPOCO HAY ALTA AQUÍ, y antes lo parecía: `?internalpage=single_stic_signup`
+        // tenía su rama, su función y su handler, pero la página
+        // `pages/single_stic_signup.php` NO EXISTE — el enlace del login llevaba
+        // a un `<div>` vacío. Las altas se hacen en la web pública, con el
+        // formulario que toque en cada caso (ver sticpa_signup_url()).
+        $content .= sugar_crm_portal_check_user_and_login();
     }
     return $content;
 }

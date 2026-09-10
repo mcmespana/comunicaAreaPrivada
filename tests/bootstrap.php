@@ -111,6 +111,7 @@ if (!function_exists('esc_url')) {
 }
 // La URL de admin-post.php: la usa el avatar con foto de «Mis grupos».
 if (!function_exists('admin_url'))   { function admin_url($p = '') { return '/wp-admin/' . $p; } }
+if (!function_exists('site_url'))    { function site_url($p = '') { return 'https://example.test' . $p; } }
 if (!function_exists('is_singular')) { function is_singular($t = '') { return false; } }
 if (!function_exists('get_post'))    { function get_post($p = null) { return null; } }
 if (!function_exists('has_shortcode')) { function has_shortcode($c, $tag) { return false; } }
