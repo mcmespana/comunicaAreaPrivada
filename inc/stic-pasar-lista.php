@@ -626,6 +626,58 @@ function sticpa_pl_monitor_since($raw)
     return '';
 }
 
+/**
+ * El ALCANCE de coordinación, dicho en una frase.
+ *
+ * `sticpa_pl_coord_scope()` devuelve `array('etapa' => 'COM'|'', 'segmento' =>
+ * '')`, y hasta ahora cada pantalla se inventaba cómo decirlo (la home de
+ * Pasar lista ponía la etapa a secas, o «toda la delegación»). Ahora lo dice
+ * una función, porque la frase se usa en tres sitios y tiene que sonar igual en
+ * los tres: es lo que le explica a alguien POR QUÉ está viendo datos de otras
+ * personas.
+ *
+ * El segmento se enseña TAL CUAL viene del CRM, solo con los guiones bajos
+ * convertidos en espacios: sus etiquetas no están en `CAMPOS.md` y no se
+ * inventan aquí (si `com_2` se lee raro en pantalla, la solución es documentar
+ * el desplegable, no maquillarlo en el código).
+ *
+ * Es lógica pura —entra un array, sale texto— y por eso vive aquí y no en el
+ * fichero que habla con el CRM.
+ */
+function sticpa_pl_coord_scope_label($scope)
+{
+    if (!is_array($scope)) {
+        return '';
+    }
+    $etapa = isset($scope['etapa']) ? trim((string) $scope['etapa']) : '';
+    $segmento = isset($scope['segmento']) ? trim((string) $scope['segmento']) : '';
+
+    if ($etapa === '' && $segmento === '') {
+        // Sin etapa ni segmento el alcance es la delegación entera. Es el caso
+        // de quien mira el conjunto, y decirlo así evita el «coordinas » a
+        // medias que salía cuando la etapa venía vacía.
+        return __('toda la delegación', 'sticpa');
+    }
+
+    if ($segmento !== '') {
+        $segmento = str_replace('_', ' ', $segmento);
+        $segmento = function_exists('mb_strtoupper')
+            ? mb_strtoupper($segmento, 'UTF-8')
+            : strtoupper($segmento);
+    }
+
+    if ($etapa !== '' && $segmento !== '') {
+        return sprintf(
+            /* translators: 1: etapa (COM); 2: segmento del COM */
+            __('%1$s · %2$s', 'sticpa'),
+            $etapa,
+            $segmento
+        );
+    }
+
+    return ($etapa !== '') ? $etapa : $segmento;
+}
+
 // ===========================================================================
 // SEGUIMIENTOS DE MONITORES
 // ---------------------------------------------------------------------------

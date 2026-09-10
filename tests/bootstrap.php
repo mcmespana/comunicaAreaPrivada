@@ -191,6 +191,12 @@ if (!function_exists('wp_nonce_field')) {
 // --- Código bajo prueba ---
 require_once __DIR__ . '/../inc/stic-theme.php';
 require_once __DIR__ . '/../inc/stic-comunica-roles.php';
+// El equipo de monitores: quién ve «lo de monitor» y por qué. Solo define
+// funciones y lee la sesión, así que se carga aquí y no en un test suelto — las
+// pantallas de coordinación lo usan al pintar, y si solo lo cargara su propio
+// test, el render se comportaría distinto según el orden de la suite.
+require_once __DIR__ . '/../inc/stic-family.php';
+require_once __DIR__ . '/../inc/stic-equipo.php';
 require_once __DIR__ . '/../inc/stic-magic-login.php';
 require_once __DIR__ . '/../inc/stic-otp.php';
 // stic-calendar.php solo define funciones (más el guard de ABSPATH), así que se

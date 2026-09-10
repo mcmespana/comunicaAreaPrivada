@@ -59,6 +59,9 @@ include plugin_dir_path(__FILE__) . 'inc/stic-otp.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-app-links.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-comunica-roles.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-family.php';
+// El equipo de monitores (quién entra en «lo de monitor» y POR QUÉ) va detrás
+// de los roles y de la familia: usa la detección de rol y la audiencia.
+include plugin_dir_path(__FILE__) . 'inc/stic-equipo.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-calendar.php';
 // La ficha de registro va ANTES que los módulos que la usan (Eventos y el
 // resto): les presta los iconos, las fechas en lenguaje humano y el formato.
@@ -501,6 +504,27 @@ function sticpa_section_meta($key)
         'single_stic_comunica_laico' => array(
             'desc' => __('Tu etapa, grupo y datos como laico/a.', 'sticpa'),
             'icon' => "<path d='M12 2v20M5 8h14M5 8l7-4 7 4'/>",
+        ),
+        // --- Equipo de monitores ---------------------------------------
+        // Estas cuatro NO estaban en el mapa y caían al icono por defecto (un
+        // reloj) y a «Accede a esta sección», que es la descripción de nada. En
+        // la barra se nota poco; en la home, donde la tarjeta es grande y la
+        // descripción se lee, se notaba mucho.
+        'single_stic_pasar_lista' => array(
+            'desc' => __('Marca quién ha venido, sábado a sábado.', 'sticpa'),
+            'icon' => "<path d='M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2'/><rect x='9' y='3' width='6' height='4' rx='1'/><path d='m9 14 2 2 4-4'/>",
+        ),
+        'single_stic_mis_grupos' => array(
+            'desc' => __('Las fichas de tu gente, sin pasar lista.', 'sticpa'),
+            'icon' => "<circle cx='9' cy='8' r='3.5'/><path d='M2 20v-1a6 6 0 0 1 12 0v1'/><path d='M17 8.5a3 3 0 0 1 0 5'/><path d='M19 20v-1a5 5 0 0 0-2.5-4'/>",
+        ),
+        'single_stic_pasar_lista_monitores' => array(
+            'desc' => __('Tu equipo: asistencia, fichas y seguimientos.', 'sticpa'),
+            'icon' => "<circle cx='10' cy='8' r='3.5'/><path d='M3 20v-1a6 6 0 0 1 11-3.3'/><path d='m15 17 2 2 4-4'/>",
+        ),
+        'single_stic_pasar_lista_reuniones' => array(
+            'desc' => __('Reuniones de programación: crearlas y pasar lista.', 'sticpa'),
+            'icon' => "<rect x='3' y='4' width='18' height='18' rx='2'/><path d='M16 2v4M8 2v4M3 10h18'/><path d='M12 13v3l2 1'/>",
         ),
     );
 
