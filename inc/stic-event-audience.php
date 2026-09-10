@@ -60,10 +60,19 @@
  *     su relación es el de SU GRUPO)  →  el filtro de cursos NO se le aplica.
  *     Los cursos estrechan entre participantes, no expulsan a quien no es uno.
  *
- * Y mientras los campos no existan en el CRM, esto no hace nada: un evento sin
- * `ajmcm_dirigido_a_c` no restringe perfiles, y un campo que no está creado ni
- * se le pide al CRM (`sticpa_event_fields_to_request()` pregunta antes qué
- * campos hay). Se puede desplegar hoy y rellenar el CRM mañana.
+ * ESTADO (10/09/2026): los campos YA EXISTEN en el CRM —`ajmcm_dirigido_a_c`,
+ * `ajmcm_ambito_c`, `ajmcm_lugar_c`, `ajmcm_direccion_c`, `ajmcm_mapa_c`— y
+ * están **vacíos en los cinco eventos**, así que de momento solo restringe la
+ * delegación. Cada campo empieza a hacer efecto en cuanto alguien lo rellene.
+ *
+ * `ajmcm_dirigido_a_c` se creó como desplegable SIMPLE aunque se pidió múltiple.
+ * No importa: el troceador aguanta las dos formas (un enum llega como `monitor`
+ * a secas, sin los `^` del multienum). Lo único que no se puede es marcar dos
+ * perfiles en el mismo evento.
+ *
+ * Y un campo que no estuviera creado tampoco rompería nada: no se restringe con
+ * lo que no viene, y `sticpa_event_fields_to_request()` pregunta antes al CRM
+ * qué campos hay para no pedirle una columna que no tiene.
  *
  * Interruptor general, por si hay que apagarlo sin desplegar:
  *

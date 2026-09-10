@@ -174,28 +174,48 @@ add_filter('sticpa_event_audience_non_delegation_users', fn() => array('1', '17'
 
 ---
 
-## 4. Campos que hay que CREAR en SinergiaCRM
+## 4. Los campos de la audiencia
 
-**LA LISTA COMPLETA, y es la única que queda en todo el proyecto.** Verificado
-contra el CRM el 10/09/2026: en Pasar Lista y en Coordinación no queda nada
-pendiente (`PASAR-LISTA-CAMPOS-CRM.md` §2 y `PASAR-LISTA-COORDINACION.md` §6
-tenían marcas de «por crear» obsoletas, ya corregidas).
+En Pasar Lista y en Coordinación tampoco queda nada pendiente
+(`PASAR-LISTA-CAMPOS-CRM.md` §2 y `PASAR-LISTA-COORDINACION.md` §6 tenían marcas
+de «por crear» obsoletas, ya corregidas).
 
-Los cinco son de `stic_Events`. **Ninguno es obligatorio**, y mientras no
-existan el área funciona igual: los campos que no están ni se le piden al CRM.
+## ✅ CREADOS — ya no queda nada por crear
 
-| # | Campo | Tipo | Para qué | Ficha |
-|---|---|---|---|---|
-| 1 | `ajmcm_lugar_c` | Texto (255) | El nombre del sitio. **El que más se nota** | §5.3 |
-| 2 | `ajmcm_dirigido_a_c` | **Selección múltiple** | A qué perfiles va dirigido (monitores, grupo COM-LC…) | §4.1 |
-| 3 | `ajmcm_ambito_c` | Desplegable | Local o de todas las delegaciones | §4.2 |
-| 4 | `ajmcm_direccion_c` | Texto (255) | La dirección completa | §5.3 |
-| 5 | `ajmcm_mapa_c` | URL | El enlace al mapa, solo cuando la búsqueda no acierta | §5.3 |
+**Los cinco existen en el CRM**, verificados uno a uno por MCP el **10/09/2026**
+con el nombre exacto que esperaba el código:
 
-Están por orden de lo que aportan. **Si creas uno solo, el 1**: hoy nadie sabe
-dónde es una actividad sin preguntar, y además enciende el botón del mapa él
-solo. El 2 y el 3 son los que hacen falta para el congreso de monitores. El 4 y
-el 5 son refinamientos del mapa.
+| Campo | Tipo real en el CRM | Para qué |
+|---|---|---|
+| `ajmcm_lugar_c` | `varchar(255)` | El nombre del sitio. **El que más se nota** |
+| `ajmcm_direccion_c` | `varchar(255)` | La dirección completa |
+| `ajmcm_mapa_c` | **`url`(255)** | El enlace al mapa (mejor tipo del que se pidió, que era texto) |
+| `ajmcm_dirigido_a_c` | **`enum`** ⚠️ ver abajo | A qué perfiles va dirigido |
+| `ajmcm_ambito_c` | `enum(100)` | Local o de todas las delegaciones |
+
+**Están los cinco vacíos en los cinco eventos** (10/09/2026), así que de momento
+no restringen nada y el área se comporta igual que ayer. Empiezan a hacer efecto
+en cuanto alguien los rellene, evento por evento.
+
+### ⚠️ `ajmcm_dirigido_a_c` es SIMPLE, y se pidió MÚLTIPLE
+
+**No hay nada roto**: los valores llegan como `monitor` a secas, sin los acentos
+circunflejos del multienum, y el troceador aguanta las dos formas a propósito
+(`sticpa_event_audience_multi()`, con test propio).
+
+Lo único que se pierde es poder decir **«monitores Y coordinación» en un mismo
+evento**: con un desplegable simple hay que elegir uno, o crear dos eventos. Si
+en algún momento hace falta, se cambia el tipo en Studio a selección múltiple y
+el código no se toca — **y el momento bueno para hacerlo es ahora, que está
+vacío**, porque cambiar el tipo de un campo ya relleno en SuiteCRM puede perder
+los valores.
+
+---
+
+## 4. Los campos y por qué son como son
+
+Las fichas de abajo se quedan aunque los campos ya existan: explican **por qué**
+son así, que es lo que hace falta el día que alguien se plantee cambiarlos.
 
 > **`ajmcm_filtro_edades_c` NO está en la lista, y esto es lo bueno del asunto.**
 > No solo existe y está relleno: **usa el MISMO desplegable
@@ -210,13 +230,13 @@ el 5 son refinamientos del mapa.
 
 Uno de ellos es opcional. El de los cursos **ya existía**.
 
-### 4.1 `stic_Events` → `ajmcm_dirigido_a_c` 🔨
+### 4.1 `stic_Events` → `ajmcm_dirigido_a_c` ✅ **creado**
 
 | | |
 |---|---|
 | **Módulo** | `stic_Events` (Eventos) |
 | **Etiqueta** | Dirigido a |
-| **Tipo** | **Selección múltiple** (`multienum`) |
+| **Tipo** | Se pidió **selección múltiple** (`multienum`); en el CRM es `enum` simple. Funciona igual — ver el aviso de arriba |
 | **Obligatorio** | No |
 | **Por defecto** | *(vacío = para todos)* |
 
@@ -248,7 +268,7 @@ disparó jamás. Ver [`CAMPOS.md`](CAMPOS.md) §2.
 **Si se añade un valor nuevo al desplegable y se olvida el mapa**, no pasa nada
 grave: una clave que no está en el mapa casa con el papel del mismo nombre.
 
-### 4.2 `stic_Events` → `ajmcm_ambito_c` 🔨 *(opcional, pero recomendado)*
+### 4.2 `stic_Events` → `ajmcm_ambito_c` ✅ **creado** *(era opcional)*
 
 | | |
 |---|---|
@@ -315,7 +335,7 @@ duplicados. Corregido el 10/09/2026:
 | `start_time` | **`timetable`** (texto libre con el horario) |
 | `registration_end` | **`ajmcm_end_inscripcion_c`** + `ajmcm_start_inscripcion_c` (§5.2) |
 | `price` | **`price`** ✅ coincidía |
-| `location` / `city` / `address` | No existen. Se sustituyen por `ajmcm_lugar_c` y `ajmcm_direccion_c`, **por crear** (§5.3) |
+| `location` / `city` / `address` | No existen. Se sustituyen por `ajmcm_lugar_c` y `ajmcm_direccion_c`, **ya creados** (§5.3) |
 
 ### 5.1 Un 0 no es una respuesta
 
@@ -378,7 +398,7 @@ add_filter('sticpa_event_registration_window', function ($w) {
 });
 ```
 
-### 5.3 El lugar: tres campos por crear, y el botón del mapa
+### 5.3 El lugar: tres campos (ya creados) y el botón del mapa
 
 Es el dato que más se echa en falta. En el CRM existe un módulo de ubicaciones
 (`stic_events_fp_event_locations`, una relación) y **se ha decidido no usarlo**:
@@ -388,7 +408,7 @@ listado. El precio de decidirlo así es que «Casa de Espiritualidad» se acabar
 escribiendo de cinco maneras, como ya pasa con `cursos_c`; se asume **porque
 este dato se lee, y no se filtra ni se agrupa por él**.
 
-#### `ajmcm_lugar_c` — Lugar (texto) 🔨
+#### `ajmcm_lugar_c` — Lugar (texto) ✅ **creado**
 
 | | |
 |---|---|
@@ -400,7 +420,7 @@ El **nombre corto** del sitio: «Casa de Espiritualidad, Benigànim». Sale en l
 **tarjeta del listado** y en la ficha, así que conviene que quepa en una línea
 de móvil.
 
-#### `ajmcm_direccion_c` — Dirección (texto) 🔨
+#### `ajmcm_direccion_c` — Dirección (texto) ✅ **creado**
 
 | | |
 |---|---|
@@ -413,7 +433,7 @@ Solo en la ficha, y es lo que se le manda al mapa (es más preciso que el
 nombre). Son dos campos y no uno porque hacen dos cosas: uno cabe en la
 tarjeta y el otro sirve para llegar.
 
-#### `ajmcm_mapa_c` — Enlace del mapa (URL) 🔨 *(opcional de verdad)*
+#### `ajmcm_mapa_c` — Enlace del mapa (URL) ✅ **creado** *(y sigue siendo opcional de verdad)*
 
 | | |
 |---|---|
