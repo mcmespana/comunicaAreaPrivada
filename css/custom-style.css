@@ -5279,6 +5279,30 @@ span.stic-field {
 }
 .stic-rec-fact-text { font-size: 0.92rem; font-weight: 600; color: var(--gray-900); }
 
+/* Un dato clave que ADEMÁS es un enlace (el lugar de un evento → el mapa).
+   La tarjeta entera es el objetivo táctil, no la flecha: en un móvil, 44px de
+   alto por todo el ancho se acierta con el pulgar y un icono de 18px no. El
+   padding se mueve al <a> para que la zona pulsable llegue hasta el borde. */
+.stic-rec-fact--link { padding: 0; }
+.stic-rec-fact-a {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    width: 100%;
+    min-height: 44px;
+    padding: 0.7rem 0.8rem;
+    border-radius: var(--radius-md);
+    color: inherit;
+    text-decoration: none !important;
+}
+.stic-rec-fact-go { margin-left: auto; flex-shrink: 0; color: var(--primary-color); }
+.stic-rec-fact-go svg { width: 18px; height: 18px; }
+@media (hover: hover) {
+    .stic-rec-fact--link:hover { border-color: var(--primary-color); }
+    .stic-rec-fact--link:hover .stic-rec-fact-go { transform: translateX(2px); }
+}
+.stic-rec-fact-go { transition: transform 0.15s var(--ease-out); }
+
 .stic-rec-desc { margin-top: 1.25rem; }
 .stic-container .stic-rec-desc h4,
 .stic-rec-desc h4 {

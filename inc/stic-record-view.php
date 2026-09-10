@@ -152,6 +152,29 @@ function sticpa_record_chip($label, $tone = '')
 }
 
 /**
+ * Una URL que se puede poner en un `href` de esta área, o cadena vacía.
+ *
+ * Solo `http` y `https`. Y no es paranoia de manual: estas URLs vienen de
+ * CAMPOS DE TEXTO DEL CRM que rellena una persona (el enlace al mapa de un
+ * evento, por ejemplo), así que quien tenga cuenta en el CRM podría dejar un
+ * `javascript:…` en un enlace que después pulsa una familia. `esc_url()` ya
+ * filtra esquemas, pero ante una URL rara devuelve la cadena limpia a medias:
+ * aquí se decide ANTES si se pinta el enlace o no se pinta nada.
+ */
+function sticpa_record_safe_url($url)
+{
+    $url = trim((string) $url);
+    if ($url === '') {
+        return '';
+    }
+    $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+    if (!in_array($scheme, array('http', 'https'), true)) {
+        return '';
+    }
+    return $url;
+}
+
+/**
  * Normaliza una lista de acciones y hace cumplir la regla de UNA sola acción
  * principal por pantalla (design.md §6.2): la primera marcada 'primary' se
  * queda con el degradado; el resto pasan a fantasma, aunque quien llame se
@@ -454,18 +477,42 @@ function sticpa_record_detail_html($spec)
     }
 
     // --- Datos clave (solo los que tengan valor) ---
+    //
+    // Un dato puede llevar 'link' => array('url', 'label'): entonces la tarjeta
+    // ENTERA es el enlace, no un botoncito dentro. En un móvil, un objetivo de
+    // 44px de alto y todo el ancho se acierta con el pulgar; uno de 24px al
+    // final de la fila, no. La flecha del final es la señal de que se puede
+    // tocar, no el objetivo.
     $facts = '';
     foreach ((array) ($spec['facts'] ?? array()) as $fact) {
         $text = trim((string) ($fact['text'] ?? ''));
         if ($text === '') {
             continue;
         }
-        $facts .= "<li class='stic-rec-fact'>"
-            . "<span class='stic-rec-fact-ico'>" . sticpa_record_icon($fact['icon'] ?? 'info') . "</span>"
+        $inner = "<span class='stic-rec-fact-ico'>" . sticpa_record_icon($fact['icon'] ?? 'info') . "</span>"
             . "<span class='stic-rec-fact-body'>"
             . "<span class='stic-rec-fact-label'>" . esc_html($fact['label'] ?? '') . "</span>"
             . "<span class='stic-rec-fact-text'>" . esc_html($text) . "</span>"
-            . "</span></li>";
+            . "</span>";
+
+        $link = isset($fact['link']) && is_array($fact['link']) ? $fact['link'] : null;
+        $url = $link ? sticpa_record_safe_url($link['url'] ?? '') : '';
+        if ($url === '') {
+            $facts .= "<li class='stic-rec-fact'>{$inner}</li>";
+            continue;
+        }
+        // El texto del enlace no se pinta: lo lee el lector de pantalla, porque
+        // una flecha sola no dice a dónde lleva.
+        $aria = trim((string) ($link['label'] ?? '')) !== ''
+            ? $link['label'] . ': ' . $text
+            : ($fact['label'] ?? '') . ': ' . $text;
+        $facts .= "<li class='stic-rec-fact stic-rec-fact--link'>"
+            . "<a class='stic-rec-fact-a' href='" . esc_url($url) . "'"
+            . " target='_blank' rel='noopener noreferrer'"
+            . " aria-label='" . esc_attr($aria) . "'>"
+            . $inner
+            . "<span class='stic-rec-fact-go' aria-hidden='true'>" . sticpa_record_icon('go') . "</span>"
+            . "</a></li>";
     }
     if ($facts !== '') {
         $html .= "<ul class='stic-rec-facts'>{$facts}</ul>";

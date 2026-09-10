@@ -281,6 +281,25 @@ funcional en [`EVENTOS.md`](EVENTOS.md) §5.
     a quien no tiene curso propio (un monitor, una madre) no se le aplica, o
     los monitores del MIC se quedarían fuera de las sesiones del MIC.
 
+**El lugar — tres campos 🔨 POR CREAR** (fichas completas en
+[`EVENTOS.md`](EVENTOS.md) §5.3). No existen `location`, `city` ni `address`:
+
+- `ajmcm_lugar_c` — Lugar (texto, 255)
+  - El nombre corto del sitio: «Casa de Espiritualidad, Benigànim». Sale en la
+    **tarjeta del listado** y en la ficha, así que tiene que caber en una línea
+    de móvil. Es el que hay que rellenar siempre.
+- `ajmcm_direccion_c` — Dirección (texto, 255)
+  - La dirección completa. Solo en la ficha, y es lo que se le manda al mapa
+    (más preciso que el nombre).
+- `ajmcm_mapa_c` — Enlace del mapa (URL) — **opcional de verdad**
+  - **El botón del mapa no lo necesita**: con `ajmcm_lugar_c` ya se arma una
+    búsqueda de Google Maps y el botón funciona desde el primer día. Este campo
+    es el arreglo para cuando la búsqueda no acierta (de «Casa de
+    Espiritualidad» hay unas cuantas) o cuando ya se tiene el enlace bueno.
+  - ⚠️ **Solo `http` y `https`.** Lo rellena una persona en el CRM, así que un
+    `javascript:…` acabaría en un enlace que pulsa una familia. Un esquema que
+    no valga se descarta y se cae a la búsqueda.
+
 ⚠️ **NO se filtra por `ajmcm_etapa_c` del evento** (multienum `MIC`/`COM`/`LC`,
 obligatorio) aunque parezca el candidato natural. Ese campo dice a qué etapas
 **sirve el evento en Pasar Lista** —un sábado marcado `^MIC^,^COM^` comparte
@@ -307,6 +326,7 @@ crear: varios estaban creados con otro nombre). Comprobado el 09/09/2026:
 | `price` | decimal | ⚠️ Igual: `0.00` en los cinco. Un 0 no se enseña — no es «gratis», es «sin rellenar» |
 | `ajmcm_start_inscripcion_c` / `ajmcm_end_inscripcion_c` | fecha | **La ventana de inscripción**; no existe `registration_end`. Fuera de plazo el área NO deja apuntarse (`EVENTOS.md` §5.2). Vacío = abierta |
 | `timetable` | texto | El horario, en texto libre; no hay campo de hora |
+| `stic_events_fp_event_locations` | relación | El módulo de ubicaciones del CRM. **Decidido NO usarlo**: para los eventos que hay, mantener un catálogo de sitios es más trabajo del que ahorra. El lugar va en los tres campos de texto de abajo |
 | `ajmcm_etapa_c` | selección múltiple | `MIC` · `COM` · `LC`. Para Pasar Lista, **no** para la audiencia |
 | `attendees`, `total_hours`, `budget`, `actual_cost`… | varios | Gestión, no se usan en el área |
 | `stic_events_fp_event_locations` | relación | **El lugar es una relación a un módulo de ubicaciones**, no un texto: no existen `location`, `city` ni `address` |
