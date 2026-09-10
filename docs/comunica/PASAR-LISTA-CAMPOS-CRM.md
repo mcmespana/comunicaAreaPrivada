@@ -104,10 +104,20 @@ segmento queda registrado igual a través del grupo.
 **Creado, con los tres valores** (`com_1`, `com_2`, `com_3`; verificado el
 10/09/2026).
 
-❓ **La duda que quedó abierta y sigue abierta**, ahora que ya son 3: ¿COM III
-agrupa «Crecimiento + Opción Responsable» de los 4 niveles personales? Conviene
-dejarlo escrito aquí en cuanto se decida, porque si no dentro de un año nadie
-se acuerda de cómo casan los 3 segmentos con los 4 niveles.
+✅ **DUDA RESUELTA (10/09/2026), y la respuesta es que no había duda:
+`ajmcm_segmento_com_c` y `ajmcm_nivel_com_c` son COSAS COMPLETAMENTE DISTINTAS
+y no hay ninguna correspondencia entre las dos.** No es que COM III agrupe
+«Crecimiento + Opción Responsable» ni ninguna otra combinación: son dos ejes
+independientes, y buscarles una tabla de equivalencias es justo el error.
+
+```
+Segmento (grupo)   →  cómo organizamos los grupos:  COM I / II / III
+Nivel (persona)    →  el itinerario de cada uno:    I / II / III / IV
+                      ↑ nada que ver el uno con el otro
+```
+
+Que los dos usen números romanos es una coincidencia desafortunada. **No se
+deduce uno del otro, ni en código ni a mano.**
 
 ---
 

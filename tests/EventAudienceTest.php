@@ -264,6 +264,57 @@ class EventAudienceTest extends TestCase
     }
 
     /**
+     * `na` NO ES UN CURSO: ES «NO APLICA».
+     *
+     * El desplegable `ajmcm_curso_escolar_c_list` lo tiene, y contarlo como un
+     * curso normal sería un error silencioso y de los caros: no casa con
+     * ninguno, así que una persona marcada `na` quedaría FUERA de cualquier
+     * evento que restrinja cursos. Se trata como «no tiene curso».
+     */
+    public function testNaNoEsUnCursoSinoNoAplica()
+    {
+        $evento = array('delegacion' => 'deleg-castellon', 'ambito' => '', 'perfiles' => array(),
+            'cursos' => array('4_primaria', '5_primaria', '6_primaria'));
+        $this->assertTrue(sticpa_event_audience_match($evento, $this->viewer(array(
+            'cursos' => array('na'),
+        )))['ok']);
+
+        // Y `otros` SÍ es un curso: casa solo con los eventos de `otros`.
+        $this->assertFalse(sticpa_event_audience_match($evento, $this->viewer(array(
+            'cursos' => array('otros'),
+        )))['ok']);
+        $this->assertTrue(sticpa_event_audience_match(
+            array('delegacion' => 'deleg-castellon', 'ambito' => '', 'perfiles' => array(),
+                'cursos' => array('otros')),
+            $this->viewer(array('cursos' => array('otros')))
+        )['ok']);
+    }
+
+    /** Y al leer las relaciones, un `na` no se guarda como curso de nadie. */
+    public function testUnNaEnLaRelacionNoSeGuardaComoCurso()
+    {
+        $scp = new FakeAudienceSCP(array(), array(
+            $this->rel(array('relationship_type' => 'grupo', 'ajmcm_curso_escolar_c' => 'na')),
+        ));
+        $viewer = sticpa_viewer_audience($scp, true);
+        $this->assertSame(array(), $viewer['cursos']);
+        $this->assertTrue($viewer['cursos_conocidos']);
+    }
+
+    /** Las claves nuevas del desplegable también funcionan. */
+    public function testLosCursosDeFpYTerceroDePrimariaCasan()
+    {
+        foreach (array('3_primaria', 'fp_gm', 'fp_gs', 'universitario') as $curso) {
+            $evento = array('delegacion' => 'deleg-castellon', 'ambito' => '',
+                'perfiles' => array(), 'cursos' => array($curso));
+            $this->assertTrue(
+                sticpa_event_audience_match($evento, $this->viewer(array('cursos' => array($curso))))['ok'],
+                $curso . ' tiene que casar consigo mismo'
+            );
+        }
+    }
+
+    /**
      * EL FILTRO DE CURSOS NO EXPULSA A QUIEN NO TIENE CURSO.
      *
      * Un monitor no tiene curso escolar propio, y las sesiones semanales del

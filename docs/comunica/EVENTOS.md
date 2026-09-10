@@ -77,8 +77,12 @@ Los dos casos reales que hay que poder expresar:
 Meter «monitores» y «4.º de primaria» en el mismo desplegable parece más
 cómodo, y es la forma de acabar sin poder decir «los monitores de 4.º» ni
 «cualquiera de 4.º». Son **dos preguntas distintas sobre la misma persona**: qué
-papel tiene y en qué curso está. Es el mismo error que separa
-`ajmcm_segmento_com_c` (del grupo) de `ajmcm_nivel_com_c` (de la persona).
+papel tiene y en qué curso está.
+
+Es el mismo error, en otra parte del CRM, que confundir `ajmcm_segmento_com_c`
+(el segmento del grupo) con `ajmcm_nivel_com_c` (el itinerario personal): dos
+ejes **sin ninguna correspondencia entre ellos**, y que solo se parecen en que
+los dos usan números romanos.
 
 ### 3.2 De dónde sale el dato de la PERSONA
 
@@ -177,22 +181,28 @@ contra el CRM el 10/09/2026: en Pasar Lista y en Coordinación no queda nada
 pendiente (`PASAR-LISTA-CAMPOS-CRM.md` §2 y `PASAR-LISTA-COORDINACION.md` §6
 tenían marcas de «por crear» obsoletas, ya corregidas).
 
-Los seis son de `stic_Events`. **Ninguno es obligatorio**, y mientras no existan
-el área funciona igual: los campos que no están ni se le piden al CRM.
+Los cinco son de `stic_Events`. **Ninguno es obligatorio**, y mientras no
+existan el área funciona igual: los campos que no están ni se le piden al CRM.
 
 | # | Campo | Tipo | Para qué | Ficha |
 |---|---|---|---|---|
-| 1 | `ajmcm_dirigido_a_c` | **Selección múltiple** | A qué perfiles va dirigido (monitores, grupo COM-LC…) | §4.1 |
-| 2 | `ajmcm_ambito_c` | Desplegable | Local o de todas las delegaciones | §4.2 |
-| 3 | `ajmcm_filtro_edades_c` | *(ya existe)* | **Solo añadirle** `universitario` y `otros` | §4.3 |
-| 4 | `ajmcm_lugar_c` | Texto (255) | El nombre del sitio. **El más importante de los seis** | §5.3 |
-| 5 | `ajmcm_direccion_c` | Texto (255) | La dirección completa | §5.3 |
-| 6 | `ajmcm_mapa_c` | URL | El enlace al mapa, solo cuando la búsqueda no acierta | §5.3 |
+| 1 | `ajmcm_lugar_c` | Texto (255) | El nombre del sitio. **El que más se nota** | §5.3 |
+| 2 | `ajmcm_dirigido_a_c` | **Selección múltiple** | A qué perfiles va dirigido (monitores, grupo COM-LC…) | §4.1 |
+| 3 | `ajmcm_ambito_c` | Desplegable | Local o de todas las delegaciones | §4.2 |
+| 4 | `ajmcm_direccion_c` | Texto (255) | La dirección completa | §5.3 |
+| 5 | `ajmcm_mapa_c` | URL | El enlace al mapa, solo cuando la búsqueda no acierta | §5.3 |
 
-Si hay que priorizar: **el 4 es el que se nota** (hoy nadie sabe dónde es una
-actividad sin preguntar, y además enciende el botón del mapa él solo). El 1 y el
-2 son los que hacen falta para el congreso de monitores. El 3, 5 y 6 son
-refinamientos.
+Están por orden de lo que aportan. **Si creas uno solo, el 1**: hoy nadie sabe
+dónde es una actividad sin preguntar, y además enciende el botón del mapa él
+solo. El 2 y el 3 son los que hacen falta para el congreso de monitores. El 4 y
+el 5 son refinamientos del mapa.
+
+> **`ajmcm_filtro_edades_c` NO está en la lista, y esto es lo bueno del asunto.**
+> No solo existe y está relleno: **usa el MISMO desplegable
+> (`ajmcm_curso_escolar_c_list`) que el campo de la persona**, no una copia. O
+> sea que los dos lados del filtro de cursos comparten la lista y **no pueden
+> divergir nunca**: quien añada un curso lo añade en los dos sitios a la vez.
+> Nada que crear, nada que ampliar y nada que sincronizar. Ver §4.3.
 
 ---
 
@@ -261,24 +271,33 @@ delegaciones** —el congreso lo monta una delegación, pero va todo el mundo—
 Sin el campo habría que dejarlo sin asignar, y `CLAUDE.md` dice que todo va
 asignado a su delegación por el grupo de seguridad.
 
-### 4.3 `stic_Events` → `ajmcm_filtro_edades_c` ✅ **ya existe: solo ampliarlo**
+### 4.3 `stic_Events` → `ajmcm_filtro_edades_c` ✅ **nada que tocar**
 
-Está creado y **relleno** (las sesiones del MIC llevan
-`^4_primaria^,^5_primaria^,^6_primaria^`). Lo único que falta es **igualar su
-dominio al de la persona**: hoy le faltan dos claves que sí tiene
-`stic_Contacts_Relationships.ajmcm_curso_escolar_c`.
+Está creado, **relleno** (las sesiones del MIC llevan
+`^4_primaria^,^5_primaria^,^6_primaria^`) y —lo importante— **usa el mismo
+desplegable que el campo de la persona**: `ajmcm_curso_escolar_c_list`.
 
-| Clave a añadir | Etiqueta |
-|---|---|
-| `universitario` | Universitarios |
-| `otros` | Otros |
+```
+stic_Events.ajmcm_filtro_edades_c            ┐
+                                             ├── ajmcm_curso_escolar_c_list
+stic_Contacts_Relationships.ajmcm_curso_escolar_c ┘
+```
 
-Sin ellas no se puede sacar un evento dirigido a universitarios, que son unos
-cuantos en los grupos del COM.
+Eso es lo que hace que el filtro funcione y siga funcionando. Se comparan clave
+a clave, y como **no son dos listas sino una**, no pueden divergir: el día que
+alguien añada un curso, lo añade en los dos lados a la vez. (Si fueran dos
+listas, el día que una guardara `1_eso` y la otra `eso_1` el filtro dejaría de
+casar y nadie vería un error: simplemente todo el mundo pasaría el filtro.)
 
-> ⚠️ **Los dos campos tienen que usar LAS MISMAS CLAVES.** Se comparan clave a
-> clave. El día que uno guarde `1_eso` y el otro `eso_1`, el filtro dejará de
-> casar y nadie verá un error: simplemente todo el mundo pasará el filtro.
+Dominio completo en [`CAMPOS.md`](CAMPOS.md) §1 → Relaciones con Personas:
+`3_primaria` … `6_primaria`, `1_eso` … `4_eso`, `1_bachillerato`,
+`2_bachillerato`, `fp_gm`, `fp_gs`, `universitario`, `otros`, `na`.
+
+⚠️ **`na` [NA] no es un curso: es «no aplica».** Para el filtro cuenta como *no
+tener curso*, no como un curso que no casa con ninguno — si contara como curso,
+una persona marcada `na` quedaría fuera de cualquier evento que restrinja
+cursos. `otros` sí es un curso, y casa solo con `otros`
+(`sticpa_event_audience_cursos_no_aplica()`).
 
 ---
 
