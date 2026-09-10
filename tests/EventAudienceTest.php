@@ -88,6 +88,41 @@ class EventAudienceTest extends TestCase
         $this->assertSame('deleg-castellon', $a['delegacion']);
     }
 
+    /**
+     * `ajmcm_dirigido_a_c` SE CREÓ COMO DESPLEGABLE SIMPLE, y funciona igual.
+     *
+     * Se pidió de selección múltiple y en el CRM (10/09/2026) es `enum`: los
+     * valores llegan como `monitor` a secas, sin los acentos circunflejos del
+     * multienum. El troceador aguanta las dos formas a propósito, así que esto
+     * no hay que arreglarlo — pero sí hay que probarlo, porque el formato que
+     * llega HOY de producción es este y no el otro.
+     *
+     * Lo único que se pierde con el simple es poder decir «monitores Y
+     * coordinación» en un mismo evento. Si algún día se pasa a múltiple, este
+     * test sigue valiendo y el de arriba también.
+     */
+    public function testUnDesplegableSimpleFuncionaIgualQueUnoMultiple()
+    {
+        $simple = sticpa_event_audience_from_nvl($this->nvl(array(
+            'assigned_user_id' => '1',
+            'ajmcm_dirigido_a_c' => 'monitor',
+        )));
+        $this->assertSame(array('monitor'), $simple['perfiles']);
+        $this->assertTrue(sticpa_event_audience_match($simple, $this->viewer(array(
+            'papeles' => array('monitor'),
+        )))['ok']);
+        $this->assertFalse(sticpa_event_audience_match($simple, $this->viewer(array(
+            'papeles' => array('participante_mic_com'),
+        )))['ok']);
+
+        // Y el ámbito, que también es un enum simple.
+        $ambito = sticpa_event_audience_from_nvl($this->nvl(array(
+            'assigned_user_id' => 'deleg-castellon',
+            'ajmcm_ambito_c' => 'nacional',
+        )));
+        $this->assertSame('nacional', sticpa_event_audience_scope($ambito));
+    }
+
     /** Un evento sin ninguno de los campos nuevos no restringe nada. */
     public function testUnEventoSinCamposNoRestringeNada()
     {

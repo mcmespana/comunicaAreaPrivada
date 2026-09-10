@@ -4,7 +4,20 @@
 
 ---
 
-> **Última revisión contra el CRM: 9 de septiembre de 2026.** Se verificaron
+> **Última revisión contra el CRM: 10 de septiembre de 2026.** Los cinco campos
+> de `stic_Events` que pedía la audiencia de eventos **están creados**, con el
+> nombre exacto y verificados uno a uno por MCP: `ajmcm_lugar_c`,
+> `ajmcm_direccion_c`, `ajmcm_mapa_c`, `ajmcm_dirigido_a_c` y `ajmcm_ambito_c`.
+> Los cinco vacíos todavía en los cinco eventos, así que aún no restringen nada.
+> **No queda ningún campo por crear en todo el proyecto.**
+>
+> También se apuntó el dominio COMPLETO de `ajmcm_curso_escolar_c_list` (leído
+> en Studio, esta vez exhaustivo), que es **la misma lista** que usa
+> `stic_Events.ajmcm_filtro_edades_c` — por eso el filtro de cursos no puede
+> divergir— y se cerró la duda del segmento COM: **no tiene ninguna
+> correspondencia con el nivel personal.**
+>
+> **Revisión anterior: 9 de septiembre de 2026.** Se verificaron
 > por MCP `stic_Events` (59 campos), `stic_Contacts_Relationships` (40) y
 > `ajmcm_GRUPOS` (31), más los valores reales de sus desplegables. De ahí sale
 > la sección nueva de **Eventos** en §1 —con los tres ejes de quién puede
@@ -267,12 +280,18 @@ funcional en [`EVENTOS.md`](EVENTOS.md) §5.
 - `assigned_user_id` — Asignado a → **la delegación dueña del evento**
   - Es lo que separa el evento local del de otra delegación. Un evento asignado
     al «Administrador MCM» (id `1`) o sin asignar se entiende como de todas.
-- `ajmcm_ambito_c` — Ámbito 🔨 **POR CREAR** (ver la ficha en `EVENTOS.md` §4.2)
+- `ajmcm_ambito_c` — Ámbito ✅ **creado** (`enum`, verificado el 10/09/2026; ficha en `EVENTOS.md` §4.2)
   - Desplegable: `local` [Solo su delegación] · `nacional` [Todas las delegaciones]
   - Si está vacío, el ámbito se deduce de `assigned_user_id` (con delegación =
     local; sin delegación = nacional), así que el campo es opcional: sirve para
     decir «este evento es de Castellón y AUN ASÍ es para todas».
-- `ajmcm_dirigido_a_c` — Dirigido a 🔨 **POR CREAR** (ficha en `EVENTOS.md` §4.1)
+- `ajmcm_dirigido_a_c` — Dirigido a ✅ **creado** (ficha en `EVENTOS.md` §4.1)
+  - ⚠️ **Se pidió de selección múltiple y en el CRM es `enum` SIMPLE**
+    (verificado el 10/09/2026). El área funciona igual —el troceador aguanta
+    las dos formas—, pero con el simple **no se puede decir «monitores Y
+    coordinación» en un mismo evento**. Cambiarlo a múltiple es un cambio de
+    tipo en Studio y el código no se toca; **el momento bueno es mientras esté
+    vacío**, porque cambiar el tipo de un campo relleno puede perder valores.
   - Selección **múltiple**. **Las claves son literalmente las de
     `relationship_type`** (ver el inventario de §2), para no mantener dos
     vocabularios que dicen lo mismo:
@@ -305,17 +324,17 @@ funcional en [`EVENTOS.md`](EVENTOS.md) §5.
     `na`) no se le aplica, o los monitores del MIC se quedarían fuera de las
     sesiones del MIC.
 
-**El lugar — tres campos 🔨 POR CREAR** (fichas completas en
+**El lugar — tres campos ✅ CREADOS** el 10/09/2026 (fichas completas en
 [`EVENTOS.md`](EVENTOS.md) §5.3). No existen `location`, `city` ni `address`:
 
-- `ajmcm_lugar_c` — Lugar (texto, 255)
+- `ajmcm_lugar_c` — Lugar (`varchar(255)`)
   - El nombre corto del sitio: «Casa de Espiritualidad, Benigànim». Sale en la
     **tarjeta del listado** y en la ficha, así que tiene que caber en una línea
     de móvil. Es el que hay que rellenar siempre.
-- `ajmcm_direccion_c` — Dirección (texto, 255)
+- `ajmcm_direccion_c` — Dirección (`varchar(255)`)
   - La dirección completa. Solo en la ficha, y es lo que se le manda al mapa
     (más preciso que el nombre).
-- `ajmcm_mapa_c` — Enlace del mapa (URL) — **opcional de verdad**
+- `ajmcm_mapa_c` — Enlace del mapa (tipo `url`, 255) — **opcional de verdad**
   - **El botón del mapa no lo necesita**: con `ajmcm_lugar_c` ya se arma una
     búsqueda de Google Maps y el botón funciona desde el primer día. Este campo
     es el arreglo para cuando la búsqueda no acierta (de «Casa de
