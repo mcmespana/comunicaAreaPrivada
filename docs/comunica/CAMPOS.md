@@ -303,9 +303,9 @@ crear: varios estaban creados con otro nombre). Comprobado el 09/09/2026:
 | `status` | desplegable | Valor visto: `registration` |
 | `type` | desplegable | Valor visto: `working_day` |
 | `description` | texto largo | |
-| `max_attendees` | entero | **Es el «aforo»**; no existe `capacity` |
-| `price` | decimal | |
-| `ajmcm_start_inscripcion_c` / `ajmcm_end_inscripcion_c` | fecha | **La ventana de inscripción**; no existe `registration_end` |
+| `max_attendees` | entero | **Es el «aforo»**; no existe `capacity`. ⚠️ Vale `0` en los cinco eventos: es el valor por defecto de SuiteCRM, no «cero plazas». El área no lo enseña cuando es 0 |
+| `price` | decimal | ⚠️ Igual: `0.00` en los cinco. Un 0 no se enseña — no es «gratis», es «sin rellenar» |
+| `ajmcm_start_inscripcion_c` / `ajmcm_end_inscripcion_c` | fecha | **La ventana de inscripción**; no existe `registration_end`. Fuera de plazo el área NO deja apuntarse (`EVENTOS.md` §5.2). Vacío = abierta |
 | `timetable` | texto | El horario, en texto libre; no hay campo de hora |
 | `ajmcm_etapa_c` | selección múltiple | `MIC` · `COM` · `LC`. Para Pasar Lista, **no** para la audiencia |
 | `attendees`, `total_hours`, `budget`, `actual_cost`… | varios | Gestión, no se usan en el área |

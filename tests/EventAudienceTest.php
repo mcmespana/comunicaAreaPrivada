@@ -20,6 +20,7 @@ class EventAudienceTest extends TestCase
 {
     public static function setUpBeforeClass(): void
     {
+        require_once __DIR__ . '/../inc/stic-formatter.php';
         require_once __DIR__ . '/../inc/stic-formController.php';
         require_once __DIR__ . '/../inc/stic-comunica-roles.php';
         require_once __DIR__ . '/../inc/stic-record-view.php';
@@ -528,6 +529,270 @@ class EventAudienceTest extends TestCase
         )));
         $this->assertSame(array('4_primaria', '5_primaria'), $event['audiencia']['cursos']);
         $this->assertSame('deleg-castellon', $event['audiencia']['delegacion']);
+    }
+
+    // -----------------------------------------------------------------
+    // Los NOMBRES de los campos opcionales, y el 0 que no es un dato
+    // -----------------------------------------------------------------
+
+    /**
+     * Los campos opcionales usan los nombres del CRM DE VERDAD.
+     *
+     * La lista pedía `capacity`, `start_time` y `registration_end`, que no
+     * existen en este CRM: existen con otro nombre. O sea que el aforo, el
+     * horario y la ventana de inscripción estaban rellenos y no se pintaban, y
+     * la lista invitaba a crear campos duplicados.
+     */
+    public function testLosCamposOpcionalesUsanLosNombresDelCrm()
+    {
+        $campos = array_keys(sticpa_event_optional_fields());
+        $this->assertContains('max_attendees', $campos);
+        $this->assertContains('timetable', $campos);
+        $this->assertContains('price', $campos);
+        $this->assertNotContains('capacity', $campos);
+        $this->assertNotContains('start_time', $campos);
+        $this->assertNotContains('registration_end', $campos);
+
+        // Y se le piden al CRM, junto a los dos de la ventana de inscripción.
+        $scp = new FakeAudienceSCP(array(
+            'id' => array(), 'name' => array(), 'max_attendees' => array(),
+            'timetable' => array(), 'price' => array(),
+            'ajmcm_start_inscripcion_c' => array(), 'ajmcm_end_inscripcion_c' => array(),
+        ));
+        $fields = sticpa_event_fields_to_request($scp);
+        foreach (array('max_attendees', 'timetable', 'price', 'ajmcm_start_inscripcion_c', 'ajmcm_end_inscripcion_c') as $f) {
+            $this->assertContains($f, $fields, $f . ' tiene que pedirse al CRM');
+        }
+    }
+
+    /**
+     * UN 0 NO SE ENSEÑA, porque no es una respuesta.
+     *
+     * Los cinco eventos del CRM tienen `max_attendees = 0` y `price = 0.00`:
+     * es el valor por defecto de SuiteCRM. Sin esto la ficha decía «Plazas 0»
+     * —que se lee como "no hay plazas", justo lo contrario de "sin límite"— y
+     * «Precio 0,00 €» en todas las actividades. Y con el precio tampoco vale
+     * poner «Gratis»: nadie ha dicho que lo sea, solo que está sin rellenar.
+     */
+    public function testUnCeroEnPlazasOPrecioNoSeEnsena()
+    {
+        $event = sticpa_event_view_model($this->nvl(array(
+            'id' => 'e1', 'name' => 'Sesiones semanales',
+            'max_attendees' => '0', 'price' => '0.00', 'timetable' => 'De 17 a 19 h',
+        )));
+        $this->assertArrayNotHasKey('max_attendees', $event['optional']);
+        $this->assertArrayNotHasKey('price', $event['optional']);
+        // El horario sí, que es texto libre y está relleno.
+        $this->assertSame('De 17 a 19 h', $event['optional']['timetable']['text']);
+
+        // Y con valores de verdad, sí se enseñan.
+        $event = sticpa_event_view_model($this->nvl(array(
+            'id' => 'e1', 'name' => 'Campamento', 'max_attendees' => '60', 'price' => '285.00',
+        )));
+        $this->assertSame('60', $event['optional']['max_attendees']['text']);
+        $this->assertStringContainsString('285', $event['optional']['price']['text']);
+    }
+
+    // -----------------------------------------------------------------
+    // La ventana de inscripción
+    // -----------------------------------------------------------------
+
+    /** Sin fechas, la inscripción está ABIERTA. */
+    public function testSinFechasLaInscripcionEstaAbierta()
+    {
+        $w = sticpa_event_registration_window($this->nvl(array('name' => 'X')));
+        $this->assertSame('sin_datos', $w['estado']);
+        $this->assertTrue($w['abierta']);
+        // Y no se cuenta nada en pantalla: no hay nada que contar.
+        $this->assertNull(sticpa_event_registration_fact($w));
+        $this->assertSame('', sticpa_event_registration_note($w));
+    }
+
+    /** Antes de abrirse, dentro de plazo y pasado el plazo. */
+    public function testLosTresEstadosDeLaVentana()
+    {
+        $antes = sticpa_event_registration_window($this->nvl(array(
+            'ajmcm_start_inscripcion_c' => date('Y-m-d', strtotime('+10 days')),
+            'ajmcm_end_inscripcion_c' => date('Y-m-d', strtotime('+30 days')),
+        )));
+        $this->assertSame('antes', $antes['estado']);
+        $this->assertFalse($antes['abierta']);
+        $this->assertStringContainsString('Se abre el', sticpa_event_registration_fact($antes)['text']);
+        $this->assertStringContainsString('se abre el', sticpa_event_registration_note($antes));
+
+        $abierta = sticpa_event_registration_window($this->nvl(array(
+            'ajmcm_start_inscripcion_c' => date('Y-m-d', strtotime('-10 days')),
+            'ajmcm_end_inscripcion_c' => date('Y-m-d', strtotime('+10 days')),
+        )));
+        $this->assertSame('abierta', $abierta['estado']);
+        $this->assertTrue($abierta['abierta']);
+        $this->assertStringContainsString('Hasta el', sticpa_event_registration_fact($abierta)['text']);
+        $this->assertSame('', sticpa_event_registration_note($abierta));
+
+        $cerrada = sticpa_event_registration_window($this->nvl(array(
+            'ajmcm_end_inscripcion_c' => date('Y-m-d', strtotime('-1 day')),
+        )));
+        $this->assertSame('cerrada', $cerrada['estado']);
+        $this->assertFalse($cerrada['abierta']);
+        $this->assertStringContainsString('terminó el', sticpa_event_registration_note($cerrada));
+    }
+
+    /**
+     * EL DÍA DE FIN CUENTA ENTERO. Un plazo «hasta el 25» que cierra a las
+     * 00:00 del 25 le roba un día a la gente.
+     */
+    public function testElUltimoDiaDelPlazoCuentaEntero()
+    {
+        $hoy = sticpa_event_registration_window($this->nvl(array(
+            'ajmcm_end_inscripcion_c' => date('Y-m-d'),
+        )));
+        $this->assertSame('abierta', $hoy['estado']);
+        $this->assertTrue($hoy['abierta']);
+    }
+
+    /** Abierta y sin fecha de cierre: no se cuenta nada, no es información. */
+    public function testAbiertaSinFechaDeCierreNoCuentaNada()
+    {
+        $w = sticpa_event_registration_window($this->nvl(array(
+            'ajmcm_start_inscripcion_c' => date('Y-m-d', strtotime('-10 days')),
+        )));
+        $this->assertSame('abierta', $w['estado']);
+        $this->assertNull(sticpa_event_registration_fact($w));
+    }
+
+    /**
+     * Fuera de plazo, la tarjeta no ofrece «Inscribirme» y el CHIP lo dice.
+     *
+     * Y el chip dice «Inscripción cerrada» aunque el `status` del CRM siga en
+     * `registration`: cuando hay fechas, mandan las fechas. Sin esto la
+     * tarjeta decía «INSCRIPCIÓN ABIERTA» sin botón, que es la clase de
+     * pantalla que hace que nadie se crea nada de lo que pone.
+     *
+     * La FECHA de cierre no se repite en la lista —el chip ya lo ha dicho, y
+     * la fecha exacta de algo que se pasó no sirve para nada ahí—; en la ficha
+     * sí sale, que es donde uno va a mirar cuándo se le pasó.
+     */
+    public function testFueraDePlazoNoHayBotonYElChipLoDice()
+    {
+        $fila = new stdClass();
+        $fila->name_value_list = $this->nvl(array(
+            'id' => 'e1', 'name' => 'Convivencia de inicio',
+            'start_date' => date('Y-m-d', strtotime('+2 months')),
+            'ajmcm_end_inscripcion_c' => date('Y-m-d', strtotime('-1 day')),
+        ));
+        $html = sticpa_events_list_html(array($fila), array('registration' => 'Inscripción abierta'));
+        $this->assertStringNotContainsString('Inscribirme', $html);
+        $this->assertStringContainsString('Inscripción cerrada', $html);
+        $this->assertStringNotContainsString('Inscripción abierta', $html);
+        $this->assertStringNotContainsString('Cerrada el', $html);
+        $this->assertStringContainsString('Ver detalle', $html);
+    }
+
+    /** Y antes de abrirse, igual: el chip lo dice y la línea da la fecha. */
+    public function testAntesDeAbrirseElChipLoDiceYLaLineaDaLaFecha()
+    {
+        $fila = new stdClass();
+        $fila->name_value_list = $this->nvl(array(
+            'id' => 'e2', 'name' => 'Campamento de verano',
+            'start_date' => date('Y-m-d', strtotime('+6 months')),
+            'ajmcm_start_inscripcion_c' => date('Y-m-d', strtotime('+1 month')),
+        ));
+        $html = sticpa_events_list_html(array($fila), array('registration' => 'Inscripción abierta'));
+        $this->assertStringNotContainsString('Inscribirme', $html);
+        $this->assertStringContainsString('Inscripción no abierta', $html);
+        $this->assertStringContainsString('Se abre el', $html);
+    }
+
+    /**
+     * LA DURACIÓN SOLO SE CUENTA SI ES UNA DURACIÓN.
+     *
+     * «Sesiones semanales 2026-2027» va de septiembre a junio y la ficha decía
+     * «Duración: 231 días»: es cierto y no significa nada. Eso no es una
+     * actividad de 231 días, es un curso entero.
+     */
+    public function testLaDuracionNoSeCuentaEnUnCursoEntero()
+    {
+        $curso = sticpa_event_view_model($this->nvl(array(
+            'id' => 'e4', 'name' => 'Sesiones semanales',
+            'start_date' => date('Y-m-d', strtotime('-1 month')),
+            'end_date' => date('Y-m-d', strtotime('+7 months')),
+        )));
+        $this->assertStringNotContainsString('Duración', sticpa_event_detail_html($curso));
+
+        // Un campamento de diez días sí la cuenta: ahí el número dice algo.
+        $campa = sticpa_event_view_model($this->nvl(array(
+            'id' => 'e5', 'name' => 'Campamento',
+            'start_date' => date('Y-m-d', strtotime('+2 months')),
+            'end_date' => date('Y-m-d', strtotime('+2 months +9 days')),
+        )));
+        $html = sticpa_event_detail_html($campa);
+        $this->assertStringContainsString('Duración', $html);
+        $this->assertStringContainsString('10 días', $html);
+    }
+
+    /** Y dentro de plazo sí lo ofrece, con la fecha límite a la vista. */
+    public function testDentroDePlazoHayBotonYFechaLimite()
+    {
+        $fila = new stdClass();
+        $fila->name_value_list = $this->nvl(array(
+            'id' => 'e1', 'name' => 'Convivencia de inicio',
+            'start_date' => date('Y-m-d', strtotime('+2 months')),
+            'ajmcm_end_inscripcion_c' => date('Y-m-d', strtotime('+10 days')),
+        ));
+        $html = sticpa_events_list_html(array($fila));
+        $this->assertStringContainsString('Inscribirme', $html);
+        $this->assertStringContainsString('Hasta el', $html);
+    }
+
+    // -----------------------------------------------------------------
+    // La fuente única: audiencia + plazo, y en ese orden
+    // -----------------------------------------------------------------
+
+    /**
+     * LA AUDIENCIA SE DICE ANTES QUE EL PLAZO, y no es un detalle: a quien es
+     * de otra delegación, decirle «el plazo terminó» le hace pensar que llegó
+     * tarde a algo que nunca fue suyo.
+     */
+    public function testLaAudienciaSeExplicaAntesQueElPlazo()
+    {
+        $GLOBALS['__stic_filters']['sticpa_viewer_audience'] = $this->viewer(array(
+            'delegacion' => 'deleg-reus',
+        ));
+        $nvl = $this->nvl(array(
+            'id' => 'e1', 'name' => 'Convivencia CS', 'assigned_user_id' => 'deleg-castellon',
+            'ajmcm_end_inscripcion_c' => date('Y-m-d', strtotime('-1 day')),
+        ));
+        $block = sticpa_event_signup_block(null, 'e1', $nvl);
+        $this->assertTrue($block['bloqueado']);
+        $this->assertStringContainsString('otra delegación', $block['texto']);
+        $this->assertSame('Esta actividad no es para ti', $block['titulo']);
+    }
+
+    /** Siendo de la delegación, el motivo que queda es el plazo. */
+    public function testSiendoDeLaDelegacionElMotivoEsElPlazo()
+    {
+        $GLOBALS['__stic_filters']['sticpa_viewer_audience'] = $this->viewer();
+        $nvl = $this->nvl(array(
+            'id' => 'e1', 'name' => 'Convivencia CS', 'assigned_user_id' => 'deleg-castellon',
+            'ajmcm_end_inscripcion_c' => date('Y-m-d', strtotime('-1 day')),
+        ));
+        $block = sticpa_event_signup_block(null, 'e1', $nvl);
+        $this->assertTrue($block['bloqueado']);
+        $this->assertSame('La inscripción no está abierta', $block['titulo']);
+        $this->assertStringContainsString('terminó el', $block['texto']);
+    }
+
+    /** Y si todo cuadra, no bloquea nada. */
+    public function testSiTodoCuadraNoSeBloquea()
+    {
+        $GLOBALS['__stic_filters']['sticpa_viewer_audience'] = $this->viewer();
+        $nvl = $this->nvl(array(
+            'id' => 'e1', 'name' => 'Convivencia CS', 'assigned_user_id' => 'deleg-castellon',
+            'ajmcm_end_inscripcion_c' => date('Y-m-d', strtotime('+10 days')),
+        ));
+        $block = sticpa_event_signup_block(null, 'e1', $nvl);
+        $this->assertFalse($block['bloqueado']);
+        $this->assertSame('', $block['texto']);
     }
 
     private function rel(array $campos)
