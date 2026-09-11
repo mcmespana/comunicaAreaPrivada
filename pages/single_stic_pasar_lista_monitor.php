@@ -683,6 +683,16 @@ if ($segOn) {
 
     $html .= '<div class="pl-sec" id="seguimientos">' . esc_html__('Seguimientos', 'sticpa') . '</div>';
 
+    /* Lo que se lee aquí lo escribió alguien sobre esta persona, y la propia
+     * persona no lo verá nunca (PASAR-LISTA-SEGUIMIENTOS.md §5). Quien lo abre
+     * tiene que saber por qué puede: si acompaña, lo ve todo; si solo coordina,
+     * ve dos de los tres tipos. Se nombra el papel que MÁS explica lo que se
+     * está viendo. */
+    if (function_exists('sticpa_equipo_por_que_html')) {
+        $papelSeg = in_array('acompanamiento', $segRoles, true) ? 'acompanamiento' : 'coordinacion';
+        $html .= sticpa_equipo_por_que_html('', $papelSeg, __('estos seguimientos', 'sticpa'));
+    }
+
     if ($segMsg !== '') {
         $html .= '<p class="pl-notice"><span>' . esc_html($segMsg) . '</span></p>';
     }

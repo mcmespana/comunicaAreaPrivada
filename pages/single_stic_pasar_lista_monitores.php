@@ -281,8 +281,9 @@ $html .= '<a class="pl-back" href="' . esc_url($backUrl) . '"'
     . ' aria-label="' . esc_attr__('Volver', 'sticpa') . '">' . sticpa_pl_icon('back') . '</a>';
 $html .= '<div class="pl-head-titles">';
 $html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html__('Monitores', 'sticpa') . '</span>';
-if ($scope['etapa'] !== '') {
-    $html .= '<span class="pl-title-name">' . esc_html($scope['etapa']) . '</span>';
+$scopeLabel = sticpa_pl_coord_scope_label($scope);
+if ($scope['etapa'] !== '' || $scope['segmento'] !== '') {
+    $html .= '<span class="pl-title-name">' . esc_html($scopeLabel) . '</span>';
 }
 $html .= '</div>';
 // En una reunión, lo que identifica la lista es su NOMBRE («Programación del
@@ -301,6 +302,12 @@ if (!$isReunion) {
 $html .= '</div>';
 
 $html .= sticpa_pl_notice_html($pick);
+
+// Aquí se ve la asistencia de OTRAS personas. Que se sepa en calidad de qué:
+// un permiso que no se ve es un permiso que se olvida.
+if (function_exists('sticpa_equipo_por_que_html')) {
+    $html .= sticpa_equipo_por_que_html($scopeLabel, 'coordinacion');
+}
 
 // Si ya estaba pasada, se dice. Evita el «¿la pasé o no?» y el guardado doble.
 if ($saved === null && $listaMon !== null && $listaMon['estado'] !== '') {

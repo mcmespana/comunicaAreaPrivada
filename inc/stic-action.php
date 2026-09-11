@@ -746,30 +746,7 @@ function sticpa_handle_send_access()
         foreach (sticpa_modules_to_try() as $module) {
             $contact = $objSCP->getContactByEmail($email, $module);
             if ($contact) {
-                // El enlace del correo pasa por la ruta puente `/app/acceso`:
-                // si quien lo pulsa tiene la app MCM instalada, se abre ahí; si
-                // no, WordPress redirige al área privada de siempre. Ver
-                // `inc/stic-app-links.php`.
-                //
-                // Se firma con la caducidad del código para que el correo pueda
-                // dar UNA fecha de caducidad y sea verdad para las dos vías.
-                $link = sticpa_app_link_url(
-                    sticpa_generate_magic_link($areaUrl, $module, $contact->id, sticpa_otp_ttl())
-                );
-                $code = sticpa_otp_issue($email, $module, $contact->id);
-                $name = $contact->name_value_list->name->value ?? '';
-
-                $portalName = get_option('sticpa_scp_name') ?: __('Tu área privada', 'sticpa');
-                $fromEmail = get_option('admin_email');
-                $headers = array(
-                    'Content-Type: text/html; charset=UTF-8',
-                    'From: ' . $portalName . ' <' . $fromEmail . '>',
-                    'Reply-To: ' . $portalName . ' <' . $fromEmail . '>',
-                );
-                $subject = sprintf(__('Tu acceso a %s', 'sticpa'), $portalName);
-                $body = sticpa_magic_email_html($name, $link, $portalName, $code);
-
-                wp_mail($email, $subject, $body, $headers);
+                sticpa_send_access_email($contact, $module, $email, $areaUrl);
                 break; // found in this module; stop
             }
         }
@@ -779,6 +756,10 @@ function sticpa_handle_send_access()
     // pantalla del código y enseñar el correo enmascarado. No autoriza nada.
     if (is_email($email)) {
         $_SESSION['sticpa_otp_email'] = $email;
+        // Se ha entrado por el correo, no por el documento: la pantalla del
+        // código vuelve a poder pintar la dirección (la ha escrito quien la
+        // está mirando). Sin esto, quedaba pegada la marca de la vía anterior.
+        unset($_SESSION['sticpa_otp_via']);
     }
 
     // Redirección genérica pase lo que pase: nunca se revela si el email existe
@@ -790,6 +771,128 @@ function sticpa_handle_send_access()
     }
     wp_safe_redirect(add_query_arg($args, $returnUrl));
     exit;
+}
+
+/**
+ * Manda EL correo de acceso: el enlace mágico y el código de 6 cifras, juntos.
+ *
+ * Estaba escrito dentro del handler del correo y ahora lo comparten las dos
+ * puertas —correo y documento—, que es justo lo que hay que compartir: el
+ * mensaje que recibe la persona tiene que ser el mismo por las dos, o acabamos
+ * con dos correos distintos que envejecen por separado.
+ *
+ * @param object $contact  entry_list[0] del CRM (con ->id y ->name_value_list).
+ * @param string $module   'Contacts' | 'Accounts'.
+ * @param string $email    A dónde se manda (el del CRM, no el que se tecleó).
+ * @param string $areaUrl  Base ABSOLUTA del área privada, para el enlace.
+ */
+function sticpa_send_access_email($contact, $module, $email, $areaUrl)
+{
+    // El enlace del correo pasa por la ruta puente `/app/acceso`: si quien lo
+    // pulsa tiene la app MCM instalada, se abre ahí; si no, WordPress redirige
+    // al área privada de siempre. Ver `inc/stic-app-links.php`.
+    //
+    // Se firma con la caducidad del código para que el correo pueda dar UNA
+    // fecha de caducidad y sea verdad para las dos vías.
+    $link = sticpa_app_link_url(
+        sticpa_generate_magic_link($areaUrl, $module, $contact->id, sticpa_otp_ttl())
+    );
+    $code = sticpa_otp_issue($email, $module, $contact->id);
+    $name = $contact->name_value_list->name->value ?? '';
+
+    $portalName = get_option('sticpa_scp_name') ?: __('Tu área privada', 'sticpa');
+    $fromEmail = get_option('admin_email');
+    $headers = array(
+        'Content-Type: text/html; charset=UTF-8',
+        'From: ' . $portalName . ' <' . $fromEmail . '>',
+        'Reply-To: ' . $portalName . ' <' . $fromEmail . '>',
+    );
+    $subject = sprintf(__('Tu acceso a %s', 'sticpa'), $portalName);
+    $body = sticpa_magic_email_html($name, $link, $portalName, $code);
+
+    return wp_mail($email, $subject, $body, $headers);
+}
+
+/**
+ * LA OTRA PUERTA: «no sé con qué correo me di de alta».
+ *
+ * Se escribe el DNI, buscamos a esa persona y le mandamos el acceso al correo
+ * que tenemos guardado, diciéndole cuál es **enmascarado** (`dav••@mov•••.com`)
+ * para que lo reconozca. El porqué está en `inc/stic-otp.php`.
+ *
+ * TRES REGLAS QUE NO SE TOCAN:
+ *
+ *  1. **Esto no abre sesión.** Un DNI no es un secreto —está en cualquier
+ *     formulario que hayas firmado—, así que solo sirve para mandar el correo a
+ *     donde ya estaba. Quien no tenga acceso a ese buzón, no entra.
+ *  2. **El correo completo no viaja al navegador.** Se guarda en la sesión de
+ *     PHP y la pantalla del código lo usa desde ahí (por eso se marca
+ *     `sticpa_otp_via = dni`: en esa pantalla NO se pinta el campo oculto con
+ *     la dirección, que si no bastaría con mirar el código fuente).
+ *  3. **Mismo tope que la vía del correo**, por documento y por IP, y se apunta
+ *     el intento acierte o falle.
+ *
+ * Aquí SÍ se contesta con la verdad («no encontramos ese documento»), y es una
+ * decisión: para saber si un DNI está dado de alta hay que tener el DNI, que ya
+ * es un dato personal de alguien; y sin respuesta clara esta puerta no sirve
+ * para lo único que existe, que es sacar a alguien de un atasco.
+ */
+add_action('admin_post_sticpa_send_access_dni', 'sticpa_handle_send_access_dni');
+add_action('admin_post_nopriv_sticpa_send_access_dni', 'sticpa_handle_send_access_dni');
+function sticpa_handle_send_access_dni()
+{
+    $dni = sticpa_dni_normalize(stripslashes_deep($_REQUEST['sticpa_dni'] ?? ''));
+    $returnUrl = sticpa_auth_return_url();
+
+    $volver = function ($error) use ($returnUrl) {
+        // A la pantalla del login, no a la del código: aquí todavía no hay nada
+        // que comprobar. `wp_safe_redirect` porque la URL viene del cliente.
+        wp_safe_redirect(add_query_arg(array('dni_error' => $error), $returnUrl));
+        exit;
+    };
+
+    if (!sticpa_dni_es_plausible($dni)) {
+        $volver('formato');
+    }
+
+    // Preguntar primero y apuntar después, como en la vía del correo: al revés,
+    // la petición que hace de tope se contaría a sí misma.
+    $allowed = sticpa_dni_send_allowed($dni);
+    sticpa_dni_note_send($dni);
+    if (!$allowed) {
+        $volver('throttled');
+    }
+
+    $areaUrl = get_option('sticpa_scp_area_url');
+    if (empty($areaUrl)) {
+        $areaUrl = home_url(strtok($returnUrl, '?'));
+    }
+
+    $objSCP = SugarRestApiCall::getObjSCP();
+    foreach (sticpa_modules_to_try() as $module) {
+        $contact = $objSCP->getContactByDocument($dni, $module);
+        if (!$contact) {
+            continue;
+        }
+        $email = sticpa_otp_normalize_email($contact->name_value_list->email1->value ?? '');
+        if ($email === '' || !is_email($email)) {
+            // Está en el CRM pero sin correo. Es el único caso que no podemos
+            // resolver solos, y hay que decirlo con su nombre: si no, la
+            // persona vuelve a intentarlo diez veces.
+            $volver('sincorreo');
+        }
+
+        sticpa_send_access_email($contact, $module, $email, $areaUrl);
+
+        // Para enmascarar y para verificar el código. No autoriza nada.
+        $_SESSION['sticpa_otp_email'] = $email;
+        $_SESSION['sticpa_otp_via'] = 'dni';
+
+        wp_safe_redirect(add_query_arg(array('sticpa_code' => '1'), $returnUrl));
+        exit;
+    }
+
+    $volver('nohay');
 }
 
 /**
@@ -896,40 +999,22 @@ function prefix_admin_single_stic_unsubscribe()
 }
 
 
-/**
- * Action for managing the registration of new users
+/*
+ * EL ALTA DE USUARIOS NUEVOS SE HACÍA AQUÍ, Y SE HA QUITADO (10/09/2026).
+ * ----------------------------------------------------------------------------
+ * Había un `admin_post_nopriv_single_stic_signup` que cogía TODO el $_REQUEST,
+ * lo metía en un array y llamaba a `set_entry()` sobre el módulo de destino.
+ * Sin nonce, sin comprobar nada y accesible sin haber iniciado sesión: o sea,
+ * cualquiera con la URL podía crear registros en el CRM con los campos que
+ * quisiera.
+ *
+ * Y no lo usaba nadie: el formulario que lo llamaba vivía en
+ * `pages/single_stic_signup.php`, un archivo que NO EXISTE en este repo. El
+ * enlace del login («¿Aún no tienes acceso?») llevaba a un div vacío.
+ *
+ * Las altas se hacen en la web pública, con el formulario que corresponda a
+ * cada caso. La URL está en `sticpa_signup_url()`.
  */
-add_action('admin_post_single_stic_signup', 'prefix_admin_single_stic_signup'); 
-add_action('admin_post_nopriv_single_stic_signup', 'prefix_admin_single_stic_signup'); 
-function prefix_admin_single_stic_signup() 
-{
-    $objSCP = SugarRestApiCall::getObjSCP();
-
-    foreach ($_REQUEST as $key => $value) {
-        if (!empty($value)) {
-            $fields[$key] = stripslashes_deep($_REQUEST[$key]);
-            $addSignUp[$key] = $fields[$key];
-        } 
-    }
-
-    $checkUserExists = $objSCP->getUserExists($fields['stic_pa_username_c']);
-    $getAllEmails = $objSCP->getAllEmail();
-
-    if (($checkUserExists == true) && (in_array($fields['email1'], $getAllEmails) == true)) {
-        $redirect_url = $_REQUEST['scp_current_url'] . '&msg=userandemailexists';
-    } else if ($checkUserExists == true) {
-        $redirect_url = $_REQUEST['scp_current_url'] . '&msg=userexists';
-    } else if (in_array($fields['email1'], $getAllEmails) == true) {
-        $redirect_url = $_REQUEST['scp_current_url'] . '&msg=emailexists';
-    } else {
-        $isSignUp = $objSCP->set_entry(getDestinationModule(), $addSignUp);
-        if ($isSignUp != null) {
-            $redirect_url = explode('?', $_REQUEST['scp_current_url'], 2)[0] .'/?msg=true';
-        }
-    }
-    wp_redirect($redirect_url);
-    exit;
-}
 
 /**
  * Helper function for downloading attached files from the Documents module

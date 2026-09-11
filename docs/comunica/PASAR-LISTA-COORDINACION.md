@@ -203,6 +203,43 @@ es lo que permite aprender la pantalla una vez.
 
 ---
 
+## 5 bis. Cómo se LLEGA a lo de coordinación (10/09/2026)
+
+Todo lo de arriba estaba construido y no se veía. Coordinación entraba por el
+final de la home de Pasar lista, y la puerta de Pasar lista se abría con una
+sola condición: *ser monitor*. Dos consecuencias:
+
+1. **Quien coordina sin llevar la marca de monitor no veía nada.** Ni «Pasar
+   lista», ni «Mis grupos», ni por tanto las pantallas de coordinación. Hoy no
+   le pasa a nadie porque la única persona con `coordinacion_mic_com` lleva
+   también `monitor`: funcionaba **de casualidad**.
+2. **Nada decía que el acceso ampliado venía de coordinar.** Aparecían dos
+   filas más al final de una pantalla y ya está.
+
+Lo que hay ahora:
+
+- **Un solo sitio decide** quién es del equipo de monitores y qué secciones lo
+  forman: `sticpa_equipo_secciones()` (`inc/stic-equipo.php`), que responde por
+  los tres papeles —monitor, coordinación, acompañamiento— y **sin llamar al
+  CRM**. El menú y la home la usan; no se vuelve a escribir la condición.
+- **El «menú de datos de monitores» es un grupo propio en la home**, entre «Tu
+  día a día» y «Tu cuenta»: Monitor/a · Pasar lista · Mis grupos · Monitores ·
+  Reuniones. La barra de navegación es de una sola línea con desbordamiento a
+  «Más» y no admite encabezados de grupo, así que el agrupado visual vive donde
+  hay sitio para leerlo.
+- **«Monitores» es la puerta a los seguimientos**: la lista → la ficha de cada
+  monitor → sus seguimientos. Antes solo se llegaba bajando del todo en la home
+  de Pasar lista.
+- **Acompañamiento entra a «Monitores» pero no a «Reuniones»**: acompañar no es
+  coordinar (§7 y `PASAR-LISTA-SEGUIMIENTOS.md` §5), y las reuniones de
+  programación las monta coordinación.
+- **Se dice por qué**, en cuatro sitios: un chip «Coordinación» /
+  «Acompañamiento» junto al grupo de la home, y la frase *«Ves esta pantalla
+  porque coordinas COM · COM 2»* en la home de Pasar lista, en Monitores, en
+  Reuniones y sobre los seguimientos de una ficha. El alcance sale de
+  `sticpa_pl_coord_scope_label()`, que ahora **no se come el segmento**: antes
+  un coordinador de COM II leía «COM» a secas.
+
 ## 6. Campos y valores que hay que crear
 
 **Nada: está todo hecho.** Verificado contra el CRM el 10/09/2026 (por MCP), y

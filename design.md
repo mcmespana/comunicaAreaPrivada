@@ -327,7 +327,30 @@ conversación** («✨ Ya está», «💡 Un truco»). Un emoji que sea un **mar
 estado o de categoría** (✅ hecho, ⏳ pendiente, 📙 formación, 👤 avatar) se
 sustituye por su SVG. Es la diferencia entre calidez y chapuza.
 
-### 6.4 Formularios
+### 6.4 Si alguien ve algo que no ve todo el mundo, se le dice por qué
+
+Hay pantallas que enseñan **datos de otras personas**: la asistencia de un
+monitor, lo que coordinación escribió sobre él. Aparecen porque quien mira
+coordina o acompaña, y hasta que se dijo, no lo decía nada: unas filas más al
+final de una pantalla, sin explicación.
+
+La regla: **toda pantalla que se abre por un permiso que no tiene todo el mundo
+lleva una línea que nombra ese permiso**, y con su alcance cuando se conoce
+(«Ves esta pantalla porque coordinas COM · COM 2»). No es decoración ni
+cortesía: un permiso que no se ve es un permiso que se olvida, y quien lo tiene
+tiene que saber en calidad de qué está mirando.
+
+Dos cautelas que hacen que no se vuelva ruido:
+
+- **Solo lo excepcional lleva distintivo.** Un chip que lleva todo el mundo no
+  distingue nada, así que «Monitor/a» no lo lleva y «Coordinación» sí.
+- **Uno como mucho.** Si alguien acumula papeles, se nombra el que más explica
+  lo que está viendo; los demás se dicen donde importan.
+
+Implementación en este repo: `sticpa_equipo_por_que_html()`, CSS §57
+(`.stic-porque`, `.stic-equipo-chip`).
+
+### 6.5 Formularios
 
 Es el 80% de lo que hacemos. En el área privada **no se maqueta un formulario a
 mano**: se declara `$fieldList` y lo pinta el motor (`inc/stic-formController.php`).
@@ -511,11 +534,11 @@ con solución propuesta y orden de ejecución, en
 - **`makeList()` sigue vivo** (`inc/stic-listController.php`, CSS §22) para
   Relaciones, Contactos y Organizaciones miembro. Es el volcado genérico, y la
   ficha de registro es su sustituto. Al tocar uno de esos tres, se migra.
-- **`pages/single_stic_sessions.php` y `single_stic_attendances.php` quedan
-  huérfanos**: sus listados ya no enlazan a ellos, porque una tarjeta que lleva
-  a una pantalla que repite la tarjeta no es navegación, son dos toques para
-  leer lo mismo. Siguen ahí por si algo los enlaza; si nadie los reclama, se
-  borran.
+- ~~**`pages/single_stic_sessions.php` y `single_stic_attendances.php` quedan
+  huérfanos.**~~ **Revisado el 10/09/2026, y solo era verdad a medias**:
+  `single_stic_attendances.php` no lo enlazaba nadie y **se ha borrado**;
+  `single_stic_sessions.php` **NO es huérfano** —el calendario enlaza a él
+  (`inc/stic-calendar.php`), que es de donde se entra a una sesión—. Se queda.
 - **Enlazar un pago con SU compromiso** no se puede hacer desde el área: el
   formulario de pago es un formulario web de SinergiaCRM que CREA una
   aportación puntual y no tiene por dónde recibir un compromiso existente. La

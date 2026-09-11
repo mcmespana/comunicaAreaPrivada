@@ -853,28 +853,6 @@ class SugarRestApiCall
         return $get_entry_result;
     }
 
-    // Check if user exists
-    public function getUserExists($username)
-    {
-        $get_entry_list = array(
-            'session' => $this->session_id,
-            'module_name' => $this->destinationModule,
-            'query' => "stic_pa_username_c = '{$username}'",
-            'order_by' => '',
-            'offset' => 0,
-            'select_fields' => array('id', 'stic_pa_username_c'),
-            'max_results' => 0,
-        );
-        $get_entry_list_result = $this->call("get_entry_list", $get_entry_list, $this->url);
-        if (isset($get_entry_list_result->entry_list)) {
-            $isUser = $get_entry_list_result->entry_list[0]->name_value_list->stic_pa_username_c->value;
-            if ($isUser == $username) {
-                return true;
-            } 
-        }
-        return false;
-    }
-
     // Get user information by username
     public function getUserInformationByUsername($username)
     {
@@ -896,26 +874,13 @@ class SugarRestApiCall
         }
     }
 
-    // Get all email addresses
-    public function getAllEmail()
-    {
-        $get_entry_list = array(
-            'session' => $this->session_id,
-            'module_name' => $this->destinationModule,
-            'query' => "",
-            'order_by' => '',
-            'offset' => 0,
-            'select_fields' => array('id', 'email1'),
-            'max_results' => 0,
-        );
-        $get_entry_list_result = $this->call("get_entry_list", $get_entry_list, $this->url);
-        $getAllEmailsData = $get_entry_list_result->entry_list;
-
-        foreach ($getAllEmailsData as $getAllEmailsObj) {
-            $getEmails[] = $getAllEmailsObj->name_value_list->email1->value;
-        }
-        return $getEmails;
-    }
+    /*
+     * `getUserExists()` y `getAllEmail()` vivían aquí y se han borrado
+     * (10/09/2026): solo los usaba el handler de alta de usuarios, que también
+     * se ha ido (ver inc/stic-action.php). `getAllEmail()` además se traía el
+     * correo de TODOS los contactos del CRM en una llamada sin límite, para
+     * comprobar si uno estaba repetido.
+     */
 
     // Get logged user related records for a certain module
     public function getRelatedElementsForLoggedUser($params)
@@ -1414,6 +1379,58 @@ class SugarRestApiCall
             'offset' => 0,
             'select_fields' => array('id', 'name', 'email1'),
             'max_results' => 1,
+            'deleted' => 0,
+        );
+        $result = $this->call("get_entry_list", $get_entry_list, $this->url);
+        return (isset($result->entry_list[0]) && $result->entry_list[0] != null) ? $result->entry_list[0] : null;
+    }
+
+    /**
+     * Busca una persona por su NÚMERO DE DOCUMENTO (DNI/NIE).
+     *
+     * Es el salvavidas de quien no recuerda con qué correo se dio de alta: no
+     * abre sesión ni enseña nada: solo sirve para saber a qué dirección hay que
+     * mandarle el acceso (ver `sticpa_handle_send_access_dni`).
+     *
+     * Se mira `stic_identification_number_c` (el documento de la ficha) y, si
+     * ahí no hay nada, `stic_pa_username_c`, que es el usuario del área privada
+     * y en esta entidad ES el DNI («Tu usuario es tu DNI», dice el login).
+     *
+     * SEGURIDAD: `$document` se limpia ANTES de llegar aquí a solo letras y
+     * dígitos (`sticpa_dni_normalize`), y aquí se vuelve a limpiar. Esta API
+     * recibe la condición como SQL, así que un valor sin filtrar es una
+     * inyección; el filtro es una lista blanca, no un escapado.
+     */
+    public function getContactByDocument($document, $module)
+    {
+        $document = preg_replace('/[^A-Z0-9]/', '', strtoupper((string) $document));
+        if ($document === '') {
+            return null;
+        }
+        // SIN prefijo de tabla, y no es un descuido: es exactamente la forma que
+        // ya usa `getUserInformationByUsername()` —el login por contraseña— y
+        // que por tanto sabemos que funciona en producción. El JOIN con la
+        // tabla `_cstm` lo hace SuiteCRM porque `select_fields` pide campos
+        // custom (abajo); sin eso, la condición apuntaría a una tabla que no
+        // está en la consulta.
+        //
+        // No se ha podido comprobar por MCP: la herramienta `get_entry_list`
+        // del MCP no admite SQL, solo filtros estructurados. Por eso se copia
+        // una consulta que ya corre, en vez de inventar una.
+        $query = "(stic_identification_number_c = '{$document}'"
+            . " OR stic_pa_username_c = '{$document}')";
+        $get_entry_list = array(
+            'session' => $this->session_id,
+            'module_name' => $module,
+            'query' => $query,
+            'order_by' => '',
+            'offset' => 0,
+            // Los DOS campos custom van en select_fields a propósito: SuiteCRM
+            // solo hace el JOIN con `contacts_cstm` cuando la consulta pide
+            // algún campo custom. Sin ellos, el WHERE de arriba se refiere a
+            // una tabla que no está en la consulta y el CRM devuelve error.
+            'select_fields' => array('id', 'name', 'email1', 'stic_identification_number_c', 'stic_pa_username_c'),
+            'max_results' => 2,   // 2 para poder DETECTAR un duplicado, no para usarlo
             'deleted' => 0,
         );
         $result = $this->call("get_entry_list", $get_entry_list, $this->url);
