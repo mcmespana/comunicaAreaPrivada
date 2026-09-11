@@ -103,6 +103,7 @@ El mapa de los demás documentos está en
 | Pasar Lista — recuentos y monitores | `docs/comunica/PASAR-LISTA-RECUENTOS.md` |
 | Pasar Lista — coordinación y monitores | `docs/comunica/PASAR-LISTA-COORDINACION.md` |
 | Pasar Lista — seguimientos de monitores | `docs/comunica/PASAR-LISTA-SEGUIMIENTOS.md` |
+| **Cómo se entra** (enlace mágico, código, DNI) | `docs/ACCESO.md` |
 | Contrato con MCM App (webview) | `docs/comunica/CONTRATO-APP-WEBVIEW.md` |
 | Guardián Nocturno del CRM (mantenimiento de madrugada) | `docs/comunica/GUARDIAN-NOCTURNO.md` |
 | **Ley de diseño (las dos superficies)** | `design.md` |

@@ -67,32 +67,33 @@ Y si se decide otro nombre, se ajusta con `sticpa_pl_grupo_activo_field`.
 **No hay que propagar nada a `comunicaFormularios`**: ningún formulario público
 escribe en este campo, es de gestión interna.
 
-### ✅ `ajmcm_GRUPOS` → `ajmcm_segmento_com_c`  ← **hecho**
+### ✅ `ajmcm_GRUPOS` → `ajmcm_segmento_com_c` (creado y en uso)
 
 | | |
 |---|---|
 | **Módulo** | `ajmcm_GRUPOS` (Grupos MCM) |
 | **Etiqueta** | Segmento COM |
-| **Tipo** | Desplegable (enum) |
-| **Valores** | `com_1` [COM I] · `com_2` [COM II] · `com_3` [COM III] |
-| **Obligatorio** | No (solo aplica a grupos con `level = com`) |
+| **Tipo** | Desplegable (`enum`, custom, len 100) |
+| **Valores en uso** | `com_1` · `com_2` · `com_3` (claves observadas; el MCP no devuelve las opciones del desplegable) |
+| **Obligatorio** | No |
+
+> **Estado 10/09/2026: existe y está relleno.** Leído por MCP: de 105 grupos,
+> `com_1` en 7, `com_2` en 3, `com_3` en 4 y **91 sin valor**. Que la mayoría
+> esté vacío es lo esperado: solo se rellena donde hay una agrupación montada.
+> La ficha completa del campo está en [`CAMPOS.md`](CAMPOS.md) § Grupos, que es
+> la fuente de la verdad.
 
 **Por qué en Grupos y no en Personas ni en Relaciones con Personas.**
 
-El segmento es una propiedad **del grupo**: un grupo entero *es* COM II. No tiene
-sentido que dentro de un mismo grupo haya chavales de COM I y de COM II — si los
-hubiera, serían dos grupos. Por tanto el dato vive donde vive la cosa que
-describe.
+El segmento es una propiedad **del grupo**: lo que se agrupa para coordinar y
+programar juntos son grupos enteros, no personas sueltas. No tiene sentido que
+dentro de un mismo grupo haya chavales de dos segmentos — si los hubiera, serían
+dos grupos. Por tanto el dato vive donde vive la cosa que describe.
 
 Y sobre todo: **no se puede confundir con el nivel personal, que ya existe.**
 `ajmcm_nivel_com_c` en Personas es otra cosa — el itinerario personal de cada
 uno (I Conocimiento, II Incorporación, III Crecimiento, IV Opción Responsable).
-Son dos ejes distintos:
-
-```
-Segmento (grupo)   →  cómo organizamos los grupos del COM: COM I / II / III
-Nivel (persona)    →  por dónde va cada chaval en su itinerario: I / II / III / IV
-```
+Los tres ejes, juntos, están unas líneas más abajo.
 
 Meterlo en Personas sería duplicar un dato que ya se deduce de su grupo.
 Meterlo *además* en `stic_Contacts_Relationships` sería tener dos fuentes de
@@ -101,23 +102,27 @@ las relaciones, tendríamos dos respuestas distintas a la misma pregunta. Como
 cada curso se crea una relación nueva a un grupo nuevo, el histórico del
 segmento queda registrado igual a través del grupo.
 
-**Creado, con los tres valores** (`com_1`, `com_2`, `com_3`; verificado el
-10/09/2026).
+✅ **Duda resuelta (10/09/2026, por el propietario), y la respuesta es que no
+había duda: `ajmcm_segmento_com_c` y `ajmcm_nivel_com_c` son cosas
+COMPLETAMENTE DISTINTAS y no hay ninguna correspondencia entre las dos.**
 
-✅ **DUDA RESUELTA (10/09/2026), y la respuesta es que no había duda:
-`ajmcm_segmento_com_c` y `ajmcm_nivel_com_c` son COSAS COMPLETAMENTE DISTINTAS
-y no hay ninguna correspondencia entre las dos.** No es que COM III agrupe
-«Crecimiento + Opción Responsable» ni ninguna otra combinación: son dos ejes
-independientes, y buscarles una tabla de equivalencias es justo el error.
+El segmento **no es un nivel**: es una agrupación organizativa interna —a veces
+todos los grupos del MIC en uno, a veces media etapa del COM en uno y la otra
+media en otro— hecha para **ponerles un coordinador y que esa gente programe
+junta las actividades**. No es que COM III agrupe «Crecimiento + Opción
+Responsable» ni ninguna otra combinación: buscarles una tabla de equivalencias
+es justo el error.
 
 ```
-Segmento (grupo)   →  cómo organizamos los grupos:  COM I / II / III
+level (grupo)      →  de qué etapa es el grupo:     MIC / COM / LC
+Segmento (grupo)   →  con quién se coordina:        com_1 / com_2 / com_3
 Nivel (persona)    →  el itinerario de cada uno:    I / II / III / IV
                       ↑ nada que ver el uno con el otro
 ```
 
-Que los dos usen números romanos es una coincidencia desafortunada. **No se
-deduce uno del otro, ni en código ni a mano.**
+Que hoy las claves del segmento se llamen `com_1/2/3` es cómo está montado el
+COM ahora mismo, y que los dos ejes acaben usando números es una coincidencia
+desafortunada. **No se deduce uno del otro, ni en código ni a mano.**
 
 ---
 

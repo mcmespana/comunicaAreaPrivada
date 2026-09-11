@@ -19,18 +19,42 @@ function getSticMenuElements()
     $menuElements['single_stic_comunica_perfil'] = ($audience === 'participante')
         ? __('Datos participante', 'sticpa')
         : __('Mis datos', 'sticpa');
-    if ($role === 'monitor' && $audience !== 'participante') {
+    // LO DE MONITOR VA JUNTO Y LO DECIDE UNA SOLA FUNCIÓN.
+    // ------------------------------------------------------------------
+    // Antes esto eran dos `if` con la misma condición escrita a mano
+    // (`$role === 'monitor'`), y esa condición dejaba fuera a quien coordina o
+    // acompaña sin llevar además la marca de monitor: ni «Pasar lista» ni
+    // «Mis grupos», o sea que tampoco llegaba a las pantallas de coordinación
+    // que cuelgan de ellas. Hoy no le pasa a nadie porque la única persona con
+    // `coordinacion_mic_com` lleva también `monitor` — funciona de casualidad.
+    //
+    // `sticpa_equipo_secciones()` (inc/stic-equipo.php) responde por los tres
+    // papeles y devuelve además las dos pantallas de coordinación, que hasta
+    // ahora solo se alcanzaban bajando del todo en la home de Pasar lista.
+    // La misma función ordena el grupo «Equipo de monitores» de la home: una
+    // sola lista, un solo sitio donde cambiarla.
+    //
+    // La audiencia sigue mandando y está DENTRO de la función: un familiar
+    // mirando la ficha de su hijo no pasa lista de nadie, aunque él sea
+    // monitor.
+    //
+    // EN LA BARRA, eso sí, lo de coordinación va al FINAL (ver abajo): la barra
+    // es de una línea y lo que no cabe cae en «Más», así que dos entradas más
+    // aquí arriba enterraban «Eventos».
+    $esDelEquipo = (function_exists('sticpa_equipo_es_del_equipo') && sticpa_equipo_es_del_equipo());
+    $deCoordinacion = array();
+    if ($esDelEquipo) {
+        $deCoordinacion = sticpa_equipo_secciones_de_coordinacion();
+        foreach (sticpa_equipo_secciones() as $clave => $etiqueta) {
+            if (isset($deCoordinacion[$clave])) {
+                continue;
+            }
+            $menuElements[$clave] = $etiqueta;
+        }
+    } elseif ($role === 'monitor' && $audience !== 'participante') {
+        // Salvavidas por si el módulo del equipo no estuviera cargado: se
+        // mantiene lo que había, ni más ni menos.
         $menuElements['single_stic_comunica_monitor'] = __('Monitor/a', 'sticpa');
-    }
-
-    // Pasar Lista: solo monitores, y solo cuando la persona es ella misma (un
-    // familiar mirando la ficha de su hijo no pasa lista de nadie).
-    // «Mis grupos» va al lado y con la misma condición: es la misma gente vista
-    // sin pasar lista —para leer una ficha, mirar un teléfono, buscar a alguien
-    // por su nombre— y hasta ahora había que entrar a marcar una lista para
-    // llegar. Comparte cargadores, caché y estilos con Pasar Lista: es la misma
-    // sección, con otra puerta.
-    if ($role === 'monitor' && $audience !== 'participante') {
         $menuElements['single_stic_pasar_lista'] = __('Pasar lista', 'sticpa');
         $menuElements['single_stic_mis_grupos'] = __('Mis grupos', 'sticpa');
     }
@@ -41,6 +65,13 @@ function getSticMenuElements()
     $menuElements['list_stic_documents'] = __('Documentos', 'sticpa');
     $menuElements['list_stic_payments'] = __('Pagos', 'sticpa');
     $menuElements['single_stic_activities_calendar'] = __('Calendario', 'sticpa');
+
+    // Lo de coordinación, aquí: después de lo de todos y antes de la
+    // contraseña, que es lo último de todo.
+    foreach ($deCoordinacion as $clave => $etiqueta) {
+        $menuElements[$clave] = $etiqueta;
+    }
+
     $menuElements['single_stic_password_change'] = __('Cambiar contraseña', 'sticpa');
 
     // Opcionales (descomentar si se usan):

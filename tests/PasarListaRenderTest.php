@@ -2744,6 +2744,44 @@ final class PasarListaRenderTest extends TestCase
     }
 
     /**
+     * QUE SE VEA QUE ES POR COORDINAR.
+     * ------------------------------------------------------------------
+     * Las pantallas de coordinación enseñan datos de otras personas —la
+     * asistencia de un monitor, lo que alguien escribió sobre él— y aparecían
+     * sin ninguna explicación: quien las tenía, las tenía; quien no, no sabía
+     * que existían. Ahora lo dicen, y con el alcance, que es lo que contesta
+     * «¿y por qué a mí?».
+     */
+    public function test_la_pantalla_de_monitores_dice_por_que_la_ves()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        $this->assertStringContainsString('stic-porque', $html);
+        $this->assertStringContainsString('porque coordinas COM', $html);
+    }
+
+    /** Y en la home, junto a las dos filas que solo salen si coordinas. */
+    public function test_la_home_de_pasar_lista_explica_el_bloque_de_coordinacion()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $html = $this->render('single_stic_pasar_lista');
+
+        $this->assertStringContainsString('Coordinación', $html);
+        $this->assertStringContainsString('porque coordinas COM', $html);
+    }
+
+    /** A un monitor normal no le aparece ni el bloque ni la explicación. */
+    public function test_un_monitor_normal_no_ve_el_bloque_de_coordinacion()
+    {
+        $this->scp->coordEtapa = null;
+        $html = $this->render('single_stic_pasar_lista');
+
+        $this->assertStringNotContainsString('stic-porque', $html);
+        $this->assertStringNotContainsString('single_stic_pasar_lista_reuniones', $html);
+    }
+
+    /**
      * EL DETALLE DEL FALLO LO VE TODO EL MUNDO. Estaba reservado a
      * coordinación, y eso convertía cada fallo en un teléfono escacharrado: el
      * monitor decía «no se guarda» y la respuesta del CRM —la que dice qué

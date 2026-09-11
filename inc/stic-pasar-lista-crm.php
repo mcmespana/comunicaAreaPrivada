@@ -4750,8 +4750,20 @@ function sticpa_pl_seguimientos_enabled()
 /**
  * TODOS los nombres técnicos del módulo, en un solo sitio.
  *
- * Están juntos a propósito: es lo único que no he podido verificar, y así
- * corregirlo es cambiar un filtro en vez de buscar por seis archivos.
+ * Están juntos a propósito: así corregir uno es cambiar un filtro en vez de
+ * buscar por seis archivos.
+ *
+ * ✅ **Verificado por MCP el 10/09/2026**, que era lo que faltaba: el usuario de
+ * la API **sí** tiene acceso a `stic_FollowUps` (antes contestaba «The API user
+ * does not have access to this module»), el listado funciona, y los cinco
+ * nombres de aquí existen tal cual —`name`, `description`, `type`,
+ * `start_date` y el enlace `stic_followups_contacts`—.
+ *
+ * ⚠️ Lo que NO se ha podido comprobar son las claves de los TIPOS
+ * (`sticpa_pl_seg_type_keys`): el MCP no devuelve las opciones de los `enum`.
+ * La API tampoco las valida, así que si `mcm_incidencia` y compañía no están
+ * dadas de alta en el desplegable del CRM, esto guarda igual y en SuiteCRM se
+ * lee la clave en crudo.
  */
 function sticpa_pl_seg_map()
 {

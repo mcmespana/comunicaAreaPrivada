@@ -5884,7 +5884,7 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     gap: 0.15rem;
     margin-top: 1.1rem;
     padding: clamp(0.9rem, 2.5vw, 1.2rem);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--gray-200);
     border-radius: var(--radius-lg);
     background: var(--surface-2);
 }
@@ -5970,7 +5970,7 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     align-items: center;
     gap: 0.65rem;
     padding: 0.6rem 0.75rem;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--gray-200);
     border-radius: var(--radius-md);
     background: var(--surface);
 }
@@ -6085,7 +6085,7 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     gap: 0.4rem;
     margin-top: 0.9rem;
     padding: clamp(0.85rem, 2.5vw, 1.1rem);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--gray-200);
     border-radius: var(--radius-lg);
     background: var(--surface);
 }
@@ -6167,7 +6167,7 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     background: var(--surface-2);
     color: var(--primary-color);
     box-shadow: none;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--gray-200);
 }
 
 .stic-rec-badge-kind {
@@ -6214,7 +6214,7 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     height: 44px;
     flex-shrink: 0;
     align-self: center;
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--gray-200);
     border-radius: var(--radius-full);
     background: var(--surface-2);
     color: var(--primary-color) !important;   /* gana al enlace del tema de WordPress */
@@ -6231,3 +6231,201 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     .stic-rec-quick:hover { background: var(--surface); }
 }
 
+
+/* ============================================================
+   57. EL EQUIPO DE MONITORES — y por qué ves lo que ves
+   ------------------------------------------------------------
+   Dos piezas pequeñas y una regla de disciplina.
+
+   · El CHIP («Coordinación», «Acompañamiento»): dice qué papel
+     te abre esta sección. Va junto a la etiqueta del grupo en la
+     home y NUNCA lo lleva «Monitor/a» — un distintivo que lleva
+     todo el mundo no distingue nada.
+   · La FRASE («Ves esta pantalla porque coordinas el COM»): la
+     misma en las cuatro pantallas de coordinación. Es lo único
+     que explica por qué estás viendo datos de otras personas.
+
+   Solo tokens, así que el tema oscuro sale gratis por §44.a. Y
+   sin degradado: el degradado de marca es UNO por pantalla
+   (design.md §3) y aquí no es lo importante de la pantalla.
+   ============================================================ */
+
+/* --- 57.a  El chip del papel ---------------------------------------- */
+.stic-equipo-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.14rem 0.5rem;
+    border-radius: var(--radius-full);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;   /* la etiqueta que lo rodea va a 0.1em; aquí menos: es una palabra corta y en versalitas se separa sola */
+    text-transform: uppercase;
+    white-space: nowrap;
+    background: var(--secondary-50);
+    color: var(--secondary-dark);
+    border: 1px solid color-mix(in srgb, var(--secondary-color) 22%, transparent);
+}
+.stic-equipo-chip--acompanamiento {
+    /* El violeta que ya usa el tipo de seguimiento «acompañamiento»
+       (inc/stic-pasar-lista.php): el mismo concepto, el mismo color. */
+    background: color-mix(in srgb, var(--accent-color) 10%, var(--surface));
+    color: var(--accent-color);
+    border-color: color-mix(in srgb, var(--accent-color) 25%, transparent);
+}
+/* EN OSCURO NO BASTA CON LOS TOKENS. El chip es texto pequeño (10.9px) en
+   negrita sobre un tinte de marca, y ahí el token «dark» del magenta se queda
+   en 3.77:1 — por debajo del 4.5 que pide la AA (medido con el arnés, no a
+   ojo). En oscuro el papel de "texto legible" lo hace el token CLARO, que es
+   justo lo que dice §44.a: los tokens se aclaran para leer y los degradados
+   conservan los hex de marca. */
+:root[data-stic-scheme="dark"] .stic-equipo-chip,
+.stic-container[data-stic-scheme="dark"] .stic-equipo-chip {
+    color: var(--secondary-light);
+}
+:root[data-stic-scheme="dark"] .stic-equipo-chip--acompanamiento,
+.stic-container[data-stic-scheme="dark"] .stic-equipo-chip--acompanamiento {
+    /* El «blanco» sale del token de texto máximo (--gray-900, que en oscuro es
+       el más claro de todos), no de un hex a mano: de la §56 en adelante solo
+       se admiten los hex del degradado de marca, y hay un test mecánico que lo
+       comprueba (RecordViewTest::testElCssDeLaFichaSoloUsaTokens). */
+    color: color-mix(in srgb, var(--accent-color) 60%, var(--gray-900));
+}
+
+/* La etiqueta de sección es un flex de una sola línea con un ::after que se
+   come el hueco sobrante. El chip no se estira, y la etiqueta que lo lleva SÍ
+   puede partirse: si un día la traducción es larga, se baja de línea en vez de
+   empujar la pantalla a la derecha (que es lo que pasaba con dos chips a
+   375px). El filete decorativo conserva un mínimo para no quedarse en un
+   punto. */
+.stic-section-label .stic-equipo-chip { flex: 0 0 auto; }
+.stic-section-label--conchips { flex-wrap: wrap; row-gap: 0.35rem; }
+.stic-section-label--conchips::after { flex: 1 1 2.5rem; min-width: 2.5rem; }
+
+/* --- 57.b  La frase de «por qué lo ves» ----------------------------- */
+.stic-porque {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.55rem;
+    margin: 0 0 0.9rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: var(--radius-md);
+    background: var(--surface-2);
+    border: 1px solid var(--gray-200);
+    color: var(--gray-600);
+    font-size: 0.86rem;
+    line-height: 1.45;
+}
+.stic-porque-ico {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    margin-top: 0.08rem;
+    color: var(--secondary-color);
+}
+.stic-porque-ico svg { width: 18px; height: 18px; }
+.stic-porque-text { min-width: 0; }
+
+/* Dentro de Pasar Lista la frase vive entre dos bloques con su propio ritmo
+   (§53), así que se le da el mismo aire que a un `pl-hint`. */
+.pl-list + .stic-porque,
+.pl-etapa-title + .stic-porque { margin-top: 0.35rem; }
+
+/* --- 57.c  El grupo de la home -------------------------------------- */
+/* Mismo tratamiento que "Tu cuenta" (§45): un bloque a lo ancho al final de la
+   página, con tarjetas mini. Lo único propio es que su etiqueta lleva chip. */
+.stic-home-equipo .stic-porque { max-width: 46rem; }
+
+/* ============================================================
+   58. «¿NO TE LLEGA NADA?» — el rescate de la pantalla del código
+   ------------------------------------------------------------
+   Esta es la pantalla donde la gente se quedaba tirada. El acceso
+   nunca dice si un correo existe (y hace bien: decirlo regala una
+   forma de enumerar el CRM), así que quien escribe la dirección
+   equivocada ve exactamente lo mismo que quien la escribe bien
+   —«mira tu correo»— y espera un correo que no va a llegar.
+
+   La solución no es un aviso más grande: son las cuatro cosas que
+   puede hacer, en orden de probabilidad, y una salida de verdad
+   —buscarse por el DNI—. Por eso esto no es un `stic-alert`: no
+   avisa de nada, es una lista de opciones y se lee como tal.
+
+   Discreto a propósito: el 95 % de la gente abre el correo y no
+   llega a leer esto. Gris, pequeño, al final, y el formulario del
+   documento dentro de un `<details>` cerrado.
+   ============================================================ */
+
+.stic-auth-rescue {
+    margin-top: var(--space-5);
+    padding-top: var(--space-4);
+    border-top: 1px solid var(--gray-200);
+    font-size: var(--font-size-sm);
+    color: var(--gray-600);
+}
+
+.stic-auth-rescue-title {
+    margin: 0 0 var(--space-2);
+    font-weight: 700;
+    color: var(--gray-700);
+}
+
+.stic-auth-rescue-list {
+    margin: 0;
+    padding-left: 1.15rem;      /* el sangrado de la viñeta, no un tabulador */
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    line-height: 1.5;
+}
+
+.stic-auth-rescue-list li { margin: 0; }
+.stic-auth-rescue-list strong { color: var(--gray-800); }
+
+.stic-auth-rescue-list a {
+    color: var(--primary-color);
+    font-weight: 600;
+    /* Es un mailto: que se vea que se puede pulsar, sin adornos. */
+    text-decoration: underline;
+    word-break: break-word;     /* un correo largo no puede ensanchar la tarjeta */
+}
+/* El resaltado del puntero va dentro de su media query: en táctil se queda
+   pegado después del toque (design.md §11.5, y hay un test que lo comprueba
+   contando apariciones, así que ni el comentario puede nombrarlo). */
+@media (hover: hover) {
+    .stic-auth-rescue-list a:hover { color: var(--primary-dark); }
+}
+
+/* El `<details>` del documento reutiliza .stic-code-reveal (§55): mismo
+   desplegable, misma flecha, mismo objetivo táctil. Aquí solo se le quita el
+   filete de arriba, porque ya lo pone el bloque de rescate. */
+.stic-auth-rescue .stic-dni-reveal {
+    border-top: 0;
+    padding-top: 0;
+    margin-top: var(--space-3);
+}
+
+/* El campo del documento: en mayúsculas, porque es como está en el CRM y
+   como se lee un DNI. `text-transform` es solo visual; la normalización de
+   verdad la hace el servidor (sticpa_dni_normalize). */
+.stic-dni-form input[type="text"] {
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+/* Un mensaje LARGO no se lee centrado y en negrita: eso es para «Usuario y/o
+   contraseña incorrectos», que son cuatro palabras. Estos explican qué ha
+   pasado y qué hacer, y llevan dentro una dirección de correo que, sin esto, se
+   salía de la tarjeta a 375px (visto en el arnés, no supuesto). */
+.stic-login-form .error.stic-msg-long,
+.stic-login-form .success.stic-msg-long {
+    text-align: left;
+    font-weight: 500;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.stic-dni-form .stic-code-hint {
+    text-align: left;
+    margin-bottom: var(--space-3);
+}

@@ -62,6 +62,39 @@ class TokensCssTest extends TestCase
         );
     }
 
+    /**
+     * Y LA MISMA REGLA PARA LA HOJA GRANDE.
+     *
+     * El test de arriba solo miraba `pasar-lista.css`, y por eso no cazó lo que
+     * pasó de verdad: `custom-style.css` llevaba SEIS reglas con
+     * `border: 1px solid var(--border-color)` y ese token nunca se definió. Un
+     * `var()` roto no falla ruidosamente —la declaración entera se invalida y
+     * la propiedad cae a su valor inicial—, así que la ficha de registro
+     * llevaba meses pintando el borde del color del texto en vez de gris.
+     */
+    public function test_todos_los_tokens_de_la_hoja_grande_estan_definidos()
+    {
+        $css = file_get_contents(dirname(__DIR__) . '/css/custom-style.css');
+        preg_match_all('/var\(\s*(--[a-z0-9-]+)/i', $css, $m);
+        $usados = array_unique($m[1]);
+
+        $definidos = array();
+        foreach ($this->stylesheets() as $file) {
+            preg_match_all('/(--[a-z0-9-]+)\s*:/i', file_get_contents($file), $d);
+            $definidos = array_merge($definidos, $d[1]);
+        }
+        $definidos = array_unique($definidos);
+
+        $faltan = array_values(array_diff($usados, $definidos));
+        sort($faltan);
+        $this->assertSame(
+            array(),
+            $faltan,
+            'Tokens usados en css/custom-style.css que no existen en ninguna hoja: '
+                . implode(', ', $faltan)
+        );
+    }
+
     public function test_ningun_var_lleva_un_color_de_reserva()
     {
         // Un valor de reserva con color esconde el token que falta: la regla se

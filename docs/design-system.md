@@ -391,6 +391,43 @@ FUNCIONALMENTE (mismos campos, orden, tooltips y textos; la estética es la del
   no se replican (el evento ya pasó).
 - Catálogo completo de campos del CRM: [`docs/comunica/CAMPOS.md`](comunica/CAMPOS.md).
 
+## 7 bis. El equipo de monitores (y por qué ves lo que ves)
+
+`inc/stic-equipo.php` responde a tres preguntas y las responde **sin llamar al
+CRM** (sale de `stic_relationship_type_c`, que ya está en sesión). Es un
+requisito, no una casualidad: esto lo usa el menú, que se pinta en todas las
+páginas, también las de las familias.
+
+| Función | Qué contesta |
+|---|---|
+| `sticpa_equipo_papeles()` | `monitor` · `coordinacion` · `acompanamiento`, en ese orden |
+| `sticpa_equipo_es_del_equipo()` | Si se abre la sección (y **no** se abre a un familiar viendo la ficha de su hijo) |
+| `sticpa_equipo_secciones()` | Qué entradas la forman — **fuente única** del menú y del grupo de la home |
+| `sticpa_equipo_chips_html()` | El chip que dice por qué (uno como mucho) |
+| `sticpa_equipo_por_que_html()` | La frase «Ves esta pantalla porque coordinas X» |
+
+Reglas que conviene no deshacer:
+
+- **La condición del menú no se escribe a mano.** Antes era `$role ===
+  'monitor'` en dos `if` distintos, y eso dejaba fuera a quien coordina sin
+  llevar además la marca de monitor. Si añades una pantalla de monitores, va en
+  `sticpa_equipo_secciones()` y aparece sola en el menú y en la home.
+- **«Monitor/a» no lleva chip.** Un distintivo que lleva todo el mundo no
+  distingue nada. El chip es para lo excepcional: coordinación y acompañamiento.
+- **Un chip como mucho.** Quien coordina y acompaña ve solo «Coordinación», que
+  es el acceso más amplio; dos chips no caben a 375px (siete píxeles de scroll
+  horizontal, cazados con el arnés).
+- **El alcance (`sticpa_pl_coord_scope_label()`) cuesta una consulta**, así que
+  la frase lo lleva donde ya se ha pagado (las pantallas de coordinación) y no
+  donde no (la home, que dice la versión corta).
+- **La frase va en toda pantalla que enseñe datos de otras personas** por un
+  permiso que no tiene todo el mundo. Un permiso que no se ve es un permiso que
+  se olvida.
+
+Estilos: CSS §57 (`.stic-equipo-chip`, `.stic-porque`). Arnés de render:
+`tests/manual/render-equipo.php`. Tests: `tests/EquipoTest.php` (incluye el
+menú de verdad, no solo la decisión).
+
 ## 8. Checklist para pantallas nuevas
 
 1. ¿Existe un componente en §4? Úsalo tal cual.
@@ -427,6 +464,12 @@ FUNCIONALMENTE (mismos campos, orden, tooltips y textos; la estética es la del
 - ❌ Efectos de `:hover` sin `@media (hover: …)`: en móvil se quedan pegados.
 - ❌ Dos bloques con degradado de marca seguidos que no se puedan cerrar (§11.4).
 - ❌ Dar por buena una pantalla sin haberla capturado a 375px (§11.8).
+- ❌ Usar un token que no existe. `var(--token-inventado)` no falla ruidosamente:
+  la declaración entera se vuelve inválida y la propiedad cae a su valor
+  inicial. Pasó con `--border-color`, que **nunca se definió**: seis reglas de
+  la ficha de registro pedían un borde gris y pintaban un borde del color del
+  texto. Corregido a `--gray-200` el 10/09/2026. Si añades un token, defínelo en
+  §1 **y** en §44 (oscuro); si lo usas, compruébalo en el fichero.
 
 ## 10. Tema claro / oscuro
 

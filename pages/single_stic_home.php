@@ -195,15 +195,41 @@ $portalName = get_option('sticpa_scp_name');
         'single_stic_payment_form',
     );
 
+    /* EL GRUPO «EQUIPO DE MONITORES».
+     * ------------------------------------------------------------------
+     * Lo de monitor no es «tu día a día» (eso es lo que uno viene a hacer como
+     * miembro: apuntarse, mirar sus pagos) ni «tu cuenta»: es otro sombrero. Y
+     * estaba repartido entre los dos grupos, así que «Pasar lista» salía junto
+     * a «Eventos» y «Monitor/a» junto a «Cambiar contraseña».
+     *
+     * Aquí van juntas, en su propio bloque y con el motivo escrito: quien entra
+     * ve de un vistazo qué le corresponde por ser del equipo y qué, además, por
+     * coordinar. El orden y la lista los decide sticpa_equipo_secciones(), la
+     * misma que usa el menú. */
+    $equipoKeys = (function_exists('sticpa_equipo_es_del_equipo') && sticpa_equipo_es_del_equipo())
+        ? array_keys(sticpa_equipo_secciones())
+        : array();
+
     $mainCards = array();
     $accountCards = array();
+    $equipoCards = array();
     foreach ($menuElements as $key => $label) {
-        if (in_array($key, $accountKeys, true)) {
+        if (in_array($key, $equipoKeys, true)) {
+            $equipoCards[$key] = $label;
+        } elseif (in_array($key, $accountKeys, true)) {
             $accountCards[$key] = $label;
         } else {
             $mainCards[$key] = $label;
         }
     }
+    // En el orden de sticpa_equipo_secciones(), no en el del menú.
+    $ordenEquipo = array();
+    foreach ($equipoKeys as $key) {
+        if (isset($equipoCards[$key])) {
+            $ordenEquipo[$key] = $equipoCards[$key];
+        }
+    }
+    $equipoCards = $ordenEquipo;
     // Prioridad dentro del grupo principal (el resto, detrás y en su orden).
     $ordered = array();
     foreach ($mainPriority as $key) {
@@ -257,6 +283,31 @@ $portalName = get_option('sticpa_scp_name');
             <aside class="stic-home-aside"><?= $agendaHtml; ?></aside>
         <?php endif; ?>
     </div>
+
+    <?php if ($equipoCards) : ?>
+        <?php /* Entre «Tu día a día» y «Tu cuenta»: se usa más que los datos
+                 personales y menos que apuntarse a algo. El chip y la frase
+                 dicen POR QUÉ se ve, que es lo que no se podía saber antes:
+                 las pantallas de coordinación aparecían sin más. El alcance
+                 concreto («coordinas el COM») no se dice aquí porque saberlo
+                 cuesta una consulta al CRM y esto es la home; sí se dice
+                 dentro, en las pantallas de coordinación. */ ?>
+        <section class="stic-home-account stic-home-equipo">
+            <p class="stic-section-label stic-section-label--mini stic-section-label--conchips">
+                <?= esc_html__('Equipo de monitores', 'sticpa'); ?>
+                <?= function_exists('sticpa_equipo_chips_html') ? sticpa_equipo_chips_html() : ''; ?>
+            </p>
+            <?php
+            $papelEquipo = function_exists('sticpa_equipo_papel_principal') ? sticpa_equipo_papel_principal() : '';
+            if ($papelEquipo !== '') {
+                echo sticpa_equipo_por_que_html('', $papelEquipo, __('estas secciones', 'sticpa'));
+            }
+            ?>
+            <div class="stic-dashboard-grid stic-dashboard-grid--mini">
+                <?php foreach ($equipoCards as $key => $label) { $renderCard($key, $label); } ?>
+            </div>
+        </section>
+    <?php endif; ?>
 
     <?php if ($accountCards) : ?>
         <?php // "Tu cuenta" va FUERA de la rejilla de 2 columnas: es el cierre de
