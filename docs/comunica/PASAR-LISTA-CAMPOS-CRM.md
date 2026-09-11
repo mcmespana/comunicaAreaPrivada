@@ -20,7 +20,15 @@ No hace falta ningún otro módulo nuevo. Todo lo demás son campos.
 
 ## 2. Lo que hay que crear
 
-### 🔨 `ajmcm_GRUPOS` → `ajmcm_pasar_lista_c`  ← **pedido el 27/08/2026**
+**Nada de este documento sigue pendiente.** Los dos campos de abajo **existen
+ya** en el CRM (verificado por MCP el 10/09/2026) y las marcas 🔨 estaban
+obsoletas. Se dejan las fichas porque explican POR QUÉ son como son, que es lo
+que hace falta el día que alguien se plantee cambiarlos.
+
+Lo único que queda por crear en todo el proyecto son los campos de EVENTOS, y
+están en [`EVENTOS.md`](EVENTOS.md) §4 y §5.3.
+
+### ✅ `ajmcm_GRUPOS` → `ajmcm_pasar_lista_c`  ← **pedido el 27/08/2026, hecho**
 
 | | |
 |---|---|
@@ -85,13 +93,7 @@ dos grupos. Por tanto el dato vive donde vive la cosa que describe.
 Y sobre todo: **no se puede confundir con el nivel personal, que ya existe.**
 `ajmcm_nivel_com_c` en Personas es otra cosa — el itinerario personal de cada
 uno (I Conocimiento, II Incorporación, III Crecimiento, IV Opción Responsable).
-Son dos ejes distintos:
-
-```
-level (grupo)      →  de qué etapa es el grupo: MIC / COM / LC
-Segmento (grupo)   →  con quién se coordina y programa: com_1 / com_2 / com_3
-Nivel (persona)    →  por dónde va cada chaval en su itinerario: I / II / III / IV
-```
+Los tres ejes, juntos, están unas líneas más abajo.
 
 Meterlo en Personas sería duplicar un dato que ya se deduce de su grupo.
 Meterlo *además* en `stic_Contacts_Relationships` sería tener dos fuentes de
@@ -100,14 +102,27 @@ las relaciones, tendríamos dos respuestas distintas a la misma pregunta. Como
 cada curso se crea una relación nueva a un grupo nuevo, el histórico del
 segmento queda registrado igual a través del grupo.
 
-✅ **Duda resuelta (10/09/2026, por el propietario): no hay que casarlo con
-nada.** El segmento **no es un nivel**: es una agrupación organizativa interna
-—a veces todos los grupos del MIC en uno, a veces media etapa del COM en uno y
-la otra media en otro— hecha para **ponerles un coordinador y que esa gente
-programe junta las actividades**. Que hoy sus tres claves se llamen `com_1/2/3`
-es una coincidencia de cómo está montado el COM ahora mismo, no una
-correspondencia con los cuatro niveles personales. Por eso no hay que
-sincronizarlo con `ajmcm_nivel_com_c` ni cuadrar los números.
+✅ **Duda resuelta (10/09/2026, por el propietario), y la respuesta es que no
+había duda: `ajmcm_segmento_com_c` y `ajmcm_nivel_com_c` son cosas
+COMPLETAMENTE DISTINTAS y no hay ninguna correspondencia entre las dos.**
+
+El segmento **no es un nivel**: es una agrupación organizativa interna —a veces
+todos los grupos del MIC en uno, a veces media etapa del COM en uno y la otra
+media en otro— hecha para **ponerles un coordinador y que esa gente programe
+junta las actividades**. No es que COM III agrupe «Crecimiento + Opción
+Responsable» ni ninguna otra combinación: buscarles una tabla de equivalencias
+es justo el error.
+
+```
+level (grupo)      →  de qué etapa es el grupo:     MIC / COM / LC
+Segmento (grupo)   →  con quién se coordina:        com_1 / com_2 / com_3
+Nivel (persona)    →  el itinerario de cada uno:    I / II / III / IV
+                      ↑ nada que ver el uno con el otro
+```
+
+Que hoy las claves del segmento se llamen `com_1/2/3` es cómo está montado el
+COM ahora mismo, y que los dos ejes acaben usando números es una coincidencia
+desafortunada. **No se deduce uno del otro, ni en código ni a mano.**
 
 ---
 

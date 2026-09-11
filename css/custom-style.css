@@ -1927,7 +1927,7 @@ span.stic-field {
     justify-content: center;
     gap: 0.4rem;
     flex: 1;
-    min-height: 42px;               /* target táctil cómodo */
+    min-height: 44px;               /* target táctil: el mínimo de design.md §9 */
     padding: 0.5rem 0.9rem;
     border-radius: var(--radius-md);
     font-size: 0.88rem;
@@ -5130,7 +5130,10 @@ span.stic-field {
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
-.stic-rec-chip--past { background: var(--gray-100); color: var(--gray-500); }
+/* gray-600 y no gray-500: sobre `--gray-100` el 500 da 4,39:1 y design.md §3
+   exige 4,5 para texto. Con el 600 son 6,78:1. Afecta a «Ya celebrado» y a
+   «Inscripción cerrada», que son los dos chips apagados del área. */
+.stic-rec-chip--past { background: var(--gray-100); color: var(--gray-600); }
 
 /* Fila de acciones, separada del cuerpo por una línea. */
 .stic-rec-actions {
@@ -5146,7 +5149,10 @@ span.stic-field {
     justify-content: center;
     gap: 0.4rem;
     flex: 1;
-    min-height: 42px;
+    /* 44px y no 42: es el mínimo que exige la comprobación 5 de design.md §9,
+       y este botón es el de las tarjetas y fichas de los ocho módulos del
+       área, o sea que estaba incumpliéndolo la mitad de la aplicación. */
+    min-height: 44px;
     padding: 0.5rem 0.9rem;
     border-radius: var(--radius-md);
     font-size: 0.88rem;
@@ -5272,6 +5278,30 @@ span.stic-field {
     color: var(--gray-500);
 }
 .stic-rec-fact-text { font-size: 0.92rem; font-weight: 600; color: var(--gray-900); }
+
+/* Un dato clave que ADEMÁS es un enlace (el lugar de un evento → el mapa).
+   La tarjeta entera es el objetivo táctil, no la flecha: en un móvil, 44px de
+   alto por todo el ancho se acierta con el pulgar y un icono de 18px no. El
+   padding se mueve al <a> para que la zona pulsable llegue hasta el borde. */
+.stic-rec-fact--link { padding: 0; }
+.stic-rec-fact-a {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    width: 100%;
+    min-height: 44px;
+    padding: 0.7rem 0.8rem;
+    border-radius: var(--radius-md);
+    color: inherit;
+    text-decoration: none !important;
+}
+.stic-rec-fact-go { margin-left: auto; flex-shrink: 0; color: var(--primary-color); }
+.stic-rec-fact-go svg { width: 18px; height: 18px; }
+@media (hover: hover) {
+    .stic-rec-fact--link:hover { border-color: var(--primary-color); }
+    .stic-rec-fact--link:hover .stic-rec-fact-go { transform: translateX(2px); }
+}
+.stic-rec-fact-go { transition: transform 0.15s var(--ease-out); }
 
 .stic-rec-desc { margin-top: 1.25rem; }
 .stic-container .stic-rec-desc h4,

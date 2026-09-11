@@ -36,14 +36,103 @@ function sticpa_event_optional_fields()
 {
     return apply_filters('sticpa_event_optional_fields', array(
         // campo CRM        => array(etiqueta, icono, formato)
-        'location'          => array('label' => __('Lugar', 'sticpa'),        'icon' => 'pin',    'format' => 'text'),
-        'city'              => array('label' => __('Población', 'sticpa'),    'icon' => 'pin',    'format' => 'text'),
-        'address'           => array('label' => __('Dirección', 'sticpa'),    'icon' => 'pin',    'format' => 'text'),
-        'start_time'        => array('label' => __('Hora', 'sticpa'),         'icon' => 'clock',  'format' => 'text'),
-        'capacity'          => array('label' => __('Plazas', 'sticpa'),       'icon' => 'users',  'format' => 'text'),
-        'price'             => array('label' => __('Precio', 'sticpa'),       'icon' => 'euro',   'format' => 'currency'),
-        'registration_end'  => array('label' => __('Inscripción hasta', 'sticpa'), 'icon' => 'clock', 'format' => 'date'),
+        //
+        // ⚠️ ESTOS NOMBRES SON LOS DEL CRM DE VERDAD, comprobados por MCP el
+        // 09/09/2026. Antes esta lista pedía `capacity`, `start_time` y
+        // `registration_end`, que NO EXISTEN: existen con otro nombre. O sea
+        // que el aforo, el horario y la ventana de inscripción estaban en el
+        // CRM y no se pintaban, y la lista invitaba a crear campos duplicados.
+        //
+        // EL LUGAR va en dos campos de texto NUESTROS y no en el módulo de
+        // ubicaciones del CRM (`stic_events_fp_event_locations`), que existe:
+        // para un puñado de eventos por delegación y curso, mantener un
+        // catálogo de sitios es más trabajo del que ahorra. El precio de
+        // decidirlo así es que «Casa de Espiritualidad» se acabará escribiendo
+        // de cinco maneras, como ya pasa con `cursos_c`; se asume porque este
+        // dato se LEE, y no se filtra ni se agrupa por él.
+        //
+        // Y son DOS y no uno porque hacen dos cosas distintas: el nombre corto
+        // es lo que cabe en la tarjeta del listado, y la dirección completa es
+        // lo que hace falta para llegar (y lo que se le manda al mapa).
+        'ajmcm_lugar_c'     => array('label' => __('Lugar', 'sticpa'),        'icon' => 'building', 'format' => 'text'),
+        'ajmcm_direccion_c' => array('label' => __('Dirección', 'sticpa'),    'icon' => 'pin',    'format' => 'text'),
+        // El horario es TEXTO LIBRE en el CRM («De 17 a 19 h»), no una hora:
+        // se pinta tal cual, que es lo que quien lo escribió quería decir.
+        'timetable'         => array('label' => __('Horario', 'sticpa'),      'icon' => 'clock',  'format' => 'text'),
+        // `skip_zero`: un 0 aquí NO es un dato, es el valor por defecto de
+        // SuiteCRM. Los cinco eventos del CRM tienen `max_attendees = 0` y
+        // `price = 0.00`, así que sin esto la ficha decía «Plazas 0» —que se
+        // lee como "no hay plazas", justo lo contrario de "sin límite"— y
+        // «Precio 0,00 €» en TODAS las actividades. Y con el precio no se
+        // arregla poniendo «Gratis»: nadie ha dicho que sea gratis, solo que
+        // el campo está sin rellenar. Ante la duda, no se dice nada.
+        'max_attendees'     => array('label' => __('Plazas', 'sticpa'),       'icon' => 'users',  'format' => 'text',     'skip_zero' => true),
+        'price'             => array('label' => __('Precio', 'sticpa'),       'icon' => 'euro',   'format' => 'currency', 'skip_zero' => true),
     ));
+}
+
+/**
+ * Los dos campos de la VENTANA DE INSCRIPCIÓN. Van aparte de los opcionales
+ * porque no se pintan como «etiqueta: valor»: los dos juntos son UN dato
+ * («hasta el 25 de octubre», «se abre el 1 de octubre») y además deciden si se
+ * ofrece el botón. Ver sticpa_event_registration_window().
+ */
+function sticpa_event_registration_fields()
+{
+    return array(
+        (string) apply_filters('sticpa_event_reg_start_field', 'ajmcm_start_inscripcion_c'),
+        (string) apply_filters('sticpa_event_reg_end_field', 'ajmcm_end_inscripcion_c'),
+    );
+}
+
+/**
+ * Campo con el ENLACE AL MAPA. Va aparte de los opcionales porque una URL
+ * cruda no es un dato que se le enseñe a nadie: se convierte en el botón del
+ * dato «Lugar». Ver sticpa_event_map_url().
+ */
+function sticpa_event_map_field()
+{
+    return (string) apply_filters('sticpa_event_map_field', 'ajmcm_mapa_c');
+}
+
+/**
+ * A dónde lleva el botón del mapa, y de dónde sale.
+ *
+ * LA IDEA IMPORTANTE: el botón NO necesita que exista el campo del enlace.
+ * Con el nombre del sitio ya se puede armar una búsqueda de Google Maps, así
+ * que el botón funciona desde el primer día con un solo campo de texto
+ * relleno. El campo `ajmcm_mapa_c` es el ARREGLO para cuando la búsqueda no
+ * acierta —«Casa de Espiritualidad» hay varias— o cuando alguien quiere pegar
+ * el enlace exacto que ya tiene. Si está, manda él.
+ *
+ * Orden: enlace explícito → búsqueda de la dirección → búsqueda del lugar.
+ * De más preciso a menos.
+ *
+ * @param string $explicito Valor de `ajmcm_mapa_c`.
+ * @param string $direccion Dirección completa.
+ * @param string $lugar     Nombre del sitio.
+ * @return string URL segura (http/https) o cadena vacía.
+ */
+function sticpa_event_map_url($explicito = '', $direccion = '', $lugar = '')
+{
+    $explicito = trim((string) $explicito);
+    if ($explicito !== '') {
+        // Se valida ANTES de pintar: este valor lo escribe una persona en el
+        // CRM y podría ser un `javascript:…`. Ver sticpa_record_safe_url().
+        $url = function_exists('sticpa_record_safe_url')
+            ? sticpa_record_safe_url($explicito) : '';
+        if ($url !== '') {
+            return $url;
+        }
+        // Un enlace que no vale se ignora y se cae a la búsqueda: mejor un
+        // mapa aproximado que ningún botón.
+    }
+    $consulta = trim((string) $direccion) !== '' ? trim((string) $direccion) : trim((string) $lugar);
+    if ($consulta === '') {
+        return '';
+    }
+    $base = (string) apply_filters('sticpa_event_map_search_url', 'https://www.google.com/maps/search/?api=1&query=');
+    return $base . rawurlencode($consulta);
 }
 
 /**
@@ -68,6 +157,8 @@ function sticpa_event_fields_to_request($objSCP)
     if (function_exists('sticpa_event_audience_fields')) {
         $wanted = array_merge($wanted, sticpa_event_audience_fields());
     }
+    $wanted = array_merge($wanted, sticpa_event_registration_fields());
+    $wanted[] = sticpa_event_map_field();
     $wanted = array_values(array_unique($wanted));
     if (empty($wanted) || !function_exists('sticpa_cached_field_definition')) {
         return $base;
@@ -143,6 +234,12 @@ function sticpa_event_view_model($nvl)
         if ($raw === '') {
             continue;
         }
+        // Un 0 en un campo marcado `skip_zero` es el valor por defecto de
+        // SuiteCRM, no una respuesta: no se enseña. Ver la nota de
+        // sticpa_event_optional_fields().
+        if (!empty($meta['skip_zero']) && (float) $raw == 0) {
+            continue;
+        }
         $text = $raw;
         if ($meta['format'] === 'date') {
             $text = formatValue($raw, 'date');
@@ -166,12 +263,221 @@ function sticpa_event_view_model($nvl)
         'is_past' => $isPast,
         'days' => $days,
         'optional' => $optional,
+        // La ventana de inscripción, ya resuelta contra el día de hoy.
+        'registro' => sticpa_event_registration_window($nvl),
+        // A dónde lleva el botón del mapa (o '' si no hay nada que enseñar).
+        'mapa_url' => sticpa_event_map_url(
+            $val(sticpa_event_map_field()),
+            $val('ajmcm_direccion_c'),
+            $val('ajmcm_lugar_c')
+        ),
         // A quién va dirigido (delegación, perfiles, cursos). Va en el modelo
         // para que listado y ficha decidan con lo mismo, igual que las fechas.
         'audiencia' => function_exists('sticpa_event_audience_from_nvl')
             ? sticpa_event_audience_from_nvl($nvl)
             : array('delegacion' => $val('assigned_user_id'), 'ambito' => '', 'perfiles' => array(), 'cursos' => array()),
     );
+}
+
+/**
+ * LA VENTANA DE INSCRIPCIÓN, resuelta contra el día de hoy.
+ *
+ * `ajmcm_start_inscripcion_c` y `ajmcm_end_inscripcion_c` existen en el CRM
+ * desde antes que esta pantalla, y no se miraban. Es justo lo que EVENTOS.md
+ * decía que era «la forma limpia» de cerrar una inscripción sin que nadie
+ * tenga que acordarse de cambiar el estado a mano.
+ *
+ * ESTADOS, y el que importa es el cuarto:
+ *   'sin_datos' → los dos campos vacíos. **La inscripción está abierta.** Es la
+ *                 regla de seguridad de la casa: hoy solo 1 de los 5 eventos
+ *                 del CRM tiene estas fechas, así que tratar el vacío como
+ *                 «cerrada» dejaría el área sin poder apuntarse a nada.
+ *   'antes'     → aún no se ha abierto.
+ *   'abierta'   → dentro de plazo.
+ *   'cerrada'   → el plazo terminó.
+ *
+ * El día de FIN cuenta entero (hasta las 23:59): un plazo «hasta el 25» que se
+ * cierra a las 00:00 del 25 le roba un día a la gente.
+ *
+ * @param object $nvl name_value_list del evento.
+ * @return array estado, start_ts, end_ts, abierta (bool)
+ */
+function sticpa_event_registration_window($nvl)
+{
+    $fields = sticpa_event_registration_fields();
+    $get = function ($field) use ($nvl) {
+        return isset($nvl->$field->value) ? trim((string) $nvl->$field->value) : '';
+    };
+    $startRaw = $get($fields[0]);
+    $endRaw = $get($fields[1]);
+
+    $startTs = $startRaw !== '' ? strtotime($startRaw . ' 00:00:00') : null;
+    $endTs = $endRaw !== '' ? strtotime($endRaw . ' 23:59:59') : null;
+    if ($startTs === false) {
+        $startTs = null;
+    }
+    if ($endTs === false) {
+        $endTs = null;
+    }
+
+    $now = time();
+    if ($startTs === null && $endTs === null) {
+        $estado = 'sin_datos';
+    } elseif ($startTs !== null && $now < $startTs) {
+        $estado = 'antes';
+    } elseif ($endTs !== null && $now > $endTs) {
+        $estado = 'cerrada';
+    } else {
+        $estado = 'abierta';
+    }
+
+    return apply_filters('sticpa_event_registration_window', array(
+        'estado'   => $estado,
+        'start_ts' => $startTs,
+        'end_ts'   => $endTs,
+        // 'sin_datos' cuenta como abierta: ver la regla de seguridad de arriba.
+        'abierta'  => ($estado === 'abierta' || $estado === 'sin_datos'),
+    ), $nvl);
+}
+
+/**
+ * El dato clave de la inscripción para la ficha ("Hasta el 25 de octubre").
+ * Devuelve null cuando no hay nada útil que decir: un plazo que empezó y no
+ * acaba nunca no es información, es ruido.
+ */
+function sticpa_event_registration_fact($registro)
+{
+    $fecha = function ($ts) {
+        return $ts ? sticpa_record_date_line($ts, null) : '';
+    };
+    switch ($registro['estado'] ?? '') {
+        case 'antes':
+            $texto = $fecha($registro['start_ts']);
+            if ($texto === '') {
+                return null;
+            }
+            /* translators: %s = fecha */
+            return array('icon' => 'clock', 'label' => __('Inscripción', 'sticpa'),
+                'text' => sprintf(__('Se abre el %s', 'sticpa'), $texto));
+        case 'abierta':
+            $texto = $fecha($registro['end_ts']);
+            if ($texto === '') {
+                return null;   // abierta y sin fecha de cierre: no hay nada que contar
+            }
+            /* translators: %s = fecha */
+            return array('icon' => 'clock', 'label' => __('Inscripción', 'sticpa'),
+                'text' => sprintf(__('Hasta el %s', 'sticpa'), $texto));
+        case 'cerrada':
+            $texto = $fecha($registro['end_ts']);
+            if ($texto === '') {
+                return null;
+            }
+            /* translators: %s = fecha */
+            return array('icon' => 'clock', 'label' => __('Inscripción', 'sticpa'),
+                'text' => sprintf(__('Cerrada el %s', 'sticpa'), $texto));
+    }
+    return null;
+}
+
+/**
+ * El CHIP del estado de la inscripción, cuando el plazo contradice al CRM.
+ *
+ * Y contradice a menudo: `status` está en `registration` («Inscripción
+ * abierta») en los cinco eventos del CRM, lo pongan o no al día. Sin esto, una
+ * tarjeta decía «INSCRIPCIÓN ABIERTA» y justo debajo «Cerrada el 6 de
+ * septiembre», que es la clase de pantalla que hace que nadie se crea nada de
+ * lo que pone. Cuando hay fechas, mandan las fechas.
+ *
+ * Devuelve null si el plazo no dice nada (y entonces manda el `status` del CRM).
+ */
+function sticpa_event_registration_chip($registro)
+{
+    switch ($registro['estado'] ?? '') {
+        case 'cerrada':
+            return array('label' => __('Inscripción cerrada', 'sticpa'), 'tone' => 'past');
+        case 'antes':
+            return array('label' => __('Inscripción no abierta', 'sticpa'), 'tone' => 'info');
+    }
+    return null;
+}
+
+/**
+ * El motivo, en cristiano, por el que no se puede apuntar AHORA por fechas.
+ * Cadena vacía si sí se puede.
+ */
+function sticpa_event_registration_note($registro)
+{
+    $fecha = function ($ts) {
+        return $ts ? sticpa_record_date_line($ts, null) : '';
+    };
+    if (($registro['estado'] ?? '') === 'antes') {
+        $texto = $fecha($registro['start_ts']);
+        return $texto !== ''
+            /* translators: %s = fecha */
+            ? sprintf(__('La inscripción se abre el %s.', 'sticpa'), $texto)
+            : __('La inscripción todavía no está abierta.', 'sticpa');
+    }
+    if (($registro['estado'] ?? '') === 'cerrada') {
+        $texto = $fecha($registro['end_ts']);
+        return $texto !== ''
+            /* translators: %s = fecha */
+            ? sprintf(__('El plazo de inscripción terminó el %s.', 'sticpa'), $texto)
+            : __('El plazo de inscripción ya ha terminado.', 'sticpa');
+    }
+    return '';
+}
+
+/**
+ * ¿POR QUÉ no puede esta persona apuntarse a este evento? Fuente única para
+ * las cuatro pantallas que se lo preguntan (ficha, formulario, guardado y,
+ * con el modelo ya cargado, el listado).
+ *
+ * Junta los dos motivos que existen y los ordena: primero la AUDIENCIA y
+ * después las FECHAS. El orden no es un detalle — a quien es de otra
+ * delegación, decirle «el plazo terminó» le hace pensar que llegó tarde a algo
+ * que nunca fue suyo.
+ *
+ * @return array bloqueado (bool), titulo, texto
+ */
+function sticpa_event_signup_block($objSCP, $eventId, $nvl = null)
+{
+    $libre = array('bloqueado' => false, 'titulo' => '', 'texto' => '');
+    $eventId = trim((string) $eventId);
+    if ($eventId === '') {
+        return $libre;
+    }
+    if ($nvl === null) {
+        if ($objSCP === null) {
+            return $libre;
+        }
+        $detail = $objSCP->getRecordDetail($eventId, 'stic_Events', sticpa_event_fields_to_request($objSCP));
+        $nvl = $detail->entry_list[0]->name_value_list ?? null;
+        if (!$nvl) {
+            // El CRM no contesta sobre el evento: no se bloquea por eso.
+            return $libre;
+        }
+    }
+
+    if (function_exists('sticpa_event_audience_check')) {
+        $verdict = sticpa_event_audience_check($objSCP, $eventId, $nvl);
+        if (empty($verdict['ok'])) {
+            return array(
+                'bloqueado' => true,
+                'titulo'    => __('Esta actividad no es para ti', 'sticpa'),
+                'texto'     => sticpa_event_audience_verdict_notice($objSCP, $verdict),
+            );
+        }
+    }
+
+    $nota = sticpa_event_registration_note(sticpa_event_registration_window($nvl));
+    if ($nota !== '') {
+        return array(
+            'bloqueado' => true,
+            'titulo'    => __('La inscripción no está abierta', 'sticpa'),
+            'texto'     => $nota,
+        );
+    }
+    return $libre;
 }
 
 /**
@@ -262,20 +568,41 @@ function sticpa_events_list_html($events, $statusMap = array())
         }
         // Una sola línea extra (el lugar): en la tarjeta manda el "cuándo";
         // el resto se ve en la ficha.
-        $place = $event['optional']['location']['text'] ?? ($event['optional']['city']['text'] ?? '');
+        $place = $event['optional']['ajmcm_lugar_c']['text'] ?? ($event['optional']['ajmcm_direccion_c']['text'] ?? '');
         if ($place !== '') {
             $lines[] = array('icon' => 'pin', 'text' => $place);
+        }
+
+        $regChip = $event['is_past'] ? null : sticpa_event_registration_chip($event['registro']);
+
+        // La ventana de inscripción, cuando dice algo, va en la tarjeta: es lo
+        // accionable («te quedan días») y es la razón de que el botón esté o
+        // no. Sin ella, un evento sin «Inscribirme» parece un error.
+        //
+        // Con el plazo YA CERRADO no se repite la fecha aquí: el chip ya dice
+        // «Inscripción cerrada» y en una lista la fecha exacta de algo que se
+        // pasó no sirve para nada. En la ficha sí se enseña, que es donde uno
+        // va a mirar cuándo se le pasó.
+        $regFact = sticpa_event_registration_fact($event['registro']);
+        if (!$event['is_past'] && $regFact !== null && ($event['registro']['estado'] ?? '') !== 'cerrada') {
+            $lines[] = array('icon' => $regFact['icon'], 'text' => $regFact['text']);
         }
 
         $chips = array();
         if ($event['is_past']) {
             $chips[] = array('label' => __('Ya celebrado', 'sticpa'), 'tone' => 'past');
+        } elseif ($regChip !== null) {
+            // Las fechas mandan sobre el `status` del CRM. Ver la nota de
+            // sticpa_event_registration_chip().
+            $chips[] = $regChip;
         } elseif (!empty($statusMap[$event['status']])) {
             $chips[] = array('label' => $statusMap[$event['status']], 'tone' => '');
         }
 
         $actions = array(array('label' => __('Ver detalle', 'sticpa'), 'url' => $detailUrl));
-        if (!$event['is_past']) {
+        // Fuera del plazo no se ofrece «Inscribirme»: el botón que lleva a un
+        // formulario que va a rechazarte es peor que no tener botón.
+        if (!$event['is_past'] && !empty($event['registro']['abierta'])) {
             $actions[] = array('label' => __('Inscribirme', 'sticpa'), 'url' => $signUpUrl, 'primary' => true);
         }
 
@@ -301,26 +628,39 @@ function sticpa_events_list_html($events, $statusMap = array())
  * @param array  $event       Modelo de sticpa_event_view_model().
  * @param string $statusLabel Etiqueta traducida del estado.
  * @param bool   $canSignUp   Si se ofrece el botón de inscripción.
- * @param string $audienceNote Motivo por el que esta actividad no es para
- *                             quien mira (audiencia). Si viene, NO se ofrece
- *                             el botón y se explica por qué: a la ficha se
- *                             llega por enlaces que se pasan por WhatsApp, y
- *                             un «no puedes» sin motivo es la peor pantalla.
+ * @param string $blockNote Motivo por el que esta actividad no admite tu
+ *                          inscripción: audiencia (otra delegación, otro
+ *                          perfil, otro curso) o fechas. Si viene, NO se
+ *                          ofrece el botón y se explica por qué: a la ficha se
+ *                          llega por enlaces que se pasan por WhatsApp, y un
+ *                          «no puedes» sin motivo es la peor pantalla.
  */
-function sticpa_event_detail_html($event, $statusLabel = '', $canSignUp = true, $audienceNote = '')
+function sticpa_event_detail_html($event, $statusLabel = '', $canSignUp = true, $blockNote = '')
 {
     $dateLine = sticpa_record_date_line($event['start_ts'], $event['end_ts']);
     $signUpUrl = '?internalpage=single_stic_registrations&action=create&from=stic_events&id=' . rawurlencode($event['id']);
 
+    $regChip = $event['is_past'] ? null : sticpa_event_registration_chip($event['registro']);
+
     $chips = array();
     if ($event['is_past']) {
         $chips[] = array('label' => __('Ya celebrado', 'sticpa'), 'tone' => 'past');
+    } elseif ($regChip !== null) {
+        // Las fechas del plazo mandan sobre el `status` del CRM: ver la nota de
+        // sticpa_event_registration_chip().
+        $chips[] = $regChip;
     } elseif ($statusLabel !== '' || $event['status'] !== '') {
         $chips[] = array('label' => $statusLabel !== '' ? $statusLabel : $event['status'], 'tone' => '');
     }
 
     $facts = array();
-    if ($event['days'] !== null && $event['days'] > 1) {
+    // LA DURACIÓN SOLO SE CUENTA SI ES UNA DURACIÓN. «Sesiones semanales
+    // 2026-2027» va de septiembre a junio, y la ficha decía «Duración: 231
+    // días»: es cierto y no significa nada — eso no es una actividad de 231
+    // días, es un curso entero. Por encima de un mes el número es ruido, y se
+    // deja fuera; las fechas de inicio y fin ya están arriba, en la cabecera.
+    $maxDias = (int) apply_filters('sticpa_event_max_dias_duracion', 31);
+    if ($event['days'] !== null && $event['days'] > 1 && $event['days'] <= $maxDias) {
         $facts[] = array(
             'icon'  => 'clock',
             'label' => __('Duración', 'sticpa'),
@@ -328,13 +668,36 @@ function sticpa_event_detail_html($event, $statusLabel = '', $canSignUp = true, 
             'text'  => sprintf(_n('%d día', '%d días', $event['days'], 'sticpa'), $event['days']),
         );
     }
-    foreach ($event['optional'] as $item) {
+    // La ventana de inscripción va ARRIBA de los datos clave: es lo único de
+    // esta lista que caduca, y es lo que explica que haya botón o no.
+    $regFact = sticpa_event_registration_fact($event['registro']);
+    if (!$event['is_past'] && $regFact !== null) {
+        $facts[] = $regFact;
+    }
+    // EL BOTÓN DEL MAPA cuelga del PRIMER dato del lugar que haya, y no de una
+    // acción propia abajo: se toca donde se lee el sitio. Y no compite con
+    // «Inscribirme», que sigue siendo la única acción principal de la pantalla
+    // (design.md §6.2).
+    $mapaUrl = (string) ($event['mapa_url'] ?? '');
+    $conMapa = '';
+    if ($mapaUrl !== '') {
+        foreach (array('ajmcm_lugar_c', 'ajmcm_direccion_c') as $campo) {
+            if (isset($event['optional'][$campo])) {
+                $conMapa = $campo;
+                break;
+            }
+        }
+    }
+    foreach ($event['optional'] as $campo => $item) {
+        if ($campo === $conMapa) {
+            $item['link'] = array('url' => $mapaUrl, 'label' => __('Ver en el mapa', 'sticpa'));
+        }
         $facts[] = $item;
     }
 
     $actions = array();
     $ctaNote = '';
-    $audienceNote = trim((string) $audienceNote);
+    $blockNote = trim((string) $blockNote);
     // El ORDEN importa. «Ya estás inscrito» va antes que la audiencia porque
     // es un hecho sobre esta persona: a quien ya tiene su plaza no se le dice
     // «esta actividad no es para ti» aunque hoy no cumpla el filtro (le han
@@ -345,9 +708,10 @@ function sticpa_event_detail_html($event, $statusLabel = '', $canSignUp = true, 
     } elseif (!$canSignUp) {
         $actions[] = array('label' => __('Ver mi inscripción', 'sticpa'), 'url' => '?internalpage=list_stic_registrations');
         $ctaNote = __('Ya tienes una inscripción para esta actividad.', 'sticpa');
-    } elseif ($audienceNote !== '') {
-        // No es para ti: no se ofrece apuntarse, y se dice por qué.
-        $ctaNote = $audienceNote;
+    } elseif ($blockNote !== '') {
+        // No es para ti, o no toca ahora: no se ofrece apuntarse, y se dice
+        // por qué. El dato de la fecha ya está arriba, en los datos clave.
+        $ctaNote = $blockNote;
         $actions[] = array('label' => __('Ver otras actividades', 'sticpa'), 'url' => '?internalpage=list_stic_events');
     } else {
         $actions[] = array(

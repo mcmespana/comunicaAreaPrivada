@@ -60,10 +60,19 @@
  *     su relación es el de SU GRUPO)  →  el filtro de cursos NO se le aplica.
  *     Los cursos estrechan entre participantes, no expulsan a quien no es uno.
  *
- * Y mientras los campos no existan en el CRM, esto no hace nada: un evento sin
- * `ajmcm_dirigido_a_c` no restringe perfiles, y un campo que no está creado ni
- * se le pide al CRM (`sticpa_event_fields_to_request()` pregunta antes qué
- * campos hay). Se puede desplegar hoy y rellenar el CRM mañana.
+ * ESTADO (10/09/2026): los campos YA EXISTEN en el CRM —`ajmcm_dirigido_a_c`,
+ * `ajmcm_ambito_c`, `ajmcm_lugar_c`, `ajmcm_direccion_c`, `ajmcm_mapa_c`— y
+ * están **vacíos en los cinco eventos**, así que de momento solo restringe la
+ * delegación. Cada campo empieza a hacer efecto en cuanto alguien lo rellene.
+ *
+ * `ajmcm_dirigido_a_c` se creó como desplegable SIMPLE aunque se pidió múltiple.
+ * No importa: el troceador aguanta las dos formas (un enum llega como `monitor`
+ * a secas, sin los `^` del multienum). Lo único que no se puede es marcar dos
+ * perfiles en el mismo evento.
+ *
+ * Y un campo que no estuviera creado tampoco rompería nada: no se restringe con
+ * lo que no viene, y `sticpa_event_fields_to_request()` pregunta antes al CRM
+ * qué campos hay para no pedirle una columna que no tiene.
  *
  * Interruptor general, por si hay que apagarlo sin desplegar:
  *
@@ -212,6 +221,25 @@ function sticpa_event_audience_multi($raw)
 function sticpa_event_audience_key($value)
 {
     return strtolower(trim((string) $value));
+}
+
+/**
+ * Claves del desplegable de cursos que NO son un curso.
+ *
+ * `ajmcm_curso_escolar_c_list` tiene `na` [NA], que quiere decir «no aplica».
+ * Contarlo como un curso normal sería un error silencioso y de los caros: no
+ * casaría con ninguno, así que una persona marcada `na` quedaría FUERA de
+ * cualquier evento que restrinja cursos. Se trata como «esta persona no tiene
+ * curso», que es lo que el valor dice.
+ *
+ * `otros` NO está aquí a propósito: eso sí es un curso —uno que no está en la
+ * lista— y casa con los eventos marcados `otros`.
+ */
+function sticpa_event_audience_cursos_no_aplica()
+{
+    return sticpa_event_audience_keys(
+        apply_filters('sticpa_event_audience_cursos_no_aplica', array('na'))
+    );
 }
 
 /** Normaliza una lista de claves y quita las vacías y las repetidas. */
@@ -364,7 +392,12 @@ function sticpa_viewer_audience($objSCP = null, $conRelaciones = true)
                     continue;
                 }
                 $curso = isset($v->$cursoField->value) ? sticpa_event_audience_key($v->$cursoField->value) : '';
-                if ($curso !== '' && !in_array($curso, $cursos, true)) {
+                // `na` («no aplica») no es un curso: ver
+                // sticpa_event_audience_cursos_no_aplica().
+                if ($curso === '' || in_array($curso, sticpa_event_audience_cursos_no_aplica(), true)) {
+                    continue;
+                }
+                if (!in_array($curso, $cursos, true)) {
                     $cursos[] = $curso;
                 }
             }
@@ -463,7 +496,12 @@ function sticpa_event_audience_match($audience, $viewer)
     // semanales del MIC, que están marcadas de 4.º a 6.º de primaria.
     $cursos = sticpa_event_audience_keys($audience['cursos'] ?? array());
     if (!empty($cursos)) {
-        $mios = sticpa_event_audience_keys($viewer['cursos'] ?? array());
+        // También se limpia aquí: `sticpa_viewer_audience()` ya lo hace, pero
+        // este mapa es filtrable y puede llegar un `na` de fuera.
+        $mios = array_diff(
+            sticpa_event_audience_keys($viewer['cursos'] ?? array()),
+            sticpa_event_audience_cursos_no_aplica()
+        );
         if (!empty($mios) && empty(array_intersect($cursos, $mios))) {
             return array('ok' => false, 'motivo' => 'curso');
         }

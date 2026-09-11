@@ -222,18 +222,15 @@ if ($_REQUEST['action'] == 'create' && !empty($eventId) && function_exists('pref
     $alreadyRegistered = prefix_user_has_active_registration($objSCP, $eventId);
 }
 
-// AUDIENCIA: y esta actividad, ¿es para quien la está pidiendo? El formulario
-// se alcanza por URL (`?action=create&from=stic_events&id=…`), así que no vale
-// con que el listado y la ficha no la ofrezcan. El guardado lo comprueba otra
-// vez (inc/stic-action.php): esto es solo para no enseñar un formulario que va
-// a acabar en un rechazo.
-$audienceBlocked = '';
+// ¿ADMITE ESTA ACTIVIDAD SU INSCRIPCIÓN? (audiencia + fechas del plazo). El
+// formulario se alcanza por URL (`?action=create&from=stic_events&id=…`), así
+// que no vale con que el listado y la ficha no lo ofrezcan. El guardado lo
+// comprueba otra vez (inc/stic-action.php): esto es solo para no enseñar un
+// formulario que va a acabar en un rechazo.
+$signupBlock = array('bloqueado' => false, 'titulo' => '', 'texto' => '');
 if ($_REQUEST['action'] == 'create' && !empty($eventId) && !$alreadyRegistered
-    && function_exists('sticpa_event_audience_check')) {
-    $audienceBlocked = sticpa_event_audience_verdict_notice(
-        $objSCP,
-        sticpa_event_audience_check($objSCP, $eventId, $eventNvl)
-    );
+    && function_exists('sticpa_event_signup_block')) {
+    $signupBlock = sticpa_event_signup_block($objSCP, $eventId, $eventNvl);
 }
 
 if ($eventId && $_REQUEST['action'] !== 'edit' && $_REQUEST['action'] !== 'detail') {
@@ -297,18 +294,21 @@ if ($eventId && $_REQUEST['action'] !== 'edit' && $_REQUEST['action'] !== 'detai
     );
 }
 
-// Dos razones distintas para NO ofrecer el formulario, y la misma pantalla:
+// Tres razones distintas para NO ofrecer el formulario, y la misma pantalla:
 // tarjeta del evento + aviso + "Volver". Antes solo existía la de "ya estás
-// inscrito"; la audiencia (otra delegación, otro perfil, otro curso) entra por
-// aquí en vez de duplicar el montaje.
+// inscrito"; la audiencia (otra delegación, otro perfil, otro curso) y el
+// plazo de inscripción entran por aquí en vez de duplicar el montaje.
+//
+// «Ya estás inscrito» va primero porque es un hecho sobre esta persona: a
+// quien ya tiene su plaza no se le dice que llega tarde ni que no es para ella.
 $blockedTitle = '';
 $blockedText = '';
 if ($alreadyRegistered) {
     $blockedTitle = __('Ya estás inscrito', 'sticpa');
     $blockedText = __('Ya cuentas con una inscripción activa para este evento. No es necesario que te vuelvas a inscribir.', 'sticpa');
-} elseif ($audienceBlocked !== '') {
-    $blockedTitle = __('Esta actividad no es para ti', 'sticpa');
-    $blockedText = $audienceBlocked;
+} elseif (!empty($signupBlock['bloqueado'])) {
+    $blockedTitle = $signupBlock['titulo'];
+    $blockedText = $signupBlock['texto'];
 }
 
 if ($blockedText !== '') {

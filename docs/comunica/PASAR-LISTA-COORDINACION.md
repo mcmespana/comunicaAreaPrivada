@@ -242,18 +242,23 @@ Lo que hay ahora:
 
 ## 6. Campos y valores que hay que crear
 
-Pocos, y ninguno nuevo en Personas.
+**Nada: está todo hecho.** Verificado contra el CRM el 10/09/2026 (por MCP), y
+las marcas 🔨 de abajo estaban obsoletas — que es exactamente lo que hace que
+alguien cree un campo duplicado, así que quedan corregidas.
 
-### 🔨 `stic_Contacts_Relationships.relationship_type` → un valor más
+### ✅ `stic_Contacts_Relationships.relationship_type` → un valor más
 
 ```
 coordinacion_mic_com
 ```
 
+**Existe y está en uso** (10/09/2026): hay relaciones reales con ese valor, y
+también con `acompanamiento_mic_com`.
+
 El alcance se lee de `ajmcm_etapa_relacion_c` (ya existe) y del segmento del
 grupo. No hace falta ningún campo nuevo en la relación.
 
-### 🔨 `LIS_listas` → `ajmcm_tipo_c`
+### ✅ `LIS_listas` → `ajmcm_tipo_c`
 
 | | |
 |---|---|
@@ -282,7 +287,7 @@ defecto es el que ya son.
 > de etapa en `LIS_listas`, que **no existe** y no se ha inventado. Si se decide
 > que hace falta, se pide al CRM y se documenta en `CAMPOS.md`.
 
-### 🔨 El evento de reuniones
+### ✅ El evento de reuniones
 
 No es un campo: es un registro. Uno por delegación y curso, asignado al usuario
 de la delegación:
@@ -295,10 +300,13 @@ Se puede crear a mano una vez, o dejar que lo cree la pantalla la primera vez qu
 coordinación añada una reunión. **Lo crea la pantalla**, que es una cosa menos
 que recordar en septiembre.
 
-### ⏳ Depende de lo ya pedido
+Y de hecho **ya está creado** en el CRM con ese nombre exacto (10/09/2026).
 
-- `ajmcm_GRUPOS.ajmcm_segmento_com_c` — sin él, el alcance por segmento no
-  filtra (la etapa sí).
+### ✅ Depende de lo ya pedido
+
+- `ajmcm_GRUPOS.ajmcm_segmento_com_c` — **ya existe** (enum, con `com_1`,
+  `com_2` y `com_3`; verificado el 10/09/2026), así que el alcance por segmento
+  filtra.
 
 ---
 

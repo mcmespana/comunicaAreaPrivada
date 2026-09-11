@@ -77,8 +77,12 @@ Los dos casos reales que hay que poder expresar:
 Meter «monitores» y «4.º de primaria» en el mismo desplegable parece más
 cómodo, y es la forma de acabar sin poder decir «los monitores de 4.º» ni
 «cualquiera de 4.º». Son **dos preguntas distintas sobre la misma persona**: qué
-papel tiene y en qué curso está. Es el mismo error que separa
-`ajmcm_segmento_com_c` (del grupo) de `ajmcm_nivel_com_c` (de la persona).
+papel tiene y en qué curso está.
+
+Es el mismo error, en otra parte del CRM, que confundir `ajmcm_segmento_com_c`
+(el segmento del grupo) con `ajmcm_nivel_com_c` (el itinerario personal): dos
+ejes **sin ninguna correspondencia entre ellos**, y que solo se parecen en que
+los dos usan números romanos.
 
 ### 3.2 De dónde sale el dato de la PERSONA
 
@@ -170,17 +174,69 @@ add_filter('sticpa_event_audience_non_delegation_users', fn() => array('1', '17'
 
 ---
 
-## 4. Campos que hay que CREAR en SinergiaCRM
+## 4. Los campos de la audiencia
 
-Solo dos, y uno de ellos es opcional. El de los cursos **ya existía**.
+En Pasar Lista y en Coordinación tampoco queda nada pendiente
+(`PASAR-LISTA-CAMPOS-CRM.md` §2 y `PASAR-LISTA-COORDINACION.md` §6 tenían marcas
+de «por crear» obsoletas, ya corregidas).
 
-### 4.1 `stic_Events` → `ajmcm_dirigido_a_c` 🔨
+## ✅ CREADOS — ya no queda nada por crear
+
+**Los cinco existen en el CRM**, verificados uno a uno por MCP el **10/09/2026**
+con el nombre exacto que esperaba el código:
+
+| Campo | Tipo real en el CRM | Para qué |
+|---|---|---|
+| `ajmcm_lugar_c` | `varchar(255)` | El nombre del sitio. **El que más se nota** |
+| `ajmcm_direccion_c` | `varchar(255)` | La dirección completa |
+| `ajmcm_mapa_c` | **`url`(255)** | El enlace al mapa (mejor tipo del que se pidió, que era texto) |
+| `ajmcm_dirigido_a_c` | **`enum`** ⚠️ ver abajo | A qué perfiles va dirigido |
+| `ajmcm_ambito_c` | `enum(100)` | Local o de todas las delegaciones |
+
+**Están los cinco vacíos en los cinco eventos** (10/09/2026), así que de momento
+no restringen nada y el área se comporta igual que ayer. Empiezan a hacer efecto
+en cuanto alguien los rellene, evento por evento.
+
+### ⚠️ `ajmcm_dirigido_a_c` es SIMPLE, y se pidió MÚLTIPLE
+
+**No hay nada roto**: los valores llegan como `monitor` a secas, sin los acentos
+circunflejos del multienum, y el troceador aguanta las dos formas a propósito
+(`sticpa_event_audience_multi()`, con test propio).
+
+Lo único que se pierde es poder decir **«monitores Y coordinación» en un mismo
+evento**: con un desplegable simple hay que elegir uno, o crear dos eventos. Si
+en algún momento hace falta, se cambia el tipo en Studio a selección múltiple y
+el código no se toca — **y el momento bueno para hacerlo es ahora, que está
+vacío**, porque cambiar el tipo de un campo ya relleno en SuiteCRM puede perder
+los valores.
+
+---
+
+## 4. Los campos y por qué son como son
+
+Las fichas de abajo se quedan aunque los campos ya existan: explican **por qué**
+son así, que es lo que hace falta el día que alguien se plantee cambiarlos.
+
+> **`ajmcm_filtro_edades_c` NO está en la lista, y esto es lo bueno del asunto.**
+> No solo existe y está relleno: **usa el MISMO desplegable
+> (`ajmcm_curso_escolar_c_list`) que el campo de la persona**, no una copia. O
+> sea que los dos lados del filtro de cursos comparten la lista y **no pueden
+> divergir nunca**: quien añada un curso lo añade en los dos sitios a la vez.
+> Nada que crear, nada que ampliar y nada que sincronizar. Ver §4.3.
+
+---
+
+### Los dos de la audiencia
+
+Uno de ellos es opcional. El de los cursos **ya existía**.
+
+### 4.1 `stic_Events` → `ajmcm_dirigido_a_c` ✅ **creado**
 
 | | |
 |---|---|
 | **Módulo** | `stic_Events` (Eventos) |
 | **Etiqueta** | Dirigido a |
-| **Tipo** | **Selección múltiple** (`multienum`) |
+| **Tipo** | Se pidió **selección múltiple** (`multienum`); en el CRM es `enum` simple. Funciona igual — ver el aviso de arriba |
 | **Obligatorio** | No |
 | **Por defecto** | *(vacío = para todos)* |
 
@@ -212,7 +268,7 @@ disparó jamás. Ver [`CAMPOS.md`](CAMPOS.md) §2.
 **Si se añade un valor nuevo al desplegable y se olvida el mapa**, no pasa nada
 grave: una clave que no está en el mapa casa con el papel del mismo nombre.
 
-### 4.2 `stic_Events` → `ajmcm_ambito_c` 🔨 *(opcional, pero recomendado)*
+### 4.2 `stic_Events` → `ajmcm_ambito_c` ✅ **creado** *(era opcional)*
 
 | | |
 |---|---|
@@ -235,51 +291,191 @@ delegaciones** —el congreso lo monta una delegación, pero va todo el mundo—
 Sin el campo habría que dejarlo sin asignar, y `CLAUDE.md` dice que todo va
 asignado a su delegación por el grupo de seguridad.
 
-### 4.3 `stic_Events` → `ajmcm_filtro_edades_c` ✅ **ya existe: solo ampliarlo**
+### 4.3 `stic_Events` → `ajmcm_filtro_edades_c` ✅ **nada que tocar**
 
-Está creado y **relleno** (las sesiones del MIC llevan
-`^4_primaria^,^5_primaria^,^6_primaria^`). Lo único que falta es **igualar su
-dominio al de la persona**: hoy le faltan dos claves que sí tiene
-`stic_Contacts_Relationships.ajmcm_curso_escolar_c`.
+Está creado, **relleno** (las sesiones del MIC llevan
+`^4_primaria^,^5_primaria^,^6_primaria^`) y —lo importante— **usa el mismo
+desplegable que el campo de la persona**: `ajmcm_curso_escolar_c_list`.
 
-| Clave a añadir | Etiqueta |
-|---|---|
-| `universitario` | Universitarios |
-| `otros` | Otros |
+```
+stic_Events.ajmcm_filtro_edades_c            ┐
+                                             ├── ajmcm_curso_escolar_c_list
+stic_Contacts_Relationships.ajmcm_curso_escolar_c ┘
+```
 
-Sin ellas no se puede sacar un evento dirigido a universitarios, que son unos
-cuantos en los grupos del COM.
+Eso es lo que hace que el filtro funcione y siga funcionando. Se comparan clave
+a clave, y como **no son dos listas sino una**, no pueden divergir: el día que
+alguien añada un curso, lo añade en los dos lados a la vez. (Si fueran dos
+listas, el día que una guardara `1_eso` y la otra `eso_1` el filtro dejaría de
+casar y nadie vería un error: simplemente todo el mundo pasaría el filtro.)
 
-> ⚠️ **Los dos campos tienen que usar LAS MISMAS CLAVES.** Se comparan clave a
-> clave. El día que uno guarde `1_eso` y el otro `eso_1`, el filtro dejará de
-> casar y nadie verá un error: simplemente todo el mundo pasará el filtro.
+Dominio completo en [`CAMPOS.md`](CAMPOS.md) §1 → Relaciones con Personas:
+`3_primaria` … `6_primaria`, `1_eso` … `4_eso`, `1_bachillerato`,
+`2_bachillerato`, `fp_gm`, `fp_gs`, `universitario`, `otros`, `na`.
+
+⚠️ **`na` [NA] no es un curso: es «no aplica».** Para el filtro cuenta como *no
+tener curso*, no como un curso que no casa con ninguno — si contara como curso,
+una persona marcada `na` quedaría fuera de cualquier evento que restrinja
+cursos. `otros` sí es un curso, y casa solo con `otros`
+(`sticpa_event_audience_cursos_no_aplica()`).
 
 ---
 
-## 5. Campos que el área ya sabría pintar (y una corrección)
+## 5. Los campos que se pintan, y los nombres que estaban mal
 
-`sticpa_event_optional_fields()` declara siete campos que la ficha pinta sola
-si existen en el CRM. **Y varios de ellos existen con OTRO nombre**, así que
-hoy no salen aunque el dato esté (comprobado el 09/09/2026):
+`sticpa_event_optional_fields()` declara los campos que la ficha pinta sola si
+existen en el CRM. Pedía tres que **NO EXISTEN**, y que sí existen con otro
+nombre: o sea que el aforo, el horario y la ventana de inscripción estaban
+rellenos en el CRM, no se pintaban, y la lista invitaba a crear campos
+duplicados. Corregido el 10/09/2026:
 
-| Lo que el código busca | Lo que hay de verdad en el CRM |
+| Lo que el código pedía | Lo que hay de verdad en el CRM |
 |---|---|
 | `capacity` | **`max_attendees`** (entero) |
-| `registration_end` | **`ajmcm_end_inscripcion_c`** (y su pareja `ajmcm_start_inscripcion_c`) |
 | `start_time` | **`timetable`** (texto libre con el horario) |
-| `price` | **`price`** ✅ coincide |
-| `location` / `city` / `address` | No existen: el lugar es una **relación** al módulo de ubicaciones (`stic_events_fp_event_locations`) |
+| `registration_end` | **`ajmcm_end_inscripcion_c`** + `ajmcm_start_inscripcion_c` (§5.2) |
+| `price` | **`price`** ✅ coincidía |
+| `location` / `city` / `address` | No existen. Se sustituyen por `ajmcm_lugar_c` y `ajmcm_direccion_c`, **ya creados** (§5.3) |
 
-**Pendiente, y no está hecho:** cambiar esos tres nombres en
-`sticpa_event_optional_fields()` para que el aforo, la ventana de inscripción y
-el horario salgan solos. Es una línea por campo y no toca ninguna otra lógica,
-pero **cambia lo que se ve en todas las tarjetas y fichas**, así que pasa por la
-verificación de pantalla de [`design.md`](../../design.md) §9-10. Se deja
-anotado aquí y no se cuela con el cambio de audiencia.
+### 5.1 Un 0 no es una respuesta
 
-El lugar es el dato que más se echa en falta y **es una relación**, no un texto:
-pintarlo cuesta una consulta más y hay que decidir dónde (probablemente en la
-misma llamada del listado, con `link_name_to_fields_array`).
+Los cinco eventos del CRM tienen `max_attendees = 0` y `price = 0.00`: es el
+valor por defecto de SuiteCRM, no un dato. Sin tratarlo, la ficha decía:
+
+- **«Plazas 0»**, que se lee como *no hay plazas* — exactamente lo contrario de
+  *sin límite*, que es lo que significa;
+- **«Precio 0,00 €»** en TODAS las actividades.
+
+Y con el precio no se arregla poniendo «Gratis»: nadie ha dicho que sea gratis,
+solo que el campo está sin rellenar, y equivocarse con el dinero es la peor
+forma de equivocarse. Así que un 0 en estos dos campos **no se enseña**
+(`'skip_zero' => true`).
+
+Por lo mismo, **la duración no se cuenta si no es una duración**: «Sesiones
+semanales 2026-2027» va de septiembre a junio y la ficha decía «Duración: 231
+días». Es cierto y no significa nada — eso no es una actividad de 231 días, es
+un curso. Por encima de un mes (`sticpa_event_max_dias_duracion`) el número es
+ruido y se deja fuera; las fechas ya están en la cabecera.
+
+### 5.2 La ventana de inscripción, que además cierra la inscripción
+
+`ajmcm_start_inscripcion_c` y `ajmcm_end_inscripcion_c` existían desde antes
+que esta pantalla y no se miraban. Ahora son un dato clave («Hasta el 25 de
+octubre», «Se abre el 1 de octubre») **y deciden si se puede apuntar**, que es
+justo lo que este documento llamaba «la forma limpia» de cerrar una inscripción
+sin que nadie tenga que acordarse de cambiar el estado a mano.
+
+| Estado | Cuándo | Qué pasa |
+|---|---|---|
+| `sin_datos` | los dos campos vacíos | **abierta** — ver la regla de abajo |
+| `antes` | aún no se ha abierto | sin botón, chip «Inscripción no abierta» |
+| `abierta` | dentro de plazo | botón, y la fecha límite a la vista |
+| `cerrada` | el plazo terminó | sin botón, chip «Inscripción cerrada» |
+
+**Regla de seguridad:** hoy solo **1 de los 5 eventos** del CRM tiene estas
+fechas, así que el vacío cuenta como *abierta*. Tratarlo como cerrada dejaría
+el área sin poder apuntarse a nada. Misma doctrina que la casilla de Pasar
+Lista.
+
+El día de fin **cuenta entero** (hasta las 23:59): un plazo «hasta el 25» que
+cierra a las 00:00 del 25 le roba un día a la gente.
+
+⚠️ **Y el chip lo dice, aunque el CRM diga otra cosa.** `status` está en
+`registration` («Inscripción abierta») en los cinco eventos, lo pongan al día o
+no. Sin esto, una tarjeta decía «INSCRIPCIÓN ABIERTA» y justo debajo «Cerrada
+el 6 de septiembre»: es la clase de pantalla que hace que nadie se crea nada de
+lo que pone. **Cuando hay fechas, mandan las fechas**
+(`sticpa_event_registration_chip()`).
+
+El bloqueo por fechas pasa por las MISMAS cuatro puertas que la audiencia
+(§3.4), guardado incluido, y por la misma fuente única:
+`sticpa_event_signup_block()`. Si las fechas del CRM estuvieran mal y hubiera
+que desactivarlo:
+
+```php
+add_filter('sticpa_event_registration_window', function ($w) {
+    return array('estado' => 'sin_datos', 'start_ts' => null, 'end_ts' => null, 'abierta' => true);
+});
+```
+
+### 5.3 El lugar: tres campos (ya creados) y el botón del mapa
+
+Es el dato que más se echa en falta. En el CRM existe un módulo de ubicaciones
+(`stic_events_fp_event_locations`, una relación) y **se ha decidido no usarlo**:
+para un puñado de eventos por delegación y curso, mantener un catálogo de
+sitios es más trabajo del que ahorra, y además costaría una consulta más por
+listado. El precio de decidirlo así es que «Casa de Espiritualidad» se acabará
+escribiendo de cinco maneras, como ya pasa con `cursos_c`; se asume **porque
+este dato se lee, y no se filtra ni se agrupa por él**.
+
+#### `ajmcm_lugar_c` — Lugar (texto) ✅ **creado**
+
+| | |
+|---|---|
+| **Módulo** | `stic_Events` |
+| **Tipo** | Texto (255) |
+| **Obligatorio** | No, pero es el que hay que rellenar siempre |
+
+El **nombre corto** del sitio: «Casa de Espiritualidad, Benigànim». Sale en la
+**tarjeta del listado** y en la ficha, así que conviene que quepa en una línea
+de móvil.
+
+#### `ajmcm_direccion_c` — Dirección (texto) ✅ **creado**
+
+| | |
+|---|---|
+| **Módulo** | `stic_Events` |
+| **Tipo** | Texto (255) |
+| **Obligatorio** | No |
+
+La **dirección completa**: «C/ Santiago 24, 28200 San Lorenzo de El Escorial».
+Solo en la ficha, y es lo que se le manda al mapa (es más preciso que el
+nombre). Son dos campos y no uno porque hacen dos cosas: uno cabe en la
+tarjeta y el otro sirve para llegar.
+
+#### `ajmcm_mapa_c` — Enlace del mapa (URL) ✅ **creado** *(y sigue siendo opcional de verdad)*
+
+| | |
+|---|---|
+| **Módulo** | `stic_Events` |
+| **Tipo** | URL (o texto) |
+| **Obligatorio** | No |
+
+**El botón del mapa NO necesita este campo.** Con el nombre del sitio ya se
+arma una búsqueda de Google Maps, así que el botón funciona desde el primer día
+con `ajmcm_lugar_c` relleno. Si hiciera falta pegar un enlace, no habría botón
+hasta que alguien se acordara de hacerlo en cuarenta eventos.
+
+Este campo es **el arreglo** para cuando la búsqueda no acierta —de «Casa de
+Espiritualidad» hay unas cuantas— o cuando ya se tiene el enlace bueno. Si está
+relleno, manda él.
+
+```
+ajmcm_mapa_c        →  se usa tal cual
+si no, dirección    →  búsqueda de Google Maps
+si no, lugar        →  búsqueda de Google Maps
+si no hay nada      →  no hay botón
+```
+
+⚠️ **Solo se aceptan `http` y `https`.** El valor lo escribe una persona en el
+CRM, así que quien tenga cuenta podría dejar un `javascript:…` en un enlace que
+después pulsa una familia. Un esquema que no valga se descarta y se cae a la
+búsqueda (`sticpa_record_safe_url()`).
+
+#### Cómo se ve
+
+El dato «Lugar» de la ficha **entero** es el enlace, no un icono al final: en un
+móvil, 44px de alto por todo el ancho se acierta con el pulgar y un icono de
+18px no. La flecha del final es la señal de que se puede tocar, no el objetivo.
+Se abre en otra pestaña con `rel="noopener noreferrer"`, y el lector de pantalla
+oye «Ver en el mapa: …», que una flecha sola no dice a dónde lleva.
+
+No compite con «Inscribirme»: sigue habiendo **una sola acción principal** por
+pantalla (design.md §6.2). Es un dato que además se puede tocar.
+
+Esto es genérico, no de eventos: `sticpa_record_detail_html()` acepta
+`'link' => array('url', 'label')` en cualquier dato clave, así que el día que un
+pago quiera enlazar a su recibo, ya está.
 
 > El plugin **pregunta primero al CRM qué campos existen**
 > (`sticpa_event_fields_to_request()`), así que declarar aquí un campo que aún
@@ -292,7 +488,7 @@ misma llamada del listado, con `link_name_to_fields_array`).
 
 | Pantalla | Archivo | Qué muestra |
 |----------|---------|-------------|
-| Listado | `pages/list_stic_events.php` | Tarjetas con fecha, nombre, lugar y estado. **Filtradas por audiencia.** Próximos primero; los ya inscritos se ocultan (están en "Inscripciones") |
+| Listado | `pages/list_stic_events.php` | Tarjetas con fecha, nombre, lugar y estado. **Filtradas por audiencia**, y sin botón fuera de plazo. Próximos primero; los ya inscritos se ocultan (están en "Inscripciones") |
 | Detalle | `pages/single_stic_events.php` | Ficha completa + botón de inscripción, o el motivo por el que no lo hay |
 | Inscripción | `pages/single_stic_registrations.php` | Formulario con la tarjeta del evento arriba; o el aviso de que no es para ti |
 
@@ -303,10 +499,35 @@ mucho, el sitio natural para un filtro (por tipo o por fecha) es
 
 ---
 
-## 7. Qué NO hace falta
+## 7. Cómo se verifica la pantalla
 
-- **No hace falta un campo «abierto a inscripción»**: se deduce de `status` +
-  fechas, y `ajmcm_end_inscripcion_c` ya existe para el control fino.
+Hay arnés de render offline, porque design.md §9 exige capturar a 375px y
+mirarlo, y aquí no hay WordPress:
+
+```bash
+php tests/manual/render-events.php > /tmp/eventos.html
+```
+
+Pinta los cinco estados de la tarjeta, el estado vacío y las seis fichas
+(completa, con ceros, con enlace de mapa propio, otra audiencia, fuera de plazo,
+ya inscrito). Los meses
+salen en inglés y **no es un fallo**: el doble de `date_i18n()` no tiene
+idioma. Comprobado el 10/09/2026 en claro y en oscuro: sin scroll horizontal a
+375px, ningún objetivo táctil por debajo de 44px y los chips por encima de
+4,5:1 de contraste.
+
+De hacer esa comprobación salieron dos arreglos que no eran de eventos:
+`.stic-rec-btn` tenía `min-height: 42px` —el botón de las tarjetas y fichas de
+los ocho módulos del área, incumpliendo la comprobación 5 de §9— y el chip
+apagado usaba `--gray-500` sobre `--gray-100`, que da 4,39:1 cuando §3 exige
+4,5. Ahora son 44px y `--gray-600` (6,87:1).
+
+---
+
+## 8. Qué NO hace falta
+
+- **No hace falta un campo «abierto a inscripción»**: lo hacen `status` y las
+  fechas de `ajmcm_start_inscripcion_c` / `ajmcm_end_inscripcion_c` (§5.2).
 - **No hace falta un campo de audiencia en `Contacts`.** El papel de cada
   persona ya está en `stic_relationship_type_c` y en sus relaciones, y el curso
   en `ajmcm_curso_escolar_c` de la relación. Crear un «perfil para eventos» en
