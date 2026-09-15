@@ -273,10 +273,16 @@ En todo el CRM hay **2 registros** (15/09/2026), así que lo observado es:
 | `sister` | 1 | Hermana |
 
 **No hay ni un `father` ni nada parecido a «tutor legal» en datos reales.** Y el
-MCP no devuelve las opciones de los `enum`, solo el tipo. Así que **`father` es
-una suposición razonable y sigue siendo una suposición**: la lista es la de
-SinergiaCRM (`stic_personal_environment_relationship_type_list`) y hay que
-**mirarla en Studio y apuntarla aquí** antes de fiarse.
+MCP no devuelve las opciones de los `enum`, solo el tipo.
+
+- **`father`**: no se ha visto en datos, pero el propietario del CRM la ha dado
+  por buena (15/09/2026) y el código la escribe.
+- **«Tutor/a legal»**: sigue sin clave conocida, y no se inventa ninguna. Lo que
+  no cabe en el desplegable va a `description` del registro de entorno personal.
+
+La lista completa es la de SinergiaCRM
+(`stic_personal_environment_relationship_type_list`) y sigue pendiente de
+**mirarla en Studio y apuntarla aquí**.
 
 Mientras tanto, quien escriba en este módulo que lo haga **sin bloquear el resto
 del guardado**: la API acepta cualquier cadena en un `enum` sin rechistar, así
