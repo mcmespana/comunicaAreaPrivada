@@ -5,7 +5,7 @@
 ---
 
 > **Última revisión contra el CRM: 15 de septiembre de 2026.** Entra la
-> **campaña de renovaciones 2026-2027**, y con ella tres cosas:
+> **campaña de renovaciones 2026-2027**, y con ella cuatro cosas:
 >
 > - Los **tres campos de pago** de §1 (`ajmcm_iban_c`, `ajmcm_iban_titular_c`,
 >   `ajmcm_forma_pago_c`), creados ese día y verificados uno a uno por MCP.
@@ -13,6 +13,10 @@
 > - El módulo de **entorno personal** (`stic_Personal_Environment`), que hasta
 >   hoy no estaba documentado en ninguna parte pese a que el área privada ya lo
 >   lee. Tiene sección propia en §1.
+> - **Los compromisos de pago** (`stic_Payment_Commitments`), otro módulo que
+>   nadie había documentado y que tenía UN registro. Con la sorpresa de que los
+>   formularios de alta **no los crean** aunque lo parezca: su `defParams` lleva
+>   `include_payment_commitment = 0` desde el export original.
 > - **Lo que la migración de Berrly NO trajo**, que es la razón de ser del
 >   formulario de renovación: ni un consentimiento RGPD ni una autorización.
 >   Está en §1 → «Qué trajo la migración de septiembre de 2026».
@@ -296,6 +300,80 @@ Consecuencia práctica, y por eso está escrito aquí: **nada que identifique a 
 persona puede depender de esta relación todavía.** El formulario de renovación
 busca por el documento del participante (o por nombre y fecha de nacimiento) y
 usa la familia solo si existe.
+
+### Compromisos de pago (`stic_Payment_Commitments`)
+
+Lo que hay que cobrar. Verificado por MCP el 15/09/2026, cuando el módulo tenía
+**UN registro en todo el CRM** —un pago con tarjeta por Redsys, asignado al
+Administrador MCM— y ningún formulario lo estaba usando.
+
+Tiene 78 campos. Los que importan:
+
+| Campo | Tipo | ¿Obligatorio? | Para qué |
+|---|---|---|---|
+| `name` | nombre | no | Cómo se lee en el CRM |
+| `amount` | decimal | **sí** | El importe |
+| `payment_method` | `enum` | **sí** | Cómo se cobra |
+| `payment_type` | `enum` | **sí** | Qué clase de cobro es |
+| `periodicity` | `enum` | **sí** | Cada cuánto |
+| `first_payment_date` | fecha | **sí** | **Cuándo se pasa el primer recibo** |
+| `banking_concept` | texto | no | Lo que la familia ve en su extracto |
+| `bank_account` | `varchar(255)` | no | **El IBAN.** No existe un campo `iban` |
+| `mandate` | `varchar(255)` | no | El mandato SEPA. Existe, sin usar |
+| `end_date`, `signature_date`, `active`, `description` | varios | no | |
+
+**Enlaces:** `stic_payment_commitments_contacts` (→ Personas),
+`stic_payment_commitments_stic_registrations` (→ Inscripciones),
+`stic_payment_commitments_campaigns` (→ Campañas) y
+`stic_payments_stic_payment_commitments` (→ Pagos ya cobrados). **No hay campos
+planos `_ida` que sirvan para escribir**: los dos lados se atan por relación.
+
+#### Las claves de los desplegables, y de dónde salen
+
+El MCP no devuelve las opciones de un `enum`, así que estas **no** están
+observadas en datos (solo había un registro, con `card` y `punctual`). Salen del
+**export original de SinergiaCRM** que hay en
+`comunicaFormularios/participantes/entrega_sinergia/`, donde el propio
+constructor de formularios del CRM las dejó escritas como campos ocultos:
+
+| Campo | Clave | Qué es |
+|---|---|---|
+| `payment_method` | `direct_debit` | Domiciliación bancaria |
+| `payment_method` | `card` | Tarjeta (visto en el único registro real) |
+| `payment_type` | `fee` | Cuota |
+| `periodicity` | `punctual` | Pago único |
+
+Es la misma fuente que usa el CRM para sus propios formularios, así que valen.
+**Cualquier otra clave hay que mirarla en Studio**, no deducirla.
+
+> **`punctual` es lo correcto para una cuota anual, aunque suene raro.** Cada
+> curso lleva su propio compromiso («Cuotas COM 26-27»), que se cobra una vez.
+> Un `annual` haría que el mismo compromiso se repitiera solo cada año, que es
+> justo lo que no se quiere: el importe y la gente cambian de un curso a otro.
+
+#### ⚠️ Los formularios de alta NO crean compromisos de pago
+
+Y parece que sí. Los formularios de participantes llevan cuatro campos
+`stic_Payment_Commitments___*` (`amount`, `payment_method`, `payment_type`,
+`periodicity`) que **el CRM ignora**, porque su `defParams` lleva
+`include_payment_commitment = 0` — y lo lleva **desde el export original**, no
+es algo que se rompiera por el camino. Son restos del constructor.
+
+Resultado: hasta el 15/09/2026 el IBAN de una familia se guardaba como TEXTO en
+`Contacts.ajmcm_iban_c` y en `stic_Registrations.ajmcm_tutor1_iban_c`, y no había
+nada que cobrar en ninguna parte.
+
+**Quien los crea ahora es el formulario de renovación**, por API
+(`crm_proxy.php` → `renovCrearCompromiso()`): uno por participante y curso, con
+`banking_concept` = «Cuotas MIC 26-27» / «Cuotas COM 26-27», `assigned_user_id`
+de su delegación —para que cada MCM Local remese lo suyo— y atado a la persona y
+a su inscripción. El formulario de ALTAS sigue sin crearlos: su motor se va de
+la página al enviar y no hay dónde enganchar la llamada.
+
+#### Remesas (`stic_Remittances`)
+
+El módulo **existe y está a 0 registros** (15/09/2026). No lo usa nadie todavía.
+Anotado para que no se cree otro mecanismo de remesas sin mirar este antes.
 
 ### Qué trajo la migración de septiembre de 2026 (y qué no)
 
