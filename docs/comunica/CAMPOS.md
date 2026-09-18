@@ -4,7 +4,24 @@
 
 ---
 
-> **Última revisión contra el CRM: 10 de septiembre de 2026.** Los cinco campos
+> **Última revisión contra el CRM: 15 de septiembre de 2026.** Entra la
+> **campaña de renovaciones 2026-2027**, y con ella cuatro cosas:
+>
+> - Los **tres campos de pago** de §1 (`ajmcm_iban_c`, `ajmcm_iban_titular_c`,
+>   `ajmcm_forma_pago_c`), creados ese día y verificados uno a uno por MCP.
+>   Están en la PERSONA a propósito y de forma provisional; la ficha explica por qué.
+> - El módulo de **entorno personal** (`stic_Personal_Environment`), que hasta
+>   hoy no estaba documentado en ninguna parte pese a que el área privada ya lo
+>   lee. Tiene sección propia en §1.
+> - **Los compromisos de pago** (`stic_Payment_Commitments`), otro módulo que
+>   nadie había documentado y que tenía UN registro. Con la sorpresa de que los
+>   formularios de alta **no los crean** aunque lo parezca: su `defParams` lleva
+>   `include_payment_commitment = 0` desde el export original.
+> - **Lo que la migración de Berrly NO trajo**, que es la razón de ser del
+>   formulario de renovación: ni un consentimiento RGPD ni una autorización.
+>   Está en §1 → «Qué trajo la migración de septiembre de 2026».
+>
+> **Revisión anterior: 10 de septiembre de 2026.** Los cinco campos
 > de `stic_Events` que pedía la audiencia de eventos **están creados**, con el
 > nombre exacto y verificados uno a uno por MCP: `ajmcm_lugar_c`,
 > `ajmcm_direccion_c`, `ajmcm_mapa_c`, `ajmcm_dirigido_a_c` y `ajmcm_ambito_c`.
@@ -95,6 +112,35 @@
 - `ajmcm_descripcion_enfermed_c` — Enfermedades
 - `ajmcm_descripcion_otros_c` — Otras patologías
 
+### Pago y domiciliación
+
+*Creados el 15/09/2026 y verificados por MCP ese mismo día. **Viven en la
+PERSONA a propósito y de forma provisional**: conceptualmente esto es un
+compromiso de pago (`stic_Payment_Commitments`), pero la migración de Berrly
+traía el IBAN pegado a cada participante y se decidió no perderlo por el camino.
+Cuando los compromisos de pago estén montados de verdad, de aquí salen; hasta
+entonces, este es el sitio.*
+
+- `ajmcm_iban_c` — IBAN (`varchar`, 34)
+  - 34 es el largo del IBAN más largo que existe (Malta), así que cabe cualquiera.
+  - Se guarda **sin espacios** (así llegó la migración: `ES9300494898982516218644`).
+    Quien lo enseñe que lo agrupe de cuatro en cuatro al pintarlo, no al guardarlo.
+  - ⚠️ **No se pinta entero en pantalla.** El área privada lo enmascara a cuatro
+    y cuatro (`sticpa_payment_mask_account()`); los formularios públicos hacen lo
+    mismo cuando lo devuelven ya relleno. Es un dato bancario.
+- `ajmcm_iban_titular_c` — Titular de la cuenta (`varchar`, 255)
+  - El nombre de quien firma el recibo, que **no** suele ser el participante: en
+    la migración vino relleno con el del padre, madre o tutor/a.
+  - No es un enlace a otra ficha, es texto. Si algún día hace falta saber *quién*
+    es, se resuelve por el entorno personal, no por este campo.
+- `ajmcm_forma_pago_c` — Forma de pago (`enum`, 100)
+  - ⚠️ **Clave OBSERVADA, no el desplegable entero:** `cargo_cuenta`, que es la
+    que trajo la migración. El MCP de esta instancia no devuelve las opciones de
+    los `enum`, solo el tipo. Si necesitas otra (efectivo, transferencia…),
+    **míralas en Studio y apúntalas aquí — no te las inventes**, que la API las
+    acepta todas sin rechistar y un valor inventado no falla: se queda guardado
+    y roto.
+
 ### Monitores
 
 *Solo se usan para perfiles de tipo monitor/a.*
@@ -171,6 +217,218 @@
 - `ajmcm_vol_acuerdo_c` — Voluntariado: Acuerdo de incorporación (archivo subido) — casilla de verificación
 - `ajmcm_vol_descripcion_c` — Voluntariado: Descripción de la actividad (texto)
 - `ajmcm_vol_programas_c` — Voluntariado: Programas (texto)
+
+### Entorno personal — la familia (`stic_Personal_Environment`)
+
+El módulo que ata a un participante con su padre, madre, tutor/a o hermano/a.
+**El área privada lleva meses leyéndolo** (`inc/stic-family.php`, de ahí sale la
+lista de «tus participantes» de una madre) y no estaba documentado aquí.
+Verificado por MCP el 15/09/2026.
+
+**Tiene 35 campos y solo importan seis.** El resto son los de auditoría de
+SuiteCRM más una relación con `stic_Families` (módulo que existe y está a **0
+registros**: no lo usamos, y no hay que empezar a usarlo sin decidirlo antes).
+
+| Campo | Tipo | Para qué |
+|---|---|---|
+| `relationship_type` | `enum` **obligatorio** | Qué es la persona del lado B respecto a la del lado A |
+| `start_date` | `date` **obligatorio** | Desde cuándo. Sin esto el registro no se crea |
+| `end_date` | `date` | Hasta cuándo. Vacío = sigue viva |
+| `name` | nombre | Se compone «Familiar - Etiqueta - Persona de referencia» |
+| `description` | texto | Libre |
+| `reference_contact`, `authorized_signer`, `coexistence_status` | varios | Existen, **sin usar y sin mirar**. Anotados para que nadie cree otro campo igual |
+
+#### ⚠️ La dirección de la relación, que es lo que se equivoca
+
+Son dos enlaces a `Contacts` y **no son simétricos**:
+
+```
+stic_personal_environment_contacts     → lado A → LA PERSONA DE REFERENCIA (el/la participante)
+   campo plano: stic_personal_environment_contactscontacts_ida
+
+stic_personal_environment_contacts_1   → lado B → EL FAMILIAR (la madre, el padre, la hermana)
+   campo plano: stic_personal_environment_contacts_1contacts_ida
+```
+
+**`relationship_type` describe al lado B respecto del lado A.** Un registro con
+`mother` significa «el del lado B es la madre del lado A», nunca al revés.
+Comprobado sobre los dos registros reales que hay en el CRM: el que lleva
+`mother` se llama «Sol Meseguer - Madre - Solete Vilarroya Messguer», y Sol
+—la madre— está en `contacts_1`.
+
+Ponerlo al revés no da error: crea una relación que dice que la niña es la
+madre de su madre, y el área privada le enseña a la niña la ficha de su madre.
+
+**Regla de la casa al leerlo** (la misma de Pasar Lista): esta instancia no
+devuelve enlaces anidados, así que se pide siempre el campo plano `..._ida` y se
+usa el que llegue. Nunca se confía en el objeto de la relación.
+
+#### ⚠️ Las claves de `relationship_type`: solo hay DOS confirmadas
+
+En todo el CRM hay **2 registros** (15/09/2026), así que lo observado es:
+
+| Clave | Registros | Etiqueta que compone el `name` |
+|---|---|---|
+| `mother` | 1 | Madre |
+| `sister` | 1 | Hermana |
+
+**No hay ni un `father` ni nada parecido a «tutor legal» en datos reales.** Y el
+MCP no devuelve las opciones de los `enum`, solo el tipo.
+
+- **`father`**: no se ha visto en datos, pero el propietario del CRM la ha dado
+  por buena (15/09/2026) y el código la escribe.
+- **«Tutor/a legal»**: sigue sin clave conocida, y no se inventa ninguna. Lo que
+  no cabe en el desplegable va a `description` del registro de entorno personal.
+
+La lista completa es la de SinergiaCRM
+(`stic_personal_environment_relationship_type_list`) y sigue pendiente de
+**mirarla en Studio y apuntarla aquí**.
+
+Mientras tanto, quien escriba en este módulo que lo haga **sin bloquear el resto
+del guardado**: la API acepta cualquier cadena en un `enum` sin rechistar, así
+que una clave inventada no falla — se queda guardada y mal.
+
+> **Ojo, que son dos vocabularios distintos y se parecen mucho:**
+> `stic_Registrations.ajmcm_tutorN_relationship_c` (los tutores que viajan
+> pegados a una inscripción) usa `father` / `mother` / `legal`, y esos sí están
+> confirmados porque los escribe el formulario de altas desde hace un año. **No
+> son las claves de este módulo** aunque dos coincidan. Un campo, un vocabulario.
+
+#### Estado real hoy: está SIN MONTAR
+
+**2 registros en todo el CRM**, y ninguno de los participantes migrados de
+Castellón tiene familia enlazada. Los familiares de la migración tampoco
+aparecen todavía como contactos (la campaña `[Importación] Personas - Familiares
+- Sept 2026` figura como completa, pero el 15/09/2026 no había ni un contacto
+con `description` de familiar: los 44 importados dicen «Participante»).
+
+Consecuencia práctica, y por eso está escrito aquí: **nada que identifique a una
+persona puede depender de esta relación todavía.** El formulario de renovación
+busca por el documento del participante (o por nombre y fecha de nacimiento) y
+usa la familia solo si existe.
+
+### Compromisos de pago (`stic_Payment_Commitments`)
+
+Lo que hay que cobrar. Verificado por MCP el 15/09/2026, cuando el módulo tenía
+**UN registro en todo el CRM** —un pago con tarjeta por Redsys, asignado al
+Administrador MCM— y ningún formulario lo estaba usando.
+
+Tiene 78 campos. Los que importan:
+
+| Campo | Tipo | ¿Obligatorio? | Para qué |
+|---|---|---|---|
+| `name` | nombre | no | Cómo se lee en el CRM |
+| `amount` | decimal | **sí** | El importe |
+| `payment_method` | `enum` | **sí** | Cómo se cobra |
+| `payment_type` | `enum` | **sí** | Qué clase de cobro es |
+| `periodicity` | `enum` | **sí** | Cada cuánto |
+| `first_payment_date` | fecha | **sí** | **Cuándo se pasa el primer recibo** |
+| `banking_concept` | texto | no | Lo que la familia ve en su extracto |
+| `bank_account` | `varchar(255)` | no | **El IBAN.** No existe un campo `iban` |
+| `mandate` | `varchar(255)` | no | El mandato SEPA. Existe, sin usar |
+| `end_date`, `signature_date`, `active`, `description` | varios | no | |
+
+**Enlaces:** `stic_payment_commitments_contacts` (→ Personas),
+`stic_payment_commitments_stic_registrations` (→ Inscripciones),
+`stic_payment_commitments_campaigns` (→ Campañas) y
+`stic_payments_stic_payment_commitments` (→ Pagos ya cobrados). **No hay campos
+planos `_ida` que sirvan para escribir**: los dos lados se atan por relación.
+
+#### Las claves de los desplegables, y de dónde salen
+
+El MCP no devuelve las opciones de un `enum`, así que estas **no** están
+observadas en datos (solo había un registro, con `card` y `punctual`). Salen del
+**export original de SinergiaCRM** que hay en
+`comunicaFormularios/participantes/entrega_sinergia/`, donde el propio
+constructor de formularios del CRM las dejó escritas como campos ocultos:
+
+| Campo | Clave | Qué es |
+|---|---|---|
+| `payment_method` | `direct_debit` | Domiciliación bancaria |
+| `payment_method` | `card` | Tarjeta (visto en el único registro real) |
+| `payment_type` | `fee` | Cuota |
+| `periodicity` | `punctual` | Pago único |
+
+Es la misma fuente que usa el CRM para sus propios formularios, así que valen.
+**Cualquier otra clave hay que mirarla en Studio**, no deducirla.
+
+> **`punctual` es lo correcto para una cuota anual, aunque suene raro.** Cada
+> curso lleva su propio compromiso («Cuotas COM 26-27»), que se cobra una vez.
+> Un `annual` haría que el mismo compromiso se repitiera solo cada año, que es
+> justo lo que no se quiere: el importe y la gente cambian de un curso a otro.
+
+#### ⚠️ Los formularios de alta NO crean compromisos de pago
+
+Y parece que sí. Los formularios de participantes llevan cuatro campos
+`stic_Payment_Commitments___*` (`amount`, `payment_method`, `payment_type`,
+`periodicity`) que **el CRM ignora**, porque su `defParams` lleva
+`include_payment_commitment = 0` — y lo lleva **desde el export original**, no
+es algo que se rompiera por el camino. Son restos del constructor.
+
+Resultado: hasta el 15/09/2026 el IBAN de una familia se guardaba como TEXTO en
+`Contacts.ajmcm_iban_c` y en `stic_Registrations.ajmcm_tutor1_iban_c`, y no había
+nada que cobrar en ninguna parte.
+
+**Quien los crea ahora es el formulario de renovación**, por API
+(`crm_proxy.php` → `renovCrearCompromiso()`): uno por participante y curso, con
+`banking_concept` = «Cuotas MIC 26-27» / «Cuotas COM 26-27», `assigned_user_id`
+de su delegación —para que cada MCM Local remese lo suyo— y atado a la persona y
+a su inscripción. El formulario de ALTAS sigue sin crearlos: su motor se va de
+la página al enviar y no hay dónde enganchar la llamada.
+
+#### Remesas (`stic_Remittances`)
+
+El módulo **existe y está a 0 registros** (15/09/2026). No lo usa nadie todavía.
+Anotado para que no se cree otro mecanismo de remesas sin mirar este antes.
+
+### Qué trajo la migración de septiembre de 2026 (y qué no)
+
+El 15/09/2026 se importaron desde Berrly los participantes y los familiares de
+**MCM Castellón** (~119 contactos con `assigned_user_id` de Castellón), en dos
+campañas: `[Importación] Personas - Participantes - Sept 2026` y
+`[Importación] Personas - Familiares - Sept 2026`. Las fichas importadas llevan
+`description` = «Importación sept 2026; Participante» (o «Familiar»).
+
+**Esto es un inventario de lo que hay, no de lo que debería haber.** Se apunta
+aquí porque decide qué tiene que pedir el formulario de renovación
+(`comunicaFormularios/participantes/participantes-renovacion-castellon.html`), y
+porque a simple vista en el CRM una ficha migrada parece completa y no lo está.
+
+Comprobado campo a campo sobre una ficha real (Fiamma Canepa,
+`b350917e-7749-42f4-9e3c-36287a236c0f`), el 15/09/2026:
+
+| Llegó relleno | Llegó VACÍO |
+|---|---|
+| `first_name`, `last_name`, `birthdate` | `email1` |
+| `stic_identification_type_c` / `_number_c` | `ajmcm_tallas_c` |
+| `stic_gender_c` | `ajmcm_grupotemp_c` |
+| `phone_mobile`, `phone_other` | `ajmcm_acepta_lopd_c` |
+| Dirección principal completa | `ajmcm_datossalud_c` |
+| `ajmcm_numero_persona_c`, `ajmcm_centro_educativo_c` | `ajmcm_cesionimagenes_interne_c` |
+| `ajmcm_etapa_c`, `ajmcm_nivel_com_c`, `ajmcm_panuelo_c` | `ajmcm_actividadesout_c` |
+| `ajmcm_procendencia_c` | `ajmcm_soloacasa_c` |
+| `ajmcm_iban_c`, `ajmcm_iban_titular_c`, `ajmcm_forma_pago_c` | `ajmcm_menorwhatsapp_c` |
+| | Los cinco `ajmcm_descripcion_*` (info sanitaria) |
+| | `stic_relationship_type_c` |
+
+Tres consecuencias que hay que tener presentes:
+
+1. ⚠️ **NO HAY NI UN CONSENTIMIENTO NI UNA AUTORIZACIÓN.** Los tres campos de
+   RGPD y los cuatro de autorizaciones están vacíos en las fichas migradas. No
+   es un detalle de calidad de dato: **son los que dicen que la familia ha
+   consentido**, y sin ellos no hay base para tratar los datos de salud ni para
+   publicar una foto. Recogerlos es la razón principal del formulario de
+   renovación, por encima de «no perder gente por el camino».
+2. ⚠️ **`stic_relationship_type_c` llega literalmente `^^`** (multienum vacío),
+   no `^participante_mic_com^`. Quien mire ese campo para saber si alguien es
+   participante **no encontrará a ninguno de los migrados**. Y afecta al área
+   privada: `sticpa_detect_role_from_relationship()` y
+   `sticpa_es_miembro_por_tipo_de_relacion()` se apoyan en él (§2). El
+   formulario de renovación lo escribe (`^participante_mic_com^`) al guardar.
+3. ⚠️ **El entorno personal está SIN MONTAR.** Ver la sección siguiente: los
+   familiares existen como contactos, pero no hay nada que los ate a su hijo/a.
+   Por eso el formulario de renovación no puede depender de esa relación para
+   identificar a nadie.
 
 ---
 

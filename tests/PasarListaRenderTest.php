@@ -628,6 +628,37 @@ class FakeSCP
         return array();
     }
 
+    /**
+     * LA DEFINICIÓN DE CAMPOS TAMBIÉN ES UNA LLAMADA AL CRM.
+     *
+     * No la usa ninguna pantalla de Pasar Lista, y por eso este doble no la
+     * tenía; sí la usan las de todo el mundo (Eventos, Inscripciones, Pagos…)
+     * para traducir las claves de los desplegables a etiquetas. Se cuenta como
+     * lo que es: un viaje más. Devuelve la forma de la API y ningún campo, que
+     * es suficiente para pintar y para CONTAR, que es de lo que va esto.
+     */
+    public function getFieldDefinition($module, $fields = array())
+    {
+        $self = $this;
+        return $this->servir(
+            'fdef|' . md5(serialize(array($module, $fields))),
+            'getFieldDefinition:' . $module,
+            function () use ($fields) {
+                // DEVUELVE LOS CAMPOS PEDIDOS, no un objeto vacío, y eso
+                // importa para medir: `sticpa_cached_field_definition()` solo
+                // guarda en caché si la respuesta trae algo (`if (!empty($def))`).
+                // Con una respuesta vacía no se cachea nunca y las cuentas
+                // salen infladas — que es lo que pasaba la primera vez que se
+                // escribió este doble.
+                $mf = new stdClass();
+                foreach ((array) $fields as $f) {
+                    $mf->$f = (object) array('name' => $f, 'options' => new stdClass());
+                }
+                return (object) array('module_fields' => $mf);
+            }
+        );
+    }
+
     public function getRelatedElementsForLoggedUser($p)
     {
         $self = $this;

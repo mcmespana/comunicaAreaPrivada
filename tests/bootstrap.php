@@ -112,6 +112,24 @@ if (!function_exists('esc_url')) {
 // La URL de admin-post.php: la usa el avatar con foto de «Mis grupos».
 if (!function_exists('admin_url'))   { function admin_url($p = '') { return '/wp-admin/' . $p; } }
 if (!function_exists('site_url'))    { function site_url($p = '') { return 'https://example.test' . $p; } }
+
+// `getDestinationModule()` vive en el archivo principal del plugin, que no se
+// puede cargar aquí (registra shortcodes y menús de WordPress). Es una función
+// de tres líneas que solo lee de dónde sale el módulo —petición, sesión u
+// opción—, y varias pantallas la llaman al pintarse. Se replica TAL CUAL: si
+// algún día cambia allí, hay que cambiarla aquí.
+if (!function_exists('getDestinationModule')) {
+    function getDestinationModule()
+    {
+        if (isset($_REQUEST['scp_module'])) {
+            return $_REQUEST['scp_module'];
+        }
+        if (isset($_SESSION['scp_module'])) {
+            return $_SESSION['scp_module'];
+        }
+        return get_option('sticpa_scp_module');
+    }
+}
 if (!function_exists('is_singular')) { function is_singular($t = '') { return false; } }
 if (!function_exists('get_post'))    { function get_post($p = null) { return null; } }
 if (!function_exists('has_shortcode')) { function has_shortcode($c, $tag) { return false; } }

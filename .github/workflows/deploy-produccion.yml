@@ -20,6 +20,11 @@ concurrency:
 jobs:
   # Puerta de calidad (plan 013): lint de todo el PHP + PHPUnit. Si algo falla,
   # el deploy NO se ejecuta (el job deploy declara `needs: test`).
+  #
+  # Esta puerta se repite en `tests.yml`, que corre en las PULL REQUESTS. No es
+  # una duplicación por descuido: son dos preguntas distintas —«¿se puede
+  # mergear esto?» y «¿se puede subir esto?»— y la de aquí tiene que seguir
+  # contestándose aunque alguien empuje directo a `production`.
   test:
     name: Lint + tests
     runs-on: ubuntu-latest
