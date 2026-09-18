@@ -1,0 +1,60 @@
+name: Lint + tests
+
+# LA PUERTA DE CALIDAD, ANTES DE MERGEAR Y NO DESPUÉS.
+#
+# Hasta hoy lint y tests solo corrían en `deploy-produccion.yml`, o sea al hacer
+# push a `production`: DESPUÉS de mergear a `main` y DESPUÉS de mergear a
+# producción. Con varias sesiones trabajando en paralelo sobre este repo —que
+# es lo normal aquí— eso significa que el primer aviso de que algo está roto
+# llega cuando ya está en las dos ramas, y el arreglo es otro PR.
+#
+# Esto son los MISMOS pasos que la puerta del deploy (mismo PHP, mismo
+# `composer lint`, mismo `composer test`): no es una segunda verdad, es la
+# misma comprobación movida a donde sirve.
+#
+# El deploy SIGUE teniendo la suya. Es a propósito: son dos preguntas distintas
+# —«¿se puede mergear esto?» y «¿se puede subir esto?»— y la segunda tiene que
+# poder contestarse aunque alguien haga push directo a `production`.
+
+on:
+  pull_request:
+    branches:
+      - main
+      - production
+  # También en los push a `main`: así queda constancia del estado de la rama
+  # aunque algo entre sin PR (un merge local, un commit directo).
+  push:
+    branches:
+      - main
+  workflow_dispatch: {}
+
+# Si se empuja dos veces seguidas a la misma rama o PR, la primera tanda se
+# cancela: lo que importa es el estado del último commit, no el del penúltimo.
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Lint + tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código del repo
+        uses: actions/checkout@v4
+      - name: Preparar PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer
+      - name: Validar composer.json
+        run: composer validate --no-check-publish --no-check-all
+      - name: Instalar dependencias
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Lint de todos los .php del plugin
+        run: composer run lint
+      - name: PHPUnit
+        run: composer test

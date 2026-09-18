@@ -64,7 +64,11 @@ if (is_array($getElements) && function_exists('prefix_user_active_event_ids')) {
 // Etiquetas del desplegable `status` tal y como están traducidas en el CRM
 // (el valor crudo es un código tipo "Planned", que no se le enseña a nadie).
 $statusMap = array();
-$statusDef = sticpa_cached_field_definition($objSCP, $listSettings['moduleName'], array('status'));
+// De la definición COMPARTIDA de eventos, no de una lista propia: pedir aquí
+// `array('status')` era otra clave de caché y por tanto otro viaje al CRM,
+// cuando la definición que ya se ha traído para saber qué campos existen trae
+// `status` dentro (es un campo base). Ver sticpa_event_field_definition().
+$statusDef = sticpa_event_field_definition($objSCP);
 if (!empty($statusDef['status']['options']) && is_array($statusDef['status']['options'])) {
     foreach ($statusDef['status']['options'] as $key => $option) {
         $statusMap[$key] = is_array($option) ? ($option['value'] ?? '') : (string) $option;

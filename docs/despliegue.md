@@ -21,6 +21,21 @@ Cómo se publica el plugin en **comunica.movimientoconsolacion.com** automática
 
 > El resto de ramas (`main`, ramas de trabajo) **no despliegan nada**. Solo `production`.
 
+### La puerta de calidad corre DOS veces, y es a propósito
+
+| Workflow | Cuándo | Para qué |
+|---|---|---|
+| [`tests.yml`](../.github/workflows/tests.yml) | En cada **pull request** a `main` o `production`, y en los push a `main` | «¿Se puede mergear esto?» |
+| [`deploy-produccion.yml`](../.github/workflows/deploy-produccion.yml) | Al hacer **push a `production`** | «¿Se puede subir esto?» (y si falla, **no sube nada**) |
+
+Los pasos son los mismos —mismo PHP, `composer lint`, `composer test`—, así que
+no hay dos verdades: es la misma comprobación en dos momentos.
+
+Hasta el 18/09/2026 solo existía la segunda, o sea que la primera noticia de que
+algo estaba roto llegaba **después** de mergear a `main` y **después** de
+mergear a `production`, y el arreglo era otro PR. Con varias sesiones trabajando
+a la vez sobre este repo, eso era cuestión de tiempo.
+
 ---
 
 ## 2. Secretos de GitHub que tienes que crear
