@@ -147,25 +147,68 @@ function sticpa_event_map_url($explicito = '', $direccion = '', $lugar = '')
  */
 function sticpa_event_fields_to_request($objSCP)
 {
-    // `assigned_user_id` es BASE y no opcional: es la delegación del evento, y
-    // de ella depende quién puede apuntarse (inc/stic-event-audience.php).
-    $base = array('id', 'name', 'status', 'type', 'start_date', 'end_date', 'description', 'assigned_user_id');
+    $base = sticpa_event_base_fields();
+    $wanted = sticpa_event_wanted_fields();
+    if (empty($wanted) || !function_exists('sticpa_cached_field_definition')) {
+        return $base;
+    }
+    $definition = sticpa_event_field_definition($objSCP);
+    $existing = is_array($definition) ? array_keys($definition) : array();
+    return array_values(array_unique(array_merge($base, array_intersect($wanted, $existing))));
+}
+
+/**
+ * Los campos BÁSICOS de un evento: los que se piden siempre porque siempre
+ * están.
+ *
+ * `assigned_user_id` es BASE y no opcional: es la delegación del evento, y de
+ * ella depende quién puede apuntarse (inc/stic-event-audience.php).
+ */
+function sticpa_event_base_fields()
+{
+    return array('id', 'name', 'status', 'type', 'start_date', 'end_date', 'description', 'assigned_user_id');
+}
+
+/**
+ * Los campos que QUEREMOS si existen. Los de audiencia se piden igual que los
+ * opcionales —solo si existen— para que el filtro se pueda desplegar antes de
+ * crearlos en el CRM: un campo que no está no restringe nada y no rompe la
+ * llamada.
+ */
+function sticpa_event_wanted_fields()
+{
     $wanted = array_keys(sticpa_event_optional_fields());
-    // Los campos de AUDIENCIA se piden igual que los opcionales —solo si
-    // existen— para que el filtro se pueda desplegar antes de crearlos en el
-    // CRM: un campo que no está no restringe nada y no rompe la llamada.
     if (function_exists('sticpa_event_audience_fields')) {
         $wanted = array_merge($wanted, sticpa_event_audience_fields());
     }
     $wanted = array_merge($wanted, sticpa_event_registration_fields());
     $wanted[] = sticpa_event_map_field();
-    $wanted = array_values(array_unique($wanted));
-    if (empty($wanted) || !function_exists('sticpa_cached_field_definition')) {
-        return $base;
+    return array_values(array_unique($wanted));
+}
+
+/**
+ * LA DEFINICIÓN DE `stic_Events`, UNA SOLA VEZ.
+ *
+ * Existe por un viaje al CRM que se estaba pagando de más y que no se veía:
+ * `sticpa_event_fields_to_request()` pedía la definición de los ~20 campos y el
+ * listado de Eventos pedía DESPUÉS la de `status` a secas, para traducir el
+ * desplegable. Son dos listas distintas, o sea dos claves de caché distintas, o
+ * sea **dos llamadas** — y la primera ya traía `status`, que es un campo base.
+ *
+ * Con una sola lista hay una sola clave y una sola llamada. Quien necesite la
+ * definición de un campo de eventos la pide AQUÍ; pedirla por su cuenta con
+ * otra lista vuelve a partir la caché en dos.
+ *
+ * (Lo cazó `tests/CosteLlamadasAreaTest`, que cuenta las llamadas de las
+ * pantallas de todo el mundo y avisa cuando una consulta se repite.)
+ */
+function sticpa_event_field_definition($objSCP)
+{
+    if (!function_exists('sticpa_cached_field_definition')) {
+        return array();
     }
-    $definition = sticpa_cached_field_definition($objSCP, 'stic_Events', array_merge($base, $wanted));
-    $existing = is_array($definition) ? array_keys($definition) : array();
-    return array_values(array_unique(array_merge($base, array_intersect($wanted, $existing))));
+    $fields = array_merge(sticpa_event_base_fields(), sticpa_event_wanted_fields());
+    return sticpa_cached_field_definition($objSCP, 'stic_Events', $fields);
 }
 
 /**

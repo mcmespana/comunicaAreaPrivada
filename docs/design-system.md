@@ -450,6 +450,32 @@ menú de verdad, no solo la decisión).
 10. ¿Página nueva en `pages/`? El nombre debe cumplir `[a-z0-9_]+`
     (`sticpa_resolve_page_file` rechaza cualquier otra cosa).
 
+### 8.1 Si tocas una pantalla que lee del CRM, mírale el coste
+
+Cada llamada al CRM es un viaje de ida y vuelta, y el área se usa en una webview
+con datos móviles. Hay dos tests que **cuentan las llamadas de cada pantalla**:
+
+| Test | Qué mide |
+|---|---|
+| `tests/CosteLlamadasTest.php` | Pasar Lista y Mis Grupos |
+| `tests/CosteLlamadasAreaTest.php` | La home, Eventos, Inscripciones, Pagos, Compromisos y Documentos |
+
+Los dos imprimen el detalle por pantalla (`vendor/bin/phpunit --filter
+testCosteDeCadaPantalla`) y los dos tienen **topes que fallan** si el número
+sube. Si tu cambio sube uno, sube el tope **en la misma PR** y escribe al lado
+por qué; lo que no vale es que suba en silencio.
+
+Tres cosas que ya cazaron:
+
+- **El 1+N**: una consulta que se repite es una llamada por fila. Hay una
+  comprobación propia para eso y no hace falta leerse el `foreach`.
+- **La caché partida en dos**: el listado de Eventos pedía la definición de
+  campos dos veces con dos listas distintas —dos claves de caché, dos viajes—
+  cuando la primera ya traía lo que buscaba la segunda.
+- **Aquí nadie agrupa**: Pasar Lista junta sus consultas en tandas paralelas
+  (`sticpa_pl_prime`); las pantallas de todo el mundo las hacen **en fila**. Está
+  apuntado en un test que hoy pasa y que fallará el día que alguien lo arregle.
+
 ## 9. Anti-patrones (cosas que NO se hacen)
 
 - ❌ Colores hex nuevos fuera de los tokens (§1 para el claro, §44 para el oscuro).
