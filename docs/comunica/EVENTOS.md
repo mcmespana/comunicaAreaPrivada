@@ -197,6 +197,16 @@ con el nombre exacto que esperaba el código:
 no restringen nada y el área se comporta igual que ayer. Empiezan a hacer efecto
 en cuanto alguien los rellene, evento por evento.
 
+> ⚠️ **PENDIENTE: las claves de los dos desplegables no están confirmadas.**
+> El MCP dice que `ajmcm_dirigido_a_c` y `ajmcm_ambito_c` existen, pero **no
+> devuelve sus opciones**, así que nadie ha comprobado que las claves de Studio
+> sean las que espera §4.1 y §4.2. Y como la API no valida los enum, una clave
+> que no casa **no da ningún error**: el evento se esconde a todo el mundo
+> (perfil) o se trata como local (ámbito), en silencio.
+>
+> Es lo primero que hay que cerrar antes de empezar a rellenarlos. Ficha
+> completa del pendiente en [`CAMPOS.md`](CAMPOS.md) § Lo que queda por revisar.
+
 ### ⚠️ `ajmcm_dirigido_a_c` es SIMPLE, y se pidió MÚLTIPLE
 
 **No hay nada roto**: los valores llegan como `monitor` a secas, sin los acentos
