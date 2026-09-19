@@ -465,18 +465,10 @@ function sticpa_section_meta($key)
             'desc' => __('Elige a qué participante quieres ver.', 'sticpa'),
             'icon' => "<path d='M16 21v-2a4 4 0 0 0-8 0v2'/><circle cx='12' cy='7' r='4'/><path d='M22 21v-2a4 4 0 0 0-3-3.87'/>",
         ),
-        'list_stic_relationships' => array(
-            'desc' => __('Tus relaciones con la organización.', 'sticpa'),
-            'icon' => "<circle cx='9' cy='9' r='3'/><circle cx='17' cy='15' r='3'/><path d='M9 12v0a6 6 0 0 0 6 3'/>",
-        ),
-        'list_stic_contacts' => array(
-            'desc' => __('Contactos de la organización.', 'sticpa'),
-            'icon' => "<path d='M16 21v-2a4 4 0 0 0-8 0v2'/><circle cx='12' cy='7' r='4'/>",
-        ),
-        'list_stic_member_organizations' => array(
-            'desc' => __('Organizaciones miembro.', 'sticpa'),
-            'icon' => "<path d='M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6'/>",
-        ),
+        // «Relaciones con la organización», «Contactos de la organización» y
+        // «Organizaciones miembro» tenían su icono aquí. Se archivaron el
+        // 19/09/2026 (pages/archivo/README.md) y no se enseñan en ninguna
+        // parte, así que su entrada en este mapa no describía ya nada.
         'list_stic_sessions' => array(
             'desc' => __('Tus sesiones programadas.', 'sticpa'),
             'icon' => "<circle cx='12' cy='12' r='9'/><path d='M12 7v5l3 2'/>",

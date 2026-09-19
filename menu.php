@@ -75,9 +75,14 @@ function getSticMenuElements()
     $menuElements['single_stic_password_change'] = __('Cambiar contraseña', 'sticpa');
 
     // Opcionales (descomentar si se usan):
-    // $menuElements['list_stic_relationships'] = __('Relaciones con la organización', 'sticpa');
     // $menuElements['list_stic_payment_commitments'] = __('Compromisos de pago', 'sticpa');
     // $menuElements['single_stic_unsubscribe'] = __('Darse de baja', 'sticpa');
+    //
+    // «Relaciones con la organización», «Contactos de la organización» y
+    // «Organizaciones miembro» YA NO SE PUEDEN DESCOMENTAR aquí: sus pantallas
+    // están archivadas en pages/archivo/ (19/09/2026). Para recuperarlas, lee
+    // pages/archivo/README.md — hay que mover el archivo Y arreglar su handler
+    // antes de enchufarlo.
 
     $defaultMenuElement = 'list_stic_events';
     return array($menuElements, $defaultMenuElement);

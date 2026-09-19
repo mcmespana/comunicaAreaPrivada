@@ -531,9 +531,14 @@ con solución propuesta y orden de ejecución, en
 
 **Lo que queda, y sale de haber hecho lo anterior:**
 
-- **`makeList()` sigue vivo** (`inc/stic-listController.php`, CSS §22) para
-  Relaciones, Contactos y Organizaciones miembro. Es el volcado genérico, y la
-  ficha de registro es su sustituto. Al tocar uno de esos tres, se migra.
+- ~~**`makeList()` sigue vivo** para Relaciones, Contactos y Organizaciones
+  miembro.~~ **Resuelto el 19/09/2026 archivando esas tres secciones**
+  (`pages/archivo/`, con su README): no se usan, estaban fuera del menú pero
+  todavía alcanzables desde dos botones de la ficha de perfil, y con el diseño
+  viejo. `makeList()` se queda en el repo —es lo que necesitarían si vuelven—
+  pero ya no lo usa ninguna pantalla viva. Un test
+  (`tests/ArchivoTest.php`) comprueba que siguen sin poderse alcanzar y que
+  nadie deja un enlace a ellas.
 - ~~**`pages/single_stic_sessions.php` y `single_stic_attendances.php` quedan
   huérfanos.**~~ **Revisado el 10/09/2026, y solo era verdad a medias**:
   `single_stic_attendances.php` no lo enlazaba nadie y **se ha borrado**;
