@@ -105,6 +105,9 @@ jobs:
 
           # Archivos que NO se suben al servidor (solo son de desarrollo).
           exclude: |
+            # Código archivado: no se ejecuta y no tiene por qué viajar al
+            # servidor (pages/archivo/README.md).
+            **/archivo/**
             **/.git*
             **/.git*/**
             **/.github/**

@@ -476,6 +476,22 @@ Tres cosas que ya cazaron:
   (`sticpa_pl_prime`); las pantallas de todo el mundo las hacen **en fila**. Está
   apuntado en un test que hoy pasa y que fallará el día que alguien lo arregle.
 
+### 8.2 Retirar una pantalla: se archiva, no se borra
+
+Cuando una sección deja de usarse **no se borra**: se mueve a `pages/archivo/`
+(y su handler, si lo tiene, a `inc/archivo/`). El historial de git ya guarda
+todo, pero una carpeta se encuentra sin saber git.
+
+Archivar bien son cuatro cosas, y las cuatro las fija `tests/ArchivoTest.php`:
+
+1. **Mover** la pantalla a `pages/archivo/`. Con eso ya es inalcanzable: el
+   enrutador solo admite `[a-z0-9_]+` y solo mira en `pages/`.
+2. **Quitar los enlaces vivos**. Es lo que peor envejece: esas tres llevaban
+   años fuera del menú y seguían alcanzables desde dos botones «Volver».
+3. **Desenchufar su handler**, si lo tiene. Un `admin_post_nopriv_*` que ya no
+   usa nadie sigue siendo una puerta abierta.
+4. **Escribir por qué, y cómo se recupera**, en el README de la carpeta.
+
 ## 9. Anti-patrones (cosas que NO se hacen)
 
 - ❌ Colores hex nuevos fuera de los tokens (§1 para el claro, §44 para el oscuro).

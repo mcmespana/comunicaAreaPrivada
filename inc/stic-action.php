@@ -246,51 +246,11 @@ function prefix_admin_single_stic_documents()
     }
 }
 
-/**
- * Action that manages creating and modificating Contacts/Accounts Relationships records
+/*
+ * EL HANDLER DE «Relaciones con la organización» SE HA ARCHIVADO (19/09/2026).
+ * Está en inc/archivo/stic-action-modulos-retirados.php, que NO se incluye
+ * en ninguna parte. El porqué y cómo se recupera: pages/archivo/README.md.
  */
-add_action('admin_post_single_stic_relationships', 'prefix_admin_single_stic_relationships'); 
-add_action('admin_post_nopriv_single_stic_relationships', 'prefix_admin_single_stic_relationships'); 
-function prefix_admin_single_stic_relationships()
-{
-    if ($_REQUEST['stic-action'] == 'detail') {
-        $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=list_stic_relationships";
-        wp_redirect($redirectUrl);
-        exit;
-    } else {
-        switch (getDestinationModule()) {
-            case 'Accounts':
-                $moduleName = 'stic_Accounts_Relationships'; 
-                break;
-            case 'Contacts':
-                $moduleName = 'stic_Contacts_Relationships'; 
-                break;
-        }
-
-        $objSCP = SugarRestApiCall::getObjSCP();
-
-        foreach ($_REQUEST as $key => $value) {
-            $moduleData[$key] = stripslashes_deep($value);
-        }
-
-        $action = $moduleData['stic-action'];
-        unset($moduleData['stic-action']); 
-        if ($action === 'delete') {
-            $moduleData['deleted'] = 1;
-        }
-        $isUpdate = $objSCP->set_entry($moduleName, $moduleData);
-        if ($isUpdate != null) {
-
-            if ($action === 'delete') {
-                $redirect_url = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=list_stic_relationships&msgDelete=true";
-            } else {
-                $redirect_url = $_REQUEST['scp_current_url'] . '&msg=true' . '&id=' . $isUpdate . ($action ? '&action=detail' : '');
-            }
-            wp_redirect($redirect_url);
-            exit;
-        }
-    }
-}
 
 /**
  * Action that manages creating and modificating Payment Commitments records
@@ -1447,48 +1407,9 @@ function comunica_upload_certificate($objSCP, $contactId, $field, $meta)
     return array('docId' => $docId, 'flag' => $meta['flag']);
 }
 
-/**
- * Action that manages creating and modificating Contacts records.
+/*
+ * EL HANDLER DE «Contactos de la organización» SE HA ARCHIVADO (19/09/2026).
+ * Está en inc/archivo/stic-action-modulos-retirados.php, que NO se incluye
+ * en ninguna parte. El porqué y cómo se recupera: pages/archivo/README.md.
  */
-add_action('admin_post_single_stic_contacts', 'prefix_admin_single_stic_contacts');
-add_action('admin_post_nopriv_single_stic_contacts', 'prefix_admin_single_stic_contacts'); 
-function prefix_admin_single_stic_contacts() 
-{
-    if ($_REQUEST['stic-action'] == 'detail') {
-        $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=list_stic_contacts";
-        wp_redirect($redirectUrl);
-        exit;
-    } else {
-        $moduleName = 'Contacts'; 
 
-        $objSCP = SugarRestApiCall::getObjSCP();
-
-        foreach ($_REQUEST as $key => $value) {
-            $moduleData[$key] = is_array($value) ? '^' . implode('^,^', stripslashes_deep($value)) . '^' : stripslashes_deep($value);
-        }
-        $action = $moduleData['stic-action'];
-
-        unset($moduleData['stic-action']); // to avoid passing the value to the API
-
-        $isUpdate = $objSCP->set_entry($moduleName, $moduleData);
-        if ($isUpdate) {
-            switch (getDestinationModule()) {
-                case 'Accounts':
-                    $relationship = 'accounts';
-                    break;
-                case 'Contacts':
-                    $relationship = 'contacts';
-                    break;
-            }
-            $relatedId = $_REQUEST[$relationship];
-            // Relating the Document to the Contact record
-            $resultRelationship = $objSCP->set_relationship('Contacts', $isUpdate, $relationship, array($relatedId));
-
-            $redirect_url = $_REQUEST['scp_current_url'] . '&msg=true' . '&id=' . $isUpdate . ($action ? '&action=detail' : '');
-        } else {
-            $redirect_url = $_REQUEST['scp_current_url'] . '&msg=error' . '&id=' . $isUpdate . ($action ? '&action=detail' : '');
-        }
-        wp_redirect($redirect_url);
-        exit;
-    }
-}
