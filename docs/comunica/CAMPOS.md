@@ -4,6 +4,11 @@
 
 ---
 
+> **⏳ HAY UNA LISTA DE PENDIENTES JUSTO DEBAJO** (§ Lo que queda por revisar).
+> Por crear no queda nada; lo que falta es **leer en Studio las opciones de dos
+> desplegables de eventos**, porque si no casan con lo que espera el código el
+> filtro falla EN SILENCIO. Míralo antes de tocar la audiencia de eventos.
+>
 > **Última revisión contra el CRM: 15 de septiembre de 2026.** Entra la
 > **campaña de renovaciones 2026-2027**, y con ella cuatro cosas:
 >
@@ -61,6 +66,90 @@
 > (Antes había que acordarse a mano, y por eso las dos copias llevaban meses
 > divergiendo: los tres campos `stic_`, `phone_mobile`, `do_not_call` y los dos
 > módulos nuevos existían solo en esta.)
+
+## ⏳ Lo que queda por revisar (anotado el 19/09/2026)
+
+**Por crear no queda nada.** Lo de aquí abajo son campos que YA EXISTEN y de los
+que este documento no puede jurar el contenido, porque nunca se ha leído.
+
+### Por qué esto es una lista y no una nota al pie
+
+Dos cosas del CRM se juntan mal:
+
+- **El MCP no devuelve las opciones de un desplegable**, solo el tipo. Así que
+  de un `enum` sabemos que existe, pero no qué claves tiene dentro — salvo que
+  alguien las mire en Studio y las apunte aquí.
+- **La API no valida los desplegables**: acepta cualquier cadena.
+
+O sea que una clave que no casa **no da ningún error**. No se rompe nada, no
+salta nada en los tests: simplemente el filtro deja de acertar y nadie se entera.
+Es el peor modo de fallo que tiene este proyecto, y ya nos ha mordido dos veces
+(el rol «laico» que buscaba tres cadenas inexistentes y no se disparó jamás; el
+`na` de los cursos, que habría excluido a gente en silencio).
+
+### 1. `stic_Events.ajmcm_dirigido_a_c` — claves sin confirmar ⚠️ RIESGO ALTO
+
+El campo existe (`enum`, verificado el 10/09/2026), pero **nadie ha leído sus
+opciones**. El código compara clave a clave contra
+`sticpa_event_audience_perfil_map()`, y espera exactamente estas:
+
+| Clave que espera el código | Significado |
+|---|---|
+| `grupo` | Miembros del MCM (con grupo) |
+| `monitor` | Monitores/as |
+| `participante_mic_com` | Participantes de MIC y COM |
+| `coordinacion` | Equipo de coordinación (agrupa `coordinacion_mic_com` y `acompanamiento_mic_com`) |
+| `familiar_menor` | Familias |
+
+**Qué pasa si no casan:** una clave desconocida casa consigo misma, así que un
+evento marcado `monitores` (en plural, por ejemplo) buscaría a gente con el papel
+`monitores`, que no existe → **el evento se escondería a TODO EL MUNDO**, sin
+error y sin aviso.
+
+**Cómo se arregla si no casan:** o se corrigen las claves en Studio, o se ajusta
+el mapa con `add_filter('sticpa_event_audience_perfil_map', …)`. No hay que
+rehacer nada.
+
+### 2. `stic_Events.ajmcm_ambito_c` — claves sin confirmar ⚠️ RIESGO ALTO
+
+Igual: existe (`enum(100)`), opciones sin leer. El código
+(`sticpa_event_audience_scope()`) trata como «de todas las delegaciones» los
+valores `nacional`, `todas` e `interdelegacional`; **cualquier otra cosa la
+entiende como local**.
+
+**Qué pasa si no casan:** un evento marcado `estatal` o
+`todas_las_delegaciones` se trataría como **local** y solo lo vería su
+delegación. Otra vez en silencio.
+
+### 3. `stic_Events.ajmcm_dirigido_a_c` es SIMPLE y se pidió MÚLTIPLE — decisión pendiente
+
+No es un fallo y no hay que tocar código: el troceador aguanta las dos formas.
+Pero con el desplegable simple **no se puede marcar «monitores Y coordinación»
+en el mismo evento** — hay que elegir uno o crear dos eventos.
+
+> ⏰ **Si se quiere múltiple, el momento es AHORA**, mientras el campo está vacío
+> en los cinco eventos: cambiar el tipo de un campo ya relleno en SuiteCRM puede
+> perder los valores.
+
+### 4. `stic_personal_environment_relationship_type_list` — lista completa sin apuntar
+
+Los parentescos del entorno personal. Se conocen `mother` y `father` (esta
+última dada por buena por el propietario el 15/09/2026), y «Tutor/a legal» sigue
+sin clave conocida. **Falta mirar la lista entera en Studio y apuntarla** en §1 →
+Entorno personal. Mientras tanto no se inventa ninguna clave.
+
+### 5. `ajmcm_GRUPOS.ajmcm_segmento_com_c` — valores observados, no leídos
+
+`com_1`, `com_2` y `com_3` salen de **mirar los datos**, no el desplegable.
+Podría haber más opciones sin usar. Es menos grave que las dos primeras porque
+aquí no hay comparación cruzada, pero conviene cerrarlo.
+
+### 6. `Contacts.stic_time_availability_c` — existe y no se sabe para qué
+
+Anotado el 28/08/2026 para que nadie cree otro campo igual sin querer. Sigue sin
+mirarse.
+
+---
 
 ## 1. Campos específicos de nuestra adaptación [Módulo personas, generalmente]
 
@@ -574,7 +663,13 @@ funcional en [`EVENTOS.md`](EVENTOS.md) §5.
   - Es lo que separa el evento local del de otra delegación. Un evento asignado
     al «Administrador MCM» (id `1`) o sin asignar se entiende como de todas.
 - `ajmcm_ambito_c` — Ámbito ✅ **creado** (`enum`, verificado el 10/09/2026; ficha en `EVENTOS.md` §4.2)
-  - Desplegable: `local` [Solo su delegación] · `nacional` [Todas las delegaciones]
+  - ⚠️ **SUS CLAVES NO ESTÁN CONFIRMADAS.** El campo existe, pero nadie ha
+    leído sus opciones en Studio. Lo de abajo es **lo que espera el código**,
+    no lo que se ha comprobado que hay. Ver §⏳ punto 2: si no casan, el evento
+    se trata como local **sin dar ningún error**.
+  - Desplegable que espera el código: `local` [Solo su delegación] ·
+    `nacional` [Todas las delegaciones]. También se aceptan `todas` e
+    `interdelegacional` como sinónimos de `nacional`.
   - Si está vacío, el ámbito se deduce de `assigned_user_id` (con delegación =
     local; sin delegación = nacional), así que el campo es opcional: sirve para
     decir «este evento es de Castellón y AUN ASÍ es para todas».
@@ -585,11 +680,14 @@ funcional en [`EVENTOS.md`](EVENTOS.md) §5.
     coordinación» en un mismo evento**. Cambiarlo a múltiple es un cambio de
     tipo en Studio y el código no se toca; **el momento bueno es mientras esté
     vacío**, porque cambiar el tipo de un campo relleno puede perder valores.
-  - Selección **múltiple**. **Las claves son literalmente las de
-    `relationship_type`** (ver el inventario de §2), para no mantener dos
-    vocabularios que dicen lo mismo:
+  - ⚠️ **SUS CLAVES NO ESTÁN CONFIRMADAS**, igual que en `ajmcm_ambito_c`: la
+    tabla de abajo es **lo que espera el código**, no lo leído en Studio. Ver
+    §⏳ punto 1 — si no casan, el evento **se esconde a todo el mundo** y no
+    salta ningún error.
+  - **Las claves deberían ser literalmente las de `relationship_type`** (ver el
+    inventario de §2), para no mantener dos vocabularios que dicen lo mismo:
 
-    | Clave interna | Etiqueta |
+    | Clave que espera el código | Etiqueta |
     |---|---|
     | `grupo` | Miembros del MCM (con grupo) |
     | `monitor` | Monitores/as |
