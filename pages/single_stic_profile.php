@@ -12,6 +12,9 @@ switch (getDestinationModule()) {
         break;
 }
 $formSettings['title'] = __('Profile', 'sticpa'); // form title
+// Los dos botones «Volver» de abajo llevaban a «Organizaciones miembro», que se
+// archivó el 19/09/2026 (pages/archivo/README.md). Ahora vuelven a Inicio, que
+// es de donde se llega aquí de verdad.
 $formSettings['msg'][] = array('value' => 'true', 'type' => 'success', 'msg' => __('The record has been successfully updated.', 'sticpa')); //Messages that will be shown on the screen after processing the data
 $formSettings['msg'][] = array('value' => 'error', 'type' => 'error', 'msg' => __('Error saving the profile.', 'sticpa')); //Messages that will be shown on the screen after processing the data
 $formSettings['msg'][] = array('value' => 'error_type', 'type' => 'error', 'msg' => __("File format is not valid.", 'sticpa')); //Messages that will be shown on the screen after processing the data
@@ -26,7 +29,7 @@ if (isset($formSettings['action']) && $formSettings['action'] !== '') {
             $formSettings['submitButton']['back'] = __('Back', 'sticpa'); // submit button title. If not defined, it will be a read-only view
             $formSettings['submitButtonType']['back'] = 'button';
             $formSettings['submitButtonActions']['back'] = array(
-                'onclick' => "location.href='?internalpage=list_stic_member_organizations';",
+                'onclick' => "location.href='?internalpage=single_stic_home';",
             );
             $formSettings['submitButton']['save'] = __('Save', 'sticpa'); // submit button title. If not defined, it will be a read-only view
             $formSettings['submitButtonActions']['save'] = array(
@@ -37,7 +40,7 @@ if (isset($formSettings['action']) && $formSettings['action'] !== '') {
             $formSettings['submitButton']['back'] = __('Back', 'sticpa'); // submit button title. If not defined, it will be a read-only view
             $formSettings['submitButtonType']['back'] = 'button';
             $formSettings['submitButtonActions']['back'] = array(
-                'onclick' => "location.href='?internalpage=list_stic_member_organizations';",
+                'onclick' => "location.href='?internalpage=single_stic_home';",
                 'class' => "stic-back-button",
             );
             break;
