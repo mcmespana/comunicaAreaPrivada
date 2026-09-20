@@ -649,7 +649,7 @@ persona entera.
 
 ### Eventos (`stic_Events`)
 
-El módulo tiene 59 campos. Aquí van los que usa el área privada y, sobre todo,
+El módulo tiene 68 campos. Aquí van los que usa el área privada y, sobre todo,
 **los que deciden QUIÉN PUEDE APUNTARSE**, que es la parte que se malinterpreta:
 los grupos de seguridad del CRM **no** filtran nada de lo que se ve en el área
 privada, porque el plugin se conecta con un usuario técnico y no con la persona
@@ -745,6 +745,35 @@ selección simple y con su propio dominio, y está vacío en todos los eventos.
 Se deja quieto: no se le mete nuestro vocabulario a un campo ajeno, y con uno
 solo no se puede decir «monitores Y coordinación». Anotado para que nadie cree
 otro campo pensando que este estaba libre.
+
+**Los campos de la web pública** ✅ **creados el 20/09/2026**
+
+Son los que deciden qué se ve en `comunica.movimientoconsolacion.com/actividades.php`
+—el listado y la ficha pública de cada evento— y en la portada. El motor está en
+`crm_proxy.php` del repositorio `comunicaFormularios`; el diseño funcional, en
+`inicio/EVENTOS-EN-LA-WEB.md` de ese mismo repositorio.
+
+⚠️ **NO llevan el prefijo `ajmcm_`**, al revés que casi todos los demás campos
+propios de este módulo. Es como se crearon y así se quedan. Apuntarlo aquí no es
+una manía: el código estaba escrito suponiendo el prefijo y la web se pasó un
+rato diciendo «No hemos podido cargar las actividades».
+
+| Campo | Tipo | Para qué |
+|---|---|---|
+| `web_publicar_c` | bool, **apagado por defecto** | El interruptor. Sin esto marcado, el evento **no existe para internet**. Es lo único que decide si sale |
+| `web_url_c` | url | Adónde lleva el botón «Inscribirme». Vacío = al área privada (`/ap`) |
+| `web_cuerpo_c` | text | El cuerpo de la ficha, en markdown reducido. **Es público**; la `description` de arriba NO se publica y sigue siendo la interna |
+| `web_cartel_c` | url | La imagen de cabecera. También es la que sale al compartir el enlace por WhatsApp |
+
+⚠️ **SuiteCRM no ignora un campo que no existe**: si se le pide uno inexistente
+en `select_fields`, responde un 400 (`The following fields in stic_Events module
+are not found`) y **se lleva por delante la consulta entera**. O sea que pedir un
+campo «por si acaso» deja la web sin eventos. Por eso en `crm_proxy.php` los
+opcionales van en una lista aparte (`$EVENTOS_FIELDS_OPCIONALES`).
+
+Dos que **están previstos pero todavía NO creados**, y que el código recogerá en
+cuanto existan: `web_lema_c` (el subtítulo bajo el título, tipo «Déjate Mirar») y
+`web_slug_c` (la URL bonita; sin él se saca del nombre del evento).
 
 **Lo demás del módulo que ya existe** (y que corrige lo que `EVENTOS.md` pedía
 crear: varios estaban creados con otro nombre). Comprobado el 09/09/2026:
