@@ -287,7 +287,7 @@ function sugar_crm_portal_settings_page()
                         <th scope='row'><?=__('URL del área privada', 'sticpa');?></th>
                         <td>
                             <input type='text' class='regular-text' value="<?php echo get_option('sticpa_scp_area_url'); ?>" name='sticpa_scp_area_url'>
-                            <p class="description"><?=__('Página pública donde está el shortcode. Se usa para construir los enlaces de acceso, ej: https://comunica.movimientoconsolacion.com/area-privada/', 'sticpa');?></p>
+                            <p class="description"><?=__('Página pública donde está el shortcode. Se usa para construir los enlaces de acceso. En MCM es https://comunica.movimientoconsolacion.com/ap/ (con la barra final).', 'sticpa');?></p>
                         </td>
                     </tr>
 
