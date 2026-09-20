@@ -126,16 +126,27 @@ resuelto es un dato; un vacío por no haber podido preguntar, no.**
 | La persona no tiene curso escolar propio | **El filtro de cursos no se le aplica** | Un monitor no tiene curso: si se aplicara, los monitores del MIC quedarían fuera de las sesiones del MIC |
 | El campo no existe todavía en el CRM | **No restringe** y ni se le pide al CRM | Se puede desplegar hoy y rellenar el CRM mañana |
 
-### 3.4 Dónde se comprueba (cuatro sitios, y solo uno cuenta)
+### 3.4 Dónde se comprueba (cinco sitios, y solo uno cuenta)
 
 | Sitio | Qué hace | Papel |
 |---|---|---|
 | `pages/list_stic_events.php` | Quita de la lista lo que no es tuyo | Cortesía |
+| `inc/stic-calendar.php` → `sticpa_gather_calendar_data()` | Quita de la **agenda** y del widget «Próximas actividades» de la home lo que no es tuyo | Cortesía |
 | `pages/single_stic_events.php` | Sin botón, y **explica el motivo** | Cortesía |
 | `pages/single_stic_registrations.php` | No enseña el formulario | Cortesía |
 | `inc/stic-action.php` → `prefix_admin_single_stic_registrations()` | **No crea la inscripción** | **EL guard** |
 
-Los tres primeros son interfaz. El cuarto es el que importa: el endpoint de
+> **La fila del calendario se añadió el 20/09/2026, y faltaba.** Esta tabla
+> tenía cuatro filas porque se pensó en «el listado de Eventos», y el
+> calendario hace **su propia consulta** a `stic_Events`, que alimenta dos
+> pantallas más. O sea que alguien de Castellón veía en su agenda y en su home
+> las convivencias de Vila-real, con su botón «Inscríbete» —falso: el guard las
+> rechazaba—. Cubierto por `tests/CalendarAudienceTest.php`.
+>
+> **La regla, para no repetirlo:** cada consulta a `stic_Events` es un sitio
+> nuevo donde filtrar. No basta con que «ya lo hace Eventos».
+
+Los cuatro primeros son interfaz. El último es el que importa: el endpoint de
 guardado se alcanza con un POST y el id del evento en la mano. Si la
 inscripción no debe existir, es ahí donde no se crea. Es la misma doctrina que
 el guard anti-duplicado, que está justo al lado.

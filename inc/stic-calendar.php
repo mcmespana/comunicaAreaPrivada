@@ -402,7 +402,29 @@ function sticpa_gather_calendar_data($objSCP)
     $filter = function_exists('sticpa_events_window_filter')
         ? sticpa_events_window_filter()
         : "(stic_events.start_date BETWEEN DATE_ADD(curdate(), INTERVAL -14 MONTH) AND DATE_ADD(curdate(), INTERVAL 12 MONTH))";
-    $allEvents = $objSCP->getRecordsModule('stic_Events', $filter, array('id', 'name', 'type', 'start_date', 'end_date'));
+    // LA AUDIENCIA SE FILTRA AQUÍ TAMBIÉN, y no es opcional. El listado de
+    // Eventos ya lo hacía (pages/list_stic_events.php), pero esta consulta
+    // alimenta DOS pantallas más —el calendario y el widget "Próximas
+    // actividades" de la home— y se traía todos los eventos de la ventana, de
+    // cualquier delegación: una persona de Castellón veía en su agenda las
+    // convivencias de Vila-real, con su botón «Inscríbete». El guardado sí las
+    // rechazaba (inc/stic-action.php, vía sticpa_event_signup_block), así que
+    // nadie llegó a apuntarse donde no debía; pero el nombre, la fecha y el
+    // lugar de lo de otra delegación se veían, y la invitación era falsa.
+    // Recordatorio de por qué no lo arregla el CRM: el área se conecta con un
+    // usuario técnico, así que los grupos de seguridad no filtran nada de lo
+    // que se lee aquí (ver inc/stic-event-audience.php).
+    $eventFields = function_exists('sticpa_event_audience_fields_to_request')
+        ? sticpa_event_audience_fields_to_request($objSCP, array('id', 'name', 'type', 'start_date', 'end_date'))
+        : array('id', 'name', 'type', 'start_date', 'end_date');
+    $allEvents = $objSCP->getRecordsModule('stic_Events', $filter, $eventFields);
+    if (is_array($allEvents) && function_exists('sticpa_filter_events_for_viewer')) {
+        // Solo los NO inscritos pasan por el filtro: a un evento al que ya
+        // estás apuntado se va igualmente (te apuntó tu delegación, o te
+        // cambiaron de delegación después), y esconderlo sería esconderte tu
+        // propia agenda. Los inscritos se recogen aparte, en el paso 1.
+        $allEvents = sticpa_filter_events_for_viewer($objSCP, $allEvents);
+    }
     $availableEvents = array();
     if (is_array($allEvents)) {
         foreach ($allEvents as $ev) {
