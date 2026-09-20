@@ -382,7 +382,6 @@ function sticpa_dni_access_form_html($return_url)
                        autocomplete='off' autocapitalize='characters' spellcheck='false'
                        placeholder='" . esc_attr__('12345678Z', 'sticpa') . "' required>
             </span>
-            <p class='stic-code-hint'>" . esc_html__('Te diremos a qué correo te lo hemos mandado, tapado por privacidad. Con los puntos y las letras que te enseñemos seguro que lo reconoces.', 'sticpa') . "</p>
             <input type='hidden' name='action' value='sticpa_send_access_dni'>
             <input type='hidden' name='scp_current_url' value='" . esc_attr($return_url) . "'>
             <button type='submit' class='stic-btn-magic'>
@@ -416,7 +415,7 @@ function sticpa_access_rescue_html($masked, $return_url)
     $html = "<div class='stic-auth-rescue'>";
     $html .= "<p class='stic-auth-rescue-title'>" . esc_html__('¿No te llega nada?', 'sticpa') . "</p>";
     $html .= "<ul class='stic-auth-rescue-list'>";
-    $html .= "<li>" . esc_html__('Mira la carpeta de spam o correo no deseado. A veces cae ahí.', 'sticpa') . "</li>";
+    $html .= "<li>" . esc_html__('Mira la carpeta de spam o correo no deseado.', 'sticpa') . "</li>";
     if ($masked !== '') {
         $html .= "<li>" . sprintf(
             /* translators: %s: el correo escrito, con parte tapada (dav••@mov•••.com) */

@@ -150,11 +150,21 @@ class CosteLlamadasAreaTest extends TestCase
     public function testNingunaPantallaSeVaDeTope()
     {
         $topes = array(
-            // 3: la ficha del contacto (el aviso del certificado de delitos
-            // sexuales), las inscripciones y los eventos de la agenda. La home
-            // es la pantalla a la que se vuelve TODO EL RATO —es el destino de
-            // cada «volver»—, así que es donde más duele cada llamada.
-            'single_stic_home' => 3,
+            // 4, y eran 3 hasta el 20/09/2026. La cuarta es
+            // `getFieldDefinition:stic_Events`, y entra porque el widget
+            // «Próximas actividades» ahora FILTRA LA AUDIENCIA: sin saber qué
+            // campos de audiencia existen no se les puede preguntar, y hasta
+            // ese día la home enseñaba las actividades de otras delegaciones
+            // (ver inc/stic-calendar.php). Se paga de buena gana, y en el sitio
+            // real casi nunca se paga: es la MISMA definición cacheada 6h que
+            // usa el listado de Eventos —una sola clave, `sticpa_event_field_definition()`—,
+            // así que quien haya pasado por Eventos ya la tiene caliente.
+            // Las otras tres: la ficha del contacto (el aviso del certificado
+            // de delitos sexuales), las inscripciones y los eventos de la
+            // agenda. La home es la pantalla a la que se vuelve TODO EL RATO
+            // —es el destino de cada «volver»—, así que es donde más duele
+            // cada llamada.
+            'single_stic_home' => 4,
             // 3, y eran 4 hasta el 18/09/2026: pedía la definición de campos
             // dos veces con dos listas distintas. Ver sticpa_event_field_definition().
             'list_stic_events' => 3,

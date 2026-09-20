@@ -9,7 +9,15 @@
 > desplegables de eventos**, porque si no casan con lo que espera el código el
 > filtro falla EN SILENCIO. Míralo antes de tocar la audiencia de eventos.
 >
-> **Última revisión contra el CRM: 15 de septiembre de 2026.** Entra la
+> **Última revisión contra el CRM: 20 de septiembre de 2026.** Los eventos ya
+> están rellenos, así que por fin se pueden confirmar claves **con datos** en
+> vez de con Studio: `ajmcm_ambito_c = local` (en seis de los siete eventos) y
+> `ajmcm_dirigido_a_c = ^participante_mic_com^` son **las claves exactas que
+> espera el código**. El eje local y el del perfil funcionan; sigue sin
+> confirmar la clave de «nacional», que no usa ningún evento todavía. Los dos
+> pendientes de abajo bajan de riesgo alto a medio y dicen cómo esquivarlo.
+>
+> **Revisión anterior: 15 de septiembre de 2026.** Entra la
 > **campaña de renovaciones 2026-2027**, y con ella cuatro cosas:
 >
 > - Los **tres campos de pago** de §1 (`ajmcm_iban_c`, `ajmcm_iban_titular_c`,
@@ -87,10 +95,22 @@ Es el peor modo de fallo que tiene este proyecto, y ya nos ha mordido dos veces
 (el rol «laico» que buscaba tres cadenas inexistentes y no se disparó jamás; el
 `na` de los cursos, que habría excluido a gente en silencio).
 
-### 1. `stic_Events.ajmcm_dirigido_a_c` — claves sin confirmar ⚠️ RIESGO ALTO
+### 1. `stic_Events.ajmcm_dirigido_a_c` — una clave CONFIRMADA, el resto no ⚠️ RIESGO MEDIO
 
-El campo existe (`enum`, verificado el 10/09/2026), pero **nadie ha leído sus
-opciones**. El código compara clave a clave contra
+El campo existe (`enum`, verificado el 10/09/2026). Las opciones de Studio
+siguen sin leerse, pero el 20/09/2026 se leyeron **los datos**, que es la otra
+forma de confirmarlas: el único evento que lo tiene relleno —«COM | Convivencia
+Inicial 2026 · Buñol · CS»— lleva `^participante_mic_com^`, o sea **la clave
+exacta que espera el código**. Dos cosas que eso cierra:
+
+- El vocabulario **es** el de `relationship_type`, como se pidió. No hay dos
+  listas.
+- El valor llega **envuelto en circunflejos** aunque el campo sea un `enum`
+  simple. El troceador lo aguanta (`sticpa_event_audience_multi()`), y esto es
+  la prueba en datos reales de que hacía falta que lo aguantara.
+
+Las otras cuatro claves siguen sin confirmar, porque ningún evento las usa
+todavía. El código compara clave a clave contra
 `sticpa_event_audience_perfil_map()`, y espera exactamente estas:
 
 | Clave que espera el código | Significado |
@@ -110,16 +130,25 @@ error y sin aviso.
 el mapa con `add_filter('sticpa_event_audience_perfil_map', …)`. No hay que
 rehacer nada.
 
-### 2. `stic_Events.ajmcm_ambito_c` — claves sin confirmar ⚠️ RIESGO ALTO
+### 2. `stic_Events.ajmcm_ambito_c` — `local` CONFIRMADO, `nacional` no ⚠️ RIESGO MEDIO
 
-Igual: existe (`enum(100)`), opciones sin leer. El código
-(`sticpa_event_audience_scope()`) trata como «de todas las delegaciones» los
-valores `nacional`, `todas` e `interdelegacional`; **cualquier otra cosa la
-entiende como local**.
+Existe (`enum(100)`) y las opciones de Studio siguen sin leerse, pero los datos
+del 20/09/2026 confirman la mitad que importa: **seis de los siete eventos
+llevan `ajmcm_ambito_c = local`**, la clave literal que espera
+`sticpa_event_audience_scope()`. El eje local funciona.
 
-**Qué pasa si no casan:** un evento marcado `estatal` o
-`todas_las_delegaciones` se trataría como **local** y solo lo vería su
-delegación. Otra vez en silencio.
+Lo que **sigue sin confirmar es la clave de «para todas las delegaciones»**,
+porque ningún evento la usa aún. El código acepta tres sinónimos —`nacional`,
+`todas` e `interdelegacional`— y **cualquier otra cosa la entiende como local**.
+
+**Qué pasa si no casa:** el primer evento nacional que se cree marcado `estatal`
+o `todas_las_delegaciones` se trataría como **local** y solo lo vería su
+delegación. En silencio, como siempre.
+
+**Cómo no pisar la mina, mientras no se lean las opciones en Studio:** un evento
+para todas las delegaciones se puede decir sin tocar este campo — se deja
+`ajmcm_ambito_c` **vacío** y se asigna al «Administrador MCM» (id `1`) o a
+nadie, y el ámbito se deduce como nacional. Es el camino que ya está probado.
 
 ### 3. `stic_Events.ajmcm_dirigido_a_c` es SIMPLE y se pidió MÚLTIPLE — decisión pendiente
 

@@ -158,6 +158,38 @@ function sticpa_event_fields_to_request($objSCP)
 }
 
 /**
+ * Los campos MÍNIMOS para poder juzgar la audiencia de un evento.
+ *
+ * Existe para el calendario y para el widget de la home, que no pintan la
+ * ficha de un evento (no necesitan `description`, ni el lugar, ni el mapa) pero
+ * SÍ tienen que decidir si la actividad es de quien mira. Pedir
+ * `sticpa_event_fields_to_request()` allí sería traerse ~20 columnas de las que
+ * se usan cinco.
+ *
+ * `assigned_user_id` va siempre: es la delegación dueña del evento, o sea el
+ * eje del ámbito. Los campos de audiencia se cruzan con los que EXISTEN de
+ * verdad (misma definición cacheada que usa `sticpa_event_fields_to_request()`,
+ * así que no cuesta una llamada más), porque pedir una columna inexistente a
+ * `get_entry_list` da error en algunas versiones en vez de ignorarla.
+ *
+ * @param object $objSCP Cliente del CRM.
+ * @param array  $base   Campos que además necesita quien llama para pintar.
+ */
+function sticpa_event_audience_fields_to_request($objSCP, $base = array('id', 'name'))
+{
+    $base = array_merge((array) $base, array('assigned_user_id'));
+    if (!function_exists('sticpa_event_audience_fields')) {
+        return array_values(array_unique($base));
+    }
+    $definition = sticpa_event_field_definition($objSCP);
+    $existing = is_array($definition) ? array_keys($definition) : array();
+    return array_values(array_unique(array_merge(
+        $base,
+        array_intersect(sticpa_event_audience_fields(), $existing)
+    )));
+}
+
+/**
  * Los campos BÁSICOS de un evento: los que se piden siempre porque siempre
  * están.
  *
