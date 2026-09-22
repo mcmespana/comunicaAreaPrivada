@@ -86,6 +86,13 @@
     --on-brand: #fff;
     --brand-blue-fixed: #1c6fb3;
 
+    /* ---- Cinta de "entorno de pruebas" (§58) ----
+       Fija en los dos temas, misma idea que las dos de arriba: es un aviso
+       puntual, no una superficie que deba aclararse en oscuro, así que no
+       vive en el bloque §44. Mismo hex que --warning-dark, para no inventar
+       un color nuevo. */
+    --test-ribbon-bg: #92400e;
+
     /* ---- Radios generosos ---- */
     --radius-sm: 0.55rem;
     --radius-md: 0.85rem;
@@ -5768,7 +5775,11 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     min-height: 44px;          /* objetivo táctil cómodo en móvil */
     cursor: pointer;
     list-style: none;
-    font-size: var(--font-size-sm);
+    /* Sube de `sm` a `base`: no es una nota al pie, es LA segunda puerta de
+       entrada —la que salva a quien está dentro de la app MCM, donde el enlace
+       del correo falla más—. En `sm` parecía letra pequeña y se leía como un
+       aviso legal en vez de como la alternativa que es. */
+    font-size: var(--font-size-base);
     font-weight: 600;
     color: var(--primary-color);
     border-radius: var(--radius-md);
@@ -5795,26 +5806,51 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     justify-content: center;
     gap: var(--space-2);
     margin-top: var(--space-4);
-    font-size: var(--font-size-sm);
+    /* Mismo cuerpo que la fila de arriba: las dos son salidas de este atasco
+       («el enlace no me va» / «no me ha llegado»), y en `sm` se leían como el
+       pie de página. */
+    font-size: var(--font-size-base);
     color: var(--gray-500);
 }
 
-.stic-code-resend button {
-    background: none;
-    border: 0;
-    padding: var(--space-1) var(--space-2);
-    font: inherit;
-    font-weight: 600;
-    color: var(--primary-color);
-    text-decoration: underline;
-    cursor: pointer;
-    border-radius: var(--radius-sm);
+/* EL TEMA DE WORDPRESS PINTA ESTE `<button>`, y se veía. `.entry-content
+   button` de Astra le gana por especificidad a una clase suelta, así que
+   «Envíamelo otra vez» salía como una pastilla clara con el texto encima:
+   exactamente el fallo de PASAR-LISTA-ESTADO.md §3.6, que ya le había pasado a
+   `.stic-pass-toggle`. La receta es la de allí: `!important` para desactivar lo
+   del tema, y volver a declarar lo nuestro también con `!important`. Los
+   `::before`/`::after` se anulan porque algunos temas meten ahí el degradado. */
+.stic-code-resend button,
+.entry-content .stic-code-resend button {
+    display: inline !important;
+    width: auto !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    background: none !important;
+    background-image: none !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    padding: var(--space-1) var(--space-2) !important;
+    margin: 0 !important;
+    font: inherit !important;
+    font-weight: 600 !important;
+    line-height: inherit !important;
+    letter-spacing: normal !important;
+    text-transform: none !important;
+    color: var(--primary-color) !important;
+    text-decoration: underline !important;
+    cursor: pointer !important;
+    border-radius: var(--radius-sm) !important;
 }
 
-.stic-code-resend button:hover { color: var(--primary-dark); }
+.stic-code-resend button::before,
+.stic-code-resend button::after { content: none !important; display: none !important; }
+
+.stic-code-resend button:hover { color: var(--primary-dark) !important; background: none !important; }
 
 .stic-code-resend button:focus-visible {
-    outline: 2px solid var(--primary-color);
+    outline: 2px solid var(--primary-color) !important;
     outline-offset: 2px;
 }
 
@@ -6428,4 +6464,51 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 .stic-dni-form .stic-code-hint {
     text-align: left;
     margin-bottom: var(--space-3);
+}
+
+/* ============================================================
+   58. CINTA DE ENTORNO DE PRUEBAS
+   ------------------------------------------------------------
+   `sticpa_test_env_ribbon_html()` (inc/stic-theme.php) la pinta siempre, a
+   propósito: mientras esta versión esté en pruebas, se queda. Es la primera
+   hija de `.stic-auth-shell` (position:relative, overflow:hidden,
+   isolation:isolate — §3), así que ancla y recorta ahí mismo, sin
+   contenedor propio.
+
+   Se apaga a los 2 minutos y se queda tenue en vez de desaparecer: sigue
+   ahí, pero deja de gritar. Con `animation-delay` + `forwards` no hace
+   falta temporizador en JS. */
+.stic-test-ribbon {
+    position: absolute;
+    top: 1.3rem;
+    right: -3.15rem;
+    z-index: 3;
+    width: 12rem;
+    padding: 0.32rem 0;
+    transform: rotate(45deg);
+    background: var(--test-ribbon-bg);
+    box-shadow: var(--shadow-sm);
+    pointer-events: none;
+    animation: stic-test-ribbon-fade 0.4s var(--ease-out) 120s forwards;
+}
+
+.stic-test-ribbon span {
+    display: block;
+    text-align: center;
+    color: var(--on-brand);
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+@keyframes stic-test-ribbon-fade {
+    from { opacity: 1; }
+    to   { opacity: 0.32; }
+}
+
+/* Con movimiento reducido no se anima: se queda a la vista siempre, sin
+   temporizador que nadie ha pedido. */
+@media (prefers-reduced-motion: reduce) {
+    .stic-test-ribbon { animation: none; }
 }

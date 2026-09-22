@@ -287,7 +287,7 @@ function sugar_crm_portal_settings_page()
                         <th scope='row'><?=__('URL del área privada', 'sticpa');?></th>
                         <td>
                             <input type='text' class='regular-text' value="<?php echo get_option('sticpa_scp_area_url'); ?>" name='sticpa_scp_area_url'>
-                            <p class="description"><?=__('Página pública donde está el shortcode. Se usa para construir los enlaces de acceso, ej: https://comunica.movimientoconsolacion.com/area-privada/', 'sticpa');?></p>
+                            <p class="description"><?=__('Página pública donde está el shortcode. Se usa para construir los enlaces de acceso. En MCM es https://comunica.movimientoconsolacion.com/ap/ (con la barra final).', 'sticpa');?></p>
                         </td>
                     </tr>
 
@@ -948,7 +948,7 @@ function sugar_crm_portal_check_user_and_login($html = "")
             $html .= sugar_crm_portal_index();
         } else {
             // Login fallido: reabrimos directamente en la vista de usuario/contraseña.
-            $html .= "<div class='stic-auth-shell'" . sticpa_theme_attr() . "><div class='stic-login-form stic-form'>";
+            $html .= "<div class='stic-auth-shell'" . sticpa_theme_attr() . ">" . sticpa_test_env_ribbon_html() . "<div class='stic-login-form stic-form'>";
             $html .= sugar_crm_portal_login_form("", 'password');
             $html .= "<span class='error' role='alert'>" . __('Username and/or password are not correct.', 'sticpa') . "</span>";
             $html .= "</div>" . sticpa_appearance_switch_html() . "</div>";
@@ -957,13 +957,13 @@ function sugar_crm_portal_check_user_and_login($html = "")
 
     } elseif (isset($_REQUEST['sticpa_code'])) {
         // Acaba de pedir acceso: pantalla "mira tu correo" + código de 6 cifras.
-        $html .= "<div class='stic-auth-shell'" . sticpa_theme_attr() . "><div class='stic-login-form stic-form'>";
+        $html .= "<div class='stic-auth-shell'" . sticpa_theme_attr() . ">" . sticpa_test_env_ribbon_html() . "<div class='stic-login-form stic-form'>";
         $html .= sticpa_access_code_form();
         $html .= "</div>" . sticpa_appearance_switch_html() . "</div>";
     } else {
         // Vista inicial: por defecto enlace mágico; 'password' si se pide con ?mode=password.
         $mode = (isset($_REQUEST['mode']) && $_REQUEST['mode'] === 'password') ? 'password' : 'magic';
-        $html .= "<div class='stic-auth-shell'" . sticpa_theme_attr() . "><div class='stic-login-form stic-form'>";
+        $html .= "<div class='stic-auth-shell'" . sticpa_theme_attr() . ">" . sticpa_test_env_ribbon_html() . "<div class='stic-login-form stic-form'>";
         $html .= sugar_crm_portal_login_form("", $mode);
         $html .= "</div>" . sticpa_appearance_switch_html() . "</div>";
     }
