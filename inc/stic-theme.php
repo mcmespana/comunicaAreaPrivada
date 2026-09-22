@@ -241,6 +241,16 @@ function sticpa_appearance_switch_html()
     return $html;
 }
 
+/**
+ * Cinta de "entorno de pruebas" en la esquina de la pantalla de acceso.
+ * Se pinta siempre, a propósito: esta versión está en pruebas y así se queda
+ * hasta que se decida quitarla a mano. CSS en custom-style.css §58.
+ */
+function sticpa_test_env_ribbon_html()
+{
+    return "<div class='stic-test-ribbon'><span>" . esc_html__('Pruebas', 'sticpa') . "</span></div>";
+}
+
 // Clase en el body + CSS que esconde el "chrome" del tema alrededor del área.
 add_filter('body_class', function ($classes) {
     if (sticpa_is_app_mode()) {

@@ -86,6 +86,13 @@
     --on-brand: #fff;
     --brand-blue-fixed: #1c6fb3;
 
+    /* ---- Cinta de "entorno de pruebas" (§58) ----
+       Fija en los dos temas, misma idea que las dos de arriba: es un aviso
+       puntual, no una superficie que deba aclararse en oscuro, así que no
+       vive en el bloque §44. Mismo hex que --warning-dark, para no inventar
+       un color nuevo. */
+    --test-ribbon-bg: #92400e;
+
     /* ---- Radios generosos ---- */
     --radius-sm: 0.55rem;
     --radius-md: 0.85rem;
@@ -6457,4 +6464,51 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 .stic-dni-form .stic-code-hint {
     text-align: left;
     margin-bottom: var(--space-3);
+}
+
+/* ============================================================
+   58. CINTA DE ENTORNO DE PRUEBAS
+   ------------------------------------------------------------
+   `sticpa_test_env_ribbon_html()` (inc/stic-theme.php) la pinta siempre, a
+   propósito: mientras esta versión esté en pruebas, se queda. Es la primera
+   hija de `.stic-auth-shell` (position:relative, overflow:hidden,
+   isolation:isolate — §3), así que ancla y recorta ahí mismo, sin
+   contenedor propio.
+
+   Se apaga a los 2 minutos y se queda tenue en vez de desaparecer: sigue
+   ahí, pero deja de gritar. Con `animation-delay` + `forwards` no hace
+   falta temporizador en JS. */
+.stic-test-ribbon {
+    position: absolute;
+    top: 1.3rem;
+    right: -3.15rem;
+    z-index: 3;
+    width: 12rem;
+    padding: 0.32rem 0;
+    transform: rotate(45deg);
+    background: var(--test-ribbon-bg);
+    box-shadow: var(--shadow-sm);
+    pointer-events: none;
+    animation: stic-test-ribbon-fade 0.4s var(--ease-out) 120s forwards;
+}
+
+.stic-test-ribbon span {
+    display: block;
+    text-align: center;
+    color: var(--on-brand);
+    font-size: 0.74rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+@keyframes stic-test-ribbon-fade {
+    from { opacity: 1; }
+    to   { opacity: 0.32; }
+}
+
+/* Con movimiento reducido no se anima: se queda a la vista siempre, sin
+   temporizador que nadie ha pedido. */
+@media (prefers-reduced-motion: reduce) {
+    .stic-test-ribbon { animation: none; }
 }
