@@ -6469,11 +6469,11 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 /* ============================================================
    58. CINTA DE ENTORNO DE PRUEBAS
    ------------------------------------------------------------
-   `sticpa_test_env_ribbon_html()` (inc/stic-theme.php) solo la pinta si
-   `wp_get_environment_type()` no es 'production': en el sitio real no
-   cambia nada. Es la primera hija de `.stic-auth-shell` (position:relative,
-   overflow:hidden, isolation:isolate — §3), así que ancla y recorta ahí
-   mismo, sin contenedor propio.
+   `sticpa_test_env_ribbon_html()` (inc/stic-theme.php) la pinta siempre, a
+   propósito: mientras esta versión esté en pruebas, se queda. Es la primera
+   hija de `.stic-auth-shell` (position:relative, overflow:hidden,
+   isolation:isolate — §3), así que ancla y recorta ahí mismo, sin
+   contenedor propio.
 
    Se apaga a los 2 minutos y se queda tenue en vez de desaparecer: sigue
    ahí, pero deja de gritar. Con `animation-delay` + `forwards` no hace
