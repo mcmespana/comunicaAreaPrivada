@@ -241,6 +241,21 @@ function sticpa_appearance_switch_html()
     return $html;
 }
 
+/**
+ * Cinta de "entorno de pruebas" en la esquina de la pantalla de acceso.
+ * Se apoya en `wp_get_environment_type()` (WP_ENVIRONMENT_TYPE en
+ * wp-config.php): si el sitio no se ha marcado explícitamente como
+ * 'development'/'staging'/'local', no se pinta nada, así que en producción no
+ * hay que acordarse de quitarla a mano. CSS en custom-style.css §58.
+ */
+function sticpa_test_env_ribbon_html()
+{
+    if (function_exists('wp_get_environment_type') && wp_get_environment_type() === 'production') {
+        return '';
+    }
+    return "<div class='stic-test-ribbon'><span>" . esc_html__('Pruebas', 'sticpa') . "</span></div>";
+}
+
 // Clase en el body + CSS que esconde el "chrome" del tema alrededor del área.
 add_filter('body_class', function ($classes) {
     if (sticpa_is_app_mode()) {
