@@ -2809,7 +2809,11 @@ a.pl-group .pl-name { display: block; }
    rerompe.
 
    EL AIRE, en una variable y en un solo sitio. */
-:root { --pl-gutter: 0.25rem; --stic-scrollbar: 0px; }
+/* 12 px, EL MISMO AIRE QUE EL RESTO DEL ÁREA en el móvil (custom-style §7:
+   el área se come 18 de los 30 px del tema y queda a 12 del borde). Fueron 4
+   px desde el 28/08, y el 24/09, con el resto a 12, estas pantallas se veían
+   pegadas al cristal. */
+:root { --pl-gutter: 0.75rem; --stic-scrollbar: 0px; }
 
 /* `--stic-scrollbar` lo mide js/stic-ui.js: `100vw` cuenta la barra de scroll
    cuando no es superpuesta (escritorio estrecho), y sin restarla el área se
