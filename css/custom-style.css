@@ -873,6 +873,8 @@ span.stic-field {
     overflow: hidden;            /* sin desbordes: lo que no cabe va a "Más" (JS) */
     gap: 0.25rem;
 }
+/* Las cabeceras de grupo son solo del menú del móvil (ver §7 móvil). */
+.stic-nav-group { display: none; }
 /* El tema mete subrayado en los enlaces; lo quitamos en toda la barra. */
 .stic-nav-link,
 .stic-nav-link:hover,
@@ -1049,34 +1051,91 @@ span.stic-field {
        hay sitio; solo recorta si de verdad no cabe. */
     .stic-part-switch-btn { max-width: 100%; }
     .stic-part-switch-btn .stic-part-name { max-width: 46vw; }
+    /* CERRADO NO OCUPA NADA. El relleno de la regla base va con !important,
+       así que aquí también: sin él, la lista cerrada dejaba ~15 px bajo la
+       barra y la identidad se veía descentrada en vertical. */
     .stic-nav-list {
-        flex-direction: column;
-        gap: 0.2rem;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.45rem;
         max-height: 0;
-        padding: 0 0.4rem;
+        padding: 0 0.6rem !important;
         opacity: 0;
         overflow: hidden;
         border-top: 0;
         transition: max-height 0.35s var(--ease-out), opacity 0.25s ease;
     }
     .stic-nav.is-open .stic-nav-list {
-        max-height: 75vh;
+        max-height: 78vh;
         overflow-y: auto;
         opacity: 1;
-        padding: 0.3rem 0.4rem 0.3rem;
+        padding: 0.7rem 0.6rem 0.8rem !important;
         border-top: 1px solid rgba(255, 255, 255, 0.18);
         -webkit-overflow-scrolling: touch;
     }
-    /* Item activo (página actual) en el menú: texto siempre blanco legible. */
+    /* El orden del móvil: por grupos (sticpa_nav_layout en menu.php). */
+    /* El valor de verdad lo pone el `style` de cada <li>, que gana a esto. */
+    .stic-nav-list > li { --stic-order: 999; order: var(--stic-order); min-width: 0; }
+
+    /* Cabecera de grupo: la misma etiqueta pequeña de la portada, en blanco. */
+    .stic-nav-group {
+        display: block;
+        grid-column: 1 / -1;
+        margin: 0.55rem 0.2rem 0.05rem;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.72);
+    }
+
+    /* MOSAICOS de dos en dos; el último de un grupo impar, a lo ancho. */
+    .stic-nav-item--wide { grid-column: 1 / -1; }
+    .stic-nav-link {
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.6rem;
+        height: 100%;
+        min-height: 4.6rem;
+        padding: 0.8rem 0.85rem;
+        font-size: 0.95rem;
+        line-height: 1.2;
+        white-space: normal;
+        background: rgba(255, 255, 255, 0.1) !important;
+        border-radius: var(--radius-lg);
+    }
+    .stic-nav-item--wide .stic-nav-link {
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-start;
+        min-height: 3.4rem;
+    }
+    .stic-nav-ico {
+        width: 34px; height: 34px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.16);
+    }
+    .stic-nav-ico svg { width: 19px; height: 19px; }
+    /* Item activo (página actual): texto siempre blanco legible. */
     .stic-nav.is-open .stic-nav-item.current-menu-item .stic-nav-link,
     .stic-nav.is-open .stic-nav-link { color: #fff !important; }
-    .stic-nav-link { padding: 0.9rem 1rem; font-size: 1.02rem; } /* targets cómodos en móvil */
     .stic-nav-link:hover { transform: none; }
-    .stic-nav-item.current-menu-item .stic-nav-link { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3); }
+    .stic-nav-link:active { transform: scale(0.97) !important; }
+    /* EL ACTIVO SE VE: mosaico blanco con el texto e icono de la marca. */
+    .stic-nav.is-open .stic-nav-item.current-menu-item .stic-nav-link {
+        background: #fff !important;
+        color: var(--primary-color) !important;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18) !important;
+    }
+    .stic-nav-item.current-menu-item .stic-nav-ico {
+        background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+        color: var(--primary-color);
+    }
     /* En móvil se ven todas las secciones en el drawer: "Más" no aplica */
     .stic-nav-more-wrap { display: none !important; }
     /* "Salir" separado al final del desplegable */
-    .stic-nav-logout-item { margin-top: 0.35rem; padding-top: 0.45rem; border-top: 1px solid rgba(255, 255, 255, 0.16); }
+    .stic-nav-logout-item { grid-column: 1 / -1; order: 9999; margin-top: 0.35rem; padding-top: 0.45rem; border-top: 1px solid rgba(255, 255, 255, 0.16); }
 }
 
 /* ============================================================

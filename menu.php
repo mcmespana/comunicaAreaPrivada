@@ -95,6 +95,66 @@ function defaultMenuElement()
     return $defaultMenuElement;
 }
 
+/**
+ * CÓMO SE AGRUPA EL MENÚ EN EL MÓVIL.
+ *
+ * Los mismos grupos que la portada, en su mismo orden: Inicio suelto arriba,
+ * «Tu día a día», «Equipo de monitores» y «Tu cuenta». Cada grupo va en
+ * mosaicos de dos en dos; si le toca un número impar, el último ocupa el
+ * ancho entero, para que no quede un hueco a la derecha.
+ *
+ * Devuelve el orden visual de cada sección y de cada cabecera, y qué
+ * mosaicos son anchos. No cambia el orden del HTML (ver quien la llama).
+ *
+ * @param string[] $keys  Las secciones del menú, en su orden.
+ */
+function sticpa_nav_layout($keys)
+{
+    $equipo = function_exists('sticpa_equipo_secciones') ? array_keys(sticpa_equipo_secciones()) : array();
+    $equipo = array_merge($equipo, array('single_stic_comunica_monitor', 'single_stic_pasar_lista', 'single_stic_mis_grupos',
+        'single_stic_pasar_lista_monitores', 'single_stic_pasar_lista_reuniones'));
+    $cuenta = array('single_stic_comunica_perfil', 'single_stic_tutor_profile', 'single_stic_profile',
+        'single_stic_password_change', 'single_stic_profile_selection', 'single_stic_unsubscribe');
+
+    $groups = array(
+        'inicio' => array('label' => '', 'keys' => array()),
+        'dia'    => array('label' => __('Tu día a día', 'sticpa'), 'keys' => array()),
+        'equipo' => array('label' => __('Equipo de monitores', 'sticpa'), 'keys' => array()),
+        'cuenta' => array('label' => __('Tu cuenta', 'sticpa'), 'keys' => array()),
+    );
+    foreach ($keys as $key) {
+        if ($key === 'single_stic_home') {
+            $g = 'inicio';
+        } elseif (in_array($key, $equipo, true)) {
+            $g = 'equipo';
+        } elseif (in_array($key, $cuenta, true)) {
+            $g = 'cuenta';
+        } else {
+            $g = 'dia';
+        }
+        $groups[$g]['keys'][] = $key;
+    }
+
+    $items = array();
+    $outGroups = array();
+    $base = 0;
+    foreach ($groups as $group) {
+        if (empty($group['keys'])) {
+            continue;
+        }
+        $base += 100;
+        $outGroups[] = array('label' => $group['label'], 'order' => $base);
+        $count = count($group['keys']);
+        foreach ($group['keys'] as $i => $key) {
+            $items[$key] = array(
+                'order' => $base + 1 + $i,
+                'wide' => ($count % 2 === 1 && $i === $count - 1),
+            );
+        }
+    }
+    return array('groups' => $outGroups, 'items' => $items);
+}
+
 /*
  * `sticpa_is_familia()` y `sticpa_available_profiles()` VIVÍAN AQUÍ y se han
  * movido a inc/stic-family.php, que es donde vive todo lo de "quién eres y qué
@@ -355,13 +415,26 @@ function menu()
     $menu .= "<div class='stic-nav-bar'>" . $account . $actions . "</div>";
 
     if ($showItems) {
+        // EN MÓVIL, MOSAICOS AGRUPADOS (sticpa_nav_layout). El orden del HTML
+        // es el de siempre, porque es el que usa la barra de escritorio y su
+        // «Más»; el móvil reordena con `order` (la variable --stic-order) y
+        // pinta las cabeceras de grupo, que en escritorio no se ven.
+        $layout = sticpa_nav_layout(array_keys($items));
         $menu .= "<ul class='stic-nav-list' id='stic-nav-list'>";
+        foreach ($layout['groups'] as $group) {
+            if ($group['label'] === '') {
+                continue;
+            }
+            $menu .= "<li class='stic-nav-group' aria-hidden='true' style='--stic-order:" . (int) $group['order'] . "'>" . esc_html($group['label']) . "</li>";
+        }
         foreach ($items as $key => $label) {
             $isActive = ($page == $key) ? 'current-menu-item stic-current-menu-item' : '';
             // aria-current: señal programática de "estás aquí" (la clase es solo visual).
             $ariaCurrent = ($page == $key) ? " aria-current='page'" : '';
             $icon = function_exists('sticpa_section_icon') ? sticpa_section_icon($key) : '';
-            $menu .= "<li class='stic-nav-item " . $isActive . "'>
+            $wide = !empty($layout['items'][$key]['wide']) ? ' stic-nav-item--wide' : '';
+            $order = (int) ($layout['items'][$key]['order'] ?? 999);
+            $menu .= "<li class='stic-nav-item{$wide} " . $isActive . "' style='--stic-order:{$order}'>
                         <a class='stic-nav-link' href='?internalpage=" . $key . "'{$ariaCurrent}>
                             <span class='stic-nav-ico'>" . $icon . "</span>
                             <span class='stic-nav-text'>" . esc_html($label) . "</span>
