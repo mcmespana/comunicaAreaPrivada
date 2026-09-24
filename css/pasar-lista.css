@@ -3326,3 +3326,16 @@ a.pl-group .pl-name { display: block; }
     color: var(--warning-darker);
 }
 .pl-hint--warn svg { color: var(--warning-dark); flex-shrink: 0; }
+
+/* ---- BORDE DE LAS TARJETAS EN CLARO ------------------------------------
+   Blanco sobre blanco no se distingue. Las tarjetas de estas pantallas solo
+   llevaban una sombra de 1 px, que se leía mientras el área tenía un velo de
+   color de fondo; al quitarlo (24/09/2026) se quedaron sin contorno y la
+   ficha parecía una sola hoja. Gris claro, el mismo token que las tarjetas y
+   los campos del resto del área. En oscuro ya se separan por el tono. */
+:root:not([data-stic-scheme="dark"]) :is(
+    .pl-list, .pl-buckets, .pl-att, .pl-card, .pl-ds,
+    .pl-newmeet, .pl-tracks, .pl-fold
+) {
+    border: 1px solid var(--gray-200);
+}
