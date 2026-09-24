@@ -20,6 +20,16 @@
         }
     }
 
+    /* -------- Ancho de la barra de scroll --------
+       `100vw` incluye la barra de desplazamiento cuando NO es superpuesta
+       (ventana estrecha de escritorio). Las pantallas de Pasar Lista sangran
+       con `100vw` y se salían ese ancho por la derecha, donde el clip las
+       cortaba. Se publica aquí para que el CSS lo reste. En el móvil vale 0. */
+    function measureScrollbar() {
+        var sb = Math.max(0, window.innerWidth - document.documentElement.clientWidth);
+        document.documentElement.style.setProperty('--stic-scrollbar', sb + 'px');
+    }
+
     /* -------- Overlay de carga reutilizable -------- */
     var overlay = null;
 
@@ -772,6 +782,8 @@
         bindLoadingForms();
         bindLoadingLinks();
         bindPasswordToggles();
+        measureScrollbar();
+        window.addEventListener('resize', measureScrollbar);
         bindAuthToggle();
         bindNavToggle();
         bindNavMore();

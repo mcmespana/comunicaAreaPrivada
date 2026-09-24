@@ -192,7 +192,7 @@ class TokensCssTest extends TestCase
         $css = $this->pasarLista();
 
         $this->assertMatchesRegularExpression(
-            '/\.stic-container\s*\{[^}]*margin-inline:\s*calc\(50%\s*-\s*50vw\)/',
+            '/\.stic-container\s*\{[^}]*margin-inline:\s*calc\(50%\s*-\s*50vw(\s*\+\s*var\(--stic-scrollbar\)\s*\/\s*2)?\)/',
             $css,
             'El sangrado va en `.stic-container`, no en un hijo suyo: el '
                 . '`overflow-x: clip` del contenedor recorta a los hijos que se salen.'
@@ -213,7 +213,7 @@ class TokensCssTest extends TestCase
          * 04/09: con solo el margen, 0..330 en un viewport de 390 —sesenta
          * píxeles muertos a la derecha—. Con `width: 100vw`, 0..390. */
         $this->assertMatchesRegularExpression(
-            '/\.stic-container\s*\{[^}]*width:\s*100vw/',
+            '/\.stic-container\s*\{[^}]*width:\s*(100vw|calc\(100vw\s*-\s*var\(--stic-scrollbar\)\))/',
             $css,
             'Falta `width: 100vw`: sin él el margen negativo desplaza el área pero '
                 . 'no la ensancha, porque cuelga de contenedores flex de Elementor. '
@@ -320,7 +320,7 @@ class TokensCssTest extends TestCase
         }
 
         $this->assertMatchesRegularExpression(
-            '/\.stic-container\s*\{[^}]*margin-inline:\s*calc\(50%\s*-\s*50vw\)/',
+            '/\.stic-container\s*\{[^}]*margin-inline:\s*calc\(50%\s*-\s*50vw(\s*\+\s*var\(--stic-scrollbar\)\s*\/\s*2)?\)/',
             $css,
             'Sin el sangrado, el `overflow-x: clip` de `.stic-container` recorta '
                 . '`.pl-sheet` por los lados: es fixed y quiere el ancho del viewport. '
