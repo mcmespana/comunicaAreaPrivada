@@ -130,6 +130,42 @@ class SugarRestApiCall
     }
 
     /**
+     * Un valor del usuario, listo para ir ENTRE COMILLAS SIMPLES dentro del
+     * `query` de get_entry_list. SuiteCRM pega ese `query` tal cual en el WHERE
+     * del SQL, así que sin esto una comilla en el usuario del login
+     * (`x' OR '1'='1`) cambiaba la consulta y dejaba entrar como el primer
+     * contacto que devolviera, sin contraseña (plan 008).
+     *
+     * La barra invertida se dobla y la comilla se duplica (`''`): así queda
+     * bien escapado tanto si MySQL trata `\` como escape como si no.
+     */
+    public static function quoteValue($value)
+    {
+        return str_replace(array('\\', "'"), array('\\\\', "''"), (string) $value);
+    }
+
+    /**
+     * VERIFICACIÓN TLS (plan 008). Estaba APAGADA (`VERIFYPEER = 0`): la
+     * conexión iba cifrada, pero no se comprobaba que al otro lado estuviera de
+     * verdad el CRM. Quien se pusiera en medio podía hacerse pasar por él y
+     * quedarse con la sesión del usuario técnico —que lo puede todo— y con
+     * todo lo que viaja: fichas, contraseñas del área, documentos.
+     *
+     * El CRM tiene un certificado válido (Let's Encrypt), así que se verifica
+     * siempre: la cadena (PEER) y que el nombre sea el del CRM (HOST = 2).
+     *
+     * La vía de escape es el filtro `sticpa_crm_tls_verify` (devolver 0), SOLO
+     * para salir del paso si el servidor se queda sin su almacén de CAs. No es
+     * un ajuste: apagarlo es volver a dejar la puerta abierta.
+     */
+    private static function applyTls($handle)
+    {
+        $verify = self::intSetting('sticpa_crm_tls_verify', 1) === 1;
+        curl_setopt($handle, CURLOPT_SSL_VERIFYPEER, $verify);
+        curl_setopt($handle, CURLOPT_SSL_VERIFYHOST, $verify ? 2 : 0);
+    }
+
+    /**
      * Devuelve el handle de cURL de esta instancia, limpio de opciones previas.
      * curl_reset() vacía las opciones pero CONSERVA el pool de conexiones, que
      * es justo lo que queremos reutilizar.
@@ -208,7 +244,7 @@ class SugarRestApiCall
         // se partía la respuesta a mano con explode("\r\n\r\n"), que es lo que
         // obligaba a usar HTTP/1.0 (con 1.1 puede llegar chunked o 100-continue).
         curl_setopt($curl_request, CURLOPT_HEADER, 0);
-        curl_setopt($curl_request, CURLOPT_SSL_VERIFYPEER, 0);
+        self::applyTls($curl_request);
         curl_setopt($curl_request, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($curl_request, CURLOPT_FOLLOWLOCATION, 0);
         curl_setopt($curl_request, CURLOPT_TCP_KEEPALIVE, 1);
@@ -569,7 +605,7 @@ class SugarRestApiCall
         curl_setopt($ch, CURLOPT_POST, 1);
         curl_setopt($ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
         curl_setopt($ch, CURLOPT_HEADER, 0);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, 0);
+        self::applyTls($ch);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 0);
         curl_setopt($ch, CURLOPT_TCP_KEEPALIVE, 1);
@@ -652,7 +688,7 @@ class SugarRestApiCall
         $get_entry_list = array(
             'session' => $this->session_id,
             'module_name' => $this->destinationModule,
-            'query' => "stic_pa_username_c = '{$username}' AND  stic_pa_password_c = '{$password}'",
+            'query' => "stic_pa_username_c = '" . self::quoteValue($username) . "' AND  stic_pa_password_c = '" . self::quoteValue($password) . "'",
             'order_by' => '',
             'offset' => 0,
             'select_fields' => $selectFields,
@@ -859,7 +895,7 @@ class SugarRestApiCall
         $get_entry_list = array(
             'session' => $this->session_id,
             'module_name' => $this->destinationModule,
-            'query' => "stic_pa_username_c = '{$username}'",
+            'query' => "stic_pa_username_c = '" . self::quoteValue($username) . "'",
             'order_by' => '',
             'offset' => 0,
             'select_fields' => array('id', 'stic_pa_username_c', 'stic_pa_password_c', 'email1'),
@@ -1296,7 +1332,7 @@ class SugarRestApiCall
         $get_entry_list = array(
             'session' => $this->session_id,
             'module_name' => $module,
-            'query' => "ajmcm_pa_token_c = '{$token}'",
+            'query' => "ajmcm_pa_token_c = '" . self::quoteValue($token) . "'",
             'order_by' => '',
             'offset' => 0,
             'select_fields' => $selectFields,

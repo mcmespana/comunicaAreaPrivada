@@ -33,10 +33,14 @@ function getDestinationModule()
 {
     // $moduleToUse = 'Accounts';
     // $moduleToUse = 'Contacts';
-    if(isset($_REQUEST['scp_module'])){
-        $scp_module = $_REQUEST['scp_module'];
-    } elseif (isset($_SESSION['scp_module'])) {
+    // Con sesión abierta manda la sesión, SIEMPRE. Antes ganaba `scp_module`
+    // del request, y el guardado del perfil hacía set_entry sobre el módulo que
+    // dijera el cliente. Del request solo se acepta en el login (el selector
+    // de la opción "Any"), y solo con uno de los dos valores que existen.
+    if (isset($_SESSION['scp_module'])) {
         $scp_module = $_SESSION['scp_module'];
+    } elseif (isset($_REQUEST['scp_module']) && in_array($_REQUEST['scp_module'], array('Contacts', 'Accounts'), true)) {
+        $scp_module = $_REQUEST['scp_module'];
     } else {
         $scp_module = get_option('sticpa_scp_module');
     }
@@ -50,6 +54,9 @@ function sticpa_load_languages()
     load_plugin_textdomain($text_domain, false, $path_languages);
 }
 
+// Las comprobaciones de seguridad de los handlers (sesión, propiedad, campos
+// firmados, destino de las redirecciones). Antes que stic-action.php, que las usa.
+include plugin_dir_path(__FILE__) . 'inc/stic-security.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-action.php';
 // stic-theme.php ANTES de stic-magic-login.php: la pantalla puente del enlace
 // mágico resuelve su apariencia con sticpa_theme_pref().
@@ -67,6 +74,10 @@ include plugin_dir_path(__FILE__) . 'inc/stic-calendar.php';
 // resto): les presta los iconos, las fechas en lenguaje humano y el formato.
 include plugin_dir_path(__FILE__) . 'inc/stic-record-view.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-events.php';
+// El cuerpo de los eventos: el MISMO renderizador que la página pública de
+// actividades (comunicaFormularios la copia de aquí). Ver su cabecera.
+include_once plugin_dir_path(__FILE__) . 'inc/eventos-cuerpo.php';
+include plugin_dir_path(__FILE__) . 'inc/stic-event-web.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-event-audience.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-registrations.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-payments.php';
@@ -1161,6 +1172,13 @@ function sugar_crm_portal_start_session()
     if ((int) ini_get('session.gc_maxlifetime') < $ttl) {
         @ini_set('session.gc_maxlifetime', (string) $ttl);
     }
+
+    // Modo estricto: PHP rechaza un id de sesión que no haya creado él. Sin
+    // esto, un id inventado que llegara en la cookie se aceptaba tal cual y
+    // abría la puerta a fijar la sesión de otro (TODO.md, SEC-06). Solo cookie:
+    // nunca un id en la URL.
+    @ini_set('session.use_strict_mode', '1');
+    @ini_set('session.use_only_cookies', '1');
 
     // Cookie de sesión de larga duración (en vez de "hasta cerrar el navegador").
     $secure = is_ssl();

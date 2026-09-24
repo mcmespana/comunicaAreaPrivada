@@ -73,6 +73,16 @@ contexto**. Reglas:
   compara a mano (`assigned_user_id`, ver `sticpa_pl_delegation()`). Da por
   hecho lo contrario y dejarás una pantalla abierta a otras delegaciones —le
   pasó a «Eventos» hasta el 09/09/2026—.
+- **Un handler nuevo pasa por [`inc/stic-security.php`](inc/stic-security.php)**
+  (planes 001-005, 24/09/2026): `sticpa_require_session()` lo primero,
+  `sticpa_user_owns_record()` para cualquier `id` que llegue en la petición,
+  `sticpa_request_to_module_data()` para lo que se escribe (nunca un
+  `foreach ($_REQUEST …)`) y `wp_safe_redirect(sticpa_return_url() …)` para
+  volver. Un campo `html` de un formulario que pinte sus propios `<input>` los
+  declara con `'posts'`, o no se guardan. Una acción que cambia algo sin
+  escribir campos (borrar, baja) exige `sticpa_form_is_genuine()`: la firma
+  va atada a la sesión y es la protección contra CSRF. `SecurityTest` falla si un
+  `admin_post_nopriv_*` se olvida de la sesión.
 
 ---
 
@@ -94,6 +104,7 @@ El mapa de los demás documentos está en
 |---|---|
 | Campos del CRM (**la fuente de la verdad**) | `docs/comunica/CAMPOS.md` |
 | Eventos e inscripciones | `docs/comunica/EVENTOS.md` |
+| **Cuerpo de los eventos** (renderizador compartido con la web; original aquí, copia en formularios) | `inc/eventos-cuerpo.php` + `EVENTOS.md` §9 |
 | **Pasar Lista — índice de todo** | `docs/comunica/PASAR-LISTA-README.md` |
 | **Mis Grupos** (leer fichas sin pasar lista) | `docs/comunica/MIS-GRUPOS.md` |
 | **Pasar Lista — parte de estado: qué funciona, qué está roto** | `docs/comunica/PASAR-LISTA-ESTADO.md` |

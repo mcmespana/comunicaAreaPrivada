@@ -1,4 +1,12 @@
 <?php
+
+// ¿Es tuyo? Antes esta pantalla abría el registro de cualquier `?id=` que se
+// le pasara (inc/stic-security.php, sticpa_record_denied_html).
+$sticpaDenied = sticpa_record_denied_html($objSCP, 'Documents', $_REQUEST['id'] ?? '', 'list_stic_documents', __('Este documento ya no está disponible', 'sticpa'));
+if ($sticpaDenied !== '') {
+    $html .= $sticpaDenied;
+    return;
+}
 #########################################################
 # Form settings                                         #
 #########################################################

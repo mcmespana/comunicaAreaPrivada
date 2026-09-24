@@ -41,6 +41,7 @@ $html .= "<div class='stic-form stic-form-two-col'>
 
             <li class='stic-send'>
                         <input type='hidden' name='action' value='single_stic_password_change'>
+                        " . sticpa_form_fields_input('single_stic_password_change', array()) . "
                         <input type='hidden' name='scp_current_url' value='" . $current_url . "'>
                         <span class='desc'><input type='submit' value='" . __('Change password', 'sticpa') . "' /></span>
             </li>

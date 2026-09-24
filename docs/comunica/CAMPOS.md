@@ -763,6 +763,32 @@ funcional en [`EVENTOS.md`](EVENTOS.md) §5.
     `javascript:…` acabaría en un enlace que pulsa una familia. Un esquema que
     no valga se descarta y se cae a la búsqueda.
 
+**La web del evento — seis campos `web_*_c`** (creados en Studio el
+20/09/2026; tipos verificados por MCP el 24/09/2026). ⚠️ **Van SIN el prefijo
+`ajmcm_`**, a diferencia del resto de campos propios del módulo: así se crearon
+y así se quedan. Los lee la página pública (`/actividades`, repo
+comunicaFormularios), el modal de la convivencia de los formularios y, desde el
+24/09/2026, la ficha del evento del área privada. Las etiquetas de Studio no
+las devuelve la API: si las necesitas, míralas allí.
+
+| Campo | Tipo | Para qué |
+|---|---|---|
+| `web_publicar_c` | casilla (por defecto `0`) | El interruptor de la **página pública**. Apagada, el evento no tiene página en `/actividades`; su texto sí se ve en el área privada y en el modal de la convivencia |
+| `web_url_c` | URL | A dónde lleva «Inscribirme» en la página pública. Vacío → «Entrar al área privada». ⚠️ Vacío llega como `http://` (SuiteCRM): se trata como vacío |
+| `web_cuerpo_c` | texto largo | **El cuerpo**: Markdown reducido (chuleta en `inc/eventos-cuerpo.php`). Trae una plantilla por defecto con huecos `ID-DEL-CARTEL-EN-EL-CRM`, que se ignoran si no se rellenan. **No es sitio para borradores**: es público aunque el evento no esté publicado |
+| `web_cartel_c` | URL | La imagen de cabecera, si no se sube al evento. Vacío = `http://` (ver arriba) |
+| `web_lema_c` | texto (255) | El subtítulo bajo el título («Sin Rodeos: Soy Consolación») |
+| `web_slug_c` | texto (255) | La URL bonita (`?e=convivencia26-cs-com`). Vacío → se saca del nombre |
+
+Los **documentos** del evento cuelgan de la relación `stic_events_documents_1`
+(nombre técnico; la API rechaza la etiqueta «Documents»). La primera imagen es
+el cartel si no hay otro, las demás van a galería y los PDF a descargar. Solo
+PDF, JPG, PNG, GIF y WEBP (sin SVG).
+
+⚠️ **Los textos llegan con entidades HTML** (`&quot;`, `&#039;`, `&gt;`): así los
+guarda SuiteCRM. Quien los pinte tiene que deshacerlas antes de escapar, o sale
+«&quot;» en pantalla (`mcm_cuerpo_normalizar()`).
+
 ⚠️ **NO se filtra por `ajmcm_etapa_c` del evento** (multienum `MIC`/`COM`/`LC`,
 obligatorio) aunque parezca el candidato natural. Ese campo dice a qué etapas
 **sirve el evento en Pasar Lista** —un sábado marcado `^MIC^,^COM^` comparte

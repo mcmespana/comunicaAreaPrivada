@@ -22,21 +22,21 @@ antes de empezar, respeta sus "STOP conditions" y actualiza su fila de estado al
 
 | Plan | Título | Prioridad | Esfuerzo | Depende de | Estado |
 |------|--------|-----------|----------|------------|--------|
-| 001 | Exigir sesión autenticada en los handlers que mutan datos | P0 | S | — | TODO |
-| 002 | Eliminar IDOR + mass-assignment en las escrituras al CRM | P0 | M | 001 | TODO |
-| 003 | Asegurar ver/descargar documentos + validar subidas | P0 | M | 001 | TODO |
-| 004 | Validar el destino del selector de participante | P0 | M | 001 | TODO |
-| 005 | Corregir el open redirect vía `scp_current_url` | P1 | S | — | TODO |
-| 006 | Escapar los valores del CRM al pintarlos (XSS almacenado) | P1 | M | — | TODO |
+| 001 | Exigir sesión autenticada en los handlers que mutan datos | P0 | S | — | **HECHO** (24/09) — `sticpa_require_session()` en todos; un test recorre los `admin_post_nopriv_*` y falla si alguno no la llama |
+| 002 | Eliminar IDOR + mass-assignment en las escrituras al CRM | P0 | M | 001 | **HECHO** (24/09) — el formulario FIRMA la lista de campos que enseña y el handler solo acepta esos (más una lista negra que manda siempre); el `id` sale de la sesión o de la comprobación de propiedad. Pagos y compromisos ya no escriben |
+| 003 | Asegurar ver/descargar documentos + validar subidas | P0 | M | 001 | **HECHO** (24/09) — descargar/editar/borrar y las fichas de pago, compromiso, inscripción y documento exigen que el registro salga en TU listado. Subidas: 6 MB y lista de extensiones. `single_stic_sessions` también: la sesión tiene que ser de un evento en el que estás inscrito |
+| 004 | Validar el destino del selector de participante | P0 | M | 001 | **HECHO** (24/09) — solo uno mismo o alguien de su lista; el nombre y el familiar salen de la sesión, no del enlace |
+| 005 | Corregir el open redirect vía `scp_current_url` | P1 | S | — | **HECHO** (24/09) — `sticpa_return_url()` tira esquema y host; todos los redirects son `wp_safe_redirect` |
+| 006 | Escapar los valores del CRM al pintarlos (XSS almacenado) | P1 | M | — | **HECHO** (24/09) — celdas de `makeList`, `readOnly`/`info`/`image`, `<option>` de select y multienum y los radios; `html`/`note` siguen con `wp_kses_post` a propósito |
 | 007 | Regenerar el ID de sesión al autenticar (session fixation) | P1 | S | — | **HECHO** (01/09) — adelantado al resto de seguridad por ser de dos líneas y sin riesgo |
-| 008 | Endurecer el transporte al CRM: TLS + queries de login | P0 | M | — | TODO |
+| 008 | Endurecer el transporte al CRM: TLS + queries de login | P0 | M | — | **HECHO** (24/09) — TLS verificado (PEER + HOST=2; certificado Let's Encrypt válido); `quoteValue()` en las consultas del login, que admitían `x' OR '1'='1` |
 | 009 | Cachear `get_module_fields` también en `makeList` | P1 | S | — | **DONE** → `archive/` |
 | 010 | Servir el CSS de DataTables local + enqueue condicional | P1 | M | — | **DONE** → `archive/` |
 | 011 | Eliminar los N+1 de listados, calendario y selector | P1 | L | 013 | TODO |
-| 012 | Sustituir `getAllEmail()` por una consulta puntual | P1 | S | — | TODO (ver nota de riesgo) |
+| 012 | Sustituir `getAllEmail()` por una consulta puntual | P1 | S | — | **YA NO APLICA** — el alta y `getAllEmail()` se borraron el 10/09/2026 |
 | 013 | Establecer una base de verificación (PHPUnit + mocks) | P1 | M | — | **DONE** → `archive/` (baseline; ver seguimiento) |
 | 014 | Retirar assets muertos y arreglar docs desfasadas | P2 | S | — | **DONE** → `archive/` |
-| 015 | Conectar o bloquear el formulario de pago del familiar | P1 | M | 013 | TODO |
+| 015 | Conectar o bloquear el formulario de pago del familiar | P1 | M | 013 | **BLOQUEADO — decisión del propietario** (24/09): los campos reales existen en el participante y la pantalla edita al familiar. Ver `FAM-02` en `TODO.md` |
 | 016 | Tema claro/oscuro AUTOMÁTICO (dispositivo + app MCM) | P2 | L | 018 | **DONE** → [`archive/016-dark-theme.md`](archive/016-dark-theme.md) |
 | 017 | Foto de perfil por endpoint con miniatura (fuera base64) | P1 | M | — | **DONE** → `archive/` |
 | 018 | Consolidar CSS: un solo :root, menos duplicados/!important | P2 | L | — | **PARCIAL** (F1 hecha; F2/3 medidas = no-batch, ver ficha) |
