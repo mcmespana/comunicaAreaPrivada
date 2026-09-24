@@ -39,6 +39,16 @@ class SecurityTest extends TestCase
         $this->assertSame('/', sticpa_return_path());
     }
 
+    public function test_sin_vuelta_se_vuelve_al_area_y_no_a_la_raiz()
+    {
+        $GLOBALS['__stic_options']['sticpa_scp_area_url'] = 'https://comunica.example/ap/';
+        $this->assertSame('/ap/', sticpa_return_path());
+        $_REQUEST['scp_current_url'] = '//otro-sitio';
+        $this->assertSame('/ap/', sticpa_return_path());
+        unset($GLOBALS['__stic_options']['sticpa_scp_area_url']);
+        $this->assertSame('/', sticpa_return_path());
+    }
+
     public function test_la_vuelta_normal_no_cambia()
     {
         $_REQUEST['scp_current_url'] = '/ap/?internalpage=single_stic_documents';
