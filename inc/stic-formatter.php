@@ -23,7 +23,7 @@ function formatValue($value, $formatIn)
         case 'upper':
             return strtoupper($value);
             break;
-        case 'date';
+        case 'date':
             if (!empty($value))
 				return date('d-m-Y', strtotime($value));
 			else
@@ -36,7 +36,7 @@ function formatValue($value, $formatIn)
 			else
 				return '';
             break;
-        case 'translate';
+        case 'translate':
             return __($value,'sticpa');
             break;
         case 'callback':

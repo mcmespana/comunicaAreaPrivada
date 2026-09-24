@@ -336,6 +336,17 @@ function sticpa_user_owns_record($objSCP, $module, $id)
     if ($id === '' || !sticpa_has_session()) {
         return false;
     }
+    // Una sesión no cuelga de la persona sino de un EVENTO: es tuya si es de
+    // un evento en el que tienes una inscripción activa (lo mismo que enseña
+    // «Mis sesiones»). El evento se lee del campo plano `_ida`, la regla de la
+    // casa: esta instancia no devuelve los enlaces anidados.
+    if ($module === 'stic_Sessions') {
+        $detail = $objSCP->getRecordDetail($id, 'stic_Sessions', array('id', 'stic_sessions_stic_eventsstic_events_ida'));
+        $eventId = (string) ($detail->entry_list[0]->name_value_list->stic_sessions_stic_eventsstic_events_ida->value ?? '');
+        return $eventId !== '' && function_exists('prefix_user_active_event_ids')
+            && in_array($eventId, prefix_user_active_event_ids($objSCP), true);
+    }
+
     $owned = sticpa_owned_ids($objSCP, $module);
     if (is_array($owned) && in_array($id, $owned, true)) {
         return true;

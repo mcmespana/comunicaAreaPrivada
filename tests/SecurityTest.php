@@ -170,6 +170,56 @@ class SecurityTest extends TestCase
         $this->assertFalse(sticpa_user_owns_record($crm, 'stic_Payments', 'pago-de-otra-familia'));
     }
 
+    /**
+     * En su propio proceso: prefix_user_active_event_ids() memoriza en una
+     * estática para toda la petición (bien en producción, donde una petición es
+     * una persona), y otro test de la suite ya la habría llenado.
+     */
+    #[\PHPUnit\Framework\Attributes\RunInSeparateProcess]
+    public function test_una_sesion_es_tuya_si_es_de_un_evento_al_que_estas_inscrito()
+    {
+        $_SESSION['scp_user_id'] = 'yo';
+        $crm = new class {
+            public function getRecordDetail($id, $module, $fields = array())
+            {
+                $evento = array('ses-mia' => 'ev-mio', 'ses-ajena' => 'ev-ajeno')[$id] ?? '';
+                return (object) array('entry_list' => array((object) array('name_value_list' => (object) array(
+                    'stic_sessions_stic_eventsstic_events_ida' => (object) array('value' => $evento),
+                ))));
+            }
+            public function getRelatedElementsForLoggedUser($p)
+            {
+                if ($p['link_field_name'] === 'stic_registrations_contacts') {
+                    return array((object) array('id' => 'reg-1', 'name_value_list' => (object) array('status' => (object) array('value' => 'confirmed'))));
+                }
+                if ($p['link_field_name'] === 'stic_registrations_stic_events') {
+                    return array((object) array('id' => 'ev-mio'));
+                }
+                return array();
+            }
+        };
+        $this->assertTrue(sticpa_user_owns_record($crm, 'stic_Sessions', 'ses-mia'));
+        $this->assertFalse(sticpa_user_owns_record($crm, 'stic_Sessions', 'ses-ajena'));
+    }
+
+    /* ── 006: lo que viene del CRM se escapa al pintarlo ────────────────── */
+
+    public function test_un_valor_del_crm_con_script_se_pinta_como_texto()
+    {
+        require_once dirname(__DIR__) . '/inc/stic-formController.php';
+        $xss = '<script>alert(1)</script>';
+        foreach (array('readOnly', 'info', 'image') as $tipo) {
+            $html = getFieldHtml('Etiqueta', $tipo, '', '', '', 'campo', $xss, array(), '', array());
+            $this->assertStringNotContainsString('<script>', $html, $tipo);
+        }
+        $select = getFieldHtml('Etiqueta', 'select', '', '', '', 'campo', '', array('selectValues' => array("x'><script>" => $xss)), '', array());
+        $this->assertStringNotContainsString('<script>', $select);
+        $multi = getFieldHtml('Etiqueta', 'multienum', '', '', '', 'campo', "^a'><script>^", array('selectValues' => array('a' => $xss)), '', array());
+        $this->assertStringNotContainsString('<script>', $multi);
+        $radio = getFieldHtml('Etiqueta', 'radio', '', '', '', 'campo', '', array('selectValues' => array('a' => $xss)), '', array());
+        $this->assertStringNotContainsString('<script>', $radio);
+    }
+
     /* ── 004: cambio de participante ────────────────────────────────────── */
 
     public function test_solo_se_puede_pasar_a_uno_mismo_o_a_un_participante_propio()
