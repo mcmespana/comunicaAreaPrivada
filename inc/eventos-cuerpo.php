@@ -1,6 +1,6 @@
 <?php
 /**
- * EL CUERPO DE UN EVENTO — de lo que se escribe en el CRM a lo que se ve.
+ * EL CUERPO DE UN EVENTO — del editor del CRM a lo que se ve.
  * ============================================================================
  *
  * ⚠️ ESTE FICHERO VIVE EN DOS REPOS Y ES EL MISMO, BYTE A BYTE.
@@ -14,80 +14,111 @@
  *
  * Existe para que el texto de un evento se lea IGUAL en los tres sitios donde
  * sale: la página pública (`/actividades`), el modal de la convivencia de los
- * formularios y la ficha del evento en el área privada. Dos renderizadores
- * serían dos formas de escribir, y en un mes dirían cosas distintas.
+ * formularios y la ficha del evento en el área privada.
  *
- * No depende de nada: ni de WordPress ni de `crm_proxy.php`. Solo PHP (y la
- * extensión DOM para el día que el cuerpo llegue en HTML; sin ella, el HTML se
- * trata como texto y sigue saliendo, feo pero entero).
+ * No depende de nada: ni de WordPress ni de `crm_proxy.php`. Solo PHP con la
+ * extensión DOM (sin ella, el texto sale en párrafos, entero y sin formato).
+ *
+ * ── Lo que entra: el HTML del editor del CRM ───────────────────────────────
+ *
+ * El cuerpo es un campo WYSIWYG de Sinergia (TinyMCE): quien escribe ve los
+ * títulos en grande, las listas y las negritas mientras escribe. Eso produce
+ * HTML, y el HTML de un editor trae de todo (estilos pegados de Word, fuentes,
+ * colores, tablas). **No se pinta tal cual.** Se lee con una LISTA BLANCA y se
+ * traduce a una docena de piezas con el diseño de la casa:
+ *
+ *   Título 1 (h1)                       → título de sección
+ *   Título 2 a 6 (h2…h6)                → subtítulo dentro de la sección
+ *   Párrafo, salto de línea             → párrafo (el salto se respeta)
+ *   Negrita, cursiva                    → negrita, cursiva
+ *   Enlace dentro de una frase          → enlace
+ *   UN ENLACE SOLO en su párrafo        → BOTÓN (un enlace de YouTube o
+ *                                         Vimeo solo, → el VÍDEO incrustado)
+ *   Lista con puntos / numerada         → lista
+ *   Cita (blockquote)                   → AVISO destacado (el plazo, lo urgente)
+ *   Línea horizontal (hr)               → separador
+ *   Imagen                              → imagen; la PRIMERA del texto, si va
+ *                                         al principio, es el CARTEL
+ *   Varias imágenes seguidas            → galería
+ *   Tabla                               → una línea por fila («Sábado · 10:00»)
+ *
+ * Todo lo demás —colores, tamaños, fuentes, alineaciones, clases, `style`,
+ * `onclick`, `<script>`, `<iframe>` que no sea un vídeo conocido— se tira. El
+ * texto que había dentro se conserva. Así un evento no puede salir con la letra
+ * de Word, ni romper la página, ni meter JavaScript.
+ *
+ * (Hasta el 24/09/2026 el cuerpo era Markdown en un TextArea; se retiró a
+ * propósito, sin soporte de compatibilidad: los eventos viejos se migraron.)
  *
  * ── Tres pasos, separados a propósito ──────────────────────────────────────
  *
- *   1. mcm_cuerpo_bloques($texto)          lo escrito → una lista de BLOQUES
+ *   1. mcm_cuerpo_bloques($html)            el HTML → una lista de BLOQUES
  *   2. (quien llama puede quitar o mover bloques: el cartel, por ejemplo)
- *   3. mcm_cuerpo_html($bloques, $opciones) los bloques → HTML de la web
+ *   3. mcm_cuerpo_html($bloques, $opciones)  los bloques → HTML de la web
  *
- * Los bloques son el contrato. Hoy hay un pintor (la web); el día que el mismo
- * contenido tenga que salir en un CORREO, se escribe un segundo pintor sobre
- * los mismos bloques y nadie tiene que volver a escribir el evento.
- *
- * ── Lo que entra ───────────────────────────────────────────────────────────
- *
- * Hoy, `web_cuerpo_c` es un TextArea y se escribe en MARKDOWN REDUCIDO (la
- * chuleta está en `mcm_cuerpo_bloques_md()` y en la guía de administradores).
- *
- * Mañana será un campo HTML de Sinergia (con su editor). Para entonces ya está
- * hecho: si lo que llega tiene etiquetas de editor (<p>, <strong>, <ul>…), se
- * SANEA y se traduce al mismo Markdown, y de ahí a los mismos bloques. O sea
- * que un evento viejo en Markdown y uno nuevo en HTML se pintan igual, y el día
- * del cambio no hay que migrar nada.
+ * Los bloques son el contrato. El día que el mismo contenido tenga que salir
+ * en un CORREO, se escribe un segundo pintor sobre los mismos bloques.
  *
  * ── La regla de seguridad, que no se toca ──────────────────────────────────
  *
- * PRIMERO SE ESCAPA TODO Y DESPUÉS SE APLICAN LAS MARCAS. Lo que alguien
- * escriba en el CRM no puede meter una etiqueta en nuestra web: un `<script>`
- * escrito como texto sale como el texto «<script>». Del HTML solo se quedan las
- * etiquetas de la lista blanca, traducidas; todo atributo (style, onclick…) se
- * tira. Y todo enlace pasa por `mcm_cuerpo_url()`: ni `javascript:` ni `data:`.
+ * Del HTML de entrada NO sale ni una etiqueta hacia la página: se extrae el
+ * TEXTO (que después se escapa) y la estructura de la lista blanca. Las
+ * etiquetas de salida las escribe este código. Todo enlace e imagen pasa por
+ * `mcm_cuerpo_url()`: ni `javascript:` ni `data:`.
  */
 
 if (!function_exists('mcm_cuerpo_bloques')) {
 
     /**
-     * Lo escrito en el CRM → lista de bloques.
+     * El HTML del CRM → lista de bloques.
      *
-     * Cada bloque es un array con `tipo` y sus datos. Los textos van SIN
-     * escapar y con las marcas de línea (negrita, enlaces) sin aplicar: eso es
-     * cosa del pintor.
-     *
-     *   titulo     nivel (2|3), texto
-     *   parrafo    texto (puede llevar saltos de línea)
-     *   lista      ordenada (bool), inicio (int), items []
-     *   cita       texto
-     *   aviso      texto
+     *   titulo     nivel (2|3), contenido
+     *   parrafo    contenido
+     *   lista      ordenada (bool), inicio (int), items [contenido…]
+     *   aviso      contenido
      *   boton      texto, url
      *   imagen     src, pie
      *   galeria    imagenes [src…]
      *   video      proveedor (youtube|vimeo), id, url
      *   separador
+     *
+     * El `contenido` es la línea troceada en piezas (ver mcm_cuerpo_piezas()):
+     * texto, negrita, cursiva, enlace y salto. Nunca HTML.
      */
     function mcm_cuerpo_bloques($texto)
     {
-        $texto = mcm_cuerpo_normalizar($texto);
+        $texto = mcm_cuerpo_entrada($texto);
         if ($texto === '') {
             return array();
         }
-        if (mcm_cuerpo_es_html($texto)) {
-            $md = mcm_cuerpo_html_a_md($texto);
-            if ($md !== null) {
-                $texto = $md;
+        // Sin una sola etiqueta es texto a secas (un evento escrito antes de
+        // tener el editor, o pegado sin formato): párrafos por líneas en blanco
+        // y un salto por cada Intro.
+        if (!preg_match('/<[a-z][^>]*>/i', $texto)) {
+            $texto = str_replace("\xC2\xA0", ' ', $texto);
+            $html = '';
+            foreach (preg_split("/\n\s*\n/", $texto) as $trozo) {
+                $html .= '<p>' . nl2br(htmlspecialchars(trim($trozo), ENT_QUOTES, 'UTF-8'), false) . '</p>';
             }
+            $texto = $html;
         }
-        return mcm_cuerpo_bloques_md($texto);
+        $body = mcm_cuerpo_dom($texto);
+        if ($body === null) {
+            // Sin DOM: el texto, sin etiquetas, en párrafos.
+            $plano = trim(html_entity_decode(strip_tags(preg_replace('#<(br|/p|/h\d|/li|/div)[^>]*>#i', "\n", $texto)), ENT_QUOTES, 'UTF-8'));
+            $bloques = array();
+            foreach (preg_split("/\n\s*\n|\n/", $plano) as $l) {
+                if (trim($l) !== '') {
+                    $bloques[] = array('tipo' => 'parrafo', 'contenido' => array(array('texto', trim($l))));
+                }
+            }
+            return $bloques;
+        }
+        return mcm_cuerpo_agrupa_imagenes(mcm_cuerpo_recorre($body));
     }
 
     /**
-     * Deja el texto como lo escribió la persona.
+     * Un texto CORTO del CRM (nombre, lugar, lema) como lo escribió la persona.
      *
      * ⚠️ SuiteCRM GUARDA LOS TEXTOS CON ENTIDADES HTML: unas «comillas» llegan
      * como `&quot;comillas&quot;`, un `>` como `&gt;` y un apóstrofo como
@@ -107,7 +138,7 @@ if (!function_exists('mcm_cuerpo_bloques')) {
             }
         }
         // El BOM y los espacios de anchura cero que trae un copiar-pegar de
-        // Word o de WhatsApp no se ven, pero rompen un `## ` al principio.
+        // Word o de WhatsApp no se ven, pero se cuelan en las comparaciones.
         $t = str_replace(array("\xEF\xBB\xBF", "\xE2\x80\x8B", "\xE2\x80\x8C", "\xE2\x80\x8D"), '', $t);
         // El espacio duro de `&nbsp;` es un espacio para todo lo de aquí.
         $t = str_replace("\xC2\xA0", ' ', $t);
@@ -116,209 +147,554 @@ if (!function_exists('mcm_cuerpo_bloques')) {
     }
 
     /**
-     * ¿Esto es HTML de un editor, o Markdown con algún `<` suelto?
+     * El cuerpo tal como llega del CRM → el HTML que escribió el editor.
      *
-     * Solo cuenta como HTML si trae etiquetas de las que pone un editor. Un
-     * `<script>` a secas NO lo convierte en HTML: se queda como texto y sale
-     * como texto, que es lo que tiene que pasar con él.
+     * ⚠️ SuiteCRM guarda el campo HTML CODIFICADO: `<p>Hola &amp; adiós</p>`
+     * llega como `&lt;p&gt;Hola &amp;amp; adiós&lt;/p&gt;`. Se deshace UNA vez,
+     * y solo si viene codificado. Dos veces sería convertir un «<» que alguien
+     * escribió como texto en una etiqueta de verdad. (No es el mismo trato que
+     * los textos cortos, `mcm_cuerpo_normalizar()`, que no llevan etiquetas.)
      */
-    function mcm_cuerpo_es_html($texto)
+    function mcm_cuerpo_entrada($texto)
     {
-        return (bool) preg_match(
-            '~<(p|br|div|h[1-6]|ul|ol|li|strong|b|em|i|u|a\s[^>]*href|img\s|table|blockquote|hr|span|figure)\b[^>]*>~i',
-            (string) $texto
-        );
+        $t = (string) $texto;
+        if (preg_match('#&lt;/?[a-z][a-z0-9]*[\s&/]|&lt;/?[a-z][a-z0-9]*&gt;#i', $t)) {
+            $t = html_entity_decode($t, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        }
+        $t = str_replace(array("\xEF\xBB\xBF", "\xE2\x80\x8B", "\xE2\x80\x8C", "\xE2\x80\x8D"), '', $t);
+        $t = preg_replace('/\R/u', "\n", $t);
+        if (!preg_match('/<[a-z][^>]*>/i', $t)) {
+            // Texto sin etiquetas: sus entidades (&quot;) son texto codificado.
+            $t = html_entity_decode($t, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        }
+        return trim($t);
     }
 
-    /* ── MARKDOWN → bloques ────────────────────────────────────────────── */
+    /** El HTML dentro de un DOM, y su <body>. Null si no hay extensión DOM. */
+    function mcm_cuerpo_dom($html)
+    {
+        if (!class_exists('DOMDocument')) {
+            return null;
+        }
+        $dom = new DOMDocument();
+        $previo = libxml_use_internal_errors(true);
+        $ok = $dom->loadHTML(
+            '<!DOCTYPE html><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body>'
+                . $html . '</body></html>',
+            LIBXML_NONET
+        );
+        libxml_clear_errors();
+        libxml_use_internal_errors($previo);
+        if (!$ok) {
+            return null;
+        }
+        return $dom->getElementsByTagName('body')->item(0);
+    }
+
+    /** Lo que se tira CON todo su contenido: no es texto de nadie. */
+    function mcm_cuerpo_se_tira($tag)
+    {
+        return in_array($tag, array('script', 'style', 'noscript', 'template', 'head', 'title', 'object',
+            'embed', 'form', 'button', 'select', 'textarea', 'input', 'svg', 'math', 'audio', 'canvas'), true);
+    }
+
+    /** Las etiquetas que abren un bloque (lo demás es texto en línea). */
+    function mcm_cuerpo_es_bloque($tag)
+    {
+        return in_array($tag, array('p', 'div', 'section', 'article', 'header', 'footer', 'main', 'aside',
+            'center', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'blockquote', 'hr', 'img',
+            'figure', 'iframe', 'table', 'pre', 'address', 'dl', 'dt', 'dd'), true);
+    }
 
     /**
-     * El Markdown reducido de la casa.
+     * Recorre un nodo de bloque y devuelve sus bloques.
      *
-     *   # Título  /  ## Título         título de sección
-     *   ### Subtítulo                  subtítulo
-     *   Una línea                      párrafo; un salto de línea se RESPETA
-     *   (línea en blanco)              separa párrafos
-     *   **negrita**  __negrita__        *cursiva*
-     *   - una cosa  (o *, +, •, –)     lista
-     *   1. primero  (o 1))             lista numerada
-     *   > una cita                     cita destacada
-     *   ---                            línea separadora
-     *   [texto](https://…)             enlace (también mailto: y tel:)
-     *   https://…  correo@…  649 …      se enlazan solos
-     *   ![pie](https://…/foto.jpg)     imagen con su pie
-     *   https://…/foto.jpg             una línea que es solo una imagen, también
-     *   [aviso] Texto                  recuadro destacado (sigue en las líneas
-     *                                  de debajo hasta la línea en blanco)
-     *   [boton] Texto | https://…      botón
-     *   [galeria] + una URL por línea  rejilla de imágenes
-     *   [video] https://youtu.be/…     vídeo de YouTube o Vimeo
-     *
-     * ⚠️ UN SALTO DE LÍNEA ES UN SALTO DE LÍNEA. En Markdown de verdad dos
-     * líneas seguidas se juntan en una, y así «60 €» + «Incluye el
-     * alojamiento…» salían pegados en la misma frase. Quien escribe en la caja
-     * del CRM pulsa Intro porque quiere una línea nueva; se le hace caso.
+     * El texto suelto (o en línea) que va apareciendo se junta en un párrafo
+     * hasta el siguiente bloque: es lo que pasa cuando el editor no envuelve en
+     * <p> la primera línea, o cuando se pega texto a mano en el código.
      */
-    function mcm_cuerpo_bloques_md($texto)
+    function mcm_cuerpo_recorre($nodo)
     {
         $bloques = array();
-        $actual = null;   // el bloque que se está rellenando
+        $suelto = array();   // nodos en línea pendientes de ser un párrafo
 
-        $cierra = function () use (&$actual, &$bloques) {
-            if ($actual === null) {
-                return;
-            }
-            if ($actual['tipo'] === 'galeria' && empty($actual['imagenes'])) {
-                $actual = null;
-                return;
-            }
-            if (isset($actual['lineas'])) {
-                $actual['texto'] = implode("\n", $actual['lineas']);
-                unset($actual['lineas']);
-                if (trim($actual['texto']) === '') {
-                    $actual = null;
-                    return;
+        $suelta = function () use (&$suelto, &$bloques) {
+            if ($suelto) {
+                foreach (mcm_cuerpo_parrafo($suelto) as $b) {
+                    $bloques[] = $b;
                 }
+                $suelto = array();
             }
-            $bloques[] = $actual;
-            $actual = null;
         };
 
-        foreach (explode("\n", (string) $texto) as $crudo) {
-            $l = trim($crudo);
-            $sangrado = $crudo !== '' && ($crudo[0] === ' ') && $l !== '';
-
-            // Dentro de una galería, cada línea con una URL es una imagen. Las
-            // líneas en blanco no la cierran (un editor HTML pone cada URL en
-            // su párrafo); cualquier otra cosa, sí.
-            if ($actual !== null && $actual['tipo'] === 'galeria') {
-                if ($l === '') {
-                    continue;
-                }
-                $url = mcm_cuerpo_url($l, false);
-                if ($url !== '') {
-                    $actual['imagenes'][] = $url;
-                    continue;
-                }
-                $cierra();
-            }
-
-            if ($l === '') {
-                $cierra();
+        foreach ($nodo->childNodes as $hijo) {
+            if ($hijo->nodeType === XML_TEXT_NODE) {
+                $suelto[] = $hijo;
                 continue;
             }
-
-            // Títulos. `#` y `##` son el título de sección (en la página ya hay
-            // un h1, que es el nombre del evento); `###` y más, subtítulo.
-            if (preg_match('/^(#{1,6})\s+(.+?)\s*#*$/u', $l, $m)) {
-                $cierra();
-                $bloques[] = array('tipo' => 'titulo', 'nivel' => strlen($m[1]) <= 2 ? 2 : 3, 'texto' => $m[2]);
+            if ($hijo->nodeType !== XML_ELEMENT_NODE) {
                 continue;
             }
-
-            // Separador: `---`, `***`, `___` (con o sin espacios).
-            if (preg_match('/^([-*_])(\s*\1){2,}$/', $l)) {
-                $cierra();
-                $bloques[] = array('tipo' => 'separador');
+            $tag = strtolower($hijo->nodeName);
+            if (mcm_cuerpo_se_tira($tag)) {
                 continue;
             }
-
-            if (preg_match('/^\[(galeria|galería)\]$/iu', $l)) {
-                $cierra();
-                $actual = array('tipo' => 'galeria', 'imagenes' => array());
-                continue;
-            }
-
-            if (preg_match('/^\[aviso\]\s*(.*)$/iu', $l, $m)) {
-                $cierra();
-                $actual = array('tipo' => 'aviso', 'lineas' => array($m[1]));
-                continue;
-            }
-
-            if (preg_match('/^\[(boton|botón)\]\s*(.*)$/iu', $l, $m)) {
-                $cierra();
-                $partes = explode('|', $m[2]);
-                $texto = trim(array_shift($partes));
-                $url = mcm_cuerpo_url(trim(implode('|', $partes)));
-                // Un botón sin destino no es un botón: es un bulo. No se pinta.
-                if ($texto !== '' && $url !== '') {
-                    $bloques[] = array('tipo' => 'boton', 'texto' => $texto, 'url' => $url);
+            if ($tag === 'br') {
+                // Un <br> suelto entre bloques no es nada; dentro de texto
+                // suelto, un salto.
+                if ($suelto) {
+                    $suelto[] = $hijo;
                 }
                 continue;
             }
+            if (!mcm_cuerpo_es_bloque($tag)) {
+                $suelto[] = $hijo;
+                continue;
+            }
 
-            if (preg_match('/^\[(video|vídeo)\]\s*(.*)$/iu', $l, $m)) {
-                $cierra();
-                $video = mcm_cuerpo_video($m[2]);
-                if ($video !== null) {
-                    $bloques[] = $video;
-                } elseif (($url = mcm_cuerpo_url(trim($m[2]), false)) !== '') {
-                    // No es de YouTube ni de Vimeo: no se incrusta lo que no
-                    // conocemos, pero tampoco se pierde. Va de botón.
-                    $bloques[] = array('tipo' => 'boton', 'texto' => 'Ver el vídeo', 'url' => $url);
+            $suelta();
+            switch ($tag) {
+                case 'h1':
+                case 'h2':
+                case 'h3':
+                case 'h4':
+                case 'h5':
+                case 'h6':
+                    $contenido = mcm_cuerpo_sin_saltos(mcm_cuerpo_piezas($hijo));
+                    if (mcm_cuerpo_tiene_texto($contenido)) {
+                        $bloques[] = array('tipo' => 'titulo', 'nivel' => $tag === 'h1' ? 2 : 3,
+                            'contenido' => $contenido);
+                    }
+                    break;
+                case 'ul':
+                case 'ol':
+                    $lista = mcm_cuerpo_lista($hijo, $tag === 'ol');
+                    if ($lista !== null) {
+                        $bloques[] = $lista;
+                    }
+                    break;
+                case 'blockquote':
+                    // La «Cita» del editor es el recuadro de AVISO: es el botón
+                    // que está a mano en la barra, y en un evento lo que hay que
+                    // destacar es el plazo, no una cita.
+                    $partes = array();
+                    foreach (mcm_cuerpo_recorre($hijo) as $b) {
+                        if (isset($b['contenido'])) {
+                            if ($partes) {
+                                $partes[] = array('salto');
+                            }
+                            $partes = array_merge($partes, $b['contenido']);
+                        } elseif (isset($b['items'])) {
+                            foreach ($b['items'] as $item) {
+                                if ($partes) {
+                                    $partes[] = array('salto');
+                                }
+                                $partes = array_merge($partes, $item);
+                            }
+                        }
+                    }
+                    if (mcm_cuerpo_tiene_texto($partes)) {
+                        $bloques[] = array('tipo' => 'aviso', 'contenido' => $partes);
+                    }
+                    break;
+                case 'hr':
+                    $bloques[] = array('tipo' => 'separador');
+                    break;
+                case 'img':
+                    $img = mcm_cuerpo_imagen($hijo, '');
+                    if ($img !== null) {
+                        $bloques[] = $img;
+                    }
+                    break;
+                case 'figure':
+                    $pie = '';
+                    foreach ($hijo->getElementsByTagName('figcaption') as $fc) {
+                        $pie = mcm_cuerpo_una_linea($fc->textContent);
+                    }
+                    foreach ($hijo->getElementsByTagName('img') as $i) {
+                        $img = mcm_cuerpo_imagen($i, $pie);
+                        if ($img !== null) {
+                            $bloques[] = $img;
+                        }
+                    }
+                    break;
+                case 'iframe':
+                    $video = mcm_cuerpo_video($hijo->getAttribute('src'));
+                    if ($video !== null) {
+                        $bloques[] = $video;
+                    }
+                    break;
+                case 'table':
+                    // Una tabla no cabe en un móvil de 375px ni en un correo: se
+                    // lee fila a fila, con las celdas separadas por un punto.
+                    foreach ($hijo->getElementsByTagName('tr') as $tr) {
+                        $fila = array();
+                        foreach ($tr->childNodes as $td) {
+                            if ($td->nodeType === XML_ELEMENT_NODE && in_array(strtolower($td->nodeName), array('td', 'th'), true)) {
+                                $celda = mcm_cuerpo_sin_saltos(mcm_cuerpo_piezas($td));
+                                if (mcm_cuerpo_tiene_texto($celda)) {
+                                    if ($fila) {
+                                        $fila[] = array('texto', ' · ');
+                                    }
+                                    $fila = array_merge($fila, $celda);
+                                }
+                            }
+                        }
+                        if ($fila) {
+                            $bloques[] = array('tipo' => 'parrafo', 'contenido' => $fila);
+                        }
+                    }
+                    break;
+                default:
+                    // p, div, li suelto, pre…: un bloque que lleva más bloques
+                    // dentro se recorre; uno que solo lleva texto es un párrafo.
+                    if (mcm_cuerpo_tiene_bloques($hijo)) {
+                        foreach (mcm_cuerpo_recorre($hijo) as $b) {
+                            $bloques[] = $b;
+                        }
+                    } else {
+                        foreach (mcm_cuerpo_parrafo(iterator_to_array($hijo->childNodes)) as $b) {
+                            $bloques[] = $b;
+                        }
+                    }
+            }
+        }
+        $suelta();
+        return $bloques;
+    }
+
+    /** ¿Lleva dentro algo que sea un bloque (y no solo texto)? */
+    function mcm_cuerpo_tiene_bloques($nodo)
+    {
+        foreach ($nodo->childNodes as $hijo) {
+            if ($hijo->nodeType === XML_ELEMENT_NODE) {
+                $tag = strtolower($hijo->nodeName);
+                if ($tag !== 'img' && mcm_cuerpo_es_bloque($tag)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Unos nodos en línea → el bloque (o bloques) que les toca.
+     *
+     *   · solo imágenes                → una imagen por cada una
+     *   · solo UN enlace               → un BOTÓN (o el vídeo, si es de YouTube)
+     *   · imágenes y texto mezclados   → las imágenes aparte y el texto párrafo
+     *   · lo demás                     → párrafo
+     */
+    function mcm_cuerpo_parrafo($nodos)
+    {
+        $imagenes = array();
+        $resto = array();
+        foreach ($nodos as $n) {
+            if ($n->nodeType === XML_ELEMENT_NODE && strtolower($n->nodeName) === 'img') {
+                $img = mcm_cuerpo_imagen($n, '');
+                if ($img !== null) {
+                    $imagenes[] = $img;
                 }
                 continue;
             }
-
-            // Una imagen sola en su línea: `![pie](url)`, o la URL de una imagen
-            // pegada a pelo (lo que hace casi todo el mundo con un imgur).
-            if (preg_match('/^!\[([^\]]*)\]\(\s*([^)\s]+)(?:\s+"[^"]*")?\s*\)$/u', $l, $m)
-                || preg_match('/^()(https?:\/\/\S+\.(?:jpe?g|png|gif|webp)(?:\?\S*)?)$/iu', $l, $m)) {
-                $cierra();
-                $src = mcm_cuerpo_url($m[2], false);
-                if ($src !== '') {
-                    $bloques[] = array('tipo' => 'imagen', 'src' => $src, 'pie' => trim($m[1]));
+            // Una imagen metida dentro de un enlace o de una negrita también es
+            // una imagen: se saca a su sitio.
+            if ($n->nodeType === XML_ELEMENT_NODE) {
+                foreach ($n->getElementsByTagName('img') as $i) {
+                    $img = mcm_cuerpo_imagen($i, '');
+                    if ($img !== null) {
+                        $imagenes[] = $img;
+                    }
                 }
-                continue;
             }
+            $resto[] = $n;
+        }
 
-            // Listas. El `*` de lista lleva espacio detrás; el de `*cursiva*`, no.
-            if (preg_match('/^(?:[-*+•▪◦–]|·)\s+(.*)$/u', $l, $m)
-                || preg_match('/^(\d{1,3})[.)]\s+(.*)$/', $l, $n)) {
-                $ordenada = empty($m);
-                $item = $ordenada ? $n[2] : $m[1];
-                if ($actual === null || $actual['tipo'] !== 'lista' || $actual['ordenada'] !== $ordenada) {
-                    $cierra();
-                    $actual = array(
-                        'tipo' => 'lista',
-                        'ordenada' => $ordenada,
-                        'inicio' => $ordenada ? max(1, (int) $n[1]) : 1,
-                        'items' => array(),
-                    );
+        $contenido = array();
+        foreach ($resto as $n) {
+            $contenido = array_merge($contenido, mcm_cuerpo_pieza($n));
+        }
+        $contenido = mcm_cuerpo_recorta($contenido);
+
+        $bloques = $imagenes;
+        if (!mcm_cuerpo_tiene_texto($contenido)) {
+            return $bloques;
+        }
+
+        // UN ENLACE SOLO EN SU PÁRRAFO ES UN BOTÓN. Es la forma de hacer un
+        // botón con el editor sin aprenderse nada: se escribe el texto, se le
+        // pone el enlace y se deja en su propia línea.
+        if (count($contenido) === 1 && $contenido[0][0] === 'enlace') {
+            $url = $contenido[0][1];
+            $video = mcm_cuerpo_video($url);
+            if ($video !== null) {
+                $bloques[] = $video;
+                return $bloques;
+            }
+            $texto = mcm_cuerpo_una_linea(mcm_cuerpo_texto_de($contenido[0][2]));
+            // Si el texto del enlace es la propia dirección, no es un botón
+            // escrito a propósito: es una URL pegada, y va de párrafo.
+            if ($texto !== '' && !preg_match('#^(https?://|www\.)#i', $texto)) {
+                $bloques[] = array('tipo' => 'boton', 'texto' => $texto, 'url' => $url);
+                return $bloques;
+            }
+        }
+
+        $bloques[] = array('tipo' => 'parrafo', 'contenido' => $contenido);
+        return $bloques;
+    }
+
+    /** Las piezas de TODO lo que hay dentro de un nodo. */
+    function mcm_cuerpo_piezas($nodo)
+    {
+        $piezas = array();
+        foreach ($nodo->childNodes as $hijo) {
+            $piezas = array_merge($piezas, mcm_cuerpo_pieza($hijo));
+        }
+        return mcm_cuerpo_recorta($piezas);
+    }
+
+    /**
+     * UN nodo en línea → sus piezas.
+     *
+     *   array('texto', 'Hola ')
+     *   array('fuerte', [piezas])     array('cursiva', [piezas])
+     *   array('enlace', url, [piezas])
+     *   array('salto')
+     *
+     * Lo que no está en la lista (span, font, u, sup…) deja pasar su texto y
+     * nada más.
+     */
+    function mcm_cuerpo_pieza($n)
+    {
+        if ($n->nodeType === XML_TEXT_NODE) {
+            // El `&nbsp;` que el editor siembra por todas partes es un espacio.
+            $t = preg_replace('/\s+/u', ' ', str_replace("\xC2\xA0", ' ', $n->nodeValue));
+            return $t === '' ? array() : array(array('texto', $t));
+        }
+        if ($n->nodeType !== XML_ELEMENT_NODE) {
+            return array();
+        }
+        $tag = strtolower($n->nodeName);
+        if (mcm_cuerpo_se_tira($tag) || $tag === 'img' || $tag === 'iframe') {
+            return array();
+        }
+        if ($tag === 'br') {
+            return array(array('salto'));
+        }
+        $dentro = array();
+        foreach ($n->childNodes as $h) {
+            $dentro = array_merge($dentro, mcm_cuerpo_pieza($h));
+        }
+        switch ($tag) {
+            case 'strong':
+            case 'b':
+                return mcm_cuerpo_tiene_texto($dentro) ? mcm_cuerpo_envuelve('fuerte', $dentro) : $dentro;
+            case 'em':
+            case 'i':
+                return mcm_cuerpo_tiene_texto($dentro) ? mcm_cuerpo_envuelve('cursiva', $dentro) : $dentro;
+            case 'a':
+                $url = mcm_cuerpo_url(trim($n->getAttribute('href')));
+                if ($url === '' || !mcm_cuerpo_tiene_texto($dentro)) {
+                    return $dentro;   // un enlace que no vale se queda en su texto
                 }
-                $actual['items'][] = $item;
+                return array(array('enlace', $url, mcm_cuerpo_recorta($dentro)));
+        }
+        return $dentro;
+    }
+
+    /**
+     * Negrita alrededor, pero con los espacios FUERA. El editor deja a menudo
+     * «<strong>Nos vamos: </strong>viernes»; con el espacio dentro, el pintor de
+     * correo de mañana lo perdería.
+     */
+    function mcm_cuerpo_envuelve($tipo, $piezas)
+    {
+        $antes = array();
+        $despues = array();
+        if ($piezas && $piezas[0][0] === 'texto' && preg_match('/^\s+/u', $piezas[0][1])) {
+            $antes[] = array('texto', ' ');
+        }
+        $ultima = count($piezas) - 1;
+        if ($ultima >= 0 && $piezas[$ultima][0] === 'texto' && preg_match('/\s+$/u', $piezas[$ultima][1])) {
+            $despues[] = array('texto', ' ');
+        }
+        return array_merge($antes, array(array($tipo, mcm_cuerpo_recorta($piezas))), $despues);
+    }
+
+    /** Sin espacios ni saltos sobrantes al principio y al final. */
+    function mcm_cuerpo_recorta($piezas)
+    {
+        while ($piezas && ($piezas[0][0] === 'salto' || ($piezas[0][0] === 'texto' && trim($piezas[0][1]) === ''))) {
+            array_shift($piezas);
+        }
+        while ($piezas) {
+            $u = count($piezas) - 1;
+            if ($piezas[$u][0] === 'salto' || ($piezas[$u][0] === 'texto' && trim($piezas[$u][1]) === '')) {
+                array_pop($piezas);
                 continue;
             }
+            break;
+        }
+        if ($piezas && $piezas[0][0] === 'texto') {
+            $piezas[0][1] = ltrim($piezas[0][1]);
+        }
+        $u = count($piezas) - 1;
+        if ($u >= 0 && $piezas[$u][0] === 'texto') {
+            $piezas[$u][1] = rtrim($piezas[$u][1]);
+        }
+        // Nunca dos saltos seguidos: el editor mete <br><br> para «separar» y
+        // eso ya lo hace el espacio entre párrafos.
+        // Y sin el espacio que queda pegado a un salto por cada lado.
+        $limpio = array();
+        foreach ($piezas as $p) {
+            $prev = end($limpio);
+            if ($p[0] === 'salto' && $prev && $prev[0] === 'salto') {
+                continue;
+            }
+            if ($p[0] === 'salto' && $prev && $prev[0] === 'texto') {
+                $limpio[count($limpio) - 1][1] = rtrim($prev[1]);
+            }
+            if ($p[0] === 'texto' && $prev && $prev[0] === 'salto') {
+                $p[1] = ltrim($p[1]);
+            }
+            $limpio[] = $p;
+        }
+        return $limpio;
+    }
 
-            if (preg_match('/^>\s?(.*)$/u', $l, $m)) {
-                if ($actual === null || $actual['tipo'] !== 'cita') {
-                    $cierra();
-                    $actual = array('tipo' => 'cita', 'lineas' => array());
+    /** Un título no lleva saltos: se cambian por un espacio. */
+    function mcm_cuerpo_sin_saltos($piezas)
+    {
+        $salida = array();
+        foreach ($piezas as $p) {
+            if ($p[0] === 'salto') {
+                $salida[] = array('texto', ' ');
+            } elseif ($p[0] === 'enlace') {
+                $salida[] = array('enlace', $p[1], mcm_cuerpo_sin_saltos($p[2]));
+            } elseif ($p[0] === 'fuerte' || $p[0] === 'cursiva') {
+                $salida[] = array($p[0], mcm_cuerpo_sin_saltos($p[1]));
+            } else {
+                $salida[] = $p;
+            }
+        }
+        return $salida;
+    }
+
+    /** ¿Hay texto de verdad, o solo espacios y saltos? */
+    function mcm_cuerpo_tiene_texto($piezas)
+    {
+        return trim(mcm_cuerpo_texto_de($piezas)) !== '';
+    }
+
+    /** El texto plano de unas piezas (para un título de botón, un resumen…). */
+    function mcm_cuerpo_texto_de($piezas)
+    {
+        $t = '';
+        foreach ((array) $piezas as $p) {
+            switch ($p[0]) {
+                case 'texto':
+                    $t .= $p[1];
+                    break;
+                case 'salto':
+                    $t .= "\n";
+                    break;
+                case 'enlace':
+                    $t .= mcm_cuerpo_texto_de($p[2]);
+                    break;
+                default:
+                    $t .= mcm_cuerpo_texto_de($p[1]);
+            }
+        }
+        return $t;
+    }
+
+    /** Una lista del editor. Las anidadas se aplanan: en móvil no se leen mejor. */
+    function mcm_cuerpo_lista($lista, $ordenada)
+    {
+        $items = array();
+        $inicio = max(1, (int) $lista->getAttribute('start'));
+        foreach ($lista->childNodes as $li) {
+            if ($li->nodeType !== XML_ELEMENT_NODE || strtolower($li->nodeName) !== 'li') {
+                continue;
+            }
+            $propio = array();
+            $anidadas = array();
+            foreach ($li->childNodes as $parte) {
+                $tag = $parte->nodeType === XML_ELEMENT_NODE ? strtolower($parte->nodeName) : '';
+                if ($tag === 'ul' || $tag === 'ol') {
+                    $anidadas[] = $parte;
+                } elseif ($tag === 'p' || $tag === 'div') {
+                    if ($propio) {
+                        $propio[] = array('salto');
+                    }
+                    $propio = array_merge($propio, mcm_cuerpo_piezas($parte));
+                } else {
+                    $propio = array_merge($propio, mcm_cuerpo_pieza($parte));
                 }
-                $actual['lineas'][] = $m[1];
-                continue;
             }
+            $propio = mcm_cuerpo_recorta($propio);
+            if (mcm_cuerpo_tiene_texto($propio)) {
+                $items[] = $propio;
+            }
+            foreach ($anidadas as $sub) {
+                $b = mcm_cuerpo_lista($sub, $ordenada);
+                if ($b !== null) {
+                    $items = array_merge($items, $b['items']);
+                }
+            }
+        }
+        if (!$items) {
+            return null;
+        }
+        return array('tipo' => 'lista', 'ordenada' => $ordenada, 'inicio' => $inicio, 'items' => $items);
+    }
 
-            // Texto normal. Si se está dentro de un aviso, sigue el aviso; si es
-            // una línea sangrada debajo de una lista, continúa el último punto.
-            if ($actual !== null && $actual['tipo'] === 'aviso') {
-                $actual['lineas'][] = $l;
+    /** Un <img> → bloque imagen, o null si su dirección no vale. */
+    function mcm_cuerpo_imagen($img, $pie)
+    {
+        $src = mcm_cuerpo_url(trim($img->getAttribute('src')), false);
+        if ($src === '') {
+            return null;
+        }
+        // El `alt` NO es un pie de foto: el editor lo rellena a veces con el
+        // nombre del fichero. Pie solo si viene de un <figcaption>.
+        return array('tipo' => 'imagen', 'src' => $src, 'pie' => (string) $pie,
+            'alt' => mcm_cuerpo_una_linea($img->getAttribute('alt')));
+    }
+
+    /**
+     * Varias imágenes seguidas → una galería.
+     *
+     * Salvo la PRIMERA del texto si va al principio: esa es el cartel, y quien
+     * pinta la página la sube a la cabecera (mcm_cuerpo_sacar_cartel()).
+     */
+    function mcm_cuerpo_agrupa_imagenes($bloques)
+    {
+        $salida = array();
+        $racha = array();
+        $cierra = function () use (&$racha, &$salida) {
+            if (count($racha) >= 2) {
+                $salida[] = array('tipo' => 'galeria', 'imagenes' => array_map(function ($b) {
+                    return $b['src'];
+                }, $racha));
+            } else {
+                foreach ($racha as $b) {
+                    $salida[] = $b;
+                }
+            }
+            $racha = array();
+        };
+        foreach ($bloques as $i => $b) {
+            if ($b['tipo'] === 'imagen' && $b['pie'] === '' && !($i === 0 && empty($salida))) {
+                $racha[] = $b;
                 continue;
             }
-            if ($actual !== null && $actual['tipo'] === 'lista' && $sangrado) {
-                $ultimo = count($actual['items']) - 1;
-                $actual['items'][$ultimo] .= "\n" . $l;
-                continue;
-            }
-            if ($actual === null || $actual['tipo'] !== 'parrafo') {
-                $cierra();
-                $actual = array('tipo' => 'parrafo', 'lineas' => array());
-            }
-            $actual['lineas'][] = $l;
+            $cierra();
+            $salida[] = $b;
         }
         $cierra();
-
-        return $bloques;
+        return $salida;
     }
 
     /**
@@ -341,293 +717,6 @@ if (!function_exists('mcm_cuerpo_bloques')) {
                 'url' => 'https://vimeo.com/' . $m[1]);
         }
         return null;
-    }
-
-    /* ── HTML → Markdown (para el día que el campo sea HTML) ───────────── */
-
-    /**
-     * HTML de un editor → el Markdown de la casa. Null si no hay DOM.
-     *
-     * Se traduce en vez de pintarse tal cual por dos razones: la seguridad (lo
-     * que no está en la lista blanca desaparece, y los atributos no pasan) y el
-     * diseño (pegar desde Word trae `<span style="font-family:Calibri">`, y
-     * aquí cada evento se ve con la letra de la casa y no con la suya).
-     *
-     * Y así las marcas de la casa ([aviso], [boton]…) siguen funcionando
-     * escritas dentro del editor, en su propio párrafo.
-     */
-    function mcm_cuerpo_html_a_md($html)
-    {
-        if (!class_exists('DOMDocument')) {
-            return null;
-        }
-        $dom = new DOMDocument();
-        $previo = libxml_use_internal_errors(true);
-        $ok = $dom->loadHTML(
-            '<!DOCTYPE html><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head><body>'
-                . $html . '</body></html>',
-            LIBXML_NONET
-        );
-        libxml_clear_errors();
-        libxml_use_internal_errors($previo);
-        if (!$ok) {
-            return null;
-        }
-        $body = $dom->getElementsByTagName('body')->item(0);
-        if (!$body) {
-            return null;
-        }
-        $md = mcm_cuerpo_nodo_md($body, true);
-        // Nunca más de una línea en blanco seguida.
-        return trim(preg_replace("/\n{3,}/", "\n\n", $md));
-    }
-
-    /**
-     * Un nodo de bloque → Markdown.
-     *
-     * ⚠️ El texto suelto de la RAÍZ conserva sus saltos de línea. Es por quien
-     * escribe en Markdown y un día mete un `<b>` a mano: eso ya cuenta como
-     * HTML, y si aquí se juntaran las líneas, sus `##` y sus `-` acabarían
-     * todos en un solo párrafo. Dentro de un <p> sí se juntan, que es lo que
-     * hace un navegador.
-     */
-    function mcm_cuerpo_nodo_md($nodo, $raiz = false)
-    {
-        $salida = '';
-        $enLinea = '';   // texto suelto que se va juntando hasta el próximo bloque
-
-        $suelta = function () use (&$enLinea, &$salida) {
-            $t = trim(preg_replace("/[ ]*\n[ ]*/", "\n", $enLinea));
-            if ($t !== '') {
-                $salida .= $t . "\n\n";
-            }
-            $enLinea = '';
-        };
-
-        foreach ($nodo->childNodes as $hijo) {
-            if ($hijo->nodeType === XML_TEXT_NODE) {
-                $enLinea .= $raiz
-                    ? preg_replace('/[ ]+/u', ' ', $hijo->nodeValue)
-                    : preg_replace('/\s+/u', ' ', $hijo->nodeValue);
-                continue;
-            }
-            if ($hijo->nodeType !== XML_ELEMENT_NODE) {
-                continue;
-            }
-            $tag = strtolower($hijo->nodeName);
-
-            // Lo que se tira CON su contenido.
-            if (in_array($tag, array('script', 'style', 'noscript', 'template', 'head', 'title', 'object', 'embed', 'form', 'button', 'select', 'textarea', 'svg', 'math'), true)) {
-                continue;
-            }
-
-            switch ($tag) {
-                case 'h1':
-                case 'h2':
-                    $suelta();
-                    $salida .= '## ' . mcm_cuerpo_una_linea(mcm_cuerpo_linea_md($hijo)) . "\n\n";
-                    continue 2;
-                case 'h3':
-                case 'h4':
-                case 'h5':
-                case 'h6':
-                    $suelta();
-                    $salida .= '### ' . mcm_cuerpo_una_linea(mcm_cuerpo_linea_md($hijo)) . "\n\n";
-                    continue 2;
-                case 'ul':
-                case 'ol':
-                    $suelta();
-                    $salida .= mcm_cuerpo_lista_md($hijo, $tag === 'ol') . "\n";
-                    continue 2;
-                case 'blockquote':
-                    $suelta();
-                    $dentro = trim(mcm_cuerpo_nodo_md($hijo));
-                    if ($dentro !== '') {
-                        $salida .= '> ' . str_replace("\n", "\n> ", preg_replace("/\n{2,}/", "\n", $dentro)) . "\n\n";
-                    }
-                    continue 2;
-                case 'hr':
-                    $suelta();
-                    $salida .= "---\n\n";
-                    continue 2;
-                case 'img':
-                    $suelta();
-                    $salida .= mcm_cuerpo_img_md($hijo, '') . "\n\n";
-                    continue 2;
-                case 'figure':
-                    $suelta();
-                    $pie = '';
-                    foreach ($hijo->getElementsByTagName('figcaption') as $fc) {
-                        $pie = mcm_cuerpo_una_linea($fc->textContent);
-                    }
-                    foreach ($hijo->getElementsByTagName('img') as $img) {
-                        $salida .= mcm_cuerpo_img_md($img, $pie) . "\n\n";
-                    }
-                    continue 2;
-                case 'iframe':
-                    $suelta();
-                    $video = mcm_cuerpo_video($hijo->getAttribute('src'));
-                    if ($video !== null) {
-                        $salida .= '[video] ' . $video['url'] . "\n\n";
-                    }
-                    continue 2;
-                case 'table':
-                    $suelta();
-                    // Una tabla no cabe en un móvil de 375px ni en un correo: se
-                    // lee fila a fila, con las celdas separadas por un punto.
-                    foreach ($hijo->getElementsByTagName('tr') as $tr) {
-                        $celdas = array();
-                        foreach ($tr->childNodes as $td) {
-                            if ($td->nodeType === XML_ELEMENT_NODE && in_array(strtolower($td->nodeName), array('td', 'th'), true)) {
-                                $c = mcm_cuerpo_una_linea(mcm_cuerpo_linea_md($td));
-                                if ($c !== '') {
-                                    $celdas[] = $c;
-                                }
-                            }
-                        }
-                        if ($celdas) {
-                            $salida .= implode(' · ', $celdas) . "\n\n";
-                        }
-                    }
-                    continue 2;
-                case 'br':
-                    $enLinea .= "\n";
-                    continue 2;
-                case 'p':
-                case 'div':
-                case 'section':
-                case 'article':
-                case 'header':
-                case 'footer':
-                case 'main':
-                case 'center':
-                case 'li':
-                case 'dd':
-                case 'dt':
-                case 'figcaption':
-                    $suelta();
-                    // Un bloque que dentro lleva más bloques se recorre; uno
-                    // que solo lleva texto es un párrafo.
-                    if (mcm_cuerpo_tiene_bloques($hijo)) {
-                        $salida .= mcm_cuerpo_nodo_md($hijo);
-                    } else {
-                        $enLinea = mcm_cuerpo_linea_md($hijo);
-                        $suelta();
-                    }
-                    continue 2;
-            }
-
-            // Cualquier otra cosa (negrita, enlace, span…) es texto en línea.
-            $enLinea .= mcm_cuerpo_pieza_md($hijo);
-        }
-        $suelta();
-        return $salida;
-    }
-
-    /** ¿Lleva dentro algo que sea un bloque (y no solo texto)? */
-    function mcm_cuerpo_tiene_bloques($nodo)
-    {
-        foreach ($nodo->childNodes as $hijo) {
-            if ($hijo->nodeType === XML_ELEMENT_NODE
-                && in_array(strtolower($hijo->nodeName), array('p', 'div', 'ul', 'ol', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'table', 'hr', 'img', 'figure', 'iframe', 'section', 'article'), true)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /** Lo de dentro de un párrafo → Markdown de línea. */
-    function mcm_cuerpo_linea_md($nodo)
-    {
-        $t = '';
-        foreach ($nodo->childNodes as $hijo) {
-            $t .= mcm_cuerpo_pieza_md($hijo);
-        }
-        return $t;
-    }
-
-    /** UN nodo de dentro de un párrafo (texto, negrita, enlace…) → Markdown. */
-    function mcm_cuerpo_pieza_md($hijo)
-    {
-        if ($hijo->nodeType === XML_TEXT_NODE) {
-            return preg_replace('/\s+/u', ' ', $hijo->nodeValue);
-        }
-        if ($hijo->nodeType !== XML_ELEMENT_NODE) {
-            return '';
-        }
-        $tag = strtolower($hijo->nodeName);
-        if (in_array($tag, array('script', 'style', 'noscript', 'template', 'svg', 'iframe', 'object', 'embed', 'button', 'select', 'textarea'), true)) {
-            return '';
-        }
-        $dentro = mcm_cuerpo_linea_md($hijo);
-        switch ($tag) {
-            case 'br':
-                return "\n";
-            case 'strong':
-            case 'b':
-                return trim($dentro) !== '' ? mcm_cuerpo_envuelve($dentro, '**') : $dentro;
-            case 'em':
-            case 'i':
-                return trim($dentro) !== '' ? mcm_cuerpo_envuelve($dentro, '*') : $dentro;
-            case 'a':
-                $href = str_replace(' ', '%20', trim($hijo->getAttribute('href')));
-                return ($href !== '' && trim($dentro) !== '') ? '[' . trim($dentro) . '](' . $href . ')' : $dentro;
-            case 'img':
-                // Una imagen dentro de una frase no tiene dónde ir: se deja en
-                // su propia línea.
-                return "\n" . mcm_cuerpo_img_md($hijo, '') . "\n";
-        }
-        return $dentro;
-    }
-
-    /** `**` alrededor, pero con los espacios FUERA (`** hola**` no es negrita). */
-    function mcm_cuerpo_envuelve($texto, $marca)
-    {
-        preg_match('/^(\s*)(.*?)(\s*)$/su', $texto, $m);
-        return $m[1] . $marca . $m[2] . $marca . $m[3];
-    }
-
-    function mcm_cuerpo_lista_md($lista, $ordenada)
-    {
-        $md = '';
-        $n = 1;
-        foreach ($lista->childNodes as $li) {
-            if ($li->nodeType !== XML_ELEMENT_NODE || strtolower($li->nodeName) !== 'li') {
-                continue;
-            }
-            // Las listas anidadas se aplanan: en un móvil, dos niveles de
-            // sangría se comen media pantalla y no se leen mejor.
-            $anidadas = array();
-            $texto = '';
-            foreach ($li->childNodes as $parte) {
-                if ($parte->nodeType === XML_ELEMENT_NODE && in_array(strtolower($parte->nodeName), array('ul', 'ol'), true)) {
-                    $anidadas[] = $parte;
-                    continue;
-                }
-                if ($parte->nodeType === XML_ELEMENT_NODE && in_array(strtolower($parte->nodeName), array('p', 'div'), true)) {
-                    $texto .= ' ' . mcm_cuerpo_linea_md($parte);
-                } else {
-                    $texto .= mcm_cuerpo_pieza_md($parte);
-                }
-            }
-            $texto = mcm_cuerpo_una_linea($texto);
-            if ($texto !== '') {
-                $md .= ($ordenada ? ($n++) . '. ' : '- ') . $texto . "\n";
-            }
-            foreach ($anidadas as $sub) {
-                $md .= mcm_cuerpo_lista_md($sub, strtolower($sub->nodeName) === 'ol');
-            }
-        }
-        return $md;
-    }
-
-    function mcm_cuerpo_img_md($img, $pie)
-    {
-        $src = trim($img->getAttribute('src'));
-        if ($src === '') {
-            return '';
-        }
-        return '![' . str_replace(array('[', ']'), '', $pie) . '](' . str_replace(' ', '%20', $src) . ')';
     }
 
     /** Todo en una línea y sin espacios dobles. */
@@ -683,6 +772,21 @@ if (!function_exists('mcm_cuerpo_bloques')) {
         return '';
     }
 
+    /**
+     * EL CAMPO del cuerpo en `stic_Events`. Un solo sitio para los dos repos.
+     *
+     * Es un campo WYSIWYG (editor TinyMCE de Sinergia) creado para sustituir a
+     * `web_cuerpo_c`, que era un TextArea en Markdown: Studio no deja cambiar
+     * el tipo de un campo ya creado. Ver CAMPOS.md §1 → Eventos.
+     *
+     * ⚠️ Pedir a la API un campo que no existe se lleva por delante la consulta
+     * entera (400). Si se renombra, se cambia AQUÍ y en ningún otro sitio.
+     */
+    function mcm_cuerpo_campo()
+    {
+        return 'web_cuerpo_html_c';
+    }
+
     /** Los dominios que son NUESTROS: se abren en la misma pestaña y por https. */
     function mcm_cuerpo_dominios_propios()
     {
@@ -716,8 +820,8 @@ if (!function_exists('mcm_cuerpo_bloques')) {
     /**
      * Opciones (todas opcionales):
      *   clases        clase CSS de cada pieza (ver los valores por defecto)
-     *   titulo_base   2 → `##` es un <h2>. En una pantalla cuyo título ya es
-     *                 un <h3>, se pone 4 y el orden de títulos no se rompe
+     *   titulo_base   2 → un título de sección es un <h2>. En una pantalla
+     *                 cuyo título ya es un <h3>, se sube para no romper el orden
      *   miniatura     callable($src, $ancho) → la versión ligera de una imagen
      *   url           callable($url) → reescribe CUALQUIER enlace o imagen ya
      *                 validado. El área privada lo usa para servir los
@@ -734,7 +838,6 @@ if (!function_exists('mcm_cuerpo_bloques')) {
             'boton_linea' => 'evento-boton-linea',
             'imagen' => 'evento-imagen',
             'galeria' => 'evento-galeria',
-            'cita' => 'evento-cita',
             'video' => 'evento-video',
         ), (array) ($opciones['clases'] ?? array()));
         $base = max(1, min(5, (int) ($opciones['titulo_base'] ?? 2)));
@@ -748,8 +851,8 @@ if (!function_exists('mcm_cuerpo_bloques')) {
         $e = function ($t) {
             return htmlspecialchars((string) $t, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         };
-        $linea = function ($t) use ($opciones) {
-            return str_replace("\n", "<br>\n", mcm_cuerpo_linea($t, $opciones));
+        $linea = function ($piezas) use ($opciones) {
+            return mcm_cuerpo_linea($piezas, $opciones);
         };
 
         $html = '';
@@ -757,10 +860,10 @@ if (!function_exists('mcm_cuerpo_bloques')) {
             switch ($b['tipo'] ?? '') {
                 case 'titulo':
                     $n = min(6, $base + (((int) ($b['nivel'] ?? 2)) >= 3 ? 1 : 0));
-                    $html .= "<h{$n}>" . mcm_cuerpo_linea(mcm_cuerpo_una_linea($b['texto']), $opciones) . "</h{$n}>\n";
+                    $html .= "<h{$n}>" . $linea($b['contenido']) . "</h{$n}>\n";
                     break;
                 case 'parrafo':
-                    $html .= '<p>' . $linea($b['texto']) . "</p>\n";
+                    $html .= '<p>' . $linea($b['contenido']) . "</p>\n";
                     break;
                 case 'lista':
                     $tag = !empty($b['ordenada']) ? 'ol' : 'ul';
@@ -771,11 +874,8 @@ if (!function_exists('mcm_cuerpo_bloques')) {
                     }
                     $html .= "</{$tag}>\n";
                     break;
-                case 'cita':
-                    $html .= '<blockquote class="' . $e($cl['cita']) . '"><p>' . $linea($b['texto']) . "</p></blockquote>\n";
-                    break;
                 case 'aviso':
-                    $html .= '<p class="' . $e($cl['aviso']) . '">' . $linea($b['texto']) . "</p>\n";
+                    $html .= '<p class="' . $e($cl['aviso']) . '">' . $linea($b['contenido']) . "</p>\n";
                     break;
                 case 'boton':
                     list($url, $fuera) = mcm_cuerpo_destino($reescribe($b['url']), $propios);
@@ -785,8 +885,9 @@ if (!function_exists('mcm_cuerpo_bloques')) {
                     break;
                 case 'imagen':
                     $pie = trim((string) ($b['pie'] ?? ''));
+                    $alt = $pie !== '' ? $pie : trim((string) ($b['alt'] ?? ''));
                     $html .= '<figure class="' . $e($cl['imagen']) . '"><img src="' . $e($ligera($b['src'], 1200))
-                        . '" alt="' . $e($pie) . '" loading="lazy">';
+                        . '" alt="' . $e($alt) . '" loading="lazy">';
                     if ($pie !== '') {
                         $html .= '<figcaption>' . $e($pie) . '</figcaption>';
                     }
@@ -829,54 +930,87 @@ if (!function_exists('mcm_cuerpo_bloques')) {
     }
 
     /**
-     * Lo de dentro de una línea: enlaces, negrita y cursiva.
+     * Unas piezas → HTML de línea.
      *
-     * Se escapa ANTES de tocar nada. Los enlaces se apartan con una marca
-     * mientras se aplican la negrita y la cursiva, para que un `_` o un `*` de
-     * una URL no se convierta en cursiva y parta el enlace.
+     * El texto se escapa SIEMPRE, y dentro del texto suelto (no del que ya es
+     * un enlace) se enlazan solas las direcciones, los correos y los teléfonos:
+     * quien escribe «escríbenos a comunica@…» o «al 649 949 583» espera poder
+     * tocarlo en el móvil.
      */
-    function mcm_cuerpo_linea($texto, $opciones = array())
+    function mcm_cuerpo_linea($piezas, $opciones = array())
     {
         $opciones = (array) $opciones;
         $propios = $opciones['propios'] ?? null;
         $reescribe = mcm_cuerpo_reescritor($opciones);
-        $e = function ($t) {
-            return htmlspecialchars((string) $t, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-        };
-        $t = $e($texto);
+        $html = '';
+        foreach ((array) $piezas as $p) {
+            switch ($p[0]) {
+                case 'texto':
+                    $html .= mcm_cuerpo_autoenlaza($p[1], $opciones);
+                    break;
+                case 'salto':
+                    $html .= "<br>\n";
+                    break;
+                case 'fuerte':
+                    $html .= '<strong>' . mcm_cuerpo_linea($p[1], $opciones) . '</strong>';
+                    break;
+                case 'cursiva':
+                    $html .= '<em>' . mcm_cuerpo_linea($p[1], $opciones) . '</em>';
+                    break;
+                case 'enlace':
+                    list($destino, $fuera) = mcm_cuerpo_destino($reescribe($p[1]), $propios);
+                    // Dentro de un enlace NO se autoenlaza: sería un enlace
+                    // dentro de otro.
+                    $dentro = mcm_cuerpo_linea_sin_enlaces($p[2]);
+                    $html .= '<a href="' . htmlspecialchars($destino, ENT_QUOTES, 'UTF-8') . '"'
+                        . ($fuera ? ' target="_blank" rel="noopener noreferrer"' : '') . '>' . $dentro . '</a>';
+                    break;
+            }
+        }
+        return $html;
+    }
+
+    /** Lo de dentro de un enlace: negrita y cursiva sí, enlaces no. */
+    function mcm_cuerpo_linea_sin_enlaces($piezas)
+    {
+        $html = '';
+        foreach ((array) $piezas as $p) {
+            switch ($p[0]) {
+                case 'texto':
+                    $html .= htmlspecialchars($p[1], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+                    break;
+                case 'salto':
+                    $html .= '<br>';
+                    break;
+                case 'fuerte':
+                    $html .= '<strong>' . mcm_cuerpo_linea_sin_enlaces($p[1]) . '</strong>';
+                    break;
+                case 'cursiva':
+                    $html .= '<em>' . mcm_cuerpo_linea_sin_enlaces($p[1]) . '</em>';
+                    break;
+                case 'enlace':
+                    $html .= mcm_cuerpo_linea_sin_enlaces($p[2]);
+                    break;
+            }
+        }
+        return $html;
+    }
+
+    /** Un trozo de texto, escapado y con sus direcciones, correos y teléfonos enlazados. */
+    function mcm_cuerpo_autoenlaza($texto, $opciones = array())
+    {
+        $propios = $opciones['propios'] ?? null;
+        $reescribe = mcm_cuerpo_reescritor($opciones);
+        $t = htmlspecialchars((string) $texto, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         $apartados = array();
         $aparta = function ($html) use (&$apartados) {
             $apartados[] = $html;
             return "\x01" . (count($apartados) - 1) . "\x02";
         };
-        $enlace = function ($url, $textoHtml) use ($propios, $reescribe) {
-            list($destino, $fuera) = mcm_cuerpo_destino($reescribe($url), $propios);
-            return '<a href="' . htmlspecialchars($destino, ENT_QUOTES, 'UTF-8') . '"'
-                . ($fuera ? ' target="_blank" rel="noopener noreferrer"' : '') . '>' . $textoHtml . '</a>';
-        };
-        $marcas = function ($t) {
-            $t = preg_replace('/\*\*(?=\S)(.+?)(?<=\S)\*\*/su', '<strong>$1</strong>', $t);
-            $t = preg_replace('/(?<![\w])__(?=\S)(.+?)(?<=\S)__(?![\w])/su', '<strong>$1</strong>', $t);
-            $t = preg_replace('/(?<![*\w])\*(?=\S)([^*]+?)(?<=\S)\*(?![*\w])/su', '<em>$1</em>', $t);
-            return $t;
-        };
 
-        // 1. Enlaces escritos: [texto](url). La URL se valida AQUÍ, que es la
-        //    única forma de que un `[pincha](javascript:…)` no pase.
-        $t = preg_replace_callback('/\[([^\]]+)\]\(\s*([^)\s]+)\s*\)/u', function ($m) use ($aparta, $enlace, $marcas) {
-            $url = mcm_cuerpo_url(html_entity_decode($m[2], ENT_QUOTES, 'UTF-8'));
-            if ($url === '') {
-                return $m[1];
-            }
-            return $aparta($enlace($url, $marcas($m[1])));
-        }, $t);
-
-        // 2. Lo que se enlaza solo: direcciones, correos y teléfonos. Quien
-        //    escribe «Más info en https://…» o «escríbenos a comunica@…» espera
-        //    poder tocarlo; en el móvil, el teléfono también.
         $t = preg_replace_callback(
             '~\b(?:https?://|www\.)[^\s<>\x01\x02]+~iu',
-            function ($m) use ($aparta, $enlace) {
+            function ($m) use ($aparta, $propios, $reescribe) {
                 $crudo = $m[0];
                 $cola = '';
                 // La puntuación del final es de la frase, no del enlace.
@@ -888,8 +1022,10 @@ if (!function_exists('mcm_cuerpo_bloques')) {
                 if ($url === '') {
                     return $m[0];
                 }
-                $visible = preg_replace('#^https?://#i', '', $crudo);
-                return $aparta($enlace($url, $visible)) . $cola;
+                list($destino, $fuera) = mcm_cuerpo_destino($reescribe($url), $propios);
+                return $aparta('<a href="' . htmlspecialchars($destino, ENT_QUOTES, 'UTF-8') . '"'
+                    . ($fuera ? ' target="_blank" rel="noopener noreferrer"' : '') . '>'
+                    . preg_replace('#^https?://#i', '', $crudo) . '</a>') . $cola;
             },
             $t
         );
@@ -908,10 +1044,6 @@ if (!function_exists('mcm_cuerpo_bloques')) {
             $t
         );
 
-        // 3. Negrita y cursiva, con los enlaces apartados.
-        $t = $marcas($t);
-
-        // 4. Y los enlaces, de vuelta a su sitio.
         return preg_replace_callback('/\x01(\d+)\x02/', function ($m) use ($apartados) {
             return $apartados[(int) $m[1]] ?? '';
         }, $t);

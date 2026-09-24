@@ -42,7 +42,7 @@ if (!defined('ABSPATH')) {
 function sticpa_event_web_fields()
 {
     return (array) apply_filters('sticpa_event_web_fields', array(
-        'web_cuerpo_c', 'web_lema_c', 'web_cartel_c', 'web_publicar_c', 'web_slug_c',
+        mcm_cuerpo_campo(), 'web_lema_c', 'web_cartel_c', 'web_publicar_c', 'web_slug_c',
     ));
 }
 
@@ -186,7 +186,7 @@ function sticpa_event_web_view($objSCP, $eventId, $nvl)
         return $url;
     };
 
-    $bloques = mcm_cuerpo_bloques($val('web_cuerpo_c'));
+    $bloques = mcm_cuerpo_bloques($val(mcm_cuerpo_campo()));
 
     $cartel = mcm_cuerpo_url(mcm_cuerpo_normalizar($val('web_cartel_c')), false);
     if ($cartel === '') {

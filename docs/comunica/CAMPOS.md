@@ -763,7 +763,7 @@ funcional en [`EVENTOS.md`](EVENTOS.md) §5.
     `javascript:…` acabaría en un enlace que pulsa una familia. Un esquema que
     no valga se descarta y se cae a la búsqueda.
 
-**La web del evento — seis campos `web_*_c`** (creados en Studio el
+**La web del evento — los campos `web_*_c`** (creados en Studio el
 20/09/2026; tipos verificados por MCP el 24/09/2026). ⚠️ **Van SIN el prefijo
 `ajmcm_`**, a diferencia del resto de campos propios del módulo: así se crearon
 y así se quedan. Los lee la página pública (`/actividades`, repo
@@ -775,7 +775,8 @@ las devuelve la API: si las necesitas, míralas allí.
 |---|---|---|
 | `web_publicar_c` | casilla (por defecto `0`) | El interruptor de la **página pública**. Apagada, el evento no tiene página en `/actividades`; su texto sí se ve en el área privada y en el modal de la convivencia |
 | `web_url_c` | URL | A dónde lleva «Inscribirme» en la página pública. Vacío → «Entrar al área privada». ⚠️ Vacío llega como `http://` (SuiteCRM): se trata como vacío |
-| `web_cuerpo_c` | texto largo | **El cuerpo**: Markdown reducido (chuleta en `inc/eventos-cuerpo.php`). Trae una plantilla por defecto con huecos `ID-DEL-CARTEL-EN-EL-CRM`, que se ignoran si no se rellenan. **No es sitio para borradores**: es público aunque el evento no esté publicado |
+| `web_cuerpo_html_c` | **WYSIWYG** (editor TinyMCE) — ⏳ **por crear en el cutover** (ver `EVENTOS.md` §9.4) | **El cuerpo**: HTML del editor. Se lee con lista blanca (`inc/eventos-cuerpo.php`); estilos y formato de Word se ignoran. Lo guarda CODIFICADO (`&lt;p&gt;`). **No es sitio para borradores**: es público aunque el evento no esté publicado. El nombre vive en `mcm_cuerpo_campo()` |
+| `web_cuerpo_c` | texto largo | ⚠️ **RETIRADO** (Markdown). Nadie lo lee desde el cutover; se borra en Studio cuando esté mezclado el cambio |
 | `web_cartel_c` | URL | La imagen de cabecera, si no se sube al evento. Vacío = `http://` (ver arriba) |
 | `web_lema_c` | texto (255) | El subtítulo bajo el título («Sin Rodeos: Soy Consolación») |
 | `web_slug_c` | texto (255) | La URL bonita (`?e=convivencia26-cs-com`). Vacío → se saca del nombre |

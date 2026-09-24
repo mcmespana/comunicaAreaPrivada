@@ -575,7 +575,7 @@ ficha del evento lo pinta ahora dentro.
 
 | Qué | Dónde |
 |---|---|
-| Renderizador del cuerpo (Markdown reducido; HTML saneado el día que el campo sea HTML) | [`inc/eventos-cuerpo.php`](../../inc/eventos-cuerpo.php) — **el mismo fichero** que usa la web |
+| Renderizador del cuerpo (HTML del editor, con lista blanca) | [`inc/eventos-cuerpo.php`](../../inc/eventos-cuerpo.php) — **el mismo fichero** que usa la web |
 | Llevarlo a la ficha, documentos y endpoint | [`inc/stic-event-web.php`](../../inc/stic-event-web.php) |
 | Estilos | `css/custom-style.css` §59 |
 | Pruebas | `tests/EventWebTest.php`; render en `tests/manual/render-events.php` |
@@ -627,6 +627,33 @@ cuerpo se reescribe a este endpoint **si ese documento es del evento**.
 
 La lista de documentos de cada evento se cachea **10 minutos** (transient
 `sticpa_evdocs_*`): subir un PDF tarda hasta eso en verse aquí.
+
+### 9.4 El cuerpo es HTML: el cutover (24/09/2026)
+
+El cuerpo pasa de `web_cuerpo_c` (TextArea en Markdown, un drama de escribir
+en la caja de Sinergia) a **`web_cuerpo_html_c`, un campo WYSIWYG** (TinyMCE):
+títulos en grande mientras se escribe. Studio no deja cambiar el tipo de un
+campo ya creado, así que es un campo NUEVO. **Sin compatibilidad con
+Markdown**: los eventos viejos se migran a mano.
+
+Qué se acepta y en qué se convierte está en la cabecera de
+`inc/eventos-cuerpo.php`; lo esencial: Título 1 = sección, Título 2 =
+subtítulo, Cita = aviso, **un enlace solo en su párrafo = botón**, la primera
+imagen = cartel, imágenes seguidas = galería. Todo estilo se ignora.
+
+**Orden del cutover, y por qué ese orden.** Pedir a la API un campo que no
+existe tumba la consulta entera (400) y la web se queda sin eventos, así que:
+
+1. Crear `web_cuerpo_html_c` en Studio (WYSIWYG) con la plantilla por defecto
+   (`comunicaFormularios/inicio/plantilla-evento.html`) y desplegar.
+2. Pasar el texto de los eventos al campo nuevo.
+3. Mezclar los dos PR (este y el de formularios) → se despliegan.
+4. Después, y solo después, borrar `web_cuerpo_c` en Studio.
+
+Entre 1 y 3 la web sigue leyendo el campo viejo; desde 3, el nuevo. No hay
+ventana sin eventos. El área privada no tiene riesgo (pide solo los campos que
+existen), pero la definición de campos está cacheada 6 h: como la lista de
+campos cambia, la clave de caché es otra y se refresca sola.
 
 > ⚠️ **Pendiente, y grave, fuera de esto:** la descarga genérica de Documentos
 > (`download_document()` en `inc/stic-action.php`, registrada también como
