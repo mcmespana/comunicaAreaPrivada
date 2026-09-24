@@ -155,6 +155,3 @@ $html .= '</div>';
 $html .= '<button type="submit" class="pl-save">' . esc_html__('Crear reunión', 'sticpa') . '</button>';
 $html .= '</form>';
 
-$html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
-    . esc_html__('Las reuniones van a su propio evento, no al de los sábados: así no aparecen en el calendario de las familias.', 'sticpa')
-    . '</span></p>';

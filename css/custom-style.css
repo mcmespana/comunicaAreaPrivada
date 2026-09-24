@@ -175,15 +175,17 @@
 }
 
 /* ============================================================
-   2. CONTENEDOR GENERAL — atmósfera sutil de marca
+   2. CONTENEDOR GENERAL
    ============================================================ */
 .stic-container {
     position: relative;
     font-family: var(--font-family);
     padding: 0 !important;          /* aprovechamos todo el ancho disponible */
-    background:
-        radial-gradient(1100px 460px at 100% -10%, rgba(157, 30, 116, 0.07), transparent 60%),
-        radial-gradient(900px 480px at -10% 0%, rgba(28, 111, 179, 0.08), transparent 55%);
+    /* SIN DEGRADADO DE FONDO, en ninguno de los dos modos. Había dos manchas
+       radiales de marca (magenta y azul) que según el alto de la página se
+       veían o no: parecía un fallo más que una atmósfera. Lo quitó el
+       propietario el 24/09/2026. La marca ya está en la barra y los botones. */
+    background: transparent;
     border-radius: var(--radius-2xl);
     /* Tema claro también para lo que pinta el NAVEGADOR (desplegables nativos
        de <select>, autofill, spinners, scrollbars): §20.d fuerza superficies,
@@ -4233,9 +4235,7 @@ span.stic-field {
 }
 :root[data-stic-scheme="dark"] .stic-container {
     color: var(--gray-800);
-    background:
-        radial-gradient(1100px 460px at 100% -10%, rgba(157, 30, 116, 0.16), transparent 60%),
-        radial-gradient(900px 480px at -10% 0%, rgba(28, 111, 179, 0.18), transparent 55%);
+    background: transparent; /* sin degradado: ver §2 */
 }
 
 /* --- 44.c Inputs y controles nativos -------------------------------------- */
