@@ -222,62 +222,6 @@ function sticpa_equipo_chips_html()
 }
 
 /**
- * El aviso de «esto lo ves porque coordinas», para las pantallas que solo ve
- * coordinación (o acompañamiento).
- *
- * No es decorativo. Estas pantallas enseñan a personas datos de OTRAS personas
- * —la asistencia de un monitor, lo que alguien escribió sobre él—, y quien las
- * abre tiene que saber en calidad de qué las está viendo. Un permiso que no se
- * ve es un permiso que se olvida.
- *
- * @param string $ambito Alcance ya en lenguaje humano ("COM", "toda la
- *                       delegación"). Sale de sticpa_pl_coord_scope(), que es
- *                       quien sabe de esto y CUESTA UNA CONSULTA: por eso lo
- *                       pasa quien ya la ha hecho, y quien no (la home) manda
- *                       cadena vacía y se queda con la frase corta.
- * @param string $papel  'coordinacion' | 'acompanamiento'.
- * @param string $que    Qué es lo que se está viendo ("esta pantalla",
- *                       "estas secciones"), para que la frase encaje donde se
- *                       pinte en vez de sonar a plantilla.
- */
-function sticpa_equipo_por_que_html($ambito = '', $papel = 'coordinacion', $que = '')
-{
-    if (trim((string) $que) === '') {
-        $que = __('esta pantalla', 'sticpa');
-    }
-
-    if ($papel === 'acompanamiento') {
-        $texto = sprintf(
-            /* translators: %s: qué se está viendo ("esta pantalla") */
-            __('Ves %s porque acompañas al equipo de monitores.', 'sticpa'),
-            $que
-        );
-    } elseif (trim((string) $ambito) !== '') {
-        $texto = sprintf(
-            /* translators: 1: qué se está viendo; 2: alcance ("COM", "toda la delegación") */
-            __('Ves %1$s porque coordinas %2$s.', 'sticpa'),
-            $que,
-            trim((string) $ambito)
-        );
-    } else {
-        $texto = sprintf(
-            /* translators: %s: qué se está viendo ("esta pantalla") */
-            __('Ves %s porque eres coordinación.', 'sticpa'),
-            $que
-        );
-    }
-
-    $icono = "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'"
-        . " stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>"
-        . "<path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z'/></svg>";
-
-    return "<p class='stic-porque'>"
-        . "<span class='stic-porque-ico' aria-hidden='true'>{$icono}</span>"
-        . "<span class='stic-porque-text'>" . esc_html($texto) . "</span>"
-        . "</p>";
-}
-
-/**
  * El papel que EXPLICA el acceso ampliado: coordinación si la hay, y si no,
  * acompañamiento. Ser monitor no explica nada aquí (lo es todo el mundo en esta
  * sección), así que devuelve '' y quien llame no pinta la frase.

@@ -404,7 +404,6 @@ páginas, también las de las familias.
 | `sticpa_equipo_es_del_equipo()` | Si se abre la sección (y **no** se abre a un familiar viendo la ficha de su hijo) |
 | `sticpa_equipo_secciones()` | Qué entradas la forman — **fuente única** del menú y del grupo de la home |
 | `sticpa_equipo_chips_html()` | El chip que dice por qué (uno como mucho) |
-| `sticpa_equipo_por_que_html()` | La frase «Ves esta pantalla porque coordinas X» |
 
 Reglas que conviene no deshacer:
 
@@ -418,13 +417,12 @@ Reglas que conviene no deshacer:
   es el acceso más amplio; dos chips no caben a 375px (siete píxeles de scroll
   horizontal, cazados con el arnés).
 - **El alcance (`sticpa_pl_coord_scope_label()`) cuesta una consulta**, así que
-  la frase lo lleva donde ya se ha pagado (las pantallas de coordinación) y no
-  donde no (la home, que dice la versión corta).
-- **La frase va en toda pantalla que enseñe datos de otras personas** por un
-  permiso que no tiene todo el mundo. Un permiso que no se ve es un permiso que
-  se olvida.
+  solo sale en la cabecera de las pantallas de coordinación, donde ya se ha
+  pagado; la home se queda con el chip.
+- **Sin frase de «por qué lo ves»** (`sticpa_equipo_por_que_html()`, retirada el
+  24/09/2026 por decisión del propietario): el chip y la cabecera ya lo dicen.
 
-Estilos: CSS §57 (`.stic-equipo-chip`, `.stic-porque`). Arnés de render:
+Estilos: CSS §57 (`.stic-equipo-chip`). Arnés de render:
 `tests/manual/render-equipo.php`. Tests: `tests/EquipoTest.php` (incluye el
 menú de verdad, no solo la decisión).
 

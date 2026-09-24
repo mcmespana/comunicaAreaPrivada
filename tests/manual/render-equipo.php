@@ -26,9 +26,6 @@ $_SESSION['scp_role_resolved'] = true;
 $GLOBALS['__stic_filters']['sticpa_profile_audience'] = 'miembro';
 
 $chips = sticpa_equipo_chips_html();
-$porqueHome = sticpa_equipo_por_que_html('', 'coordinacion', 'estas secciones');
-$porqueAmbito = sticpa_equipo_por_que_html('COM · COM 2', 'coordinacion');
-$porqueAcomp = sticpa_equipo_por_que_html('', 'acompanamiento', 'estos seguimientos');
 
 // Las tarjetas de la home, con los mismos iconos y descripciones de verdad.
 $secciones = sticpa_equipo_secciones();
@@ -72,13 +69,11 @@ body{margin:0;background:var(--bg-color,#f6f7f9)}.harness{padding:1rem}
 <h2>El grupo de la home</h2>
 <section class='stic-home-account stic-home-equipo'>
   <p class='stic-section-label stic-section-label--mini stic-section-label--conchips'>Equipo de monitores {$chips}</p>
-  {$porqueHome}
   <div class='stic-dashboard-grid stic-dashboard-grid--mini'>{$cards}</div>
 </section>
 <h2>El bloque de coordinación, dentro de Pasar lista</h2>
 <div class=harness-pl>
 <div class='pl-etapa-title'><span class='pl-etapa-dot' style='background:var(--secondary-color)'></span>Coordinación<span class='pl-scope'>COM · COM 2</span></div>
-{$porqueAmbito}
 <div class='pl-list'>
   <a class='pl-group' href='#'><span class='pl-group-body'><span class='pl-name'>Monitores</span><span class='pl-group-meta'>Pasar lista del sábado</span></span></a>
   <a class='pl-group' href='#'><span class='pl-group-body'><span class='pl-name'>Reuniones</span><span class='pl-group-meta'>Programación: crear y pasar lista</span></span></a>
@@ -86,6 +81,4 @@ body{margin:0;background:var(--bg-color,#f6f7f9)}.harness{padding:1rem}
 </div>
 <h2>Los dos chips (contraste en los dos temas)</h2>
 <p class='stic-section-label stic-section-label--mini stic-section-label--conchips'>Coordinación <span class='stic-equipo-chip'>Coordinación</span> <span class='stic-equipo-chip stic-equipo-chip--acompanamiento'>Acompañamiento</span></p>
-<h2>La frase, con alcance (pantallas de coordinación)</h2>{$porqueAmbito}
-<h2>La frase, en seguimientos (acompañamiento)</h2>{$porqueAcomp}
 </div></div></div></body></html>";
