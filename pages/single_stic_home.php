@@ -297,12 +297,6 @@ $portalName = get_option('sticpa_scp_name');
                 <?= esc_html__('Equipo de monitores', 'sticpa'); ?>
                 <?= function_exists('sticpa_equipo_chips_html') ? sticpa_equipo_chips_html() : ''; ?>
             </p>
-            <?php
-            $papelEquipo = function_exists('sticpa_equipo_papel_principal') ? sticpa_equipo_papel_principal() : '';
-            if ($papelEquipo !== '') {
-                echo sticpa_equipo_por_que_html('', $papelEquipo, __('estas secciones', 'sticpa'));
-            }
-            ?>
             <div class="stic-dashboard-grid stic-dashboard-grid--mini">
                 <?php foreach ($equipoCards as $key => $label) { $renderCard($key, $label); } ?>
             </div>

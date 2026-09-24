@@ -372,13 +372,6 @@ if ($scope !== null) {
         . '<span class="pl-scope">' . esc_html($scopeLabel) . '</span>'
         . '</div>';
 
-    // POR QUÉ aparecen estas dos filas. Son las únicas de la pantalla que no
-    // salen de ser monitor, y sin decirlo parecían secciones que le faltan al
-    // resto (o que a uno le sobran).
-    if (function_exists('sticpa_equipo_por_que_html')) {
-        $html .= sticpa_equipo_por_que_html($scopeLabel, 'coordinacion', __('estas dos secciones', 'sticpa'));
-    }
-
     $html .= '<div class="pl-list">';
     $html .= '<a class="pl-group" href="?internalpage=single_stic_pasar_lista_monitores">';
     $html .= '<span class="pl-group-body">';

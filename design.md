@@ -334,11 +334,15 @@ monitor, lo que coordinación escribió sobre él. Aparecen porque quien mira
 coordina o acompaña, y hasta que se dijo, no lo decía nada: unas filas más al
 final de una pantalla, sin explicación.
 
-La regla: **toda pantalla que se abre por un permiso que no tiene todo el mundo
-lleva una línea que nombra ese permiso**, y con su alcance cuando se conoce
-(«Ves esta pantalla porque coordinas COM · COM 2»). No es decoración ni
-cortesía: un permiso que no se ve es un permiso que se olvida, y quien lo tiene
-tiene que saber en calidad de qué está mirando.
+La regla: **lo que se abre por un permiso que no tiene todo el mundo se
+distingue con el CHIP** («Coordinación», «Acompañamiento») y, en las pantallas
+de coordinación, con el alcance en la cabecera («toda la delegación»). Eso
+basta.
+
+⚠️ **Sin frase explicativa.** Hubo una caja «Ves estas secciones porque eres
+coordinación» en la home y en las pantallas de coordinación; el propietario la
+quitó el 24/09/2026 porque repetía lo que ya dicen el chip y la cabecera. No
+se vuelve a poner.
 
 Dos cautelas que hacen que no se vuelva ruido:
 
@@ -347,8 +351,8 @@ Dos cautelas que hacen que no se vuelva ruido:
 - **Uno como mucho.** Si alguien acumula papeles, se nombra el que más explica
   lo que está viendo; los demás se dicen donde importan.
 
-Implementación en este repo: `sticpa_equipo_por_que_html()`, CSS §57
-(`.stic-porque`, `.stic-equipo-chip`).
+Implementación en este repo: `sticpa_equipo_chips_html()`, CSS §57
+(`.stic-equipo-chip`).
 
 ### 6.5 Formularios
 

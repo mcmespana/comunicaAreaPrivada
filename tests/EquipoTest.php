@@ -199,32 +199,6 @@ class EquipoTest extends TestCase
         $this->assertSame('coordinacion', sticpa_equipo_papel_principal());
     }
 
-    public function test_la_frase_dice_el_alcance_cuando_se_sabe(): void
-    {
-        $html = sticpa_equipo_por_que_html('el COM', 'coordinacion');
-        $this->assertStringContainsString('porque coordinas el COM', $html);
-
-        // Sin alcance (la home, que no puede pagar la consulta) la frase sigue
-        // siendo una frase entera.
-        $this->assertStringContainsString(
-            'porque eres coordinación',
-            sticpa_equipo_por_que_html('', 'coordinacion')
-        );
-
-        $this->assertStringContainsString(
-            'porque acompañas',
-            sticpa_equipo_por_que_html('', 'acompanamiento')
-        );
-    }
-
-    public function test_la_frase_escapa_lo_que_le_llega(): void
-    {
-        // El alcance sale del CRM: no se pinta crudo.
-        $html = sticpa_equipo_por_que_html('<b>COM</b>', 'coordinacion');
-        $this->assertStringNotContainsString('<b>', $html);
-        $this->assertStringContainsString('&lt;b&gt;', $html);
-    }
-
     // -----------------------------------------------------------------
     // El alcance, dicho en una frase (inc/stic-pasar-lista.php)
     // -----------------------------------------------------------------
