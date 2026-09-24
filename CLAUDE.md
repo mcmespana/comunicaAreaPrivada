@@ -79,7 +79,9 @@ contexto**. Reglas:
   `sticpa_request_to_module_data()` para lo que se escribe (nunca un
   `foreach ($_REQUEST …)`) y `wp_safe_redirect(sticpa_return_url() …)` para
   volver. Un campo `html` de un formulario que pinte sus propios `<input>` los
-  declara con `'posts'`, o no se guardan. `SecurityTest` falla si un
+  declara con `'posts'`, o no se guardan. Una acción que cambia algo sin
+  escribir campos (borrar, baja) exige `sticpa_form_is_genuine()`: la firma
+  va atada a la sesión y es la protección contra CSRF. `SecurityTest` falla si un
   `admin_post_nopriv_*` se olvida de la sesión.
 
 ---

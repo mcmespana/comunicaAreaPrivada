@@ -182,13 +182,27 @@ function sticpa_form_secret()
 }
 
 /**
- * La firma: la lista de campos + el handler al que va el formulario. Atado al
- * handler para que la lista de un formulario no sirva en otro.
+ * La firma: la lista de campos + el handler al que va el formulario + LA
+ * SESIÓN en la que se pintó.
+ *
+ * Atada al handler para que la lista de un formulario no sirva en otro. Y
+ * atada a la sesión porque esto es también la protección contra CSRF
+ * (TODO.md, SEC-05): la cookie es SameSite=Lax, que frena un POST desde otra
+ * web pero NO un enlace GET, y los handlers leen $_REQUEST. Sin la sesión en
+ * la firma, alguien copiaba la firma de SU formulario, te mandaba un enlace y
+ * al abrirlo se guardaba en TU ficha lo que él quisiera. El id de sesión es
+ * secreto y cambia al entrar (session_regenerate_id), así que la firma de un
+ * formulario solo vale en la sesión que lo pintó.
  */
+function sticpa_form_signature($payload)
+{
+    return hash_hmac('sha256', $payload . '|' . (string) session_id(), sticpa_form_secret());
+}
+
 function sticpa_form_token($action, $fields)
 {
     $payload = sticpa_b64url_encode(wp_json_encode(array('a' => (string) $action, 'f' => array_values($fields))));
-    return $payload . '.' . hash_hmac('sha256', $payload, sticpa_form_secret());
+    return $payload . '.' . sticpa_form_signature($payload);
 }
 
 /** El hidden que lleva la firma dentro del formulario. */
@@ -209,7 +223,7 @@ function sticpa_form_fields_from_request($action)
         return null;
     }
     list($payload, $sig) = $parts;
-    if (!hash_equals(hash_hmac('sha256', $payload, sticpa_form_secret()), $sig)) {
+    if (!hash_equals(sticpa_form_signature($payload), $sig)) {
         return null;
     }
     $data = json_decode((string) sticpa_b64url_decode($payload), true);
@@ -217,6 +231,16 @@ function sticpa_form_fields_from_request($action)
         return null;
     }
     return array_map('strval', $data['f']);
+}
+
+/**
+ * ¿La petición viene de un formulario de ESTE handler pintado en ESTA sesión?
+ * Para las acciones que no escriben campos pero sí cambian algo (borrar,
+ * darse de baja, cambiar la contraseña): es su protección contra CSRF.
+ */
+function sticpa_form_is_genuine($action)
+{
+    return sticpa_form_fields_from_request($action) !== null;
 }
 
 /**

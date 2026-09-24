@@ -198,7 +198,9 @@ function prefix_admin_single_stic_documents()
     }
 
     if ($action === 'delete') {
-        if ($docId === '') {
+        // Además de tuyo, desde TU formulario: sin la firma, un enlace ajeno
+        // con el id de uno de tus documentos te lo borraba al abrirlo.
+        if ($docId === '' || !sticpa_form_is_genuine('single_stic_documents')) {
             wp_safe_redirect($listUrl);
             exit;
         }
@@ -421,7 +423,8 @@ function prefix_admin_single_stic_registrations()
         }
 
         if ($action === 'delete') {
-            if ($regId === '') {
+            // Desde TU formulario (CSRF): ver el borrado de documentos.
+            if ($regId === '' || !sticpa_form_is_genuine('single_stic_registrations')) {
                 wp_safe_redirect($listUrl);
                 exit;
             }
@@ -531,6 +534,10 @@ function prefix_admin_single_stic_password_change()
     // Sin sesión, `$userId` quedaba vacío, la contraseña guardada también, y
     // una «antigua» vacía coincidía: el set_entry salía con un id vacío.
     sticpa_require_session();
+    if (!sticpa_form_is_genuine('single_stic_password_change')) {
+        wp_safe_redirect(sticpa_return_url() . '&error=1');
+        exit;
+    }
     $objSCP = SugarRestApiCall::getObjSCP();
 
     $userId = !empty($_SESSION['scp_user_adult']) ? $_SESSION['scp_user_id'] : ($_SESSION['scp_tutor_user_id'] ?? $_SESSION['scp_user_id']);
@@ -947,6 +954,12 @@ function prefix_admin_single_stic_unsubscribe()
 {
     // Sin sesión el id quedaba vacío y set_entry CREABA un contacto nuevo.
     sticpa_require_session();
+    // Y desde TU formulario: esto borra tu usuario y tu contraseña, y antes
+    // bastaba con que abrieras un enlace ajeno (CSRF).
+    if (!sticpa_form_is_genuine('single_stic_unsubscribe')) {
+        wp_safe_redirect(sticpa_return_url() . '&msg=error');
+        exit;
+    }
 
     ##### customizable data ########################
     $moduleName = getDestinationModule(); // module name where to save/retrieve data

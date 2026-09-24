@@ -109,6 +109,26 @@ class SecurityTest extends TestCase
         $this->assertSame(array('document_name' => 'x'), sticpa_request_to_module_data('single_stic_documents'));
     }
 
+    /**
+     * CSRF (TODO.md, SEC-05): el atacante saca una firma válida de SU
+     * formulario y te manda un enlace con ella. En tu sesión no vale.
+     */
+    #[\PHPUnit\Framework\Attributes\RunInSeparateProcess]
+    public function test_la_firma_de_otra_sesion_no_vale()
+    {
+        session_id('sesion-del-atacante');
+        $token = sticpa_form_token('single_stic_comunica_perfil', array('email1'));
+        $this->assertTrue((function () use ($token) {
+            $_REQUEST = array('stic_form_fields' => $token);
+            return sticpa_form_is_genuine('single_stic_comunica_perfil');
+        })());
+
+        session_id('sesion-de-la-victima');
+        $_REQUEST = array('stic_form_fields' => $token, 'email1' => 'atacante@example.test');
+        $this->assertFalse(sticpa_form_is_genuine('single_stic_comunica_perfil'));
+        $this->assertNull(sticpa_request_to_module_data('single_stic_comunica_perfil'));
+    }
+
     /* ── 002/003: ¿es tuyo? ─────────────────────────────────────────────── */
 
     private function crm(array $porEnlace)
