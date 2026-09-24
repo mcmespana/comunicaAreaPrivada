@@ -401,6 +401,10 @@ function sticpa_record_detail_html($spec)
             . "<span>" . esc_html($spec['back']['label'] ?? __('Volver', 'sticpa')) . "</span></a>";
     }
     $html .= "<h3 class='stic-rec-hero-title'>" . esc_html($title) . "</h3>";
+    // El lema o la frase que acompaña al título (el de la web de un evento).
+    if (trim((string) ($spec['subtitle'] ?? '')) !== '') {
+        $html .= "<p class='stic-rec-hero-sub'>" . esc_html($spec['subtitle']) . "</p>";
+    }
 
     $meta = '';
     foreach ((array) ($spec['meta'] ?? array()) as $item) {
@@ -418,6 +422,19 @@ function sticpa_record_detail_html($spec)
         $html .= "<div class='stic-rec-hero-meta'>{$meta}</div>";
     }
     $html .= "</header>";
+
+    // --- La imagen de la ficha (el cartel de un evento) ---
+    //
+    // Se ve ENTERA y a su tamaño, nunca recortada: un cartel de imprenta es
+    // vertical y recortarlo a una banda se lleva el título y el logo.
+    if (!empty($spec['cover']['src'])) {
+        $src = (string) $spec['cover']['src'];
+        $ok = sticpa_record_safe_url($src) !== '' || strpos($src, '/') === 0;
+        if ($ok) {
+            $html .= "<figure class='stic-rec-cover'><img src='" . esc_url($src) . "' alt='"
+                . esc_attr($spec['cover']['alt'] ?? '') . "' loading='lazy'></figure>";
+        }
+    }
 
     // --- EL dato, si la ficha tiene uno que manda sobre los demás ---
     if (!empty($spec['headline']['text'])) {
@@ -524,7 +541,8 @@ function sticpa_record_detail_html($spec)
         if (trim($body) === '') {
             continue;
         }
-        $html .= "<section class='stic-rec-desc'>";
+        $extra = trim((string) ($section['class'] ?? ''));
+        $html .= "<section class='stic-rec-desc" . ($extra !== '' ? ' ' . esc_attr($extra) : '') . "'>";
         if (!empty($section['title'])) {
             $html .= "<h4>" . esc_html($section['title']) . "</h4>";
         }

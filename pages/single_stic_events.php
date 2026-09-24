@@ -27,7 +27,8 @@ if ($eventId === '') {
     return;
 }
 
-$detail = $objSCP->getRecordDetail($eventId, 'stic_Events', sticpa_event_fields_to_request($objSCP));
+// Con los campos de la web (cuerpo, cartel, lema…): la ficha los pinta.
+$detail = $objSCP->getRecordDetail($eventId, 'stic_Events', sticpa_event_fields_to_request($objSCP, true));
 $nvl = $detail->entry_list[0]->name_value_list ?? null;
 $event = $nvl ? sticpa_event_view_model($nvl) : null;
 
@@ -62,4 +63,10 @@ if (function_exists('prefix_user_has_active_registration')) {
 // más: el evento ya está cargado y se le pasa su `name_value_list`.
 $block = sticpa_event_signup_block($objSCP, $eventId, $nvl);
 
-$html .= sticpa_event_detail_html($event, $statusLabel, $canSignUp, $block['texto']);
+// LO DE LA WEB: el cartel, el lema, el cuerpo largo y los documentos subidos
+// al evento, pintados con el mismo renderizador que la página pública. Una
+// llamada más (los documentos), cacheada diez minutos por evento. Ver
+// inc/stic-event-web.php.
+$web = function_exists('sticpa_event_web_view') ? sticpa_event_web_view($objSCP, $eventId, $nvl) : null;
+
+$html .= sticpa_event_detail_html($event, $statusLabel, $canSignUp, $block['texto'], $web);

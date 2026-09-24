@@ -145,10 +145,16 @@ function sticpa_event_map_url($explicito = '', $direccion = '', $lugar = '')
  * se cruza con la lista de deseados. La definición va cacheada 6h
  * (sticpa_cached_field_definition), así que esto no añade una llamada por vista.
  */
-function sticpa_event_fields_to_request($objSCP)
+function sticpa_event_fields_to_request($objSCP, $conWeb = false)
 {
     $base = sticpa_event_base_fields();
     $wanted = sticpa_event_wanted_fields();
+    // Los de la web (el cuerpo largo, el cartel…) solo los pide la FICHA: el
+    // listado no los pinta y el cuerpo de diez eventos es mucho texto para
+    // tirarlo. Se miran igualmente contra los campos que existen.
+    if ($conWeb && function_exists('sticpa_event_web_fields')) {
+        $wanted = array_merge($wanted, sticpa_event_web_fields());
+    }
     if (empty($wanted) || !function_exists('sticpa_cached_field_definition')) {
         return $base;
     }
@@ -240,6 +246,11 @@ function sticpa_event_field_definition($objSCP)
         return array();
     }
     $fields = array_merge(sticpa_event_base_fields(), sticpa_event_wanted_fields());
+    // Los de la web entran en la MISMA definición (una sola clave de caché),
+    // aunque solo la ficha los pida.
+    if (function_exists('sticpa_event_web_fields')) {
+        $fields = array_merge($fields, sticpa_event_web_fields());
+    }
     return sticpa_cached_field_definition($objSCP, 'stic_Events', $fields);
 }
 
@@ -709,8 +720,11 @@ function sticpa_events_list_html($events, $statusMap = array())
  *                          ofrece el botón y se explica por qué: a la ficha se
  *                          llega por enlaces que se pasan por WhatsApp, y un
  *                          «no puedes» sin motivo es la peor pantalla.
+ * @param array|null $web   Lo de la web del evento (sticpa_event_web_view()):
+ *                          cartel, lema, cuerpo, documentos. Ver
+ *                          inc/stic-event-web.php.
  */
-function sticpa_event_detail_html($event, $statusLabel = '', $canSignUp = true, $blockNote = '')
+function sticpa_event_detail_html($event, $statusLabel = '', $canSignUp = true, $blockNote = '', $web = null)
 {
     $dateLine = sticpa_record_date_line($event['start_ts'], $event['end_ts']);
     $signUpUrl = '?internalpage=single_stic_registrations&action=create&from=stic_events&id=' . rawurlencode($event['id']);
@@ -797,13 +811,28 @@ function sticpa_event_detail_html($event, $statusLabel = '', $canSignUp = true, 
         );
     }
 
+    // EL TEXTO: el de la web si lo hay, y si no, la descripción de siempre.
+    //
+    // No los dos. El de la web es el que se escribe pensando en quien lo lee
+    // —secciones, qué llevar, horarios— y la `description` suele ser su
+    // resumen o una nota del equipo; con los dos, la ficha contaba lo mismo
+    // dos veces y con palabras distintas.
+    $conWeb = is_array($web) && function_exists('sticpa_event_web_has_content') && sticpa_event_web_has_content($web);
+    $sections = $conWeb
+        ? array(array('title' => __('Toda la información', 'sticpa'), 'body' => sticpa_event_web_section_html($web), 'raw' => true, 'class' => 'stic-evweb'))
+        : array(array('title' => __('Sobre esta actividad', 'sticpa'), 'body' => $event['description']));
+
     return sticpa_record_detail_html(array(
         'back'     => array('url' => '?internalpage=list_stic_events', 'label' => __('Eventos', 'sticpa')),
         'title'    => $event['name'],
+        'subtitle' => $conWeb ? (string) ($web['lema'] ?? '') : '',
         'meta'     => array(array('icon' => 'calendar', 'text' => $dateLine)),
         'chips'    => $chips,
+        'cover'    => ($conWeb && !empty($web['cartel']))
+            ? array('src' => $web['cartel'], 'alt' => sprintf(__('Cartel de %s', 'sticpa'), $event['name']))
+            : null,
         'facts'    => $facts,
-        'sections' => array(array('title' => __('Sobre esta actividad', 'sticpa'), 'body' => $event['description'])),
+        'sections' => $sections,
         'actions'  => $actions,
         'cta_note' => $ctaNote,
     ));

@@ -6512,3 +6512,234 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 @media (prefers-reduced-motion: reduce) {
     .stic-test-ribbon { animation: none; }
 }
+
+
+/* ============================================================
+   59. EVENTOS — la información de la web, dentro de la ficha
+   ------------------------------------------------------------
+   El cartel, el lema, el cuerpo largo y los documentos que se escriben para
+   la página pública de la actividad (`web_*_c`), pintados en la ficha del
+   evento con el MISMO renderizador que la web (inc/eventos-cuerpo.php). Las
+   clases del cuerpo (`evento-aviso`, `evento-cita`…) son las de la página
+   pública a propósito: un texto, un vocabulario. Aquí se visten con los
+   tokens del área, así que el modo oscuro (§44) sale solo.
+
+   Los títulos del cuerpo son <h5>/<h6> y no <h2>: la ficha ya tiene su <h3>
+   y la sección su <h4> (ver `titulo_base` en inc/stic-event-web.php).
+   ============================================================ */
+
+/* El lema, encima del degradado del hero: texto --on-brand, como el título. */
+.stic-rec-hero-sub {
+    margin: -0.15rem 0 0.6rem;
+    font-size: 1rem;
+    font-style: italic;
+    font-weight: 500;
+    color: var(--on-brand);
+    opacity: 0.92;
+}
+
+/* El cartel: entero y a su tamaño. Un cartel de imprenta es vertical, y a todo
+   el ancho de un móvil ocupaba tres pantallas antes de llegar a los datos. */
+.stic-rec-cover {
+    display: flex;
+    justify-content: center;
+    margin: 1rem 0 0;
+}
+.stic-rec-cover img {
+    display: block;
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    max-height: min(420px, 55vh);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    background: var(--surface-2);
+}
+
+.stic-evweb .stic-rec-desc-body { max-width: 68ch; }
+
+.stic-container .stic-evweb-cuerpo h5,
+.stic-evweb-cuerpo h5 {
+    margin: 1.5rem 0 0.45rem;
+    font-size: 1.06rem;
+    font-weight: 800;
+    line-height: 1.3;
+    color: var(--gray-900);
+}
+.stic-container .stic-evweb-cuerpo h6,
+.stic-evweb-cuerpo h6 {
+    margin: 1.1rem 0 0.35rem;
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1.3;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--gray-800);
+}
+.stic-evweb-cuerpo > :first-child { margin-top: 0; }
+.stic-evweb-cuerpo p { margin: 0 0 0.8rem; }
+.stic-evweb-cuerpo ul,
+.stic-evweb-cuerpo ol { margin: 0 0 0.9rem; padding-left: 1.3em; }
+.stic-evweb-cuerpo li { margin-bottom: 0.3rem; }
+.stic-evweb-cuerpo li::marker { color: var(--secondary-color); }
+.stic-evweb-cuerpo ol li::marker { font-weight: 700; }
+.stic-evweb-cuerpo a:not(.stic-rec-btn) {
+    color: var(--primary-color);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    overflow-wrap: anywhere;
+}
+
+/* [aviso]: borde a la izquierda y no una caja de color entera. Destaca sin
+   competir con «Inscribirme», que es la acción de la pantalla. */
+.stic-evweb-cuerpo .evento-aviso {
+    margin: 0 0 1rem;
+    padding: 0.75rem 1rem;
+    border-left: 4px solid var(--secondary-color);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    background: var(--secondary-50);
+    color: var(--gray-900);
+    font-weight: 600;
+}
+
+.stic-evweb-cuerpo .evento-cita {
+    margin: 1rem 0;
+    padding: 0.1rem 0 0.1rem 0.9rem;
+    border-left: 2px solid var(--secondary-color);
+    font-size: 1.05rem;
+    font-style: italic;
+    color: var(--gray-800);
+}
+.stic-evweb-cuerpo .evento-cita p { margin: 0; }
+
+.stic-evweb-cuerpo hr {
+    width: 64px;
+    height: 0;
+    margin: 1.5rem auto;
+    border: 0;
+    border-top: 2px solid var(--gray-200);
+}
+
+.stic-evweb-cuerpo .evento-imagen { margin: 1rem 0; }
+.stic-evweb-cuerpo .evento-imagen img {
+    display: block;
+    width: auto;
+    max-width: 100%;
+    height: auto;
+    max-height: 60vh;
+    margin: 0 auto;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+}
+.stic-evweb-cuerpo .evento-imagen figcaption {
+    margin-top: 0.4rem;
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--gray-500);
+}
+
+.stic-evweb-cuerpo .evento-galeria,
+.stic-evweb-galeria {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 140px), 1fr));
+    gap: 0.6rem;
+    margin: 1rem 0;
+}
+.stic-evweb-cuerpo .evento-galeria img,
+.stic-evweb-galeria img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: var(--radius-md);
+    background: var(--surface-2);
+}
+
+.stic-evweb-cuerpo .evento-video {
+    margin: 1rem 0;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border-radius: var(--radius-md);
+    background: var(--surface-2);
+}
+.stic-evweb-cuerpo .evento-video iframe { display: block; width: 100%; height: 100%; border: 0; }
+
+.stic-evweb-cuerpo .evento-boton-linea { margin: 0.9rem 0; }
+
+/* Los documentos del evento: una fila por documento, entera pulsable. */
+.stic-evweb-docs {
+    list-style: none;
+    display: grid;
+    gap: 0.5rem;
+    margin: 1.1rem 0 0;
+    padding: 0;
+}
+.stic-evweb-doc {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    min-height: 52px;
+    padding: 0.55rem 0.85rem;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    color: var(--gray-900) !important; /* el tema de WP pinta los enlaces de azul */
+    font-weight: 600;
+    text-decoration: none !important; /* y los subraya */
+    transition: border-color 0.15s var(--ease-out);
+}
+.stic-evweb-doc-ico {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-sm);
+    background: var(--primary-50);
+    color: var(--primary-color);
+}
+.stic-evweb-doc-ico svg { width: 18px; height: 18px; }
+.stic-evweb-doc-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.stic-evweb-doc-kind {
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    color: var(--gray-500);
+}
+@media (hover: hover) {
+    .stic-evweb-doc:hover { border-color: var(--primary-color); }
+}
+
+.stic-evweb-pagina {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.1rem 0.75rem;
+    margin: 1.1rem 0 0;
+    font-size: 0.9rem;
+}
+.stic-evweb-pagina a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 44px;
+    color: var(--primary-color) !important; /* por encima del color de enlace del tema */
+    font-weight: 700;
+    text-decoration: none !important; /* el tema subraya; aquí la flecha ya dice que es un enlace */
+}
+.stic-evweb-pagina a svg { width: 16px; height: 16px; }
+.stic-evweb-pagina span { color: var(--gray-500); }
+
+/* El título de la sección, de etiqueta: los títulos de verdad son los del
+   cuerpo («De qué va», «Qué hay que llevar»), y con dos títulos del mismo peso
+   seguidos no se sabía cuál mandaba. */
+.stic-container .stic-evweb > h4,
+.stic-evweb > h4 {
+    margin-bottom: 0.75rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--gray-500);
+}
