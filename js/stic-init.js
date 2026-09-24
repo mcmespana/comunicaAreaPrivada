@@ -79,7 +79,11 @@
                 dayPanel.className = 'stic-cal-day';
                 dayPanel.setAttribute('role', 'region');
                 dayPanel.setAttribute('aria-live', 'polite');
-                calEl.parentNode.insertBefore(dayPanel, calEl.nextSibling);
+                // Detrás de la leyenda si la hay (va justo debajo del
+                // calendario): calendario → colores → lo del día elegido.
+                var anchor = (calEl.nextElementSibling && calEl.nextElementSibling.classList.contains('stic-calendar-legend'))
+                    ? calEl.nextElementSibling : calEl;
+                anchor.parentNode.insertBefore(dayPanel, anchor.nextSibling);
                 return dayPanel;
             }
 
