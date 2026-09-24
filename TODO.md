@@ -59,7 +59,7 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
       `username`/`password`/`token` sin escapar → inyección. Sanear en `PortalLogin`,
       `getUserExists`, `getUserInformationByUsername`, etc.
       ↳ `inc/stic-class-6.php`.
-- [ ] `SEC-03` (P0 · M) **Hashear contraseñas** (si se mantiene el login por contraseña):
+- [ ] `SEC-03` (P3 · M) **Hashear contraseñas** — ↳ **aparcado a propósito** (24/09/2026): el propietario lo da por aceptable de momento; se entra sobre todo por enlace mágico, código o DNI. Si se retoma, valorar antes retirar el login por contraseña. (si se mantiene el login por contraseña):
       `password_hash`/`password_verify`. Implica migrar el campo y el flujo de login/signup/cambio.
       Evaluar si, con `AUTH-*`, conviene **retirar** del todo el login por contraseña.
 - [x] `SEC-04` (P0 · S) **Activar verificación TLS** ↳ **hecho** (24/09/2026, PR #98: PEER + HOST=2). del CRM: `CURLOPT_SSL_VERIFYPEER => 1`
