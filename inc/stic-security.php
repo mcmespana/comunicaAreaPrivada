@@ -63,19 +63,29 @@ function sticpa_require_session()
  *  siempre, así que el destino solo puede ser una página de este sitio.
  * ------------------------------------------------------------------------- */
 
+/** ¿Es una ruta local que se puede usar tal cual? */
+function sticpa_is_local_path($path)
+{
+    // `//otro-sitio/x` es una URL «relativa al protocolo»: el navegador la lee
+    // como otro host. Y una barra invertida la tratan igual algunos navegadores.
+    return is_string($path) && $path !== '' && $path[0] === '/' && strpos($path, '//') !== 0 && strpos($path, '\\') === false;
+}
+
 /**
- * La ruta de `scp_current_url`, sin host ni query. Si no vale, la raíz.
+ * La ruta de `scp_current_url`, sin host ni query. Si no llega o no vale, la
+ * del área privada configurada (`sticpa_scp_area_url`, en MCM `/ap/`): los
+ * enlaces de descarga no la mandan, y volver a la raíz de la web dejaba a la
+ * persona fuera del área.
  */
 function sticpa_return_path()
 {
     $raw = stripslashes((string) ($_REQUEST['scp_current_url'] ?? ''));
     $path = parse_url($raw, PHP_URL_PATH);
-    // `//otro-sitio/x` es una URL «relativa al protocolo»: el navegador la lee
-    // como otro host. Y una barra invertida la tratan igual algunos navegadores.
-    if (!is_string($path) || $path === '' || $path[0] !== '/' || strpos($path, '//') === 0 || strpos($path, '\\') !== false) {
-        return '/';
+    if (sticpa_is_local_path($path)) {
+        return $path;
     }
-    return $path;
+    $area = parse_url((string) get_option('sticpa_scp_area_url', ''), PHP_URL_PATH);
+    return sticpa_is_local_path($area) ? $area : '/';
 }
 
 /**
