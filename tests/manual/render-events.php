@@ -24,6 +24,8 @@ require_once __DIR__ . '/../../inc/stic-formatter.php';
 require_once __DIR__ . '/../../inc/stic-record-view.php';
 require_once __DIR__ . '/../../inc/stic-events.php';
 require_once __DIR__ . '/../../inc/stic-event-audience.php';
+require_once __DIR__ . '/../../inc/eventos-cuerpo.php';
+require_once __DIR__ . '/../../inc/stic-event-web.php';
 
 /** Un name_value_list como el que devuelve el CRM. */
 function harness_nvl(array $fields)
@@ -190,6 +192,44 @@ $conMapaPropio = sticpa_event_detail_html(
     ''
 );
 
+// CON LA INFORMACIÓN DE LA WEB: el cuerpo real de la convivencia de Buñol
+// (con sus entidades, sus saltos de línea y el cartel como primera línea), más
+// un PDF y una foto subidos al evento. Un CRM de mentira que solo sabe
+// contestar a la relación de documentos.
+class HarnessCrmDocs
+{
+    public function getRelatedElementsForLoggedUser($p)
+    {
+        $fila = function ($id, $nombre, $fichero) {
+            return (object) array('name_value_list' => harness_nvl(array(
+                'id' => $id, 'document_name' => $nombre, 'filename' => $fichero)));
+        };
+        return array(
+            $fila('0000aaaa-1111-2222-3333-444444444444', 'Autorización de la convivencia', 'autorizacion.pdf'),
+            $fila('0000bbbb-1111-2222-3333-444444444444', 'Foto del año pasado', 'foto.jpg'),
+        );
+    }
+}
+$nvlWeb = harness_nvl(array(
+    'id' => 'e8', 'name' => 'COM | Convivencia Inicial 2026 · Buñol · CS',
+    'start_date' => $d('+22 days'), 'end_date' => $d('+24 days'),
+    'status' => 'registration',
+    'description' => 'Nota interna: confirmar el autobús.',
+    'ajmcm_lugar_c' => 'Campamento La Serrana, Buñol',
+    'price' => '60.00', 'ajmcm_end_inscripcion_c' => $d('+13 days'),
+    'web_lema_c' => 'Sin Rodeos: Soy Consolación',
+    'web_cartel_c' => 'http://',
+    'web_publicar_c' => '1', 'web_slug_c' => 'convivencia26-cs-com',
+    'web_cuerpo_c' => "![Cartel del evento](https://i.imgur.com/4nyIbdl.png)\n\n[aviso] PLAZAS LIMITADAS - Inscríbete cuanto antes\n\n## De qué va\n¡Empezamos por todo lo alto! Pasamos DOS noches fuera en el Albergue la Serrana, de Buñol\n\n## El precio\n60 € \nIncluye el alojamiento, todas las comidas y materiales\n\n## Qué hay que llevar\n- Saco de dormir\n- Pañuelo del MIC, si tengo\n- **Cubiertos de plástico**: Nos llevamos plato, cubiertos **reutilizables** para ser un poco más ecológicos\n\n### Autorizaciones\n1. Descarga la autorización de abajo\n2. Fírmala\n\n&gt; Recuerda: **puntualidad**.\n\n## Dudas\nEscríbenos a comunica@movimientoconsolacion.com o por WhatsApp al 649 949 583.",
+));
+$conWeb = sticpa_event_detail_html(
+    sticpa_event_view_model($nvlWeb),
+    'Inscripción abierta',
+    true,
+    '',
+    sticpa_event_web_view(new HarnessCrmDocs(), 'e8', $nvlWeb)
+);
+
 $css = file_get_contents(__DIR__ . '/../../css/custom-style.css');
 
 echo <<<HTML
@@ -214,6 +254,8 @@ echo <<<HTML
   {$listado}
   <h2>Estado vacío (delegación sin eventos propios)</h2>
   {$vacio}
+  <h2>Ficha con la información de la web — cartel, lema, cuerpo y documentos</h2>
+  {$conWeb}
   <h2>Ficha completa — horario, plazas, precio y plazo</h2>
   {$completa}
   <h2>Ficha con plazas 0 y precio 0,00 — NO deben aparecer</h2>

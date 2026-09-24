@@ -510,7 +510,7 @@ pago quiera enlazar a su recibo, ya está.
 | Pantalla | Archivo | Qué muestra |
 |----------|---------|-------------|
 | Listado | `pages/list_stic_events.php` | Tarjetas con fecha, nombre, lugar y estado. **Filtradas por audiencia**, y sin botón fuera de plazo. Próximos primero; los ya inscritos se ocultan (están en "Inscripciones") |
-| Detalle | `pages/single_stic_events.php` | Ficha completa + botón de inscripción, o el motivo por el que no lo hay |
+| Detalle | `pages/single_stic_events.php` | Ficha completa + botón de inscripción, o el motivo por el que no lo hay. **Con la información de la web** si el evento la tiene (§9) |
 | Inscripción | `pages/single_stic_registrations.php` | Formulario con la tarjeta del evento arriba; o el aviso de que no es para ti |
 
 El listado **ya no usa DataTables**: eran tres filas de "ETIQUETA: valor" por
@@ -562,3 +562,74 @@ apagado usaba `--gray-500` sobre `--gray-100`, que da 4,39:1 cuando §3 exige
   candidato natural. Dice a qué etapas sirve el evento **en Pasar Lista**, no a
   quién se le ofrece: un congreso de monitores marcado `^COM^` dejaría fuera a
   los monitores del MIC.
+
+---
+
+## 9. La información de la web, también aquí (24/09/2026)
+
+Un evento tiene, además de `description`, **lo que se escribe para su página
+pública** (`/actividades/?e=…`, repo comunicaFormularios): el cartel, el lema,
+el cuerpo largo y los documentos subidos al evento. Campos `web_*_c`, en
+[`CAMPOS.md`](CAMPOS.md) §1 → Eventos. Hasta ahora eso solo se veía fuera; la
+ficha del evento lo pinta ahora dentro.
+
+| Qué | Dónde |
+|---|---|
+| Renderizador del cuerpo (Markdown reducido; HTML saneado el día que el campo sea HTML) | [`inc/eventos-cuerpo.php`](../../inc/eventos-cuerpo.php) — **el mismo fichero** que usa la web |
+| Llevarlo a la ficha, documentos y endpoint | [`inc/stic-event-web.php`](../../inc/stic-event-web.php) |
+| Estilos | `css/custom-style.css` §59 |
+| Pruebas | `tests/EventWebTest.php`; render en `tests/manual/render-events.php` |
+
+### 9.1 Un fichero, dos repos
+
+`inc/eventos-cuerpo.php` **es el original**. comunicaFormularios tiene una
+copia (`eventos_cuerpo.php`) que trae sola su Action
+`sync-cuerpo-eventos.yml`, como con `CAMPOS.md`. Se edita aquí; allí se pisa.
+Existe para que una actividad se lea **igual** en la web, en el modal de la
+convivencia de los formularios y aquí, y se escriba una sola vez.
+
+El renderizador trabaja en dos pasos —texto → **bloques** → HTML—, y los
+bloques son el contrato: el día que el mismo contenido tenga que ir en un
+**correo**, se escribe otro pintor sobre los mismos bloques.
+
+### 9.2 Qué enseña la ficha
+
+- El **cartel** arriba, entero y a su tamaño. Por orden: `web_cartel_c`, la
+  imagen con la que empiece el cuerpo, la primera imagen subida al evento.
+- El **lema** bajo el título.
+- **«Toda la información»**: el cuerpo, la galería (el resto de imágenes
+  subidas) y los PDF para descargar, con el nombre que se les puso en el CRM.
+- **«Ver la página pública»**, solo si `web_publicar_c` está marcada.
+
+⚠️ **Con cuerpo de la web, la `description` NO se enseña.** Contaban lo mismo
+dos veces con palabras distintas, y la `description` es donde el equipo apunta
+notas. Sin cuerpo, la ficha sigue como antes («Sobre esta actividad»).
+
+Se pinta **aunque el evento no esté publicado**: `web_publicar_c` decide si hay
+página pública, no si la información existe (misma decisión que el modal de la
+convivencia). La audiencia la sigue decidiendo el área.
+
+El listado **no** pide `web_cuerpo_c` (`sticpa_event_fields_to_request($objSCP)`
+sin el segundo parámetro): diez cuerpos largos para no pintarlos. Solo la ficha
+(`…, true`).
+
+### 9.3 Los documentos: endpoint propio, con permisos
+
+Se sirven por `admin-post.php?action=sticpa_evento_archivo&e=<evento>&d=<doc>`,
+que comprueba, por este orden: **sesión abierta**, que el documento **cuelga de
+ese evento** (relación `stic_events_documents_1`) y que el evento **es para
+quien lo pide** (`sticpa_event_audience_check`, la misma que la inscripción).
+Cualquier otra cosa, 404. Tipos: PDF, JPG, PNG, GIF, WEBP (sin SVG).
+
+No se usa `/archivo.php` de la web (solo sirve los de eventos publicados) ni la
+descarga genérica de Documentos. Un `/archivo.php?d=<id>` escrito a mano en el
+cuerpo se reescribe a este endpoint **si ese documento es del evento**.
+
+La lista de documentos de cada evento se cachea **10 minutos** (transient
+`sticpa_evdocs_*`): subir un PDF tarda hasta eso en verse aquí.
+
+> ⚠️ **Pendiente, y grave, fuera de esto:** la descarga genérica de Documentos
+> (`download_document()` en `inc/stic-action.php`, registrada también como
+> `admin_post_nopriv_…`) sirve **cualquier** documento del CRM con su id, sin
+> sesión y sin mirar de quién es. Visto el 24/09/2026 al montar §9.3; no se ha
+> tocado.

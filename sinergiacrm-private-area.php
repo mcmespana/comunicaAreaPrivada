@@ -67,6 +67,10 @@ include plugin_dir_path(__FILE__) . 'inc/stic-calendar.php';
 // resto): les presta los iconos, las fechas en lenguaje humano y el formato.
 include plugin_dir_path(__FILE__) . 'inc/stic-record-view.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-events.php';
+// El cuerpo de los eventos: el MISMO renderizador que la página pública de
+// actividades (comunicaFormularios la copia de aquí). Ver su cabecera.
+include_once plugin_dir_path(__FILE__) . 'inc/eventos-cuerpo.php';
+include plugin_dir_path(__FILE__) . 'inc/stic-event-web.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-event-audience.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-registrations.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-payments.php';
