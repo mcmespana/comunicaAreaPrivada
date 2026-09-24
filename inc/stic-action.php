@@ -223,7 +223,9 @@ function prefix_admin_single_stic_documents()
         wp_safe_redirect(sticpa_return_url() . '&msg=error');
         exit;
     }
-    unset($moduleData['filename'], $moduleData['download']); // Prevent request artifacts like 'admin-post.php' from being saved as filename
+    // `contacts`/`accounts` es el hidden de la relación: el documento se cuelga
+    // de la sesión más abajo, así que lo que diga el formulario no viaja.
+    unset($moduleData['filename'], $moduleData['download'], $moduleData['contacts'], $moduleData['accounts']); // Prevent request artifacts like 'admin-post.php' from being saved as filename
     if ($docId !== '') {
         $moduleData['id'] = $docId;
     }
