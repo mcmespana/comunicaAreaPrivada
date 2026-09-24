@@ -1042,7 +1042,7 @@ span.stic-field {
        el relleno del tema (solo oculta cabecera y pie), así que vale igual.
        Si algún día cambia el relleno del tema, esto hay que volver a medirlo:
        con menos de 18 px por lado, el área se saldría de la pantalla. */
-    .stic-container { width: auto; margin-inline: -18px !important; }
+    .stic-container { width: auto; margin-inline: -18px; }
     /* Hamburguesa = solo icono (el nombre de sección ya lo pone el título). */
     .stic-nav-toggle {
         display: inline-flex;
