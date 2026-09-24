@@ -16,6 +16,14 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+// ¿Es tuyo? Antes esta pantalla abría el registro de cualquier `?id=` que se
+// le pasara (inc/stic-security.php, sticpa_record_denied_html).
+$sticpaDenied = sticpa_record_denied_html($objSCP, 'stic_Registrations', (($_REQUEST['action'] ?? '') === 'create' ? '' : ($_REQUEST['id'] ?? '')), 'list_stic_registrations', __('Esta inscripción ya no está disponible', 'sticpa'));
+if ($sticpaDenied !== '') {
+    $html .= $sticpaDenied;
+    return;
+}
+
 // --- FICHA -----------------------------------------------------------------
 // Se resuelve antes que nada y se sale: no hace falta montar $fieldList ni
 // llamar al motor para enseñar un registro que ya se sabe leer.

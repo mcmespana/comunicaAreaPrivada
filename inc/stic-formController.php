@@ -14,6 +14,11 @@
  *    'hint'        => 'Texto…'   Línea pequeña y gris DEBAJO del campo.
  *                                Úsalo para formatos ("AAAA", "máx. 6MB").
  *    'placeholder' => 'Texto…'   Atajo del attribute placeholder.
+ *    'posts'       => array(…)   SOLO en campos 'html' que pintan sus propios
+ *                                <input>: los nombres que mandan. El handler
+ *                                solo guarda los campos que el formulario firma
+ *                                (inc/stic-security.php), y del HTML libre el
+ *                                motor no sabe qué sale: sin 'posts', no se guarda.
  *    'yearOnly'    => true       Para campos DATE del CRM que en realidad son
  *                                "un año": se muestra/edita SOLO el año (AAAA)
  *                                y al guardar se convierte en AAAA-01-01 (el
@@ -100,6 +105,14 @@ function makeForm($fieldList, $formSettings, $data, $action = null)
     if ($action === 'delete') {
         // If action is delete, fields will be disabled: we need hidden fields so values are sent from form
         $html .= renderHiddenData($fieldList, $data);
+    }
+
+    // La lista FIRMADA de campos que este formulario deja escribir. El handler
+    // no acepta ninguno más (sticpa_request_to_module_data, inc/stic-security.php).
+    // Un campo 'html' que pinte sus propios <input> tiene que declararlos con
+    // 'posts' => array(…), o no se guardarán.
+    if (!empty($formSettings['fileName']) && function_exists('sticpa_form_fields_input')) {
+        $html .= sticpa_form_fields_input($formSettings['fileName'], sticpa_form_posted_fields($fieldList));
     }
 
     // If special action, it is rendered as hidden field so controller can receive it

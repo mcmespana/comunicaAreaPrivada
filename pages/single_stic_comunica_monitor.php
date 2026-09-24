@@ -129,6 +129,9 @@ $checkedAuto = $autDelSex === '1' ? 'checked' : '';
 $checkedManual = $autDelSex === '0' ? 'checked' : '';
 $fieldList[] = array(
     'name' => 'ds_option_row', 'type' => 'html',
+    // El hidden de dentro es el campo del CRM; `ds_option` son solo las
+    // tarjetas de la pantalla y no se guarda.
+    'posts' => array('ajmcm_aut_del_sex_c'),
     'html' => '
         <li class="stic-option-row">
             <div class="stic-option-grid">

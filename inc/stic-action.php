@@ -13,22 +13,32 @@ function prefix_admin_single_stic_profile_selection()
 {
     // Cambio de participante SOLO con sesión abierta (las URLs de cambio llegan
     // por GET desde el selector rápido: sin sesión no hay nada que cambiar).
-    if (!isset($_SESSION['scp_user_id'])) {
-        wp_redirect(home_url());
-        exit;
-    }
+    sticpa_require_session();
 
-    if (is_array($_REQUEST) && isset($_REQUEST['profile_selected_id']) && isset($_REQUEST['profile_selected_name'])) {
-        $requestUserId = sanitize_text_field($_REQUEST['profile_selected_id']);
-        $requestUserName = sanitize_text_field(rawurldecode(stripslashes_deep($_REQUEST['profile_selected_name'])));
+    if (is_array($_REQUEST) && isset($_REQUEST['profile_selected_id'])) {
+        // EL ID SE VALIDA Y EL NOMBRE SALE DEL SERVIDOR (plan 004). Antes se
+        // copiaban los dos del enlace, así que cualquiera con sesión cambiaba
+        // `profile_selected_id` por el id de otra persona y pasaba a SER esa
+        // persona en todas las pantallas. Solo vale uno mismo o alguien de su
+        // lista de participantes.
+        $objSCP = SugarRestApiCall::getObjSCP();
+        $perfil = sticpa_allowed_profile(sanitize_text_field($_REQUEST['profile_selected_id']), $objSCP);
+        if ($perfil === null) {
+            wp_safe_redirect(sticpa_return_path() . '?internalpage=single_stic_profile_selection');
+            exit;
+        }
+        $requestUserId = $perfil['id'];
 
-        // El FAMILIAR (quien inició sesión) queda fijado la primera vez y ya no cambia.
+        // El FAMILIAR (quien inició sesión) queda fijado la primera vez y ya no
+        // cambia. Es quien está en sesión AHORA, no quien diga el enlace: el
+        // enlace también traía `scp_user_id`, y fiarse de él era otra puerta.
         if (!isset($_SESSION['scp_tutor_user_id'])) {
-            $_SESSION['scp_tutor_user_id'] = sanitize_text_field($_REQUEST['scp_user_id']);
+            $_SESSION['scp_tutor_user_id'] = $_SESSION['scp_user_id'];
         }
         if (!isset($_SESSION['scp_tutor_user_contact_name'])) {
-            $_SESSION['scp_tutor_user_contact_name'] = sanitize_text_field(rawurldecode(stripslashes_deep($_REQUEST['scp_user_contact_name'])));
+            $_SESSION['scp_tutor_user_contact_name'] = $_SESSION['scp_user_contact_name'] ?? '';
         }
+        $requestUserName = $perfil['name'] !== '' ? $perfil['name'] : ($requestUserId === $_SESSION['scp_tutor_user_id'] ? $_SESSION['scp_tutor_user_contact_name'] : '');
 
         // scp_user_* pasa a ser el PARTICIPANTE activo: es lo que leen todas las
         // páginas. Si el familiar se elige a sí mismo, scp_tutor_is_user = true.
@@ -59,11 +69,11 @@ function prefix_admin_single_stic_profile_selection()
     // no una sección cualquiera. El parámetro `default_page` ya no se usa (se
     // acepta en la URL por compatibilidad con enlaces antiguos, pero se ignora).
     if (!isset($_SESSION['scp_tutor_user_id'])) {
-        $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=single_stic_profile_selection";
+        $redirectUrl = sticpa_return_path() . "?internalpage=single_stic_profile_selection";
     } else {
-        $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=single_stic_home";
+        $redirectUrl = sticpa_return_path() . "?internalpage=single_stic_home";
     }
-    wp_redirect($redirectUrl);
+    wp_safe_redirect($redirectUrl);
     exit;
 }
 
@@ -77,28 +87,33 @@ add_action('admin_post_nopriv_single_stic_profile', 'prefix_admin_single_stic_pr
 function prefix_admin_single_stic_profile() 
 
 {
-    $moduleName = getDestinationModule(); 
+    sticpa_require_session();
+
+    $moduleName = getDestinationModule();
 
     $objSCP = SugarRestApiCall::getObjSCP();
 
-    foreach ($_REQUEST as $key => $value) {
-        $moduleData[$key] = is_array($value) ? '^' . implode('^,^', stripslashes_deep($value)) . '^' : stripslashes_deep($value);
+    // Solo los campos que enseñaba el formulario, y SIEMPRE sobre la ficha de
+    // quien está en sesión. Antes se volcaba todo el request y el `id` lo
+    // decidía el navegador: se podía reescribir la ficha de cualquiera.
+    $moduleData = sticpa_request_to_module_data('single_stic_profile');
+    $id = $_SESSION['scp_user_id'];
+    if ($moduleData === null) {
+        wp_safe_redirect(sticpa_return_url() . '&action=detail&msg=error');
+        exit;
     }
-    
-    // Check if there is an id of organization member to edit their profile or edit own profile
-    $id = $_REQUEST['id'] ?? $_SESSION['scp_user_id'];
     $moduleData['id'] = $id;
 
     $isUpdate = $objSCP->set_entry($moduleName, $moduleData);
     // If there is a picture attached, we upload it first
     if ($isUpdate && isset($_FILES['photo']) && !empty($_FILES['photo']['name'])) {
-        $redirect_url = upload_file_to_record('photo', 'Contacts', $isUpdate);
+        $redirect_url = upload_file_to_record('photo', 'Contacts', $id);
     } else if ($isUpdate) {
-        $redirect_url = $_REQUEST['scp_current_url'] . '&action=detail&id=' . $id . '&msg=true'; 
+        $redirect_url = sticpa_return_url() . '&action=detail&msg=true';
     } else {
-        $redirect_url = $_REQUEST['scp_current_url'] . '&action=detail&id=' . $id . '&msg=error'; 
+        $redirect_url = sticpa_return_url() . '&action=detail&msg=error';
     }
-    wp_redirect($redirect_url);
+    wp_safe_redirect($redirect_url);
     exit;
 }
 
@@ -114,20 +129,14 @@ function prefix_admin_single_stic_tutor_profile()
     $objSCP = SugarRestApiCall::getObjSCP();
 
     // El familiar solo puede editar SU ficha: id desde la sesión, nunca del request.
-    $tutorId = $_SESSION['scp_tutor_user_id'] ?? ($_SESSION['scp_user_id'] ?? '');
-    if (!$tutorId) {
-        wp_redirect(home_url());
-        exit;
-    }
+    sticpa_require_session();
+    $tutorId = $_SESSION['scp_tutor_user_id'] ?? $_SESSION['scp_user_id'];
 
-    // Claves que no son campos del CRM (no enviar a set_entry).
-    $skip = array('action', 'scp_current_url', 'stic-action', 'save', 'back', 'id', 'stic_year_only_fields');
-    $moduleData = array();
-    foreach ($_REQUEST as $key => $value) {
-        if (in_array($key, $skip, true)) {
-            continue;
-        }
-        $moduleData[$key] = is_array($value) ? '^' . implode('^,^', stripslashes_deep($value)) . '^' : stripslashes_deep($value);
+    // Solo los campos que enseñaba el formulario (ver sticpa_request_to_module_data).
+    $moduleData = sticpa_request_to_module_data('single_stic_tutor_profile');
+    if ($moduleData === null) {
+        wp_safe_redirect(sticpa_return_url() . '&msg=error');
+        exit;
     }
     if (function_exists('sticpa_apply_year_only_fields')) {
         sticpa_apply_year_only_fields($moduleData);
@@ -145,11 +154,11 @@ function prefix_admin_single_stic_tutor_profile()
                 $_SESSION['scp_user_contact_name'] = $_SESSION['scp_tutor_user_contact_name'];
             }
         }
-        $redirect_url = $_REQUEST['scp_current_url'] . '&msg=true';
+        $redirect_url = sticpa_return_url() . '&msg=true';
     } else {
-        $redirect_url = $_REQUEST['scp_current_url'] . '&msg=error';
+        $redirect_url = sticpa_return_url() . '&msg=error';
     }
-    wp_redirect($redirect_url);
+    wp_safe_redirect($redirect_url);
     exit;
 }
 
@@ -163,87 +172,98 @@ add_action('admin_post_single_stic_documents', 'prefix_admin_single_stic_documen
 add_action('admin_post_nopriv_single_stic_documents', 'prefix_admin_single_stic_documents'); 
 function prefix_admin_single_stic_documents() 
 {
+    sticpa_require_session();
+    $objSCP = SugarRestApiCall::getObjSCP();
+    $listUrl = sticpa_return_path() . "?internalpage=list_stic_documents";
+
+    // Descargar, editar y borrar actúan sobre un documento que ya existe, y
+    // ese documento tiene que ser TUYO: estar entre los que salen en tu
+    // listado. Antes bastaba con saber (o adivinar, o encontrar en un enlace
+    // reenviado) su id, y ni siquiera hacía falta haber entrado.
+    $docId = (string) ($_REQUEST['id'] ?? '');
+    if ($docId !== '' && !sticpa_user_owns_record($objSCP, 'Documents', $docId)) {
+        wp_safe_redirect($listUrl);
+        exit;
+    }
+
     if (isset($_REQUEST['download']) && $_REQUEST['download'] == "true") {
-        download_document($_REQUEST['id']);
-    } else {
-        if ($_REQUEST['stic-action'] == 'detail') {
-            $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=list_stic_documents";
-            wp_redirect($redirectUrl);
+        download_document($docId);
+        exit;
+    }
+
+    $action = (string) ($_REQUEST['stic-action'] ?? '');
+    if ($action === 'detail') {
+        wp_safe_redirect($listUrl);
+        exit;
+    }
+
+    if ($action === 'delete') {
+        if ($docId === '') {
+            wp_safe_redirect($listUrl);
             exit;
-        } else {
-            $objSCP = SugarRestApiCall::getObjSCP();
-
-            foreach ($_REQUEST as $key => $value) {
-                $moduleData[$key] = is_array($value) ? '^' . implode('^,^', stripslashes_deep($value)) . '^' : stripslashes_deep($value);
-            }
-            $action = $moduleData['stic-action'];
-            unset($moduleData['stic-action']); 
-            unset($moduleData['filename']); // Prevent request artifacts like 'admin-post.php' from being saved as filename
-            if ($action === 'delete') {
-                $moduleData['deleted'] = 1;
-                // Fetch the existing document name to satisfy CRM required fields validation
-                $existing = $objSCP->getRecordDetail($moduleData['id'], 'Documents');
-                if (!empty($existing->entry_list)) {
-                    $doc_name = $existing->entry_list[0]->name_value_list->document_name->value ?? '';
-                    if ($doc_name) {
-                        $moduleData['document_name'] = $doc_name;
-                    }
-                }
-            }
-
-            // Creating a Document Record
-            $documentEntryId = $objSCP->set_entry('Documents', $moduleData);
-
-            if ($documentEntryId != null) {
-
-                if ($action === 'delete') {
-                    $redirect_url = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=list_stic_documents&msgDelete=true";
-                    wp_redirect($redirect_url);
-                    exit;
-                } else {
-                    // If no file has been uploaded, we return to the detailview
-                    
-                    switch (getDestinationModule()) {
-                        case 'Accounts':
-                            $relationship = 'accounts';
-                            break;
-                        case 'Contacts':
-                            $relationship = 'contacts';
-                            break;
-                    }
-                    $relatedId = $_REQUEST[$relationship];
-                    // Relating the Document to the Contact record
-                    $resultRelationship = $objSCP->set_relationship('Documents', $documentEntryId, $relationship, array($relatedId));
-            
-                    if ($resultRelationship != null) {
-                        if ($_FILES['filename']['error'] == 4) {
-                            $redirect_url = $_REQUEST['scp_current_url'] . '&msg=true' . '&id=' . $documentEntryId . ($action ? '&action=detail' : '');
-                            wp_redirect($redirect_url);
-                            exit;
-                        } else{
-                            $fileName = $_FILES['filename']['name'];
-                            $tmpName  = $_FILES['filename']['tmp_name'];
-                            $contents = file_get_contents ($tmpName);
-                    
-                            $documentRevisionData = array(
-                                'id' => $documentEntryId,
-                                'file' => base64_encode($contents),
-                                'filename' => $fileName,
-                            );
-                            // Uploading the file in a DocumentRevision record that is related to the Document.
-                            $documentRevisionResult = $objSCP->set_document_revision($documentRevisionData);
-                    
-                            if ($documentRevisionResult != null) {
-                                $redirect_url = $_REQUEST['scp_current_url'] . '&msg=true' . '&id=' . $documentEntryId . ($action ? '&action=detail' : '');
-                                wp_redirect($redirect_url);
-                                exit;
-                            }
-                        }
-                    }
-                }
+        }
+        $moduleData = array('id' => $docId, 'deleted' => 1);
+        // Fetch the existing document name to satisfy CRM required fields validation
+        $existing = $objSCP->getRecordDetail($docId, 'Documents');
+        if (!empty($existing->entry_list)) {
+            $doc_name = $existing->entry_list[0]->name_value_list->document_name->value ?? '';
+            if ($doc_name) {
+                $moduleData['document_name'] = $doc_name;
             }
         }
+        $deleted = $objSCP->set_entry('Documents', $moduleData);
+        wp_safe_redirect($listUrl . ($deleted ? '&msgDelete=true' : ''));
+        exit;
     }
+
+    // Crear o editar: solo los campos del formulario (sin la relación, sin la
+    // delegación, sin `deleted`). El `id` es el que ya se ha comprobado arriba.
+    $moduleData = sticpa_request_to_module_data('single_stic_documents');
+    if ($moduleData === null) {
+        wp_safe_redirect(sticpa_return_url() . '&msg=error');
+        exit;
+    }
+    unset($moduleData['filename'], $moduleData['download']); // Prevent request artifacts like 'admin-post.php' from being saved as filename
+    if ($docId !== '') {
+        $moduleData['id'] = $docId;
+    }
+
+    // El fichero se mira ANTES de escribir nada: si no vale, no se crea un
+    // documento vacío que luego nadie sabe de dónde ha salido.
+    $hayFichero = isset($_FILES['filename']) && ($_FILES['filename']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE;
+    if ($hayFichero && !sticpa_upload_is_acceptable($_FILES['filename'])) {
+        wp_safe_redirect(sticpa_return_url() . '&msg=error_type' . ($docId !== '' ? '&id=' . rawurlencode($docId) : ''));
+        exit;
+    }
+
+    // Creating a Document Record
+    $documentEntryId = $objSCP->set_entry('Documents', $moduleData);
+    if ($documentEntryId == null) {
+        wp_safe_redirect(sticpa_return_url() . '&msg=error');
+        exit;
+    }
+
+    // Relating the Document to the record of the person IN SESSION. Antes el
+    // id salía de un campo oculto del formulario: se podía colgar el documento
+    // de la ficha de otro.
+    $relationship = getDestinationModule() === 'Accounts' ? 'accounts' : 'contacts';
+    $resultRelationship = $objSCP->set_relationship('Documents', $documentEntryId, $relationship, array($_SESSION['scp_user_id']));
+    $doneUrl = sticpa_return_url() . '&msg=true' . '&id=' . rawurlencode($documentEntryId) . ($action ? '&action=detail' : '');
+
+    if ($resultRelationship != null && $hayFichero) {
+        $contents = file_get_contents($_FILES['filename']['tmp_name']);
+        $documentRevisionData = array(
+            'id' => $documentEntryId,
+            'file' => base64_encode($contents),
+            'filename' => sticpa_header_filename($_FILES['filename']['name']),
+        );
+        // Uploading the file in a DocumentRevision record that is related to the Document.
+        if ($objSCP->set_document_revision($documentRevisionData) == null) {
+            $doneUrl = sticpa_return_url() . '&msg=error' . '&id=' . rawurlencode($documentEntryId);
+        }
+    }
+    wp_safe_redirect($doneUrl);
+    exit;
 }
 
 /*
@@ -259,35 +279,14 @@ add_action('admin_post_single_stic_payment_commitments', 'prefix_admin_single_st
 add_action('admin_post_nopriv_single_stic_payment_commitments', 'prefix_admin_single_stic_payment_commitments'); 
 function prefix_admin_single_stic_payment_commitments() 
 {
-    if ($_REQUEST['stic-action'] == 'detail') {
-        $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=list_stic_payment_commitments";
-        wp_redirect($redirectUrl);
-        exit;
-    } else {
-        $moduleName = 'stic_Payment_Commitments'; 
-
-        $objSCP = SugarRestApiCall::getObjSCP();
-
-        foreach ($_REQUEST as $key => $value) {
-            $moduleData[$key] = is_array($value) ? '^' . implode('^,^', stripslashes_deep($value)) . '^' : stripslashes_deep($value);
-        }
-
-        $action = $moduleData['stic-action'];
-        unset($moduleData['stic-action']); 
-        if ($action === 'delete') {
-            $moduleData['deleted'] = 1;
-        }
-        $isUpdate = $objSCP->set_entry($moduleName, $moduleData);
-        if ($isUpdate != null) {
-            if ($action === 'delete') {
-                $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=list_stic_payment_commitments&msgDelete=true";
-            } else {
-                $redirectUrl = $_REQUEST['scp_current_url'] . '&msg=true' . '&id=' . $isUpdate . ($action ? '&action=detail' : '');
-            }
-            wp_redirect($redirectUrl);
-            exit;
-        }
-    }
+    // YA NO ESCRIBE NADA. Ninguna pantalla del área crea, edita ni borra
+    // compromisos de pago (la ficha es de solo lectura desde el rediseño), y
+    // este handler aceptaba sin sesión un `id` cualquiera más todo el request:
+    // cualquiera podía reescribir o borrar el compromiso de otra familia. Lo
+    // único que queda es la vuelta al listado que pedía el botón de la ficha.
+    sticpa_require_session();
+    wp_safe_redirect(sticpa_return_path() . "?internalpage=list_stic_payment_commitments");
+    exit;
 }
 
 /**
@@ -297,35 +296,12 @@ add_action('admin_post_single_stic_payments', 'prefix_admin_single_stic_payments
 add_action('admin_post_nopriv_single_stic_payments', 'prefix_admin_single_stic_payments'); 
 function prefix_admin_single_stic_payments() 
 {
-    if ($_REQUEST['stic-action'] == 'detail') {
-        $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=list_stic_payments";
-        wp_redirect($redirectUrl);
-        exit;
-    } else {
-        $moduleName = 'stic_Payments'; 
-
-        $objSCP = SugarRestApiCall::getObjSCP();
-
-        foreach ($_REQUEST as $key => $value) {
-            $moduleData[$key] = is_array($value) ? '^' . implode('^,^', stripslashes_deep($value)) . '^' : stripslashes_deep($value);
-        }
-        $action = $moduleData['stic-action'];
-
-        unset($moduleData['stic-action']); 
-        if ($action === 'delete') {
-            $moduleData['deleted'] = 1;
-        }
-        $isUpdate = $objSCP->set_entry($moduleName, $moduleData);
-        if ($isUpdate != null) {
-            if ($action === 'delete') {
-                $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=list_stic_payments&msgDelete=true";
-            } else {
-                $redirectUrl = $_REQUEST['scp_current_url'] . '&msg=true' . '&id=' . $isUpdate . ($action ? '&action=detail' : '');
-            }
-            wp_redirect($redirectUrl);
-            exit;
-        }
-    }
+    // YA NO ESCRIBE NADA, por lo mismo que los compromisos (arriba): no hay
+    // ninguna pantalla que cree o edite un pago, y el handler dejaba hacerlo a
+    // cualquiera, con o sin sesión, sobre el pago que quisiera.
+    sticpa_require_session();
+    wp_safe_redirect(sticpa_return_path() . "?internalpage=list_stic_payments");
+    exit;
 }
 
 /**
@@ -423,23 +399,47 @@ function prefix_user_has_active_registration($objSCP, $eventId)
 
 function prefix_admin_single_stic_registrations()
 {
-    if ($_REQUEST['stic-action'] == 'detail') {
-        $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=list_stic_registrations";
-        wp_redirect($redirectUrl);
+    sticpa_require_session();
+    $listUrl = sticpa_return_path() . "?internalpage=list_stic_registrations";
+    $action = (string) ($_REQUEST['stic-action'] ?? '');
+    if ($action == 'detail') {
+        wp_safe_redirect($listUrl);
         exit;
     } else {
         $moduleName = 'stic_Registrations';
 
         $objSCP = SugarRestApiCall::getObjSCP();
 
-        foreach ($_REQUEST as $key => $value) {
-            $moduleData[$key] = is_array($value) ? '^' . implode('^,^', stripslashes_deep($value)) . '^' : stripslashes_deep($value);
+        // Editar o borrar una inscripción: tiene que ser TUYA (estar en tu
+        // listado). Antes valía el `id` de cualquiera, sin sesión incluso.
+        $regId = (string) ($_REQUEST['id'] ?? '');
+        if ($regId !== '' && !sticpa_user_owns_record($objSCP, 'stic_Registrations', $regId)) {
+            wp_safe_redirect($listUrl);
+            exit;
         }
-        $action = $moduleData['stic-action'];
 
-        unset($moduleData['stic-action']);
         if ($action === 'delete') {
-            $moduleData['deleted'] = 1;
+            if ($regId === '') {
+                wp_safe_redirect($listUrl);
+                exit;
+            }
+            $moduleData = array('id' => $regId, 'deleted' => 1);
+        } else {
+            // Solo los campos del formulario. Y la persona inscrita es SIEMPRE
+            // la de la sesión: el campo de la relación iba en un hidden, y
+            // cambiándolo se inscribía (o se editaba la inscripción de) otro.
+            $moduleData = sticpa_request_to_module_data('single_stic_registrations');
+            if ($moduleData === null) {
+                wp_safe_redirect(sticpa_return_url() . '&msg=error');
+                exit;
+            }
+            $personaField = getDestinationModule() === 'Accounts'
+                ? 'stic_registrations_accountsaccounts_ida'
+                : 'stic_registrations_contactscontacts_ida';
+            $moduleData[$personaField] = $_SESSION['scp_user_id'];
+            if ($regId !== '') {
+                $moduleData['id'] = $regId;
+            }
         }
 
         // GUARD anti-duplicado: al CREAR una inscripción (sin id) a un evento, si
@@ -463,9 +463,9 @@ function prefix_admin_single_stic_registrations()
                 $noAdmitida = !empty(sticpa_event_signup_block($objSCP, $eventId)['bloqueado']);
             }
             if ($duplicada || $noAdmitida) {
-                $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0]
+                $redirectUrl = sticpa_return_path()
                     . "?internalpage=single_stic_registrations&action=create&from=stic_events&id=" . urlencode($eventId);
-                wp_redirect($redirectUrl);
+                wp_safe_redirect($redirectUrl);
                 exit;
             }
         }
@@ -478,15 +478,17 @@ function prefix_admin_single_stic_registrations()
                 sticpa_calendar_flush_cache();
             }
             if ($action === 'delete') {
-                $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=list_stic_registrations&msgDelete=true";
+                $redirectUrl = $listUrl . "&msgDelete=true";
             } elseif ($action == 'payment') {
-                $redirectUrl = explode('?', $_REQUEST['scp_current_url'], 2)[0] . "?internalpage=single_stic_payment_form&registrationId=".$isUpdate."&eventId=".$moduleData['stic_registrations_stic_eventsstic_events_ida'];
+                $redirectUrl = sticpa_return_path() . "?internalpage=single_stic_payment_form&registrationId=" . rawurlencode($isUpdate) . "&eventId=" . rawurlencode($moduleData['stic_registrations_stic_eventsstic_events_ida'] ?? '');
             } else {
-                $redirectUrl = $_REQUEST['scp_current_url'] . '&msg=true' . '&id=' . $isUpdate . ($action ? '&action=detail' : '');
+                $redirectUrl = sticpa_return_url() . '&msg=true' . '&id=' . rawurlencode($isUpdate) . ($action ? '&action=detail' : '');
             }
-            wp_redirect($redirectUrl);
+            wp_safe_redirect($redirectUrl);
             exit;
         }
+        wp_safe_redirect(sticpa_return_url() . '&msg=error');
+        exit;
     }
 }
 
@@ -507,12 +509,13 @@ add_action('admin_post_single_stic_events', 'prefix_admin_single_stic_events');
 add_action('admin_post_nopriv_single_stic_events', 'prefix_admin_single_stic_events'); 
 function prefix_admin_single_stic_events() 
 {
-    if ($_REQUEST['id']) {
-        $redirect_url = explode('?', $_REQUEST['scp_current_url'], 2)[0] .'/?internalpage=single_stic_registrations&action=create&eventId='.$_REQUEST['id'];
+    sticpa_require_session();
+    if (!empty($_REQUEST['id'])) {
+        $redirect_url = sticpa_return_path() . '?internalpage=single_stic_registrations&action=create&eventId=' . rawurlencode((string) $_REQUEST['id']);
     } else {
-        $redirect_url = explode('?', $_REQUEST['scp_current_url'], 2)[0] .'/?internalpage=list_stic_registrations';
+        $redirect_url = sticpa_return_path() . '?internalpage=list_stic_registrations';
     }
-    wp_redirect($redirect_url);
+    wp_safe_redirect($redirect_url);
     exit;
 }
 
@@ -523,9 +526,12 @@ add_action('admin_post_single_stic_password_change', 'prefix_admin_single_stic_p
 add_action('admin_post_nopriv_single_stic_password_change', 'prefix_admin_single_stic_password_change'); 
 function prefix_admin_single_stic_password_change() 
 { 
+    // Sin sesión, `$userId` quedaba vacío, la contraseña guardada también, y
+    // una «antigua» vacía coincidía: el set_entry salía con un id vacío.
+    sticpa_require_session();
     $objSCP = SugarRestApiCall::getObjSCP();
 
-    $userId = $_SESSION['scp_user_adult'] ? $_SESSION['scp_user_id'] : $_SESSION['scp_tutor_user_id'];
+    $userId = !empty($_SESSION['scp_user_adult']) ? $_SESSION['scp_user_id'] : ($_SESSION['scp_tutor_user_id'] ?? $_SESSION['scp_user_id']);
     $getContactInfo = $objSCP->getUserInformation($userId)->entry_list[0]->name_value_list;
     $password = $getContactInfo->stic_pa_password_c->value;
 
@@ -541,17 +547,17 @@ function prefix_admin_single_stic_password_change()
             $isChangePassword = $objSCP->set_entry(getDestinationModule(), $updateUserInfo);
 
             if ($isChangePassword != null) {
-                $redirect_url = $_REQUEST['scp_current_url'] . '&success=true';
+                $redirect_url = sticpa_return_url() . '&success=true';
             } else {
-                $redirect_url = $_REQUEST['scp_current_url'] . '&error=1';
+                $redirect_url = sticpa_return_url() . '&error=1';
             }
         } else {
-            $redirect_url = $_REQUEST['scp_current_url'] . '&error=1';
+            $redirect_url = sticpa_return_url() . '&error=1';
         }
     } else {
-        $redirect_url = $_REQUEST['scp_current_url'] . '&error=2';
+        $redirect_url = sticpa_return_url() . '&error=2';
     }
-    wp_redirect($redirect_url);
+    wp_safe_redirect($redirect_url);
     exit;
 
 }
@@ -937,24 +943,27 @@ add_action('admin_post_nopriv_single_stic_unsubscribe', 'prefix_admin_single_sti
 function prefix_admin_single_stic_unsubscribe() 
 
 {
+    // Sin sesión el id quedaba vacío y set_entry CREABA un contacto nuevo.
+    sticpa_require_session();
+
     ##### customizable data ########################
     $moduleName = getDestinationModule(); // module name where to save/retrieve data
     ################################################
 
     $objSCP = SugarRestApiCall::getObjSCP();
 
-    $moduleData['id'] = $_SESSION['scp_tutor_user_id'] ? $_SESSION['scp_tutor_user_id'] : $_SESSION['scp_user_id'];
+    $moduleData['id'] = !empty($_SESSION['scp_tutor_user_id']) ? $_SESSION['scp_tutor_user_id'] : $_SESSION['scp_user_id'];
     $moduleData['stic_pa_username_c'] = ''; 
     $moduleData['stic_pa_password_c'] = '';
 
     $isUpdate = $objSCP->set_entry($moduleName, $moduleData);
 
     if ($isUpdate != null) {
-        $redirect_url = $_REQUEST['scp_current_url'] . '&logout=true';
+        $redirect_url = sticpa_return_url() . '&logout=true';
     } else {
-        $redirect_url = $_REQUEST['scp_current_url'] . '&msg=error';
+        $redirect_url = sticpa_return_url() . '&msg=error';
     }
-    wp_redirect($redirect_url);
+    wp_safe_redirect($redirect_url);
     exit;
 }
 
@@ -987,8 +996,9 @@ function download_document($documentId) {
     // el CRM. PHP lo mantiene bloqueado en exclusiva toda la petición, así que
     // una descarga lenta dejaba en cola CUALQUIER otra petición del mismo
     // usuario (incluida la página que esté cargando en paralelo).
-    // A partir de aquí no se escribe en $_SESSION; si algún día se añaden
-    // comprobaciones de sesión, van en el handler, ANTES de llamar aquí.
+    // A partir de aquí no se escribe en $_SESSION. Esta función NO autoriza:
+    // la sesión y la propiedad del documento las comprueba el handler ANTES
+    // de llamar aquí (prefix_admin_single_stic_documents).
     if (session_id()) {
         session_write_close();
     }
@@ -1015,7 +1025,10 @@ function download_document($documentId) {
     header('Cache-Control: must-revalidate');
     header('Content-Length: ' . strlen($decodedFileData));
     header('Content-Type: application/octet-stream');
-    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    // El nombre viene del CRM y lo escribió quien subió el fichero: sin saltos
+    // de línea ni comillas, o podría inyectar cabeceras en la respuesta.
+    header('Content-Disposition: attachment; filename="' . sticpa_header_filename($filename) . '"');
+    header('X-Content-Type-Options: nosniff');
     echo $decodedFileData;
 }
 
@@ -1209,7 +1222,7 @@ function upload_file_to_record($fieldName, $moduleName, $id) {
         define('GB', 1073741824);
         define('TB', 1099511627776);
         if ($_FILES[$fieldName]['size'] > 6*MB) {
-            return $_REQUEST['scp_current_url'] . '&msg=error_size';
+            return sticpa_return_url() . '&msg=error_size';
         } else {
             $fileName = $_FILES[$fieldName]['name'];
             $tmpName  = $_FILES[$fieldName]['tmp_name'];
@@ -1228,7 +1241,7 @@ function upload_file_to_record($fieldName, $moduleName, $id) {
                 );
                 $objSCP = SugarRestApiCall::getObjSCP();
                 if (!$objSCP->set_image($contactData)) {
-                    return $_REQUEST['scp_current_url'] . '&msg=error_upload';
+                    return sticpa_return_url() . '&msg=error_upload';
                 } else {
                     // Foto nueva subida: invalidar la miniatura cacheada del
                     // endpoint stic_profile_photo para que la próxima petición
@@ -1244,11 +1257,11 @@ function upload_file_to_record($fieldName, $moduleName, $id) {
                             @unlink(sticpa_profile_photo_cache_path($staleId));
                         }
                     }
-                    return  $_REQUEST['scp_current_url'] . '&msg=true';
+                    return sticpa_return_url() . '&msg=true';
                 }
             }
             else {
-                return $_REQUEST['scp_current_url'] . '&msg=error_type';
+                return sticpa_return_url() . '&msg=error_type';
             }
         }
     }
@@ -1296,22 +1309,17 @@ function prefix_comunica_save_contact()
     $objSCP = SugarRestApiCall::getObjSCP();
 
     // El usuario solo puede editar SU propia ficha: id desde la sesión, nunca del request.
-    $id = $_SESSION['scp_user_id'] ?? '';
-    if (!$id) {
-        wp_redirect(home_url());
-        exit;
-    }
+    sticpa_require_session();
+    $id = $_SESSION['scp_user_id'];
 
-    // Claves que no son campos del CRM (no enviar a set_entry).
-    $skip = array('action', 'scp_current_url', 'stic-action', 'save', 'back', 'id', 'stic_year_only_fields', 'ds_option');
-    $moduleData = array();
-    foreach ($_REQUEST as $key => $value) {
-        if (in_array($key, $skip, true)) {
-            continue;
-        }
-        $moduleData[$key] = is_array($value)
-            ? '^' . implode('^,^', stripslashes_deep($value)) . '^'
-            : stripslashes_deep($value);
+    // Solo los campos que enseñaba ESTE formulario (perfil, laico o monitor:
+    // cada uno firma los suyos). Antes se volcaba todo el request, así que
+    // cualquiera podía escribir en su ficha la contraseña, el token de acceso
+    // o la delegación.
+    $moduleData = sticpa_request_to_module_data((string) ($_REQUEST['action'] ?? ''));
+    if ($moduleData === null) {
+        wp_safe_redirect(sticpa_return_url() . '&msg=error');
+        exit;
     }
     sticpa_apply_year_only_fields($moduleData);
     $moduleData['id'] = $id;
@@ -1353,8 +1361,7 @@ function prefix_comunica_save_contact()
         }
     }
 
-    $current = $_REQUEST['scp_current_url'] ?? home_url();
-    wp_redirect($current . '&msg=' . $msg);
+    wp_safe_redirect(sticpa_return_url() . '&msg=' . $msg);
     exit;
 }
 
@@ -1369,17 +1376,15 @@ function prefix_comunica_save_contact()
  */
 function comunica_upload_certificate($objSCP, $contactId, $field, $meta)
 {
-    if (!isset($_FILES[$field]) || $_FILES[$field]['error'] !== UPLOAD_ERR_OK) {
-        return false;
-    }
-    if ($_FILES[$field]['size'] > 6 * 1048576) {
+    // Tamaño y tipo: los mismos que anuncia el campo (PDF, JPG o PNG, 6 MB).
+    if (!isset($_FILES[$field]) || !sticpa_upload_is_acceptable($_FILES[$field], array('pdf', 'jpg', 'jpeg', 'png'))) {
         return false;
     }
     $contents = file_get_contents($_FILES[$field]['tmp_name']);
     if ($contents === false) {
         return false;
     }
-    $fileName = $_FILES[$field]['name'];
+    $fileName = sticpa_header_filename($_FILES[$field]['name']);
 
     // 1) Crear el Documento.
     $docId = $objSCP->set_entry('Documents', array(

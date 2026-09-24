@@ -81,8 +81,10 @@ $formSettings['attributes'] = 'enctype="multipart/form-data"';
 #########################################################
 # $data must have the data to populate the form
 #########################################################
-//To work with the List Members function
-$id = $_REQUEST['id'] ?? $_SESSION['scp_user_id'];
+// SIEMPRE la ficha de quien está en sesión. Antes se aceptaba `?id=` (lo usaba
+// «Contactos de la organización», archivado el 19/09/2026) y con eso cualquiera
+// abría la ficha completa de cualquier contacto del CRM.
+$id = $_SESSION['scp_user_id'];
 $data = $objSCP->getRecordDetail($id, $formSettings['moduleName'])->entry_list[0]->name_value_list;
 $fieldList[] = array('name' => 'id', 'type' => 'hidden');
 
@@ -108,6 +110,7 @@ switch (getDestinationModule()) {
         $fieldList[] = array(
           'name' => 'stic_identification_type_c', 
           'type' => 'html', 
+          'posts' => array('stic_identification_type_c'),
           'html' => '<span><input type="hidden" name="stic_identification_type_c" id="stic_identification_type_c" value="cif"></span>'
         );
         $fieldList[] = array(

@@ -14,6 +14,14 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+// ¿Es tuyo? Antes esta pantalla abría el registro de cualquier `?id=` que se
+// le pasara (inc/stic-security.php, sticpa_record_denied_html).
+$sticpaDenied = sticpa_record_denied_html($objSCP, 'stic_Payments', $_REQUEST['id'] ?? '', 'list_stic_payments', __('Este pago ya no está disponible', 'sticpa'));
+if ($sticpaDenied !== '') {
+    $html .= $sticpaDenied;
+    return;
+}
+
 // --- FICHA -----------------------------------------------------------------
 if (($_REQUEST['action'] ?? '') === 'detail') {
     $paymentId = isset($_REQUEST['id']) ? sanitize_text_field($_REQUEST['id']) : '';
