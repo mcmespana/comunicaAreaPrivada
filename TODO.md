@@ -82,6 +82,15 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
 - [x] `SEC-06` (P1 · S) **Cookies de sesión seguras** ↳ **hecho**: `HttpOnly`, `SameSite=Lax`, `Secure` con HTTPS, y desde el 24/09/2026 `session.use_strict_mode` + `use_only_cookies`.: forzar `Secure`, `HttpOnly`, `SameSite=Lax`
       y exigir HTTPS en el área privada.
 
+- [ ] `SEC-10` (P2 · S) **Pruebas a mano que quedan de la seguridad de los handlers**
+      (PR #98/#99, en producción desde el 24/09/2026). Lo demás ya se comprobó en la web
+      real con la cuenta de David Soler; esto no se pudo:
+      - Subir un documento y borrarlo (el selector de archivos no se puede usar desde el agente).
+      - Inscribirse a un evento (crea una inscripción real; no se hizo a propósito).
+      - Cambiar la contraseña.
+      - Con una cuenta de FAMILIA: cambiar a un hijo y volver a uno mismo; abrir un pago del hijo.
+      Si algo no guarda, casi seguro es un campo `html` sin `'posts'` (ver `inc/stic-security.php`).
+
 ## 🟠 P1 — Panel de administración (gestión de accesos)
 
 - [x] `ADMIN-01` (P1 · M) **Buscador de usuarios** en el admin (por username). ↳ **hecho** (versión

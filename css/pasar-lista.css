@@ -3067,43 +3067,30 @@ a.pl-group .pl-name { display: block; }
     transition: background 160ms var(--ease-out), color 160ms var(--ease-out);
 }
 .pl-tab:hover { color: var(--gray-700); }
-.pl-tab.is-active {
-    background: var(--surface);
-    color: var(--gray-900);
-    box-shadow: var(--shadow-xs);
+/* El color va con `.stic-container` y !important porque el tema de WordPress
+   pinta los enlaces de azul y ganaba: las pestañas no elegidas salían como
+   enlaces sueltos. */
+.stic-container .pl-tab,
+.stic-container .pl-tab:visited { color: var(--gray-600) !important; }
+.stic-container .pl-tab:hover { color: var(--gray-800) !important; }
+/* LA ELEGIDA SE TIENE QUE ENTENDER A LA PRIMERA: el degradado de la marca y
+   texto blanco, en claro y en oscuro. Antes era una pastilla apenas más clara
+   que la tira (y en oscuro, en «Chavales / Monitores», texto oscuro sobre
+   fondo oscuro: ilegible). */
+.stic-container .pl-tab.is-active,
+.stic-container .pl-tab.is-active:visited {
+    background: var(--grad-brand);
+    color: #fff !important;
+    box-shadow: 0 3px 10px color-mix(in srgb, var(--primary-color) 28%, transparent);
 }
-/* La segunda barra (chavales / monitores) es una decisión menor que la de
-   arriba, y se nota: más pequeña y sin fondo propio. Dos barras del mismo peso
-   una encima de otra no dicen cuál manda. */
-.pl-tabs--quien {
-    background: none;
-    padding: 0 0 0.15rem;
-    gap: 0.5rem;
-    margin-bottom: 0.9rem;
-}
-.pl-tabs--quien .pl-tab {
-    flex: 0 0 auto;
-    padding: 0.3rem 0.7rem;
-    border-radius: var(--radius-full);
-    font-size: 0.8rem;
-    border: 1px solid var(--gray-200);
-}
-.pl-tabs--quien .pl-tab.is-active {
-    background: var(--gray-900);
-    border-color: var(--gray-900);
-    color: var(--surface);
-    box-shadow: none;
-}
+/* La segunda barra (chavales / monitores) es la misma pieza, un poco más
+   baja: son botones igual que los de arriba, y se leen como tales. */
+.pl-tabs--quien { margin-top: -0.25rem; }
+.pl-tabs--quien .pl-tab { padding: 0.4rem 0.85rem; font-size: 0.82rem; }
 
-/* EN OSCURO la pastilla activa no puede ser `--surface`: sobre la tira de
-   `--gray-100` queda MÁS OSCURA que el fondo, o sea hundida, y la sombra que en
-   claro la levanta no se ve. Se invierte: la tira baja y la pastilla sube. */
+/* En oscuro la tira baja un tono para que las pestañas se lean encima. */
 :root[data-stic-scheme="dark"] .pl-tabs,
 .stic-container[data-stic-scheme="dark"] .pl-tabs { background: var(--gray-50); }
-:root[data-stic-scheme="dark"] .pl-tab.is-active,
-.stic-container[data-stic-scheme="dark"] .pl-tab.is-active { background: var(--gray-200); }
-:root[data-stic-scheme="dark"] .pl-tabs--quien,
-.stic-container[data-stic-scheme="dark"] .pl-tabs--quien { background: none; }
 
 /* El punto graduado de la vista por curso. El COLOR es siempre el mismo —el
    azul de la marca, que en oscuro ya viene aclarado por el token— y lo que

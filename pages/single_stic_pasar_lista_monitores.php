@@ -303,12 +303,6 @@ $html .= '</div>';
 
 $html .= sticpa_pl_notice_html($pick);
 
-// Aquí se ve la asistencia de OTRAS personas. Que se sepa en calidad de qué:
-// un permiso que no se ve es un permiso que se olvida.
-if (function_exists('sticpa_equipo_por_que_html')) {
-    $html .= sticpa_equipo_por_que_html($scopeLabel, 'coordinacion');
-}
-
 // Si ya estaba pasada, se dice. Evita el «¿la pasé o no?» y el guardado doble.
 if ($saved === null && $listaMon !== null && $listaMon['estado'] !== '') {
     $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>' . esc_html(sprintf(

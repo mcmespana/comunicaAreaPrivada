@@ -66,12 +66,6 @@ $html .= '<div class="pl-subtitle">' . esc_html($course['label']) . '</div>';
 $html .= '</div>';
 $html .= '</div>';
 
-// Esta pantalla NO la ve un monitor: se dice, y se dice con el alcance, que es
-// lo que contesta «¿y por qué a mí?».
-if (function_exists('sticpa_equipo_por_que_html')) {
-    $html .= sticpa_equipo_por_que_html(sticpa_pl_coord_scope_label($scope), 'coordinacion');
-}
-
 if ($createMsg !== '') {
     $html .= '<p class="pl-notice"><span>' . esc_html($createMsg) . '</span></p>';
 }
@@ -161,6 +155,3 @@ $html .= '</div>';
 $html .= '<button type="submit" class="pl-save">' . esc_html__('Crear reunión', 'sticpa') . '</button>';
 $html .= '</form>';
 
-$html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
-    . esc_html__('Las reuniones van a su propio evento, no al de los sábados: así no aparecen en el calendario de las familias.', 'sticpa')
-    . '</span></p>';
