@@ -1032,6 +1032,17 @@ span.stic-field {
 @media (max-width: 767px) {
     /* Separación con el título de la página (lo pinta Elementor encima). */
     .stic-container { margin-top: 1.15rem; }
+    /* MÁS ANCHO EN EL MÓVIL. El hueco lateral NO es nuestro: son 20 px del
+       tema (Astra, `.ast-container`) + 10 px de Elementor = 30 px por lado,
+       medido en /ap/ a 375 px el 24/09/2026 (el área se quedaba en 315 px,
+       un 16 % de la pantalla perdido). El área se come 18 de esos 30 con un
+       margen negativo y queda a 12 px del borde. `width: auto` es lo que
+       hace que crezca por los dos lados: con el `width: 100%` de stic-base
+       solo se desplazaría y se saldría por la derecha. El modo app mantiene
+       el relleno del tema (solo oculta cabecera y pie), así que vale igual.
+       Si algún día cambia el relleno del tema, esto hay que volver a medirlo:
+       con menos de 18 px por lado, el área se saldría de la pantalla. */
+    .stic-container { width: auto; margin-inline: -18px !important; }
     /* Hamburguesa = solo icono (el nombre de sección ya lo pone el título). */
     .stic-nav-toggle {
         display: inline-flex;
