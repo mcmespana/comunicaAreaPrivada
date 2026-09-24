@@ -140,17 +140,23 @@
    dentro de la pastilla gris. Se ve en cuanto se abre la hoja.
    Se neutraliza aquí, con la misma `!important` y solo para estos dos. */
 .pl-motive input,
-.pl-search input {
+/* `:not(#stic-x)` no filtra nada (no hay ningún elemento con ese id): solo
+   SUMA ESPECIFICIDAD DE ID. Hace falta porque las reglas generales de los
+   campos —el resplandor de foco y la de modo claro, con media docena de
+   `:not([type=…])` encadenados— ganaban a estas aunque llevaran !important,
+   y al escribir en el buscador salía una segunda caja dentro de la suya. */
+.pl-search input:not(#stic-x) {
     border: 0 !important;
     border-width: 0 !important;
     border-radius: 0 !important;
     background: transparent !important;
+    background-color: transparent !important;
     box-shadow: none !important;
 }
 /* El foco se marca en el CONTENEDOR (ya lo hace `:focus-within`), así que el
    anillo del campo sobra y además se dibujaría con la forma equivocada. */
-.pl-motive input:focus,
-.pl-search input:focus {
+.pl-motive input:not(#stic-x):focus,
+.pl-search input:not(#stic-x):focus {
     border-color: transparent !important;
     box-shadow: none !important;
     outline: none;
