@@ -33,10 +33,14 @@ function getDestinationModule()
 {
     // $moduleToUse = 'Accounts';
     // $moduleToUse = 'Contacts';
-    if(isset($_REQUEST['scp_module'])){
-        $scp_module = $_REQUEST['scp_module'];
-    } elseif (isset($_SESSION['scp_module'])) {
+    // Con sesión abierta manda la sesión, SIEMPRE. Antes ganaba `scp_module`
+    // del request, y el guardado del perfil hacía set_entry sobre el módulo que
+    // dijera el cliente. Del request solo se acepta en el login (el selector
+    // de la opción "Any"), y solo con uno de los dos valores que existen.
+    if (isset($_SESSION['scp_module'])) {
         $scp_module = $_SESSION['scp_module'];
+    } elseif (isset($_REQUEST['scp_module']) && in_array($_REQUEST['scp_module'], array('Contacts', 'Accounts'), true)) {
+        $scp_module = $_REQUEST['scp_module'];
     } else {
         $scp_module = get_option('sticpa_scp_module');
     }
@@ -50,6 +54,9 @@ function sticpa_load_languages()
     load_plugin_textdomain($text_domain, false, $path_languages);
 }
 
+// Las comprobaciones de seguridad de los handlers (sesión, propiedad, campos
+// firmados, destino de las redirecciones). Antes que stic-action.php, que las usa.
+include plugin_dir_path(__FILE__) . 'inc/stic-security.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-action.php';
 // stic-theme.php ANTES de stic-magic-login.php: la pantalla puente del enlace
 // mágico resuelve su apariencia con sticpa_theme_pref().

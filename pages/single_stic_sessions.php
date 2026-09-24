@@ -1,4 +1,11 @@
 <?php
+// ¿Es tuya? Antes esta pantalla abría la sesión de cualquier `?id=`
+// (inc/stic-security.php, sticpa_record_denied_html).
+$sticpaDenied = sticpa_record_denied_html($objSCP, 'stic_Sessions', $_REQUEST['id'] ?? '', 'list_stic_sessions', __('Esta sesión ya no está disponible', 'sticpa'));
+if ($sticpaDenied !== '') {
+    $html .= $sticpaDenied;
+    return;
+}
 #########################################################
 # Form settings                                         #
 #########################################################

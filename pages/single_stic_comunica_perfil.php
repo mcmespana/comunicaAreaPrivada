@@ -312,6 +312,8 @@ if (in_array('rgpd', $sections, true)) {
         $checked = ($current === '1') ? 'checked' : '';
         $fieldList[] = array(
             'name' => $consent['name'] . '_row', 'type' => 'html',
+            // Pinta su propio hidden + checkbox: sin esto no se guardaría.
+            'posts' => array($consent['name']),
             'html' => '
                 <li class="stic-consent">
                     <span class="stic-consent-row">

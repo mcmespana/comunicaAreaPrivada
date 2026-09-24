@@ -121,11 +121,11 @@ if (!function_exists('site_url'))    { function site_url($p = '') { return 'http
 if (!function_exists('getDestinationModule')) {
     function getDestinationModule()
     {
-        if (isset($_REQUEST['scp_module'])) {
-            return $_REQUEST['scp_module'];
-        }
         if (isset($_SESSION['scp_module'])) {
             return $_SESSION['scp_module'];
+        }
+        if (isset($_REQUEST['scp_module']) && in_array($_REQUEST['scp_module'], array('Contacts', 'Accounts'), true)) {
+            return $_REQUEST['scp_module'];
         }
         return get_option('sticpa_scp_module');
     }
@@ -134,6 +134,9 @@ if (!function_exists('is_singular')) { function is_singular($t = '') { return fa
 if (!function_exists('get_post'))    { function get_post($p = null) { return null; } }
 if (!function_exists('has_shortcode')) { function has_shortcode($c, $tag) { return false; } }
 if (!function_exists('wp_json_encode')) { function wp_json_encode($d, $f = 0, $depth = 512) { return json_encode($d, $f, $depth); } }
+if (!function_exists('stripslashes_deep')) {
+    function stripslashes_deep($v) { return is_array($v) ? array_map('stripslashes_deep', $v) : (is_string($v) ? stripslashes($v) : $v); }
+}
 if (!function_exists('sanitize_text_field')) { function sanitize_text_field($t) { return is_string($t) ? trim($t) : $t; } }
 if (!function_exists('sanitize_textarea_field')) { function sanitize_textarea_field($t) { return is_string($t) ? trim($t) : $t; } }
 
@@ -225,6 +228,9 @@ require_once __DIR__ . '/../inc/stic-calendar.php';
 // stic-action.php solo registra `add_action(...)` a nivel de archivo (ya
 // stubeado arriba); el resto son definiciones de función, así que cargarlo
 // aquí no ejecuta nada que dependa de WordPress/SugarCRM real.
+// Las guardas de seguridad de los handlers: funciones puras sobre $_REQUEST y
+// $_SESSION, más la consulta de propiedad contra el doble del CRM.
+require_once __DIR__ . '/../inc/stic-security.php';
 require_once __DIR__ . '/../inc/stic-action.php';
 // stic-class-6.php solo declara la clase del cliente del CRM (más un
 // `define`), así que cargarlo no abre ninguna conexión. Se necesita para

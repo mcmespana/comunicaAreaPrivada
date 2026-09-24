@@ -14,6 +14,11 @@
  *    'hint'        => 'Texto…'   Línea pequeña y gris DEBAJO del campo.
  *                                Úsalo para formatos ("AAAA", "máx. 6MB").
  *    'placeholder' => 'Texto…'   Atajo del attribute placeholder.
+ *    'posts'       => array(…)   SOLO en campos 'html' que pintan sus propios
+ *                                <input>: los nombres que mandan. El handler
+ *                                solo guarda los campos que el formulario firma
+ *                                (inc/stic-security.php), y del HTML libre el
+ *                                motor no sabe qué sale: sin 'posts', no se guarda.
  *    'yearOnly'    => true       Para campos DATE del CRM que en realidad son
  *                                "un año": se muestra/edita SOLO el año (AAAA)
  *                                y al guardar se convierte en AAAA-01-01 (el
@@ -100,6 +105,14 @@ function makeForm($fieldList, $formSettings, $data, $action = null)
     if ($action === 'delete') {
         // If action is delete, fields will be disabled: we need hidden fields so values are sent from form
         $html .= renderHiddenData($fieldList, $data);
+    }
+
+    // La lista FIRMADA de campos que este formulario deja escribir. El handler
+    // no acepta ninguno más (sticpa_request_to_module_data, inc/stic-security.php).
+    // Un campo 'html' que pinte sus propios <input> tiene que declararlos con
+    // 'posts' => array(…), o no se guardarán.
+    if (!empty($formSettings['fileName']) && function_exists('sticpa_form_fields_input')) {
+        $html .= sticpa_form_fields_input($formSettings['fileName'], sticpa_form_posted_fields($fieldList));
     }
 
     // If special action, it is rendered as hidden field so controller can receive it
@@ -374,7 +387,7 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
                         $sel = '';
                     }
                 }
-                $html .= "<option value='" . $skey . "' label='" . $svalue . "' " . $sel . ">" . $svalue . "</option>";
+                $html .= "<option value='" . esc_attr((string) $skey) . "' label='" . esc_attr((string) $svalue) . "' " . $sel . ">" . esc_html((string) $svalue) . "</option>";
             }
             $sel = "";
             $html .= "
@@ -382,7 +395,7 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
                 {$hint}
             </li>";
             break;
-        case 'bool';
+        case 'bool':
             $html = "
             <li class='" . $required . "' " . ">
             <span><label{$forAttr}>" . $label . "</label>
@@ -397,18 +410,18 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
             $defaultValue = $defaultValue === null ? '' : $defaultValue;
             foreach ($value['selectValues'] as $skey => $svalue) {
                 $checked = $defaultValue == $skey ? 'checked' : '';
-                $html .= "<div propi='{$defaultValue}' class='stic-check-container'><input class='stic-radio-input' type='radio' id='{$name}_{$skey}' name='{$name}' value='{$skey}' {$checked}><label class='stic-check-label' for='{$name}_{$skey}'>{$svalue}</label></div>";
+                $html .= "<div class='stic-check-container'><input class='stic-radio-input' type='radio' id='" . esc_attr($name . '_' . $skey) . "' name='{$name}' value='" . esc_attr((string) $skey) . "' {$checked}><label class='stic-check-label' for='" . esc_attr($name . '_' . $skey) . "'>" . esc_html((string) $svalue) . "</label></div>";
             }
             $sel = "";
             $html .= "
                 </div>
             </li>";
             break;
-        case 'multienum';
+        case 'multienum':
         case 'selectMultiple':
             $html = "<li class='{$type} " . $required . "' " . ">
             <label{$forAttr}>" . $label . "</label>
-            <span><select multiple " . $required . " " . $attributes . " class='{$additionClasses}' name='" . $name . "[]' id='" . $name . "' value='" . $defaultValue . "' " . $fieldActions . "/>";
+            <span><select multiple " . $required . " " . $attributes . " class='{$additionClasses}' name='" . $name . "[]' id='" . $name . "' value='" . $escValue . "' " . $fieldActions . "/>";
             $arrayValues = explode("^,^", $defaultValue);
             $arrayValues = str_replace("^", "", $arrayValues);
             if (!isset($value['selectValues'])) {
@@ -421,7 +434,7 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
             }
             foreach ($list as $skey => $svalue) {
                 $sel = in_array($skey, $arrayValues) ? 'Selected' : '';
-                $html .= "<option value='" . $skey . "' label='" . $svalue . "' " . $sel . ">" . $svalue . "</option>";
+                $html .= "<option value='" . esc_attr((string) $skey) . "' label='" . esc_attr((string) $svalue) . "' " . $sel . ">" . esc_html((string) $svalue) . "</option>";
             }
             $sel = "";
             $html .= "
@@ -433,13 +446,13 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
             $html = "
             <li class=''>
                 <label>" . $label . "</label>
-                <span class='{$additionClasses}' id='{$name}' {$fieldActions} > {$defaultValue} </span>
+                <span class='{$additionClasses}' id='{$name}' {$fieldActions} > " . esc_html((string) ($defaultValue ?? '')) . " </span>
             </li>";
             break;
         case 'info':
             $html = "
             <li>
-                <span class='{$additionClasses}' id='{$name}' {$fieldActions} > {$defaultValue}  </span>
+                <span class='{$additionClasses}' id='{$name}' {$fieldActions} > " . esc_html((string) ($defaultValue ?? '')) . "  </span>
             </li>";
             break;
         case 'filler':
@@ -452,7 +465,7 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
         case 'image':
             $html = "
             <li>
-                <span class='{$additionClasses}' id='{$name}' {$fieldActions} > {$value}{$defaultValue}  </span>
+                <span class='{$additionClasses}' id='{$name}' {$fieldActions} > " . esc_html((string) ($defaultValue ?? '')) . "  </span>
             </li>";
             break;
         default:

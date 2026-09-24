@@ -122,6 +122,9 @@ function makeList($columnsList, $listSettings, $data, $extraActions = array())
                         $columnValue = $options[$columnValue]['value'];
                     }
                 }
+                // El valor viene del CRM: se escapa AQUÍ, antes de envolverlo en
+                // el chip o la cabecera, que son HTML nuestro (plan 006).
+                $columnValue = esc_html((string) ($columnValue ?? ''));
                 $attributes = "";
                 if (isset($column['attributes'])) {
                     $attributes = $column['attributes'];
