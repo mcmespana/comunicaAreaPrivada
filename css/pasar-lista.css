@@ -2809,12 +2809,15 @@ a.pl-group .pl-name { display: block; }
    rerompe.
 
    EL AIRE, en una variable y en un solo sitio. */
-:root { --pl-gutter: 0.25rem; }
+:root { --pl-gutter: 0.25rem; --stic-scrollbar: 0px; }
 
+/* `--stic-scrollbar` lo mide js/stic-ui.js: `100vw` cuenta la barra de scroll
+   cuando no es superpuesta (escritorio estrecho), y sin restarla el área se
+   salía ese ancho por la derecha y se cortaba. En el móvil es 0. */
 .stic-container {
-    width: 100vw;
-    max-width: 100vw;
-    margin-inline: calc(50% - 50vw);
+    width: calc(100vw - var(--stic-scrollbar));
+    max-width: calc(100vw - var(--stic-scrollbar));
+    margin-inline: calc(50% - 50vw + var(--stic-scrollbar) / 2);
     padding-inline: var(--pl-gutter) !important;
 }
 
