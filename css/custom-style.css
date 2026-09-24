@@ -4002,7 +4002,7 @@ span.stic-field {
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem 0.6rem;
-    margin: 0 0 1rem;
+    margin: 1rem 0 0;   /* va DEBAJO del calendario */
     padding: 0;
     list-style: none;
     font-size: 0.82rem;
@@ -4533,12 +4533,6 @@ span.stic-field {
    legibilidad. La rejilla y los botones ya vienen de §23.c/d.
    ============================================================ */
 .stic-calendar-wrap { margin-top: 0.25rem; }
-.stic-calendar-intro {
-    margin: 0 0 0.9rem;
-    color: var(--gray-600);
-    font-size: 0.92rem;
-    line-height: 1.5;
-}
 
 /* Eventos: chip redondeado, legible y clicable. */
 .fc .fc-event { cursor: pointer; }
@@ -4794,18 +4788,22 @@ span.stic-field {
         box-shadow: none !important;
         border-radius: 0 !important;
     }
-    .stic-calendar-intro { font-size: 0.86rem; margin-bottom: 0.7rem; }
-    .stic-calendar-legend { gap: 0.3rem 0.45rem; }
+    .stic-calendar-legend { gap: 0.3rem 0.45rem; margin-top: 0.9rem; }
 
-    /* Toolbar: título en su propia fila; botones centrados y estables debajo. */
+    /* Toolbar: el título en su fila y DEBAJO, TODO EN UNA FILA HORIZONTAL:
+       «‹ › Hoy» a la izquierda y «Mes / Agenda» a la derecha. Antes los
+       botones iban apilados en dos filas centradas y se comían media pantalla
+       antes de llegar al mes. */
     .fc .fc-toolbar.fc-header-toolbar {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 0.55rem !important;
+        display: grid !important;
+        grid-template-columns: auto auto;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.6rem 0.5rem !important;
         margin-bottom: 0.75rem !important;
     }
-    .fc .fc-toolbar-chunk { display: flex; justify-content: center; align-items: center; gap: 0.4rem; }
-    .fc .fc-toolbar-chunk:has(.fc-toolbar-title) { order: -1; }
+    .fc .fc-toolbar-chunk { display: flex; align-items: center; gap: 0.35rem; }
+    .fc .fc-toolbar-chunk:has(.fc-toolbar-title) { grid-column: 1 / -1; order: -1; justify-content: center; }
     .fc .fc-toolbar-title { text-align: center; }
     .fc .fc-button { padding: 0.4rem 0.7rem !important; font-size: 0.82rem !important; }
 

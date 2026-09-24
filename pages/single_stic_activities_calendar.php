@@ -56,9 +56,9 @@ $html .= "<div class='stic-entry-header'>
 </div>";
 
 $html .= "<div class='stic-calendar-wrap'>";
-$html .= "<p class='stic-calendar-intro'>"
-    . esc_html__('Tus sesiones se colorean según tu asistencia. Toca cualquier actividad para ver el detalle o inscribirte.', 'sticpa')
-    . "</p>";
-$html .= sticpa_calendar_legend_html();
+// La leyenda va DEBAJO del calendario: primero se mira el mes y luego, si
+// hace falta, qué es cada color. Sin frase de introducción (la quitó el
+// propietario el 24/09/2026): los colores ya se explican solos en la leyenda.
 $html .= "<div id='calendar' data-fc-settings='" . esc_attr(json_encode($fcSettings)) . "'></div>";
+$html .= sticpa_calendar_legend_html();
 $html .= "</div>";
