@@ -1786,8 +1786,12 @@ span.stic-field {
     /* ACOTADO al área: el selector global `input, textarea…` de antes forzaba
        fondos blancos en los formularios del TEMA de WordPress en modo oscuro
        (el anti-patrón que prohíbe el design system §1.4). */
-    :root:not([data-stic-scheme="dark"]) :is(.stic-container, .stic-auth-shell) :is(input, textarea, select, .input-text),
-    :root:not([data-stic-scheme="dark"]) .stic-field input {
+    /* SIN LOS BOTONES. Un `input` a secas también es el `type="submit"`, y
+       esta regla (más específica y con !important) les ponía el texto gris
+       oscuro encima del degradado: «Iniciar sesión» y todos los botones del
+       área se leían en negro en modo claro. Arreglado el 24/09/2026. */
+    :root:not([data-stic-scheme="dark"]) :is(.stic-container, .stic-auth-shell) :is(input:not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]):not([type="image"]), textarea, select, .input-text),
+    :root:not([data-stic-scheme="dark"]) .stic-field input:not([type="submit"]):not([type="button"]) {
         background-color: var(--surface) !important;
         color: var(--gray-800) !important;
         border-color: var(--gray-200) !important;
@@ -4300,8 +4304,9 @@ span.stic-field {
 /* --- 44.c Inputs y controles nativos -------------------------------------- */
 /* §20.d ya se aparta con :not([data-stic-scheme="dark"]), así que aquí NO hace
    falta pelear con !important: basta dar el valor bueno. */
-:is(.stic-container, .stic-auth-shell)[data-stic-scheme="dark"] :is(input, textarea, select, .input-text),
-:root[data-stic-scheme="dark"] :is(.stic-container, .stic-auth-shell) :is(input, textarea, select, .input-text) {
+/* Sin los botones, por lo mismo que en claro (§20.d). */
+:is(.stic-container, .stic-auth-shell)[data-stic-scheme="dark"] :is(input:not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]):not([type="image"]), textarea, select, .input-text),
+:root[data-stic-scheme="dark"] :is(.stic-container, .stic-auth-shell) :is(input:not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]):not([type="image"]), textarea, select, .input-text) {
     background-color: var(--surface-2);
     color: var(--gray-800);
     border-color: var(--gray-200);
@@ -5075,7 +5080,33 @@ span.stic-field {
 
 @media (max-width: 640px) {
     .stic-section-label--mini { margin-top: 1.15rem; }
-    .stic-dashboard-grid--mini { grid-template-columns: 1fr; gap: 0.5rem; }
+    /* En el móvil, LA MISMA REJILLA QUE «TU DÍA A DÍA» Y QUE EL MENÚ: de dos
+       en dos. Antes iban una por fila y con el contenido centrado (heredaban
+       el `justify-content: center` de la tarjeta), y el bloque parecía de
+       otra aplicación. */
+    .stic-dashboard-grid--mini { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; }
+    .stic-dashboard-grid--mini .stic-dash-card {
+        flex-direction: column;
+        align-items: flex-start;
+        justify-content: center;
+        gap: 0.45rem;
+        padding: 0.75rem 0.7rem;
+    }
+    .stic-dashboard-grid--mini .stic-dash-icon { width: 38px; height: 38px; }
+    .stic-dashboard-grid--mini .stic-dash-icon svg { width: 20px; height: 20px; }
+}
+
+/* EL ÚLTIMO DE UN GRUPO IMPAR, A LO ANCHO (móvil). Con cinco accesos quedaba
+   un hueco a la derecha del quinto; ahora ocupa la fila y se pinta en
+   horizontal, icono a la izquierda. Es la misma regla que el menú del móvil
+   (sticpa_nav_layout, menu.php). */
+@media (min-width: 341px) and (max-width: 640px) {
+    .stic-dashboard-grid > .stic-dash-card:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-start;
+    }
 }
 
 /* ============================================================
