@@ -1173,6 +1173,13 @@ function sugar_crm_portal_start_session()
         @ini_set('session.gc_maxlifetime', (string) $ttl);
     }
 
+    // Modo estricto: PHP rechaza un id de sesión que no haya creado él. Sin
+    // esto, un id inventado que llegara en la cookie se aceptaba tal cual y
+    // abría la puerta a fijar la sesión de otro (TODO.md, SEC-06). Solo cookie:
+    // nunca un id en la URL.
+    @ini_set('session.use_strict_mode', '1');
+    @ini_set('session.use_only_cookies', '1');
+
     // Cookie de sesión de larga duración (en vez de "hasta cerrar el navegador").
     $secure = is_ssl();
     if (PHP_VERSION_ID >= 70300) {

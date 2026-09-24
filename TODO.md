@@ -55,17 +55,17 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
       `inc/stic-action.php::prefix_admin_stic_forgot_password`.
 - [x] `SEC-01` (P0 · S) **Dejar de enviar la contraseña en claro por email.** ↳ **hecho** (el flujo
       de recuperación ahora manda un acceso mágico, nunca la contraseña).
-- [ ] `SEC-02` (P0 · M) **Escapar/parametrizar las queries al CRM.** Hoy se concatenan
+- [x] `SEC-02` (P0 · M) **Escapar/parametrizar las queries al CRM.** ↳ **hecho** (24/09/2026, PR #98: `SugarRestApiCall::quoteValue()`; el login admitía `x' OR '1'='1`). Hoy se concatenan
       `username`/`password`/`token` sin escapar → inyección. Sanear en `PortalLogin`,
       `getUserExists`, `getUserInformationByUsername`, etc.
       ↳ `inc/stic-class-6.php`.
 - [ ] `SEC-03` (P0 · M) **Hashear contraseñas** (si se mantiene el login por contraseña):
       `password_hash`/`password_verify`. Implica migrar el campo y el flujo de login/signup/cambio.
       Evaluar si, con `AUTH-*`, conviene **retirar** del todo el login por contraseña.
-- [ ] `SEC-04` (P0 · S) **Activar verificación TLS** del CRM: `CURLOPT_SSL_VERIFYPEER => 1`
+- [x] `SEC-04` (P0 · S) **Activar verificación TLS** ↳ **hecho** (24/09/2026, PR #98: PEER + HOST=2). del CRM: `CURLOPT_SSL_VERIFYPEER => 1`
       (hoy está en `0` → vulnerable a man-in-the-middle).
       ↳ `inc/stic-class-6.php::call`.
-- [ ] `SEC-05` (P1 · M) **Añadir nonces/CSRF** a todas las acciones `admin_post_*`
+- [x] `SEC-05` (P1 · M) **Añadir nonces/CSRF** a todas las acciones `admin_post_*` ↳ **hecho** (24/09/2026): la firma de campos de `makeForm` va atada a la sesión y se exige también para borrar, darse de baja y cambiar la contraseña (`sticpa_form_is_genuine()`). El cambio de participante por GET no la necesita: solo puede llevarte a ti o a tu lista.
       (`wp_nonce_field` + `check_admin_referer`). Hoy los formularios no tienen protección CSRF.
       Incluir también los enlaces GET del selector de participante (`menu.php`,
       `single_stic_profile_selection.php`).
@@ -79,7 +79,7 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
 - [x] `SEC-09` (P1 · S) **Escapar valores del CRM en el motor de formularios**
       (`esc_attr`/`esc_textarea`): un valor con apóstrofe ("C/ L'Horta") rompía el HTML
       del input. ↳ **hecho** (2026-07). ↳ `inc/stic-formController.php`.
-- [ ] `SEC-06` (P1 · S) **Cookies de sesión seguras**: forzar `Secure`, `HttpOnly`, `SameSite=Lax`
+- [x] `SEC-06` (P1 · S) **Cookies de sesión seguras** ↳ **hecho**: `HttpOnly`, `SameSite=Lax`, `Secure` con HTTPS, y desde el 24/09/2026 `session.use_strict_mode` + `use_only_cookies`.: forzar `Secure`, `HttpOnly`, `SameSite=Lax`
       y exigir HTTPS en el área privada.
 
 ## 🟠 P1 — Panel de administración (gestión de accesos)
@@ -166,9 +166,15 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
 - [ ] `FAM-01` (P1 · M) **Conectar los perfiles de familia con Sinergia** cuando existan
       las relaciones `stic_Personal_Environment` en el CRM de Comunica: verificar la
       carga real de participantes y decidir el campo definitivo del rol "familiar".
-- [ ] `FAM-02` (P2 · S) **Medio de pago del familiar**: crear en Studio (o mapear a
-      `stic_Payment_Commitments`) los campos reales y renombrar `ajmcm_pago_*_c` en
-      `pages/single_stic_tutor_profile.php` (buscar el aviso ⚙️).
+- [!] `FAM-02` (P1 · S) **Medio de pago del familiar — DECISIÓN PENDIENTE.** La pantalla
+      usa `ajmcm_pago_*_c`, que NO existen: el familiar mete su IBAN y se descarta en
+      silencio. Los campos reales existen desde el 15/09/2026 (`ajmcm_iban_c`,
+      `ajmcm_iban_titular_c`, `ajmcm_forma_pago_c`, ver CAMPOS.md), pero viven en la ficha
+      del **participante** (así llegó la migración) y esta pantalla edita la del **familiar**.
+      Hay que decidir (24/09/2026, sin respuesta todavía): (a) quitar la sección hasta que
+      estén los compromisos de pago, (b) escribir en cada participante, o (c) en el familiar.
+      De `ajmcm_forma_pago_c` solo se conoce la clave `cargo_cuenta`: no inventar las demás.
+      ↳ `pages/single_stic_tutor_profile.php` (aviso ⚙️), plan 015.
 
 ## 🟠 P1 — Rendimiento (análisis 2026-07, hacer en este orden)
 
