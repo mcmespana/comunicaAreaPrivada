@@ -458,6 +458,18 @@ para: hay servidores que ignoran el `offset`.
 Está resuelto en `getRecordsModule()` y `getRelatedElementsForLoggedUser()`;
 ajustable con `sticpa_crm_page_size` y `sticpa_crm_max_rows`.
 
+**Y la excepción, que NO rompe la regla (25/09/2026).** Pedir siempre «una
+página más» doblaba el coste de CADA lista (≈350 ms): casi todas caben en una
+página y la comprobación vuelve vacía. Ahora el tope se **aprende**: solo
+cuando una página de N filas va seguida de otra con más está *demostrado* que
+el CRM corta en N (`knownPageCap()` / `learnPageCap()` en `stic-class-6.php`,
+transient `sticpa_crm_page_cap`). Sabido eso, una página de **menos de N** es
+la última. No se supone nada: se ha visto. Se guarda el más bajo visto y
+caduca a las 12 h, por si bajan el tope en el CRM. Forzable con el filtro
+`sticpa_crm_page_cap`. Medido en producción: «Mis sesiones» de 6 llamadas a 3.
+**No lo quites pensando que es la trampa de arriba**: los tests de
+`TransportLinkListTest` reproducen las 109 relaciones de Castellón.
+
 > **Corolario para los dobles:** si tu doble devuelve siempre la colección
 > entera, no puede detectar un truncado. El de `TransportLinkListTest` simula un
 > servidor que pagina Y que ignora un `max_results` mayor que su tope.
