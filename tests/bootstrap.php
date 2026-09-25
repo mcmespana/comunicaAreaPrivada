@@ -134,6 +134,7 @@ if (!function_exists('is_singular')) { function is_singular($t = '') { return fa
 if (!function_exists('get_post'))    { function get_post($p = null) { return null; } }
 if (!function_exists('has_shortcode')) { function has_shortcode($c, $tag) { return false; } }
 if (!function_exists('wp_json_encode')) { function wp_json_encode($d, $f = 0, $depth = 512) { return json_encode($d, $f, $depth); } }
+if (!function_exists('get_locale')) { function get_locale() { return 'es_ES'; } }
 if (!function_exists('stripslashes_deep')) {
     function stripslashes_deep($v) { return is_array($v) ? array_map('stripslashes_deep', $v) : (is_string($v) ? stripslashes($v) : $v); }
 }
