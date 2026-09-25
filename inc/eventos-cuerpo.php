@@ -609,9 +609,19 @@ if (!function_exists('mcm_cuerpo_bloques')) {
         return $t;
     }
 
-    /** Una lista del editor. Las anidadas se aplanan: en móvil no se leen mejor. */
-    function mcm_cuerpo_lista($lista, $ordenada)
+    /**
+     * Una lista del editor, con DOS niveles como mucho.
+     *
+     * El segundo nivel (una lista dentro de un punto) se respeta: sale con más
+     * sangría y otro marcador. Del tercero para abajo se aplana en el segundo:
+     * en un móvil, tres escalones de sangría se comen media pantalla.
+     *
+     *   items  [piezas…]                         los puntos de primer nivel
+     *   hijos  [índice del punto => array(ordenada, items [piezas…])]
+     */
+    function mcm_cuerpo_lista($lista, $ordenada, $nivel = 1)
     {
+        $hijos = array();
         $items = array();
         $inicio = max(1, (int) $lista->getAttribute('start'));
         foreach ($lista->childNodes as $li) {
@@ -634,20 +644,38 @@ if (!function_exists('mcm_cuerpo_bloques')) {
                 }
             }
             $propio = mcm_cuerpo_recorta($propio);
-            if (mcm_cuerpo_tiene_texto($propio)) {
+            $conTexto = mcm_cuerpo_tiene_texto($propio);
+            if ($conTexto) {
                 $items[] = $propio;
             }
             foreach ($anidadas as $sub) {
-                $b = mcm_cuerpo_lista($sub, $ordenada);
-                if ($b !== null) {
-                    $items = array_merge($items, $b['items']);
+                $b = mcm_cuerpo_lista($sub, strtolower($sub->nodeName) === 'ol', $nivel + 1);
+                if ($b === null) {
+                    continue;
+                }
+                // Lo de más abajo del segundo nivel, aplanado en él.
+                $sueltos = array();
+                foreach ($b['items'] as $i => $it) {
+                    $sueltos[] = $it;
+                    foreach (($b['hijos'][$i]['items'] ?? array()) as $nieto) {
+                        $sueltos[] = $nieto;
+                    }
+                }
+                if ($nivel === 1 && $conTexto) {
+                    $i = count($items) - 1;
+                    $previo = $hijos[$i]['items'] ?? array();
+                    $hijos[$i] = array('ordenada' => $b['ordenada'], 'items' => array_merge($previo, $sueltos));
+                } else {
+                    // Una sublista sin punto propio encima (o ya en el segundo
+                    // nivel): sus puntos suben al nivel en el que estamos.
+                    $items = array_merge($items, $sueltos);
                 }
             }
         }
         if (!$items) {
             return null;
         }
-        return array('tipo' => 'lista', 'ordenada' => $ordenada, 'inicio' => $inicio, 'items' => $items);
+        return array('tipo' => 'lista', 'ordenada' => $ordenada, 'inicio' => $inicio, 'items' => $items, 'hijos' => $hijos);
     }
 
     /** Un <img> → bloque imagen, o null si su dirección no vale. */
@@ -802,17 +830,21 @@ if (!function_exists('mcm_cuerpo_bloques')) {
      */
     function mcm_cuerpo_destino($url, $propios = null)
     {
+        // Un ARCHIVO (un PDF, una hoja, lo que sirve `archivo.php` o el
+        // endpoint del área) se abre siempre en otra pestaña: si no, quien lo
+        // abre en el móvil pierde la página del evento al cerrarlo.
+        $esArchivo = (bool) preg_match('#(/archivo\.php\?|action=sticpa_evento_archivo|\.(pdf|docx?|xlsx?|pptx?|odt|ods|zip)(\?|\#|$))#i', (string) $url);
         $propios = $propios === null ? mcm_cuerpo_dominios_propios() : (array) $propios;
         if (preg_match('#^https?://([^/:?\#]+)#i', $url, $m)) {
             $host = strtolower($m[1]);
             foreach ($propios as $p) {
                 if ($host === strtolower($p)) {
-                    return array(preg_replace('#^http://#i', 'https://', $url), false);
+                    return array(preg_replace('#^http://#i', 'https://', $url), $esArchivo);
                 }
             }
             return array($url, true);
         }
-        return array($url, false);
+        return array($url, $esArchivo);
     }
 
     /* ── Bloques → HTML de la web ──────────────────────────────────────── */
@@ -839,6 +871,7 @@ if (!function_exists('mcm_cuerpo_bloques')) {
             'imagen' => 'evento-imagen',
             'galeria' => 'evento-galeria',
             'video' => 'evento-video',
+            'sublista' => 'evento-sublista',
         ), (array) ($opciones['clases'] ?? array()));
         $base = max(1, min(5, (int) ($opciones['titulo_base'] ?? 2)));
         $mini = $opciones['miniatura'] ?? null;
@@ -869,8 +902,18 @@ if (!function_exists('mcm_cuerpo_bloques')) {
                     $tag = !empty($b['ordenada']) ? 'ol' : 'ul';
                     $inicio = (int) ($b['inicio'] ?? 1);
                     $html .= '<' . $tag . ($tag === 'ol' && $inicio > 1 ? ' start="' . $inicio . '"' : '') . ">\n";
-                    foreach ((array) $b['items'] as $item) {
-                        $html .= '<li>' . $linea($item) . "</li>\n";
+                    foreach ((array) $b['items'] as $i => $item) {
+                        $html .= '<li>' . $linea($item);
+                        $sub = $b['hijos'][$i] ?? null;
+                        if ($sub && !empty($sub['items'])) {
+                            $st = !empty($sub['ordenada']) ? 'ol' : 'ul';
+                            $html .= "\n<{$st} class=\"" . $e($cl['sublista']) . "\">\n";
+                            foreach ($sub['items'] as $subItem) {
+                                $html .= '<li>' . $linea($subItem) . "</li>\n";
+                            }
+                            $html .= "</{$st}>\n";
+                        }
+                        $html .= "</li>\n";
                     }
                     $html .= "</{$tag}>\n";
                     break;
@@ -895,8 +938,11 @@ if (!function_exists('mcm_cuerpo_bloques')) {
                     break;
                 case 'galeria':
                     $html .= '<div class="' . $e($cl['galeria']) . '">' . "\n";
+                    // Cada foto enlaza a su versión grande: sin JavaScript se abre
+                    // sola, y con él la página monta el visor (`data-galeria`).
                     foreach ((array) $b['imagenes'] as $src) {
-                        $html .= '<img src="' . $e($ligera($src, 600)) . '" alt="" loading="lazy">' . "\n";
+                        $html .= '<a href="' . $e($ligera($src, 1200)) . '" data-galeria>'
+                            . '<img src="' . $e($ligera($src, 600)) . '" alt="" loading="lazy"></a>' . "\n";
                     }
                     $html .= "</div>\n";
                     break;

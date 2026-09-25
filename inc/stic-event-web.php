@@ -102,7 +102,7 @@ function sticpa_event_documents($objSCP, $eventId)
         'module_id' => $eventId,
         'link_field_name' => sticpa_event_docs_link(),
         'related_module_query' => '',
-        'related_fields' => array('id', 'document_name', 'filename'),
+        'related_fields' => array('id', 'document_name', 'filename', 'date_entered'),
         'related_module_link_name_to_fields_array' => array(),
         'deleted' => 0,
         'order_by' => '',
@@ -125,12 +125,18 @@ function sticpa_event_documents($objSCP, $eventId)
         $titulo = trim(html_entity_decode((string) ($nvl->document_name->value ?? ''), ENT_QUOTES | ENT_HTML5, 'UTF-8'));
         $docs[] = array(
             'id' => $id,
+            'alta' => (string) ($nvl->date_entered->value ?? ''),
             'titulo' => $titulo !== '' ? $titulo : $fichero,
             'fichero' => $fichero,
             'tipo' => $tipo,
             'imagen' => strpos($tipo, 'image/') === 0,
         );
     }
+    // Del más antiguo al más nuevo: el orden en que se subieron (el CRM no
+    // devuelve un orden fijo). Mismo criterio que la página pública.
+    usort($docs, function ($a, $b) {
+        return strcmp($a['alta'], $b['alta']) ?: strcmp($a['id'], $b['id']);
+    });
     set_transient($key, $docs, 10 * MINUTE_IN_SECONDS);
     return $docs;
 }
@@ -251,7 +257,7 @@ function sticpa_event_web_section_html($vista)
     if (!empty($vista['galeria'])) {
         $html .= "<div class='stic-evweb-galeria'>";
         foreach ($vista['galeria'] as $img) {
-            $html .= "<img src='" . esc_url($img['url']) . "' alt='" . esc_attr($img['titulo']) . "' loading='lazy'>";
+            $html .= "<a href='" . esc_url($img['url']) . "' target='_blank' rel='noopener'><img src='" . esc_url($img['url']) . "' alt='" . esc_attr($img['titulo']) . "' loading='lazy'></a>";
         }
         $html .= "</div>";
     }
