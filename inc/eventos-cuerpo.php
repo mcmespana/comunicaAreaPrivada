@@ -1096,7 +1096,9 @@ if (!function_exists('mcm_cuerpo_bloques')) {
     function mcm_cuerpo_titulo($nombre)
     {
         $nombre = mcm_cuerpo_una_linea(mcm_cuerpo_normalizar($nombre));
-        if (preg_match('/^([^|]{1,24}?)\s*\|\s*(.+)$/u', $nombre, $m)) {
+        // Lo que vaya delante de la barra es la etiqueta, sea lo que sea: «COM»,
+        // «MIC y COM», «LC», «Monitores»… Sin barra, no hay etiqueta.
+        if (preg_match('/^([^|]{1,40}?)\s*\|\s*(.+)$/u', $nombre, $m)) {
             $titulo = preg_replace('/\s*·\s*[A-ZÁÉÍÓÚÑ]{2,4}$/u', '', trim($m[2]));
             if ($titulo !== '') {
                 return array('etiqueta' => trim($m[1]), 'titulo' => $titulo);
