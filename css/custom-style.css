@@ -6568,6 +6568,29 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     background: var(--surface-2);
 }
 
+/* El cartel a la IZQUIERDA y el texto a la derecha, desde 768px (el corte de
+   «dos columnas» de design.md §5). Es lo que hace la página pública: un cartel
+   de imprenta es vertical, y encima del texto dejaba los datos y la
+   información fuera de la primera pantalla del ordenador. En móvil no cambia
+   nada: `.stic-rec-split` es un bloque y el cartel va centrado, arriba.
+   Solo existe cuando HAY cartel (inc/stic-record-view.php): sin él, la ficha
+   no tiene una columna vacía a la izquierda. */
+@media (min-width: 768px) {
+    .stic-rec-split {
+        display: grid;
+        grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+        gap: clamp(1.25rem, 3vw, 2.5rem);
+        align-items: start;
+    }
+    .stic-rec-split > .stic-rec-cover {
+        justify-content: flex-start;
+        margin-top: 1.25rem;
+    }
+    .stic-rec-split > .stic-rec-cover img {
+        max-height: min(640px, 80vh);
+    }
+}
+
 .stic-evweb .stic-rec-desc-body { max-width: 68ch; }
 
 .stic-container .stic-evweb-cuerpo h5,
@@ -6765,3 +6788,152 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 1v5.5a2 2 0 0 0 2 2h6M7.5 5.5 10 8.5l-2.5 3' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
     mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 1v5.5a2 2 0 0 0 2 2h6M7.5 5.5 10 8.5l-2.5 3' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
 }
+
+/* ============================================================
+   60. INSCRIPCIONES — cambiar, cancelar y el enlace a la ficha
+   ------------------------------------------------------------
+   TODO EV-2 (25/09/2026): la ficha de una inscripción deja modificar los
+   datos propios y cancelarla mientras el plazo esté abierto. Las dos son
+   acciones SECUNDARIAS a propósito: la principal de la ficha sigue siendo
+   «Ver la actividad» (design.md §6.2, un solo botón de marca). Cancelar es
+   rojo suave (.stic-danger-button) y pasa por el modal de confirmación.
+
+   El de cancelar es un <button> de verdad (va dentro de un formulario
+   firmado), y el tema de WordPress pinta los <button> con más especificidad
+   que una clase (PASAR-LISTA-ESTADO.md §3.6): por eso sus medidas se
+   vuelven a declarar con prioridad, cada una con su nota.
+   ============================================================ */
+.stic-reg-gestion {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    align-items: stretch;
+}
+.stic-reg-gestion > .stic-rec-btn,
+.stic-reg-cancel {
+    flex: 0 1 auto;
+    margin: 0;
+}
+.stic-reg-cancel .stic-rec-btn {
+    width: 100%;
+    min-height: 44px !important;       /* el tema de WP pinta los <button> */
+    padding: 0.5rem 0.9rem !important; /* ídem */
+    border-radius: var(--radius-md) !important; /* ídem */
+    font: inherit;
+    font-size: 0.88rem !important;     /* ídem */
+    font-weight: 700 !important;       /* ídem */
+    letter-spacing: normal !important; /* ídem: el tema los pone en mayúsculas espaciadas */
+    text-transform: none !important;   /* ídem */
+    line-height: 1.2 !important;       /* ídem */
+    cursor: pointer;
+}
+.stic-reg-gestion-nota {
+    margin: 0.6rem 0 0;
+    font-size: 0.82rem;
+    color: var(--gray-500);
+}
+@media (max-width: 640px) {
+    .stic-reg-gestion > .stic-rec-btn,
+    .stic-reg-cancel { flex: 1 1 100%; }
+}
+
+/* «Ver toda la información de la actividad», dentro de la tarjeta de marca del
+   formulario de inscripción: texto blanco subrayado, como un enlace, no un
+   segundo botón (el botón de la pantalla es «Inscribirme»). */
+.stic-event-card-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 44px;
+    margin-top: 0.35rem;
+    color: var(--on-brand) !important;        /* el tema pinta los enlaces de su color */
+    font-size: 0.9rem;
+    font-weight: 700;
+    text-decoration: underline !important;    /* ídem: el tema quita el subrayado */
+    text-underline-offset: 3px;
+}
+.stic-event-card-link svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+/* Un grupo de opciones obligatorio lleva el asterisco en SU pregunta, no en
+   cada opción: la regla de stic-base.css pone « *» a todo <label> de un
+   `li.required`, y con las opciones («Sí, voy en autobús *») parecía que había
+   que marcarlas todas. */
+:is(.stic-tab-content, .stic-auth-shell) li.required .stic-check-group label.stic-check-label::after {
+    content: none;
+}
+
+/* Elegir una opción al inscribirse (el pago, las preguntas de la actividad):
+   las «tarjetas de opción» de §31 en COMPACTO. Se toca la tarjeta entera, no
+   un circulito; la pregunta arriba y, en el pago, el precio a su derecha. Sin
+   notas: lo que pasa después se ve al elegir (el IBAN solo con domiciliación).
+   Los selectores son largos a propósito: la regla base de `label` de
+   stic-base.css (`:is(.stic-tab-content…) label`) le gana a una clase suelta. */
+.stic-choice-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+.stic-choice-label {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--gray-800);
+}
+.stic-choice-price {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--gray-900);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.stic-option-grid.stic-choice-grid {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 150px), 1fr));
+    gap: 0.55rem;
+    margin-top: 0.5rem;
+}
+.stic-form li.stic-choice label.stic-option-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.15rem;
+    min-height: 56px;
+    margin: 0;
+    padding: 0.65rem 0.9rem;
+    border-width: 1.5px;
+    border-radius: var(--radius-md);
+    font-weight: 400;
+    color: var(--gray-800);
+}
+/* Sin la marca ✓ de §31: en una tarjeta de media pantalla de móvil no cabe
+   junto a «Domiciliación», y la elegida ya se distingue por el borde y el
+   fondo de marca. */
+.stic-form li.stic-choice label.stic-option-card::after { content: none; }
+.stic-choice-card .stic-option-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    gap: 0.5rem;
+    color: inherit;
+}
+.stic-choice-card .stic-option-title svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    color: var(--primary-color);
+}
+.stic-choice-card .stic-option-desc {
+    font-size: 0.78rem;
+    line-height: 1.3;
+    padding-left: calc(18px + 0.5rem);
+}
+/* Sin icono (las preguntas), la línea de abajo no tiene nada que alinear. */
+.stic-choice-card .stic-option-title:not(:has(svg)) + .stic-option-desc { padding-left: 0; }
+/* El motor estira los <span> de un <li> del formulario: sin esto, el precio
+   quedaba a mitad de la fila en vez de a la derecha de la pregunta. */
+.stic-form li.stic-choice .stic-choice-head > .stic-choice-label { flex: 1 1 auto; width: auto; }
+.stic-form li.stic-choice .stic-choice-head > .stic-choice-price { flex: 0 0 auto; width: auto; margin-left: auto; text-align: right; }
+
+/* La tarjeta del evento del formulario: el icono de la fecha a su tamaño (sin
+   esto, el de sticpa_record_icon() no trae medidas y crecía hasta llenarla) y
+   «Ver la actividad» en su propia línea. */
+.stic-event-card-meta svg { width: 16px; height: 16px; flex-shrink: 0; }
+.stic-event-card-link { display: flex; width: fit-content; }

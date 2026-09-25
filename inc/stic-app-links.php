@@ -77,8 +77,9 @@ function sticpa_current_path()
  *
  *   https://…/area-privada/?acceso_magico=XXX  →  https://…/app/acceso?acceso_magico=XXX
  *
- * Solo se conservan los parámetros de acceso; el resto (tema, app=1…) los pone
- * la app o el redirect, según por dónde se acabe entrando.
+ * Solo se conservan los parámetros de acceso y el destino saneado (a qué
+ * página del área iba, EV-8); el resto (tema, app=1…) los pone la app o el
+ * redirect, según por dónde se acabe entrando.
  *
  * Si el enlace no lleva ningún parámetro de acceso se devuelve tal cual: no hay
  * nada que llevar a la app.
@@ -99,6 +100,11 @@ function sticpa_app_link_url($url)
     }
     if (empty($keep)) {
         return $url;
+    }
+    // Y el DESTINO, saneado (TODO EV-8): la página del área a la que iba quien
+    // pidió el acceso. Sin él, el enlace del correo dejaba siempre en la portada.
+    if (function_exists('sticpa_login_destination_args')) {
+        $keep = array_merge(sticpa_login_destination_args($params), $keep);
     }
 
     return home_url(STICPA_APP_LINK_PATH) . '?' . http_build_query($keep);
@@ -135,6 +141,11 @@ function sticpa_app_link_bridge()
     }
 
     $destination = empty($args) ? $areaUrl : add_query_arg($args, $areaUrl);
+    // El destino pasa el puente, saneado otra vez: esto lo pide cualquiera que
+    // tenga el enlace, así que no se fía de lo que traiga (EV-8).
+    if (!empty($args) && function_exists('sticpa_login_destination_args')) {
+        $destination = sticpa_url_with_destination($destination, sticpa_login_destination_args($_GET));
+    }
 
     // `wp_safe_redirect`: el destino es siempre una URL propia (el área privada
     // configurada en ajustes), así que la lista blanca de hosts nos vale.

@@ -484,9 +484,18 @@
         Object.keys(watched).forEach(function (fieldId) {
             var source = document.getElementById(fieldId);
             if (!source) { return; }
+            // Un grupo de opciones (radio) no tiene `value`: su id es el del
+            // contenedor, y lo que vale es la opción marcada. El `change` de
+            // cada opción sube hasta el contenedor, así que el aviso llega igual.
+            var readValue = function () {
+                if (/^(INPUT|SELECT|TEXTAREA)$/.test(source.tagName)) { return source.value; }
+                var checked = source.querySelector('input[type=radio]:checked');
+                return checked ? checked.value : '';
+            };
             var apply = function () {
+                var current = readValue();
                 watched[fieldId].forEach(function (rule) {
-                    var visible = rule.values.indexOf(source.value) !== -1;
+                    var visible = rule.values.indexOf(current) !== -1;
                     rule.target.style.display = visible ? '' : 'none';
                     // Un campo oculto no debe bloquear el submit por required.
                     var inputs = rule.target.querySelectorAll('input, select, textarea');

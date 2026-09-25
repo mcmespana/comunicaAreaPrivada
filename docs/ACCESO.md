@@ -113,6 +113,42 @@ quien más lío tiene para entrar.
 
 ---
 
+## 4.b Se entra a donde se iba (25/09/2026, TODO EV-8)
+
+Un enlace a una página del área —la ficha de un evento que llega por WhatsApp,
+el botón «Entrar al área privada» de la página pública de una actividad— sin
+sesión pinta el login. Hasta el 25/09/2026, al entrar se acababa **siempre en la
+portada** (salvo con contraseña): el código llevaba al área a secas, el enlace
+del correo se firmaba contra el área a secas y la pantalla del código tiraba la
+query.
+
+Ahora el **destino** viaja por la URL en cada paso y al entrar se aterriza en él:
+
+| Puerta | Cómo lleva el destino |
+|---|---|
+| Contraseña | Ya lo hacía: el formulario se manda a la misma URL |
+| Código de 6 cifras | La pantalla del código lo lleva en su URL y el verificador redirige a él |
+| Enlace del correo | El enlace se firma contra `área + destino`; el puente `/app/acceso` lo reenvía |
+| Enlace del correo abierto por la **app** | Depende de la app: si solo coge el token, entra a la portada (como antes). Para que llegue, la app tiene que pasar también `internalpage`, `action`, `id` y `from` (ver `CONTRATO-APP-WEBVIEW.md` §5) |
+
+**No es un redirector.** Del destino solo viajan `internalpage` (tiene que ser
+una página de `pages/`) y tres parámetros con su forma exacta: `action`
+(`detail`/`create`/`edit`), `id` (un UUID) y `from`. Nada de URLs ni de hosts.
+Y la página de destino hace sus comprobaciones de siempre con la sesión recién
+abierta: el destino dice a dónde ir, no qué se puede ver. Código:
+`sticpa_login_destination_args()` y `sticpa_url_with_destination()` en
+`inc/stic-magic-login.php`; pruebas en `tests/LoginDestinationTest.php`.
+
+Por la URL y no por la sesión, a propósito: el enlace del correo se abre muchas
+veces en otro navegador —o en la app— que el que lo pidió.
+
+> Una familia con hijos que entra por el enlace de un evento lo ve **como ella
+> misma** (igual que si ya tuviera la sesión abierta): para apuntar a un hijo
+> tiene que cambiar de participante antes. No es nuevo, pero ahora se llegará
+> más a menudo por aquí.
+
+---
+
 ## 5. Cosas que estaban y ya no
 
 - **`prefix_admin_single_stic_signup`** (borrado el 10/09/2026): un

@@ -571,8 +571,10 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
 
     // URL de retorno para el enlace mágico (debe llevar un '?' para que el handler
     // pueda añadir '&success=true' al redirigir de vuelta a esta misma pantalla).
+    // Con el DESTINO dentro: quien llegó por un enlace a una página del área
+    // entra ahí, no a la portada (TODO EV-8, inc/stic-magic-login.php).
     $base_url = strtok($_SERVER['REQUEST_URI'], '?');
-    $return_url = $base_url . '?stic_auth=1';
+    $return_url = sticpa_url_with_destination($base_url . '?stic_auth=1', sticpa_login_destination_args($_GET));
 
     // ---- Panel de bienvenida (solo en pantallas anchas, ver §4.b del CSS) ----
     // En escritorio la tarjeta se parte en dos: aquí se cuenta qué hay dentro,
@@ -775,7 +777,8 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
 function sticpa_access_code_form($html = "")
 {
     $base_url = strtok($_SERVER['REQUEST_URI'], '?');
-    $return_url = $base_url . '?stic_auth=1';
+    // El destino sigue viajando (EV-8): el código también lleva a él.
+    $return_url = sticpa_url_with_destination($base_url . '?stic_auth=1', sticpa_login_destination_args($_GET));
     $appMode = function_exists('sticpa_is_app_mode') && sticpa_is_app_mode();
 
     // Solo sirve para pre-rellenar y para enseñar a dónde se mandó. Si no hay

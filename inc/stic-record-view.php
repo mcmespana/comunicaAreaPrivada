@@ -72,6 +72,10 @@ function sticpa_record_icon($name)
         'briefcase' => "<rect x='2' y='7' width='20' height='14' rx='2'/><path d='M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'/>",
         'building' => "<path d='M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6'/>",
         'link'     => "<path d='M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1'/><path d='M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1'/>",
+        'edit'     => "<path d='M12 20h9'/><path d='M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z'/>",
+        'phone'    => "<rect x='7' y='2' width='10' height='20' rx='2'/><path d='M11 18h2'/>",
+        'swap'     => "<path d='M7 7h12l-3-3'/><path d='M17 17H5l3 3'/>",
+        'cash'     => "<rect x='2' y='6' width='20' height='12' rx='2'/><circle cx='12' cy='12' r='2.5'/><path d='M6 12h.01M18 12h.01'/>",
     );
     $d = $paths[$name] ?? $paths['info'];
     return "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>{$d}</svg>";
@@ -427,12 +431,22 @@ function sticpa_record_detail_html($spec)
     //
     // Se ve ENTERA y a su tamaño, nunca recortada: un cartel de imprenta es
     // vertical y recortarlo a una banda se lleva el título y el logo.
+    //
+    // Con cartel, lo que viene detrás va en su propia columna: en móvil no
+    // cambia nada (cartel y debajo el resto), y desde 768px el cartel se queda
+    // a la IZQUIERDA y el texto a la derecha, como en la página pública. Antes
+    // iba siempre encima, y en escritorio un cartel vertical empujaba los datos
+    // y el texto fuera de la primera pantalla (CSS §59).
+    $conCartel = false;
     if (!empty($spec['cover']['src'])) {
         $src = (string) $spec['cover']['src'];
         $ok = sticpa_record_safe_url($src) !== '' || strpos($src, '/') === 0;
         if ($ok) {
+            $conCartel = true;
+            $html .= "<div class='stic-rec-split'>";
             $html .= "<figure class='stic-rec-cover'><img src='" . esc_url($src) . "' alt='"
                 . esc_attr($spec['cover']['alt'] ?? '') . "' loading='lazy'></figure>";
+            $html .= "<div class='stic-rec-split-main'>";
         }
     }
 
@@ -513,7 +527,11 @@ function sticpa_record_detail_html($spec)
             . "</span>";
 
         $link = isset($fact['link']) && is_array($fact['link']) ? $fact['link'] : null;
-        $url = $link ? sticpa_record_safe_url($link['url'] ?? '') : '';
+        // Un enlace a OTRA PANTALLA DEL ÁREA (`?internalpage=…`, p. ej. el
+        // compromiso de pago de una inscripción) se abre en la misma pestaña;
+        // los de fuera (el mapa), en otra.
+        $interno = $link && preg_match('/^\?internalpage=[a-z0-9_]+(&[A-Za-z0-9_=%.\-]*)*$/', (string) ($link['url'] ?? ''));
+        $url = $link ? ($interno ? (string) $link['url'] : sticpa_record_safe_url($link['url'] ?? '')) : '';
         if ($url === '') {
             $facts .= "<li class='stic-rec-fact'>{$inner}</li>";
             continue;
@@ -525,7 +543,7 @@ function sticpa_record_detail_html($spec)
             : ($fact['label'] ?? '') . ': ' . $text;
         $facts .= "<li class='stic-rec-fact stic-rec-fact--link'>"
             . "<a class='stic-rec-fact-a' href='" . esc_url($url) . "'"
-            . " target='_blank' rel='noopener noreferrer'"
+            . ($interno ? '' : " target='_blank' rel='noopener noreferrer'")
             . " aria-label='" . esc_attr($aria) . "'>"
             . $inner
             . "<span class='stic-rec-fact-go' aria-hidden='true'>" . sticpa_record_icon('go') . "</span>"
@@ -564,6 +582,10 @@ function sticpa_record_detail_html($spec)
             $html .= "<p class='stic-rec-cta-note'>" . esc_html($ctaNote) . "</p>";
         }
         $html .= "</div>";
+    }
+
+    if ($conCartel) {
+        $html .= "</div></div>"; // .stic-rec-split-main, .stic-rec-split
     }
 
     $html .= "</div>";

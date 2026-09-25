@@ -237,4 +237,89 @@ class EventWebTest extends TestCase
         $this->assertContains(mcm_cuerpo_campo(), sticpa_event_fields_to_request($crm, true),
             'la ficha, sí');
     }
+
+    /**
+     * EV-1 (25/09/2026): la definición cacheada 6 h NO sabe de un campo creado
+     * después en Studio. Si a la ficha le falta el cuerpo, se pregunta otra vez
+     * — una vez, no en cada visita.
+     */
+    public function test_si_la_definicion_cacheada_no_tiene_el_cuerpo_la_ficha_vuelve_a_preguntar_una_vez()
+    {
+        $crm = new class {
+            public $llamadas = 0;
+            public $conCuerpo = false;
+            public function getFieldDefinition($module, $fields)
+            {
+                $this->llamadas++;
+                $def = array();
+                foreach ($fields as $f) {
+                    if ($f === mcm_cuerpo_campo() && !$this->conCuerpo) {
+                        continue;
+                    }
+                    $def[$f] = array('name' => $f);
+                }
+                return (object) array('module_fields' => $def);
+            }
+        };
+
+        // Se cachea sin el cuerpo (el campo aún no estaba creado).
+        $this->assertNotContains(mcm_cuerpo_campo(), sticpa_event_fields_to_request($crm));
+        $this->assertSame(1, $crm->llamadas);
+
+        // Se crea en Studio. El listado no lo necesita y no pregunta de más…
+        $crm->conCuerpo = true;
+        sticpa_event_fields_to_request($crm);
+        $this->assertSame(1, $crm->llamadas, 'el listado no paga la comprobación');
+
+        // …pero la ficha sí: lo ve sin esperar a que caduque la copia.
+        $this->assertContains(mcm_cuerpo_campo(), sticpa_event_fields_to_request($crm, true));
+        $this->assertSame(2, $crm->llamadas);
+
+        // Y ya está en la copia: la siguiente ficha no vuelve a preguntar.
+        sticpa_event_fields_to_request($crm, true);
+        $this->assertSame(2, $crm->llamadas);
+    }
+
+    public function test_si_el_cuerpo_no_existe_de_verdad_solo_se_pregunta_una_vez_cada_15_minutos()
+    {
+        $crm = new class {
+            public $llamadas = 0;
+            public function getFieldDefinition($module, $fields)
+            {
+                $this->llamadas++;
+                $def = array();
+                foreach ($fields as $f) {
+                    if ($f !== mcm_cuerpo_campo()) {
+                        $def[$f] = array('name' => $f);
+                    }
+                }
+                return (object) array('module_fields' => $def);
+            }
+        };
+        sticpa_event_fields_to_request($crm, true);
+        sticpa_event_fields_to_request($crm, true);
+        sticpa_event_fields_to_request($crm, true);
+        $this->assertSame(2, $crm->llamadas, 'la caché normal + UNA comprobación, no una por visita');
+    }
+
+    public function test_con_cartel_la_ficha_parte_en_dos_columnas_y_sin_cartel_no()
+    {
+        $nvl = $this->nvl(array(
+            'id' => 'e1', 'name' => 'Convivencia', 'start_date' => date('Y-m-d', strtotime('+10 days')),
+            'status' => 'registration',
+            'web_cartel_c' => 'https://example.org/cartel.png',
+            mcm_cuerpo_campo() => '&lt;p&gt;Hola&lt;/p&gt;',
+        ));
+        $html = sticpa_event_detail_html(sticpa_event_view_model($nvl), '', true, '',
+            sticpa_event_web_view($this->crm(array()), 'e1', $nvl));
+        $this->assertStringContainsString("<div class='stic-rec-split'><figure class='stic-rec-cover'>", $html);
+        // El texto va en la columna de al lado, no debajo del cartel.
+        $this->assertMatchesRegularExpression("#<div class='stic-rec-split-main'>.*Hola.*Inscribirme#s", $html);
+        $this->assertSame(substr_count($html, '<div'), substr_count($html, '</div>'), 'los <div> cierran');
+
+        $sin = sticpa_event_detail_html(sticpa_event_view_model($this->nvl(array(
+            'id' => 'e2', 'name' => 'Sin cartel', 'start_date' => date('Y-m-d', strtotime('+10 days')),
+        ))), '', true, '', null);
+        $this->assertStringNotContainsString('stic-rec-split', $sin);
+    }
 }

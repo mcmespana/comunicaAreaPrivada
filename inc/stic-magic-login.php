@@ -28,6 +28,95 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+/* ============================================================================
+ *  A DÓNDE IBA: el destino sobrevive al login (TODO EV-8, 25/09/2026)
+ * ----------------------------------------------------------------------------
+ *  Un enlace a `/ap/?internalpage=single_stic_events&action=detail&id=…` (el
+ *  botón de la página pública de una actividad, un WhatsApp) sin sesión pinta
+ *  el login. Hasta ahora, al entrar se acababa SIEMPRE en la portada: el código
+ *  llevaba al área a secas, el enlace mágico se firmaba contra el área a secas
+ *  y la pantalla del código tiraba la query. Solo la contraseña lo conservaba
+ *  (su formulario se manda a la misma URL).
+ *
+ *  Ahora el destino viaja por la URL en cada paso —pantalla de login, pantalla
+ *  del código, enlace del correo, puente `/app/acceso`— y al entrar se aterriza
+ *  en él. Por la URL y no por la sesión: el enlace del correo se abre muchas
+ *  veces en OTRO navegador (o en la app) que el que lo pidió.
+ *
+ *  NO ES UN REDIRECTOR: solo viajan `internalpage` (una página de `pages/`) y
+ *  tres parámetros con su forma exacta. Nada de URLs, nada de hosts. Y la
+ *  página de destino hace sus comprobaciones de siempre con la sesión que se
+ *  acaba de abrir: el destino dice a dónde ir, no qué se puede ver.
+ * ========================================================================== */
+
+/** Los parámetros que forman un destino, con la forma que tiene que tener cada uno. */
+function sticpa_login_destination_shapes()
+{
+    return array(
+        'action' => '/^(detail|create|edit)$/',
+        'id'     => '/^[a-f0-9-]{10,64}$/i',
+        'from'   => '/^[a-z_]{1,32}$/',
+    );
+}
+
+/**
+ * El destino de una URL (o de un array de parámetros, como `$_GET`), saneado.
+ * Array vacío si no hay destino o no vale.
+ */
+function sticpa_login_destination_args($source)
+{
+    if (is_array($source)) {
+        $params = $source;
+    } else {
+        $query = parse_url((string) $source, PHP_URL_QUERY);
+        $params = array();
+        parse_str(is_string($query) ? $query : '', $params);
+    }
+    $page = isset($params['internalpage']) && is_string($params['internalpage']) ? $params['internalpage'] : '';
+    if (!preg_match('/^[a-z0-9_]{1,64}$/', $page)) {
+        return array();
+    }
+    // Una página que no existe no es un destino (en los tests no hay plugin
+    // entero y no se mira: la forma ya está comprobada).
+    if (function_exists('sticpa_resolve_page_file') && sticpa_resolve_page_file($page) === '') {
+        return array();
+    }
+    $args = array('internalpage' => $page);
+    foreach (sticpa_login_destination_shapes() as $key => $shape) {
+        if (isset($params[$key]) && is_string($params[$key]) && preg_match($shape, $params[$key])) {
+            $args[$key] = $params[$key];
+        }
+    }
+    return $args;
+}
+
+/**
+ * `$url` con el destino puesto. Pisa el que ya llevara (no se acumulan dos) y
+ * conserva el resto de su query (`stic_auth`, `sticpa_code`…).
+ */
+function sticpa_url_with_destination($url, $args)
+{
+    $url = (string) $url;
+    if (empty($args)) {
+        return $url;
+    }
+    $hash = '';
+    if (($pos = strpos($url, '#')) !== false) {
+        $hash = substr($url, $pos);
+        $url = substr($url, 0, $pos);
+    }
+    $params = array();
+    if (($pos = strpos($url, '?')) !== false) {
+        parse_str(substr($url, $pos + 1), $params);
+        $url = substr($url, 0, $pos);
+    }
+    foreach (array_merge(array('internalpage'), array_keys(sticpa_login_destination_shapes())) as $key) {
+        unset($params[$key]);
+    }
+    $params = array_merge($params, $args);
+    return $url . '?' . http_build_query($params, '', '&', PHP_QUERY_RFC3986) . $hash;
+}
+
 /**
  * Caducidad por defecto del acceso mágico (segundos). Configurable vía filtro.
  */
