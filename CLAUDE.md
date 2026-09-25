@@ -49,6 +49,14 @@ contexto**. Reglas:
 - **La API no valida los desplegables**: acepta cualquier cadena. Si no conoces
   la clave interna exacta de un enum, no te la inventes — mírala en `CAMPOS.md`
   o pregunta.
+- ⚠️ **Un `or` sobre el MISMO campo no funciona en `get_entry_list`**: el
+  conector lo traduce a `filter[campo][operador]=valor`, la clave se repite y
+  **la última condición pisa a las demás**. Pedir «id = A o id = B» devuelve
+  solo B, sin error — y parece que A no existe (comprobado el 25/09/2026: casi
+  se documentan relaciones con contactos «inexistentes» que sí existían). Para
+  varios ids, `get_entry` uno a uno; para varios valores de un campo, una
+  llamada por valor y se suman. Condiciones sobre campos DISTINTOS sí funcionan.
+  El plugin no lo sufre: consulta por la API v4.1 con SQL, no por este conector.
 
 ---
 

@@ -9,7 +9,25 @@
 > desplegables de eventos**, porque si no casan con lo que espera el código el
 > filtro falla EN SILENCIO. Míralo antes de tocar la audiencia de eventos.
 >
-> **Última revisión contra el CRM: 20 de septiembre de 2026.** Los eventos ya
+> **Última revisión contra el CRM: 25 de septiembre de 2026 — la primera
+> COMPLETA por MCP.** Se comparó el documento entero con `get_module_fields` de
+> cada módulo y con el código. Lo que salió:
+>
+> - **Erratas y tipos corregidos**: `stic_182_excluded_c` (aquí ponía
+>   `exluded`), `ajmcm_monitor_desde_c` es `date` y vive en `Contacts` (no en la
+>   relación), `lawful_basis` es `multienum`, y otros cuatro tipos. El doble
+>   guion bajo de `ajmcm_descripcion_allergies__c` es real (errata del CRM, se
+>   queda así).
+> - **`ajmcm_dirigido_a_c` ya es `multienum`**: el pendiente 3 queda cerrado.
+> - **11 campos `stic_*` de la §4 no existen** en esta instancia; marcados.
+> - **Campos reales que faltaban** (inscripciones, avisos, token de acceso…):
+>   sección nueva al final de la §1.
+> - **Módulos sin documentar**: lista en el pendiente 7.
+> - **El entorno personal ya no está vacío**: la migración trajo ~400
+>   relaciones de familia. Ver §1 → Entorno personal.
+> - **Ningún campo que use el código activo apunta a un campo inexistente.**
+>
+> **Revisión anterior: 20 de septiembre de 2026.** Los eventos ya
 > están rellenos, así que por fin se pueden confirmar claves **con datos** en
 > vez de con Studio: `ajmcm_ambito_c = local` (en seis de los siete eventos) y
 > `ajmcm_dirigido_a_c = ^participante_mic_com^` son **las claves exactas que
@@ -97,17 +115,17 @@ Es el peor modo de fallo que tiene este proyecto, y ya nos ha mordido dos veces
 
 ### 1. `stic_Events.ajmcm_dirigido_a_c` — una clave CONFIRMADA, el resto no ⚠️ RIESGO MEDIO
 
-El campo existe (`enum`, verificado el 10/09/2026). Las opciones de Studio
-siguen sin leerse, pero el 20/09/2026 se leyeron **los datos**, que es la otra
-forma de confirmarlas: el único evento que lo tiene relleno —«COM | Convivencia
-Inicial 2026 · Buñol · CS»— lleva `^participante_mic_com^`, o sea **la clave
-exacta que espera el código**. Dos cosas que eso cierra:
+El campo existe y es **`multienum`** (verificado el 25/09/2026; el 10/09 era
+`enum` simple, ver punto 3). Las opciones de Studio siguen sin leerse, pero se
+leyeron **los datos**, que es la otra forma de confirmarlas: el 25/09/2026 hay
+**5 de 10 eventos** con el campo relleno y **los cinco llevan
+`^participante_mic_com^`**, o sea **la clave exacta que espera el código**. Dos
+cosas que eso cierra:
 
 - El vocabulario **es** el de `relationship_type`, como se pidió. No hay dos
   listas.
-- El valor llega **envuelto en circunflejos** aunque el campo sea un `enum`
-  simple. El troceador lo aguanta (`sticpa_event_audience_multi()`), y esto es
-  la prueba en datos reales de que hacía falta que lo aguantara.
+- El valor llega **envuelto en circunflejos**, como todo multienum. El
+  troceador lo aguanta (`sticpa_event_audience_multi()`).
 
 Las otras cuatro claves siguen sin confirmar, porque ningún evento las usa
 todavía. El código compara clave a clave contra
@@ -150,33 +168,58 @@ para todas las delegaciones se puede decir sin tocar este campo — se deja
 `ajmcm_ambito_c` **vacío** y se asigna al «Administrador MCM» (id `1`) o a
 nadie, y el ámbito se deduce como nacional. Es el camino que ya está probado.
 
-### 3. `stic_Events.ajmcm_dirigido_a_c` es SIMPLE y se pidió MÚLTIPLE — decisión pendiente
+### 3. ✅ CERRADO — `stic_Events.ajmcm_dirigido_a_c` ya es MÚLTIPLE
 
-No es un fallo y no hay que tocar código: el troceador aguanta las dos formas.
-Pero con el desplegable simple **no se puede marcar «monitores Y coordinación»
-en el mismo evento** — hay que elegir uno o crear dos eventos.
+Se pidió de selección múltiple y se creó simple (10/09/2026). El 25/09/2026 el
+CRM ya lo devuelve como **`multienum`**: alguien cambió el tipo en Studio. Ya se
+puede marcar «monitores Y coordinación» en el mismo evento. El código no se
+tocó: el troceador aguantaba las dos formas.
 
-> ⏰ **Si se quiere múltiple, el momento es AHORA**, mientras el campo está vacío
-> en los cinco eventos: cambiar el tipo de un campo ya relleno en SuiteCRM puede
-> perder los valores.
+### 4. `stic_personal_environment_relationship_type_list` — «Tutor/a legal» PENDIENTE (lo hace el propietario)
 
-### 4. `stic_personal_environment_relationship_type_list` — lista completa sin apuntar
-
-Los parentescos del entorno personal. Se conocen `mother` y `father` (esta
-última dada por buena por el propietario el 15/09/2026), y «Tutor/a legal» sigue
-sin clave conocida. **Falta mirar la lista entera en Studio y apuntarla** en §1 →
-Entorno personal. Mientras tanto no se inventa ninguna clave.
+Los parentescos del entorno personal. En datos (25/09/2026) se ven `son`,
+`mother`, `father` y **`legal`** (1 registro). `legal` es la candidata obvia a
+«Tutor/a legal» —y el código ya la busca (`RELATIONSHIP_TUTOR_TYPES`, junto a
+`carer`)—, pero **el propietario del CRM ha dicho que la clave de tutor/a legal
+la cierra él y nos avisa**. Hasta entonces: no se escribe `legal` ni `carer`
+desde el área, y la lista entera de Studio sigue sin apuntarse aquí.
 
 ### 5. `ajmcm_GRUPOS.ajmcm_segmento_com_c` — valores observados, no leídos
 
-`com_1`, `com_2` y `com_3` salen de **mirar los datos**, no el desplegable.
-Podría haber más opciones sin usar. Es menos grave que las dos primeras porque
-aquí no hay comparación cruzada, pero conviene cerrarlo.
+`com_1`, `com_2` y `com_3` salen de **mirar los datos**, no el desplegable. El
+25/09/2026 se volvió a contar: 156 grupos, `com_1` 8, `com_2` 3, `com_3` 4 y el
+resto vacío. Ningún valor más. Podría haber opciones sin usar en Studio; es
+menos grave porque aquí no hay comparación cruzada.
 
-### 6. `Contacts.stic_time_availability_c` — existe y no se sabe para qué
+### 6. `Contacts.stic_time_availability_c` — existe y nadie lo usa
 
-Anotado el 28/08/2026 para que nadie cree otro campo igual sin querer. Sigue sin
-mirarse.
+`varchar(255)`, **vacío en todos los contactos** (25/09/2026). No hay nada que
+perder si algún día se le da uso; anotado para que nadie cree otro igual.
+
+### 7. Módulos del CRM que este documento no recoge — PENDIENTE (lo hace el propietario)
+
+`get_available_modules` (25/09/2026) devuelve 38 módulos. Estos existen y
+**aquí no aparecen**; el propietario ha dicho que se documentarán más adelante.
+Mientras tanto, antes de crear un módulo o un campo para algo de esto, **mira si
+ya está aquí**:
+
+| Módulo | Etiqueta | Nota |
+|---|---|---|
+| `SEG_Seguros` | Seguros | Custom de MCM |
+| `NSOC_NumSociosLocales` | Número Socios Locales | Custom de MCM |
+| `STIC_Entorno_organizacional` | Equipos y responsabilidades | |
+| `stic_Sessions` | Sesiones | Pasar Lista las usa (`PASAR-LISTA-CAMPOS-CRM.md`) |
+| `stic_Attendances` | Asistencias | Pasar Lista las usa |
+| `stic_FollowUps` | Seguimientos | Seguimientos de monitores (`PASAR-LISTA-SEGUIMIENTOS.md`) |
+| `stic_Payments` | Pagos | El área los lista (`inc/stic-payments.php`) |
+| `stic_Registrations` | Inscripciones | Sus campos `ajmcm_*` sí están, en §1 |
+| `stic_Messages` | Mensajes | |
+| `stic_Resources` | Recursos | |
+| `stic_AWF_Forms` | Formularios Web Avanzados | |
+| `stic_Signatures`, `stic_Signers`, `stic_Signature_Log` | Firmas | Firma electrónica de SinergiaCRM |
+
+`AVI_avisos` y `LIS_listas` sí están documentados, en los papeles de Pasar Lista;
+`stic_Remittances` (24 campos, ninguno custom) tiene su nota en §1.
 
 ---
 
@@ -184,7 +227,7 @@ mirarse.
 
 ### Sección MCM
 
-- `ajmcm_numero_persona_c` — Nº Registro (uso interno)
+- `ajmcm_numero_persona_c` — Nº Registro (uso interno) (`varchar`, 12)
 - `ajmcm_centro_educativo_c` — Centro educativo (texto libre)
 - `ajmcm_etapa_c` — Etapa (desplegable)
   - Valores: `MIC` [MIC], `COM` [COM], `LC` [LC]
@@ -225,6 +268,9 @@ mirarse.
 *Campos de texto libre, todos opcionales.*
 
 - `ajmcm_descripcion_allergies__c` — Alergias
+  - ⚠️ **El doble guion bajo es de verdad**: el campo se creó así por error y así
+    se queda (confirmado contra el CRM el 25/09/2026 y por el propietario). Se
+    escribe con `__`; con uno solo, la API lo ignora sin avisar.
 - `ajmcm_descripcion_intoler_c` — Intolerancias
 - `ajmcm_descripcion_tratam_c` — Tratamientos
 - `ajmcm_descripcion_enfermed_c` — Enfermedades
@@ -296,11 +342,14 @@ entonces, este es el sitio.*
 
 **Varios**
 
-- `ajmcm_monitor_desde_c` — Monitor/a desde… (año aproximado) — campo numérico
-  - Nota: es un campo puente, va en la relación con la persona.
+- `ajmcm_monitor_desde_c` — Monitor/a desde… (año aproximado) — **`date`** (no número)
+  - Vive en `Contacts`, no en la relación (verificado el 25/09/2026: en
+    `stic_Contacts_Relationships` no hay ningún campo `monitor`).
+  - Solo interesa el año: el área privada guarda `AAAA-01-01` (`yearOnly` del
+    motor de formularios) y enseña solo el año.
 - `ajmcm_monitor_de_c` — Monitor/a de… (desplegable)
   - Valores: `MIC` [MIC], `COM` [COM], `LC` [LC], `apoyo` [Apoyo], `otros` [Otros]
-  - Nota: es un campo puente, va en la relación con la persona.
+  - Vive en `Contacts`, no en la relación (verificado el 25/09/2026).
 - `ajmcm_procendencia_c` — MCM Local (desplegable)
     - Nota: por ahora es un campo temporal (ya cubierto por "Asignado a"), pero hace falta en el formulario de alta. Hay un typo en el nombre del campo y en Madrid. Se deja así por las risas xd
     - Valores:
@@ -381,30 +430,25 @@ madre de su madre, y el área privada le enseña a la niña la ficha de su madre
 devuelve enlaces anidados, así que se pide siempre el campo plano `..._ida` y se
 usa el que llegue. Nunca se confía en el objeto de la relación.
 
-#### ⚠️ Las claves de `relationship_type`: solo hay DOS confirmadas
+#### Las claves de `relationship_type`
 
-En todo el CRM hay **2 registros** (15/09/2026), así que lo observado es:
+Vistas en datos el 25/09/2026, sobre ~360 registros:
 
-| Clave | Registros | Etiqueta que compone el `name` |
+| Clave | Qué dice | Nota |
 |---|---|---|
-| `mother` | 1 | Madre |
-| `sister` | 1 | Hermana |
+| `mother` | El lado B es la madre del lado A | La que lee el área privada |
+| `father` | El lado B es el padre del lado A | La que lee el área privada |
+| `son` | El lado B es el hijo del lado A | La trajo la migración de 2025, **mal puesta** (ver abajo). Quedan 14 |
+| `legal` | ¿Tutor/a legal? | 1 registro. **Pendiente: la clave de tutor/a legal la cierra el propietario del CRM** (pendiente 4 de arriba) |
 
-**No hay ni un `father` ni nada parecido a «tutor legal» en datos reales.** Y el
-MCP no devuelve las opciones de los `enum`, solo el tipo.
+El código busca `father`, `mother`, `legal` y `carer`
+(`RELATIONSHIP_TUTOR_TYPES`). La lista completa de Studio
+(`stic_personal_environment_relationship_type_list`) sigue sin apuntarse; no se
+inventa ninguna clave.
 
-- **`father`**: no se ha visto en datos, pero el propietario del CRM la ha dado
-  por buena (15/09/2026) y el código la escribe.
-- **«Tutor/a legal»**: sigue sin clave conocida, y no se inventa ninguna. Lo que
-  no cabe en el desplegable va a `description` del registro de entorno personal.
-
-La lista completa es la de SinergiaCRM
-(`stic_personal_environment_relationship_type_list`) y sigue pendiente de
-**mirarla en Studio y apuntarla aquí**.
-
-Mientras tanto, quien escriba en este módulo que lo haga **sin bloquear el resto
-del guardado**: la API acepta cualquier cadena en un `enum` sin rechistar, así
-que una clave inventada no falla — se queda guardada y mal.
+Quien escriba en este módulo, que lo haga **sin bloquear el resto del guardado**:
+la API acepta cualquier cadena en un `enum` sin rechistar, así que una clave
+inventada no falla — se queda guardada y mal.
 
 > **Ojo, que son dos vocabularios distintos y se parecen mucho:**
 > `stic_Registrations.ajmcm_tutorN_relationship_c` (los tutores que viajan
@@ -412,18 +456,65 @@ que una clave inventada no falla — se queda guardada y mal.
 > confirmados porque los escribe el formulario de altas desde hace un año. **No
 > son las claves de este módulo** aunque dos coincidan. Un campo, un vocabulario.
 
-#### Estado real hoy: está SIN MONTAR
+#### Estado real: montado, y arreglado el 25/09/2026
 
-**2 registros en todo el CRM**, y ninguno de los participantes migrados de
-Castellón tiene familia enlazada. Los familiares de la migración tampoco
-aparecen todavía como contactos (la campaña `[Importación] Personas - Familiares
-- Sept 2026` figura como completa, pero el 15/09/2026 no había ni un contacto
-con `description` de familiar: los 44 importados dicen «Participante»).
+Lo que había hasta el 15/09/2026 eran 2 registros. El 25/09/2026 había **360**,
+de dos cargas distintas, y **las dos estaban mal**, cada una a su manera:
 
-Consecuencia práctica, y por eso está escrito aquí: **nada que identifique a una
-persona puede depender de esta relación todavía.** El formulario de renovación
-busca por el documento del participante (o por nombre y fecha de nacimiento) y
-usa la familia solo si existe.
+- **Carga de 2025** (216 registros, `start_date` 2025-09-01): los lados bien
+  —hijo/a en A, familiar en B— pero con el tipo **`son`** («el familiar es hijo
+  del niño»). El área privada no la veía, porque solo busca `mother`/`father`.
+- **Carga del 24/09/2026** (~140 registros, creados por el usuario «API User»):
+  el tipo bien (`mother`/`father`) pero, en unos 90, **los lados al revés** —el
+  familiar en A y el hijo/a en B—. Y muchas parejas **dos veces**, una en cada
+  sentido.
+
+O sea: ningún familiar migrado veía a sus hijos en el área privada.
+
+**Qué se hizo el 25/09/2026, por MCP y con permiso del propietario del CRM:**
+
+- Los **91** que estaban al revés, **se les dio la vuelta** (hijo/a a A,
+  familiar a B).
+- Los 144 `son`, a **`mother` o `father`**. Cómo se decidió: el género del
+  familiar si lo tenía (2) y, si no, **los apellidos** —el primer apellido del
+  hijo/a es el del padre, el segundo el de la madre—. Validado contra los
+  registros de 2026 que ya traían el tipo: acertaba 114 de 118. Y repasados a
+  mano uno a uno contra el nombre de pila: ninguno chocaba.
+- Los **82 duplicados** (la misma pareja dos veces, o un `son` que repetía un
+  `mother`/`father` ya bueno), **borrado lógico**. De cada pareja queda uno.
+- El `name` se reescribió en todos los tocados: **el CRM no lo recalcula** al
+  cambiar lados o tipo por la API. Formato: «Familiar - Madre|Padre - Hijo/a».
+
+**Lo que se dejó sin tocar, para que lo mire una persona** (19 registros):
+
+- 14 `son` en los que los apellidos no deciden (apellidos compuestos, un solo
+  apellido…) y el familiar no tiene género.
+- 3 `mother` y el único `legal`, que apuntan a contactos que no existen.
+- 2 registros que, arreglados, dejaban al niño con dos madres o dos padres
+  (`00000290-408d-98a7-e5cb-6ab567a2f1b8` y
+  `000004a1-b68f-0c8f-e65c-6ab508f35231`). Siguen al revés a propósito.
+
+**Y 5 que probablemente son HERMANOS, no padres** (tipo puesto por la carga de
+2026, no por nosotros): el «padre» o la «madre» lleva exactamente los mismos
+dos apellidos que el hijo/a: `00000344-1b9e-c76c-9f37-6ab373f78ad5`,
+`00000570-6e67-04c9-88f1-6ab3fac4a3c8`, `00000a4c-8e05-2bd1-ebf8-6ab508b64eb6`,
+`00000e55-b23e-8abb-2a18-6ab4eff344d9` y `00000ed5-575d-f82f-b8db-6ab40337939d`
+(este último puede ser padre de verdad: son apellidos rumanos, que no siguen la
+regla). El tercero explica el segundo caso de arriba: el padre de verdad está
+en el otro registro, y este, con el mismo nombre de pila y los apellidos del
+niño, es casi seguro su hermano. Hay que mirarlos con la familia delante.
+
+**Resultado, verificado releyendo el módulo entero el 25/09/2026:** 278
+registros —200 `mother`, 63 `father`, 14 `son`, 1 `legal`—, ninguna pareja
+repetida, y de los 263 `mother`/`father`, 258 con el hijo/a en A (el resto son
+los casos de arriba).
+
+⚠️ **Quien vuelva a cargar familias por la API, que respete la dirección**:
+hijo/a en `stic_personal_environment_contactscontacts_ida` (A), familiar en
+`stic_personal_environment_contacts_1contacts_ida` (B), tipo = lo que es el
+familiar. Y una sola vez por pareja. La carga del 24/09 se hizo al revés en la
+mitad de los casos y por duplicado; si la herramienta que la hizo se vuelve a
+usar, repetirá el error.
 
 ### Compromisos de pago (`stic_Payment_Commitments`)
 
@@ -543,10 +634,10 @@ Tres consecuencias que hay que tener presentes:
    privada: `sticpa_detect_role_from_relationship()` y
    `sticpa_es_miembro_por_tipo_de_relacion()` se apoyan en él (§2). El
    formulario de renovación lo escribe (`^participante_mic_com^`) al guardar.
-3. ⚠️ **El entorno personal está SIN MONTAR.** Ver la sección siguiente: los
-   familiares existen como contactos, pero no hay nada que los ate a su hijo/a.
-   Por eso el formulario de renovación no puede depender de esa relación para
-   identificar a nadie.
+3. ~~El entorno personal está SIN MONTAR.~~ Ya no (25/09/2026): hay ~260
+   parejas familiar-hijo/a, arregladas ese día. Ver §1 → Entorno personal. Aun
+   así, el formulario de renovación hace bien en no depender solo de ella: hay
+   niños sin familia enlazada.
 
 ---
 
@@ -703,12 +794,9 @@ funcional en [`EVENTOS.md`](EVENTOS.md) §5.
     local; sin delegación = nacional), así que el campo es opcional: sirve para
     decir «este evento es de Castellón y AUN ASÍ es para todas».
 - `ajmcm_dirigido_a_c` — Dirigido a ✅ **creado** (ficha en `EVENTOS.md` §4.1)
-  - ⚠️ **Se pidió de selección múltiple y en el CRM es `enum` SIMPLE**
-    (verificado el 10/09/2026). El área funciona igual —el troceador aguanta
-    las dos formas—, pero con el simple **no se puede decir «monitores Y
-    coordinación» en un mismo evento**. Cambiarlo a múltiple es un cambio de
-    tipo en Studio y el código no se toca; **el momento bueno es mientras esté
-    vacío**, porque cambiar el tipo de un campo relleno puede perder valores.
+  - **Selección múltiple (`multienum`)**, verificado el 25/09/2026 (se creó
+    simple el 10/09 y se cambió después en Studio). Un evento puede ser de
+    monitores Y de coordinación a la vez.
   - ⚠️ **SUS CLAVES NO ESTÁN CONFIRMADAS**, igual que en `ajmcm_ambito_c`: la
     tabla de abajo es **lo que espera el código**, no lo leído en Studio. Ver
     §⏳ punto 1 — si no casan, el evento **se esconde a todo el mundo** y no
@@ -820,6 +908,74 @@ crear: varios estaban creados con otro nombre). Comprobado el 09/09/2026:
 | `attendees`, `total_hours`, `budget`, `actual_cost`… | varios | Gestión, no se usan en el área |
 | `stic_events_fp_event_locations` | relación | **El lugar es una relación a un módulo de ubicaciones**, no un texto: no existen `location`, `city` ni `address` |
 
+### Campos que existían y no estaban aquí (añadidos el 25/09/2026)
+
+Salen de comparar este documento con el CRM por MCP (`get_module_fields`) y con
+el código. **Todos existen y casi todos los usa ya el área privada**; faltaban
+aquí, no en el CRM. Los tipos son los que devuelve el CRM. Las claves de los
+`enum` siguen sin leerse (el MCP no las devuelve): donde no se dice nada, **no
+se conocen** — no te las inventes.
+
+**Personas (`Contacts`)**
+
+| Campo | Tipo | Qué es |
+|---|---|---|
+| `ajmcm_mcm_desde_c` | `date` | En el MCM desde. Como `ajmcm_monitor_desde_c`: solo cuenta el año (`yearOnly`, se guarda `AAAA-01-01`) |
+| `ajmcm_ano_incorporacion_lc_c` | `int` | Año de incorporación a LC |
+| `ajmcm_pa_token_c` | `varchar(255)` | El token del enlace mágico de acceso (`inc/stic-magic-login.php`, `docs/ACCESO.md`). ⚠️ Es una credencial: nunca se pinta ni se escribe desde un formulario (`sticpa_request_to_module_data()` lo bloquea) |
+| `ajmcm_pa_portal_url_c` | `url` | URL del portal. Sin usar en el código |
+| `stic_pa_username_c`, `stic_pa_password_c` | `varchar(255)` | Usuario y contraseña del portal de SinergiaCRM. Credenciales: mismas reglas que el token |
+| `stic_pa_enable_c` | `bool` | Portal activado. Sin usar en el código |
+| `ajmcm_id_persona_c` | `varchar(255)` | Sin usar en el código. No confundir con `ajmcm_numero_persona_c` (Nº Registro) |
+| `ajmcm_acompanante_c` | `varchar(100)` | Sin usar en el código |
+| `actualizado_c` | `bool` | Sin usar en el código |
+| `stic_tax_name_c` | `varchar(255)` | De SinergiaCRM. Sin usar |
+| `stic_occupational_safety_c` | `bool` | De SinergiaCRM. Sin usar |
+| `stic_incorpora_locations_id_c` | `id` | Integración Incorpora. Sin usar |
+
+Y **unos 40 campos de integraciones que no usamos**, anotados solo para que
+nadie cree uno igual: `inc_*` (34, programa Incorpora / SEPE), `sepe_*` (4) y
+`jjwg_maps_*` (4, geocodificación de direcciones).
+
+**Inscripciones (`stic_Registrations`)** — los lee `inc/stic-registrations.php`
+
+| Campo | Tipo | Qué es |
+|---|---|---|
+| `ajmcm_clase_c` | `enum` | Clase del/de la participante en la inscripción |
+| `ajmcm_curso_escolar_c` | `enum` | Curso escolar (misma lista que en las relaciones, ver abajo) |
+| `ajmcm_registration_amount_c` | `decimal(6)` | Importe de la inscripción |
+| `ajmcm_convivencia_c` | `enum` | Si va a la convivencia |
+| `ajmcm_convivencia_fecha_c` | `date` | Fecha de la convivencia |
+| `ajmcm_convivencia_precio_c` | `decimal(6)` | Precio de la convivencia |
+| `ajmcm_convivencia_event_id_c` | `varchar(48)` | Id del evento de la convivencia |
+| `ajmcm_eventid_c` | `varchar(48)` | Id del evento. ⚠️ **Vacío en los registros reales**: el que vale es el `_ida` del enlace con el evento |
+| `ajmcm_tutor1_firstname_c` / `_lastname_c` | `varchar(60)` / `varchar(140)` | Nombre y apellidos del tutor/a 1 |
+| `ajmcm_tutor1_relationship_c` | `enum` | Parentesco: `father` / `mother` / `legal` (confirmadas, las escribe el formulario de altas). **No es el vocabulario del entorno personal** |
+| `ajmcm_tutor1_phone_c` | `varchar(10)` | Teléfono |
+| `ajmcm_tutor1_email_c` | `varchar(48)` | Correo |
+| `ajmcm_tutor1_dni_c` | `varchar(14)` | DNI |
+| `ajmcm_tutor1_iban_c` | `varchar(40)` | IBAN (dato bancario: se enmascara al pintarlo) |
+| `ajmcm_tutor2_*` | ídem | Lo mismo para el tutor/a 2, **sin IBAN** |
+
+**Relaciones con personas (`stic_Contacts_Relationships`)** — la etapa también
+está en [`PASAR-LISTA-CAMPOS-CRM.md`](PASAR-LISTA-CAMPOS-CRM.md)
+
+| Campo | Tipo | Qué es |
+|---|---|---|
+| `ajmcm_clase_c` | `enum` | Clase de esa relación |
+| `ajmcm_etapa_relacion_c` | `enum` | Etapa de esa relación (`MIC` / `COM` / `LC` en el código) |
+
+**Avisos (`AVI_avisos`)** — los escribe Pasar Lista; ficha en
+[`PASAR-LISTA-CAMPOS-CRM.md`](PASAR-LISTA-CAMPOS-CRM.md)
+
+| Campo | Tipo | Qué es |
+|---|---|---|
+| `ajmcm_notificado_el_c` | `date` | Cuándo se notificó |
+| `ajmcm_notificado_familia_c` | `bool` | Si se notificó a la familia |
+| `ajmcm_puesto_por_c` | `relate` | Quién puso el aviso |
+| `ajmcm_sesion_c` | `relate` | Sesión del aviso (su id plano, `stic_sessions_id_c`) |
+| `contact_id_c` | `id` | Id plano de la persona (se repite igual en `stic_Sessions` y `stic_FollowUps`) |
+
 ---
 
 ## 2. Campos incluidos por SinergiaCRM
@@ -886,10 +1042,10 @@ Fuente: https://wiki.sinergiatic.org/index.php?title=Estructura_de_datos:_m%C3%B
     enseña en «En regla».
   - Usado por nosotros: **Sí** (solo lectura)
 - `stic_time_availability_c` — Disponibilidad horaria
-  - Tipo: por confirmar. **Existe en el CRM y no se ha mirado para qué se usa.**
-    Anotado el 28/08/2026 para que no se cree otro campo igual sin querer.
+  - Tipo: `varchar(255)`. **Vacío en TODOS los contactos** (25/09/2026). Anotado
+    el 28/08/2026 para que no se cree otro campo igual sin querer.
   - Usado por nosotros: **No, por ahora**
-- `stic_total_annual_donations_c` — Donación total anual (moneda)
+- `stic_total_annual_donations_c` — Donación total anual (`decimal(26)`)
   - Nota: útil para informes o certificados de donación tras generar el Modelo 182.
   - Usado por nosotros: **Por ahora no**
 
@@ -933,6 +1089,7 @@ Fuente: https://wiki.sinergiatic.org/index.php?title=Estructura_de_datos:_m%C3%B
   - Tipo: casilla de verificación. Indica si se puede llamar o no al contacto.
   - Usado por nosotros: **Sí**
 - `email1` — Correo electrónico
+  - Tipo: `varchar` (la API lo devuelve así; el de tipo `email` es otro campo, `email`).
   - Usado por nosotros: **Sí**
 - `first_name` — Nombre
   - Usado por nosotros: **Sí**
@@ -969,46 +1126,47 @@ Fuente: https://wiki.sinergiatic.org/index.php?title=Estructura_de_datos:_m%C3%B
     de ahí salen los botones de llamar y de WhatsApp del área privada.
 - `salutation` — Saludo (desplegable: Sr. / Srta. / Sra. / Dr. / Prof.) — No
 - `stic_182_error_c` — Error del Modelo 182 — No
-- `stic_182_exluded_c` — Excluir del Modelo 182 — No
+- `stic_182_excluded_c` — Excluir del Modelo 182 — No (antes aquí ponía `exluded`, errata del documento; el CRM lo escribe bien)
 - `title` — Puesto de trabajo — No
-- `lawful_basis` — Base legal (Consentimiento / Contrato / Obligación legal / Protección del interés / Retirado / …) — No, por ahora
+- `lawful_basis` — Base legal, **selección múltiple** (`multienum`, por defecto `^consent^`) (Consentimiento / Contrato / Obligación legal / Protección del interés / Retirado / …) — No, por ahora
 - `lawful_basis_source` — Fuente de la base legal (Sitio web / Teléfono / Dado al usuario / …) — No, por ahora
 - `lead_source` — Toma de contacto (Campaña / Llamada en frío / Conferencia / Correo directo / Email / …) — No
 - `department` — Departamento — No
 - `email_opt_out` — Rehusar email — No
 - `description` — Descripción (área de texto) — No
-- `campaign_name` — Campaña — No
+- `campaign_name` — Campaña (`relate`, no texto) — No
 - `created_by` — Creado por
   - Tipo: relacionado. Lo rellena SinergiaCRM por defecto.
   - Usado por nosotros: Automático
 - `created_by_name` — Creado por (nombre)
   - Tipo: Linkeado de forma automática 
 - `current_user_only` — Mis elementos — campo de búsqueda que filtra solo los registros asignados al usuario activo — No
+  - No es un campo guardado: solo existe en el buscador de SuiteCRM, la API no lo devuelve.
 - `date_entered` — Fecha de creación — Automático
 - `date_modified` — Fecha de modificación — Automático
 - `account_name` — Organización — No
 - `alt_address_city` — Dirección alternativa - Población — No
 - `alt_address_country` — Dirección alternativa - País — No
 - `alt_address_postalcode` — Dirección alternativa - Código postal — No
-- `alt_address_state` — Dirección alternativa - Provincia — No
+- `alt_address_state` — Dirección alternativa - Provincia (`enum`, no texto) — No
 - `alt_address_street` — Dirección alternativa - Calle
   - Descripción: campo que recoge otra dirección alternativa.
   - Usado por nosotros: No
-- `stic_alt_address_type_c` — Dirección alternativa - Tipo (Particular / Trabajo / Residencia / Otros) — No
-- `stic_professional_sector_c` — Sector profesional (Legal / Administración Pública / Informática / …) — No
-- `stic_professional_sector_other_c` — Otros sectores profesionales (solo aparece si en el anterior se elige "Otros") — No
+- `stic_alt_address_type_c` — Dirección alternativa - Tipo (Particular / Trabajo / Residencia / Otros) — ⚠️ **NO EXISTE en esta instancia** (verificado el 25/09/2026)
+- `stic_professional_sector_c` — Sector profesional (Legal / Administración Pública / Informática / …) — ⚠️ **NO EXISTE en esta instancia** (verificado el 25/09/2026)
+- `stic_professional_sector_other_c` — Otros sectores profesionales (solo aparece si en el anterior se elige "Otros") — ⚠️ **NO EXISTE en esta instancia** (verificado el 25/09/2026)
 - `stic_language_c` — Idioma (Castellano / Catalán) — No
-- `stic_postal_mail_return_reason_c` — Motivo de devolución del correo postal (Dirección incorrecta / Desconocido / Fallecido / Rechazado / Ausente) — No
-- `stic_do_not_send_postal_mail_c` — No enviar correo postal — No
-- `stic_acquisition_channel_c` — Canal de adquisición (F2F / Mail / Postal / Web / Móvil / Telemarketing / Evento / Otros) — No
+- `stic_postal_mail_return_reason_c` — Motivo de devolución del correo postal (Dirección incorrecta / Desconocido / Fallecido / Rechazado / Ausente) — ⚠️ **NO EXISTE en esta instancia** (verificado el 25/09/2026)
+- `stic_do_not_send_postal_mail_c` — No enviar correo postal — ⚠️ **NO EXISTE en esta instancia** (verificado el 25/09/2026)
+- `stic_acquisition_channel_c` — Canal de adquisición (F2F / Mail / Postal / Web / Móvil / Telemarketing / Evento / Otros) — ⚠️ **NO EXISTE en esta instancia** (verificado el 25/09/2026)
 - `stic_preferred_contact_channel_c` — Canal de contacto favorito (Teléfono fijo / Teléfono móvil / Correo electrónico / Correo postal) — No
-- `stic_alt_address_region_c` — Dirección alternativa - Comunidad autónoma — No
+- `stic_alt_address_region_c` — Dirección alternativa - Comunidad autónoma — ⚠️ **NO EXISTE en esta instancia** (verificado el 25/09/2026)
 - `stic_primary_address_region_c` — Dirección principal - Comunidad autónoma — No
   - Valores (aplican a ambos campos anteriores): andalucia [Andalucía], aragon [Aragón], canarias [Canarias], cantabria [Cantabria], castilla_leon [Castilla y León], castilla_mancha [Castilla-La Mancha], catalunya [Cataluña], madrid [Comunidad de Madrid], navarra [Comunidad Foral de Navarra], valencia [Comunitat Valenciana], extremadura [Extremadura], galicia [Galicia], baleares [Illes Balears], rioja [La Rioja], pais_vasco [País Vasco], asturias [Principado de Asturias], murcia [Región de Murcia], ceuta [Ciudad Autónoma de Ceuta], melilla [Ciudad Autónoma de Melilla]
-- `stic_alt_address_county_c` — Dirección alternativa - Comarca (Alt Camp / Alt Empordà / Alt Penedès / Alt Urgell / Alta Ribagorça / …) — No
-- `stic_primary_address_county_c` — Dirección principal - Comarca (mismo listado de ejemplo que el anterior) — No
-- `stic_referral_agent_c` — Agente derivador (Servicios sociales / Servicios sanitarios / Familia / Propia iniciativa) — No
-- `stic_employment_status_c` — Situación profesional (Autónomo / Por cuenta ajena / Parado / Estudiante / Jubilado) — No
+- `stic_alt_address_county_c` — Dirección alternativa - Comarca (Alt Camp / Alt Empordà / Alt Penedès / Alt Urgell / Alta Ribagorça / …) — ⚠️ **NO EXISTE en esta instancia** (verificado el 25/09/2026)
+- `stic_primary_address_county_c` — Dirección principal - Comarca (mismo listado de ejemplo que el anterior) — ⚠️ **NO EXISTE en esta instancia** (verificado el 25/09/2026)
+- `stic_referral_agent_c` — Agente derivador (Servicios sociales / Servicios sanitarios / Familia / Propia iniciativa) — ⚠️ **NO EXISTE en esta instancia** (verificado el 25/09/2026)
+- `stic_employment_status_c` — Situación profesional (Autónomo / Por cuenta ajena / Parado / Estudiante / Jubilado) — ⚠️ **NO EXISTE en esta instancia** (verificado el 25/09/2026)
 - `stic_primary_address_type_c` — Dirección principal - Tipo (Particular / Trabajo / Residencia / Otros) — No
 
 ---

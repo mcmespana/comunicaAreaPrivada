@@ -218,18 +218,13 @@ en cuanto alguien los rellene, evento por evento.
 > Es lo primero que hay que cerrar antes de empezar a rellenarlos. Ficha
 > completa del pendiente en [`CAMPOS.md`](CAMPOS.md) § Lo que queda por revisar.
 
-### ⚠️ `ajmcm_dirigido_a_c` es SIMPLE, y se pidió MÚLTIPLE
+### ✅ `ajmcm_dirigido_a_c` ya es MÚLTIPLE
 
-**No hay nada roto**: los valores llegan como `monitor` a secas, sin los acentos
-circunflejos del multienum, y el troceador aguanta las dos formas a propósito
-(`sticpa_event_audience_multi()`, con test propio).
-
-Lo único que se pierde es poder decir **«monitores Y coordinación» en un mismo
-evento**: con un desplegable simple hay que elegir uno, o crear dos eventos. Si
-en algún momento hace falta, se cambia el tipo en Studio a selección múltiple y
-el código no se toca — **y el momento bueno para hacerlo es ahora, que está
-vacío**, porque cambiar el tipo de un campo ya relleno en SuiteCRM puede perder
-los valores.
+Se creó simple (10/09/2026) y el 25/09/2026 el CRM ya lo devuelve como
+`multienum`: se puede decir **«monitores Y coordinación» en un mismo evento**.
+Los valores llegan envueltos en circunflejos (`^participante_mic_com^`) y el
+troceador los aguanta (`sticpa_event_audience_multi()`, con test propio), igual
+que aguantaba la forma simple. El código no se tocó.
 
 ---
 
@@ -257,7 +252,7 @@ Uno de ellos es opcional. El de los cursos **ya existía**.
 |---|---|
 | **Módulo** | `stic_Events` (Eventos) |
 | **Etiqueta** | Dirigido a |
-| **Tipo** | Se pidió **selección múltiple** (`multienum`); en el CRM es `enum` simple. Funciona igual — ver el aviso de arriba |
+| **Tipo** | Selección múltiple (`multienum`) — verificado el 25/09/2026 |
 | **Obligatorio** | No |
 | **Por defecto** | *(vacío = para todos)* |
 
