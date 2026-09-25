@@ -160,6 +160,20 @@ function sticpa_event_fields_to_request($objSCP, $conWeb = false)
     }
     $definition = sticpa_event_field_definition($objSCP);
     $existing = is_array($definition) ? array_keys($definition) : array();
+
+    // LA FICHA SIN CUERPO (TODO EV-1, 25/09/2026). La definición va cacheada
+    // 6 h, y un campo creado en Studio DESPUÉS de cachearla no existe para el
+    // área hasta que caduque: la ficha no lo pide y sale sin el cuerpo de la
+    // web, sin error. Si a la ficha le falta el cuerpo, se vuelve a preguntar
+    // al CRM, como mucho una vez cada 15 minutos (si el campo no existe de
+    // verdad, eso es lo único que cuesta).
+    $cuerpo = function_exists('mcm_cuerpo_campo') ? mcm_cuerpo_campo() : '';
+    if ($conWeb && $cuerpo !== '' && !in_array($cuerpo, $existing, true)
+        && function_exists('get_transient') && get_transient('sticpa_evdef_recheck') === false) {
+        set_transient('sticpa_evdef_recheck', 1, 15 * MINUTE_IN_SECONDS);
+        $definition = sticpa_event_field_definition($objSCP, true);
+        $existing = is_array($definition) ? array_keys($definition) : array();
+    }
     return array_values(array_unique(array_merge($base, array_intersect($wanted, $existing))));
 }
 
@@ -221,6 +235,11 @@ function sticpa_event_wanted_fields()
     }
     $wanted = array_merge($wanted, sticpa_event_registration_fields());
     $wanted[] = sticpa_event_map_field();
+    // Las preguntas simples (EV-6): textos cortos que el formulario de
+    // inscripción convierte en opciones. Como todo lo de aquí, solo si existen.
+    if (function_exists('sticpa_event_question_event_fields')) {
+        $wanted = array_merge($wanted, sticpa_event_question_event_fields());
+    }
     return array_values(array_unique($wanted));
 }
 
@@ -240,7 +259,7 @@ function sticpa_event_wanted_fields()
  * (Lo cazó `tests/CosteLlamadasAreaTest`, que cuenta las llamadas de las
  * pantallas de todo el mundo y avisa cuando una consulta se repite.)
  */
-function sticpa_event_field_definition($objSCP)
+function sticpa_event_field_definition($objSCP, $fresh = false)
 {
     if (!function_exists('sticpa_cached_field_definition')) {
         return array();
@@ -251,7 +270,7 @@ function sticpa_event_field_definition($objSCP)
     if (function_exists('sticpa_event_web_fields')) {
         $fields = array_merge($fields, sticpa_event_web_fields());
     }
-    return sticpa_cached_field_definition($objSCP, 'stic_Events', $fields);
+    return sticpa_cached_field_definition($objSCP, 'stic_Events', $fields, $fresh);
 }
 
 /**

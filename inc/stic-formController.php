@@ -67,10 +67,13 @@ function sticpa_field_help_html($text)
  * La clave de transient es la misma que usaba makeForm, así que las cachés
  * existentes en producción siguen siendo válidas.
  */
-function sticpa_cached_field_definition($objSCP, $moduleName, $fields)
+function sticpa_cached_field_definition($objSCP, $moduleName, $fields, $fresh = false)
 {
     $cacheKey = 'sticpa_fdef_' . md5($moduleName . '|' . implode(',', $fields));
-    $def = isset($_GET['refresh_fields']) ? false : get_transient($cacheKey);
+    // `$fresh`: quien llama sabe que la copia está vieja (falta un campo que
+    // se acaba de crear en Studio) y pregunta otra vez. Ver
+    // sticpa_event_fields_to_request().
+    $def = ($fresh || isset($_GET['refresh_fields'])) ? false : get_transient($cacheKey);
     if ($def === false || !is_array($def)) {
         $res = $objSCP->getFieldDefinition($moduleName, $fields);
         $arr = json_decode(json_encode($res), true);
@@ -408,9 +411,12 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
             <label id='{$groupLabelId}'>" . $label . "</label>
             <div class='stic-check-group' role='radiogroup' aria-labelledby='{$groupLabelId}' id='{$name}'>";
             $defaultValue = $defaultValue === null ? '' : $defaultValue;
+            // `required` en los <input>: en el <li> no lo mira el navegador, y un
+            // grupo obligatorio se podía mandar sin elegir nada.
+            $radioReq = $required === 'required' ? ' required' : '';
             foreach ($value['selectValues'] as $skey => $svalue) {
-                $checked = $defaultValue == $skey ? 'checked' : '';
-                $html .= "<div class='stic-check-container'><input class='stic-radio-input' type='radio' id='" . esc_attr($name . '_' . $skey) . "' name='{$name}' value='" . esc_attr((string) $skey) . "' {$checked}><label class='stic-check-label' for='" . esc_attr($name . '_' . $skey) . "'>" . esc_html((string) $svalue) . "</label></div>";
+                $checked = ($defaultValue !== '' && (string) $defaultValue === (string) $skey) ? 'checked' : '';
+                $html .= "<div class='stic-check-container'><input class='stic-radio-input' type='radio' id='" . esc_attr($name . '_' . $skey) . "' name='{$name}' value='" . esc_attr((string) $skey) . "' {$checked}{$radioReq}><label class='stic-check-label' for='" . esc_attr($name . '_' . $skey) . "'>" . esc_html((string) $svalue) . "</label></div>";
             }
             $sel = "";
             $html .= "

@@ -76,14 +76,15 @@ class EventWebTest extends TestCase
 
     public function test_un_script_escrito_en_el_crm_sale_como_texto()
     {
-        $h = mcm_cuerpo_html(mcm_cuerpo_bloques('&lt;script&gt;alert(1)&lt;/script&gt;'));
+        // Escrito como TEXTO en el editor: SuiteCRM lo guarda doblemente codificado.
+        $h = mcm_cuerpo_html(mcm_cuerpo_bloques(htmlspecialchars('<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>')));
         $this->assertStringNotContainsString('<script', $h);
         $this->assertStringContainsString('&lt;script&gt;', $h);
     }
 
     public function test_un_enlace_javascript_se_cae_y_se_queda_el_texto()
     {
-        $h = mcm_cuerpo_html(mcm_cuerpo_bloques('Pincha [aquí](javascript:alert(1)) porfa'));
+        $h = mcm_cuerpo_html(mcm_cuerpo_bloques('<p>Pincha <a href="javascript:alert(1)">aquí</a> porfa</p>'));
         $this->assertStringNotContainsString('javascript', $h);
         $this->assertStringContainsString('aquí', $h);
     }
@@ -102,15 +103,24 @@ class EventWebTest extends TestCase
 
     public function test_un_salto_de_linea_es_un_salto_de_linea()
     {
-        $h = mcm_cuerpo_html(mcm_cuerpo_bloques("60 € \nIncluye el alojamiento"));
+        $h = mcm_cuerpo_html(mcm_cuerpo_bloques('<p>60 €<br>Incluye el alojamiento</p>'));
         $this->assertStringContainsString("60 €<br>\nIncluye", $h);
     }
 
     public function test_los_titulos_del_cuerpo_van_por_debajo_de_los_de_la_ficha()
     {
-        $h = mcm_cuerpo_html(mcm_cuerpo_bloques("## Sección\n### Sub"), array('titulo_base' => 5));
+        $h = mcm_cuerpo_html(mcm_cuerpo_bloques('<h1>Sección</h1><h3>Sub</h3>'), array('titulo_base' => 5));
         $this->assertStringContainsString('<h5>Sección</h5>', $h);
         $this->assertStringContainsString('<h6>Sub</h6>', $h);
+    }
+
+    public function test_la_cita_del_editor_es_el_aviso_y_un_enlace_solo_es_un_boton()
+    {
+        $h = mcm_cuerpo_html(mcm_cuerpo_bloques(htmlspecialchars(
+            '<blockquote><p>Plazo</p></blockquote><p><a href="https://x.org/a.pdf">Descargar</a></p>'
+        )));
+        $this->assertStringContainsString('class="evento-aviso"', $h);
+        $this->assertStringContainsString('class="evento-boton"', $h);
     }
 
     public function test_el_nombre_con_la_convencion_del_crm()
@@ -127,7 +137,7 @@ class EventWebTest extends TestCase
     {
         $nvl = $this->nvl(array(
             'web_cartel_c' => 'http://',   // lo que pone SuiteCRM en un URL vacío
-            'web_cuerpo_c' => "![Cartel](https://i.imgur.com/a.png)\n\n## De qué va\nAlgo",
+            mcm_cuerpo_campo() => '<p><img src="https://i.imgur.com/a.png"></p><h1>De qué va</h1><p>Algo</p>',
         ));
         $v = sticpa_event_web_view($this->crm(array()), 'e1', $nvl);
         $this->assertSame('https://i.imgur.com/a.png', $v['cartel']);
@@ -143,7 +153,7 @@ class EventWebTest extends TestCase
             array('id' => '0000cccc-1111', 'document_name' => 'Foto', 'filename' => 'foto.png'),
             array('id' => '0000dddd-1111', 'document_name' => 'Peligro', 'filename' => 'x.svg'),
         );
-        $v = sticpa_event_web_view($this->crm($docs), '0000eeee-1111', $this->nvl(array('web_cuerpo_c' => 'Texto')));
+        $v = sticpa_event_web_view($this->crm($docs), '0000eeee-1111', $this->nvl(array(mcm_cuerpo_campo() => '<p>Texto</p>')));
 
         $this->assertStringContainsString('action=sticpa_evento_archivo', $v['cartel'], 'la primera imagen subida es el cartel');
         $this->assertStringContainsString('d=0000bbbb-1111', $v['cartel']);
@@ -157,7 +167,7 @@ class EventWebTest extends TestCase
     {
         $docs = array(array('id' => '0000aaaa-2222', 'document_name' => 'Info', 'filename' => 'info.pdf'));
         $v = sticpa_event_web_view($this->crm($docs), '0000eeee-2222', $this->nvl(array(
-            'web_cuerpo_c' => "[boton] Info | /archivo.php?d=0000aaaa-2222\n\n[boton] Otro | /archivo.php?d=0000ffff-9999",
+            mcm_cuerpo_campo() => '<p><a href="/archivo.php?d=0000aaaa-2222">Info</a></p><p><a href="/archivo.php?d=0000ffff-9999">Otro</a></p>',
         )));
         $this->assertStringContainsString('action=sticpa_evento_archivo', $v['cuerpo_html']);
         // El de otro evento NO se reescribe: nuestro endpoint no lo serviría.
@@ -175,10 +185,10 @@ class EventWebTest extends TestCase
 
     public function test_la_pagina_publica_solo_si_esta_publicado()
     {
-        $v = sticpa_event_web_view($this->crm(array()), 'e1', $this->nvl(array('web_cuerpo_c' => 'x', 'web_publicar_c' => '0')));
+        $v = sticpa_event_web_view($this->crm(array()), 'e1', $this->nvl(array(mcm_cuerpo_campo() => '<p>x</p>', 'web_publicar_c' => '0')));
         $this->assertSame('', $v['pagina']);
         $v = sticpa_event_web_view($this->crm(array()), 'e1', $this->nvl(array(
-            'web_cuerpo_c' => 'x', 'web_publicar_c' => '1', 'web_slug_c' => 'convivencia26')));
+            mcm_cuerpo_campo() => '<p>x</p>', 'web_publicar_c' => '1', 'web_slug_c' => 'convivencia26')));
         $this->assertStringEndsWith('?e=convivencia26', $v['pagina']);
     }
 
@@ -187,7 +197,7 @@ class EventWebTest extends TestCase
         $nvl = $this->nvl(array(
             'id' => 'e1', 'name' => 'Convivencia', 'start_date' => date('Y-m-d', strtotime('+10 days')),
             'status' => 'registration', 'description' => 'Nota interna del equipo',
-            'web_cuerpo_c' => '## De qué va' . "\n" . 'Un fin de semana.', 'web_lema_c' => 'Sin Rodeos',
+            mcm_cuerpo_campo() => '<h1>De qué va</h1><p>Un fin de semana.</p>', 'web_lema_c' => 'Sin Rodeos',
         ));
         $html = sticpa_event_detail_html(sticpa_event_view_model($nvl), '', true, '',
             sticpa_event_web_view($this->crm(array()), 'e1', $nvl));
@@ -222,9 +232,94 @@ class EventWebTest extends TestCase
                 return (object) array('module_fields' => $def);
             }
         };
-        $this->assertNotContains('web_cuerpo_c', sticpa_event_fields_to_request($crm),
+        $this->assertNotContains(mcm_cuerpo_campo(), sticpa_event_fields_to_request($crm),
             'el listado no se trae el cuerpo largo de cada evento');
-        $this->assertContains('web_cuerpo_c', sticpa_event_fields_to_request($crm, true),
+        $this->assertContains(mcm_cuerpo_campo(), sticpa_event_fields_to_request($crm, true),
             'la ficha, sí');
+    }
+
+    /**
+     * EV-1 (25/09/2026): la definición cacheada 6 h NO sabe de un campo creado
+     * después en Studio. Si a la ficha le falta el cuerpo, se pregunta otra vez
+     * — una vez, no en cada visita.
+     */
+    public function test_si_la_definicion_cacheada_no_tiene_el_cuerpo_la_ficha_vuelve_a_preguntar_una_vez()
+    {
+        $crm = new class {
+            public $llamadas = 0;
+            public $conCuerpo = false;
+            public function getFieldDefinition($module, $fields)
+            {
+                $this->llamadas++;
+                $def = array();
+                foreach ($fields as $f) {
+                    if ($f === mcm_cuerpo_campo() && !$this->conCuerpo) {
+                        continue;
+                    }
+                    $def[$f] = array('name' => $f);
+                }
+                return (object) array('module_fields' => $def);
+            }
+        };
+
+        // Se cachea sin el cuerpo (el campo aún no estaba creado).
+        $this->assertNotContains(mcm_cuerpo_campo(), sticpa_event_fields_to_request($crm));
+        $this->assertSame(1, $crm->llamadas);
+
+        // Se crea en Studio. El listado no lo necesita y no pregunta de más…
+        $crm->conCuerpo = true;
+        sticpa_event_fields_to_request($crm);
+        $this->assertSame(1, $crm->llamadas, 'el listado no paga la comprobación');
+
+        // …pero la ficha sí: lo ve sin esperar a que caduque la copia.
+        $this->assertContains(mcm_cuerpo_campo(), sticpa_event_fields_to_request($crm, true));
+        $this->assertSame(2, $crm->llamadas);
+
+        // Y ya está en la copia: la siguiente ficha no vuelve a preguntar.
+        sticpa_event_fields_to_request($crm, true);
+        $this->assertSame(2, $crm->llamadas);
+    }
+
+    public function test_si_el_cuerpo_no_existe_de_verdad_solo_se_pregunta_una_vez_cada_15_minutos()
+    {
+        $crm = new class {
+            public $llamadas = 0;
+            public function getFieldDefinition($module, $fields)
+            {
+                $this->llamadas++;
+                $def = array();
+                foreach ($fields as $f) {
+                    if ($f !== mcm_cuerpo_campo()) {
+                        $def[$f] = array('name' => $f);
+                    }
+                }
+                return (object) array('module_fields' => $def);
+            }
+        };
+        sticpa_event_fields_to_request($crm, true);
+        sticpa_event_fields_to_request($crm, true);
+        sticpa_event_fields_to_request($crm, true);
+        $this->assertSame(2, $crm->llamadas, 'la caché normal + UNA comprobación, no una por visita');
+    }
+
+    public function test_con_cartel_la_ficha_parte_en_dos_columnas_y_sin_cartel_no()
+    {
+        $nvl = $this->nvl(array(
+            'id' => 'e1', 'name' => 'Convivencia', 'start_date' => date('Y-m-d', strtotime('+10 days')),
+            'status' => 'registration',
+            'web_cartel_c' => 'https://example.org/cartel.png',
+            mcm_cuerpo_campo() => '&lt;p&gt;Hola&lt;/p&gt;',
+        ));
+        $html = sticpa_event_detail_html(sticpa_event_view_model($nvl), '', true, '',
+            sticpa_event_web_view($this->crm(array()), 'e1', $nvl));
+        $this->assertStringContainsString("<div class='stic-rec-split'><figure class='stic-rec-cover'>", $html);
+        // El texto va en la columna de al lado, no debajo del cartel.
+        $this->assertMatchesRegularExpression("#<div class='stic-rec-split-main'>.*Hola.*Inscribirme#s", $html);
+        $this->assertSame(substr_count($html, '<div'), substr_count($html, '</div>'), 'los <div> cierran');
+
+        $sin = sticpa_event_detail_html(sticpa_event_view_model($this->nvl(array(
+            'id' => 'e2', 'name' => 'Sin cartel', 'start_date' => date('Y-m-d', strtotime('+10 days')),
+        ))), '', true, '', null);
+        $this->assertStringNotContainsString('stic-rec-split', $sin);
     }
 }

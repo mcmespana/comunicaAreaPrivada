@@ -584,6 +584,12 @@ function sticpa_calendar_fc_events($data)
     }
 
     // --- Eventos abiertos a inscripción (CTA) ---
+    //
+    // Llevan a la FICHA del evento, no al formulario de inscripción (25/09/2026,
+    // TODO EV-1). Desde la agenda y la home se aterrizaba en «Te inscribes a»,
+    // que solo enseña el nombre, las fechas y la `description`: el cartel, el
+    // cuerpo de la web y los documentos no se veían nunca por este camino. La
+    // ficha tiene su «Inscribirme», así que apuntarse sigue a un toque.
     foreach ($data['available_events'] as $ev) {
         if (empty($ev['start']) || isset($eventsWithSessions[$ev['id']])) {
             continue;
@@ -600,7 +606,7 @@ function sticpa_calendar_fc_events($data)
             'classNames' => array('stic-fc-available'),
             'extendedProps' => array(
                 'kind' => 'available_event',
-                'href' => '?internalpage=single_stic_registrations&action=create&from=stic_events&id=' . $ev['id'],
+                'href' => '?internalpage=single_stic_events&action=detail&id=' . rawurlencode($ev['id']),
                 'tooltip' => $ev['name'] . ' · ' . $meta['label'],
             ),
         );
@@ -692,6 +698,7 @@ function sticpa_home_agenda_items($data, $limit = 5)
     // Dos grupos separados: primero los eventos ABIERTOS A INSCRIPCIÓN (acción
     // inmediata, suelen ser pocos) y debajo las próximas SESIONES de eventos en
     // los que ya estás inscrito (p. ej. las sesiones semanales de un curso).
+    // (Van a la ficha del evento, como en la agenda: ver arriba.)
     $available = array();
     foreach ($data['available_events'] as $ev) {
         if (empty($ev['start'])) {
@@ -708,7 +715,7 @@ function sticpa_home_agenda_items($data, $limit = 5)
             'title' => $ev['name'],
             'subtitle' => $palette['available_event']['label'],
             'bucket' => 'available_event',
-            'href' => '?internalpage=single_stic_registrations&action=create&from=stic_events&id=' . $ev['id'],
+            'href' => '?internalpage=single_stic_events&action=detail&id=' . rawurlencode($ev['id']),
         );
     }
 

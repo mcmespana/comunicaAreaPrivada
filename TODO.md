@@ -57,10 +57,74 @@ puedan coger una tarea, entender el porqué y hacerla sin contexto previo.
       NO tocar las 24 de Solete ni ninguna con inscripción.
 - [ ] `CRM-03` (P2 · S) **Dos `LIS_listas` para la sesión del 02/05/2026** (una de
       monitores, otra de participantes «omitida»): decidir si la omitida es lo que se quiso.
+- [ ] `CRM-05` (P1 · S) **Una inscripción de renovación SIN compromiso de pago** (visto por
+      MCP el 25/09/2026): la de Solete Villarroya a «COM | Curso 2026-2027 · CS» (id
+      `00000900…`, nombre roto «sin evento»), con IBAN, cuota de 20 € y convivencia de
+      60 €. Su gemela de la convivencia sí tiene el suyo; la de la cuota, ninguno —ni del
+      alta ni de la modificación de 17 h después—. O se crea a mano el compromiso de la
+      cuota, o se decide que no toca. Revisar si hay más así (inscripciones con
+      `ajmcm_tutor1_iban_c` sin nada en `stic_payment_commitments_stic_registrations`).
 - [ ] `CRM-04` (P2 · M) **Claves de desplegables sin confirmar** en `CAMPOS.md` («Lo que
       queda por revisar»): `ajmcm_dirigido_a_c`, `ajmcm_ambito_c` (falta «nacional»), y si
       `dirigido_a` pasa a múltiple. Mirarlas en Studio y apuntarlas. Una clave mal escrita
       no da error: el filtro deja de acertar en silencio.
+
+## 🟠 Eventos e inscripciones (apuntado el 25/09/2026)
+
+> EV-1, EV-2, EV-7 y EV-8 hechos el 25/09/2026 (ver **Hecho** y
+> `docs/comunica/EVENTOS.md` §9.5 y §10). EV-6 tiene el código listo y espera
+> a los campos.
+
+- [!] `EV-3` (P1 · M) Formularios web avanzados (FWA) desde el evento. Decidido
+      el 25/09/2026: el módulo FWA **no sale en Studio**, así que no hay
+      relación posible; va un **campo URL en `stic_Events`** con el enlace
+      público del FWA (nombre por decidir; al crearlo, a `CAMPOS.md`). Con él:
+      la página pública enseña «¿No estás en Comunica? Inscríbete aquí» y la
+      ficha del área privada abre el FWA ya rellenado con los datos de quien
+      ha entrado (`&Contacts0.first_name=…`, parámetros en la wiki de
+      SinergiaTIC). El FWA lleva regla de duplicados por DNI en modo
+      «Ampliar». Bloqueado hasta que exista el campo.
+      ⚠️ **Antes de crearlo, mirar `web_url_c`** (25/09/2026): ya existe en
+      `stic_Events`, es de tipo URL y hoy es «a dónde lleva *Inscribirme* en la
+      página pública» (vacío → al área privada). Puede que sea justo este
+      campo y no haga falta otro (`CLAUDE.md`: no crear un campo sin comprobar
+      que no existe ya). Decidir si se reutiliza o si hacen falta los dos.
+- [ ] `EV-4` (P2 · S) Reescribir la guía de eventos
+      (`comunicaFormularios/webs_landing_wordpress/guia_eventos_administradores.html`)
+      con el reparto área privada / FWA / clásico, muy esquemática, cuando esté
+      decidido `EV-3`.
+- [!] `EV-6` (P2 · S) **Preguntas simples: el código está hecho, faltan los
+      campos.** Crear en Studio `ajmcm_pregunta_1_c` / `ajmcm_pregunta_2_c`
+      (texto 255, `stic_Events`) y `ajmcm_respuesta_1_c` / `ajmcm_respuesta_2_c`
+      (texto 255, `stic_Registrations`) —nombres PROPUESTOS en `CAMPOS.md`; si
+      se crean con otros, cambiarlos en `sticpa_event_question_fields()`—. Se
+      activa solo en cuanto existen (hasta 6 h por la caché de la definición,
+      o `&refresh_fields=1`). Formato: `¿Pregunta? | opción 1; opción 2`.
+- [!] `EV-9` (P1 · S) **El formulario de pago con tarjeta registra una
+      DONACIÓN** (`payment_type = donation`) **asignada al «Administrador MCM»**
+      (`assigned_user_id = 1`), aunque se esté pagando una actividad. Viene de
+      antes (`pages/single_stic_payment_form.php`, formulario web
+      `webFormClass=Donation`) y no se ha tocado por no romper el cobro online.
+      Riesgo: una cuota o una convivencia pagada con tarjeta acabaría en el
+      modelo 182 como donativo, y fuera de la delegación. Decidir: probar el
+      formulario web con `payment_type=services` y la delegación, o montar el
+      pago con tarjeta de otra forma. Desde EV-7 el concepto bancario lleva el
+      nombre de la actividad para poder casarlo a mano.
+- [ ] `EV-10` (P2 · S) **App MCM: pasar el destino al abrir el enlace del
+      correo.** El puente `/app/acceso` ya reenvía `internalpage`, `action`,
+      `id` y `from` (EV-8), pero con la app instalada el sistema abre la app, y
+      si esta solo coge el token se entra a la portada. Lado app
+      (`app/+native-intent.ts`), ver `CONTRATO-APP-WEBVIEW.md` §5.
+- [ ] `EV-11` (P3 · S) La ficha y la tarjeta de una inscripción enseñan el curso
+      con su clave cruda (`3_eso`) y no con la etiqueta del desplegable. Visto
+      al capturar EV-2. ↳ `sticpa_registration_detail_html()` y
+      `sticpa_registrations_list_html()`: pasar por `sticpa_record_enum_label()`
+      con `ajmcm_curso_escolar_c` en la definición.
+- [z] `EV-5` (P2 · S) Campos del DNI en Personas: número de soporte y fecha de
+      expedición o caducidad. Se crearán en Studio más adelante; al crearlos,
+      apuntarlos en `docs/comunica/CAMPOS.md`.
+
+---
 
 ## 🟠 Seguridad
 
@@ -69,6 +133,11 @@ puedan coger una tarea, entender el porqué y hacerla sin contexto previo.
       subir y borrar un documento, inscribirse a un evento, cambiar la contraseña, y con
       una cuenta de FAMILIA cambiar a un hijo y volver. Si algo no guarda, casi seguro es un
       campo `html` sin `'posts'` (ver `inc/stic-security.php`).
+      **Y lo de EV-2/EV-7 (25/09/2026):** inscribirse a una actividad con precio por Bizum
+      (sale UN compromiso en el CRM, atado a la inscripción y a la delegación), por
+      domiciliación (con IBAN) y con tarjeta (pasa al formulario de pago); modificar una
+      inscripción y cancelarla (estado «Cancelada» y el compromiso con fecha de fin); y
+      entrar por el enlace del correo desde la ficha de un evento (se aterriza en ella).
 - [~] `ADMIN-04` (P1 · M) **«Entrar como»** desde el admin: versión básica hecha. Falta
       registro de quién entró como quién, banner visible y enlace de un solo uso en vez del
       token permanente. ↳ `inc/stic-magic-login.php`.
@@ -127,6 +196,12 @@ propiedad, campos firmados, participante validado, redirecciones seguras, XSS (2
 **Admin:** `ADMIN-01..03` buscador, ver/regenerar token, tokens masivos.
 
 **Plataforma:** `PLAT-00` la app es una WebView de esta web (`?app=1`).
+
+**Eventos e inscripciones (25/09):** `EV-1` ficha con el cartel a la izquierda, agenda y
+home a la ficha y la definición que se cura sola · `EV-2` cancelar y modificar la
+inscripción dentro de plazo · `EV-7` compromiso de pago al inscribirse (uno solo, de la
+delegación) o paso al pago con tarjeta · `EV-8` el destino sobrevive al login (código,
+enlace del correo, puente de la app) · y la inscripción, asignada a su delegación.
 
 **Frontend:** `UI-01..16` estilos, paleta, login, carga, portada, menú, barra, subidas,
 modal de borrado, sistema de diseño, formularios Comunica, perfiles de familia, modo app ·

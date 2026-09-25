@@ -40,7 +40,16 @@ if (($_REQUEST['action'] ?? '') === 'detail') {
         return;
     }
 
-    $detail = $objSCP->getRecordDetail($registrationId, 'stic_Registrations', sticpa_registration_detail_fields());
+    // Definición cacheada 6h: de aquí salen las etiquetas traducidas de los
+    // desplegables (nunca se le enseña a nadie la clave cruda del CRM) y qué
+    // campos de respuesta existen (EV-6). Va ANTES de pedir la inscripción:
+    // pedir un campo que no existe tumba la consulta entera.
+    $definition = sticpa_registration_definition($objSCP);
+
+    $detail = $objSCP->getRecordDetail($registrationId, 'stic_Registrations', array_merge(
+        sticpa_registration_detail_fields(),
+        sticpa_registration_existing_answer_fields($definition)
+    ));
     $nvl = $detail->entry_list[0]->name_value_list ?? null;
     $registration = $nvl ? sticpa_registration_view_model($nvl, sticpa_registration_event_index()) : null;
 
@@ -54,13 +63,124 @@ if (($_REQUEST['action'] ?? '') === 'detail') {
         return;
     }
 
-    // Definición cacheada 6h: de aquí salen las etiquetas traducidas de los
-    // desplegables. Nunca se le enseña a nadie la clave cruda del CRM.
-    $definition = sticpa_cached_field_definition($objSCP, 'stic_Registrations', array(
-        'status', 'participation_type', 'ajmcm_tutor1_relationship_c', 'ajmcm_tutor2_relationship_c',
-    ));
+    // EL EVENTO (EV-2 y EV-7): su plazo decide si se puede cambiar o cancelar,
+    // y su precio, si hay un pago que enseñar. Una llamada, la misma forma que
+    // la del formulario de inscripción.
+    $eventNvl = null;
+    if ($registration['event_id'] !== '') {
+        $eventDetail = $objSCP->getRecordDetail($registration['event_id'], 'stic_Events', sticpa_event_fields_to_request($objSCP));
+        $eventNvl = $eventDetail->entry_list[0]->name_value_list ?? null;
+    }
+    $derechos = sticpa_registration_manage_rights($registration['status'], $eventNvl, $definition);
+    $precio = $eventNvl ? sticpa_event_price($eventNvl) : 0.0;
 
-    $html .= sticpa_registration_detail_html($registration, $definition);
+    // El pago, solo si la actividad cuesta algo: una llamada que no se paga
+    // en las inscripciones gratis.
+    $pagos = array();
+    $metodos = array();
+    if ($precio > 0) {
+        $pagos = (array) sticpa_registration_commitments($objSCP, $registrationId);
+        if (!empty($pagos)) {
+            $metodos = sticpa_crm_enum_options(
+                sticpa_cached_field_definition($objSCP, 'stic_Payment_Commitments', array('payment_method')),
+                'payment_method'
+            );
+        }
+    }
+
+    $html .= sticpa_registration_detail_html($registration, $definition, array(
+        'aviso'     => sticpa_registration_saved_note($_REQUEST['msg'] ?? ''),
+        'pagos'     => $pagos,
+        'metodos'   => $metodos,
+        'precio'    => $precio,
+        'pagar_url' => $precio > 0
+            ? '?internalpage=single_stic_payment_form&amount=' . rawurlencode(number_format($precio, 2, '.', ''))
+                . '&eventId=' . rawurlencode($registration['event_id']) . '&registrationId=' . rawurlencode($registrationId)
+            : '',
+        'derechos'  => $derechos,
+        'gestion'   => sticpa_registration_manage_html($registrationId, $derechos),
+    ));
+    return;
+}
+
+// --- MODIFICAR (EV-2) -------------------------------------------------------
+// Solo lo que es de la persona: sus respuestas y sus necesidades especiales.
+// NO el evento ni el estado. Antes, `action=edit` pintaba un desplegable con
+// TODOS los eventos del CRM: se podía mover una inscripción a otra actividad
+// saltándose la audiencia y el plazo, que solo se miraban al crear.
+if (($_REQUEST['action'] ?? '') === 'edit') {
+    $registrationId = isset($_REQUEST['id']) ? sanitize_text_field($_REQUEST['id']) : '';
+    $detailUrl = '?internalpage=single_stic_registrations&action=detail&id=' . rawurlencode($registrationId);
+    $definition = sticpa_registration_definition($objSCP);
+    $regNvl = null;
+    if ($registrationId !== '') {
+        $regDetail = $objSCP->getRecordDetail($registrationId, 'stic_Registrations', array_merge(
+            array('id', 'name', 'status', 'special_needs', 'special_needs_description',
+                'stic_registrations_stic_events_name', 'stic_registrations_stic_eventsstic_events_ida'),
+            sticpa_registration_existing_answer_fields($definition)
+        ));
+        $regNvl = $regDetail->entry_list[0]->name_value_list ?? null;
+    }
+    if (!$regNvl) {
+        $html .= sticpa_record_empty_html(
+            'check',
+            __('Esta inscripción ya no está disponible', 'sticpa'),
+            __('Vuelve a tus inscripciones y entra de nuevo desde ahí.', 'sticpa'),
+            array('label' => __('Ver mis inscripciones', 'sticpa'), 'url' => '?internalpage=list_stic_registrations', 'primary' => true)
+        );
+        return;
+    }
+    $editEventId = trim((string) ($regNvl->stic_registrations_stic_eventsstic_events_ida->value ?? ''));
+    $eventNvl = null;
+    if ($editEventId !== '') {
+        $eventDetail = $objSCP->getRecordDetail($editEventId, 'stic_Events', sticpa_event_fields_to_request($objSCP));
+        $eventNvl = $eventDetail->entry_list[0]->name_value_list ?? null;
+    }
+    $derechos = sticpa_registration_manage_rights((string) ($regNvl->status->value ?? ''), $eventNvl, $definition);
+    if (empty($derechos['editar'])) {
+        $html .= sticpa_record_empty_html(
+            'check',
+            __('Esta inscripción ya no se puede cambiar', 'sticpa'),
+            $derechos['motivo'] !== '' ? $derechos['motivo'] : __('Si necesitas cambiar algo, habla con tu delegación.', 'sticpa'),
+            array('label' => __('Ver mi inscripción', 'sticpa'), 'url' => $detailUrl, 'primary' => true)
+        );
+        return;
+    }
+
+    $formSettings = array(
+        'action'     => 'edit',
+        'title'      => __('Modificar mi inscripción', 'sticpa'),
+        'moduleName' => 'stic_Registrations',
+        'fileName'   => basename(__FILE__, '.php'),
+        'msg'        => array(
+            array('value' => 'error_respuestas', 'type' => 'error', 'msg' => __('Contesta a todas las preguntas de la actividad.', 'sticpa')),
+            array('value' => 'error', 'type' => 'error', 'msg' => __('No hemos podido guardar el cambio. Inténtalo otra vez en un rato.', 'sticpa')),
+        ),
+        'submitButton' => array('back' => __('Volver', 'sticpa'), 'save' => __('Guardar cambios', 'sticpa')),
+        'submitButtonType' => array('back' => 'button'),
+        'submitButtonActions' => array(
+            'back' => array('onclick' => "location.href='" . esc_js($detailUrl) . "';"),
+            'save' => array('onclick' => 'return verifyFormIsValid(this)'),
+        ),
+    );
+    $editFields = array(array('name' => 'id', 'type' => 'hidden'));
+    $editFields[] = array(
+        'name' => 'evento_info',
+        'type' => 'html',
+        'html' => sticpa_registration_event_card_html(
+            __('Tu inscripción a', 'sticpa'),
+            (string) ($regNvl->stic_registrations_stic_events_name->value ?? ''),
+            $eventNvl ? sticpa_record_date_line(sticpa_event_view_model($eventNvl)['start_ts'] ?? null, sticpa_event_view_model($eventNvl)['end_ts'] ?? null) : '',
+            '',
+            $editEventId
+        ),
+    );
+    $editFields = array_merge($editFields, sticpa_event_question_form_fields(sticpa_event_questions($eventNvl, $definition), $regNvl));
+    $editFields[] = array('name' => 'special_needs', 'type' => 'enum', 'required' => 'false');
+    $editFields[] = array('name' => 'special_needs_description', 'required' => 'false');
+
+    $html .= makeForm($editFields, $formSettings, $regNvl, 'edit');
+    $html .= sticpa_registration_special_needs_js();
     return;
 }
 
@@ -82,6 +202,11 @@ $formSettings['moduleName'] = 'stic_Registrations'; // module name, case sensiti
 // ¿Venimos de "Inscribirse" desde un evento? Entonces pantalla = info evento + inscripción.
 $fromEvent = (isset($_REQUEST['from']) && $_REQUEST['from'] == 'stic_events');
 $formSettings['msg'][] = array('value' => 'true', 'type' => 'success', 'msg' => __('The record has been successfully saved.', 'sticpa')); //messages that will be shown on the screen after processing the data
+// Las vueltas del guardado cuando algo no cuadra (EV-6 / EV-7): antes solo había
+// «guardado» y el resto de errores volvía a un formulario sin decir nada.
+$formSettings['msg'][] = array('value' => 'error_respuestas', 'type' => 'error', 'msg' => __('Contesta a todas las preguntas de la actividad.', 'sticpa'));
+$formSettings['msg'][] = array('value' => 'error_pago', 'type' => 'error', 'msg' => __('Elige cómo vas a pagar. Si es por domiciliación, revisa la cuenta: el IBAN no es válido.', 'sticpa'));
+$formSettings['msg'][] = array('value' => 'error', 'type' => 'error', 'msg' => __('No hemos podido guardar la inscripción. Inténtalo otra vez en un rato.', 'sticpa'));
 $formSettings['fileName'] = basename(__FILE__, ".php"); //The page name, from the filename. Don't touch.
 
 switch ($_REQUEST['action']) {
@@ -252,17 +377,13 @@ if ($eventId && $_REQUEST['action'] !== 'edit' && $_REQUEST['action'] !== 'detai
     $evDesc  = $event->description->value ?? '';
     $dateLine = $evStart ? ($evStart . ($evEnd && $evEnd !== $evStart ? ' – ' . $evEnd : '')) : '';
     $calSvg = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
-    // Tarjeta con la info del evento (sustituye a la pantalla "Ver").
-    $kicker = __('Te inscribes a', 'sticpa');
+    // Tarjeta con la info del evento (sustituye a la pantalla "Ver"), con el
+    // enlace a su ficha: el cartel, el cuerpo de la web y los documentos están
+    // ahí, y aquí solo cabe el nombre y las fechas (EV-1).
     $fieldList[] = array(
         'name' => 'evento_info',
         'type' => 'html',
-        'html' => '<li class="stic-event-card">'
-            . '<span class="stic-event-card-kicker">' . esc_html($kicker) . '</span>'
-            . '<div class="stic-event-card-title">' . esc_html($evName) . '</div>'
-            . ($dateLine ? '<div class="stic-event-card-meta">' . $calSvg . '<span>' . esc_html($dateLine) . '</span></div>' : '')
-            . ($evDesc ? '<p class="stic-event-card-desc">' . esc_html($evDesc) . '</p>' : '')
-            . '</li>',
+        'html' => sticpa_registration_event_card_html(__('Te inscribes a', 'sticpa'), $evName, $dateLine, $evDesc, $eventId, $calSvg),
     );
     $fieldList[] = array('name' => 'stic_registrations_stic_eventsstic_events_ida', 'type' => 'hidden', 'defaultValue' => $eventId);
 
@@ -348,6 +469,16 @@ if ($blockedText !== '') {
             </li>',
     );
 } else {
+    // LAS PREGUNTAS DE LA ACTIVIDAD (EV-6) y EL PAGO (EV-7), si los tiene. Solo
+    // al apuntarse desde un evento: es el único camino en el que sabemos a qué.
+    if ($fromEvent && $eventNvl) {
+        $regDefinition = sticpa_registration_definition($objSCP);
+        $fieldList = array_merge($fieldList, sticpa_event_question_form_fields(sticpa_event_questions($eventNvl, $regDefinition)));
+        $precio = sticpa_event_price($eventNvl);
+        if ($precio > 0) {
+            $fieldList = array_merge($fieldList, sticpa_registration_payment_form_fields($precio, sticpa_registration_payment_methods($objSCP)));
+        }
+    }
     $fieldList[] = array(
         'name' => 'special_needs',
         'type' => 'enum',
@@ -404,23 +535,4 @@ function getRelatedRecord($objSCP, $relatedModule, $query = '', $filtrarAudienci
     return $listEvents;
 }
 
-$html.= '
-<script>
-document.addEventListener("DOMContentLoaded", function(event) { 
-    (function($) {
-        $("#registration_date").val(getCurrentDateTime());
-        if ($("#special_needs").val() == "1"){
-            $("#special_needs_description").parent().parent().show();
-        }else{
-            $("#special_needs_description").parent().parent().hide();
-        }
-        $("#special_needs").change(function(){
-            if ($("#special_needs").val() == "1"){
-              $("#special_needs_description").parent().parent().show();
-            }else{
-              $("#special_needs_description").parent().parent().hide();
-            }
-          });
-    })(jQuery);
-});
-</script>';
+$html .= sticpa_registration_special_needs_js();
