@@ -62,6 +62,37 @@ puedan coger una tarea, entender el porqué y hacerla sin contexto previo.
       `dirigido_a` pasa a múltiple. Mirarlas en Studio y apuntarlas. Una clave mal escrita
       no da error: el filtro deja de acertar en silencio.
 
+## 🟠 Eventos e inscripciones (apuntado el 25/09/2026)
+
+- [ ] `EV-1` (P1 · S) La ficha del evento en el área privada sale a medias — no
+      pinta el cuerpo del campo WYSIWYG (`web_cuerpo_html_c`) y el cartel va
+      arriba en vez de a la izquierda. Hecho cuando la ficha enseña el cuerpo y,
+      en escritorio, cartel a la izquierda y texto a la derecha (como la web).
+      ↳ `inc/stic-event-web.php`, `pages/single_stic_events.php`, CSS §59.
+      Primera sospecha: la definición de campos cacheada 6 h
+      (`sticpa_cached_field_definition`) o que el campo no llegue por la v4.1.
+- [ ] `EV-2` (P1 · M) Desinscribirse y modificar la inscripción desde el área
+      privada. Hoy solo se puede apuntar. Hecho cuando «Mis inscripciones»
+      deja cancelar (con confirmación) y editar los datos propios de la
+      inscripción mientras el plazo esté abierto.
+      ↳ `pages/list_stic_registrations.php`, `inc/stic-registrations.php`,
+      handlers por `inc/stic-security.php` (`sticpa_form_is_genuine()`).
+- [!] `EV-3` (P1 · M) Formularios web avanzados (FWA) enlazados al evento.
+      Decidir con el propietario (ver la conversación del 25/09/2026): relación
+      en Studio evento ↔ `stic_AWF_Forms` para leer su `public_url` sin pegar
+      enlaces a mano, y que la ficha del área privada abra el FWA ya rellenado
+      con los datos de quien ha entrado (regla de duplicados por DNI,
+      «Ampliar»). La relación NO existe hoy (MCP, 25/09/2026).
+- [ ] `EV-4` (P2 · S) Reescribir la guía de eventos
+      (`comunicaFormularios/webs_landing_wordpress/guia_eventos_administradores.html`)
+      con el reparto área privada / FWA / clásico, muy esquemática, cuando esté
+      decidido `EV-3`.
+- [z] `EV-5` (P2 · S) Campos del DNI en Personas: número de soporte y fecha de
+      expedición o caducidad. Se crearán en Studio más adelante; al crearlos,
+      apuntarlos en `docs/comunica/CAMPOS.md`.
+
+---
+
 ## 🟠 Seguridad
 
 - [ ] `SEC-10` (P2 · S) **Pruebas a mano que quedan de la seguridad de los handlers**
