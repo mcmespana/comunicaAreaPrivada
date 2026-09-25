@@ -197,14 +197,14 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
       (2026-07). ↳ `inc/stic-formController.php::makeForm`.
 - [x] `PERF-02` (P1 · S) **Quitar las animaciones infinitas de gradiente** (nav y hero):
       repintaban constantemente (jank + batería en móvil). ↳ **hecho** (2026-07).
-- [ ] `PERF-03` (P1 · S) **Cachear la sesión técnica del CRM** entre peticiones PHP:
+- [x] `PERF-03` (P1 · S) ↳ **hecho** (25/09/2026, PR #118: transient compartido `sticpa_crm_sid_*`) **Cachear la sesión técnica del CRM** entre peticiones PHP:
       hoy `login()` del usuario de servicio se rehace cuando caduca por sesión PHP;
       guardar `api_session_id` en transient compartido (no por sesión) ahorra el
       round-trip de login en frío. ↳ `inc/stic-class-6.php`.
 - [x] `PERF-04` (P1 · M) ↳ **hecho** (plan 017: endpoint con miniatura cacheada) **Foto de perfil**: `get_image` trae el base64 completo en cada
       carga de "Mis datos". Cachear por contacto (transient, invalidar al subir foto) o
       servirla vía endpoint con `Cache-Control`. ↳ `pages/single_stic_comunica_perfil.php`.
-- [~] `PERF-05` (P1 · M) ↳ **parcial**, es el plan 011 **Matar los N+1 de listados y selección de participante**:
+- [x] `PERF-05` (P1 · M) ↳ **hecho** (plan 011, 25/09/2026: tandas paralelas + tope de página aprendido) **Matar los N+1 de listados y selección de participante**:
       `single_stic_profile_selection.php` hace 1 llamada por relación + 1 por contacto;
       los listados similar. Usar `related_module_link_name_to_fields_array` para traer
       el contacto vinculado EN la misma llamada. Cachear `scp_available_profiles` ya
