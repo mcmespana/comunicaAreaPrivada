@@ -220,7 +220,8 @@ $nvlWeb = harness_nvl(array(
     'web_lema_c' => 'Sin Rodeos: Soy Consolación',
     'web_cartel_c' => 'http://',
     'web_publicar_c' => '1', 'web_slug_c' => 'convivencia26-cs-com',
-    'web_cuerpo_c' => "![Cartel del evento](https://i.imgur.com/4nyIbdl.png)\n\n[aviso] PLAZAS LIMITADAS - Inscríbete cuanto antes\n\n## De qué va\n¡Empezamos por todo lo alto! Pasamos DOS noches fuera en el Albergue la Serrana, de Buñol\n\n## El precio\n60 € \nIncluye el alojamiento, todas las comidas y materiales\n\n## Qué hay que llevar\n- Saco de dormir\n- Pañuelo del MIC, si tengo\n- **Cubiertos de plástico**: Nos llevamos plato, cubiertos **reutilizables** para ser un poco más ecológicos\n\n### Autorizaciones\n1. Descarga la autorización de abajo\n2. Fírmala\n\n&gt; Recuerda: **puntualidad**.\n\n## Dudas\nEscríbenos a comunica@movimientoconsolacion.com o por WhatsApp al 649 949 583.",
+    // HTML del editor, CODIFICADO como lo guarda SuiteCRM.
+    mcm_cuerpo_campo() => htmlspecialchars('<p><img src="https://i.imgur.com/4nyIbdl.png" alt="cartel.png"></p><blockquote><p>PLAZAS LIMITADAS - Inscríbete cuanto antes</p></blockquote><h1>De qué va</h1><p>¡Empezamos por todo lo alto! Pasamos DOS noches fuera en el Albergue la Serrana, de Buñol</p><h1>El precio</h1><p>60 €<br>Incluye el alojamiento, todas las comidas y materiales</p><h1>Qué hay que llevar</h1><ul><li>Saco de dormir</li><li>Pañuelo del MIC, si tengo</li><li><strong>Cubiertos de plástico</strong>: Nos llevamos plato, cubiertos <strong>reutilizables</strong> para ser un poco más ecológicos</li></ul><h3>Autorizaciones</h3><ol><li>Descarga la autorización de abajo</li><li>Fírmala</li></ol><p><a href="https://comunica.movimientoconsolacion.com/castellon">Inscribirme en el formulario</a></p><h1>Dudas</h1><p>Escríbenos a comunica@movimientoconsolacion.com o por WhatsApp al 649 949 583.</p>'),
 ));
 $conWeb = sticpa_event_detail_html(
     sticpa_event_view_model($nvlWeb),

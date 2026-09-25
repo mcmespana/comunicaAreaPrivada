@@ -6532,7 +6532,7 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
    El cartel, el lema, el cuerpo largo y los documentos que se escriben para
    la página pública de la actividad (`web_*_c`), pintados en la ficha del
    evento con el MISMO renderizador que la web (inc/eventos-cuerpo.php). Las
-   clases del cuerpo (`evento-aviso`, `evento-cita`…) son las de la página
+   clases del cuerpo (`evento-aviso`, `evento-galeria`…) son las de la página
    pública a propósito: un texto, un vocabulario. Aquí se visten con los
    tokens del área, así que el modo oscuro (§44) sale solo.
 
@@ -6602,7 +6602,7 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     overflow-wrap: anywhere;
 }
 
-/* [aviso]: borde a la izquierda y no una caja de color entera. Destaca sin
+/* El aviso (la «Cita» del editor): borde a la izquierda y no una caja de color entera. Destaca sin
    competir con «Inscribirme», que es la acción de la pantalla. */
 .stic-evweb-cuerpo .evento-aviso {
     margin: 0 0 1rem;
@@ -6613,16 +6613,6 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     color: var(--gray-900);
     font-weight: 600;
 }
-
-.stic-evweb-cuerpo .evento-cita {
-    margin: 1rem 0;
-    padding: 0.1rem 0 0.1rem 0.9rem;
-    border-left: 2px solid var(--secondary-color);
-    font-size: 1.05rem;
-    font-style: italic;
-    color: var(--gray-800);
-}
-.stic-evweb-cuerpo .evento-cita p { margin: 0; }
 
 .stic-evweb-cuerpo hr {
     width: 64px;
