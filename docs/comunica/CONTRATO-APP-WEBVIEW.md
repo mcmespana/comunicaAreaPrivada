@@ -176,6 +176,13 @@ la app como universal link (iOS) y app link (Android).
 | App instalada | El sistema abre **la app**, que carga el área en su WebView con ese token. La petición web ni se hace |
 | Sin app / ordenador | Llega aquí → **302** al área privada con el token intacto → login por web |
 
+**Desde el 25/09/2026 el enlace lleva también el DESTINO** (TODO EV-8,
+`docs/ACCESO.md` §4.b): `/app/acceso?acceso_magico=…&internalpage=single_stic_events&action=detail&id=…`.
+El puente lo reenvía saneado. **Lado app, pendiente:** al abrir el enlace, pasar
+a la WebView también `internalpage`, `action`, `id` y `from` si vienen (tal
+cual; la web los vuelve a sanear). Mientras la app coja solo el token, se entra
+a la portada, como antes: no se rompe nada.
+
 ### 5.a Y cuando el enlace no llega a la app: el código de 6 cifras
 
 La fila de arriba tiene una tercera situación que no se ve en la tabla y que en

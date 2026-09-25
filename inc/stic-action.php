@@ -730,6 +730,8 @@ function sticpa_handle_send_access()
     if (empty($areaUrl)) {
         $areaUrl = home_url(strtok($returnUrl, '?'));
     }
+    // El enlace del correo lleva a donde iba la persona (EV-8), no a la portada.
+    $areaUrl = sticpa_url_with_destination($areaUrl, sticpa_login_destination_args($returnUrl));
 
     if ($allowed && is_email($email)) {
         $objSCP = SugarRestApiCall::getObjSCP();
@@ -857,6 +859,7 @@ function sticpa_handle_send_access_dni()
     if (empty($areaUrl)) {
         $areaUrl = home_url(strtok($returnUrl, '?'));
     }
+    $areaUrl = sticpa_url_with_destination($areaUrl, sticpa_login_destination_args($returnUrl));
 
     $objSCP = SugarRestApiCall::getObjSCP();
     foreach (sticpa_modules_to_try() as $module) {
@@ -921,7 +924,11 @@ function sticpa_handle_verify_code()
             unset($_SESSION['sticpa_otp_email']);
 
             $areaUrl = get_option('sticpa_scp_area_url');
-            wp_safe_redirect($areaUrl ? $areaUrl : strtok($returnUrl, '?'));
+            // Al destino si lo había (EV-8): el código también lleva a él.
+            wp_safe_redirect(sticpa_url_with_destination(
+                $areaUrl ? $areaUrl : strtok($returnUrl, '?'),
+                sticpa_login_destination_args($returnUrl)
+            ));
             exit;
         }
         // Código correcto pero el CRM no devuelve la ficha: es un fallo nuestro,
@@ -942,9 +949,10 @@ function sticpa_handle_verify_code()
 
 /**
  * URL de la pantalla de acceso a la que vuelven los handlers. Sale del campo
- * `scp_current_url` del formulario, así que se limpia: solo se conserva la
- * RUTA. Cualquier host, esquema o query que venga del cliente se descarta, que
- * es justo por donde se colaba el open redirect.
+ * `scp_current_url` del formulario, así que se limpia: se conserva la RUTA y,
+ * de la query, solo el destino saneado (sticpa_login_destination_args()).
+ * Cualquier host, esquema u otro parámetro que venga del cliente se descarta,
+ * que es justo por donde se colaba el open redirect.
  */
 function sticpa_auth_return_url()
 {
@@ -956,7 +964,9 @@ function sticpa_auth_return_url()
     if (!is_string($path) || $path === '' || $path[0] !== '/') {
         $path = '/';
     }
-    return add_query_arg('stic_auth', '1', $path);
+    // De la query solo se queda el DESTINO, saneado (TODO EV-8): a qué página
+    // del área iba quien está entrando. Nada de hosts ni de URLs.
+    return sticpa_url_with_destination(add_query_arg('stic_auth', '1', $path), sticpa_login_destination_args($raw));
 }
 
 /**

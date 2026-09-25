@@ -427,12 +427,22 @@ function sticpa_record_detail_html($spec)
     //
     // Se ve ENTERA y a su tamaño, nunca recortada: un cartel de imprenta es
     // vertical y recortarlo a una banda se lleva el título y el logo.
+    //
+    // Con cartel, lo que viene detrás va en su propia columna: en móvil no
+    // cambia nada (cartel y debajo el resto), y desde 768px el cartel se queda
+    // a la IZQUIERDA y el texto a la derecha, como en la página pública. Antes
+    // iba siempre encima, y en escritorio un cartel vertical empujaba los datos
+    // y el texto fuera de la primera pantalla (CSS §59).
+    $conCartel = false;
     if (!empty($spec['cover']['src'])) {
         $src = (string) $spec['cover']['src'];
         $ok = sticpa_record_safe_url($src) !== '' || strpos($src, '/') === 0;
         if ($ok) {
+            $conCartel = true;
+            $html .= "<div class='stic-rec-split'>";
             $html .= "<figure class='stic-rec-cover'><img src='" . esc_url($src) . "' alt='"
                 . esc_attr($spec['cover']['alt'] ?? '') . "' loading='lazy'></figure>";
+            $html .= "<div class='stic-rec-split-main'>";
         }
     }
 
@@ -564,6 +574,10 @@ function sticpa_record_detail_html($spec)
             $html .= "<p class='stic-rec-cta-note'>" . esc_html($ctaNote) . "</p>";
         }
         $html .= "</div>";
+    }
+
+    if ($conCartel) {
+        $html .= "</div></div>"; // .stic-rec-split-main, .stic-rec-split
     }
 
     $html .= "</div>";

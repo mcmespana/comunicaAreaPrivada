@@ -67,10 +67,13 @@ function sticpa_field_help_html($text)
  * La clave de transient es la misma que usaba makeForm, así que las cachés
  * existentes en producción siguen siendo válidas.
  */
-function sticpa_cached_field_definition($objSCP, $moduleName, $fields)
+function sticpa_cached_field_definition($objSCP, $moduleName, $fields, $fresh = false)
 {
     $cacheKey = 'sticpa_fdef_' . md5($moduleName . '|' . implode(',', $fields));
-    $def = isset($_GET['refresh_fields']) ? false : get_transient($cacheKey);
+    // `$fresh`: quien llama sabe que la copia está vieja (falta un campo que
+    // se acaba de crear en Studio) y pregunta otra vez. Ver
+    // sticpa_event_fields_to_request().
+    $def = ($fresh || isset($_GET['refresh_fields'])) ? false : get_transient($cacheKey);
     if ($def === false || !is_array($def)) {
         $res = $objSCP->getFieldDefinition($moduleName, $fields);
         $arr = json_decode(json_encode($res), true);

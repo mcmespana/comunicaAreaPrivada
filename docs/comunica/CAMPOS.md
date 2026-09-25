@@ -863,7 +863,7 @@ las devuelve la API: si las necesitas, míralas allí.
 |---|---|---|
 | `web_publicar_c` | casilla (por defecto `0`) | El interruptor de la **página pública**. Apagada, el evento no tiene página en `/actividades`; su texto sí se ve en el área privada y en el modal de la convivencia |
 | `web_url_c` | URL | A dónde lleva «Inscribirme» en la página pública. Vacío → «Entrar al área privada». ⚠️ Vacío llega como `http://` (SuiteCRM): se trata como vacío |
-| `web_cuerpo_html_c` | **WYSIWYG** (editor TinyMCE) — ⏳ **por crear en el cutover** (ver `EVENTOS.md` §9.4) | **El cuerpo**: HTML del editor. Se lee con lista blanca (`inc/eventos-cuerpo.php`); estilos y formato de Word se ignoran. Lo guarda CODIFICADO (`&lt;p&gt;`). **No es sitio para borradores**: es público aunque el evento no esté publicado. El nombre vive en `mcm_cuerpo_campo()` |
+| `web_cuerpo_html_c` | **WYSIWYG** (editor TinyMCE) — ✅ creado; verificado por MCP el 25/09/2026 (tipo `wysiwyg`, relleno en tres eventos) | **El cuerpo**: HTML del editor. Se lee con lista blanca (`inc/eventos-cuerpo.php`); estilos y formato de Word se ignoran. Lo guarda CODIFICADO (`&lt;p&gt;`). **No es sitio para borradores**: es público aunque el evento no esté publicado. El nombre vive en `mcm_cuerpo_campo()` |
 | `web_cuerpo_c` | texto largo | ⚠️ **RETIRADO** (Markdown). Nadie lo lee desde el cutover; se borra en Studio cuando esté mezclado el cambio |
 | `web_cartel_c` | URL | La imagen de cabecera, si no se sube al evento. Vacío = `http://` (ver arriba) |
 | `web_lema_c` | texto (255) | El subtítulo bajo el título («Sin Rodeos: Soy Consolación») |

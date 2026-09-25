@@ -6568,6 +6568,29 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     background: var(--surface-2);
 }
 
+/* El cartel a la IZQUIERDA y el texto a la derecha, desde 768px (el corte de
+   «dos columnas» de design.md §5). Es lo que hace la página pública: un cartel
+   de imprenta es vertical, y encima del texto dejaba los datos y la
+   información fuera de la primera pantalla del ordenador. En móvil no cambia
+   nada: `.stic-rec-split` es un bloque y el cartel va centrado, arriba.
+   Solo existe cuando HAY cartel (inc/stic-record-view.php): sin él, la ficha
+   no tiene una columna vacía a la izquierda. */
+@media (min-width: 768px) {
+    .stic-rec-split {
+        display: grid;
+        grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+        gap: clamp(1.25rem, 3vw, 2.5rem);
+        align-items: start;
+    }
+    .stic-rec-split > .stic-rec-cover {
+        justify-content: flex-start;
+        margin-top: 1.25rem;
+    }
+    .stic-rec-split > .stic-rec-cover img {
+        max-height: min(640px, 80vh);
+    }
+}
+
 .stic-evweb .stic-rec-desc-body { max-width: 68ch; }
 
 .stic-container .stic-evweb-cuerpo h5,
