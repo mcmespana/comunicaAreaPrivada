@@ -42,25 +42,38 @@ $params = array(
 
 $getRelatedRegistrations = $objSCP->getRelatedElementsForLoggedUser($params);
 $availableAttendances = array();
-// is_array: el cliente del CRM devuelve null si la llamada falla o expira.
-foreach((is_array($getRelatedRegistrations) ? $getRelatedRegistrations : array()) as $element) {
-    $params = array(
+
+// LAS ASISTENCIAS DE TODAS LAS INSCRIPCIONES EN UNA TANDA (plan 011): eran
+// una llamada por inscripción, en fila. Mismas consultas, en paralelo
+// (sticpa_pl_prime), y recorridas en el orden de siempre.
+$attendanceParams = function ($regId) use ($fieldsToRetrieve) {
+    return array(
         'module_name' => 'stic_Registrations',
-        "module_id" => $element->name_value_list->id->value, //Do not touch
-        "link_field_name" => 'stic_attendances_stic_registrations',
-        // "related_module_query" => "(stic_personal_environment.relationship_type = 'father' OR 
-        //     stic_personal_environment.relationship_type = 'mother' OR stic_personal_environment.relationship_type = 'legal')",
-        "related_fields" => $fieldsToRetrieve,
-        // 'link_name_to_fields_array' => array(
-        "related_module_link_name_to_fields_array" => array(),
-        "deleted" => 0, //show or not deleted elements (usually 0)
-        "order_by" => "",
-        "offset" => "",
-        "limit" => 0,
+        'module_id' => $regId,
+        'link_field_name' => 'stic_attendances_stic_registrations',
+        'related_fields' => $fieldsToRetrieve,
+        'related_module_link_name_to_fields_array' => array(),
+        'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
     );
-    $getAttendances = $objSCP->getRelatedElementsForLoggedUser($params);
+};
+// is_array: el cliente del CRM devuelve null si la llamada falla o expira.
+$regIds = array();
+foreach ((is_array($getRelatedRegistrations) ? $getRelatedRegistrations : array()) as $element) {
+    if (!empty($element->name_value_list->id->value)) {
+        $regIds[] = $element->name_value_list->id->value;
+    }
+}
+if (function_exists('sticpa_pl_prime')) {
+    sticpa_pl_prime($objSCP, function () use ($objSCP, $regIds, $attendanceParams) {
+        foreach ($regIds as $regId) {
+            $objSCP->getRelatedElementsForLoggedUser($attendanceParams($regId));
+        }
+    });
+}
+foreach ($regIds as $regId) {
+    $getAttendances = $objSCP->getRelatedElementsForLoggedUser($attendanceParams($regId));
     if (is_array($getAttendances)) {
-        foreach($getAttendances as $attendance) {
+        foreach ($getAttendances as $attendance) {
             $availableAttendances[] = $attendance;
         }
     }
