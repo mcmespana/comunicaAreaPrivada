@@ -77,16 +77,40 @@ puedan coger una tarea, entender el porqué y hacerla sin contexto previo.
       inscripción mientras el plazo esté abierto.
       ↳ `pages/list_stic_registrations.php`, `inc/stic-registrations.php`,
       handlers por `inc/stic-security.php` (`sticpa_form_is_genuine()`).
-- [!] `EV-3` (P1 · M) Formularios web avanzados (FWA) enlazados al evento.
-      Decidir con el propietario (ver la conversación del 25/09/2026): relación
-      en Studio evento ↔ `stic_AWF_Forms` para leer su `public_url` sin pegar
-      enlaces a mano, y que la ficha del área privada abra el FWA ya rellenado
-      con los datos de quien ha entrado (regla de duplicados por DNI,
-      «Ampliar»). La relación NO existe hoy (MCP, 25/09/2026).
+- [!] `EV-3` (P1 · M) Formularios web avanzados (FWA) desde el evento. Decidido
+      el 25/09/2026: el módulo FWA **no sale en Studio**, así que no hay
+      relación posible; va un **campo URL en `stic_Events`** con el enlace
+      público del FWA (nombre por decidir; al crearlo, a `CAMPOS.md`). Con él:
+      la página pública enseña «¿No estás en Comunica? Inscríbete aquí» y la
+      ficha del área privada abre el FWA ya rellenado con los datos de quien
+      ha entrado (`&Contacts0.first_name=…`, parámetros en la wiki de
+      SinergiaTIC). El FWA lleva regla de duplicados por DNI en modo
+      «Ampliar». Bloqueado hasta que exista el campo.
 - [ ] `EV-4` (P2 · S) Reescribir la guía de eventos
       (`comunicaFormularios/webs_landing_wordpress/guia_eventos_administradores.html`)
       con el reparto área privada / FWA / clásico, muy esquemática, cuando esté
       decidido `EV-3`.
+- [ ] `EV-6` (P2 · M) Preguntas simples por evento sin FWA. Campos de texto en
+      `stic_Events` («Pregunta simple 1», «Pregunta simple 2»…, nombres por
+      decidir) con las opciones separadas por `;` («Sí, voy en autobús;No, voy
+      por mi cuenta»). El formulario de inscripción del área privada las pinta
+      como opciones y guarda la respuesta en la inscripción (campo de
+      `stic_Registrations` por decidir). Así un evento sí/no con una o dos
+      preguntas no necesita FWA.
+- [ ] `EV-7` (P1 · M) Al inscribirse desde el área privada a un evento con
+      precio > 0, crear el compromiso de pago. Hoy NO se crea (visto el
+      25/09/2026). Hecho cuando la inscripción con precio crea su compromiso
+      (importe = `price`, asignado a la delegación, relacionado con la
+      inscripción) y ofrece elegir el medio de pago o pasar al formulario de
+      pago (`pages/single_stic_payment_form.php`, que ya cobra online si la
+      pasarela está configurada en Sinergia).
+      ↳ `inc/stic-action.php` → `prefix_admin_single_stic_registrations()`.
+- [ ] `EV-8` (P2 · S) Enlace directo a Eventos que sobreviva al login:
+      `/ap?internalpage=list_stic_events` (y a la ficha de un evento) debe
+      llevar ahí DESPUÉS de entrar, también con el enlace mágico. Primero
+      comprobar si ya pasa; si no, guardar el destino antes del login y
+      redirigir después (solo a páginas internas, `sticpa_return_url()`). Es lo
+      que usará el botón «¿Ya estás en Comunica? Entra» de la página pública.
 - [z] `EV-5` (P2 · S) Campos del DNI en Personas: número de soporte y fecha de
       expedición o caducidad. Se crearán en Studio más adelante; al crearlos,
       apuntarlos en `docs/comunica/CAMPOS.md`.
