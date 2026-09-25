@@ -32,7 +32,7 @@ antes de empezar, respeta sus "STOP conditions" y actualiza su fila de estado al
 | 008 | Endurecer el transporte al CRM: TLS + queries de login | P0 | M | — | **HECHO** (24/09) — TLS verificado (PEER + HOST=2; certificado Let's Encrypt válido); `quoteValue()` en las consultas del login, que admitían `x' OR '1'='1` |
 | 009 | Cachear `get_module_fields` también en `makeList` | P1 | S | — | **DONE** → `archive/` |
 | 010 | Servir el CSS de DataTables local + enqueue condicional | P1 | M | — | **DONE** → `archive/` |
-| 011 | Eliminar los N+1 de listados, calendario y selector | P1 | L | 013 | TODO |
+| 011 | Eliminar los N+1 de listados, calendario y selector | P1 | L | 013 | **HECHO** (25/09) — la técnica del plan (enlaces anidados) no sirve en esta instancia; cada nivel sale en una tanda paralela (`sticpa_pl_prime`) en calendario/portada, sesiones, asistencias, pagos de menor, guard de inscripción y selector de familia. Y el tope de página del CRM se aprende: cada lista, de 2 viajes a 1 |
 | 012 | Sustituir `getAllEmail()` por una consulta puntual | P1 | S | — | **YA NO APLICA** — el alta y `getAllEmail()` se borraron el 10/09/2026 |
 | 013 | Establecer una base de verificación (PHPUnit + mocks) | P1 | M | — | **DONE** → `archive/` (baseline; ver seguimiento) |
 | 014 | Retirar assets muertos y arreglar docs desfasadas | P2 | S | — | **DONE** → `archive/` |
