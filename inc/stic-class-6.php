@@ -82,6 +82,15 @@ class SugarRestApiCall
         if ($this->hasFreshSessionId()) {
             $this->session_id = $_SESSION['api_session_id'];
         }
+        else if (($shared = $this->freshSharedSessionId()) !== null) {
+            // PERF-03: la sesión técnica es LA MISMA para todo el mundo (un solo
+            // usuario de servicio), así que la que renovó otra persona hace
+            // menos de SESSION_MAX_AGE vale aquí. Se copia a la sesión PHP con
+            // SU hora, no con la de ahora: caduca cuando le toca, no más tarde.
+            $this->session_id = $shared['id'];
+            $_SESSION['api_session_id'] = $shared['id'];
+            $_SESSION['api_session_time'] = $shared['time'];
+        }
         else if (!isset(self::$objSCP) || self::$objSCP->url !== $url || self::$objSCP->username !== $username || self::$objSCP->password !== $password) {
             $this->storeSessionId($this->login());
             self::$objSCP = $this;
@@ -109,12 +118,53 @@ class SugarRestApiCall
         return $age >= 0 && $age < self::sessionMaxAge();
     }
 
-    /** Guarda el session_id del CRM en sesión junto a su marca de tiempo. */
+    /**
+     * Guarda el session_id del CRM en sesión junto a su marca de tiempo, y en
+     * el transient COMPARTIDO (PERF-03). Un login fallido (id vacío) no se
+     * comparte: se quedaría repartiendo un id que no sirve a todo el mundo.
+     */
     private function storeSessionId($sessionId)
     {
         $this->session_id = $sessionId;
         $_SESSION['api_session_id'] = $sessionId;
         $_SESSION['api_session_time'] = time();
+        if (!empty($sessionId) && function_exists('set_transient')) {
+            set_transient($this->sharedSessionKey(), array('id' => (string) $sessionId, 'time' => time()), self::sessionMaxAge());
+        }
+    }
+
+    /**
+     * PERF-03 — LA SESIÓN TÉCNICA DEL CRM, COMPARTIDA ENTRE VISITAS.
+     *
+     * Antes vivía solo en la sesión PHP de cada persona: la primera pantalla de
+     * alguien que entraba (o volvía tras 20 minutos) pagaba un login técnico
+     * completo antes de pedir nada, aunque otra persona acabara de hacer ese
+     * mismo login con el mismo usuario de servicio. En la app es justo la
+     * pantalla que más se nota: la de abrirla.
+     *
+     * La clave lleva la URL y el usuario del CRM: si se cambia la conexión en
+     * los ajustes, la sesión vieja no se reutiliza contra la nueva. Guarda el
+     * mismo dato que ya se guardaba en cada sesión PHP; no es un secreto nuevo
+     * (la contraseña del usuario técnico vive en wp_options igualmente).
+     *
+     * @return array|null array('id' => …, 'time' => …) si es reciente.
+     */
+    private function freshSharedSessionId()
+    {
+        if (!function_exists('get_transient')) {
+            return null;
+        }
+        $shared = get_transient($this->sharedSessionKey());
+        if (!is_array($shared) || empty($shared['id']) || empty($shared['time'])) {
+            return null;
+        }
+        $age = time() - (int) $shared['time'];
+        return ($age >= 0 && $age < self::sessionMaxAge()) ? array('id' => (string) $shared['id'], 'time' => (int) $shared['time']) : null;
+    }
+
+    private function sharedSessionKey()
+    {
+        return 'sticpa_crm_sid_' . md5($this->url . '|' . $this->username);
     }
 
     private static function sessionMaxAge()
@@ -191,7 +241,11 @@ class SugarRestApiCall
     private function closeCurlHandle()
     {
         if ($this->curlHandle !== null) {
-            curl_close($this->curlHandle);
+            // Desde PHP 8 el handle se cierra al soltarlo (y curl_close()
+            // avisa de deprecado en 8.5); antes hacía falta llamarlo.
+            if (PHP_VERSION_ID < 80000) {
+                curl_close($this->curlHandle);
+            }
             $this->curlHandle = null;
         }
     }
@@ -526,7 +580,9 @@ class SugarRestApiCall
             foreach ($handles as $h) {
                 $cuerpo = curl_multi_getcontent($h['ch']);
                 curl_multi_remove_handle($multi, $h['ch']);
-                curl_close($h['ch']);
+                if (PHP_VERSION_ID < 80000) {
+                    curl_close($h['ch']); // ver closeCurlHandle()
+                }
 
                 $firma = self::signature($h['req']['method'], $h['req']['parameters']);
                 if (!is_string($cuerpo) || $cuerpo === '') {
