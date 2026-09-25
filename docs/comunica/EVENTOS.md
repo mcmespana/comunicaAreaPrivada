@@ -650,8 +650,128 @@ ventana sin eventos. El área privada no tiene riesgo (pide solo los campos que
 existen), pero la definición de campos está cacheada 6 h: como la lista de
 campos cambia, la clave de caché es otra y se refresca sola.
 
-> ⚠️ **Pendiente, y grave, fuera de esto:** la descarga genérica de Documentos
-> (`download_document()` en `inc/stic-action.php`, registrada también como
-> `admin_post_nopriv_…`) sirve **cualquier** documento del CRM con su id, sin
-> sesión y sin mirar de quién es. Visto el 24/09/2026 al montar §9.3; no se ha
-> tocado.
+> ✅ **Resuelto (visto el 25/09/2026):** la descarga genérica de Documentos
+> (`download_document()` en `inc/stic-action.php`) servía cualquier documento
+> con su id y sin sesión. Hoy solo se llega a ella desde
+> `prefix_admin_single_stic_documents()`, que pide antes la sesión
+> (`sticpa_require_session()`) y que el documento sea tuyo
+> (`sticpa_user_owns_record()`): lo cerraron los planes 001-003 (24/09/2026).
+
+### 9.5 Dos arreglos del 25/09/2026 (TODO EV-1)
+
+- **El cartel, a la izquierda.** Con cartel, desde 768 px la ficha va en dos
+  columnas: el cartel a la izquierda y los datos, el cuerpo y el botón a la
+  derecha, como la página pública (`.stic-rec-split`, CSS §59). En móvil no
+  cambia: el cartel arriba y el resto debajo.
+- **La agenda y la home llevan a la FICHA**, no al formulario de inscripción.
+  Por ese camino se aterrizaba en «Te inscribes a», que solo enseña el nombre,
+  las fechas y la `description`: el cartel, el cuerpo y los documentos no se
+  veían nunca. El formulario lleva además un enlace «Ver toda la información de
+  la actividad».
+- **La ficha se cura sola si falta el cuerpo.** La definición de campos va
+  cacheada 6 h; un campo creado en Studio después no existía para el área hasta
+  que caducaba, y la ficha salía sin cuerpo y sin error. Si a la ficha le falta
+  `mcm_cuerpo_campo()`, vuelve a preguntar al CRM (una vez cada 15 minutos como
+  mucho). Con los datos reales del CRM el cuerpo se pinta bien
+  (`tests/EventWebTest.php`); si aun así no sale, abrir la ficha con
+  `&refresh_fields=1` fuerza la definición nueva.
+
+---
+
+## 10. Gestionar la inscripción: preguntas, pago, cancelar y modificar (25/09/2026)
+
+Hasta el 25/09/2026, desde el área solo se podía **apuntarse**. Todo pasa por el
+mismo formulario (`pages/single_stic_registrations.php`) y el mismo handler
+(`prefix_admin_single_stic_registrations()`); las piezas están en
+`inc/stic-registrations.php` § «GESTIONAR LA INSCRIPCIÓN» y las pruebas —con el
+handler de verdad y un CRM de mentira que apunta cada escritura— en
+`tests/RegistrationManageTest.php`.
+
+### 10.1 Preguntas simples (EV-6) — ⏳ esperan a que se creen los campos
+
+Un evento sí/no con una o dos preguntas no necesita un formulario web avanzado.
+En el evento se escribe la pregunta en una caja de texto:
+
+```
+Sí, voy en autobús;No, voy por mi cuenta
+¿Cómo vienes? | Sí, voy en autobús; No, voy por mi cuenta
+```
+
+Opciones separadas por `;` (no por comas: «Sí, voy en autobús» lleva una); la
+pregunta, opcional, delante de una `|`. Con menos de dos opciones no hay
+pregunta. El formulario las pinta como opciones obligatorias, el valor viaja
+como número y el servidor lo cambia por el TEXTO de la opción, que es lo que se
+guarda en la inscripción (se lee en el CRM sin ir al evento). Una respuesta que
+no está entre las opciones no se guarda.
+
+Los campos son **propuestos, no creados**: `ajmcm_pregunta_1_c` /
+`ajmcm_pregunta_2_c` en `stic_Events` y `ajmcm_respuesta_1_c` /
+`ajmcm_respuesta_2_c` en `stic_Registrations` (ficha en `CAMPOS.md`). Hasta que
+existan, el área no los pide ni enseña nada. Si se crean con otro nombre, se
+cambia en `sticpa_event_question_fields()`.
+
+### 10.2 El pago al inscribirse (EV-7)
+
+Con `price` > 0, el formulario dice cuánto cuesta y pregunta **cómo se va a
+pagar**. Se ofrecen solo los medios que existen en el desplegable
+`payment_method` del CRM (la lista de candidatas es `bizum`, `transfer`,
+`transfer_received`, `cash`, `direct_debit`, `card`; la API no valida los
+`enum`, así que una clave que no esté en el CRM no se enseña). Domiciliación
+pide un IBAN y se comprueba (módulo 97) antes de escribir nada.
+
+| Medio | Qué pasa al inscribirse |
+|---|---|
+| Cualquiera menos tarjeta | Se crea **UN** compromiso: importe = `price`, `punctual`, tipo `services`, primer pago hoy, asignado a la delegación, atado a quien paga (el familiar si la sesión es de un participante, y el participante como destinatario) y a la inscripción |
+| Tarjeta | NO se crea compromiso aquí: se pasa al formulario de pago (`single_stic_payment_form`), que es un formulario web de SinergiaCRM y crea el suyo. Con dos serían dos cobros |
+
+⚠️ **El CRM tiene su propio automatismo.** Al guardar una inscripción con el
+IBAN del tutor y un importe (lo que manda la renovación), crea él solo un
+compromiso «… - Domiciliación - importe». No es un workflow (no hay ninguno de
+inscripciones ni de compromisos, mirado por MCP el 25/09/2026): es código del
+CRM, y su condición exacta no se ve desde aquí. Las inscripciones del área no
+mandan ni el IBAN del tutor ni `ajmcm_registration_amount_c`, que es por lo que
+no salía ningún compromiso. **Antes de crear, se mira si la inscripción ya tiene
+uno: si lo tiene se completa ese, y si no se crea.** Es la misma salvaguarda de
+la renovación, que cobró dos veces el 22/09/2026.
+
+La ficha de la inscripción enseña el pago («60,00 € · Bizum», que lleva a su
+compromiso). Si la actividad cuesta algo y la inscripción no tiene compromiso
+(se eligió tarjeta, o es de antes de esto), ofrece «Pagar con tarjeta» diciendo
+«si todavía no lo has pagado»: el pago con tarjeta no queda atado a la
+inscripción y el área no sabe si se hizo.
+
+### 10.3 Cancelar y modificar (EV-2)
+
+Desde la ficha de la inscripción, **mientras el plazo esté abierto** (el mismo
+de §5.2) y la actividad no haya pasado:
+
+- **Modificar mis datos**: las respuestas y las necesidades especiales. NADA
+  más. Antes `action=edit` pintaba un desplegable con TODOS los eventos del
+  CRM: se podía mover una inscripción a otra actividad saltándose la audiencia
+  y el plazo, que solo se miraban al crear. El handler se queda solo con esos
+  campos aunque lleguen otros.
+- **Cancelar mi inscripción**: con confirmación, pone el estado a `cancelled`
+  (no se borra: la delegación ve quién se borró) y da de **baja** su compromiso
+  de pago (fecha de fin hoy y una nota), para que una domiciliación de algo
+  cancelado no siga viva. No se toca ningún pago: si ya se cobró, devolverlo lo
+  decide la delegación. Es un POST con la firma del formulario atada a la
+  sesión (`sticpa_form_is_genuine()`), como el borrado de documentos.
+
+**Un curso no se cancela desde aquí.** «MIC | Curso 2026-2027» también es un
+evento con inscripción, a menudo con el plazo abierto o sin fechas (que cuenta
+como abierto): cancelarlo sería darse de baja del curso entero —fuera de las
+listas de Pasar Lista y con la cuota dada de baja—. Por encima de un mes
+(`sticpa_event_max_dias_duracion`, el mismo corte con el que la ficha deja de
+contar la duración) se puede **modificar** pero no cancelar: la ficha dice
+«Para darte de baja del curso, habla con tu delegación».
+
+`cancelled` solo se escribe si existe en el desplegable de estado del CRM (se
+mira su definición). Fuera de plazo, la ficha dice que hay que hablar con la
+delegación, y el handler lo rechaza aunque le llegue el POST
+(`sticpa_registration_manage_rights()`, fuente única para la ficha y el guard).
+
+### 10.4 Y de paso: la inscripción, asignada a su delegación
+
+El alta de una inscripción no ponía `assigned_user_id`: se quedaba a nombre del
+usuario técnico, en contra de la regla de `CLAUDE.md`. Ahora va a la delegación
+de la persona (`sticpa_pl_delegation()`), igual que su compromiso.

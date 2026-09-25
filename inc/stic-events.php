@@ -235,6 +235,11 @@ function sticpa_event_wanted_fields()
     }
     $wanted = array_merge($wanted, sticpa_event_registration_fields());
     $wanted[] = sticpa_event_map_field();
+    // Las preguntas simples (EV-6): textos cortos que el formulario de
+    // inscripción convierte en opciones. Como todo lo de aquí, solo si existen.
+    if (function_exists('sticpa_event_question_event_fields')) {
+        $wanted = array_merge($wanted, sticpa_event_question_event_fields());
+    }
     return array_values(array_unique($wanted));
 }
 

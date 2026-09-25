@@ -556,7 +556,12 @@ constructor de formularios del CRM las dejó escritas como campos ocultos:
 | `payment_method` | `direct_debit` | Domiciliación bancaria |
 | `payment_method` | `card` | Tarjeta (visto en el único registro real) |
 | `payment_type` | `fee` | Cuota |
+| `payment_type` | `services` | Servicios. **Observada en datos** (MCP, 25/09/2026): la pone el propio CRM a los compromisos que crea para las convivencias. La usa el área para el pago de una actividad (`EVENTOS.md` §10.2) |
 | `periodicity` | `punctual` | Pago único |
+
+> **El área privada no escribe claves de `payment_method` a ciegas**: al
+> inscribirse ofrece solo las que el desplegable del CRM trae de verdad (la API
+> v4.1 sí devuelve las opciones; el MCP no). Ver `EVENTOS.md` §10.2.
 
 Es la misma fuente que usa el CRM para sus propios formularios, así que valen.
 **Cualquier otra clave hay que mirarla en Studio**, no deducirla.
@@ -565,6 +570,24 @@ Es la misma fuente que usa el CRM para sus propios formularios, así que valen.
 > curso lleva su propio compromiso («Cuotas COM 26-27»), que se cobra una vez.
 > Un `annual` haría que el mismo compromiso se repitiera solo cada año, que es
 > justo lo que no se quiere: el importe y la gente cambian de un curso a otro.
+
+#### ⚠️ El CRM crea compromisos SOLO al guardar una inscripción (25/09/2026)
+
+Mirado por MCP sobre ~60 inscripciones: **toda inscripción con
+`ajmcm_tutor1_iban_c` relleno tiene un compromiso** (nombre «Tutor -
+Participante - Evento - Domiciliación - importe»), y ninguna sin él lo tiene.
+Toma el importe de `ajmcm_registration_amount_c` (tipo `fee`, primer pago el
+día de la inscripción) o, si no, de `ajmcm_convivencia_precio_c` (tipo
+`services`, primer pago en la fecha de la convivencia); siempre
+`direct_debit`, `punctual`, y el `assigned_user_id` de la inscripción. **El
+precio del evento no lo usa.**
+
+**No es un workflow**: en `AOW_WorkFlow` no hay ninguno de `stic_Registrations`
+ni de `stic_Payment_Commitments`. Es código del CRM (un logic hook), así que
+**no se sabe si la condición es «hay IBAN» o «hay importe»**: en los datos van
+siempre juntos. Quien cree inscripciones por API, que mire si ya tienen
+compromiso antes de crear otro (la renovación cobró dos veces el 22/09/2026;
+el área privada lo hace así, `EVENTOS.md` §10.2).
 
 #### ⚠️ Los formularios de alta NO crean compromisos de pago
 
@@ -869,6 +892,22 @@ las devuelve la API: si las necesitas, míralas allí.
 | `web_lema_c` | texto (255) | El subtítulo bajo el título («Sin Rodeos: Soy Consolación») |
 | `web_slug_c` | texto (255) | La URL bonita (`?e=convivencia26-cs-com`). Vacío → se saca del nombre |
 
+**Preguntas simples — ⏳ PROPUESTOS, NO CREADOS** (25/09/2026, TODO EV-6). Para
+que un evento sí/no con una o dos preguntas no necesite un formulario web
+avanzado. **Hasta que se creen, el área no los pide** (cruza cada nombre con la
+definición del CRM). Si se crean con otro nombre, apúntalo aquí y cámbialo en
+`sticpa_event_question_fields()`. Formato y comportamiento en `EVENTOS.md` §10.1.
+
+| Módulo | Campo propuesto | Tipo | Para qué |
+|---|---|---|---|
+| `stic_Events` | `ajmcm_pregunta_1_c` | texto (255) | «Pregunta simple 1»: `¿Pregunta? \| opción 1; opción 2`. La pregunta (antes de la `\|`) es opcional; opciones separadas por `;`, dos como mínimo |
+| `stic_Events` | `ajmcm_pregunta_2_c` | texto (255) | «Pregunta simple 2», igual |
+| `stic_Registrations` | `ajmcm_respuesta_1_c` | texto (255) | La respuesta a la 1: el TEXTO de la opción elegida (no un número), para leerla en el CRM sin ir al evento |
+| `stic_Registrations` | `ajmcm_respuesta_2_c` | texto (255) | La respuesta a la 2 |
+
+Van por parejas y en campos separados (no todo junto en un texto largo) para que
+en el CRM se pueda filtrar y contar («¿cuántos van en autobús?»).
+
 Los **documentos** del evento cuelgan de la relación `stic_events_documents_1`
 (nombre técnico; la API rechaza la etiqueta «Documents»). La primera imagen es
 el cartel si no hay otro, las demás van a galería y los PDF a descargar. Solo
@@ -939,6 +978,12 @@ nadie cree uno igual: `inc_*` (34, programa Incorpora / SEPE), `sepe_*` (4) y
 `jjwg_maps_*` (4, geocodificación de direcciones).
 
 **Inscripciones (`stic_Registrations`)** — los lee `inc/stic-registrations.php`
+
+> `status`: el área escribe `confirmed` (al inscribirse) y `cancelled` (al
+> cancelar desde la ficha, `EVENTOS.md` §10.3), y trata `cancelled` como «no
+> cuenta» en todas partes. **Sin confirmar en Studio**; por eso `cancelled`
+> solo se escribe si aparece en las opciones que devuelve la definición del
+> CRM. En datos se ha visto también `uninvited` (inscripciones de prueba).
 
 | Campo | Tipo | Qué es |
 |---|---|---|

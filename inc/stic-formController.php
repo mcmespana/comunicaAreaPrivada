@@ -411,9 +411,12 @@ function getFieldHtml($label, $type, $required, $attributes, $additionClasses, $
             <label id='{$groupLabelId}'>" . $label . "</label>
             <div class='stic-check-group' role='radiogroup' aria-labelledby='{$groupLabelId}' id='{$name}'>";
             $defaultValue = $defaultValue === null ? '' : $defaultValue;
+            // `required` en los <input>: en el <li> no lo mira el navegador, y un
+            // grupo obligatorio se podía mandar sin elegir nada.
+            $radioReq = $required === 'required' ? ' required' : '';
             foreach ($value['selectValues'] as $skey => $svalue) {
-                $checked = $defaultValue == $skey ? 'checked' : '';
-                $html .= "<div class='stic-check-container'><input class='stic-radio-input' type='radio' id='" . esc_attr($name . '_' . $skey) . "' name='{$name}' value='" . esc_attr((string) $skey) . "' {$checked}><label class='stic-check-label' for='" . esc_attr($name . '_' . $skey) . "'>" . esc_html((string) $svalue) . "</label></div>";
+                $checked = ($defaultValue !== '' && (string) $defaultValue === (string) $skey) ? 'checked' : '';
+                $html .= "<div class='stic-check-container'><input class='stic-radio-input' type='radio' id='" . esc_attr($name . '_' . $skey) . "' name='{$name}' value='" . esc_attr((string) $skey) . "' {$checked}{$radioReq}><label class='stic-check-label' for='" . esc_attr($name . '_' . $skey) . "'>" . esc_html((string) $svalue) . "</label></div>";
             }
             $sel = "";
             $html .= "

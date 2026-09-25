@@ -95,6 +95,30 @@ function confirmDelete(obj) {
 }
 
 /**
+ * Confirmación antes de mandar un formulario que cambia algo que no se puede
+ * deshacer desde aquí (p. ej. cancelar una inscripción, TODO EV-2). Los textos
+ * salen de los data-confirm-* del <form>; se escapan porque el modal los pinta
+ * con innerHTML.
+ */
+function sticConfirmSubmit(btn) {
+    var form = btn && btn.form;
+    if (!form) return true;
+    var esc = function (t) {
+        return String(t || '').replace(/[&<>"']/g, function (c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+        });
+    };
+    _sticDeleteModal(
+        esc(form.getAttribute('data-confirm-title') || '¿Seguro?'),
+        esc(form.getAttribute('data-confirm-msg') || ''),
+        esc(form.getAttribute('data-confirm-cancel') || 'Cancelar'),
+        esc(form.getAttribute('data-confirm-ok') || 'Sí'),
+        function () { form.submit(); }
+    );
+    return false; // el modal decide
+}
+
+/**
  * Render and manage the custom delete-confirmation modal.
  */
 function _sticDeleteModal(title, message, cancelLabel, confirmLabel, onConfirm) {

@@ -424,92 +424,234 @@ function prefix_admin_single_stic_registrations()
     if ($action == 'detail') {
         wp_safe_redirect($listUrl);
         exit;
-    } else {
-        $moduleName = 'stic_Registrations';
+    }
 
-        $objSCP = SugarRestApiCall::getObjSCP();
+    $moduleName = 'stic_Registrations';
+    $objSCP = SugarRestApiCall::getObjSCP();
 
-        // Editar o borrar una inscripción: tiene que ser TUYA (estar en tu
-        // listado). Antes valía el `id` de cualquiera, sin sesión incluso.
-        $regId = (string) ($_REQUEST['id'] ?? '');
-        if ($regId !== '' && !sticpa_user_owns_record($objSCP, 'stic_Registrations', $regId)) {
+    // Editar, cancelar o borrar una inscripción: tiene que ser TUYA (estar en
+    // tu listado). Antes valía el `id` de cualquiera, sin sesión incluso.
+    $regId = (string) ($_REQUEST['id'] ?? '');
+    if ($regId !== '' && !sticpa_user_owns_record($objSCP, 'stic_Registrations', $regId)) {
+        wp_safe_redirect($listUrl);
+        exit;
+    }
+    $detailUrl = sticpa_return_path() . '?internalpage=single_stic_registrations&action=detail&id=' . rawurlencode($regId);
+
+    // El evento de una inscripción que YA existe, del CRM y no del formulario:
+    // de él dependen el plazo (¿se puede cambiar?) y las preguntas.
+    $eventoDeLaInscripcion = function () use ($objSCP, $regId) {
+        $reg = $objSCP->getRecordDetail($regId, 'stic_Registrations', array('id', 'status', 'stic_registrations_stic_eventsstic_events_ida'));
+        $regNvl = $reg->entry_list[0]->name_value_list ?? null;
+        $eventId = trim((string) ($regNvl->stic_registrations_stic_eventsstic_events_ida->value ?? ''));
+        $eventNvl = null;
+        if ($eventId !== '') {
+            $ev = $objSCP->getRecordDetail($eventId, 'stic_Events', sticpa_event_fields_to_request($objSCP));
+            $eventNvl = $ev->entry_list[0]->name_value_list ?? null;
+        }
+        return array((string) ($regNvl->status->value ?? ''), $eventNvl);
+    };
+
+    // --- CANCELAR (EV-2) ---------------------------------------------------
+    // No escribe campos del formulario pero cambia algo: exige la firma atada a
+    // la sesión (CSRF), igual que el borrado. Y el plazo, que el botón de la
+    // ficha es cortesía: esto es el guard.
+    if ($action === 'cancel') {
+        if ($regId === '' || !sticpa_form_is_genuine('single_stic_registrations')) {
             wp_safe_redirect($listUrl);
             exit;
         }
-
-        if ($action === 'delete') {
-            // Desde TU formulario (CSRF): ver el borrado de documentos.
-            if ($regId === '' || !sticpa_form_is_genuine('single_stic_registrations')) {
-                wp_safe_redirect($listUrl);
-                exit;
-            }
-            $moduleData = array('id' => $regId, 'deleted' => 1);
-        } else {
-            // Solo los campos del formulario. Y la persona inscrita es SIEMPRE
-            // la de la sesión: el campo de la relación iba en un hidden, y
-            // cambiándolo se inscribía (o se editaba la inscripción de) otro.
-            $moduleData = sticpa_request_to_module_data('single_stic_registrations');
-            if ($moduleData === null) {
-                wp_safe_redirect(sticpa_return_url() . '&msg=error');
-                exit;
-            }
-            $personaField = getDestinationModule() === 'Accounts'
-                ? 'stic_registrations_accountsaccounts_ida'
-                : 'stic_registrations_contactscontacts_ida';
-            $moduleData[$personaField] = $_SESSION['scp_user_id'];
-            if ($regId !== '') {
-                $moduleData['id'] = $regId;
-            }
-        }
-
-        // GUARD anti-duplicado: al CREAR una inscripción (sin id) a un evento, si
-        // ya existe una inscripción activa del usuario para ese evento, NO se crea
-        // otra; se redirige a la pantalla de inscripción que mostrará el aviso
-        // "Ya estás inscrito".
-        //
-        // Y GUARD DE AUDIENCIA Y DE PLAZO, que es EL de verdad. Que el listado
-        // no ofrezca un evento y que la ficha explique que no es para ti son
-        // cortesías de la interfaz: este endpoint se alcanza con un POST y el
-        // id del evento en la mano. Si la inscripción no debe existir, es AQUÍ
-        // donde no se crea. Mismo destino que el duplicado: la pantalla de
-        // inscripción, que ya sabe explicar por qué.
-        if ($action !== 'delete' && empty($moduleData['id'])) {
-            $eventId = $moduleData['stic_registrations_stic_eventsstic_events_ida'] ?? '';
-            // $fresh = true a propósito: este guard decide si se CREA un registro,
-            // así que pregunta al CRM en vez de fiarse de la caché de 5 minutos.
-            $duplicada = !empty($eventId) && in_array($eventId, prefix_user_active_event_ids($objSCP, true), true);
-            $noAdmitida = false;
-            if (!$duplicada && !empty($eventId) && function_exists('sticpa_event_signup_block')) {
-                $noAdmitida = !empty(sticpa_event_signup_block($objSCP, $eventId)['bloqueado']);
-            }
-            if ($duplicada || $noAdmitida) {
-                $redirectUrl = sticpa_return_path()
-                    . "?internalpage=single_stic_registrations&action=create&from=stic_events&id=" . urlencode($eventId);
-                wp_safe_redirect($redirectUrl);
-                exit;
-            }
-        }
-
-        $isUpdate = $objSCP->set_entry($moduleName, $moduleData);
-        if ($isUpdate != null) {
-            // Inscripción creada/editada/borrada → invalida la caché del calendario
-            // para que la home y el calendario reflejen el cambio al instante.
-            if (function_exists('sticpa_calendar_flush_cache')) {
-                sticpa_calendar_flush_cache();
-            }
-            if ($action === 'delete') {
-                $redirectUrl = $listUrl . "&msgDelete=true";
-            } elseif ($action == 'payment') {
-                $redirectUrl = sticpa_return_path() . "?internalpage=single_stic_payment_form&registrationId=" . rawurlencode($isUpdate) . "&eventId=" . rawurlencode($moduleData['stic_registrations_stic_eventsstic_events_ida'] ?? '');
-            } else {
-                $redirectUrl = sticpa_return_url() . '&msg=true' . '&id=' . rawurlencode($isUpdate) . ($action ? '&action=detail' : '');
-            }
-            wp_safe_redirect($redirectUrl);
+        list($status, $eventNvl) = $eventoDeLaInscripcion();
+        $derechos = sticpa_registration_manage_rights($status, $eventNvl, sticpa_registration_definition($objSCP));
+        if (empty($derechos['cancelar'])) {
+            wp_safe_redirect($detailUrl . '&msg=cerrada');
             exit;
         }
+        // Se CANCELA, no se borra: la delegación tiene que poder ver quién se
+        // borró (y cuándo), y el resto del área ya no la cuenta como activa.
+        $ok = $objSCP->set_entry($moduleName, array('id' => $regId, 'status' => sticpa_registration_cancel_status()));
+        if (!$ok) {
+            wp_safe_redirect($detailUrl . '&msg=error');
+            exit;
+        }
+        sticpa_registration_end_commitments($objSCP, $regId);
+        if (function_exists('sticpa_calendar_flush_cache')) {
+            sticpa_calendar_flush_cache();
+        }
+        wp_safe_redirect($detailUrl . '&msg=cancelada');
+        exit;
+    }
+
+    if ($action === 'delete') {
+        // Desde TU formulario (CSRF): ver el borrado de documentos.
+        if ($regId === '' || !sticpa_form_is_genuine('single_stic_registrations')) {
+            wp_safe_redirect($listUrl);
+            exit;
+        }
+        $moduleData = array('id' => $regId, 'deleted' => 1);
+    } else {
+        // Solo los campos del formulario. Y la persona inscrita es SIEMPRE
+        // la de la sesión: el campo de la relación iba en un hidden, y
+        // cambiándolo se inscribía (o se editaba la inscripción de) otro.
+        $moduleData = sticpa_request_to_module_data('single_stic_registrations');
+        if ($moduleData === null) {
+            wp_safe_redirect(sticpa_return_url() . '&msg=error');
+            exit;
+        }
+        $personaField = getDestinationModule() === 'Accounts'
+            ? 'stic_registrations_accountsaccounts_ida'
+            : 'stic_registrations_contactscontacts_ida';
+        $moduleData[$personaField] = $_SESSION['scp_user_id'];
+        if ($regId !== '') {
+            $moduleData['id'] = $regId;
+        }
+    }
+
+    $regDefinition = sticpa_registration_definition($objSCP);
+
+    // --- MODIFICAR (EV-2) --------------------------------------------------
+    // Solo lo que es de la persona. El evento, el estado y el resto se quitan
+    // aunque vengan: el formulario de edición no los enseña, pero una firma de
+    // un formulario viejo (el genérico, que sí los enseñaba) valdría igual.
+    if ($action !== 'delete' && $regId !== '') {
+        list($status, $eventNvl) = $eventoDeLaInscripcion();
+        $derechos = sticpa_registration_manage_rights($status, $eventNvl, $regDefinition);
+        if (empty($derechos['editar'])) {
+            wp_safe_redirect($detailUrl . '&msg=cerrada');
+            exit;
+        }
+        $editables = array_merge(array('id', 'special_needs', 'special_needs_description'), sticpa_event_question_answer_fields());
+        $moduleData = array_intersect_key($moduleData, array_flip($editables));
+        $questions = array_values(array_filter(sticpa_event_questions($eventNvl, $regDefinition), function ($q) use ($moduleData) {
+            return array_key_exists($q['campo'], $moduleData);
+        }));
+        if (!sticpa_event_questions_resolve($questions, $moduleData)) {
+            wp_safe_redirect(sticpa_return_path() . '?internalpage=single_stic_registrations&action=edit&id=' . rawurlencode($regId) . '&msg=error_respuestas');
+            exit;
+        }
+        if (!$objSCP->set_entry($moduleName, $moduleData)) {
+            wp_safe_redirect($detailUrl . '&msg=error');
+            exit;
+        }
+        if (function_exists('sticpa_calendar_flush_cache')) {
+            sticpa_calendar_flush_cache();
+        }
+        wp_safe_redirect($detailUrl . '&msg=true');
+        exit;
+    }
+
+    // --- INSCRIBIRSE --------------------------------------------------------
+    // GUARD anti-duplicado: al CREAR una inscripción (sin id) a un evento, si
+    // ya existe una inscripción activa del usuario para ese evento, NO se crea
+    // otra; se redirige a la pantalla de inscripción que mostrará el aviso
+    // "Ya estás inscrito".
+    //
+    // Y GUARD DE AUDIENCIA Y DE PLAZO, que es EL de verdad. Que el listado
+    // no ofrezca un evento y que la ficha explique que no es para ti son
+    // cortesías de la interfaz: este endpoint se alcanza con un POST y el
+    // id del evento en la mano. Si la inscripción no debe existir, es AQUÍ
+    // donde no se crea. Mismo destino que el duplicado: la pantalla de
+    // inscripción, que ya sabe explicar por qué.
+    $eventNvl = null;
+    $pago = null;
+    if ($action !== 'delete') {
+        $eventId = (string) ($moduleData['stic_registrations_stic_eventsstic_events_ida'] ?? '');
+        $formUrl = sticpa_return_path()
+            . "?internalpage=single_stic_registrations&action=create&from=stic_events&id=" . urlencode($eventId);
+        if ($eventId !== '') {
+            // El evento se lee UNA vez: lo usan la audiencia, el plazo, las
+            // preguntas y el precio.
+            $ev = $objSCP->getRecordDetail($eventId, 'stic_Events', sticpa_event_fields_to_request($objSCP));
+            $eventNvl = $ev->entry_list[0]->name_value_list ?? null;
+        }
+        // $fresh = true a propósito: este guard decide si se CREA un registro,
+        // así que pregunta al CRM en vez de fiarse de la caché de 5 minutos.
+        $duplicada = $eventId !== '' && in_array($eventId, prefix_user_active_event_ids($objSCP, true), true);
+        $noAdmitida = false;
+        if (!$duplicada && $eventId !== '' && function_exists('sticpa_event_signup_block')) {
+            $noAdmitida = !empty(sticpa_event_signup_block($objSCP, $eventId, $eventNvl)['bloqueado']);
+        }
+        if ($duplicada || $noAdmitida) {
+            wp_safe_redirect($formUrl);
+            exit;
+        }
+
+        // Las preguntas (EV-6): contestadas todas y con una opción que existe.
+        // Lo que no sea una pregunta de ESTE evento no se guarda.
+        $questions = sticpa_event_questions($eventNvl, $regDefinition);
+        $conPregunta = array_column($questions, 'campo');
+        foreach (sticpa_event_question_answer_fields() as $campo) {
+            if (!in_array($campo, $conPregunta, true)) {
+                unset($moduleData[$campo]);
+            }
+        }
+        if (!sticpa_event_questions_resolve($questions, $moduleData)) {
+            wp_safe_redirect($formUrl . '&msg=error_respuestas');
+            exit;
+        }
+
+        // El pago (EV-7): con precio, hay que elegir cómo. No son campos del
+        // CRM: se sacan antes de guardar.
+        $precio = $eventNvl ? sticpa_event_price($eventNvl) : 0.0;
+        if ($precio > 0) {
+            $metodos = sticpa_registration_payment_methods($objSCP);
+            if (!empty($metodos)) {
+                $pago = sticpa_registration_take_payment_choice($moduleData, $metodos);
+                if ($pago === null) {
+                    wp_safe_redirect($formUrl . '&msg=error_pago');
+                    exit;
+                }
+            }
+        }
+        unset($moduleData['sticpa_pago_metodo'], $moduleData['sticpa_pago_iban']);
+
+        // Asignada a SU delegación, como todo lo que se crea en el CRM
+        // (CLAUDE.md): de ahí cuelga el grupo de seguridad y así la ve quien
+        // la tiene que ver. Antes se quedaba a nombre del usuario técnico.
+        $delegacion = function_exists('sticpa_pl_delegation') ? (string) sticpa_pl_delegation($objSCP) : '';
+        if ($delegacion !== '') {
+            $moduleData['assigned_user_id'] = $delegacion;
+        }
+    }
+
+    $isUpdate = $objSCP->set_entry($moduleName, $moduleData);
+    if ($isUpdate == null) {
         wp_safe_redirect(sticpa_return_url() . '&msg=error');
         exit;
     }
+    // Inscripción creada/editada/borrada → invalida la caché del calendario
+    // para que la home y el calendario reflejen el cambio al instante.
+    if (function_exists('sticpa_calendar_flush_cache')) {
+        sticpa_calendar_flush_cache();
+    }
+    if ($action === 'delete') {
+        wp_safe_redirect($listUrl . "&msgDelete=true");
+        exit;
+    }
+
+    $newDetail = sticpa_return_path() . '?internalpage=single_stic_registrations&action=detail&id=' . rawurlencode($isUpdate);
+    $eventId = (string) ($moduleData['stic_registrations_stic_eventsstic_events_ida'] ?? '');
+
+    // Con tarjeta, al formulario de pago con el importe puesto: es el que cobra
+    // online. Ese formulario crea su propio compromiso (es un formulario web de
+    // SinergiaCRM), así que aquí NO se crea otro: serían dos cobros.
+    if ($pago !== null && $pago['metodo'] === 'card') {
+        wp_safe_redirect(sticpa_return_path() . '?internalpage=single_stic_payment_form'
+            . '&amount=' . rawurlencode(number_format(sticpa_event_price($eventNvl), 2, '.', ''))
+            . '&registrationId=' . rawurlencode($isUpdate) . '&eventId=' . rawurlencode($eventId));
+        exit;
+    }
+    if ($pago !== null) {
+        $compromiso = sticpa_registration_ensure_commitment($objSCP, $isUpdate, $eventNvl, $pago, $delegacion);
+        wp_safe_redirect($newDetail . '&msg=' . ($compromiso['estado'] === 'error' ? 'pago_error' : 'inscrita_pago'));
+        exit;
+    }
+    if ($action == 'payment') {
+        wp_safe_redirect(sticpa_return_path() . "?internalpage=single_stic_payment_form&registrationId=" . rawurlencode($isUpdate) . "&eventId=" . rawurlencode($eventId));
+        exit;
+    }
+    wp_safe_redirect($newDetail . '&msg=' . ($regId === '' ? 'inscrita' : 'true'));
+    exit;
 }
 
 /*

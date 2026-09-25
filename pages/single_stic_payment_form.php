@@ -89,6 +89,7 @@ if (!$email || !$last_name || !$first_name || !$stic_identification_number_c) {
     return;
 }
 
+$bankingConcept = '';
 if ($eventId !== '') {
   $eventData = $objSCP->getRecordDetail($eventId, 'stic_Events', array('id', 'name'))->entry_list[0]->name_value_list;
 
@@ -96,6 +97,17 @@ if ($eventId !== '') {
 
   $html .= "<div class='stic-entry-header'>
   <h5>".__('Event', 'sticpa') .": ".esc_html($eventName)."</h5>";
+
+  // PAGAR UNA INSCRIPCIÓN CON TARJETA (TODO EV-7). Este formulario es un
+  // formulario web de SinergiaCRM y crea SU compromiso, que no se puede atar a
+  // la inscripción. Para que la delegación sepa de qué es, el concepto lleva el
+  // nombre de la actividad. Solo si la inscripción es de quien paga: el
+  // `registrationId` viaja por la URL.
+  if ($registrationId !== '' && function_exists('sticpa_user_owns_record')
+      && sticpa_user_owns_record($objSCP, 'stic_Registrations', $registrationId)) {
+    $plano = trim(html_entity_decode((string) $eventName, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    $bankingConcept = function_exists('mb_substr') ? mb_substr($plano, 0, 140, 'UTF-8') : substr($plano, 0, 140);
+  }
 }
 
 // Definición cacheada 6h (como el resto de formularios del área): antes esta
@@ -138,7 +150,8 @@ $html .= '
       <input type="hidden" id="stic_Payment_Commitments___periodicity" name="stic_Payment_Commitments___periodicity"
                 value="punctual" />
       <input id="stic_Payment_Commitments___stic_payment_commitments_contacts_1contacts_ida" name="stic_Payment_Commitments___stic_payment_commitments_contacts_1contacts_ida"
-                type="hidden" span="" sugar="slot" value="'.($_SESSION['scp_user_adult'] ? '' : $_SESSION['scp_user_id']).'"/>
+                type="hidden" span="" sugar="slot" value="'.($_SESSION['scp_user_adult'] ? '' : $_SESSION['scp_user_id']).'"/>'.($bankingConcept !== '' ? '
+      <input type="hidden" id="stic_Payment_Commitments___banking_concept" name="stic_Payment_Commitments___banking_concept" value="'.esc_attr($bankingConcept).'" />' : '').'
     </p>
     <table class="tableForm">
       <tbody>

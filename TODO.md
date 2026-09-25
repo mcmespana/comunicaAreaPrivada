@@ -64,19 +64,10 @@ puedan coger una tarea, entender el porqué y hacerla sin contexto previo.
 
 ## 🟠 Eventos e inscripciones (apuntado el 25/09/2026)
 
-- [ ] `EV-1` (P1 · S) La ficha del evento en el área privada sale a medias — no
-      pinta el cuerpo del campo WYSIWYG (`web_cuerpo_html_c`) y el cartel va
-      arriba en vez de a la izquierda. Hecho cuando la ficha enseña el cuerpo y,
-      en escritorio, cartel a la izquierda y texto a la derecha (como la web).
-      ↳ `inc/stic-event-web.php`, `pages/single_stic_events.php`, CSS §59.
-      Primera sospecha: la definición de campos cacheada 6 h
-      (`sticpa_cached_field_definition`) o que el campo no llegue por la v4.1.
-- [ ] `EV-2` (P1 · M) Desinscribirse y modificar la inscripción desde el área
-      privada. Hoy solo se puede apuntar. Hecho cuando «Mis inscripciones»
-      deja cancelar (con confirmación) y editar los datos propios de la
-      inscripción mientras el plazo esté abierto.
-      ↳ `pages/list_stic_registrations.php`, `inc/stic-registrations.php`,
-      handlers por `inc/stic-security.php` (`sticpa_form_is_genuine()`).
+> EV-1, EV-2, EV-7 y EV-8 hechos el 25/09/2026 (ver **Hecho** y
+> `docs/comunica/EVENTOS.md` §9.5 y §10). EV-6 tiene el código listo y espera
+> a los campos.
+
 - [!] `EV-3` (P1 · M) Formularios web avanzados (FWA) desde el evento. Decidido
       el 25/09/2026: el módulo FWA **no sale en Studio**, así que no hay
       relación posible; va un **campo URL en `stic_Events`** con el enlace
@@ -86,31 +77,42 @@ puedan coger una tarea, entender el porqué y hacerla sin contexto previo.
       ha entrado (`&Contacts0.first_name=…`, parámetros en la wiki de
       SinergiaTIC). El FWA lleva regla de duplicados por DNI en modo
       «Ampliar». Bloqueado hasta que exista el campo.
+      ⚠️ **Antes de crearlo, mirar `web_url_c`** (25/09/2026): ya existe en
+      `stic_Events`, es de tipo URL y hoy es «a dónde lleva *Inscribirme* en la
+      página pública» (vacío → al área privada). Puede que sea justo este
+      campo y no haga falta otro (`CLAUDE.md`: no crear un campo sin comprobar
+      que no existe ya). Decidir si se reutiliza o si hacen falta los dos.
 - [ ] `EV-4` (P2 · S) Reescribir la guía de eventos
       (`comunicaFormularios/webs_landing_wordpress/guia_eventos_administradores.html`)
       con el reparto área privada / FWA / clásico, muy esquemática, cuando esté
       decidido `EV-3`.
-- [ ] `EV-6` (P2 · M) Preguntas simples por evento sin FWA. Campos de texto en
-      `stic_Events` («Pregunta simple 1», «Pregunta simple 2»…, nombres por
-      decidir) con las opciones separadas por `;` («Sí, voy en autobús;No, voy
-      por mi cuenta»). El formulario de inscripción del área privada las pinta
-      como opciones y guarda la respuesta en la inscripción (campo de
-      `stic_Registrations` por decidir). Así un evento sí/no con una o dos
-      preguntas no necesita FWA.
-- [ ] `EV-7` (P1 · M) Al inscribirse desde el área privada a un evento con
-      precio > 0, crear el compromiso de pago. Hoy NO se crea (visto el
-      25/09/2026). Hecho cuando la inscripción con precio crea su compromiso
-      (importe = `price`, asignado a la delegación, relacionado con la
-      inscripción) y ofrece elegir el medio de pago o pasar al formulario de
-      pago (`pages/single_stic_payment_form.php`, que ya cobra online si la
-      pasarela está configurada en Sinergia).
-      ↳ `inc/stic-action.php` → `prefix_admin_single_stic_registrations()`.
-- [ ] `EV-8` (P2 · S) Enlace directo a Eventos que sobreviva al login:
-      `/ap?internalpage=list_stic_events` (y a la ficha de un evento) debe
-      llevar ahí DESPUÉS de entrar, también con el enlace mágico. Primero
-      comprobar si ya pasa; si no, guardar el destino antes del login y
-      redirigir después (solo a páginas internas, `sticpa_return_url()`). Es lo
-      que usará el botón «¿Ya estás en Comunica? Entra» de la página pública.
+- [!] `EV-6` (P2 · S) **Preguntas simples: el código está hecho, faltan los
+      campos.** Crear en Studio `ajmcm_pregunta_1_c` / `ajmcm_pregunta_2_c`
+      (texto 255, `stic_Events`) y `ajmcm_respuesta_1_c` / `ajmcm_respuesta_2_c`
+      (texto 255, `stic_Registrations`) —nombres PROPUESTOS en `CAMPOS.md`; si
+      se crean con otros, cambiarlos en `sticpa_event_question_fields()`—. Se
+      activa solo en cuanto existen (hasta 6 h por la caché de la definición,
+      o `&refresh_fields=1`). Formato: `¿Pregunta? | opción 1; opción 2`.
+- [!] `EV-9` (P1 · S) **El formulario de pago con tarjeta registra una
+      DONACIÓN** (`payment_type = donation`) **asignada al «Administrador MCM»**
+      (`assigned_user_id = 1`), aunque se esté pagando una actividad. Viene de
+      antes (`pages/single_stic_payment_form.php`, formulario web
+      `webFormClass=Donation`) y no se ha tocado por no romper el cobro online.
+      Riesgo: una cuota o una convivencia pagada con tarjeta acabaría en el
+      modelo 182 como donativo, y fuera de la delegación. Decidir: probar el
+      formulario web con `payment_type=services` y la delegación, o montar el
+      pago con tarjeta de otra forma. Desde EV-7 el concepto bancario lleva el
+      nombre de la actividad para poder casarlo a mano.
+- [ ] `EV-10` (P2 · S) **App MCM: pasar el destino al abrir el enlace del
+      correo.** El puente `/app/acceso` ya reenvía `internalpage`, `action`,
+      `id` y `from` (EV-8), pero con la app instalada el sistema abre la app, y
+      si esta solo coge el token se entra a la portada. Lado app
+      (`app/+native-intent.ts`), ver `CONTRATO-APP-WEBVIEW.md` §5.
+- [ ] `EV-11` (P3 · S) La ficha y la tarjeta de una inscripción enseñan el curso
+      con su clave cruda (`3_eso`) y no con la etiqueta del desplegable. Visto
+      al capturar EV-2. ↳ `sticpa_registration_detail_html()` y
+      `sticpa_registrations_list_html()`: pasar por `sticpa_record_enum_label()`
+      con `ajmcm_curso_escolar_c` en la definición.
 - [z] `EV-5` (P2 · S) Campos del DNI en Personas: número de soporte y fecha de
       expedición o caducidad. Se crearán en Studio más adelante; al crearlos,
       apuntarlos en `docs/comunica/CAMPOS.md`.
@@ -124,6 +126,11 @@ puedan coger una tarea, entender el porqué y hacerla sin contexto previo.
       subir y borrar un documento, inscribirse a un evento, cambiar la contraseña, y con
       una cuenta de FAMILIA cambiar a un hijo y volver. Si algo no guarda, casi seguro es un
       campo `html` sin `'posts'` (ver `inc/stic-security.php`).
+      **Y lo de EV-2/EV-7 (25/09/2026):** inscribirse a una actividad con precio por Bizum
+      (sale UN compromiso en el CRM, atado a la inscripción y a la delegación), por
+      domiciliación (con IBAN) y con tarjeta (pasa al formulario de pago); modificar una
+      inscripción y cancelarla (estado «Cancelada» y el compromiso con fecha de fin); y
+      entrar por el enlace del correo desde la ficha de un evento (se aterriza en ella).
 - [~] `ADMIN-04` (P1 · M) **«Entrar como»** desde el admin: versión básica hecha. Falta
       registro de quién entró como quién, banner visible y enlace de un solo uso en vez del
       token permanente. ↳ `inc/stic-magic-login.php`.
@@ -182,6 +189,12 @@ propiedad, campos firmados, participante validado, redirecciones seguras, XSS (2
 **Admin:** `ADMIN-01..03` buscador, ver/regenerar token, tokens masivos.
 
 **Plataforma:** `PLAT-00` la app es una WebView de esta web (`?app=1`).
+
+**Eventos e inscripciones (25/09):** `EV-1` ficha con el cartel a la izquierda, agenda y
+home a la ficha y la definición que se cura sola · `EV-2` cancelar y modificar la
+inscripción dentro de plazo · `EV-7` compromiso de pago al inscribirse (uno solo, de la
+delegación) o paso al pago con tarjeta · `EV-8` el destino sobrevive al login (código,
+enlace del correo, puente de la app) · y la inscripción, asignada a su delegación.
 
 **Frontend:** `UI-01..16` estilos, paleta, login, carga, portada, menú, barra, subidas,
 modal de borrado, sistema de diseño, formularios Comunica, perfiles de familia, modo app ·

@@ -72,6 +72,7 @@ function sticpa_record_icon($name)
         'briefcase' => "<rect x='2' y='7' width='20' height='14' rx='2'/><path d='M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'/>",
         'building' => "<path d='M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6'/>",
         'link'     => "<path d='M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1'/><path d='M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1'/>",
+        'edit'     => "<path d='M12 20h9'/><path d='M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z'/>",
     );
     $d = $paths[$name] ?? $paths['info'];
     return "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>{$d}</svg>";
@@ -523,7 +524,11 @@ function sticpa_record_detail_html($spec)
             . "</span>";
 
         $link = isset($fact['link']) && is_array($fact['link']) ? $fact['link'] : null;
-        $url = $link ? sticpa_record_safe_url($link['url'] ?? '') : '';
+        // Un enlace a OTRA PANTALLA DEL ÁREA (`?internalpage=…`, p. ej. el
+        // compromiso de pago de una inscripción) se abre en la misma pestaña;
+        // los de fuera (el mapa), en otra.
+        $interno = $link && preg_match('/^\?internalpage=[a-z0-9_]+(&[A-Za-z0-9_=%.\-]*)*$/', (string) ($link['url'] ?? ''));
+        $url = $link ? ($interno ? (string) $link['url'] : sticpa_record_safe_url($link['url'] ?? '')) : '';
         if ($url === '') {
             $facts .= "<li class='stic-rec-fact'>{$inner}</li>";
             continue;
@@ -535,7 +540,7 @@ function sticpa_record_detail_html($spec)
             : ($fact['label'] ?? '') . ': ' . $text;
         $facts .= "<li class='stic-rec-fact stic-rec-fact--link'>"
             . "<a class='stic-rec-fact-a' href='" . esc_url($url) . "'"
-            . " target='_blank' rel='noopener noreferrer'"
+            . ($interno ? '' : " target='_blank' rel='noopener noreferrer'")
             . " aria-label='" . esc_attr($aria) . "'>"
             . $inner
             . "<span class='stic-rec-fact-go' aria-hidden='true'>" . sticpa_record_icon('go') . "</span>"
