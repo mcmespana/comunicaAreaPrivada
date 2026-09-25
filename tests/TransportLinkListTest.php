@@ -20,6 +20,102 @@ use PHPUnit\Framework\TestCase;
  */
 class TransportLinkListTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        // El tope de página del CRM se APRENDE y se guarda en un transient
+        // (knownPageCap): entre tests hay que olvidarlo, o el de un test con
+        // un servidor de 20 filas cortaría el de otro que simula uno de 2.
+        $GLOBALS['__stic_transients'] = array();
+        $GLOBALS['__stic_filters'] = array();
+    }
+
+    private function relacionadas($scp)
+    {
+        return $scp->getRelatedElementsForLoggedUser(array(
+            'module_name' => 'Contacts', 'module_id' => 'x', 'link_field_name' => 'l',
+            'related_fields' => array('id'), 'related_module_link_name_to_fields_array' => array(),
+            'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
+        ));
+    }
+
+    private function ids($n)
+    {
+        $out = array();
+        for ($i = 1; $i <= $n; $i++) {
+            $out[] = 'id' . $i;
+        }
+        return $out;
+    }
+
+    /**
+     * EL CASO DE CASTELLÓN: 109 relaciones, el CRM corta en 20 y no dice
+     * cuántas hay. Tienen que llegar las 109 — y de paso se aprende el tope.
+     */
+    public function testCientoNueveFilasConTopeDeVeinteLleganTodasYSeAprendeElTope()
+    {
+        $scp = new FakeTransport();
+        $scp->todos = $this->ids(109);
+        $scp->topePagina = 20;
+        $scp->conTotal = false;
+
+        $this->assertCount(109, $this->relacionadas($scp));
+        $this->assertSame(20, (int) get_transient('sticpa_crm_page_cap'));
+        // 5 páginas llenas + la de 9, y ninguna comprobación extra: la de 9
+        // ya es más corta que el tope aprendido.
+        $this->assertCount(6, $scp->llamadas);
+    }
+
+    /** Sin el tope aprendido, una lista corta cuesta su comprobación (como antes). */
+    public function testSinTopeAprendidoUnaListaCortaSeComprueba()
+    {
+        $scp = new FakeTransport();
+        $scp->todos = $this->ids(3);
+        $scp->conTotal = false;
+
+        $this->assertCount(3, $this->relacionadas($scp));
+        $this->assertCount(2, $scp->llamadas, 'la página y la comprobación');
+    }
+
+    /** Con el tope aprendido, una lista corta es UNA llamada. */
+    public function testConTopeAprendidoUnaListaCortaEsUnaSolaLlamada()
+    {
+        set_transient('sticpa_crm_page_cap', 20, 43200);
+        $scp = new FakeTransport();
+        $scp->todos = $this->ids(3);
+        $scp->conTotal = false;
+
+        $this->assertCount(3, $this->relacionadas($scp));
+        $this->assertCount(1, $scp->llamadas);
+    }
+
+    /** Una página con el tope JUSTO sigue comprobándose: podría haber más. */
+    public function testUnaPaginaLlenaSigueComprobandose()
+    {
+        set_transient('sticpa_crm_page_cap', 20, 43200);
+        $scp = new FakeTransport();
+        $scp->todos = $this->ids(20);
+        $scp->conTotal = false;
+
+        $this->assertCount(20, $this->relacionadas($scp));
+        $this->assertCount(2, $scp->llamadas);
+    }
+
+    /** Se guarda el tope MÁS BAJO visto (si bajan el del CRM, se aprende). */
+    public function testSeQuedaElTopeMasBajo()
+    {
+        // Si bajan el tope del CRM de 20 a 10, con el 20 guardado una página de
+        // 10 parecería la última: por eso lo aprendido caduca a las 12 h. Al
+        // volver a medir (sin tope guardado), se ve una página de 10 seguida
+        // de más y se guarda 10.
+        $scp = new FakeTransport();
+        $scp->todos = $this->ids(25);
+        $scp->topePagina = 10;
+        $scp->conTotal = false;
+
+        $this->assertCount(25, $this->relacionadas($scp));
+        $this->assertSame(10, (int) get_transient('sticpa_crm_page_cap'));
+    }
+
     /** Un registro de `entry_list`, pelado. */
     private function entry($id)
     {
