@@ -291,103 +291,165 @@ function sticpa_gather_calendar_data($objSCP)
         'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
     ));
 
-    if (is_array($regs)) {
-        foreach ($regs as $reg) {
-            $regId = $reg->name_value_list->id->value ?? ($reg->id ?? null);
-            $regStatus = $reg->name_value_list->status->value ?? '';
-            if (!$regId || $regStatus === 'cancelled') {
+    // LAS CONSULTAS DE CADA NIVEL, EN PARALELO (plan 011). Antes eran
+    // `2 + 2N + N×M` llamadas en fila: por cada inscripción sus eventos y sus
+    // asistencias, y por cada evento sus sesiones. Ahora son las MISMAS
+    // consultas, pero cada nivel sale en una tanda (sticpa_pl_prime):
+    //   tanda 1 → eventos + asistencias de todas las inscripciones;
+    //   tanda 2 → sesiones de todos los eventos.
+    // Y el proceso va en EL MISMO ORDEN que antes (inscripción a inscripción,
+    // sus sesiones antes que sus asistencias), porque el respaldo de las
+    // asistencias —casar por nombre de sesión si es único ENTRE LAS VISTAS
+    // HASTA AHÍ— depende de ese orden. Sin curl_multi, todo sale en fila como
+    // siempre.
+    $eventsParams = function ($regId) {
+        return array(
+            'module_name' => 'stic_Registrations',
+            'module_id' => $regId,
+            'link_field_name' => 'stic_registrations_stic_events',
+            'related_fields' => array('id', 'name', 'start_date', 'end_date'),
+            'related_module_link_name_to_fields_array' => array(),
+            'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
+        );
+    };
+    $sessionsParams = function ($evId) {
+        return array(
+            'module_name' => 'stic_Events',
+            'module_id' => $evId,
+            'link_field_name' => 'stic_sessions_stic_events',
+            'related_fields' => array('id', 'name', 'start_date', 'end_date'),
+            'related_module_link_name_to_fields_array' => array(),
+            'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
+        );
+    };
+    $attsParams = function ($regId) {
+        return array(
+            'module_name' => 'stic_Registrations',
+            'module_id' => $regId,
+            'link_field_name' => 'stic_attendances_stic_registrations',
+            'related_fields' => array(
+                'id', 'status', 'start_date',
+                'stic_attendances_stic_sessionsstic_sessions_ida',
+                'stic_attendances_stic_sessions_name',
+            ),
+            'related_module_link_name_to_fields_array' => array(),
+            'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
+        );
+    };
+    $prime = function ($fn) use ($objSCP) {
+        if (function_exists('sticpa_pl_prime')) {
+            sticpa_pl_prime($objSCP, $fn);
+        }
+    };
+
+    // Las inscripciones que cuentan (las canceladas no), en su orden.
+    $activeRegIds = array();
+    foreach ((is_array($regs) ? $regs : array()) as $reg) {
+        $regId = $reg->name_value_list->id->value ?? ($reg->id ?? null);
+        $regStatus = $reg->name_value_list->status->value ?? '';
+        if ($regId && $regStatus !== 'cancelled') {
+            $activeRegIds[] = $regId;
+        }
+    }
+
+    // Tanda 1: eventos y asistencias de todas las inscripciones.
+    $prime(function () use ($objSCP, $activeRegIds, $eventsParams, $attsParams) {
+        foreach ($activeRegIds as $regId) {
+            $objSCP->getRelatedElementsForLoggedUser($eventsParams($regId));
+            $objSCP->getRelatedElementsForLoggedUser($attsParams($regId));
+        }
+    });
+
+    // 1a) Eventos de cada inscripción (salen de la tanda).
+    $eventsByReg = array();
+    foreach ($activeRegIds as $regId) {
+        $events = $objSCP->getRelatedElementsForLoggedUser($eventsParams($regId));
+        $eventsByReg[$regId] = is_array($events) ? $events : array();
+    }
+
+    // Tanda 2: las sesiones de todos esos eventos.
+    $allEventIds = array();
+    foreach ($eventsByReg as $events) {
+        foreach ($events as $ev) {
+            $evId = $ev->name_value_list->id->value ?? null;
+            if ($evId) {
+                $allEventIds[$evId] = true;
+            }
+        }
+    }
+    $prime(function () use ($objSCP, $allEventIds, $sessionsParams) {
+        foreach (array_keys($allEventIds) as $evId) {
+            $objSCP->getRelatedElementsForLoggedUser($sessionsParams($evId));
+        }
+    });
+
+    $sessionsFetched = array(); // evId ya consultado: sus sesiones ya están dentro
+    foreach ($activeRegIds as $regId) {
+        foreach ($eventsByReg[$regId] as $ev) {
+            $evData = $ev->name_value_list;
+            $evId = $evData->id->value ?? null;
+            if (!$evId) {
                 continue;
             }
+            if (!isset($registeredEvents[$evId])) {
+                $registeredEvents[$evId] = array(
+                    'id' => $evId,
+                    'name' => $evData->name->value ?? '',
+                    'start' => $evData->start_date->value ?? '',
+                    'end' => $evData->end_date->value ?? '',
+                );
+                $registeredEventIds[] = $evId;
+            }
 
-            // 1a) Eventos de la inscripción.
-            $events = $objSCP->getRelatedElementsForLoggedUser(array(
-                'module_name' => 'stic_Registrations',
-                'module_id' => $regId,
-                'link_field_name' => 'stic_registrations_stic_events',
-                'related_fields' => array('id', 'name', 'start_date', 'end_date'),
-                'related_module_link_name_to_fields_array' => array(),
-                'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
-            ));
-            if (is_array($events)) {
-                foreach ($events as $ev) {
-                    $evData = $ev->name_value_list;
-                    $evId = $evData->id->value ?? null;
-                    if (!$evId) {
+            // 1b) Sesiones del evento. Un evento que sale en dos inscripciones
+            // se consultaba dos veces y la segunda no añadía nada (el dedupe
+            // por $sessions[$sid] la descartaba entera): ahora, una.
+            if (isset($sessionsFetched[$evId])) {
+                continue;
+            }
+            $sessionsFetched[$evId] = true;
+            $sess = $objSCP->getRelatedElementsForLoggedUser($sessionsParams($evId));
+            if (is_array($sess)) {
+                foreach ($sess as $s) {
+                    $sd = $s->name_value_list;
+                    $sid = $sd->id->value ?? null;
+                    if (!$sid || isset($sessions[$sid])) {
                         continue;
                     }
-                    if (!isset($registeredEvents[$evId])) {
-                        $registeredEvents[$evId] = array(
-                            'id' => $evId,
-                            'name' => $evData->name->value ?? '',
-                            'start' => $evData->start_date->value ?? '',
-                            'end' => $evData->end_date->value ?? '',
-                        );
-                        $registeredEventIds[] = $evId;
-                    }
-
-                    // 1b) Sesiones del evento.
-                    $sess = $objSCP->getRelatedElementsForLoggedUser(array(
-                        'module_name' => 'stic_Events',
-                        'module_id' => $evId,
-                        'link_field_name' => 'stic_sessions_stic_events',
-                        'related_fields' => array('id', 'name', 'start_date', 'end_date'),
-                        'related_module_link_name_to_fields_array' => array(),
-                        'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
-                    ));
-                    if (is_array($sess)) {
-                        foreach ($sess as $s) {
-                            $sd = $s->name_value_list;
-                            $sid = $sd->id->value ?? null;
-                            if (!$sid || isset($sessions[$sid])) {
-                                continue;
-                            }
-                            $sName = $sd->name->value ?? '';
-                            $sessions[$sid] = array(
-                                'id' => $sid,
-                                'title' => $sName,
-                                'event_id' => $evId,
-                                'event_name' => $registeredEvents[$evId]['name'],
-                                'start' => $sd->start_date->value ?? '',
-                                'end' => $sd->end_date->value ?? '',
-                            );
-                            $nkey = strtolower(trim($sName));
-                            if ($nkey !== '') {
-                                // Solo sirve de fallback si el nombre es único.
-                                $sessionIdByName[$nkey] = isset($sessionIdByName[$nkey]) ? false : $sid;
-                            }
-                        }
+                    $sName = $sd->name->value ?? '';
+                    $sessions[$sid] = array(
+                        'id' => $sid,
+                        'title' => $sName,
+                        'event_id' => $evId,
+                        'event_name' => $registeredEvents[$evId]['name'],
+                        'start' => $sd->start_date->value ?? '',
+                        'end' => $sd->end_date->value ?? '',
+                    );
+                    $nkey = strtolower(trim($sName));
+                    if ($nkey !== '') {
+                        // Solo sirve de fallback si el nombre es único.
+                        $sessionIdByName[$nkey] = isset($sessionIdByName[$nkey]) ? false : $sid;
                     }
                 }
             }
+        }
 
-            // 1c) Asistencias de la inscripción → mapa sesión → estado.
-            $atts = $objSCP->getRelatedElementsForLoggedUser(array(
-                'module_name' => 'stic_Registrations',
-                'module_id' => $regId,
-                'link_field_name' => 'stic_attendances_stic_registrations',
-                'related_fields' => array(
-                    'id', 'status', 'start_date',
-                    'stic_attendances_stic_sessionsstic_sessions_ida',
-                    'stic_attendances_stic_sessions_name',
-                ),
-                'related_module_link_name_to_fields_array' => array(),
-                'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
-            ));
-            if (is_array($atts)) {
-                foreach ($atts as $a) {
-                    $ad = $a->name_value_list;
-                    $statusKey = $ad->status->value ?? '';
-                    $sid = $ad->stic_attendances_stic_sessionsstic_sessions_ida->value ?? '';
-                    // Fallback: si la API no devolvió el id de la sesión, casa por nombre único.
-                    if ($sid === '' || $sid === null) {
-                        $an = strtolower(trim($ad->stic_attendances_stic_sessions_name->value ?? ''));
-                        if ($an !== '' && !empty($sessionIdByName[$an])) {
-                            $sid = $sessionIdByName[$an];
-                        }
+        // 1c) Asistencias de la inscripción → mapa sesión → estado.
+        $atts = $objSCP->getRelatedElementsForLoggedUser($attsParams($regId));
+        if (is_array($atts)) {
+            foreach ($atts as $a) {
+                $ad = $a->name_value_list;
+                $statusKey = $ad->status->value ?? '';
+                $sid = $ad->stic_attendances_stic_sessionsstic_sessions_ida->value ?? '';
+                // Fallback: si la API no devolvió el id de la sesión, casa por nombre único.
+                if ($sid === '' || $sid === null) {
+                    $an = strtolower(trim($ad->stic_attendances_stic_sessions_name->value ?? ''));
+                    if ($an !== '' && !empty($sessionIdByName[$an])) {
+                        $sid = $sessionIdByName[$an];
                     }
-                    if ($sid !== '' && $sid !== null) {
-                        $attendanceBySession[$sid] = $statusKey;
-                    }
+                }
+                if ($sid !== '' && $sid !== null) {
+                    $attendanceBySession[$sid] = $statusKey;
                 }
             }
         }

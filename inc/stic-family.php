@@ -292,6 +292,30 @@ function sticpa_load_family_participants($objSCP, $forzar = false)
         // podido preguntar". Sin esta marca se cacheaba el fallo (ver abajo).
         $huboRespuesta = is_array($relaciones);
 
+        // El nombre de cada hijo, EN UNA TANDA (plan 011): era una llamada por
+        // relación, en fila, en la primera pantalla de una familia al entrar.
+        $personaParams = function ($relId) {
+            return array(
+                'module_name' => 'stic_Personal_Environment',
+                'module_id' => $relId,
+                'link_field_name' => 'stic_personal_environment_contacts',
+                'related_fields' => array('id', 'name'),
+                'related_module_link_name_to_fields_array' => array(),
+                'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
+            );
+        };
+        if (function_exists('sticpa_pl_prime') && is_array($relaciones)) {
+            sticpa_pl_prime($objSCP, function () use ($objSCP, $relaciones, $personaParams) {
+                foreach ($relaciones as $relacion) {
+                    $nvl = $relacion->name_value_list ?? null;
+                    $relId = $nvl->id->value ?? null;
+                    if ($relId && sticpa_relacion_vigente($nvl)) {
+                        $objSCP->getRelatedElementsForLoggedUser($personaParams($relId));
+                    }
+                }
+            });
+        }
+
         foreach ((is_array($relaciones) ? $relaciones : array()) as $relacion) {
             $nvl = $relacion->name_value_list ?? null;
             if (!sticpa_relacion_vigente($nvl)) {
@@ -314,14 +338,7 @@ function sticpa_load_family_participants($objSCP, $forzar = false)
             // del CRM hacía DESAPARECER a una hija de la lista de su madre.
             $nombre = '';
             if ($relId) {
-                $persona = $objSCP->getRelatedElementsForLoggedUser(array(
-                    'module_name' => 'stic_Personal_Environment',
-                    'module_id' => $relId,
-                    'link_field_name' => 'stic_personal_environment_contacts',
-                    'related_fields' => array('id', 'name'),
-                    'related_module_link_name_to_fields_array' => array(),
-                    'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
-                ));
+                $persona = $objSCP->getRelatedElementsForLoggedUser($personaParams($relId));
                 if (isset($persona[0]->name_value_list->id->value)) {
                     $hijoId = $persona[0]->name_value_list->id->value;
                     $nombre = $persona[0]->name_value_list->name->value ?? '';

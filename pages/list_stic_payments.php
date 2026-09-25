@@ -75,31 +75,42 @@ if ((isset($_SESSION['scp_tutor_is_user']) && $_SESSION['scp_tutor_is_user']) ||
     );
 
     $getRelatedElements = $objSCP->getRelatedElementsForLoggedUser($params);
-    // is_array: el cliente del CRM devuelve null si la llamada falla o expira.
-    foreach((is_array($getRelatedElements) ? $getRelatedElements : array()) as $key => $PC) {
-        $params = array(
-            'module_name' => 'stic_Payment_Commitments',
-            "module_id" => $PC->id, //Do not touch
-            "link_field_name" => 'stic_payments_stic_payment_commitments',
-            // "related_module_query" => "(end_date is null OR end_date >curdate())", //sql where conditions
-            "related_fields" => $fieldsToRetrieve, //Do not touch
-            "related_module_link_name_to_fields_array" => array(),
-            "deleted" => 0, //show or not deleted elements (usually 0)
-            "order_by" => "",
-            "offset" => "",
-            "limit" => 0,
-        );
-        // 1+N que no se puede evitar con esta API: los pagos de un participante
-        // menor cuelgan de SUS compromisos, y no hay forma de pedirlos todos de
-        // una vez. Queda anotado en el plan 011; aquí no se empeora.
-        $getRelatedPayments = $objSCP->getRelatedElementsForLoggedUser($params);
 
+    // Los pagos de un participante menor cuelgan de SUS compromisos, y no hay
+    // forma de pedirlos todos de una vez: una consulta por compromiso. Lo que
+    // sí se puede (plan 011) es no esperarlas en fila: salen en una tanda
+    // paralela (sticpa_pl_prime) y se recorren en el orden de siempre.
+    $paymentsParams = function ($commitmentId) use ($fieldsToRetrieve) {
+        return array(
+            'module_name' => 'stic_Payment_Commitments',
+            'module_id' => $commitmentId,
+            'link_field_name' => 'stic_payments_stic_payment_commitments',
+            'related_fields' => $fieldsToRetrieve,
+            'related_module_link_name_to_fields_array' => array(),
+            'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
+        );
+    };
+    // is_array: el cliente del CRM devuelve null si la llamada falla o expira.
+    $commitmentIds = array();
+    foreach ((is_array($getRelatedElements) ? $getRelatedElements : array()) as $PC) {
+        if (!empty($PC->id)) {
+            $commitmentIds[] = $PC->id;
+        }
+    }
+    if (function_exists('sticpa_pl_prime')) {
+        sticpa_pl_prime($objSCP, function () use ($objSCP, $commitmentIds, $paymentsParams) {
+            foreach ($commitmentIds as $commitmentId) {
+                $objSCP->getRelatedElementsForLoggedUser($paymentsParams($commitmentId));
+            }
+        });
+    }
+    foreach ($commitmentIds as $commitmentId) {
+        $getRelatedPayments = $objSCP->getRelatedElementsForLoggedUser($paymentsParams($commitmentId));
         if (is_array($getRelatedPayments)) {
-            foreach($getRelatedPayments as $payment) {
+            foreach ($getRelatedPayments as $payment) {
                 $availablePayments[] = $payment;
             }
         }
-        
     }
 }
 
