@@ -975,6 +975,52 @@ class SugarRestApiCall
      */
 
     // Get logged user related records for a certain module
+    /**
+     * EL TOPE DE FILAS POR PÁGINA DEL CRM, APRENDIDO (no supuesto).
+     *
+     * SuiteCRM corta cada página en su `list_max_entries_per_page` (20 en esta
+     * instancia) aunque se le pidan 200, y `get_relationships` no dice si
+     * quedan más. Por eso el bucle de paginación pedía SIEMPRE una página más
+     * para comprobarlo — y esa comprobación, que casi siempre vuelve vacía,
+     * doblaba el coste de cada lista (≈350 ms de más cada vez).
+     *
+     * Ahora el tope se APRENDE: solo cuando una página de N filas va seguida de
+     * otra que trae más, está demostrado que el CRM corta en N. Con eso
+     * sabido, una página de MENOS de N filas es la última y no hace falta
+     * preguntar. Si trae N justas, se sigue comprobando como siempre.
+     *
+     * Se guarda el tope MÁS BAJO visto, y caduca a las 12 h: si alguien baja
+     * el tope en el CRM, lo peor que pasa es que durante ese rato una lista
+     * muy larga llegue cortada, y después se vuelve a medir. (La regla de
+     * PASAR-LISTA-ESTADO §3.5 —«nunca te fíes de una página corta»— sigue en
+     * pie: aquí no se supone el tope, se ha visto.)
+     */
+    const PAGE_CAP_KEY = 'sticpa_crm_page_cap';
+    const PAGE_CAP_TTL = 43200; // 12 h
+
+    private static function knownPageCap()
+    {
+        $forced = self::intSetting('sticpa_crm_page_cap', 0);
+        if ($forced > 0) {
+            return $forced;
+        }
+        $cap = function_exists('get_transient') ? (int) get_transient(self::PAGE_CAP_KEY) : 0;
+        return $cap > 0 ? $cap : 0;
+    }
+
+    /** Una página de $size filas fue seguida de más: el CRM corta en $size. */
+    private static function learnPageCap($size)
+    {
+        $size = (int) $size;
+        if ($size < 1 || !function_exists('set_transient')) {
+            return;
+        }
+        $cap = function_exists('get_transient') ? (int) get_transient(self::PAGE_CAP_KEY) : 0;
+        if ($cap < 1 || $size < $cap) {
+            set_transient(self::PAGE_CAP_KEY, $size, self::PAGE_CAP_TTL);
+        }
+    }
+
     public function getRelatedElementsForLoggedUser($params)
     {
         $get_relationship_params = array(
@@ -1017,6 +1063,7 @@ class SugarRestApiCall
         $vistos = array();
         $offset = max(0, (int) $get_relationship_params['offset']);
         $total = null;
+        $prevCount = null; // filas de la página anterior (para aprender el tope)
 
         while (true) {
             $get_relationship_params['offset'] = $offset;
@@ -1039,6 +1086,12 @@ class SugarRestApiCall
                 break;   // la página no aporta nada: el servidor no avanza
             }
             $todas = array_merge($todas, $juntas);
+            // La página anterior iba LLENA (le ha seguido esta con filas
+            // nuevas): ese es el tope del CRM.
+            if ($prevCount !== null) {
+                self::learnPageCap($prevCount);
+            }
+            $prevCount = count($entries);
 
             if ($total === null && isset($res->total_count)) {
                 $total = (int) $res->total_count;
@@ -1046,6 +1099,11 @@ class SugarRestApiCall
             $offset += count($entries);
 
             if ($total !== null && $offset >= $total) {
+                break;
+            }
+            // Menos filas que el tope aprendido: no hay más, sin preguntar.
+            $cap = self::knownPageCap();
+            if ($cap > 0 && count($entries) < $cap) {
                 break;
             }
             if ($offset >= $techo) {
@@ -1157,6 +1215,7 @@ class SugarRestApiCall
         $vistos = array();
         $offset = 0;
         $total = null;
+        $prevCount = null; // filas de la página anterior (para aprender el tope)
 
         while (true) {
             $getEntryList = array(
@@ -1190,6 +1249,10 @@ class SugarRestApiCall
                 break;   // la página no aporta nada: el servidor no avanza
             }
             $todas = array_merge($todas, $planas);
+            if ($prevCount !== null) {
+                self::learnPageCap($prevCount); // ver knownPageCap()
+            }
+            $prevCount = count($entries);
 
             if ($total === null && isset($res->total_count)) {
                 $total = (int) $res->total_count;
@@ -1205,8 +1268,13 @@ class SugarRestApiCall
                 break;
             }
             // Sin `total_count` no hay forma de saber cuántas quedan: se sigue
-            // hasta que una página venga vacía.
+            // hasta que una página venga vacía… o traiga menos filas que el
+            // tope APRENDIDO del CRM (knownPageCap), que es lo mismo.
             if ($total === null && count($entries) < 1) {
+                break;
+            }
+            $cap = self::knownPageCap();
+            if ($total === null && $cap > 0 && count($entries) < $cap) {
                 break;
             }
             // En modo recolecta la primera «página» no existe: se ha apuntado
