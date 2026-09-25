@@ -2,6 +2,13 @@
 // Prepare HTML list
 function makeList($columnsList, $listSettings, $data, $extraActions = array())
 {
+    // DataTables ya no se carga en todos los listados (plan 031): la pide quien
+    // la usa. El JS de arranque (js/stic-init.js) la aplica a las tablas con
+    // data-dt-settings en cuanto está cargada.
+    if (function_exists('wp_enqueue_script')) {
+        wp_enqueue_script('datatables');
+        wp_enqueue_style('stic-datatables');
+    }
     $objSCP = SugarRestApiCall::getObjSCP();
 
     $fields = array_column($columnsList, 'name');

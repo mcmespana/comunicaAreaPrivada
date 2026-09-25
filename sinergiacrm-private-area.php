@@ -201,17 +201,15 @@ function dcms_insertar_js()
         wp_register_script('multiselect', plugin_dir_url(__FILE__) . 'js/selectize.min.js', array('jquery'), '1', true);
         wp_enqueue_script('multiselect');
     }
-    if ($isList) {
-        wp_register_script('datatables', plugin_dir_url(__FILE__) . 'js/jquery.dataTables.min.js', array('jquery'), '1', true);
-        wp_enqueue_script('datatables');
-    }
+    // DataTables se REGISTRA pero no se carga (plan 031). Ningún listado la usa
+    // ya —todos se pintan con tarjetas propias— y eran 90 KB de JS más su CSS
+    // en cada toque de un listado. Si algún día vuelve a usarse makeList(), la
+    // carga ella misma (inc/stic-listController.php).
+    wp_register_script('datatables', plugin_dir_url(__FILE__) . 'js/jquery.dataTables.min.js', array('jquery'), '1', true);
     // Init dirigida por data-* (plan 021): lee data-dt-settings / data-fc-settings
     // y arranca DataTables/FullCalendar sin <script> inline en el body.
     if ($isList || $isCalendar) {
         $initDeps = array('jquery', 'sugarcrm-own');
-        if ($isList) {
-            $initDeps[] = 'datatables';
-        }
         if ($isCalendar) {
             $initDeps[] = 'fullcalendar';
         }
@@ -1443,11 +1441,9 @@ function sugar_crm_portal_style_and_script()
         if ($page === 'single_stic_activities_calendar') {
             wp_enqueue_style('fullcalendar', plugins_url('js/fullcalendar/lib/main.min.css', __FILE__), array(), $ver('js/fullcalendar/lib/main.min.css'));
         }
-        if (strpos($page, 'list_') === 0) {
-            // CSS de DataTables vendorizado (plan 010): misma versión 1.12.1 que
-            // js/jquery.dataTables.min.js; antes venía del CDN en mitad del body.
-            wp_enqueue_style('stic-datatables', plugins_url('css/vendor/jquery.dataTables.min.css', __FILE__), array('stic-base'), $ver('css/vendor/jquery.dataTables.min.css'));
-        }
+        // CSS de DataTables vendorizado (plan 010): registrado, no cargado. Lo
+        // pide makeList() si se vuelve a usar (plan 031).
+        wp_register_style('stic-datatables', plugins_url('css/vendor/jquery.dataTables.min.css', __FILE__), array('stic-base'), $ver('css/vendor/jquery.dataTables.min.css'));
         // custom-style.css is loaded LAST on purpose so it can override/enhance everything above
         wp_enqueue_style('custom-style', plugins_url('css/custom-style.css', __FILE__), array('stic-base'), $ver('css/custom-style.css'));
         // Pasar Lista va DESPUÉS de custom-style porque usa sus tokens (§1) y
