@@ -119,4 +119,4 @@ El mapa de los demás documentos está en
 | Guardián Nocturno del CRM (mantenimiento de madrugada) | `docs/comunica/GUARDIAN-NOCTURNO.md` |
 | **Ley de diseño (las dos superficies)** | `design.md` |
 | Sistema de diseño de este repo | `docs/design-system.md` |
-| Deuda de diseño y unificación entre repos | `plans/039-unificar-el-lenguaje-visual-mcm.md` |
+| Deuda de diseño y unificación entre repos | `plans/archive/039-unificar-el-lenguaje-visual-mcm.md` |

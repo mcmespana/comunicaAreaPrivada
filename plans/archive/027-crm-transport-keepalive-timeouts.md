@@ -14,7 +14,7 @@
 - **Priority**: P0 (es el multiplicador de TODO lo demás)
 - **Effort**: S-M
 - **Risk**: MED (cambia el transporte de todas las llamadas al CRM)
-- **Depends on**: none (pero coordina con `plans/008-harden-crm-transport-and-queries.md`, ver "Solapes")
+- **Depends on**: none (pero coordina con `plans/archive/008-harden-crm-transport-and-queries.md`, ver "Solapes")
 - **Category**: perf
 - **Planned at**: commit `337ec6a`, 2026-08-09
 - **Estado**: **DONE** — implementado en `cb79e9c` (2026-08-12). Los 6 steps hechos.
@@ -114,7 +114,7 @@ no sube `vendor/`). Los ajustes con "tuneable sin tocar código" usan `apply_fil
 
 ### Solapes con otros planes (leer antes de tocar)
 
-- `plans/008-harden-crm-transport-and-queries.md` (TODO) toca la MISMA línea `:52` para
+- `plans/archive/008-harden-crm-transport-and-queries.md` (TODO) toca la MISMA línea `:52` para
   subir a HTTP/1.1 y activar `SSL_VERIFYPEER`. **Este plan hace el cambio de versión HTTP;
   el 008 hace el de TLS.** Si el 008 ya se ejecutó, no dupliques: verifica y sigue.
   **No cambies `CURLOPT_SSL_VERIFYPEER` en este plan** (es del 008, con su propia
