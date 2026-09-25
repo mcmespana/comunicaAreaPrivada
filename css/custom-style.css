@@ -6745,3 +6745,23 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     text-transform: uppercase;
     color: var(--gray-500);
 }
+
+/* Las fotos de la galería son enlaces a la grande (se abre en otra pestaña). */
+.stic-evweb-cuerpo .evento-galeria > a,
+.stic-evweb-galeria > a { display: block; border-radius: var(--radius-md); }
+
+/* El segundo nivel de una lista: más sangría y una flechita de «cuelga de lo
+   de arriba» en vez del punto, del color de marca. */
+.stic-evweb-cuerpo .evento-sublista { margin: 0.3rem 0 0.2rem; padding-left: 0.3em; list-style: none; }
+.stic-evweb-cuerpo .evento-sublista > li { position: relative; padding-left: 1.45em; font-size: 0.97em; }
+.stic-evweb-cuerpo .evento-sublista > li::before {
+    content: '';
+    position: absolute;
+    left: 0.15em;
+    top: 0.42em;
+    width: 0.72em;
+    height: 0.72em;
+    background: var(--secondary-color);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 1v5.5a2 2 0 0 0 2 2h6M7.5 5.5 10 8.5l-2.5 3' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 1v5.5a2 2 0 0 0 2 2h6M7.5 5.5 10 8.5l-2.5 3' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / contain no-repeat;
+}
