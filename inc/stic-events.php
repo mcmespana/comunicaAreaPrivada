@@ -566,35 +566,9 @@ function sticpa_event_signup_block($objSCP, $eventId, $nvl = null)
     return $libre;
 }
 
-/**
- * ALIAS de compatibilidad. El formato de evento se generalizó a "ficha de
- * registro" (inc/stic-record-view.php) para que lo compartan los ocho módulos
- * del área. Estos nombres se quedan porque los usan las plantillas y los tests
- * y no aportan nada renombrarlos; delegan y no duplican una sola regla.
- */
-function sticpa_event_icon($name)
-{
-    return sticpa_record_icon($name);
-}
-
 function sticpa_event_date_line($startTs, $endTs)
 {
     return sticpa_record_date_line($startTs, $endTs);
-}
-
-/** Chip de estado del evento (el estado del CRM, ya traducido). */
-function sticpa_event_status_chip($event, $statusLabel = '')
-{
-    if (!empty($event['is_past'])) {
-        return sticpa_record_chip(__('Ya celebrado', 'sticpa'), 'past');
-    }
-    return sticpa_record_chip($statusLabel !== '' ? $statusLabel : $event['status'], '');
-}
-
-/** Cápsula de fecha (día grande + mes) a la izquierda de la tarjeta. */
-function sticpa_event_date_badge($event)
-{
-    return sticpa_record_date_badge($event['start_ts'] ?? null, !empty($event['is_past']), 'calendar');
 }
 
 /**

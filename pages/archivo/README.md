@@ -8,6 +8,13 @@ déjalo deshabilitado o archivado por si algún día lo recuperamos»*.
 
 ---
 
+## Añadidas el 25/09/2026
+
+| Archivo | Por qué |
+|---|---|
+| `single_stic_signup.php` | El alta se quitó el 10/09 (su handler ya no existe) y el código decía que esta página «no existe». Sí existía: con sesión, `?internalpage=single_stic_signup` pintaba un formulario de alta con contraseña que no guardaba nada. Las altas son de la web pública (`sticpa_signup_url()`). |
+| `delete_confirmation.php` | Nadie la enlazaba y estaba rota (usa `$listSettings`, que no se define). Resto del plugin original. |
+
 ## Qué hay aquí
 
 Tres secciones que venían del **plugin original de SinergiaCRM** —no las hicimos

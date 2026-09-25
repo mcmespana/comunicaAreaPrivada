@@ -754,66 +754,6 @@ class SugarRestApiCall
         return $get_entry_list_result;
     }
 
-    public function num_asc($a, $b)
-    {
-        return strcmp($a->name_value_list->case_number->value, $b->name_value_list->case_number->value);
-    }
-    public function num_desc($a, $b)
-    {
-        return strcmp($b->name_value_list->case_number->value, $a->name_value_list->case_number->value);
-    }
-    public function name_asc($a, $b)
-    {
-        return strnatcasecmp($a->name_value_list->name->value, $b->name_value_list->name->value);
-    }
-    public function name_desc($a, $b)
-    {
-        return strnatcasecmp($b->name_value_list->name->value, $a->name_value_list->name->value);
-    }
-    public function date_asc($a, $b)
-    {
-        return strcmp($a->name_value_list->date_entered->value, $b->name_value_list->date_entered->value);
-    }
-    public function date_desc($a, $b)
-    {
-        return strcmp($b->name_value_list->date_entered->value, $a->name_value_list->date_entered->value);
-    }
-    public function date_asc2($a, $b)
-    {
-        return strcmp($a->name_value_list->date_start->value, $b->name_value_list->date_start->value);
-    }
-    public function date_desc2($a, $b)
-    {
-        return strcmp($b->name_value_list->date_start->value, $a->name_value_list->date_start->value);
-    }
-    public function prior_asc($a, $b)
-    {
-        return strcmp($a->name_value_list->priority->value, $b->name_value_list->priority->value);
-    }
-    public function prior_desc($a, $b)
-    {
-        return strcmp($b->name_value_list->priority->value, $a->name_value_list->priority->value);
-    }
-    public function status_asc($a, $b)
-    {
-        return strnatcasecmp($a->name_value_list->status->value, $b->name_value_list->status->value);
-    }
-    public function status_desc($a, $b)
-    {
-        return strnatcasecmp($b->name_value_list->status->value, $a->name_value_list->status->value);
-    }
-
-    // get language definition from any module
-    public function getLanguageDefinition($moduleName)
-    {
-        $get_language_parameters = array(
-            'session' => $this->session_id,
-            'modules' => $moduleName,
-        );
-        $get_language_result = $this->call("get_language_definition", $get_language_parameters, $this->url);
-        return $get_language_result;
-    }
-
     // get field definition from any module
     public function getFieldDefinition($moduleName, $fields = array())
     {
@@ -1464,24 +1404,6 @@ class SugarRestApiCall
             'deleted' => 0,
         );
         return $this->call("get_entry_list", $get_entry_list, $this->url);
-    }
-
-    // Find a contact/account by its private-area username (for admin tools).
-    public function getContactByUsername($username, $module)
-    {
-        $username = str_replace(array("'", "\\"), '', $username);
-        $get_entry_list = array(
-            'session' => $this->session_id,
-            'module_name' => $module,
-            'query' => "stic_pa_username_c = '{$username}'",
-            'order_by' => '',
-            'offset' => 0,
-            'select_fields' => array('id', 'name', 'stic_pa_username_c', 'ajmcm_pa_token_c', 'email1'),
-            'max_results' => 1,
-            'deleted' => 0,
-        );
-        $result = $this->call("get_entry_list", $get_entry_list, $this->url);
-        return (isset($result->entry_list[0]) && $result->entry_list[0] != null) ? $result->entry_list[0] : null;
     }
 
     // Search contacts/accounts by free text: full name (first + last together),

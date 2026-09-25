@@ -138,7 +138,7 @@ class AccesoDniTest extends TestCase
     public function test_el_alta_lleva_fuera_del_area_privada(): void
     {
         // Aquí no se da de alta nadie: el enlace del login llevaba a
-        // `?internalpage=single_stic_signup`, una página que no existe.
+        // `?internalpage=single_stic_signup`, que no pintaba nada (archivada).
         $url = sticpa_signup_url();
         $this->assertStringStartsWith('https://', $url);
         $this->assertStringNotContainsString('internalpage', $url);
