@@ -201,18 +201,18 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
       hoy `login()` del usuario de servicio se rehace cuando caduca por sesión PHP;
       guardar `api_session_id` en transient compartido (no por sesión) ahorra el
       round-trip de login en frío. ↳ `inc/stic-class-6.php`.
-- [ ] `PERF-04` (P1 · M) **Foto de perfil**: `get_image` trae el base64 completo en cada
+- [x] `PERF-04` (P1 · M) ↳ **hecho** (plan 017: endpoint con miniatura cacheada) **Foto de perfil**: `get_image` trae el base64 completo en cada
       carga de "Mis datos". Cachear por contacto (transient, invalidar al subir foto) o
       servirla vía endpoint con `Cache-Control`. ↳ `pages/single_stic_comunica_perfil.php`.
-- [ ] `PERF-05` (P1 · M) **Matar los N+1 de listados y selección de participante**:
+- [~] `PERF-05` (P1 · M) ↳ **parcial**, es el plan 011 **Matar los N+1 de listados y selección de participante**:
       `single_stic_profile_selection.php` hace 1 llamada por relación + 1 por contacto;
       los listados similar. Usar `related_module_link_name_to_fields_array` para traer
       el contacto vinculado EN la misma llamada. Cachear `scp_available_profiles` ya
       mitiga el switcher.
-- [ ] `PERF-06` (P2 · S) **cURL keep-alive / HTTP2** en `SugarRestApiCall`: reutilizar el
+- [x] `PERF-06` (P2 · S) ↳ **hecho** (plan 027: keep-alive, HTTP/1.1, timeouts, gzip) **cURL keep-alive / HTTP2** en `SugarRestApiCall`: reutilizar el
       handler de cURL entre llamadas de la misma petición (hoy se abre conexión TLS
       nueva cada vez). ↳ `inc/stic-class-6.php::call`.
-- [ ] `PERF-07` (P2 · S) **Front**: `defer` en los JS (hoy van a footer, ok), quitar
+- [~] `PERF-07` (P2 · S) ↳ **casi**: el enqueue ya es condicional por página; falta retirar DataTables (plan 031) **Front**: `defer` en los JS (hoy van a footer, ok), quitar
       DataTables/FullCalendar/Selectize de páginas que no los usan (enqueue condicional
       por `internalpage`), `font-display: swap` ya viene del `display=swap`.
 - [ ] `PERF-08` (P2 · M) **Cache de lectura por página** (transient 1-5 min por
@@ -226,7 +226,7 @@ puedan coger una tarea, entender el porqué, y desarrollarla sin contexto previo
       para que no escriban logs ni pinten en producción. ↳ **hecho** (2026-07). Eliminadas ambas
       funciones y sus referencias comentadas; también se borró `prueba.html` y el `custom-utils.js`
       vacío (plan `plans/014`). ↳ `sinergiacrm-private-area.php`.
-- [ ] `MNT-02` (P2 · S) Revisar `getDestinationModule()` y el uso de `$_REQUEST` directo (evitar
+- [x] `MNT-02` (P2 · S) ↳ **hecho** (24/09/2026, PR #98: con sesión manda la sesión; del request solo en el login y solo Contacts/Accounts; los handlers ya no leen `$_REQUEST` a pelo) Revisar `getDestinationModule()` y el uso de `$_REQUEST` directo (evitar
       *warnings* de índices indefinidos y posibles manipulaciones).
 - [ ] `MNT-03` (P3 · M) Tests/healthcheck básico de la conexión al CRM y de los flujos críticos
       (login por token, signup, subida de documento).
