@@ -57,6 +57,13 @@ puedan coger una tarea, entender el porqué y hacerla sin contexto previo.
       NO tocar las 24 de Solete ni ninguna con inscripción.
 - [ ] `CRM-03` (P2 · S) **Dos `LIS_listas` para la sesión del 02/05/2026** (una de
       monitores, otra de participantes «omitida»): decidir si la omitida es lo que se quiso.
+- [ ] `CRM-05` (P1 · S) **Una inscripción de renovación SIN compromiso de pago** (visto por
+      MCP el 25/09/2026): la de Solete Villarroya a «COM | Curso 2026-2027 · CS» (id
+      `00000900…`, nombre roto «sin evento»), con IBAN, cuota de 20 € y convivencia de
+      60 €. Su gemela de la convivencia sí tiene el suyo; la de la cuota, ninguno —ni del
+      alta ni de la modificación de 17 h después—. O se crea a mano el compromiso de la
+      cuota, o se decide que no toca. Revisar si hay más así (inscripciones con
+      `ajmcm_tutor1_iban_c` sin nada en `stic_payment_commitments_stic_registrations`).
 - [ ] `CRM-04` (P2 · M) **Claves de desplegables sin confirmar** en `CAMPOS.md` («Lo que
       queda por revisar»): `ajmcm_dirigido_a_c`, `ajmcm_ambito_c` (falta «nacional»), y si
       `dirigido_a` pasa a múltiple. Mirarlas en Studio y apuntarlas. Una clave mal escrita

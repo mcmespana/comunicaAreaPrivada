@@ -589,6 +589,14 @@ siempre juntos. Quien cree inscripciones por API, que mire si ya tienen
 compromiso antes de crear otro (la renovación cobró dos veces el 22/09/2026;
 el área privada lo hace así, `EVENTOS.md` §10.2).
 
+**Solo al CREAR, no al modificar** (mirado el 25/09/2026 sobre las 150
+inscripciones con IBAN): las que se tocaron después conservan un único
+compromiso, fechado en el alta y no en la modificación. Así que cambiar o
+cancelar una inscripción desde el área no genera cobros nuevos. ⚠️ Una de ellas
+(la de Solete, «COM | Curso 2026-2027 · CS», con IBAN e importes) **no tiene
+ningún compromiso**, ni del alta ni de la modificación posterior: ver
+`TODO.md` → `CRM-05`.
+
 #### ⚠️ Los formularios de alta NO crean compromisos de pago
 
 Y parece que sí. Los formularios de participantes llevan cuatro campos
