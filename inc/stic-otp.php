@@ -327,8 +327,8 @@ function sticpa_otp_icon($name, $class = '')
  *
  * Las altas NO se hacen en el área privada: se hacen en la web pública, donde
  * cada caso —familia del MIC, del COM, monitor, laico— tiene su formulario. El
- * login llevaba a `?internalpage=single_stic_signup`, una página que no existe:
- * un enlace a un div vacío.
+ * login llevaba a `?internalpage=single_stic_signup`, una página que fuera de
+ * sesión no se pintaba: un enlace a un div vacío (archivada el 25/09/2026).
  *
  * Se puede cambiar sin tocar código con la opción `sticpa_signup_url` o con el
  * filtro del mismo nombre.

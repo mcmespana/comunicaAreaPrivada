@@ -1007,9 +1007,10 @@ function prefix_admin_single_stic_unsubscribe()
  * cualquiera con la URL podía crear registros en el CRM con los campos que
  * quisiera.
  *
- * Y no lo usaba nadie: el formulario que lo llamaba vivía en
- * `pages/single_stic_signup.php`, un archivo que NO EXISTE en este repo. El
- * enlace del login («¿Aún no tienes acceso?») llevaba a un div vacío.
+ * Y no lo usaba nadie: el formulario que lo llamaba,
+ * `pages/single_stic_signup.php`, no se pintaba fuera de sesión (el enlace del
+ * login, «¿Aún no tienes acceso?», llevaba a un div vacío). Está archivado en
+ * `pages/archivo/` desde el 25/09/2026.
  *
  * Las altas se hacen en la web pública, con el formulario que corresponda a
  * cada caso. La URL está en `sticpa_signup_url()`.

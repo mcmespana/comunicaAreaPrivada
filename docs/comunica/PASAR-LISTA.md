@@ -212,7 +212,7 @@ Sin construirlo, el diseño de la fase 1 no debe cerrarse la puerta:
   entonces trivial: guardar el lote y reintentar.
 - **Los datos de una pantalla de marcado caben en un objeto pequeño** (grupo,
   sesión, 12 niños con su estado). Eso se guarda en el navegador sin problema.
-- Ya existe precedente en el repo: `plans/011-kill-n-plus-1-listings.md` y
+- Ya existe precedente en el repo: `plans/archive/011-kill-n-plus-1-listings.md` y
   `sticpa_cached_field_definition()`.
 
 ---

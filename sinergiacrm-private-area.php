@@ -912,11 +912,6 @@ function sticpa_access_code_form($html = "")
     return $html;
 }
 
-function modify_plugin_locale_defaults($locale, $domain) {
-    $locale = 'ca_ES';
-    return $locale;
-}
-
     
 
 function sugar_crm_portal_check_user_and_login($html = "")
@@ -1126,9 +1121,10 @@ function sinergiacrm_private_area_shortcode()
         // Un ?internalpage=stic_forgot_password antiguo cae aquí, en el login.
         //
         // TAMPOCO HAY ALTA AQUÍ, y antes lo parecía: `?internalpage=single_stic_signup`
-        // tenía su rama, su función y su handler, pero la página
-        // `pages/single_stic_signup.php` NO EXISTE — el enlace del login llevaba
-        // a un `<div>` vacío. Las altas se hacen en la web pública, con el
+        // tenía su rama, su función y su handler, pero fuera de sesión la página
+        // no se pintaba —el enlace del login llevaba a un `<div>` vacío—. (El
+        // archivo sí existía y con sesión pintaba un alta que no guardaba nada:
+        // archivado en pages/archivo/ el 25/09/2026.) Las altas se hacen en la web pública, con el
         // formulario que toque en cada caso (ver sticpa_signup_url()).
         $content .= sugar_crm_portal_check_user_and_login();
     }

@@ -510,7 +510,7 @@ grep -n ':hover' css/*.css | wc -l
 
 No la repitas y no la des por buena si te la encuentras. Está toda recogida,
 con solución propuesta y orden de ejecución, en
-[`plans/039-unificar-el-lenguaje-visual-mcm.md`](plans/039-unificar-el-lenguaje-visual-mcm.md):
+[`plans/archive/039-unificar-el-lenguaje-visual-mcm.md`](plans/archive/039-unificar-el-lenguaje-visual-mcm.md):
 
 - ~~Dos vocabularios de tokens para los mismos hex.~~ **Resuelto**: los
   formularios entienden ya los nombres semánticos (§4).
