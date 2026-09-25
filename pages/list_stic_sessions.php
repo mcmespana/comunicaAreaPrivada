@@ -46,56 +46,78 @@ $params = array(
 $getRelatedRegistrations = $objSCP->getRelatedElementsForLoggedUser($params);
 $availableSessions = array();
 $sessionIds = array();
-// Eventos ya consultados: varias inscripciones pueden apuntar al MISMO evento, y
-// entonces se repetía la consulta de sus sesiones para acabar descartando el
-// resultado duplicado más abajo (por $sessionIds). Se salta directamente.
-$seenEventIds = array();
-// is_array: el cliente del CRM devuelve null si la llamada falla o expira.
-foreach((is_array($getRelatedRegistrations) ? $getRelatedRegistrations : array()) as $element) {
-    $parentModule = 'stic_Registrations';
-    $relationship = 'stic_registrations_stic_events';
-    $params = array(
-        'module_name' => $parentModule,
-        "module_id" => $element->name_value_list->id->value, //Do not touch
-        "link_field_name" => $relationship,
-        // "related_module_query" => "(end_date is null OR end_date >curdate())", //sql where conditions
-        "related_fields" => array('id'), //Do not touch
-        "related_module_link_name_to_fields_array" => array(),
-        "deleted" => 0, //show or not deleted elements (usually 0)
-        "order_by" => "",
-        "offset" => "",
-        "limit" => 0,
-    );
-    
-    $getRelatedEvents = $objSCP->getRelatedElementsForLoggedUser($params);
 
-    foreach((is_array($getRelatedEvents) ? $getRelatedEvents : array()) as $element) {
+// CADA NIVEL EN UNA TANDA (plan 011). Eran `1 + N + N×M` llamadas en fila:
+// los eventos de cada inscripción y, de cada evento, sus sesiones. Ahora las
+// mismas consultas salen en dos tandas paralelas (sticpa_pl_prime) y se
+// recorren EN EL MISMO ORDEN de siempre, que es el orden en que se enseñan.
+$eventsParams = function ($regId) {
+    return array(
+        'module_name' => 'stic_Registrations',
+        'module_id' => $regId,
+        'link_field_name' => 'stic_registrations_stic_events',
+        'related_fields' => array('id'),
+        'related_module_link_name_to_fields_array' => array(),
+        'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
+    );
+};
+$sessionsParams = function ($eventId) {
+    return array(
+        'module_name' => 'stic_Events',
+        'module_id' => $eventId,
+        'link_field_name' => 'stic_sessions_stic_events',
+        'related_fields' => sticpa_session_list_fields(),
+        'related_module_link_name_to_fields_array' => array(),
+        'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
+    );
+};
+$prime = function ($fn) use ($objSCP) {
+    if (function_exists('sticpa_pl_prime')) {
+        sticpa_pl_prime($objSCP, $fn);
+    }
+};
+
+// is_array: el cliente del CRM devuelve null si la llamada falla o expira.
+$regIds = array();
+foreach ((is_array($getRelatedRegistrations) ? $getRelatedRegistrations : array()) as $element) {
+    if (!empty($element->name_value_list->id->value)) {
+        $regIds[] = $element->name_value_list->id->value;
+    }
+}
+
+// Tanda 1: los eventos de todas las inscripciones.
+$prime(function () use ($objSCP, $regIds, $eventsParams) {
+    foreach ($regIds as $regId) {
+        $objSCP->getRelatedElementsForLoggedUser($eventsParams($regId));
+    }
+});
+// Eventos en orden y sin repetir: varias inscripciones pueden apuntar al MISMO
+// evento, y entonces se repetía la consulta de sus sesiones para acabar
+// descartando el resultado duplicado (por $sessionIds).
+$eventIds = array();
+foreach ($regIds as $regId) {
+    $getRelatedEvents = $objSCP->getRelatedElementsForLoggedUser($eventsParams($regId));
+    foreach ((is_array($getRelatedEvents) ? $getRelatedEvents : array()) as $element) {
         $eventId = $element->name_value_list->id->value ?? null;
-        if (!$eventId || isset($seenEventIds[$eventId])) {
-            continue;
+        if ($eventId && !in_array($eventId, $eventIds, true)) {
+            $eventIds[] = $eventId;
         }
-        $seenEventIds[$eventId] = true;
-        $parentModule = 'stic_Events';
-        $relationship = 'stic_sessions_stic_events';
-        $params = array(
-            'module_name' => $parentModule,
-            "module_id" => $element->name_value_list->id->value, //Do not touch
-            "link_field_name" => $relationship,
-            // "related_module_query" => "(end_date is null OR end_date >curdate())", //sql where conditions
-            "related_fields" => sticpa_session_list_fields(), //Do not touch
-            "related_module_link_name_to_fields_array" => array(),
-            "deleted" => 0, //show or not deleted elements (usually 0)
-            "order_by" => "",
-            "offset" => "",
-            "limit" => 0,
-        );
-        $getRelatedSessions = $objSCP->getRelatedElementsForLoggedUser($params);
-        foreach((is_array($getRelatedSessions) ? $getRelatedSessions : array()) as $session) {
-            $data = $session->name_value_list;
-            if (!in_array($data->id->value, $sessionIds)) {
-                $availableSessions[] = $session;
-                $sessionIds[] = $data->id->value;
-            }
+    }
+}
+
+// Tanda 2: las sesiones de todos esos eventos.
+$prime(function () use ($objSCP, $eventIds, $sessionsParams) {
+    foreach ($eventIds as $eventId) {
+        $objSCP->getRelatedElementsForLoggedUser($sessionsParams($eventId));
+    }
+});
+foreach ($eventIds as $eventId) {
+    $getRelatedSessions = $objSCP->getRelatedElementsForLoggedUser($sessionsParams($eventId));
+    foreach ((is_array($getRelatedSessions) ? $getRelatedSessions : array()) as $session) {
+        $data = $session->name_value_list;
+        if (!in_array($data->id->value, $sessionIds)) {
+            $availableSessions[] = $session;
+            $sessionIds[] = $data->id->value;
         }
     }
 }

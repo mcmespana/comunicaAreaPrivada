@@ -368,19 +368,34 @@ function prefix_user_active_event_ids($objSCP, $fresh = false)
         $memo = $ids;
         return $ids;
     }
-    foreach ($myRegs as $reg) {
-        $regStatus = $reg->name_value_list->status->value ?? null;
-        if ($regStatus === 'cancelled') {
-            continue;
-        }
-        $regEvents = $objSCP->getRelatedElementsForLoggedUser(array(
+    // El evento de cada inscripción, EN UNA TANDA (plan 011): eran 1+N
+    // llamadas en fila. Son las mismas consultas, y la decisión (¿ya estás
+    // inscrito?) no cambia: solo se esperan una vez en vez de N.
+    $eventParams = function ($regId) {
+        return array(
             'module_name' => 'stic_Registrations',
-            'module_id' => $reg->id,
+            'module_id' => $regId,
             'link_field_name' => 'stic_registrations_stic_events',
             'related_fields' => array('id'),
             'related_module_link_name_to_fields_array' => array(),
             'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 1,
-        ));
+        );
+    };
+    $activeRegs = array();
+    foreach ($myRegs as $reg) {
+        if (($reg->name_value_list->status->value ?? null) !== 'cancelled') {
+            $activeRegs[] = $reg;
+        }
+    }
+    if (function_exists('sticpa_pl_prime')) {
+        sticpa_pl_prime($objSCP, function () use ($objSCP, $activeRegs, $eventParams) {
+            foreach ($activeRegs as $reg) {
+                $objSCP->getRelatedElementsForLoggedUser($eventParams($reg->id));
+            }
+        });
+    }
+    foreach ($activeRegs as $reg) {
+        $regEvents = $objSCP->getRelatedElementsForLoggedUser($eventParams($reg->id));
         if (is_array($regEvents)) {
             foreach ($regEvents as $re) {
                 if (!empty($re->id)) {
