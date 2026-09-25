@@ -73,6 +73,9 @@ function sticpa_record_icon($name)
         'building' => "<path d='M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6'/>",
         'link'     => "<path d='M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1'/><path d='M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1'/>",
         'edit'     => "<path d='M12 20h9'/><path d='M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z'/>",
+        'phone'    => "<rect x='7' y='2' width='10' height='20' rx='2'/><path d='M11 18h2'/>",
+        'swap'     => "<path d='M7 7h12l-3-3'/><path d='M17 17H5l3 3'/>",
+        'cash'     => "<rect x='2' y='6' width='20' height='12' rx='2'/><circle cx='12' cy='12' r='2.5'/><path d='M6 12h.01M18 12h.01'/>",
     );
     $d = $paths[$name] ?? $paths['info'];
     return "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>{$d}</svg>";

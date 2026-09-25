@@ -568,14 +568,11 @@ function sticpa_registration_detail_html($reg, $definition = array(), $extra = a
     // sabemos: el formulario de pago con tarjeta no se ata a la inscripción.
     $pagarUrl = (string) ($extra['pagar_url'] ?? '');
     if ($pagarUrl !== '' && empty($extra['pagos']) && (float) ($extra['precio'] ?? 0) > 0 && $tone !== 'danger' && !$reg['is_past']) {
-        $notes[] = array(
-            'tone' => 'info',
-            'icon' => 'info',
+        $actions[] = array(
             /* translators: %s = precio de la actividad, ya formateado */
-            'text' => sprintf(__('Esta actividad cuesta %s. Si todavía no lo has pagado, puedes hacerlo con tarjeta desde aquí.', 'sticpa'),
-                (string) formatValue((string) $extra['precio'], 'currency')),
+            'label' => sprintf(__('Pagar %s con tarjeta', 'sticpa'), (string) formatValue((string) $extra['precio'], 'currency')),
+            'url' => $pagarUrl,
         );
-        $actions[] = array('label' => __('Pagar con tarjeta', 'sticpa'), 'url' => $pagarUrl);
     }
     if ($reg['event_id'] !== '') {
         $actions[] = array(
@@ -738,9 +735,9 @@ function sticpa_event_question_form_fields($questions, $regNvl = null)
 {
     $fields = array();
     foreach ($questions as $i => $q) {
-        $valores = array();
+        $opciones = array();
         foreach ($q['opciones'] as $k => $op) {
-            $valores[(string) ($k + 1)] = $op;
+            $opciones[(string) ($k + 1)] = array('title' => $op);
         }
         $actual = '';
         if ($regNvl) {
@@ -751,22 +748,48 @@ function sticpa_event_question_form_fields($questions, $regNvl = null)
                 $actual = (string) ($pos + 1);
             }
         }
+        $label = $q['pregunta'] !== ''
+            ? $q['pregunta']
+            : (count($questions) > 1
+                /* translators: %d = número de la pregunta */
+                ? sprintf(__('Elige una opción (%d)', 'sticpa'), $i + 1)
+                : __('Elige una opción', 'sticpa'));
         $fields[] = array(
-            'name' => $q['campo'],
-            'type' => 'radio',
-            'label' => $q['pregunta'] !== ''
-                ? $q['pregunta']
-                : (count($questions) > 1
-                    /* translators: %d = número de la pregunta */
-                    ? sprintf(__('Elige una opción (%d)', 'sticpa'), $i + 1)
-                    : __('Elige una opción', 'sticpa')),
-            'required' => true,
-            'selectValues' => $valores,
-            'defaultValue' => $actual,
-            'value' => $actual,
+            'name' => $q['campo'] . '_row',
+            'type' => 'html',
+            // El <input> lo pinta la tarjeta: se declara para que se guarde.
+            'posts' => array($q['campo']),
+            'html' => sticpa_registration_choice_html($q['campo'], $label, $opciones, $actual),
         );
     }
     return $fields;
+}
+
+/**
+ * Un grupo de opciones como TARJETAS (el componente de design-system §4,
+ * «tarjetas de opción», en su versión compacta): se toca la tarjeta entera,
+ * no un circulito de 20 px. Obligatorio: sin elegir no se manda.
+ *
+ * @param string $name    Nombre del campo (y id del grupo, para
+ *                        `data-visible-when`).
+ * @param array  $options clave => array('title', 'icon'?, 'desc'?).
+ * @param string $aside   HTML a la derecha de la pregunta (el precio).
+ */
+function sticpa_registration_choice_html($name, $label, $options, $current = '', $aside = '')
+{
+    $labelId = $name . '_label';
+    $html = "<li class='stic-option-row stic-choice'>"
+        . "<div class='stic-choice-head'><span class='stic-choice-label' id='" . esc_attr($labelId) . "'>" . esc_html($label) . "</span>" . $aside . "</div>"
+        . "<div class='stic-option-grid stic-choice-grid' role='radiogroup' aria-labelledby='" . esc_attr($labelId) . "' id='" . esc_attr($name) . "'>";
+    foreach ($options as $key => $op) {
+        $checked = ($current !== '' && (string) $current === (string) $key) ? ' checked' : '';
+        $html .= "<label class='stic-option-card stic-choice-card'>"
+            . "<input type='radio' name='" . esc_attr($name) . "' value='" . esc_attr((string) $key) . "' required{$checked}>"
+            . "<span class='stic-option-title'>" . ($op['icon'] ?? '') . "<span>" . esc_html($op['title']) . "</span></span>"
+            . (!empty($op['desc']) ? "<span class='stic-option-desc'>" . esc_html($op['desc']) . "</span>" : '')
+            . "</label>";
+    }
+    return $html . "</div></li>";
 }
 
 /**
@@ -878,28 +901,51 @@ function sticpa_registration_payment_type()
     return (string) apply_filters('sticpa_registration_payment_type', 'services');
 }
 
-/** Los campos del formulario de inscripción para el pago. */
+/** El icono de cada medio de pago (los que no conocemos, sin icono). */
+function sticpa_payment_method_icon($key)
+{
+    $map = array(
+        'bizum' => 'phone',
+        'transfer' => 'swap',
+        'transfer_received' => 'swap',
+        'cash' => 'cash',
+        'direct_debit' => 'bank',
+        'card' => 'card',
+    );
+    return isset($map[$key]) ? sticpa_record_icon($map[$key]) : '';
+}
+
+/**
+ * Los campos del formulario de inscripción para el pago: la pregunta con el
+ * precio al lado y los medios como tarjetas. Nada más: el precio se ve, y lo
+ * que pasa después se ve al elegir (el IBAN solo con domiciliación).
+ */
 function sticpa_registration_payment_form_fields($price, $methods)
 {
     if ($price <= 0 || empty($methods)) {
         return array();
     }
+    $opciones = array();
+    foreach ($methods as $key => $label) {
+        $opciones[$key] = array(
+            'title' => $label,
+            'icon' => sticpa_payment_method_icon($key),
+            // Lo único que no se deduce del nombre: con tarjeta se paga ya.
+            'desc' => $key === 'card' ? __('Pago online', 'sticpa') : '',
+        );
+    }
     $fields = array();
     $fields[] = array(
-        'name' => 'sticpa_pago_nota',
-        'type' => 'note',
-        'html' => sprintf(
-            /* translators: %s = precio de la actividad, ya formateado */
-            esc_html__('Esta actividad cuesta %s. Al inscribirte queda anotado el pago con el medio que elijas.', 'sticpa'),
-            '<strong>' . esc_html((string) formatValue((string) $price, 'currency')) . '</strong>'
+        'name' => 'sticpa_pago_row',
+        'type' => 'html',
+        'posts' => array('sticpa_pago_metodo'),
+        'html' => sticpa_registration_choice_html(
+            'sticpa_pago_metodo',
+            __('¿Cómo pagas?', 'sticpa'),
+            $opciones,
+            '',
+            "<span class='stic-choice-price'>" . esc_html((string) formatValue((string) $price, 'currency')) . "</span>"
         ),
-    );
-    $fields[] = array(
-        'name' => 'sticpa_pago_metodo',
-        'type' => 'radio',
-        'label' => __('¿Cómo lo vas a pagar?', 'sticpa'),
-        'required' => true,
-        'selectValues' => $methods,
     );
     if (isset($methods['direct_debit'])) {
         // Obligatorio cuando se ve: el JS de los campos condicionales le quita
@@ -908,25 +954,14 @@ function sticpa_registration_payment_form_fields($price, $methods)
         $fields[] = array(
             'name' => 'sticpa_pago_iban',
             'type' => 'text',
-            'label' => __('Cuenta bancaria (IBAN)', 'sticpa'),
-            'hint' => __('La del titular que paga. Empieza por ES y son 24 caracteres.', 'sticpa'),
+            'label' => __('IBAN', 'sticpa'),
             'required' => true,
+            'placeholder' => 'ES00 0000 0000 0000 0000 0000',
             'attributes' => array(
                 'data-visible-when' => 'sticpa_pago_metodo:direct_debit',
                 'autocomplete' => 'off',
-                'inputmode' => 'text',
                 'spellcheck' => 'false',
             ),
-        );
-    }
-    if (isset($methods['card'])) {
-        // Como 'html' y no 'note': una nota del motor no lleva atributos, y
-        // esta solo tiene que verse cuando se elige tarjeta.
-        $fields[] = array(
-            'name' => 'sticpa_pago_tarjeta_nota',
-            'type' => 'html',
-            'html' => "<li class='stic-form-note' data-visible-when='sticpa_pago_metodo:card'>"
-                . esc_html__('Con tarjeta, al inscribirte pasas al formulario de pago seguro para terminar.', 'sticpa') . "</li>",
         );
     }
     return $fields;
@@ -1209,7 +1244,7 @@ function sticpa_registration_manage_html($regId, $rights)
         $base = strtok((string) ($_SERVER['REQUEST_URI'] ?? '/'), '?');
         $html .= "<form class='stic-reg-cancel' method='post' action='" . esc_url(home_url() . '/wp-admin/admin-post.php') . "'"
             . " data-confirm-title='" . esc_attr__('¿Cancelar tu inscripción?', 'sticpa') . "'"
-            . " data-confirm-msg='" . esc_attr__('Dejarás tu plaza libre. Si cambias de idea, podrás volver a apuntarte mientras el plazo siga abierto.', 'sticpa') . "'"
+            . " data-confirm-msg='" . esc_attr__('Tu plaza quedará libre.', 'sticpa') . "'"
             . " data-confirm-cancel='" . esc_attr__('No, mantenerla', 'sticpa') . "'"
             . " data-confirm-ok='" . esc_attr__('Sí, cancelar', 'sticpa') . "'>"
             . "<input type='hidden' name='action' value='single_stic_registrations'>"
@@ -1227,7 +1262,7 @@ function sticpa_registration_manage_html($regId, $rights)
         $html .= "<p class='stic-reg-gestion-nota'>" . esc_html($nota) . "</p>";
     } elseif (!empty($rights['hasta_ts']) && function_exists('sticpa_record_date_line')) {
         /* translators: %s = fecha de fin del plazo */
-        $html .= "<p class='stic-reg-gestion-nota'>" . esc_html(sprintf(__('Puedes hacerlo hasta el %s, cuando se cierra el plazo.', 'sticpa'), sticpa_record_date_line($rights['hasta_ts'], null))) . "</p>";
+        $html .= "<p class='stic-reg-gestion-nota'>" . esc_html(sprintf(__('Hasta el %s.', 'sticpa'), sticpa_record_date_line($rights['hasta_ts'], null))) . "</p>";
     }
     return $html;
 }
@@ -1243,11 +1278,11 @@ function sticpa_registration_saved_note($msg)
         case 'inscrita':
             return array('tone' => 'ok', 'icon' => 'check', 'text' => __('Listo: ya estás inscrito.', 'sticpa'));
         case 'inscrita_pago':
-            return array('tone' => 'ok', 'icon' => 'check', 'text' => __('Listo: ya estás inscrito, y el pago queda anotado con el medio que elegiste. Si hace falta hacer algo más, tu delegación te lo dirá.', 'sticpa'));
+            return array('tone' => 'ok', 'icon' => 'check', 'text' => __('Listo: ya estás inscrito.', 'sticpa'));
         case 'true':
-            return array('tone' => 'ok', 'icon' => 'check', 'text' => __('Listo: los datos de tu inscripción están guardados.', 'sticpa'));
+            return array('tone' => 'ok', 'icon' => 'check', 'text' => __('Cambios guardados.', 'sticpa'));
         case 'cancelada':
-            return array('tone' => 'info', 'icon' => 'info', 'text' => __('Tu inscripción está cancelada y tu plaza ha quedado libre.', 'sticpa'));
+            return array('tone' => 'info', 'icon' => 'info', 'text' => __('Inscripción cancelada.', 'sticpa'));
         case 'cerrada':
             return array('tone' => 'warn', 'text' => __('El plazo de inscripción ya ha terminado, así que no se ha cambiado nada. Si lo necesitas, habla con tu delegación.', 'sticpa'));
         case 'pago_error':
@@ -1275,7 +1310,7 @@ function sticpa_registration_event_card_html($kicker, $name, $dateLine, $desc = 
         . ($desc !== '' ? '<p class="stic-event-card-desc">' . esc_html($desc) . '</p>' : '');
     if (trim((string) $eventId) !== '') {
         $html .= '<a class="stic-event-card-link" href="?internalpage=single_stic_events&amp;action=detail&amp;id=' . esc_attr(rawurlencode((string) $eventId)) . '">'
-            . esc_html__('Ver toda la información de la actividad', 'sticpa') . sticpa_record_icon('go') . '</a>';
+            . esc_html__('Ver la actividad', 'sticpa') . sticpa_record_icon('go') . '</a>';
     }
     return $html . '</li>';
 }

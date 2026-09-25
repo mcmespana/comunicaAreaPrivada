@@ -249,10 +249,13 @@ class RegistrationManageTest extends TestCase
     {
         $q = sticpa_event_questions($this->nvl($this->evento()), array('ajmcm_respuesta_1_c' => array()));
         $f = sticpa_event_question_form_fields($q, $this->nvl(array('ajmcm_respuesta_1_c' => 'No, voy por mi cuenta')));
-        $this->assertSame('radio', $f[0]['type']);
-        $this->assertSame('¿Cómo vienes?', $f[0]['label']);
-        $this->assertSame(array('1' => 'Sí, voy en autobús', '2' => 'No, voy por mi cuenta'), $f[0]['selectValues']);
-        $this->assertSame('2', $f[0]['value']);
+        $this->assertSame(array('ajmcm_respuesta_1_c'), $f[0]['posts'], 'sin declararla, la respuesta no se guardaría');
+        $this->assertSame(array('ajmcm_respuesta_1_c'), sticpa_form_posted_fields($f));
+        $html = $f[0]['html'];
+        $this->assertStringContainsString('¿Cómo vienes?', $html);
+        $this->assertStringContainsString("value='1' required>", $html);
+        $this->assertStringContainsString("value='2' required checked>", $html, 'lo que ya contestó, marcado');
+        $this->assertStringContainsString('Sí, voy en autobús', $html);
     }
 
     /* ---- El pago (EV-7) ---------------------------------------------- */
@@ -303,6 +306,11 @@ class RegistrationManageTest extends TestCase
         $this->assertContains('stic_payment_commitments_stic_registrations:' . $reg['id'], $links, 'y su inscripción');
         $this->assertStringContainsString('action=detail&id=' . $reg['id'], $url);
         $this->assertStringContainsString('msg=inscrita_pago', $url);
+        // Y el formulario del pago: los medios como tarjetas, el precio al lado y nada de sermón.
+        $campos = sticpa_registration_payment_form_fields(60.0, sticpa_registration_payment_methods($this->crm));
+        $this->assertSame(array('sticpa_pago_metodo', 'sticpa_pago_iban'), sticpa_form_posted_fields($campos));
+        $this->assertStringContainsString("<span class='stic-choice-price'>", $campos[0]['html']);
+        $this->assertStringNotContainsString('cuesta', $campos[0]['html']);
     }
 
     public function test_si_el_crm_ya_creo_el_compromiso_se_completa_ese_y_no_se_crea_otro()
