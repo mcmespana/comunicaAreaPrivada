@@ -78,18 +78,17 @@ puedan coger una tarea, entender el porqué y hacerla sin contexto previo.
 
 ## 🟡 Pasar Lista
 
-- [~] `PL-036` (P1-P2 · por fila) **Plan 036** — lo que queda: recuentos y nombre del
-      monitor en el árbol (P1, depende de SinergiaCRM), grupos viejos fuera de la navegación
-      / `Najar` (P2, validar la regla antes), workflow de correo de avisos (config. del CRM),
-      verificar `CAMPOS.md` contra el CRM por MCP (P3). ↳ `plans/036`.
-- [~] `PL-037` (P1-P2 · S-M) **Plan 037**: filas 4 y 6, que esperan medirse en producción.
-      ↳ `plans/037`.
+- [!] `PL-036` (P3 · S) **Lo único que queda del plan 036**, y no es código: el correo
+      automático de avisos (se configura en el CRM) y verificar `CAMPOS.md` contra el CRM,
+      que necesita el **conector MCP de SinergiaCRM** en la sesión (el 25/09/2026 no estaba).
+      El resto del 036 y todo el 037 está hecho (ver `plans/README.md`).
 
 ## 🟡 Rendimiento
 
-- [ ] `PERF-08` (P2 · M) **Caché de lectura por página** (1-5 min por persona y pantalla)
-      con invalidación al guardar. El siguiente salto de velocidad tras el plan 011;
-      cuidado con los datos recién editados.
+- [z] `PERF-08` (P3 · M) **Caché de lectura por pantalla**. Aparcado (25/09/2026): con el
+      plan 011 y el tope de página aprendido, cada pantalla va en 0,4-1,2 s, y el propietario
+      prefiere que un cambio hecho en el CRM se vea al momento. Si se retoma: 1 minuto como
+      mucho, que se borre al guardar uno mismo y que el botón de refrescar la salte.
 - [z] `PERF-09` (P2 · M) **Techo de filas en los listados** (plan 032): a futuro, hasta que
       alguna lista crezca de verdad. ↳ `plans/032`.
 

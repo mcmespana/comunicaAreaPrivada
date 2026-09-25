@@ -162,7 +162,12 @@ familia). Misma idea en la ficha de monitor para coordinación (COORDINACION
   portada ya existe; revisar que reuniones ↔ monitores ↔ seguimientos se
   crucen entre sí sin volver a la portada.
 
-### 6. Búsqueda de persona para coordinación (P3) — 🟡 a medias
+### 6. Búsqueda de persona para coordinación (P3) — ✅ cubierta (25/09/2026)
+
+> Mis grupos tiene la vista **A-Z** con buscador («Buscar grupo, monitor o
+> curso…») sobre los datos ya cacheados, que es lo que pedía esta fila. Solo
+> faltaría repetir el buscador en la portada de Pasar Lista: poco valor, no se
+> hace salvo que se pida.
 
 Coordinación llega buscando a UN chaval («¿cómo va Solete?»). Un buscador
 simple (typeahead sobre los datos ya cacheados de `struct`, sin llamadas
