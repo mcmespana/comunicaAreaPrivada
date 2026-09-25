@@ -28,7 +28,7 @@
  *    3. una lista blanca de campos, en vez de volcar `$_REQUEST` entero;
  *    4. comprobar que el registro que se toca es de quien lo toca.
  *
- *  Es lo que pide `plans/001-auth-gate-state-changing-handlers.md`, que sigue
+ *  Es lo que pide `plans/archive/001-auth-gate-state-changing-handlers.md`, que sigue
  *  abierto para los handlers que SÍ están vivos.
  * ============================================================================
  */

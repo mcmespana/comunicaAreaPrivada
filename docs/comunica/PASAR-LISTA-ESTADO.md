@@ -593,7 +593,7 @@ respaldo, no envolverlo en una tanda. Queda escrito en el propio archivo.
 ### Lo siguiente, si sigue lento
 
 Hay plan cerrado y ordenado en
-[`../../plans/034-rendimiento-calentar-paralelizar-medir.md`](../../plans/034-rendimiento-calentar-paralelizar-medir.md):
+[`../../plans/archive/034-rendimiento-calentar-paralelizar-medir.md`](../../plans/archive/034-rendimiento-calentar-paralelizar-medir.md):
 medir (Server-Timing), configurar el calentado nocturno (los 3 secretos, cero
 código), **paralelizar con `curl_multi` las llamadas independientes de cada
 pantalla** (el coste real que queda: 6-8 llamadas EN SERIE), write-through de

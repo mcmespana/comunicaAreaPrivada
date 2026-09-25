@@ -10,7 +10,7 @@
 - **Priority**: P0
 - **Effort**: M
 - **Risk**: MED
-- **Depends on**: plans/001-auth-gate-state-changing-handlers.md
+- **Depends on**: plans/archive/001-auth-gate-state-changing-handlers.md
 - **Category**: security
 - **Planned at**: commit `bc3c436`, 2026-07-19
 

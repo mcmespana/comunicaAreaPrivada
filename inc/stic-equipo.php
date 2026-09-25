@@ -107,12 +107,6 @@ function sticpa_equipo_papeles($raw = null)
     return (array) apply_filters('sticpa_equipo_papeles', $out, $raw);
 }
 
-/** ¿Tiene este papel la persona conectada? */
-function sticpa_equipo_tiene($papel)
-{
-    return in_array($papel, sticpa_equipo_papeles(), true);
-}
-
 /**
  * ¿Se le abre a esta persona la sección de monitores?
  *

@@ -1179,48 +1179,6 @@ function sticpa_pl_cmp_person($a, $b)
     return strcmp($x, $y);
 }
 
-/**
- * Saca la persona del bloque de relaciones que devuelve get_relationships.
- *
- * La respuesta de la API v4.1 anida el enlace en `link_list → records →
- * link_value`, y el formato varía según haya uno o varios registros, así que se
- * recorre con cuidado en vez de asumir una forma.
- */
-function sticpa_pl_person_from_rel($rel)
-{
-    $links = isset($rel->link_list) ? $rel->link_list : array();
-    foreach ((array) $links as $link) {
-        if (!isset($link->records) || !is_array($link->records)) {
-            continue;
-        }
-        foreach ($link->records as $record) {
-            $lv = isset($record->link_value) ? $record->link_value : null;
-            if (!$lv || empty($lv->id->value)) {
-                continue;
-            }
-            $first = isset($lv->first_name->value) ? trim((string) $lv->first_name->value) : '';
-            $last = isset($lv->last_name->value) ? trim((string) $lv->last_name->value) : '';
-            $full = trim($first . ' ' . $last);
-            if ($full === '' && isset($lv->name->value)) {
-                $full = trim((string) $lv->name->value);
-            }
-            return array(
-                'id' => $lv->id->value,
-                'name' => sticpa_pl_short_name($first, $last, $full),
-                'full' => $full,
-                'first' => $first,
-                'last' => $last,
-                'sort' => sticpa_pl_sort_key($last, $first),
-                'initials' => sticpa_pl_initials($first, $last, $full),
-                'age' => isset($lv->stic_age_c->value) ? (string) $lv->stic_age_c->value : '',
-                'birthdate' => isset($lv->birthdate->value) ? (string) $lv->birthdate->value : '',
-                'mobile' => isset($lv->phone_mobile->value) ? (string) $lv->phone_mobile->value : '',
-            );
-        }
-    }
-    return null;
-}
-
 /** Clave de ordenación sin acentos, para que Álvarez no acabe tras Zamora. */
 function sticpa_pl_sort_key($last, $first)
 {
@@ -2201,29 +2159,6 @@ function sticpa_pl_listas_index($objSCP)
     // estado completo, que es lo que queremos.
     sticpa_pl_cache_put($cacheKey, $out, $ttl);
     return $out;
-}
-
-/** El id del grupo de una lista, preguntando por su enlace. */
-function sticpa_pl_group_of_lista($objSCP, $listaId)
-{
-    $rows = $objSCP->getRelatedElementsForLoggedUser(array(
-        'module_name' => 'LIS_listas',
-        'module_id' => sticpa_pl_safe_id($listaId),
-        'link_field_name' => 'lis_listas_ajmcm_grupos',
-        'related_fields' => array('id'),
-        'related_module_link_name_to_fields_array' => array(),
-        'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
-    ));
-    if (!is_array($rows)) {
-        return '';
-    }
-    foreach ($rows as $row) {
-        $g = isset($row->name_value_list) ? $row->name_value_list : null;
-        if ($g && !empty($g->id->value)) {
-            return (string) $g->id->value;
-        }
-    }
-    return '';
 }
 
 function sticpa_pl_lista($objSCP, $sessionId, $groupId)

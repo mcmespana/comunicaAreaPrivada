@@ -206,12 +206,6 @@ function sticpa_get_comunica_role()
     return apply_filters('sticpa_comunica_role', $role);
 }
 
-/** ¿El usuario logueado tiene el rol indicado? */
-function sticpa_is_role($role)
-{
-    return sticpa_get_comunica_role() === $role;
-}
-
 /**
  * AUDIENCIA de la pantalla de datos ("Mis datos"): de quién es la ficha que se
  * está viendo/editando. Determina título, textos y qué secciones se muestran

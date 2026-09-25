@@ -511,15 +511,6 @@ function sticpa_event_audience_match($audience, $viewer)
 }
 
 /**
- * Lo mismo, pero partiendo del `name_value_list` del evento.
- * @return array ok, motivo
- */
-function sticpa_event_audience_match_nvl($nvl, $viewer)
-{
-    return sticpa_event_audience_match(sticpa_event_audience_from_nvl($nvl), $viewer);
-}
-
-/**
  * Filtra una lista de eventos del CRM dejando solo los de esta persona.
  *
  * @param object $objSCP  Cliente del CRM.
