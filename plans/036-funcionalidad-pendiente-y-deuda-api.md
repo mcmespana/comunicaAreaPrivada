@@ -1,5 +1,11 @@
 # 036 — Funcionalidad pendiente, bugs menores y la doctrina de la API
 
+> **Estado real al 25/09/2026:** de las tablas de abajo solo quedan DOS cosas, y
+> ninguna es código de este repo: el **workflow de correo de avisos** (se
+> configura en el CRM) y **verificar `CAMPOS.md` contra el CRM** (necesita el
+> conector MCP de SinergiaCRM). Najar, grupos viejos y recuentos: hechos.
+> «Sectores» y el filtro plano por `_ida`: doctrina, no tarea.
+
 **Prioridad: P2 en conjunto; cada fila lleva la suya.** Esfuerzo: por fila.
 Depende de: 033 cerrado antes de abrir melones nuevos (regla de oro del parte:
 mientras el guardado no funcione, lo demás es decoración).
@@ -25,7 +31,7 @@ mismas cinco piedras.
 |---|---|---|
 | ✅ | ~~Asistencias de 5 sesiones sin `status` (a medio marcar)~~ | **Hecho el 28/08/2026.** Un hueco ya no se lee como avería en ningún sitio: `sticpa_pl_att_track()` cuenta los sin marcar APARTE, los dice en pantalla («24 sábados sin lista»), devuelve «sin datos» en vez de un 0 % cuando no hay nada marcado, y el cuadradito de «sin marcar» es un contorno discontinuo con su entrada en la leyenda — no un gris que parezca un estado. |
 | ✅ | ~~Monitor de dos grupos: sale, pero sin decidir cómo se enseña~~ | **Hecho el 28/08/2026.** Una fila, con los códigos de todos sus grupos; y la sección de la etapa donde NO cae lo nombra, incluso si se queda sin ninguna fila propia (que era el caso peor: la sección desaparecía entera). Las cinco variantes, en `PASAR-LISTA-ESTADO.md` §2. |
-| P2 | El grupo `Najar` (no MIC-COM) aparece en el árbol | Definir el filtro de grupos visibles (ver melón 4 abajo: la solución buena es común). Mientras: filtro por lista negra vía `apply_filters` para no hardcodear. |
+| ✅ | ~~El grupo `Najar` (no MIC-COM) aparece en el árbol~~ | **Resuelto.** Lo decide la casilla del CRM `ajmcm_pasar_lista_c` («entra en Pasar Lista»); la de Najar está a 0 desde el 01/09/2026. Comprobado en producción el 25/09: no sale ni en el árbol ni en Mis grupos. |
 | P2 | «Sectores» agrupados a mano | Sin campo en el CRM y no lo va a haber de momento (ROADMAP §6). Dejarlo como está; documentado y punto. |
 | P3 | Filtro plano por `..._ida` da 400 en 4 módulos | No es arreglable desde el plugin: es doctrina (abajo). Ya documentado en CAMPOS §9. |
 
@@ -33,13 +39,13 @@ mismas cinco piedras.
 
 | P | Melón | Próximo paso concreto |
 |---|---|---|
-| P1 | **Recuentos y nombre de monitor en árbol/resumen** (ROADMAP 0, plan cerrado en `PASAR-LISTA-RECUENTOS.md`) | (1) Preguntar a SinergiaCRM si hay acceso a ficheros de la instancia — decide opción A/B; (2) crear los 4 campos en `ajmcm_GRUPOS` (¡mirar CAMPOS.md antes, no duplicar!); (3) script nocturno del Guardián que los rellene (opción B recomendada); (4) UI: entra gratis en la consulta del árbol. Propagar campos nuevos a `CAMPOS.md` y `comunicaFormularios` si toca. |
+| ✅ | ~~**Recuentos y nombre de monitor en árbol/resumen**~~ | **Hecho.** El Guardián nocturno los calcula cada madrugada (`GUARDIAN-NOCTURNO.md`) y el árbol los pinta: «M4.1 · David, Lucía», «85 participantes». Comprobado en producción el 25/09/2026. |
 | ✅ | ~~**Inscripciones automáticas** (ROADMAP 3)~~ | **Hecho el 28/08/2026, y por la vía recomendada: el área privada.** `sticpa_pl_ensure_registration()` crea la inscripción que falte al guardar, comprobando antes el mapa para no duplicar, y la asistencia se escribe atada a ella. Cuesta una llamada por persona la PRIMERA vez y ninguna después. Cierra el hueco «sin inscripción → no se le puede pasar lista», que era además la fábrica de las asistencias `Unknown - Unknown`. Se puede apagar por delegación con `sticpa_pl_crear_inscripciones`. |
-| P2 | **Grupos viejos fuera de la navegación** (ROADMAP 4) | Regla propuesta: un grupo sale en Pasar Lista si su etapa tiene evento de sesiones del curso actual Y el grupo tiene ≥1 relación vigente. Cubre también `Najar`. Validar con el propietario antes de codificar. |
+| ✅ | ~~**Grupos viejos fuera de la navegación**~~ | **Resuelto por la casilla `ajmcm_pasar_lista_c`** (ver Najar arriba): coordinación decide en el CRM qué grupo entra. No hizo falta la regla automática. |
 | P2 | **Workflow de correo de avisos** (ROADMAP 5) | Configuración del CRM, no código. Bloqueado por definir coordinadores (`relationship_type = coordinador_mic/com`, COORDINACION §6). Escribir la petición concreta para el administrador del CRM. |
 | P3 | **Pasar lista de un evento puntual** (convivencia, bus — ROADMAP 1) | Antes de nada: comprobar que `LIS_listas` admite grupo vacío. Reusar pantalla de marcar con fuente = inscritos del evento. No abrir hasta tener el semanal cerrado y rodado. |
 | ✅ | ~~**Ausencias de monitores con porcentaje** (ROADMAP 2)~~ | **Hecho el 28/08/2026.** El porcentaje va en la lista de monitores, pequeño y gris, y rojo por debajo del umbral. El encuadre está en la forma: acompaña, no acusa. Con menos de cuatro sesiones marcadas no se pinta. |
-| P3 | Verificar `CAMPOS.md` contra el CRM por MCP (ROADMAP 9) | Subagente que recorra `get_module_fields` de los módulos usados y compare con CAMPOS.md. Barato de hacer ya; salida = lista de discrepancias, no cambios automáticos. |
+| P3 | Verificar `CAMPOS.md` contra el CRM por MCP (ROADMAP 9) | **Pendiente de conector.** El 25/09/2026 se intentó y la sesión no tenía el MCP de SinergiaCRM (solo Drive, Gmail, Vercel, Hostinger…). Cuando lo tenga: un subagente que recorra `get_module_fields` de los módulos usados (con `fields`, ver CLAUDE.md) y devuelva SOLO la lista de discrepancias; no cambia nada. No sacar las credenciales del CRM por otro camino. |
 
 ## 3. Pendiente en el CRM (no en el código) — lo que hay que PEDIR
 
