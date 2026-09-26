@@ -367,6 +367,30 @@
             return notes;
         }
 
+        /* La nota bajo el nombre, en UN sitio: la usan marcar, escribir el
+           motivo y recuperar el borrador. Mismo criterio que
+           sticpa_pl_row_html() en PHP. */
+        function paintNote(row) {
+            var note = row.querySelector('[data-pl-state-note]');
+            if (!note) { return; }
+            var value = getState(row);
+            // Los dos estados del gesto largo se dicen con palabras bajo el
+            // nombre: ver "Parcial" escrito en una fila enseña que existen.
+            var label = (value === 'partial' || value === 'no_justified')
+                ? (row.getAttribute('data-label-' + value) || '')
+                : '';
+            // El motivo, solo donde la fila lo pide (la lista de monitores), y
+            // AL FINAL: la nota va en una línea, y si se corta tiene que ser el
+            // motivo (entero está en la hoja), nunca el aviso rojo.
+            var why = (row.hasAttribute('data-motive-note') && value !== '')
+                ? (row.getAttribute('data-motive') || '').trim()
+                : '';
+            var warn = row.getAttribute('data-warn') || '';
+            var text = [label, warn, why].filter(Boolean).join(' · ');
+            note.textContent = text;
+            note.hidden = (text === '');
+        }
+
         function setState(row, value, quiet) {
             if (getState(row) === value) { return; }
             row.setAttribute('data-state', value);
@@ -389,18 +413,13 @@
                 } catch (e) { /* sin pellizco, pero la marca se pone igual */ }
             }
 
-            var note = row.querySelector('[data-pl-state-note]');
-            if (note) {
-                // Los dos estados del gesto largo se dicen con palabras bajo el
-                // nombre: ver "Parcial" escrito en una fila enseña que existen.
-                var label = (value === 'partial' || value === 'no_justified')
-                    ? (row.getAttribute('data-label-' + value) || '')
-                    : '';
-                var warn = row.getAttribute('data-warn') || '';
-                var text = [label, warn].filter(Boolean).join(' · ');
-                note.textContent = text;
-                note.hidden = (text === '');
+            // En monitores, volver a verde se lleva el motivo: el porqué de una
+            // falta que no fue no puede quedarse escrito en un «vino».
+            if (IS_MONITORS && value === 'yes') {
+                row.setAttribute('data-motive', '');
             }
+
+            paintNote(row);
 
             if (!quiet) {
                 setDirty(true);
@@ -450,11 +469,15 @@
                 // El motivo se restaura ANTES del estado: setState() repinta la
                 // nota bajo el nombre, y si el motivo llega después se queda sin
                 // pintar hasta el siguiente toque.
-                if (id in notes) { row.setAttribute('data-motive', notes[id]); }
+                if (id in notes) {
+                    if ((row.getAttribute('data-motive') || '') !== notes[id]) { changed++; }
+                    row.setAttribute('data-motive', notes[id]);
+                }
                 if (draft.marks[id] !== server[id]) {
                     setState(row, draft.marks[id], true);
                     changed++;
                 }
+                paintNote(row);
             });
 
             if (changed > 0) {
@@ -649,6 +672,7 @@
             var value = motive.value.trim().slice(0, 255);
             if ((sheetRow.getAttribute('data-motive') || '') === value) { return; }
             sheetRow.setAttribute('data-motive', value);
+            paintNote(sheetRow);
             setDirty(true);
             saveDraft();
         }
@@ -844,7 +868,10 @@
                         // estado no significa nada y quedaría escrito a solas.
                         sheetRow.setAttribute('data-motive', '');
                         if (motive) { motive.value = ''; }
-                        setState(sheetRow, '');
+                        // En monitores no existe «sin marcar»: quitar la marca
+                        // es volver al verde, que es lo que se guardaría igual.
+                        setState(sheetRow, IS_MONITORS ? 'yes' : '');
+                        paintNote(sheetRow);
                     }
                     closeSheet(0);
                 });

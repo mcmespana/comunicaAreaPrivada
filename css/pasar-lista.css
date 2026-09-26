@@ -410,6 +410,15 @@
 .pl-row[data-state="no_unjustified"] .pl-name,
 .pl-row[data-state="no_justified"] .pl-name { color: var(--gray-500); }
 .pl-note { font-size: 0.73rem; font-weight: 700; }
+/* El motivo bajo el nombre (solo en la lista de monitores): en una línea, y si
+   es largo se corta con puntos suspensivos — entero se lee en la hoja. Sin
+   color propio de estado o de aviso, gris: acompaña, no alarma. */
+.pl-row[data-motive-note] .pl-note {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.pl-row[data-motive-note] .pl-note:not([style]) { color: var(--gray-500); }
 
 /* El círculo de estado. Vacío y punteado = por marcar, y así se lee como un
    control que espera un toque; lleno = marcado, con glifo y color propios,
@@ -2423,6 +2432,20 @@ a.pl-group .pl-name { display: block; }
     letter-spacing: 0.02em;
 }
 .pl-track-foot { font-size: 0.76rem; line-height: 1.4; color: var(--gray-500); }
+/* Las faltas a reuniones, con su motivo: una línea cada una, con la misma letra
+   del pie. Qué reunión en gris oscuro y el porqué en el gris del pie: se lee
+   primero cuál y después por qué. */
+.pl-track-faltas {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+.pl-track-falta { display: flex; flex-direction: column; gap: 0.05rem; font-size: 0.76rem; line-height: 1.4; }
+.pl-track-falta-que { font-weight: 700; color: var(--gray-700); overflow-wrap: anywhere; }
+.pl-track-falta-por { color: var(--gray-500); overflow-wrap: anywhere; }
 
 /* EL CUADRADITO. 12 px con 3 de hueco: los meses ya separan, así que se puede
    dar un píxel más de cuerpo sin que veinticuatro sesiones se salgan de un

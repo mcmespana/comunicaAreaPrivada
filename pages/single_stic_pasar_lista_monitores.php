@@ -158,6 +158,32 @@ if (!empty($_POST['pl_action'])) {
                 }
             }
         }
+        // LOS MOTIVOS, como en la lista de los chavales: en su propio campo,
+        // solo de monitores de ESTA lista y recortados a lo que cabe en el CRM.
+        // La hoja siempre dejó escribirlos; hasta el 26/09/2026 no se mandaban
+        // y se perdían sin avisar. En una reunión son justo lo que importa.
+        $notes = array();
+        if (!empty($_POST['pl_notes'])) {
+            $decodedNotes = json_decode(wp_unslash($_POST['pl_notes']), true);
+            if (is_array($decodedNotes)) {
+                foreach ($decodedNotes as $cid => $txt) {
+                    $cid = sticpa_pl_safe_id($cid);
+                    if ($cid === '' || !is_string($txt)) {
+                        continue;
+                    }
+                    $notes[$cid] = sanitize_textarea_field(mb_substr($txt, 0, 255));
+                }
+            }
+        }
+        $deLaLista = array();
+        foreach ($monitors as $m) {
+            $deLaLista[$m['id']] = true;
+        }
+        $notes = array_intersect_key($notes, $deLaLista);
+
+        // `$regMap` vuelve con las inscripciones que se creen al guardar: la
+        // relectura de más abajo las necesita, o daría por no guardado lo que
+        // sí lo está (el fallo del 26/09/2026).
         $saved = sticpa_pl_save_monitors(
             $objSCP,
             $session['id'],
@@ -165,7 +191,8 @@ if (!empty($_POST['pl_action'])) {
             $marks,
             $regMap,
             $event['id'],
-            isset($session['start']) ? (int) $session['start'] : 0
+            isset($session['start']) ? (int) $session['start'] : 0,
+            $notes
         );
     }
 } elseif ($isPost) {
@@ -349,6 +376,8 @@ $html .= wp_nonce_field('pl_monitores', 'pl_nonce', true, false);
 // de guardar y no se escribe nada.
 $html .= '<input type="hidden" name="pl_action" value="save" data-pl-action>';
 $html .= '<input type="hidden" name="pl_marks" value="" data-pl-marks>';
+// Los motivos de las faltas: el JS los recoge de las filas (`data-motive`).
+$html .= '<input type="hidden" name="pl_notes" value="" data-pl-notes>';
 
 /* POR ETAPA, Y LOS MIC PRIMERO.
  *
@@ -457,7 +486,10 @@ foreach ($conFilas as $etapa) {
         $fichaUrl = '?internalpage=single_stic_pasar_lista_monitor&monitor=' . rawurlencode($m['id']);
         $aviso = isset($avisos[$m['id']]) ? $avisos[$m['id']] : '';
         $track = isset($tracks[$m['id']]) ? $tracks[$m['id']] : null;
-        $html .= sticpa_pl_row_html($m, $state, 0, $fichaUrl, $sub, '', $aviso, $track);
+        // El motivo que ya tuviera la asistencia, para que la hoja lo enseñe
+        // al abrirse y la fila lo diga debajo del nombre.
+        $motive = isset($attendances[$m['id']]['description']) ? (string) $attendances[$m['id']]['description'] : '';
+        $html .= sticpa_pl_row_html($m, $state, 0, $fichaUrl, $sub, $motive, $aviso, $track, true);
     }
     $html .= '</div>';
 }

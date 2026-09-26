@@ -19,6 +19,19 @@ if (!defined('ABSPATH')) {
 
 $pageSettings['fileName'] = basename(__FILE__, ".php");
 
+// UNA TANDA para lo que no depende de nada: quién coordina, los eventos (de
+// ahí sale el de reuniones) y las listas de la delegación. Eran tres viajes en
+// fila antes de poder pintar nada. Las listas no se pedían: ahora dicen, en la
+// misma lectura, qué reuniones tienen ya la lista pasada.
+// (Al crear una reunión no: el alta tira la caché y lo leería todo otra vez.)
+if (empty($_POST['pl_reunion_name'])) {
+    sticpa_pl_prime($objSCP, function () use ($objSCP) {
+        sticpa_pl_coord_scope($objSCP);
+        sticpa_pl_events_raw($objSCP);
+        sticpa_pl_all_listas_monitores($objSCP);
+    });
+}
+
 $scope = sticpa_pl_coord_scope($objSCP);
 if ($scope === null) {
     $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
@@ -75,12 +88,16 @@ if ($createMsg !== '') {
 // ---------------------------------------------------------------------------
 
 if (!empty($sessions)) {
+    // Del mismo índice que ya se ha leído en la tanda: cero consultas.
+    $listasReu = sticpa_pl_all_listas_monitores($objSCP);
     // De la más reciente a la más antigua: la de la semana pasada es la que se
     // busca, no la de octubre.
     $ordered = array_reverse($sessions);
     $html .= '<div class="pl-list">';
     foreach ($ordered as $s) {
         $past = ((int) $s['start'] <= sticpa_pl_now());
+        $listaReu = isset($listasReu[$s['id']]) ? $listasReu[$s['id']] : null;
+        $pasada = ($listaReu !== null && $listaReu['estado'] !== '');
         $hours = (!empty($s['end']) && $s['end'] > $s['start'])
             ? round(($s['end'] - $s['start']) / HOUR_IN_SECONDS, 1)
             : 0;
@@ -98,13 +115,27 @@ if (!empty($sessions)) {
             $meta[] = sticpa_pl_session_label($s);
         }
         if ($hours > 0) {
-            $meta[] = sprintf(
+            // Con espacio duro: la línea es larga y partía «3 / h» al saltar.
+            $meta[] = str_replace(' ', "\u{00A0}", sprintf(
                 /* translators: %s: duración en horas */
                 __('%s h', 'sticpa'),
                 $hours
-            );
+            ));
         }
-        $meta[] = $past ? __('pasar lista', 'sticpa') : __('todavía no ha llegado', 'sticpa');
+        /* ¿Está pasada? Es lo primero que se pregunta al abrir esta pantalla, y
+         * antes había que entrar en cada reunión para saberlo. Los números son
+         * los de la lista (una por reunión): si dos coordinadores comparten la
+         * reunión, son los del último que guardó. */
+        if ($pasada) {
+            $meta[] = sprintf(
+                /* translators: 1: cuántos vinieron, 2: cuántas faltas */
+                __('lista pasada: %1$d vinieron, %2$d faltas', 'sticpa'),
+                (int) $listaReu['n_asistieron'],
+                (int) $listaReu['n_faltaron']
+            );
+        } else {
+            $meta[] = $past ? __('pasar lista', 'sticpa') : __('todavía no ha llegado', 'sticpa');
+        }
         $html .= '<span class="pl-group-meta">' . esc_html(implode(' · ', $meta)) . '</span>';
         $html .= '</span>';
         $html .= '<span class="pl-detail">' . sticpa_pl_icon('next') . '</span>';

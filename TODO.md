@@ -147,6 +147,37 @@ puedan coger una tarea, entender el porqué y hacerla sin contexto previo.
 
 ## 🟡 Pasar Lista
 
+> Monitores (26/09/2026): el «error» al guardar, las tandas, los respaldos y el
+> motivo de las faltas están hechos (ver **Hecho** y `PASAR-LISTA-ESTADO.md` §1).
+> Lo de abajo es lo que queda, por orden de lo que más se va a notar el 24/10.
+
+- [ ] `PL-MON-1` (P1 · S) **Comprobar en el CRM real el guardado de monitores** (§1 del
+      parte: «Guardado» a la primera, sin duplicados en el segundo guardado, inscripciones
+      con el nombre del evento, el motivo en `description`). Con `&pl_diag=1` se ven las
+      llamadas y los tiempos.
+- [!] `PL-MON-2` (P1 · S) **Los eventos de prueba 2025-2026 ya no salen**: Pasar Lista coge
+      los del curso en el nombre («2026-2027»). Decidir si se prueba sobre
+      `COM|MIC | Curso 2026-2027 · CS` o si hace falta un filtro para fijar el curso.
+- [!] `PL-MON-3` (P1 · M) **Coordinación de toda la delegación con MIC y COM en eventos
+      separados**: la lista de monitores del sábado usa el de COM para todos y los de MIC
+      acabarían inscritos a él. Propuesta: selector de etapa en la pantalla cuando el
+      alcance es la delegación entera. ↳ `pages/single_stic_pasar_lista_monitores.php`.
+- [ ] `PL-MON-4` (P1 · M) **Leer las asistencias de una sesión sin páginas de 20 en fila**
+      (`get_relationships` corta en 20: un sábado lleno son 4-5 viajes seguidos en marcar y
+      monitores). Medir antes con `pl_diag`; si se confirma, `get_entry_list` con el filtro
+      de un día (`sticpa_pl_attendance_days_sql()`). ↳ `sticpa_pl_session_attendances()`.
+- [ ] `PL-MON-5` (P2 · M) **Los avisos de la lista de monitores leen el curso entero de la
+      delegación** (chavales incluidos). Leerlos por las inscripciones de los monitores, o
+      que el Guardián deje el porcentaje calculado de noche.
+- [!] `PL-MON-6` (P2 · S) **Las inscripciones que crea Pasar Lista van sin `status`** (es
+      obligatorio en el CRM). Decidir cuál (¿`confirmed`?) mirando si algún flujo del CRM
+      salta al confirmar.
+- [ ] `PL-MON-7` (P2 · S) **Los números de la lista de monitores cuando dos etapas comparten
+      reunión**: contar a todos los monitores de la sesión, no solo a los del alcance de
+      quien guarda. Sin llamadas extra. ↳ `sticpa_pl_save_monitors()`.
+- [ ] `PL-MON-8` (P3 · S) Apagar el refuerzo de enlaces (`sticpa_pl_refuerzo_enlaces`) si se
+      comprueba en el CRM que los campos planos atan solos; y que crear una reunión tire solo
+      las sesiones de su evento y no toda la caché.
 - [!] `PL-036` (P3 · S) **Lo único que queda del plan 036**, y no es código: el correo
       automático de avisos (se configura en el CRM) y verificar `CAMPOS.md` contra el CRM,
       que necesita el **conector MCP de SinergiaCRM** en la sesión (el 25/09/2026 no estaba).
@@ -208,6 +239,13 @@ modal de borrado, sistema de diseño, formularios Comunica, perfiles de familia,
 24-25/09: menú del móvil en mosaicos, portada de 2 en 2, pestañas legibles, botones con
 texto blanco en claro, sin degradado de fondo, 12 px de margen en toda la web, calendario
 con la barra en una fila, buscador sin doble caja, sin cinta de «Pruebas».
+
+**Pasar Lista · monitores (26/09):** el «no ha quedado guardada» de la lista de monitores
+(relectura con el mapa de inscripciones viejo + `flush('struct')` que no existía) ·
+inscripciones, asistencias y enlaces en tandas (~75 esperas → ~22) · respaldos que ya no
+se bajan toda la delegación por un vacío · rango de asistencias solo de los días con sesión ·
+reuniones en una tanda y con su estado · el motivo de las faltas de monitores, en la lista
+y en la ficha.
 
 **Rendimiento:** `PERF-01` caché de campos · `PERF-02` sin animaciones infinitas ·
 `PERF-03` sesión técnica del CRM compartida (25/09) · `PERF-04` foto por endpoint ·

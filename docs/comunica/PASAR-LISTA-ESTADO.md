@@ -1,6 +1,7 @@
 # Pasar Lista — parte de estado
 
-**Fecha de este parte: 28 de agosto de 2026 (tarde).** Es el documento que hay que leer
+**Fecha de este parte: 26 de septiembre de 2026** (lo de monitores; el resto de §1
+es del 28/08 y el 04/09). Es el documento que hay que leer
 para retomar el trabajo sin reconstruir el contexto. El mapa de todo lo demás
 está en [`PASAR-LISTA-README.md`](PASAR-LISTA-README.md); el diseño funcional,
 en [`PASAR-LISTA.md`](PASAR-LISTA.md).
@@ -13,10 +14,111 @@ Piloto: **MCM Castellón, curso 2025-2026**. Nada interdelegacional.
 
 ---
 
-## 1. QUÉ ESTÁ ABIERTO AHORA MISMO (28/08/2026, tarde)
+## 1. QUÉ ESTÁ ABIERTO AHORA MISMO (26/09/2026)
 
 Esto es lo único que hay que leer para saber por dónde va. Lo cerrado está más
 abajo, en §1-bis, y se conserva porque explica POR QUÉ el código es como es.
+
+### ✅ Monitores: el «error» al guardar, la lentitud y el motivo de las faltas (26/09/2026)
+
+**Lo que se veía.** Coordinación guardaba la lista de monitores (sobre todo la
+primera de una reunión) y la pantalla decía *«El CRM ha aceptado el guardado,
+pero al volver a leerlo no está. N marcas no han quedado guardadas»*, después
+de una espera muy larga.
+
+**Lo que había de verdad en el CRM** (mirado por MCP el mismo día): la lista de
+la reunión de Segart que Enrique guardó a las 09:53 estaba **entera y bien** —
+14 inscripciones creadas por el plugin, 14 asistencias (11 «vino», 3 «no vino»)
+y la `LIS_listas` con 11/3—. El guardado funcionaba; lo que fallaba era la
+comprobación, y el camino hasta ella.
+
+**Las causas, las tres a la vez:**
+
+1. **La relectura usaba el mapa de inscripciones de ANTES de guardar.** A un
+   monitor sin inscripción se le crea al guardar, pero la pantalla releía con
+   el mapa viejo: sus asistencias recién creadas no eran «de nadie» y salían
+   como marcas perdidas. Siempre, en la primera lista de cada evento.
+2. **`sticpa_pl_flush($objSCP, 'struct')` no existía.** La función solo entendía
+   `'state'` y `'all'`: con `'struct'` tiraba el estado y dejaba el mapa de
+   inscripciones cacheado 24 h. El guardado siguiente no encontraba la
+   inscripción y **creaba otra, con otra asistencia** (en reuniones se libraba
+   solo porque un evento sin inscripciones se cachea 2 minutos). Además ese
+   `flush` iba dentro del bucle y tiraba las actualizaciones que la tanda ya
+   había traído, que se volvían a mandar una a una.
+3. **Todo en fila.** Por cada monitor sin asistencia: la inscripción, su
+   enlace, la asistencia y sus dos enlaces — cinco viajes seguidos. Catorce
+   monitores, ~75 llamadas: más de medio minuto, y la webview o el servidor
+   pueden cortar antes.
+
+**Lo que se ha hecho** (con tests que reproducen el texto exacto del fallo con
+el código de antes y pasan con el de ahora):
+
+- `sticpa_pl_ensure_registrations()` y `sticpa_pl_write_attendances()`: las
+  inscripciones que faltan, las asistencias nuevas y todos sus enlaces salen
+  **en tandas**. Las tandas van de cuatro en cuatro (lo que fijó el plan 034
+  para no cargar el CRM), así que la primera lista de 14 monitores sin
+  inscribir pasa de ~75 esperas a ~22, y a ~11 si se apaga el refuerzo de
+  enlaces (abajo). Volver a guardar una lista ya pasada son ~6. La inscripción
+  lleva ya el evento en su campo plano (`stic_registrations_stic_eventsstic_events_ida`,
+  como el formulario de inscripción del área), y el `set_relationship` queda de
+  refuerzo, apagable con el filtro `sticpa_pl_refuerzo_enlaces`.
+- El mapa de inscripciones vuelve **por referencia** a la pantalla y se
+  completa **en la caché** (`sticpa_pl_regmap_remember()`) en vez de tirarla.
+- `sticpa_pl_flush()` entiende `'struct'`.
+- Los enlaces de una lista nueva (sesión, grupo, quién la pasó) van en una
+  tanda (`sticpa_pl_lista_enlazar()`), en las dos pantallas.
+- **Los respaldos que se bajan toda la delegación** (`..._session_attendances_direct`,
+  `..._event_registrations_direct` y el de la ficha) ya no saltan con un simple
+  vacío: solo si el CRM falla o devuelve filas sin el enlace. Antes, una
+  reunión sin asistencias —o un evento de reuniones sin inscripciones— se
+  descargaba TODAS las de la delegación en cada visita, para concluir que no
+  había ninguna.
+- La consulta por fechas de los avisos pide **solo los días con sesión**
+  (`sticpa_pl_attendance_days_sql()`), no el tramo entero: con cuatro reuniones
+  al año el tramo eran todas las asistencias del curso.
+- La pantalla de **reuniones** agrupa sus lecturas en una tanda y dice de cada
+  reunión si su lista está pasada y con qué números.
+- **El motivo de las faltas de los monitores.** La hoja de estados siempre
+  dejaba escribirlo, pero el formulario de monitores no lo mandaba y se perdía
+  sin avisar. Ahora va a `stic_Attendances.description` —el mismo campo que en
+  los chavales; comprobado por MCP que el módulo no tiene otro para justificar,
+  y `status` ya distingue justificada de no justificada—, se dice bajo el
+  nombre en la lista de monitores y la ficha del monitor enseña **cada falta a
+  una reunión con su porqué** (y el motivo en el título de cada cuadradito).
+- En monitores, «Quitar la marca» vuelve a verde (ahí no existe «sin marcar») y
+  volver a «vino» se lleva el motivo.
+
+**Lo que queda por comprobar en el CRM real** (la próxima vez que se guarde una
+lista de monitores):
+
+1. La pantalla dice **«Guardado»** a la primera, también en una reunión con
+   monitores sin inscribir, y tarda segundos, no medio minuto.
+2. Un segundo guardado de la misma lista **no crea inscripciones ni asistencias
+   nuevas** (se mira en el evento: siguen siendo las mismas).
+3. Las inscripciones nuevas salen **con el nombre del evento** (el campo plano
+   del evento va ahora en el propio registro).
+4. Un motivo escrito en la hoja llega a `description` de la asistencia.
+
+**Cómo medir lo que queda** (antes de tocar más rendimiento): abrir la pantalla
+con `&pl_diag=1`, que enseña cada llamada al CRM y su tiempo. Lo que hay que
+buscar está en la lista de abajo.
+
+### 🟡 Para la siguiente iteración: monitores y rendimiento (26/09/2026)
+
+Mirado y **no tocado a propósito**, porque sin medir en el CRM real se arregla a
+ciegas. Por orden de lo que más se va a notar cuando empiece el curso:
+
+| | Qué | Por qué importa | Qué hacer |
+|---|---|---|---|
+| 🔴 | **Los eventos de prueba ya no salen.** Pasar Lista coge los eventos con el curso actual en el nombre, y desde el 1/09 es «2026-2027»: los dos `TEST \| Sesiones semanales 2025-2026 · CS` no aparecen. Los de este curso son `COM \| Curso 2026-2027 · CS` y `MIC \| Curso 2026-2027 · CS` (del 24/10). | Las pruebas de sábados con monitores ya no se hacen sobre los eventos de prueba. | Decidir sobre qué eventos se prueba; si hace falta, un filtro que fije el curso. |
+| 🔴 | **Con MIC y COM en eventos separados, quien coordina toda la delegación** pasa la lista de monitores del sábado sobre el de COM (el primero que encuentra), así que los monitores de MIC acabarían inscritos al evento de COM. | Es el caso de David. Con el modelo antiguo (un evento para las dos etapas) no pasaba. | Una lista por etapa (selector MIC/COM en la pantalla) cuando el alcance es la delegación entera. |
+| 🟠 | **Las asistencias de una sesión se leen con `get_relationships`, que el CRM corta en 20 filas por página**, y las páginas siguientes salen en fila. Una sesión con todos los grupos de una etapa y sus monitores son fácilmente 80-100 asistencias: 4-5 viajes seguidos, en marcar y en monitores, en cada carga. | Hoy no se nota (14 asistencias en toda la delegación); desde el 24/10, sí. | Medir con `pl_diag`. Si se confirma, leer la sesión por `get_entry_list` (que respeta `max_results`) con el filtro de un día (`sticpa_pl_attendance_days_sql()`), o por subconsulta a la tabla puente. |
+| 🟠 | **Los avisos de la lista de monitores leen las asistencias de todo el curso de la delegación** (chavales incluidos) para quedarse con las de los monitores. | Crece cada sábado; se cachea 5 minutos y cada guardado de cualquiera la tira. | Leerlas por las inscripciones de los monitores, o que el Guardián deje el porcentaje calculado de noche. |
+| 🟡 | **Las listas de monitores son una por sesión, sin etapa**: si MIC y COM comparten reunión, cada coordinador guarda sus números y el último pisa al otro (las asistencias por persona están bien). | La pantalla de reuniones enseña esos números. | Calcular `n_asistieron`/`n_faltaron` con todos los monitores de la sesión (los de fuera del alcance con lo que ya tengan), sin llamadas extra. |
+| 🟡 | **Las inscripciones que crea Pasar Lista van sin `status`**, y en el CRM es obligatorio (las 14 de reuniones están así). | El CRM las enseña a medias y un informe por estado no las cuenta. | Decidir qué estado ponerles (¿`confirmed`?) mirando antes si algún flujo del CRM salta al confirmar. |
+| 🟡 | **El refuerzo de enlaces** (`set_relationship` tras el `set_entry`) cuesta dos llamadas por asistencia nueva. | Una tanda más en cada primer guardado de un sábado. | Comprobar en el CRM que una asistencia creada con el filtro `sticpa_pl_refuerzo_enlaces` a `false` queda atada a su sesión y su inscripción; si es así, apagarlo. |
+| ⚪ | **El alcance de coordinación pregunta el grupo de la relación** con una llamada suelta cuando la relación no tiene grupo (los tres de Castellón). | Una espera en la primera pantalla de coordinación del día. | Solo si se confirma que el campo plano del grupo llega siempre; si no, el segmento se perdería, y eso es quién edita qué. |
+| ⚪ | **Crear una reunión tira TODA la caché de la delegación** (`flush('all')`). | La pantalla siguiente de todo el mundo va en frío. Son 3-4 al año. | Tirar solo las sesiones del evento de reuniones. |
 
 ### 🔴 Tres cosas que hay que arreglar EN EL CRM, no en el código
 
@@ -532,7 +634,9 @@ llamada fallaba en silencio y caía a respaldos 1+N).
 | Marcar | 10 | 6 |
 | Resumen | 7 | 3 |
 | Ficha del participante | 13 | 7 |
-| Lista de monitores | 10 | 4 |
+| Lista de monitores (sábado o reunión) | 10 | 4 |
+| Reuniones (26/09/2026: antes sin tanda) | 5 | 3 |
+| **Guardar la lista de monitores**, 14 sin inscribir (26/09/2026) | ~75 | ~75 → **~22** (tandas de 4) |
 | **Mis grupos** (índice, y sus tres vistas) | **3** | **2** |
 | Mis grupos → un grupo | 3 (5 si el mapa falla) | 2 |
 | Mis grupos → monitores | 4 | 3 |

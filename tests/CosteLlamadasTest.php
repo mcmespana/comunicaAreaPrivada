@@ -54,6 +54,10 @@ class CosteLlamadasTest extends TestCase
             // Monitores hace falta AQUÍ: era la pantalla más lenta de todas y
             // nadie le contaba las llamadas.
             'single_stic_pasar_lista_monitores' => array('__coord' => 'COM'),
+            // La lista de una REUNIÓN: otro evento, las mismas piezas.
+            'single_stic_pasar_lista_monitores#reunion' => array('__coord' => 'COM', 'reunion' => '1', 'sesion' => 'ru2'),
+            // Y la lista de reuniones, que no agrupaba nada (26/09/2026).
+            'single_stic_pasar_lista_reuniones' => array('__coord' => 'COM'),
             // Y la ficha de un monitor, que ahora enseña el seguimiento
             // completo, sus grupos y el histórico: todo lo nuevo sale de
             // cargadores de colección, así que su coste NO puede depender de
@@ -141,6 +145,13 @@ class CosteLlamadasTest extends TestCase
             // todos históricos), y eso es justo lo que pasaba: el respaldo por
             // grupo se disparaba en cada grupo vacío.
             'single_stic_pasar_lista_monitores' => array(array('__coord' => 'COM'), 11),
+            // La lista de una reunión. Cuesta lo mismo que la de un sábado:
+            // otro evento, las mismas consultas.
+            'single_stic_pasar_lista_monitores#reunion' => array(array('__coord' => 'COM', 'reunion' => '1', 'sesion' => 'ru2'), 11),
+            // La pantalla de reuniones: el alcance, los eventos y las listas en
+            // UNA tanda, y las sesiones del evento después. Eran cuatro viajes
+            // en fila; si esto sube, algo ha vuelto a salir suelto.
+            'single_stic_pasar_lista_reuniones' => array(array('__coord' => 'COM'), 5),
             // La ficha del monitor. Sube respecto a la versión de antes porque
             // ahora lee TAMBIÉN el evento de reuniones, sus sesiones, sus
             // inscripciones y las asistencias de esa persona a las dos cosas:

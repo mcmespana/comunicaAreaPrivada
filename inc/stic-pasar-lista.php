@@ -1135,10 +1135,11 @@ function sticpa_pl_short_name($first, $last, $full = '')
  * `pct` vale -1 cuando no hay NINGUNA sesión marcada: no es un 0 %, es un «no
  * se sabe», y pintar un 0 % ahí sería mentir con un número redondo.
  *
- * @return array squares[] (id, start, state), elapsed, attended, missed,
- *               unknown, counted, pct.
+ * @param array $motivos sessionId => motivo (opcional): va a cada cuadradito.
+ * @return array squares[] (id, start, state, name, motivo), elapsed, attended,
+ *               missed, unknown, counted, pct.
  */
-function sticpa_pl_att_track($sessions, $marks, $nowTs = null)
+function sticpa_pl_att_track($sessions, $marks, $nowTs = null, $motivos = array())
 {
     $states = sticpa_pl_states();
     $elapsed = sticpa_pl_elapsed_sessions($sessions, $nowTs);
@@ -1178,6 +1179,11 @@ function sticpa_pl_att_track($sessions, $marks, $nowTs = null)
             'id' => $id,
             'start' => isset($s['start']) ? (int) $s['start'] : 0,
             'state' => $key,
+            // El nombre (en las reuniones es lo que las identifica) y el
+            // motivo, si lo hay: van al título del cuadradito y a la lista de
+            // faltas de la ficha del monitor.
+            'name' => isset($s['name']) ? (string) $s['name'] : '',
+            'motivo' => ($key !== '' && $id !== '' && isset($motivos[$id])) ? (string) $motivos[$id] : '',
         );
     }
 

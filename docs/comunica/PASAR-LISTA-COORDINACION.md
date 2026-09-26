@@ -121,6 +121,36 @@ verde **es un dato**, no un hueco — y por eso se puede escribir.
 Es la única pantalla del sistema donde no marcar significa algo. Está dicho aquí
 para que nadie lo «arregle» dentro de un año.
 
+### El motivo de una falta (26/09/2026)
+
+En los chavales el motivo es un extra; en los monitores, y sobre todo en las
+**reuniones de programación**, es lo que se viene a mirar: una falta a una de
+las tres o cuatro reuniones del año se habla, y lo primero es el porqué.
+
+- Se escribe en la misma hoja del gesto largo que en los chavales (justificada,
+  parcial y el campo «Añadir un motivo») y va a
+  **`stic_Attendances.description`**. No hay otro campo para esto: se miró el
+  módulo entero por MCP el 26/09/2026. La categoría ya la lleva `status`
+  (`no_justified` frente a `no_unjustified`).
+- En la lista de monitores el motivo **se dice bajo el nombre**
+  («Justificada · Examen»), cortado a una línea; entero se lee en la hoja.
+- En la **ficha del monitor**, debajo de los cuadraditos de «Reuniones», va
+  cada falta con su reunión y su porqué —o «sin motivo», que también es un
+  dato—, y el motivo sale en el título de cada cuadradito (sábados incluidos).
+- Volver a «vino» se lleva el motivo, y «Quitar la marca» vuelve a verde: en
+  esta lista no existe «sin marcar».
+
+Hasta ese día la hoja ya dejaba escribir el motivo, pero el formulario de
+monitores no lo enviaba: se perdía sin avisar.
+
+### Guardar con monitores sin inscribir (26/09/2026)
+
+Casi ningún monitor está inscrito al evento (y al de reuniones, ninguno al
+empezar el curso), así que el primer guardado de cada evento **crea sus
+inscripciones**. Va en tandas y la pantalla relee con ellas; antes iba uno a
+uno —~75 llamadas para 14 monitores— y la relectura, con el mapa de antes,
+decía que no se había guardado nada. El detalle está en el parte de estado §1.
+
 ---
 
 ## 4. Los datos del monitor: mejor que el CRM, y en otro orden

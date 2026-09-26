@@ -505,7 +505,9 @@ if ($hayPistas) {
                     _n('Vino a %1$d reunión de %2$d', 'Vino a %1$d reuniones de %2$d', $t['attended'], 'sticpa'),
                     $t['attended'],
                     $t['counted']
-                )
+                ),
+                // Y a cuáles faltó, con su porqué: lo que se viene a preguntar.
+                sticpa_pl_faltas_html(isset($seg['reuniones']['faltas']) ? $seg['reuniones']['faltas'] : array())
             );
             $usados = array_merge($usados, sticpa_pl_sq_usados($t['squares']));
         }
