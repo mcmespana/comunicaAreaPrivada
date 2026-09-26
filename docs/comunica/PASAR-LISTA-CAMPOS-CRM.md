@@ -337,6 +337,14 @@ con `get_module_fields` antes de escribir en él, no se dio por bueno.
 El motivo solo se escribe **cuando cambia**: mandarlo igual en cada guardado
 llenaría el registro de auditoría del CRM de cambios que no son cambios.
 
+**Y también en los monitores (26/09/2026).** Se revisaron por MCP los 31 campos
+de `stic_Attendances` buscando uno para justificar una falta: **no hay otro**.
+Lo que hay es `status` (la categoría: `no_justified` / `no_unjustified`) y
+`description` (el porqué). La lista de monitores y la de reuniones escriben ahí
+el motivo igual que la de los chavales. Los demás campos del módulo son
+`amount`, `duration`, `payment_exception` (pagos), `start_date` y los enlaces a
+sesión, inscripción y pago.
+
 Ojo con esto: la API **no valida los enum**. Está comprobado — se le puede
 escribir un valor inventado y lo guarda. Así que las cuatro claves de arriba se
 tratan como constantes cerradas en el código, nunca como algo que se derive de
@@ -646,6 +654,7 @@ Los que usa Pasar Lista al escribir, verificados:
 | `stic_Attendances` | `stic_attendances_stic_sessionsstic_sessions_ida` | la sesión |
 | `stic_Attendances` | `stic_attendances_stic_registrationsstic_registrations_ida` | la inscripción |
 | `stic_Registrations` | `stic_registrations_contactscontacts_ida` | la persona inscrita |
+| `stic_Registrations` | `stic_registrations_stic_eventsstic_events_ida` | el evento (26/09/2026: Pasar Lista lo manda en el propio registro, como ya hacía el formulario de inscripción del área; el `set_relationship` queda de refuerzo) |
 
 **Y no confundas el campo relate con su id.** `ajmcm_sesion_c` y
 `ajmcm_puesto_por_c` son los campos que se PINTAN; el id vive aparte, en

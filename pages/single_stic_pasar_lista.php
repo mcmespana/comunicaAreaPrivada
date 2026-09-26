@@ -34,20 +34,33 @@ sticpa_pl_prime($objSCP, function () use ($objSCP) {
     sticpa_pl_all_relationships($objSCP);
     sticpa_pl_etapa_events($objSCP);
     sticpa_pl_all_listas($objSCP);
+    // «¿Coordina?» se pregunta para todo el mundo (decide si sale el bloque de
+    // coordinación) y salía SUELTA, después de todo lo demás: una espera más en
+    // la pantalla que más se abre. Dentro de la tanda no cuesta ninguna.
+    sticpa_pl_coord_scope($objSCP);
 });
 
 $groups = sticpa_pl_groups($objSCP);
 $myGroups = sticpa_pl_my_groups($objSCP);
 $events = sticpa_pl_etapa_events($objSCP);
+$scope = sticpa_pl_coord_scope($objSCP);
+// El evento de reuniones, solo para coordinación: sale de la lectura de
+// eventos que ya está hecha (cero consultas).
+$reuEvent = ($scope !== null) ? sticpa_pl_reuniones_event($objSCP) : null;
 
 // TANDA 2: las sesiones de cada etapa, todas juntas. Antes eran una llamada por
 // etapa, una detrás de otra.
-sticpa_pl_prime($objSCP, function () use ($objSCP, $events) {
+sticpa_pl_prime($objSCP, function () use ($objSCP, $events, $reuEvent) {
     // POR ID Y SIN REPETIR. `$events` va por etapa, y MIC y COM comparten el
     // mismo evento: el bucle pedía sus sesiones DOS veces. Dentro de una tanda
     // eso son dos peticiones de verdad, porque el memo se consume de un solo
     // uso (la lección de las dos parejas de consultas del 28/08).
-    foreach (array_unique(array_column($events, 'id')) as $evId) {
+    $ids = array_column($events, 'id');
+    // Y las reuniones, si coordina: el aviso de «reunión sin pasar» de abajo.
+    if (is_array($reuEvent) && !empty($reuEvent['id'])) {
+        $ids[] = $reuEvent['id'];
+    }
+    foreach (array_unique($ids) as $evId) {
         sticpa_pl_event_sessions($objSCP, $evId);
     }
 });
@@ -359,7 +372,6 @@ $html .= '</a>';
  * pantalla. Y debajo porque lo frecuente es pasar lista de tu grupo —eso pasa
  * cada sábado— y coordinar monitores pasa una vez al mes. Lo que se usa más va
  * arriba, y el orden no cambia según quién entre. */
-$scope = sticpa_pl_coord_scope($objSCP);
 if ($scope !== null) {
     // La misma frase que usan las pantallas de dentro (inc/stic-pasar-lista.php):
     // el segmento también cuenta, y antes se perdía —un coordinador de COM II
@@ -371,6 +383,56 @@ if ($scope !== null) {
         . esc_html__('Coordinación', 'sticpa')
         . '<span class="pl-scope">' . esc_html($scopeLabel) . '</span>'
         . '</div>';
+
+    /* LA REUNIÓN SIN LISTA, con el mismo aviso que las listas de tus grupos
+     * (ámbar y «Recuperar», que lleva directo a su lista). Solo la última
+     * celebrada: una reunión de programación sin lista es justo lo que se
+     * olvida, porque pasa tres o cuatro veces al año. Cero consultas: las
+     * sesiones van en la tanda de arriba y las listas ya están leídas.
+     *
+     * Y solo durante un MES: una reunión suspendida no se puede borrar desde
+     * aquí ni marcar «Sin registro», y dejaría el ámbar puesto hasta la
+     * siguiente, tres meses después. Pasado el mes sigue en Reuniones como
+     * «sin pasar», que es donde se mira la historia.
+     *
+     * La lista de monitores del SÁBADO no avisa, a propósito: si coordinación
+     * no la pasa cada semana, sería un ámbar fijo que enseña a no mirar el
+     * ámbar, también el de las listas de grupo. */
+    $listasMon = sticpa_pl_all_listas_monitores($objSCP);
+    $deudas = array();
+    if (is_array($reuEvent) && !empty($reuEvent['id'])) {
+        $ultima = null;
+        foreach (sticpa_pl_elapsed_sessions(sticpa_pl_event_sessions($objSCP, $reuEvent['id'])) as $s) {
+            $ultima = $s;   // van de la más antigua a la más reciente
+        }
+        if ($ultima !== null && empty($listasMon[$ultima['id']]['estado'])
+            && sticpa_pl_now() - (int) $ultima['start'] <= 30 * DAY_IN_SECONDS) {
+            $deudas[] = array(
+                'when' => sticpa_pl_session_label($ultima, false),
+                'what' => (isset($ultima['name']) && $ultima['name'] !== '')
+                    ? sprintf(
+                        /* translators: %s: nombre de la reunión */
+                        __('Reunión: %s', 'sticpa'),
+                        $ultima['name']
+                    )
+                    : __('Reunión', 'sticpa'),
+                'href' => '?internalpage=single_stic_pasar_lista_monitores&reunion=1&sesion=' . rawurlencode($ultima['id']),
+            );
+        }
+    }
+    if (!empty($deudas)) {
+        $html .= '<div class="pl-pending">';
+        foreach ($deudas as $d) {
+            $html .= '<a class="pl-pending-row" href="' . esc_url($d['href']) . '">';
+            $html .= '<span class="pl-pending-body">';
+            $html .= '<span class="pl-pending-when">' . esc_html($d['when']) . '</span>';
+            $html .= '<span class="pl-pending-group">' . esc_html($d['what']) . '</span>';
+            $html .= '</span>';
+            $html .= '<span class="pl-pending-cta">' . esc_html__('Recuperar', 'sticpa') . '</span>';
+            $html .= '</a>';
+        }
+        $html .= '</div>';
+    }
 
     $html .= '<div class="pl-list">';
     $html .= '<a class="pl-group" href="?internalpage=single_stic_pasar_lista_monitores">';

@@ -67,6 +67,8 @@ function sticpa_pl_icon($which)
         // en el título de las listas pendientes y en nada decorativo.
         'warn' => '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
         'pencil' => '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+        // El «+» de los botones que abren un alta (una reunión nueva).
+        'plus' => '<path d="M12 5v14"/><path d="M5 12h14"/>',
     );
     if (!isset($icons[$which])) {
         return '';
@@ -367,7 +369,13 @@ function sticpa_pl_pager_html($vecinos, $href)
     return $html;
 }
 
-function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub = '', $motive = '', $aviso = '', $track = null)
+/**
+ * `$motiveEnNota`: si el motivo se dice también bajo el nombre, y no solo en la
+ * hoja. En la lista de MONITORES sí: una falta a una reunión se habla, y el
+ * porqué tiene que verse sin abrir nada. En la de los chavales no, por ahora:
+ * tiene su diseño medido y ahí el motivo pesa menos (26/09/2026).
+ */
+function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub = '', $motive = '', $aviso = '', $track = null, $motiveEnNota = false)
 {
     $states = sticpa_pl_states();
     $state = sticpa_pl_is_state($state) ? $state : '';
@@ -401,12 +409,20 @@ function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub =
         $notes[] = $warn;
         $noteClass = 'style="color:var(--danger-dark)"';
     }
+    // El motivo, AL FINAL: «Justificada · Examen en la universidad». La nota
+    // va en una línea y se corta con puntos suspensivos, y si algo se corta
+    // tiene que ser el motivo (entero está en la hoja), nunca el aviso rojo.
+    // Mismo criterio que el JS (`paintNote`), que la recompone al marcar.
+    if ($motiveEnNota && $state !== '' && trim((string) $motive) !== '') {
+        $notes[] = trim((string) $motive);
+    }
     $note = implode(' · ', $notes);
 
     $html = '<button type="button" class="pl-row" data-state="' . esc_attr($state) . '"'
         . ' data-contact="' . esc_attr($person['id']) . '"'
         . ' data-warn="' . esc_attr($warn) . '"'
         . ' data-motive="' . esc_attr($motive) . '"'
+        . ($motiveEnNota ? ' data-motive-note' : '')
         . ' data-name="' . esc_attr($person['name']) . '"'
         . ' data-initials="' . esc_attr($person['initials']) . '"'
         . ' data-label-partial="' . esc_attr($states['partial']['label']) . '"'
@@ -490,8 +506,13 @@ function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub =
  * Va debajo de la lista y no en cada fila: el color y el glifo se aprenden una
  * vez y así la lista queda limpia. El chip de "mantén pulsado" es obligatorio,
  * no decorativo: sin él, parcial y justificada no existen para el usuario.
+ *
+ * `$monitores`: la pista de la lista de MONITORES. Ahí el toque pone y quita
+ * faltas (no hay «sin marcar») y lo que vive en el gesto largo importa más: en
+ * una reunión, justificar la falta y escribir el porqué es lo que se viene a
+ * dejar apuntado. Si la pista no lo dice, el motivo no existe para nadie.
  */
-function sticpa_pl_legend_html()
+function sticpa_pl_legend_html($monitores = false)
 {
     $states = sticpa_pl_states();
     $order = array('yes' => 'yes', 'partial' => 'partial', 'just' => 'no_justified', 'no' => 'no_unjustified');
@@ -507,6 +528,17 @@ function sticpa_pl_legend_html()
     $html .= '<span class="pl-hold-hint"><span class="pl-hold-ring" aria-hidden="true"></span>'
         . esc_html__('Mantén pulsado', 'sticpa') . '</span>';
     $html .= '</div>';
+
+    if ($monitores) {
+        $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
+            . sprintf(
+                /* translators: %s: "marcar una falta" en negrita */
+                esc_html__('Toca la fila para %s. Mantén pulsado para justificarla y escribir el motivo.', 'sticpa'),
+                '<strong>' . esc_html__('marcar una falta', 'sticpa') . '</strong>'
+            )
+            . '</span></p>';
+        return $html;
+    }
 
     $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
         . sprintf(
@@ -869,11 +901,11 @@ function sticpa_pl_save_result_html($saved, $problemas = array(), $objSCP = null
     $errors = isset($saved['errors']) ? (array) $saved['errors'] : array();
 
     if ($failed === 0 && empty($problemas)) {
-        return '<p class="pl-notice" style="color:var(--success-dark)">' . sticpa_pl_icon('check')
+        return '<p class="pl-notice pl-notice--ok">' . sticpa_pl_icon('check')
             . '<span>' . esc_html__('Lista guardada.', 'sticpa') . '</span></p>';
     }
 
-    $html = '<p class="pl-notice" style="color:var(--danger-dark)">' . sticpa_pl_icon('warn') . '<span>';
+    $html = '<p class="pl-notice pl-notice--error">' . sticpa_pl_icon('warn') . '<span>';
     if ($failed > 0) {
         $html .= esc_html(sprintf(
             /* translators: 1: marcas guardadas, 2: fallos */
@@ -991,6 +1023,10 @@ function sticpa_pl_squares_html($squares, $tipo = 'asistencia', $aria = '')
             $m = isset($meta[$state]) ? $meta[$state] : $meta[''];
             $cuando = ($ts > 0) ? date_i18n('j M', $ts) : '';
             $titulo = ($cuando !== '') ? $cuando . ' · ' . $m['label'] : $m['label'];
+            // Con motivo, el porqué va detrás: «12 sep · Justificada · Examen».
+            if (!empty($sq['motivo'])) {
+                $titulo .= ' · ' . $sq['motivo'];
+            }
 
             // El ÚLTIMO lleva un anillo: «cómo va últimamente» es la pregunta
             // que se hace de verdad, y sin marca hay que contar hasta el final
@@ -1019,7 +1055,11 @@ function sticpa_pl_squares_html($squares, $tipo = 'asistencia', $aria = '')
  * llame o no llame. Los cuadrados enseñan el patrón; el número sirve para
  * comparar y para apuntarlo.
  */
-function sticpa_pl_track_html($titulo, $squares, $marcador, $pie, $tipo = 'asistencia', $aria = '')
+/**
+ * `$extraHtml` va dentro de la pista, debajo del pie: la lista de faltas a
+ * reuniones con su motivo, en la ficha del monitor. Ya viene escapado.
+ */
+function sticpa_pl_track_html($titulo, $squares, $marcador, $pie, $tipo = 'asistencia', $aria = '', $extraHtml = '')
 {
     $html = '<div class="pl-track">';
     $html .= '<div class="pl-track-head">';
@@ -1032,7 +1072,45 @@ function sticpa_pl_track_html($titulo, $squares, $marcador, $pie, $tipo = 'asist
     if ($pie !== '') {
         $html .= '<div class="pl-track-foot">' . esc_html($pie) . '</div>';
     }
+    $html .= $extraHtml;
     $html .= '</div>';
+    return $html;
+}
+
+/**
+ * Las faltas a reuniones de un monitor, una por entrada y con su porqué: arriba
+ * cuál («12 sep · Convivencia de Segart») y debajo por qué («Justificada:
+ * examen en la universidad»).
+ *
+ * Son tres o cuatro al año, así que caben sin plegar nada. Sin motivo se dice
+ * también («sin motivo»): que no conste es un dato, y es justo el que hace que
+ * coordinación pregunte.
+ *
+ * @param array $faltas cuadraditos de `sticpa_pl_att_track()` (estado, fecha,
+ *                      nombre y motivo), de la más reciente a la más antigua.
+ */
+function sticpa_pl_faltas_html($faltas)
+{
+    if (empty($faltas)) {
+        return '';
+    }
+    $states = sticpa_pl_states();
+    $html = '<ul class="pl-track-faltas" aria-label="' . esc_attr__('Faltas a reuniones', 'sticpa') . '">';
+    foreach ($faltas as $f) {
+        $ts = isset($f['start']) ? (int) $f['start'] : 0;
+        $cuando = ($ts > 0) ? date_i18n('j M', $ts) : '';
+        $nombre = isset($f['name']) ? trim((string) $f['name']) : '';
+        $estado = (isset($f['state']) && isset($states[$f['state']])) ? $states[$f['state']]['label'] : '';
+        $motivo = isset($f['motivo']) ? trim((string) $f['motivo']) : '';
+
+        $html .= '<li class="pl-track-falta">';
+        $html .= '<span class="pl-track-falta-que">'
+            . esc_html(implode(' · ', array_filter(array($cuando, $nombre), 'strlen'))) . '</span>';
+        $html .= '<span class="pl-track-falta-por">' . esc_html($estado) . ': '
+            . esc_html($motivo !== '' ? $motivo : __('sin motivo', 'sticpa')) . '</span>';
+        $html .= '</li>';
+    }
+    $html .= '</ul>';
     return $html;
 }
 

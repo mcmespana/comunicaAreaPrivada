@@ -477,6 +477,16 @@ if ($hayPistas) {
                 . '<div class="pl-track-foot">'
                 . esc_html__('Todavía no ha habido ninguna reunión de programación.', 'sticpa')
                 . '</div></div>';
+        } elseif (!$seg['reuniones']['inscrito']) {
+            /* Sin inscripción al evento de reuniones no hay ninguna asistencia
+             * suya: no se ha pasado lista de ninguna reunión con esta persona
+             * dentro (la inscripción se crea al guardar la primera). Un «0 de
+             * 0» con los cuadraditos vacíos no lo decía; esto sí. */
+            $html .= '<div class="pl-track"><div class="pl-track-head">'
+                . '<span class="pl-track-title">' . esc_html__('Reuniones', 'sticpa') . '</span></div>'
+                . '<div class="pl-track-foot">'
+                . esc_html__('Todavía no aparece en ninguna lista de reunión.', 'sticpa')
+                . '</div></div>';
         } else {
             /* Con tres o cuatro reuniones al año un porcentaje es ruido —una
              * falta y ya estás en el 75 %—, así que el marcador es «2 de 4»,
@@ -505,7 +515,9 @@ if ($hayPistas) {
                     _n('Vino a %1$d reunión de %2$d', 'Vino a %1$d reuniones de %2$d', $t['attended'], 'sticpa'),
                     $t['attended'],
                     $t['counted']
-                )
+                ),
+                // Y a cuáles faltó, con su porqué: lo que se viene a preguntar.
+                sticpa_pl_faltas_html(isset($seg['reuniones']['faltas']) ? $seg['reuniones']['faltas'] : array())
             );
             $usados = array_merge($usados, sticpa_pl_sq_usados($t['squares']));
         }

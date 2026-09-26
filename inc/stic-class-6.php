@@ -283,6 +283,11 @@ class SugarRestApiCall
         if (isset(self::$memo[$firma])) {
             $memoizada = self::$memo[$firma];
             unset(self::$memo[$firma]);
+            // El error de la respuesta traída, igual que el de una llamada
+            // suelta. Sin esto `lastError` se quedaba con el de la llamada
+            // ANTERIOR, y quien pregunta «¿ha fallado la lectura?» para decidir
+            // si tira de respaldo leía un error que no era el suyo.
+            $this->lastError = self::errorFrom($memoizada);
             return $memoizada;
         }
 
