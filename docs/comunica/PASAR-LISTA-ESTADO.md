@@ -129,6 +129,28 @@ de coordinación de la portada. El detalle y el porqué de cada cambio están en
 teclado en el nombre, y que el aviso de la portada lleva a la lista de esa
 reunión.
 
+### ✅ Lo que vio coordinación el primer día (26/09/2026, noche)
+
+Probado en producción con la reunión de Soñación: guardó bien, pero:
+
+- **El pulsado largo seleccionaba toda la página y la hoja salía al final de la
+  lista.** Arreglado; es la trampa §3.7.
+- **Monitores nuevos que no salían** (Mencía Saiz, Ana Pardo). Su relación de
+  monitor apunta al grupo comodín «⚠️ Grupo monitoreado - POR DEFINIR!», que no
+  es de ninguna delegación, y la lista solo cogía monitores de grupos de la
+  delegación. Ahora quien coordina **toda la delegación** los ve en «Sin etapa»,
+  con «Sin grupo asignado» (`sticpa_pl_coord_monitors()`, la regla en un solo
+  sitio para lista, ficha y Mis grupos). Quien coordina una etapa no: sin grupo
+  no se sabe de cuál son. **Lo que decide quién sale es la relación de monitor
+  vigente, no la inscripción al evento** (las dos no tenían ninguna).
+- **Monitores del curso pasado que sí salen**: sus relaciones de monitor no
+  tienen fecha de fin. Es un dato del CRM: cerrarlas (`end_date`) las quita.
+- **Guardar tardó 15-20 s.** Con catorce monitores eran ~17 esperas; siete eran
+  el refuerzo de enlaces (dos `set_relationship` por asistencia nueva). Ahora
+  una lectura por id comprueba si el campo plano ya ató sesión, inscripción y
+  evento, y solo se refuerza lo que no (`sticpa_pl_enlaces_pendientes()`); y la
+  lista se relee dentro de la última tanda. Quedan ~9-10 esperas.
+
 ### 🟡 Para la siguiente iteración: monitores y rendimiento (26/09/2026)
 
 Mirado y **no tocado a propósito**, porque sin medir en el CRM real se arregla a
@@ -145,6 +167,8 @@ ciegas. Por orden de lo que más se va a notar cuando empiece el curso:
 | 🟡 | **El refuerzo de enlaces** (`set_relationship` tras el `set_entry`) cuesta dos llamadas por asistencia nueva. | Una tanda más en cada primer guardado de un sábado. | Comprobar en el CRM que una asistencia creada con el filtro `sticpa_pl_refuerzo_enlaces` a `false` queda atada a su sesión y su inscripción; si es así, apagarlo. |
 | ⚪ | **El alcance de coordinación pregunta el grupo de la relación** con una llamada suelta cuando la relación no tiene grupo (los tres de Castellón). | Una espera en la primera pantalla de coordinación del día. | Solo si se confirma que el campo plano del grupo llega siempre; si no, el segmento se perdería, y eso es quién edita qué. |
 | ⚪ | **Crear una reunión tira TODA la caché de la delegación** (`flush('all')`). | La pantalla siguiente de todo el mundo va en frío. Son 3-4 al año. | Tirar solo las sesiones del evento de reuniones. |
+| 🟠 | **Crear las asistencias en UNA llamada (`set_entries`)** en vez de tandas de 4: con catorce monitores, 4 esperas → 1. Y la lista (`LIS_listas`) en la misma tanda que las asistencias. | Es lo que queda de los 15-20 s del guardado de una reunión (~9-10 esperas hoy). | Probarlo UNA vez en el CRM con permiso (que `set_entries` ata los campos planos igual que `set_entry`), con vuelta a las tandas solo si el CRM contesta un error claro, para no duplicar. |
+| 🟡 | **Relaciones de monitor sin fecha de fin** de gente que ya no es monitor (salen en la lista). | Coordinación ve a monitores del curso pasado. | Cerrarlas en el CRM; se puede sacar la lista de las que empezaron antes del 1/09/2026 y siguen abiertas. |
 | ⚪ | **Una reunión suspendida no se puede quitar**: ni borrar ni «Sin registro» para la lista de monitores. | Se queda como «sin pasar» en Reuniones para siempre (la portada deja de avisar al mes). | Un «Sin registro» como el de las listas de grupo, o borrar la sesión si no tiene asistencias. |
 
 ### 🔴 Tres cosas que hay que arreglar EN EL CRM, no en el código
@@ -632,6 +656,27 @@ Todos los botones de Pasar Lista son `<button>` de verdad (accesibilidad), así
 que heredaban su relleno: «Han venido todos» con letra blanca sobre verde claro,
 «Sin registro» como barra ámbar sólida. Neutralizado en `css/pasar-lista.css`
 §0.b, con el mismo remedio que ya usaba `.stic-pass-toggle`.
+
+### 3.7 Una animación que se queda puesta rompe `position: fixed` (26/09/2026)
+
+En el móvil, el pulsado largo sobre un monitor abría la hoja **al final de la
+lista**, no abajo de la pantalla, y además seleccionaba el texto de toda la
+página. Dos causas:
+
+- `.stic-tab-content` entra con `animation: stic-fade-up … both`. Una animación
+  de `transform` que se queda aplicada al terminar convierte al elemento en
+  *containing block* de todo `position: fixed` que lleve dentro **aunque el
+  último fotograma sea `transform: none`** (medido en Chromium: la hoja quedaba
+  a 3.008 px en una pantalla de 800). El comentario de los keyframes decía lo
+  contrario. Ahora todas las `stic-fade-up` van con **`backwards`**, que se ve
+  igual y no deja nada puesto (`custom-style.css`, junto a los keyframes).
+- Safari no entiende `user-select: none` sin el prefijo `-webkit-`. Ahora lo
+  llevan la fila entera y, mientras dura el gesto, toda la página
+  (`html.pl-holding`); la fila además anula `selectstart`.
+
+Si algo con `position: fixed` sale descolocado dentro del área, busca antes que
+nada un ancestro con `transform`, `filter`, `backdrop-filter`, `will-change` o
+una animación con `both`/`forwards`.
 
 ---
 

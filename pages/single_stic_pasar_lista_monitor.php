@@ -66,7 +66,7 @@ if ($monitorId === '') {
 // El monitor tiene que estar en un grupo del alcance. El CRM ya limita por
 // delegación, pero esto impide abrir a un monitor de otra etapa cambiando la URL.
 $groups = sticpa_pl_scoped_groups($objSCP, $scope);
-$monitors = sticpa_pl_monitors_of($objSCP, $groups);
+$monitors = sticpa_pl_coord_monitors($objSCP, $scope);
 
 $mine = null;
 foreach ($monitors as $m) {

@@ -1629,6 +1629,76 @@ function sticpa_pl_session_attendances($objSCP, $sessionId, $regMap = array())
 }
 
 /**
+ * Qué enlaces de unos registros RECIÉN CREADOS no han quedado atados, en UNA
+ * lectura.
+ *
+ * El refuerzo de los enlaces era un `set_relationship` por enlace y registro
+ * nuevo: en la lista de una reunión con catorce monitores, veintiocho llamadas
+ * y unas siete esperas, para no crear nada, porque el campo plano ya los ata
+ * al guardar (§3.1-bis del parte de estado). Guardar esa lista tardaba 15-20 s
+ * (26/09/2026). Ahora se leen los registros nuevos por id —una llamada— y se
+ * refuerza SOLO lo que no esté atado.
+ *
+ * `$esperados`: [id nuevo => [campo plano => id que tendría que llevar]].
+ * Devuelve [id nuevo => [campos que faltan]]. Si la lectura falla, TODO queda
+ * pendiente: se paga el refuerzo de antes, nunca se deja un enlace sin mirar.
+ */
+function sticpa_pl_enlaces_pendientes($objSCP, $module, $table, $esperados)
+{
+    $esperados = (array) $esperados;
+    $ids = array();
+    foreach (array_keys($esperados) as $id) {
+        $id = sticpa_pl_safe_id($id);
+        if ($id !== '') {
+            $ids[] = "'" . $id . "'";
+        }
+    }
+    $todos = array();
+    foreach ($esperados as $id => $campos) {
+        $todos[$id] = array_keys((array) $campos);
+    }
+    if (empty($ids)) {
+        return $todos;
+    }
+
+    $campos = array('id');
+    foreach ($esperados as $cs) {
+        foreach (array_keys((array) $cs) as $c) {
+            if (!in_array($c, $campos, true)) {
+                $campos[] = $c;
+            }
+        }
+    }
+    $rows = $objSCP->getRecordsModule($module, $table . '.id IN (' . implode(',', $ids) . ')', $campos);
+    if (!is_array($rows)) {
+        return $todos;
+    }
+
+    $leidos = array();
+    foreach ($rows as $row) {
+        $v = isset($row->name_value_list) ? $row->name_value_list : null;
+        if ($v && !empty($v->id->value)) {
+            $leidos[(string) $v->id->value] = $v;
+        }
+    }
+
+    $out = array();
+    foreach ($esperados as $id => $cs) {
+        $faltan = array();
+        foreach ((array) $cs as $campo => $valor) {
+            $tiene = isset($leidos[$id]->$campo->value) ? (string) $leidos[$id]->$campo->value : '';
+            if ($tiene !== (string) $valor) {
+                $faltan[] = $campo;
+            }
+        }
+        if (!empty($faltan)) {
+            $out[$id] = $faltan;
+        }
+    }
+    return $out;
+}
+
+/**
  * ¿Se refuerzan con `set_relationship` los enlaces que ya van en el `set_entry`?
  *
  * Los enlaces de una inscripción o una asistencia nueva viajan DENTRO del
@@ -1770,9 +1840,20 @@ function sticpa_pl_ensure_registrations($objSCP, $eventId, $contactIds, &$regMap
     // una asistencia colgada de una inscripción sin evento no la vería nadie, y
     // el guardado siguiente crearía otra.
     if (sticpa_pl_refuerzo_enlaces()) {
+        // Solo las que el campo plano no haya atado (una lectura, ver
+        // `sticpa_pl_enlaces_pendientes()`).
+        $campoEvento = 'stic_registrations_stic_eventsstic_events_ida';
+        $esperados = array();
+        foreach ($nuevas as $regId => $contactId) {
+            $esperados[$regId] = array($campoEvento => $eventId);
+        }
+        $sinAtar = array_intersect_key(
+            $nuevas,
+            sticpa_pl_enlaces_pendientes($objSCP, 'stic_Registrations', 'stic_registrations', $esperados)
+        );
         $fallidas = array();
-        $enlazar = function () use ($objSCP, $nuevas, $eventId, &$fallidas) {
-            foreach ($nuevas as $regId => $contactId) {
+        $enlazar = function () use ($objSCP, $sinAtar, $eventId, &$fallidas) {
+            foreach ($sinAtar as $regId => $contactId) {
                 $ok = $objSCP->set_relationship('stic_Registrations', $regId, 'stic_registrations_stic_events', array($eventId));
                 if ($ok === false && !sticpa_pl_collecting()) {
                     $fallidas[$regId] = true;
@@ -2004,17 +2085,30 @@ function sticpa_pl_write_attendances($objSCP, $sessionId, $marks, $existing, &$r
         $out[$personId] = array('ok' => true, 'error' => null);
     }
 
-    // 4. Y además por relación, por si esta instancia no atara los campos
-    // planos: si ya están atados no crea nada. Todos los enlaces en UNA tanda.
+    // 4. Y por relación SOLO lo que el campo plano no haya atado: una lectura
+    // de las nuevas y, si alguna falla, su refuerzo en UNA tanda.
     if (!empty($creadas) && sticpa_pl_refuerzo_enlaces()) {
-        $enlazar = function () use ($objSCP, $creadas, $sessionId) {
-            foreach ($creadas as $attId => $regId) {
-                $objSCP->set_relationship('stic_Attendances', $attId, 'stic_attendances_stic_sessions', array($sessionId));
-                $objSCP->set_relationship('stic_Attendances', $attId, 'stic_attendances_stic_registrations', array($regId));
-            }
-        };
-        sticpa_pl_prime($objSCP, $enlazar);
-        $enlazar();
+        $campoSesion = 'stic_attendances_stic_sessionsstic_sessions_ida';
+        $campoInsc = 'stic_attendances_stic_registrationsstic_registrations_ida';
+        $esperados = array();
+        foreach ($creadas as $attId => $regId) {
+            $esperados[$attId] = array($campoSesion => $sessionId, $campoInsc => $regId);
+        }
+        $pendientes = sticpa_pl_enlaces_pendientes($objSCP, 'stic_Attendances', 'stic_attendances', $esperados);
+        if (!empty($pendientes)) {
+            $enlazar = function () use ($objSCP, $creadas, $sessionId, $pendientes, $campoSesion, $campoInsc) {
+                foreach ($pendientes as $attId => $faltan) {
+                    if (in_array($campoSesion, $faltan, true)) {
+                        $objSCP->set_relationship('stic_Attendances', $attId, 'stic_attendances_stic_sessions', array($sessionId));
+                    }
+                    if (in_array($campoInsc, $faltan, true)) {
+                        $objSCP->set_relationship('stic_Attendances', $attId, 'stic_attendances_stic_registrations', array($creadas[$attId]));
+                    }
+                }
+            };
+            sticpa_pl_prime($objSCP, $enlazar);
+            $enlazar();
+        }
     }
 
     return $out;
@@ -4524,8 +4618,33 @@ function sticpa_pl_curso_rank($cursos)
     return $base + $curso;
 }
 
-function sticpa_pl_monitors_of($objSCP, $groups)
+/**
+ * Los monitores que ve coordinación: la regla, en UN sitio (lista, ficha y
+ * Mis grupos). Los de los grupos de su alcance y, si coordina TODA la
+ * delegación, también los que tienen la relación de monitor sin un grupo de la
+ * delegación (ver `$sinGrupo` abajo).
+ */
+function sticpa_pl_coord_monitors($objSCP, $scope)
 {
+    $todaLaDelegacion = is_array($scope)
+        && (!isset($scope['etapa']) || $scope['etapa'] === '')
+        && (!isset($scope['segmento']) || $scope['segmento'] === '');
+    return sticpa_pl_monitors_of($objSCP, sticpa_pl_scoped_groups($objSCP, $scope), $todaLaDelegacion);
+}
+
+/**
+ * `$sinGrupo`: incluir también a quien tiene una relación de monitor VIGENTE de
+ * la delegación (la relación ya viene filtrada por `assigned_user_id`) pero sin
+ * grupo, o con un grupo que no es de la delegación. Es como llegan los monitores
+ * NUEVOS: el 26/09/2026 Mencía Saiz y Ana Pardo tenían su relación de monitor
+ * apuntando al comodín «⚠️ Grupo monitoreado - POR DEFINIR!», que no es de
+ * ninguna delegación, y no salían en la lista de la reunión de Soñación —que es
+ * justo la reunión a la que van los nuevos—. Solo para quien coordina toda la
+ * delegación: sin grupo no hay etapa, así que no se sabe de qué coordinador son.
+ */
+function sticpa_pl_monitors_of($objSCP, $groups, $sinGrupo = false)
+{
+    $grupoDeLaDelegacion = $sinGrupo ? sticpa_pl_groups($objSCP) : array();
     // UNA pasada por el mapa de relaciones, no una consulta por grupo.
     //
     // Antes esto llamaba a sticpa_pl_group_people() por cada grupo del alcance.
@@ -4544,7 +4663,21 @@ function sticpa_pl_monitors_of($objSCP, $groups)
         }
         $gid = $rel['group_id'];
         if ($gid === '' || !isset($groups[$gid])) {
-            continue;   // de otro alcance, o sin grupo
+            // De otro alcance, o sin grupo. Sin grupo DE LA DELEGACIÓN (vacío o
+            // un comodín) y con `$sinGrupo`, entra igual, sin etapa ni curso:
+            // la pantalla lo pone en «Sin grupo». Si luego aparece otra relación
+            // suya con grupo, esa rellena la etapa y el curso.
+            $id = $rel['person']['id'];
+            if ($sinGrupo && !isset($out[$id]) && ($gid === '' || !isset($grupoDeLaDelegacion[$gid]))) {
+                $out[$id] = $rel['person'];
+                $out[$id]['groups'] = array();
+                $out[$id]['etapa'] = '';
+                $out[$id]['etapas'] = array();
+                $out[$id]['curso'] = '';
+                $out[$id]['rank'] = 99999;
+                $out[$id]['grupo'] = '';
+            }
+            continue;
         }
         $id = $rel['person']['id'];
         if (!isset($out[$id])) {

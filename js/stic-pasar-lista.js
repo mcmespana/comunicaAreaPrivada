@@ -536,6 +536,11 @@
            llega, el `click` que viene detrás se ignora.
            El `contextmenu` se anula porque en Android el pulsado largo abre el
            menú del navegador y se lleva el gesto. */
+        function clearSelection() {
+            var sel = window.getSelection ? window.getSelection() : null;
+            if (sel && sel.removeAllRanges) { sel.removeAllRanges(); }
+        }
+
         rows.forEach(function (row) {
             var timer = null;
             var startX = 0, startY = 0;
@@ -544,6 +549,7 @@
             function cancelHold() {
                 if (timer) { clearTimeout(timer); timer = null; }
                 row.classList.remove('is-holding');
+                document.documentElement.classList.remove('pl-holding');
             }
 
             row.addEventListener('pointerdown', function (ev) {
@@ -552,10 +558,16 @@
                 startX = ev.clientX;
                 startY = ev.clientY;
                 row.classList.add('is-holding');
+                // Mientras dura el gesto, nada de la página se puede seleccionar:
+                // en iOS el pulsado largo selecciona texto justo cuando llega el
+                // nuestro, y se quedaba con el gesto (26/09/2026).
+                document.documentElement.classList.add('pl-holding');
                 timer = setTimeout(function () {
                     timer = null;
                     consumed = true;
                     row.classList.remove('is-holding');
+                    document.documentElement.classList.remove('pl-holding');
+                    clearSelection();
                     openSheet(row);
                 }, HOLD_MS);
             });
@@ -566,6 +578,9 @@
                     cancelHold();
                 }
             });
+
+            // Y si el navegador intenta empezar una selección desde la fila, no.
+            row.addEventListener('selectstart', function (ev) { ev.preventDefault(); });
 
             row.addEventListener('pointerup', cancelHold);
             row.addEventListener('pointercancel', function () { cancelHold(); consumed = true; });

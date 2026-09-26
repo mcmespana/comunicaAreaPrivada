@@ -204,7 +204,7 @@
        los 32 px de desbordamiento que tapa `overflow-x: clip` (plan 035)—.
        Antes de volver a intentarlo: MEDIR el relleno real del tema en la
        página de verdad. Adivinarlo es lo que salió mal la vez anterior. */
-    animation: stic-fade-up 0.5s var(--ease-out) both;
+    animation: stic-fade-up 0.5s var(--ease-out) backwards;
     background: var(--surface);
     border: 1px solid var(--gray-200);
     border-radius: var(--radius-xl) !important;
@@ -213,11 +213,16 @@
 
 @keyframes stic-fade-up {
     from { opacity: 0; transform: translateY(14px); }
-    /* 'none' (y no translateY(0)): un transform aplicado permanentemente
-       convierte al elemento en containing block y descoloca cualquier
-       position:fixed interior (tooltips, menús anclados). */
     to   { opacity: 1; transform: none; }
 }
+/* ⚠️ SIEMPRE con `backwards`, NUNCA con `both` ni `forwards`. Una animación de
+   `transform` que se queda aplicada al terminar convierte al elemento en
+   containing block de todo `position: fixed` que lleve dentro, AUNQUE el último
+   fotograma sea `transform: none` (medido en Chromium; WebKit igual). Con
+   `.stic-tab-content` en `both`, la hoja de Pasar lista salía al FINAL de la
+   lista y no abajo de la pantalla (26/09/2026). `backwards` pinta el primer
+   fotograma durante el retraso —la cascada de §21 sigue igual— y al acabar no
+   deja nada puesto. */
 
 /* ============================================================
    3. PANTALLA DE AUTENTICACIÓN — hero a pantalla completa
@@ -535,7 +540,7 @@ span.stic-field {
 
 /* ---- Conmutador entre vista de enlace mágico y vista de contraseña ---- */
 .stic-auth-view {
-    animation: stic-fade-up 0.35s var(--ease-out) both;
+    animation: stic-fade-up 0.35s var(--ease-out) backwards;
 }
 .stic-auth[data-mode="magic"] .stic-auth-login { display: none; }
 .stic-auth[data-mode="password"] .stic-auth-magic { display: none; }
@@ -628,7 +633,7 @@ span.stic-field {
     font-size: 0.85rem;
     line-height: 1.5;
     color: var(--gray-600);
-    animation: stic-fade-up 0.3s var(--ease-out) both;
+    animation: stic-fade-up 0.3s var(--ease-out) backwards;
 }
 .stic-hint-body p { margin: 0 0 0.45rem; }
 .stic-hint-body p:last-child { margin-bottom: 0; }
@@ -978,7 +983,7 @@ span.stic-field {
     border: 1px solid var(--gray-200);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
-    animation: stic-fade-up 0.2s var(--ease-out) both;
+    animation: stic-fade-up 0.2s var(--ease-out) backwards;
 }
 .stic-nav-more-wrap.is-open .stic-nav-more-menu { display: block; }
 .stic-nav-more-menu ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -1147,7 +1152,7 @@ span.stic-field {
    ============================================================ */
 .stic-welcome {
     font-family: var(--font-family);
-    animation: stic-fade-up 0.55s var(--ease-out) both;
+    animation: stic-fade-up 0.55s var(--ease-out) backwards;
 }
 
 .stic-welcome-hero {
@@ -1240,7 +1245,7 @@ span.stic-field {
     overflow: hidden;
     isolation: isolate;
     transition: transform 0.28s var(--ease-spring), box-shadow 0.28s ease, border-color 0.28s ease;
-    animation: stic-fade-up 0.5s var(--ease-out) both;
+    animation: stic-fade-up 0.5s var(--ease-out) backwards;
 }
 .stic-dash-card::before {
     content: '';
@@ -1816,7 +1821,7 @@ span.stic-field {
 @media (prefers-reduced-motion: no-preference) {
     .stic-form > form > ul > li,
     .stic-form > form > h5 {
-        animation: stic-fade-up 0.42s var(--ease-out) both;
+        animation: stic-fade-up 0.42s var(--ease-out) backwards;
     }
     .stic-form > form > ul > li:nth-child(1) { animation-delay: 0.02s; }
     .stic-form > form > ul > li:nth-child(2) { animation-delay: 0.05s; }
@@ -3243,7 +3248,7 @@ span.stic-field {
 /* ============================================================
    32. SELECCIÓN DE PARTICIPANTE (familias) — tarjetas grandes
    ============================================================ */
-.stic-profiles { font-family: var(--font-family); animation: stic-fade-up 0.5s var(--ease-out) both; }
+.stic-profiles { font-family: var(--font-family); animation: stic-fade-up 0.5s var(--ease-out) backwards; }
 .stic-profiles-lead {
     margin: 0 0 1.4rem;
     font-size: 1rem;
@@ -3276,7 +3281,7 @@ span.stic-field {
     text-decoration: none !important;
     overflow: hidden;
     transition: transform 0.22s var(--ease-spring), box-shadow 0.22s ease, border-color 0.22s ease;
-    animation: stic-fade-up 0.45s var(--ease-out) both;
+    animation: stic-fade-up 0.45s var(--ease-out) backwards;
 }
 .stic-profile-card::after { display: none !important; }
 .stic-profile-card:nth-child(2) { animation-delay: 0.05s; }
@@ -3453,7 +3458,7 @@ span.stic-field {
     border: 1px solid var(--gray-200);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-lg);
-    animation: stic-fade-up 0.18s var(--ease-out) both;
+    animation: stic-fade-up 0.18s var(--ease-out) backwards;
 }
 .stic-part-switch.is-open .stic-part-switch-menu { display: block; }
 .stic-part-switch-title {
@@ -3608,7 +3613,7 @@ span.stic-field {
     border: 1px solid var(--gray-200);
     box-shadow: var(--shadow-sm);
     font-family: var(--font-family);
-    animation: stic-fade-up 0.45s var(--ease-out) both;
+    animation: stic-fade-up 0.45s var(--ease-out) backwards;
 }
 .stic-alert-ico {
     display: grid;
@@ -3927,7 +3932,7 @@ span.stic-field {
    es seguro y barato. El escalonado se corta pronto para no retrasar
    listados largos. */
 .stic-table-responsive table.display tbody tr {
-    animation: stic-fade-up 0.4s var(--ease-out) both;
+    animation: stic-fade-up 0.4s var(--ease-out) backwards;
 }
 .stic-table-responsive table.display tbody tr:nth-child(1) { animation-delay: 0.03s; }
 .stic-table-responsive table.display tbody tr:nth-child(2) { animation-delay: 0.06s; }
@@ -4655,7 +4660,7 @@ span.stic-field {
     display: flex;
     flex-direction: column;
     gap: 0.85rem;
-    animation: stic-fade-up 0.5s var(--ease-out) both;
+    animation: stic-fade-up 0.5s var(--ease-out) backwards;
     animation-delay: 0.12s;
 }
 .stic-agenda-head { display: flex; align-items: center; gap: 0.6rem; }
@@ -5152,7 +5157,7 @@ span.stic-field {
     box-shadow: var(--shadow-xs);
     overflow: hidden;
     transition: box-shadow 0.2s ease, transform 0.15s var(--ease-spring), border-color 0.2s ease;
-    animation: stic-fade-up 0.45s var(--ease-out) both;
+    animation: stic-fade-up 0.45s var(--ease-out) backwards;
 }
 .stic-rec-card:hover { box-shadow: var(--shadow-md); border-color: color-mix(in srgb, var(--primary-color) 35%, transparent); }
 @media (hover: none) { .stic-rec-card:hover { box-shadow: var(--shadow-xs); transform: none; } }
@@ -5280,7 +5285,7 @@ span.stic-field {
 }
 
 /* --- 49.b Ficha de detalle del evento --- */
-.stic-rec-detail { animation: stic-fade-up 0.5s var(--ease-out) both; }
+.stic-rec-detail { animation: stic-fade-up 0.5s var(--ease-out) backwards; }
 
 .stic-rec-hero {
     position: relative;
@@ -5614,7 +5619,7 @@ span.stic-field {
 }
 
 /* --- 50.c Entrada escalonada del formulario --- */
-.stic-auth-panel > * { animation: stic-fade-up 0.5s var(--ease-out) both; }
+.stic-auth-panel > * { animation: stic-fade-up 0.5s var(--ease-out) backwards; }
 .stic-auth-panel > .stic-auth-brand { animation-delay: 0.05s; }
 .stic-auth-panel > .stic-auth { animation-delay: 0.14s; }
 .stic-auth-panel > .stic-auth-links { animation-delay: 0.22s; }

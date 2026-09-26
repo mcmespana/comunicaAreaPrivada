@@ -384,8 +384,7 @@ $html .= sticpa_pl_buscador_html(
 // ---- Vista MONITORES (coordinación) ---------------------------------------
 
 if ($quien === 'monitores') {
-    $enAlcance = sticpa_pl_scoped_groups($objSCP, $scope);
-    $monitors = sticpa_pl_monitors_of($objSCP, $enAlcance);
+    $monitors = sticpa_pl_coord_monitors($objSCP, $scope);
 
     if (empty($monitors)) {
         $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
@@ -432,6 +431,11 @@ if ($quien === 'monitores') {
                 implode(' · ', $m['groups']),
                 isset($m['curso']) ? $m['curso'] : '',
             )));
+            if (empty($m['groups'])) {
+                // La relación de monitor no tiene grupo de la delegación (un
+                // comodín «POR DEFINIR»): se dice, que es lo que hay que arreglar.
+                $sub = __('Sin grupo asignado', 'sticpa');
+            }
             $html .= sticpa_pl_person_link_html(
                 $m,
                 '?internalpage=single_stic_pasar_lista_monitor&monitor=' . rawurlencode($m['id'])
