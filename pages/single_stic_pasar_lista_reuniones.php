@@ -44,6 +44,7 @@ if ($scope === null) {
 // ---------------------------------------------------------------------------
 
 $createMsg = '';
+$createOk = false;
 if (!empty($_POST['pl_reunion_name'])) {
     if (!isset($_POST['pl_nonce']) || !wp_verify_nonce($_POST['pl_nonce'], 'pl_reuniones')) {
         $createMsg = __('La sesión ha caducado. Vuelve a cargar la pantalla.', 'sticpa');
@@ -55,7 +56,8 @@ if (!empty($_POST['pl_reunion_name'])) {
             isset($_POST['pl_reunion_time']) ? $_POST['pl_reunion_time'] : '',
             isset($_POST['pl_reunion_hours']) ? $_POST['pl_reunion_hours'] : 1.5
         );
-        $createMsg = ($created !== null)
+        $createOk = ($created !== null);
+        $createMsg = $createOk
             ? __('Reunión creada. Ya puedes pasar lista.', 'sticpa')
             : __('No se ha podido crear la reunión. Revisa la fecha.', 'sticpa');
     }
@@ -74,13 +76,20 @@ $html .= '<div class="pl-head">';
 $html .= '<a class="pl-back" href="?internalpage=single_stic_pasar_lista"'
     . ' aria-label="' . esc_attr__('Volver', 'sticpa') . '">' . sticpa_pl_icon('back') . '</a>';
 $html .= '<div class="pl-head-titles">';
-$html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html__('Reuniones', 'sticpa') . '</span></div>';
+// El ALCANCE en la cabecera, como en Monitores (design.md §6.4): la lista que
+// se pasa en cada reunión es la de los monitores de ese alcance.
+$html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html__('Reuniones', 'sticpa') . '</span>'
+    . '<span class="pl-title-name">' . esc_html(sticpa_pl_coord_scope_label($scope)) . '</span></div>';
 $html .= '<div class="pl-subtitle">' . esc_html($course['label']) . '</div>';
 $html .= '</div>';
 $html .= '</div>';
 
 if ($createMsg !== '') {
-    $html .= '<p class="pl-notice"><span>' . esc_html($createMsg) . '</span></p>';
+    $html .= $createOk
+        ? '<p class="pl-notice pl-notice--ok">' . sticpa_pl_icon('check')
+            . '<span>' . esc_html($createMsg) . '</span></p>'
+        : '<p class="pl-notice pl-notice--error">' . sticpa_pl_icon('warn')
+            . '<span>' . esc_html($createMsg) . '</span></p>';
 }
 
 // ---------------------------------------------------------------------------
@@ -95,9 +104,8 @@ if (!empty($sessions)) {
     $ordered = array_reverse($sessions);
     $html .= '<div class="pl-list">';
     foreach ($ordered as $s) {
-        $past = ((int) $s['start'] <= sticpa_pl_now());
         $listaReu = isset($listasReu[$s['id']]) ? $listasReu[$s['id']] : null;
-        $pasada = ($listaReu !== null && $listaReu['estado'] !== '');
+        $mark = sticpa_pl_list_mark(($listaReu !== null) ? $listaReu['estado'] : '', (int) $s['start']);
         $hours = (!empty($s['end']) && $s['end'] > $s['start'])
             ? round(($s['end'] - $s['start']) / HOUR_IN_SECONDS, 1)
             : 0;
@@ -122,22 +130,33 @@ if (!empty($sessions)) {
                 $hours
             ));
         }
-        /* ¿Está pasada? Es lo primero que se pregunta al abrir esta pantalla, y
-         * antes había que entrar en cada reunión para saberlo. Los números son
-         * los de la lista (una por reunión): si dos coordinadores comparten la
-         * reunión, son los del último que guardó. */
-        if ($pasada) {
+        /* ¿ESTÁ PASADA? Con el MISMO idioma que el historial de un grupo: el
+         * círculo de la derecha (✓ pasada, vacío pendiente) y los números en
+         * la línea de debajo. Antes había que entrar en cada reunión para
+         * saberlo. Los números son los de la lista, que es una por reunión: si
+         * dos coordinadores comparten la reunión, son los del último que
+         * guardó. */
+        $done = '';
+        if ($mark === 'ok') {
             $meta[] = sprintf(
                 /* translators: 1: cuántos vinieron, 2: cuántas faltas */
-                __('lista pasada: %1$d vinieron, %2$d faltas', 'sticpa'),
+                __('%1$d vinieron · %2$d faltas', 'sticpa'),
                 (int) $listaReu['n_asistieron'],
                 (int) $listaReu['n_faltaron']
             );
+            $done = '<span class="pl-done pl-done--yes">' . sticpa_pl_glyph('check') . '</span>';
+        } elseif ($mark === 'gap') {
+            $meta[] = __('sin pasar', 'sticpa');
+            $done = '<span class="pl-done pl-done--no"></span>';
+        } elseif ($mark === 'skip') {
+            $meta[] = __('sin registro', 'sticpa');
+            $done = '<span class="pl-done pl-done--skip">' . sticpa_pl_icon('skip') . '</span>';
         } else {
-            $meta[] = $past ? __('pasar lista', 'sticpa') : __('todavía no ha llegado', 'sticpa');
+            $meta[] = __('todavía no ha llegado', 'sticpa');
         }
         $html .= '<span class="pl-group-meta">' . esc_html(implode(' · ', $meta)) . '</span>';
         $html .= '</span>';
+        $html .= $done;
         $html .= '<span class="pl-detail">' . sticpa_pl_icon('next') . '</span>';
         $html .= '</a>';
     }
@@ -152,14 +171,34 @@ if (!empty($sessions)) {
 // El formulario de crear: tres campos y un botón
 // ---------------------------------------------------------------------------
 
-$html .= '<div class="pl-sec">' . esc_html__('Nueva reunión', 'sticpa') . '</div>';
-$html .= '<form method="post" class="pl-newmeet stic-loading-form"'
+/* DETRÁS DE UN BOTÓN, como el alta de un seguimiento en la ficha. A esta
+ * pantalla se viene a ELEGIR una reunión y pasar su lista; crearla pasa tres o
+ * cuatro veces al año. Con el formulario siempre abierto, su botón era el único
+ * de marca de la pantalla y parecía que a lo que se venía era a crear.
+ *
+ * Abierto de partida solo cuando no hay nada que elegir (no hay reuniones) o
+ * cuando el alta acaba de fallar: ahí lo que toca es corregir y volver a
+ * intentarlo, no buscar un botón. */
+$formAbierto = empty($sessions) || ($createMsg !== '' && !$createOk);
+
+if ($formAbierto) {
+    $html .= '<div class="pl-sec">' . esc_html__('Nueva reunión', 'sticpa') . '</div>';
+} else {
+    $html .= '<button type="button" class="pl-seg-add" data-pl-seg-add aria-expanded="false"'
+        . ' aria-controls="pl-reu-form">'
+        . sticpa_pl_icon('plus')
+        . '<span>' . esc_html__('Nueva reunión', 'sticpa') . '</span></button>';
+}
+$html .= '<form method="post" id="pl-reu-form" class="pl-newmeet stic-loading-form" data-pl-seg-form'
+    . ($formAbierto ? '' : ' hidden')
     . ' data-loading-text="' . esc_attr__('Creando la reunión…', 'sticpa') . '">';
 $html .= wp_nonce_field('pl_reuniones', 'pl_nonce', true, false);
 
 $html .= '<label class="pl-field">';
 $html .= '<span class="pl-field-label">' . esc_html__('Nombre', 'sticpa') . '</span>';
-$html .= '<input type="text" name="pl_reunion_name" required maxlength="120"'
+// El foco va aquí al abrir (`data-pl-seg-first`): es el único campo que casi
+// siempre hay que escribir; el día y la hora ya vienen puestos.
+$html .= '<input type="text" name="pl_reunion_name" required maxlength="120" data-pl-seg-first'
     . ' placeholder="' . esc_attr__('Programación del 2.º trimestre', 'sticpa') . '">';
 $html .= '</label>';
 
@@ -185,4 +224,3 @@ $html .= '</div>';
 
 $html .= '<button type="submit" class="pl-save">' . esc_html__('Crear reunión', 'sticpa') . '</button>';
 $html .= '</form>';
-

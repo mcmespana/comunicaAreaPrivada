@@ -103,6 +103,32 @@ lista de monitores):
 con `&pl_diag=1`, que enseña cada llamada al CRM y su tiempo. Lo que hay que
 buscar está en la lista de abajo.
 
+### ✅ Las pantallas de coordinación, repasadas (26/09/2026)
+
+Una pasada de UI/UX sobre Monitores, Reuniones, la ficha del monitor y el bloque
+de coordinación de la portada. El detalle y el porqué de cada cambio están en
+[`PASAR-LISTA-COORDINACION.md`](PASAR-LISTA-COORDINACION.md) §5 ter; en corto:
+
+- **Cabeceras**: el alcance sale siempre (también «toda la delegación»), el
+  subtítulo de Monitores dice cuántos hay que repasar y una reunión se titula
+  con su nombre.
+- **La pista de la lista de monitores** dice dónde se justifica una falta y se
+  escribe el motivo (el gesto largo).
+- **Reuniones**: el estado de cada una con el ✓ / círculo vacío del historial
+  de un grupo, y el alta detrás de «+ Nueva reunión» (ya no es el botón de
+  marca de una pantalla a la que se viene a elegir).
+- **La portada avisa de la última reunión sin lista**, en ámbar y con
+  «Recuperar», durante un mes. La lista semanal de monitores **no** avisa, a
+  propósito.
+- **Ficha**: «Todavía no aparece en ninguna lista de reunión» en vez de «0 de 0».
+- **44 px** en las pestañas de Mis grupos y en el `<select>` del día.
+- **«¿Coordina?» viaja en la primera tanda de la portada**: una espera menos
+  para todo el mundo (5 → 4), coordine o no.
+
+**Por comprobar en la app**: que «+ Nueva reunión» abre el formulario con el
+teclado en el nombre, y que el aviso de la portada lleva a la lista de esa
+reunión.
+
 ### 🟡 Para la siguiente iteración: monitores y rendimiento (26/09/2026)
 
 Mirado y **no tocado a propósito**, porque sin medir en el CRM real se arregla a
@@ -119,6 +145,7 @@ ciegas. Por orden de lo que más se va a notar cuando empiece el curso:
 | 🟡 | **El refuerzo de enlaces** (`set_relationship` tras el `set_entry`) cuesta dos llamadas por asistencia nueva. | Una tanda más en cada primer guardado de un sábado. | Comprobar en el CRM que una asistencia creada con el filtro `sticpa_pl_refuerzo_enlaces` a `false` queda atada a su sesión y su inscripción; si es así, apagarlo. |
 | ⚪ | **El alcance de coordinación pregunta el grupo de la relación** con una llamada suelta cuando la relación no tiene grupo (los tres de Castellón). | Una espera en la primera pantalla de coordinación del día. | Solo si se confirma que el campo plano del grupo llega siempre; si no, el segmento se perdería, y eso es quién edita qué. |
 | ⚪ | **Crear una reunión tira TODA la caché de la delegación** (`flush('all')`). | La pantalla siguiente de todo el mundo va en frío. Son 3-4 al año. | Tirar solo las sesiones del evento de reuniones. |
+| ⚪ | **Una reunión suspendida no se puede quitar**: ni borrar ni «Sin registro» para la lista de monitores. | Se queda como «sin pasar» en Reuniones para siempre (la portada deja de avisar al mes). | Un «Sin registro» como el de las listas de grupo, o borrar la sesión si no tiene asistencias. |
 
 ### 🔴 Tres cosas que hay que arreglar EN EL CRM, no en el código
 
@@ -214,7 +241,7 @@ DEL PROPIO PLUGIN. Si se bajan sin filtrar, entran duplicadas en la versión de
 producción y ganan por orden de cascada — se mide la versión vieja creyendo que
 es la nueva. Hay que quitarlas y dejar solo las del tema.
 
-### 🟡 Lo que queda por comprobar en producción### 🟡 Lo que queda por comprobar en producción
+### 🟡 Lo que queda por comprobar en producción
 
 Todo lo del 28/08 por la tarde está probado con tests pero **no confirmado
 contra el CRM real**. Lo que hay que mirar la próxima vez que se pase lista:
@@ -629,7 +656,8 @@ llamada fallaba en silencio y caía a respaldos 1+N).
 
 | Pantalla | Llamadas | Esperas |
 |---|---|---|
-| Portada | 9 | 5 |
+| Portada (26/09/2026: «¿coordina?» ya va en la primera tanda) | 9 | **4** |
+| Portada de quien coordina (con el aviso de reuniones) | 11 | 5 |
 | Árbol de grupos | 7 | 3 |
 | Marcar | 10 | 6 |
 | Resumen | 7 | 3 |

@@ -178,6 +178,9 @@ puedan coger una tarea, entender el porqué y hacerla sin contexto previo.
 - [ ] `PL-MON-8` (P3 · S) Apagar el refuerzo de enlaces (`sticpa_pl_refuerzo_enlaces`) si se
       comprueba en el CRM que los campos planos atan solos; y que crear una reunión tire solo
       las sesiones de su evento y no toda la caché.
+- [ ] `PL-MON-9` (P3 · S) **Una reunión suspendida no se puede quitar**: no hay borrar ni
+      «Sin registro» para la lista de monitores. Se queda como «sin pasar» en Reuniones (la
+      portada deja de avisar al mes). ↳ `pages/single_stic_pasar_lista_reuniones.php`.
 - [!] `PL-036` (P3 · S) **Lo único que queda del plan 036**, y no es código: el correo
       automático de avisos (se configura en el CRM) y verificar `CAMPOS.md` contra el CRM,
       que necesita el **conector MCP de SinergiaCRM** en la sesión (el 25/09/2026 no estaba).
@@ -245,7 +248,10 @@ con la barra en una fila, buscador sin doble caja, sin cinta de «Pruebas».
 inscripciones, asistencias y enlaces en tandas (~75 esperas → ~22) · respaldos que ya no
 se bajan toda la delegación por un vacío · rango de asistencias solo de los días con sesión ·
 reuniones en una tanda y con su estado · el motivo de las faltas de monitores, en la lista
-y en la ficha.
+y en la ficha · pasada de UI (cabeceras con alcance y recuento, pista del motivo, estado
+de las reuniones con el idioma del historial y el alta detrás de «+ Nueva reunión», aviso
+en la portada de la última reunión sin lista durante un mes, 44 px en pestañas y selector)
+· «¿coordina?» en la primera tanda de la portada (5 → 4 esperas para todos).
 
 **Rendimiento:** `PERF-01` caché de campos · `PERF-02` sin animaciones infinitas ·
 `PERF-03` sesión técnica del CRM compartida (25/09) · `PERF-04` foto por endpoint ·

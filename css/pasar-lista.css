@@ -257,9 +257,12 @@
 .pl-session-pick--select { position: relative; padding-right: 0.6rem; }
 .pl-session-pick--select select {
     position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
+    /* Sobre la pastilla ENTERA, borde incluido: con `inset: 0` el <select> se
+       quedaba en 42 px de alto dentro de una pastilla de 44, y lo que se toca
+       es el <select>. */
+    inset: -1px;
+    width: calc(100% + 2px);
+    height: calc(100% + 2px);
     margin: 0;
     padding: 0;
     border: 0;
@@ -288,6 +291,10 @@
 }
 .pl-notice svg { width: 15px; height: 15px; flex-shrink: 0; }
 .pl-notice strong { font-weight: 800; }
+/* El resultado de un guardado: verde si ha ido, rojo si no. Con clase y no con
+   un `style=` en el PHP (design.md §4): un color en línea gana a todo. */
+.pl-notice--ok    { color: var(--success-dark); }
+.pl-notice--error { color: var(--danger-dark); }
 
 /* ---- "Han venido todos" ------------------------------------------------- */
 
@@ -1388,6 +1395,9 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     color: var(--warning-dark);
     flex-shrink: 0;
 }
+/* En coordinación el aviso de la reunión va justo encima de su lista: sin un
+   respiro, los dos bordes se tocan y parecen una sola tarjeta partida. */
+.pl-pending + .pl-list { margin-top: 0.6rem; }
 
 /* El título de la deuda lleva el triángulo de aviso, no el punto de color de
    una etapa: no es una sección más del árbol, es algo que reclama. */
@@ -2224,6 +2234,9 @@ a.pl-group .pl-name { display: block; }
     background: var(--surface);
     box-shadow: var(--shadow-xs);
 }
+/* Abierto con «+ Nueva reunión», el botón desaparece y su margen con él: lo
+   hereda el formulario, o se queda pegado a la lista de encima. */
+.pl-seg-add + .pl-newmeet { margin-top: 0.7rem; }
 .pl-field { display: flex; flex-direction: column; gap: 0.25rem; flex-grow: 1; min-width: 0; }
 .pl-field-label {
     font-size: 0.73rem;
@@ -3092,6 +3105,13 @@ a.pl-group .pl-name { display: block; }
 .pl-tab {
     flex: 1 1 0;
     min-width: max-content;
+    /* 44 px de alto: es el mínimo táctil de design.md §2, que gana a cualquier
+       otra cosa. Medían 37 (y 32 las de chavales / monitores). El texto se
+       centra en vertical porque el alto ya no lo da el relleno. */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
     padding: 0.5rem 0.85rem;
     border-radius: calc(var(--radius-lg) - 0.28rem);
     font-size: 0.86rem;

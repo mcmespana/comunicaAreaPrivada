@@ -67,6 +67,8 @@ function sticpa_pl_icon($which)
         // en el título de las listas pendientes y en nada decorativo.
         'warn' => '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
         'pencil' => '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+        // El «+» de los botones que abren un alta (una reunión nueva).
+        'plus' => '<path d="M12 5v14"/><path d="M5 12h14"/>',
     );
     if (!isset($icons[$which])) {
         return '';
@@ -504,8 +506,13 @@ function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub =
  * Va debajo de la lista y no en cada fila: el color y el glifo se aprenden una
  * vez y así la lista queda limpia. El chip de "mantén pulsado" es obligatorio,
  * no decorativo: sin él, parcial y justificada no existen para el usuario.
+ *
+ * `$monitores`: la pista de la lista de MONITORES. Ahí el toque pone y quita
+ * faltas (no hay «sin marcar») y lo que vive en el gesto largo importa más: en
+ * una reunión, justificar la falta y escribir el porqué es lo que se viene a
+ * dejar apuntado. Si la pista no lo dice, el motivo no existe para nadie.
  */
-function sticpa_pl_legend_html()
+function sticpa_pl_legend_html($monitores = false)
 {
     $states = sticpa_pl_states();
     $order = array('yes' => 'yes', 'partial' => 'partial', 'just' => 'no_justified', 'no' => 'no_unjustified');
@@ -521,6 +528,17 @@ function sticpa_pl_legend_html()
     $html .= '<span class="pl-hold-hint"><span class="pl-hold-ring" aria-hidden="true"></span>'
         . esc_html__('Mantén pulsado', 'sticpa') . '</span>';
     $html .= '</div>';
+
+    if ($monitores) {
+        $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
+            . sprintf(
+                /* translators: %s: "marcar una falta" en negrita */
+                esc_html__('Toca la fila para %s. Mantén pulsado para justificarla y escribir el motivo.', 'sticpa'),
+                '<strong>' . esc_html__('marcar una falta', 'sticpa') . '</strong>'
+            )
+            . '</span></p>';
+        return $html;
+    }
 
     $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
         . sprintf(
@@ -883,11 +901,11 @@ function sticpa_pl_save_result_html($saved, $problemas = array(), $objSCP = null
     $errors = isset($saved['errors']) ? (array) $saved['errors'] : array();
 
     if ($failed === 0 && empty($problemas)) {
-        return '<p class="pl-notice" style="color:var(--success-dark)">' . sticpa_pl_icon('check')
+        return '<p class="pl-notice pl-notice--ok">' . sticpa_pl_icon('check')
             . '<span>' . esc_html__('Lista guardada.', 'sticpa') . '</span></p>';
     }
 
-    $html = '<p class="pl-notice" style="color:var(--danger-dark)">' . sticpa_pl_icon('warn') . '<span>';
+    $html = '<p class="pl-notice pl-notice--error">' . sticpa_pl_icon('warn') . '<span>';
     if ($failed > 0) {
         $html .= esc_html(sprintf(
             /* translators: 1: marcas guardadas, 2: fallos */

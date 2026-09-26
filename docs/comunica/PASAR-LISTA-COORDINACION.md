@@ -263,12 +263,55 @@ Lo que hay ahora:
 - **Acompañamiento entra a «Monitores» pero no a «Reuniones»**: acompañar no es
   coordinar (§7 y `PASAR-LISTA-SEGUIMIENTOS.md` §5), y las reuniones de
   programación las monta coordinación.
-- **Se dice por qué**, en cuatro sitios: un chip «Coordinación» /
-  «Acompañamiento» junto al grupo de la home, y la frase *«Ves esta pantalla
-  porque coordinas COM · COM 2»* en la home de Pasar lista, en Monitores, en
-  Reuniones y sobre los seguimientos de una ficha. El alcance sale de
-  `sticpa_pl_coord_scope_label()`, que ahora **no se come el segmento**: antes
-  un coordinador de COM II leía «COM» a secas.
+- **Se dice por qué**: un chip «Coordinación» / «Acompañamiento» junto al
+  grupo de la home, y el **alcance en la cabecera** de cada pantalla de
+  coordinación. (Hubo también una frase *«Ves esta pantalla porque
+  coordinas…»*; se quitó el 24/09/2026 porque repetía el chip y la cabecera —
+  `design.md` §6.4—.) El alcance sale de `sticpa_pl_coord_scope_label()`, que
+  **no se come el segmento**: antes un coordinador de COM II leía «COM» a secas.
+
+## 5 ter. Las pantallas, repasadas (26/09/2026)
+
+Una pasada de UI/UX sobre Monitores, Reuniones, la ficha y el bloque de la
+portada, a la vez que el arreglo del guardado (parte de estado §1):
+
+- **La cabecera dice de quién es la lista, siempre.** Monitores enseñaba el
+  alcance solo si había etapa o segmento: quien coordina la delegación entera
+  no veía nada. Ahora sale siempre («toda la delegación» incluido), y el
+  subtítulo dice **cuántos monitores** hay que repasar (el día ya lo dice el
+  selector de al lado). En una **reunión** el título es su nombre
+  («Programación del 2.º trimestre») y debajo, fecha y alcance. Reuniones
+  lleva también el alcance.
+- **La pista cuenta lo del motivo.** La de los chavales decía «vino / no vino»
+  y «parcial o justificar»; en monitores el toque solo pone y quita faltas, y
+  lo importante vive en el gesto largo: *«Toca la fila para marcar una falta.
+  Mantén pulsado para justificarla y escribir el motivo.»*
+- **Reuniones: el estado con el idioma del historial de un grupo.** ✓ verde
+  con «11 vinieron · 3 faltas», círculo vacío con «sin pasar», «sin registro»
+  si se omitió, y nada si todavía no ha llegado. Antes era una frase al final
+  de la línea gris.
+- **Crear una reunión va detrás de «+ Nueva reunión».** A esta pantalla se
+  viene a elegir una reunión; crearla pasa tres o cuatro veces al año, y con
+  el formulario siempre abierto «Crear reunión» era el único botón de marca y
+  parecía lo principal. Sale abierto solo si no hay ninguna reunión o si el
+  alta acaba de fallar (para corregir sin buscar el botón). Usa el mismo
+  desplegable que el alta de un seguimiento en la ficha.
+- **La portada avisa de la reunión sin pasar**, con el ámbar y el «Recuperar»
+  de las listas de grupo, que llevan directo a su lista. Solo la **última**
+  reunión celebrada y solo durante **un mes**: una reunión suspendida no se
+  puede borrar ni marcar «Sin registro» desde aquí, y el ámbar se quedaría
+  hasta la siguiente. **La lista semanal de monitores no avisa, a propósito**:
+  si coordinación no la pasa cada sábado, sería un ámbar fijo que enseña a no
+  mirar el ámbar (también el de las listas de grupo). Cero consultas: las
+  sesiones de reuniones van en la segunda tanda de la portada.
+- **Ficha**: sin inscripción al evento de reuniones dice *«Todavía no aparece
+  en ninguna lista de reunión.»* en vez de un «0 de 0» con cuadraditos vacíos.
+- **44 px** (`design.md` §2): las pestañas «Chavales / Monitores» de Mis grupos
+  medían 32 px (37 las de arriba) y el `<select>` del día se quedaba en 42 px
+  dentro de su pastilla de 44. Anotado en `MIS-GRUPOS.md` §8 para que nadie lo
+  «arregle» de vuelta.
+- **Los avisos de guardado** (verde / rojo) llevan clase —`pl-notice--ok`,
+  `pl-notice--error`— y no un color en `style=`, que `design.md` §4 prohíbe.
 
 ## 6. Campos y valores que hay que crear
 

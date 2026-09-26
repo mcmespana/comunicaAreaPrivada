@@ -43,6 +43,9 @@ class CosteLlamadasTest extends TestCase
 
         $pantallas = array(
             'single_stic_pasar_lista' => array(),
+            // La portada de coordinación: las sesiones de reuniones (para el
+            // aviso de «reunión sin pasar») viajan en la tanda de las sesiones.
+            'single_stic_pasar_lista#coord' => array('__coord' => 'COM'),
             'single_stic_pasar_lista_grupos' => array(),
             'single_stic_pasar_lista_marcar' => array('grupo' => 'g1'),
             'single_stic_pasar_lista_resumen' => array(),
@@ -131,6 +134,9 @@ class CosteLlamadasTest extends TestCase
         // 13. El margen es de una llamada, no del doble.
         $topes = array(
             'single_stic_pasar_lista' => array(array(), 10),
+            // Coordinación: una consulta más (las sesiones de reuniones), en la
+            // MISMA tanda. Si esto sube de 11, algo ha salido suelto.
+            'single_stic_pasar_lista#coord' => array(array('__coord' => 'COM'), 11),
             'single_stic_pasar_lista_grupos' => array(array(), 8),
             'single_stic_pasar_lista_marcar' => array(array('grupo' => 'g1'), 11),
             'single_stic_pasar_lista_resumen' => array(array(), 8),

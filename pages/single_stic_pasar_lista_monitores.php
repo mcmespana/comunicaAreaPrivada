@@ -202,7 +202,7 @@ if (!empty($_POST['pl_action'])) {
         'pantalla' => 'monitores', 'motivo' => 'post_sin_accion',
         'sesion' => $session['id'], 'marcas_post' => strlen($marksRaw),
     ));
-    $html .= '<p class="pl-notice" style="color:var(--danger-dark)">' . sticpa_pl_icon('warn') . '<span>'
+    $html .= '<p class="pl-notice pl-notice--error">' . sticpa_pl_icon('warn') . '<span>'
         . esc_html__('No se ha guardado: la petición llegó sin la orden de guardar. Vuelve a intentarlo.', 'sticpa')
         . '</span></p>';
 }
@@ -307,17 +307,28 @@ $html .= '<div class="pl-head">';
 $html .= '<a class="pl-back" href="' . esc_url($backUrl) . '"'
     . ' aria-label="' . esc_attr__('Volver', 'sticpa') . '">' . sticpa_pl_icon('back') . '</a>';
 $html .= '<div class="pl-head-titles">';
-$html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html__('Monitores', 'sticpa') . '</span>';
+// El ALCANCE siempre en la cabecera (design.md §6.4), también cuando es la
+// delegación entera: antes, quien coordinaba toda la delegación no veía nada y
+// no había forma de saber de quién era la lista.
 $scopeLabel = sticpa_pl_coord_scope_label($scope);
-if ($scope['etapa'] !== '' || $scope['segmento'] !== '') {
-    $html .= '<span class="pl-title-name">' . esc_html($scopeLabel) . '</span>';
+if ($isReunion) {
+    // En una reunión, lo que identifica la lista es su NOMBRE («Programación
+    // del 2.º trimestre»): va de título, y la fecha y el alcance detrás. Aquí
+    // no hay selector de día, así que la fecha no se puede quitar.
+    $titulo = !empty($session['name']) ? $session['name'] : __('Reunión', 'sticpa');
+    $html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html($titulo) . '</span></div>';
+    $subtitulo = sticpa_pl_session_label($session) . ' · ' . $scopeLabel;
+} else {
+    $html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html__('Monitores', 'sticpa') . '</span>'
+        . '<span class="pl-title-name">' . esc_html($scopeLabel) . '</span></div>';
+    // El día ya lo dice el selector de al lado: el subtítulo cuenta a cuántos
+    // hay que repasar, que es lo que no se ve sin bajar.
+    $subtitulo = sprintf(
+        /* translators: %d: cuántos monitores hay en la lista */
+        _n('%d monitor', '%d monitores', count($monitors), 'sticpa'),
+        count($monitors)
+    );
 }
-$html .= '</div>';
-// En una reunión, lo que identifica la lista es su NOMBRE («Programación del
-// 2.º trimestre»); la fecha va detrás. En el sábado semanal es al revés.
-$subtitulo = ($isReunion && !empty($session['name']))
-    ? $session['name'] . ' · ' . sticpa_pl_session_label($session)
-    : sticpa_pl_session_label($session);
 $html .= '<div class="pl-subtitle">' . esc_html($subtitulo) . '</div>';
 $html .= '</div>';
 if (!$isReunion) {
@@ -342,7 +353,7 @@ if ($saved === null && $listaMon !== null && $listaMon['estado'] !== '') {
 
 if (is_array($saved)) {
     if ($savedOk) {
-        $html .= '<p class="pl-notice" style="color:var(--success-dark)">' . sticpa_pl_icon('check')
+        $html .= '<p class="pl-notice pl-notice--ok">' . sticpa_pl_icon('check')
             . '<span>' . esc_html(sprintf(
                 /* translators: 1: cuántos vinieron, 2: cuántas faltas */
                 __('Guardado · %1$d vinieron, %2$d faltas', 'sticpa'),
@@ -494,7 +505,7 @@ foreach ($conFilas as $etapa) {
     $html .= '</div>';
 }
 
-$html .= sticpa_pl_legend_html();
+$html .= sticpa_pl_legend_html(true);
 
 $html .= '<div class="pl-savebar">';
 $html .= '<p class="pl-status" data-pl-status hidden></p>';

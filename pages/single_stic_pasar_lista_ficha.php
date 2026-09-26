@@ -553,7 +553,7 @@ if ($track !== null) {
     if ($streak >= sticpa_pl_streak_threshold()) {
         // El aviso solo si son SEGUIDAS. Tres repartidas en el curso no
         // dicen nada; tres seguidas sí, y merece una llamada a casa.
-        $html .= '<p class="pl-notice" style="color:var(--danger-dark);padding-top:0.5rem">'
+        $html .= '<p class="pl-notice pl-notice--error" style="padding-top:0.5rem">'
             . sticpa_pl_icon('clock') . '<span>' . esc_html(sprintf(
                 /* translators: %d: ausencias consecutivas */
                 _n('Lleva %d ausencia seguida.', 'Lleva %d ausencias seguidas.', $streak, 'sticpa'),

@@ -62,6 +62,14 @@ class FakeSCP
      *  que rompía la relectura del guardado (26/09/2026). */
     public $monitorSinInscripcion = false;
 
+    /** Cuando es true, el evento de reuniones no tiene inscripciones: es como
+     *  empieza cada curso, antes de pasar la primera lista. */
+    public $reunionSinInscripciones = false;
+
+    /** Cuando es true, el evento de reuniones no tiene ninguna sesión: todavía
+     *  no se ha creado ninguna reunión este curso. */
+    public $reunionSinSesiones = false;
+
     /** Módulos en los que set_entry falla, como cuando el CRM lo rechaza. */
     public $failWrites = array();
     /** Cuando es true, set_relationship falla. */
@@ -796,6 +804,9 @@ class FakeSCP
                 // que devolviera lo mismo para los dos daría las dos filas
                 // iguales y no probaría nada.
                 if (isset($p['module_id']) && $p['module_id'] === 'ev-reu') {
+                    if ($this->reunionSinSesiones) {
+                        return $this->apiShape(array());
+                    }
                     return $this->apiShape(array(
                         $this->nvl(array('id' => 'ru1', 'name' => 'Programación del 1.er trimestre', 'start_date' => '2025-09-20 10:00:00', 'end_date' => '2025-09-20 13:00:00')),
                         $this->nvl(array('id' => 'ru2', 'name' => 'Programación del 2.º trimestre', 'start_date' => '2025-11-08 10:00:00', 'end_date' => '2025-11-08 13:00:00')),
@@ -824,7 +835,7 @@ class FakeSCP
                     }
                 }
                 if ($evento === 'ev-reu') {
-                    return $this->apiShape(array_merge(array(
+                    return $this->apiShape(array_merge($this->reunionSinInscripciones ? array() : array(
                         $this->nvl(array('id' => 'regr1', 'status' => 'confirmed'), array(array('id' => 'm1'))),
                     ), $creadas));
                 }
@@ -3041,6 +3052,101 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('data-pl-notes', $html);
     }
 
+    /**
+     * La cabecera dice SIEMPRE el alcance (design.md §6.4), también la
+     * delegación entera, y el subtítulo cuenta a cuántos hay que repasar: el
+     * día ya lo dice el selector de al lado.
+     */
+    public function test_monitores_la_cabecera_dice_el_alcance_y_cuantos_son()
+    {
+        $this->scp->coordEtapa = '';
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        $this->assertStringContainsString('<span class="pl-title-name">toda la delegación</span>', $html);
+        $this->assertStringContainsString('<div class="pl-subtitle">2 monitores</div>', $html);
+    }
+
+    /** En una reunión, el título es la reunión. */
+    public function test_la_lista_de_una_reunion_lleva_su_nombre_de_titulo()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_REQUEST = array('reunion' => '1', 'sesion' => 'ru2');
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        $this->assertStringContainsString('<span class="pl-title-code">Programación del 2.º trimestre</span>', $html);
+        $this->assertMatchesRegularExpression('/<div class="pl-subtitle">[^<]*· COM<\/div>/', $html);
+    }
+
+    /** La pista de los monitores dice dónde se justifica y se escribe el porqué. */
+    public function test_monitores_la_pista_explica_el_motivo()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $html = $this->render('single_stic_pasar_lista_monitores');
+        $this->assertStringContainsString('Mantén pulsado para justificarla y escribir el motivo', $html);
+        $this->assertStringNotContainsString('vino / no vino', $html);
+    }
+
+    /**
+     * LA PORTADA AVISA de la reunión sin pasar, como de una lista de grupo:
+     * ámbar, «Recuperar» y directo a la lista de esa reunión.
+     */
+    public function test_la_portada_avisa_de_la_reunion_sin_pasar()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $html = $this->render('single_stic_pasar_lista');
+
+        $this->assertStringContainsString('Reunión: Programación del 2.º trimestre', $html);
+        $this->assertStringContainsString('single_stic_pasar_lista_monitores&amp;reunion=1&amp;sesion=ru2', $html);
+        $this->assertStringContainsString('Recuperar', $html);
+    }
+
+    /** Pasada la lista de esa reunión, el aviso desaparece. */
+    public function test_la_portada_no_avisa_de_una_reunion_ya_pasada()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $id = $this->scp->set_entry('LIS_listas', array(
+            'estado' => 'pasada', 'ajmcm_tipo_c' => 'monitores', 'n_asistieron' => 1, 'n_faltaron' => 0,
+        ));
+        $this->scp->set_relationship('LIS_listas', $id, 'lis_listas_stic_sessions', array('ru2'));
+        $html = $this->render('single_stic_pasar_lista');
+
+        $this->assertStringNotContainsString('Reunión: Programación del 2.º trimestre', $html);
+    }
+
+    /**
+     * Pasado un mes, la reunión sin lista deja de reclamar en la portada: una
+     * suspendida no se puede quitar, y el ámbar se quedaría hasta la siguiente.
+     */
+    public function test_la_portada_deja_de_avisar_de_una_reunion_de_hace_mas_de_un_mes()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $GLOBALS['__stic_pl_now'] = mktime(17, 0, 0, 12, 20, 2025);   // ru2 fue el 8/11
+        $html = $this->render('single_stic_pasar_lista');
+
+        $this->assertStringNotContainsString('Reunión: Programación', $html);
+    }
+
+    /** A quien no coordina, ni el bloque ni sus avisos. */
+    public function test_la_portada_no_avisa_de_reuniones_a_un_monitor()
+    {
+        $html = $this->render('single_stic_pasar_lista');
+        $this->assertStringNotContainsString('Reunión:', $html);
+    }
+
+    /**
+     * Ficha: sin inscripción al evento de reuniones, no hay asistencias suyas.
+     * Se dice con palabras en vez de «0 de 0».
+     */
+    public function test_la_ficha_dice_si_aun_no_aparece_en_ninguna_reunion()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $this->scp->reunionSinInscripciones = true;
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $this->assertStringContainsString('Todavía no aparece en ninguna lista de reunión.', $html);
+    }
+
     /** Y en la home, junto a las dos filas que solo salen si coordinas. */
     public function test_la_home_de_pasar_lista_explica_el_bloque_de_coordinacion()
     {
@@ -3872,9 +3978,62 @@ final class PasarListaRenderTest extends TestCase
 
         $html = $this->render('single_stic_pasar_lista_reuniones');
 
-        $this->assertStringContainsString('lista pasada: 11 vinieron, 3 faltas', $html);
-        // La otra reunión ya celebrada sigue pidiendo que se pase.
-        $this->assertStringContainsString('pasar lista', $html);
+        // Con el MISMO idioma que el historial de un grupo: el círculo ✓ y los
+        // números en la línea de debajo…
+        $this->assertStringContainsString('11 vinieron · 3 faltas', $html);
+        $this->assertStringContainsString('pl-done--yes', $html);
+        // …la otra ya celebrada, pendiente (círculo vacío)…
+        $this->assertStringContainsString('sin pasar', $html);
+        $this->assertStringContainsString('pl-done--no', $html);
+        // …y la que viene, sin círculo: no se debe nada todavía.
+        $this->assertStringContainsString('todavía no ha llegado', $html);
+        $this->assertSame(2, substr_count($html, 'class="pl-done '));
+    }
+
+    /**
+     * A esta pantalla se viene a ELEGIR una reunión: el alta va detrás de un
+     * botón secundario, y el único botón de marca deja de ser «Crear reunión».
+     */
+    public function test_reuniones_el_alta_va_detras_de_un_boton()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $html = $this->render('single_stic_pasar_lista_reuniones');
+
+        $this->assertStringContainsString('data-pl-seg-add', $html);
+        $this->assertMatchesRegularExpression('/<form[^>]*id="pl-reu-form"[^>]*\bhidden\b/', $html);
+        // El foco va al nombre al abrir.
+        $this->assertStringContainsString('name="pl_reunion_name" required maxlength="120" data-pl-seg-first', $html);
+        // Y el alcance, en la cabecera.
+        $this->assertStringContainsString('<span class="pl-title-name">COM</span>', $html);
+    }
+
+    /** Sin ninguna reunión no hay nada que elegir: el formulario sale abierto. */
+    public function test_reuniones_sin_ninguna_el_formulario_sale_abierto()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $this->scp->reunionSinSesiones = true;
+        $html = $this->render('single_stic_pasar_lista_reuniones');
+
+        $this->assertStringNotContainsString('data-pl-seg-add', $html);
+        $this->assertStringContainsString('id="pl-reu-form"', $html);
+        $this->assertDoesNotMatchRegularExpression('/<form[^>]*id="pl-reu-form"[^>]*\bhidden\b/', $html);
+        $this->assertStringContainsString('<div class="pl-sec">Nueva reunión</div>', $html);
+    }
+
+    /** Si el alta falla, el formulario se queda abierto para corregir. */
+    public function test_reuniones_un_alta_fallida_deja_el_formulario_abierto()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_POST = array(
+            'pl_nonce' => wp_create_nonce('pl_reuniones'),
+            'pl_reunion_name' => 'Sin fecha',
+            'pl_reunion_date' => 'mañana',
+        );
+        $html = $this->render('single_stic_pasar_lista_reuniones');
+
+        $this->assertStringNotContainsString('data-pl-seg-add', $html);
+        $this->assertDoesNotMatchRegularExpression('/<form[^>]*id="pl-reu-form"[^>]*\bhidden\b/', $html);
+        $this->assertStringContainsString('pl-notice--error', $html);
     }
 
     /** Un monitor no puede crear reuniones por POST. */

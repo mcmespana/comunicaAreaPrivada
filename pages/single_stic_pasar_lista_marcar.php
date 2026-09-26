@@ -219,7 +219,7 @@ if (!empty($_POST['pl_action'])) {
         'grupo' => $groupId, 'sesion' => $session['id'],
         'marcas_post' => strlen($marksRaw),
     ));
-    $html .= '<p class="pl-notice" style="color:var(--danger-dark)">' . sticpa_pl_icon('warn') . '<span>'
+    $html .= '<p class="pl-notice pl-notice--error">' . sticpa_pl_icon('warn') . '<span>'
         . esc_html__('No se ha guardado: la petición llegó sin la orden de guardar. Vuelve a intentarlo.', 'sticpa')
         . '</span></p>';
 }
