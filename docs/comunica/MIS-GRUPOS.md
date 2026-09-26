@@ -255,6 +255,12 @@ mantiene, para que el botón que queda no se descoloque al centro.
 **Los enlaces del pie no llevan `sesion`.** Si se está leyendo, no se está
 marcando. Era justo la pega de llegar a la ficha por la pantalla de marcar.
 
+**Las pestañas miden 44 px de alto** (`.pl-tab`, 26/09/2026). Las de «Grupos /
+Cursos / A-Z» medían 37 y las de «Chavales / Monitores», 32: por debajo del
+mínimo táctil de `design.md` §2, que gana a lo demás. No hay artboard de esta
+pantalla; si algún día lo hay y dibuja pestañas más bajas, esto no se «arregla»
+de vuelta.
+
 ---
 
 ## 9. Qué queda por decidir

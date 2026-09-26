@@ -839,4 +839,37 @@ final class PasarListaTest extends TestCase
         $this->assertSame('sin archivo', $formacion['rows'][0]['warn']);
     }
 
+    /**
+     * Las asistencias de varias sesiones se piden SOLO de los días con sesión.
+     * Con las reuniones —tres o cuatro repartidas por el curso— el tramo entero
+     * traía todas las asistencias de la delegación de septiembre a junio.
+     */
+    public function test_el_rango_de_asistencias_pide_solo_los_dias_con_sesion()
+    {
+        $sep = mktime(19, 0, 0, 9, 12, 2026);
+        $feb = mktime(19, 0, 0, 2, 14, 2027);
+        $sql = sticpa_pl_attendance_days_sql(array($feb, $sep));
+
+        // Dos ventanas, de un día por cada lado, y ordenadas.
+        $this->assertSame(2, substr_count($sql, ' OR ') + 1);
+        $this->assertStringContainsString("start_date >= '2026-09-11 19:00:00'", $sql);
+        $this->assertStringContainsString("start_date <= '2026-09-13 19:00:00'", $sql);
+        $this->assertStringContainsString("start_date >= '2027-02-13 19:00:00'", $sql);
+        $this->assertLessThan(strpos($sql, '2027-02-13'), strpos($sql, '2026-09-11'));
+        // Nada de octubre a enero.
+        $this->assertStringNotContainsString('2026-10', $sql);
+    }
+
+    /** Dos sesiones pegadas comparten ventana: no se pide dos veces el mismo día. */
+    public function test_el_rango_junta_las_ventanas_que_se_solapan()
+    {
+        $sab = mktime(16, 30, 0, 9, 26, 2026);
+        $dom = mktime(10, 0, 0, 9, 27, 2026);
+        $sql = sticpa_pl_attendance_days_sql(array($sab, $dom));
+
+        $this->assertSame(0, substr_count($sql, ' OR '));
+        $this->assertStringContainsString("start_date >= '2026-09-25 16:30:00'", $sql);
+        $this->assertStringContainsString("start_date <= '2026-09-28 10:00:00'", $sql);
+    }
+
 }

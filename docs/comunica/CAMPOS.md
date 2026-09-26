@@ -209,7 +209,7 @@ ya está aquí**:
 | `NSOC_NumSociosLocales` | Número Socios Locales | Custom de MCM |
 | `STIC_Entorno_organizacional` | Equipos y responsabilidades | |
 | `stic_Sessions` | Sesiones | Pasar Lista las usa (`PASAR-LISTA-CAMPOS-CRM.md`) |
-| `stic_Attendances` | Asistencias | Pasar Lista las usa |
+| `stic_Attendances` | Asistencias | Pasar Lista las usa: el estado en `status` (`yes`, `partial`, `no_justified`, `no_unjustified`) y el **motivo** de una falta en `description`. No hay otro campo para justificar (revisado el 26/09/2026). Detalle en `PASAR-LISTA-CAMPOS-CRM.md` §3 |
 | `stic_FollowUps` | Seguimientos | Seguimientos de monitores (`PASAR-LISTA-SEGUIMIENTOS.md`) |
 | `stic_Payments` | Pagos | El área los lista (`inc/stic-payments.php`) |
 | `stic_Registrations` | Inscripciones | Sus campos `ajmcm_*` sí están, en §1 |

@@ -52,6 +52,24 @@ class FakeSCP
     /** m1 lleva ADEMÁS un grupo de MIC: el caso del monitor de dos etapas. */
     public $monitorDeDosEtapas = false;
 
+    /** Inscripciones creadas por el plugin: id => array('contact', 'event').
+     *  Se ven al releer las inscripciones del evento, como en el CRM. */
+    public $regsCreadas = array();
+    /** Motivo escrito en cada asistencia (id => description). */
+    public $attDesc = array();
+    /** Cuando es true, m1 NO está inscrito al evento de los sábados: es el
+     *  caso normal de un monitor, y el camino de crear inscripción y asistencia
+     *  que rompía la relectura del guardado (26/09/2026). */
+    public $monitorSinInscripcion = false;
+
+    /** Cuando es true, el evento de reuniones no tiene inscripciones: es como
+     *  empieza cada curso, antes de pasar la primera lista. */
+    public $reunionSinInscripciones = false;
+
+    /** Cuando es true, el evento de reuniones no tiene ninguna sesión: todavía
+     *  no se ha creado ninguna reunión este curso. */
+    public $reunionSinSesiones = false;
+
     /** Módulos en los que set_entry falla, como cuando el CRM lo rechaza. */
     public $failWrites = array();
     /** Cuando es true, set_relationship falla. */
@@ -261,6 +279,11 @@ class FakeSCP
 
     /** Cuántas peticiones ha llevado cada tanda paralela. */
     public $batches = array();
+    /** Las escrituras que han salido SOLAS, fuera de una tanda: cada una es
+     *  una espera entera. Es lo que hay que mirar para saber si un guardado
+     *  va en tandas o en fila. */
+    public $escriturasSueltas = array();
+    private $enTanda = false;
 
     private $recolectando = false;
     private $recolectado = array();
@@ -289,11 +312,16 @@ class FakeSCP
     {
         $this->batches[] = count((array) $requests);
         $listas = 0;
-        foreach ((array) $requests as $req) {
-            // La tanda SÍ llama: se apunta la llamada, como en producción.
-            $this->calls[] = $req['label'];
-            $this->traido[$req['sig']] = call_user_func($req['producer']);
-            $listas++;
+        $this->enTanda = true;
+        try {
+            foreach ((array) $requests as $req) {
+                // La tanda SÍ llama: se apunta la llamada, como en producción.
+                $this->calls[] = $req['label'];
+                $this->traido[$req['sig']] = call_user_func($req['producer']);
+                $listas++;
+            }
+        } finally {
+            $this->enTanda = false;
         }
         return $listas;
     }
@@ -311,6 +339,11 @@ class FakeSCP
             }
             return null;
         }
+        // Una lectura que sale bien deja limpio el último error, igual que el
+        // transporte de verdad: si no, un fallo de escritura anterior se leería
+        // como un fallo de esta lectura y dispararía respaldos que en
+        // producción no salen.
+        $this->lastError = '';
         if (array_key_exists($sig, $this->traido)) {
             $datos = $this->traido[$sig];
             unset($this->traido[$sig]);
@@ -771,6 +804,9 @@ class FakeSCP
                 // que devolviera lo mismo para los dos daría las dos filas
                 // iguales y no probaría nada.
                 if (isset($p['module_id']) && $p['module_id'] === 'ev-reu') {
+                    if ($this->reunionSinSesiones) {
+                        return $this->apiShape(array());
+                    }
                     return $this->apiShape(array(
                         $this->nvl(array('id' => 'ru1', 'name' => 'Programación del 1.er trimestre', 'start_date' => '2025-09-20 10:00:00', 'end_date' => '2025-09-20 13:00:00')),
                         $this->nvl(array('id' => 'ru2', 'name' => 'Programación del 2.º trimestre', 'start_date' => '2025-11-08 10:00:00', 'end_date' => '2025-11-08 13:00:00')),
@@ -786,21 +822,34 @@ class FakeSCP
                 ));
 
             case 'stic_Events:stic_registrations_stic_events':
-                if (isset($p['module_id']) && $p['module_id'] === 'ev-reu') {
-                    return $this->apiShape(array(
-                        $this->nvl(array('id' => 'regr1', 'status' => 'confirmed'), array(array('id' => 'm1'))),
-                    ));
+                $evento = isset($p['module_id']) ? (string) $p['module_id'] : '';
+                // Las que ha creado el plugin, con la forma real: el contacto
+                // en el campo plano (esta instancia no devuelve el anidado).
+                $creadas = array();
+                foreach ($this->regsCreadas as $rid => $r) {
+                    if ($r['event'] === $evento) {
+                        $creadas[] = $this->nvl(array(
+                            'id' => $rid, 'status' => '',
+                            'stic_registrations_contactscontacts_ida' => $r['contact'],
+                        ));
+                    }
                 }
-                return $this->apiShape(array(
+                if ($evento === 'ev-reu') {
+                    return $this->apiShape(array_merge($this->reunionSinInscripciones ? array() : array(
+                        $this->nvl(array('id' => 'regr1', 'status' => 'confirmed'), array(array('id' => 'm1'))),
+                    ), $creadas));
+                }
+                return $this->apiShape(array_merge(array_values(array_filter(array(
                     $this->nvl(array('id' => 'reg1', 'status' => 'confirmed'), array(array('id' => 'c1'))),
                     $this->nvl(array('id' => 'reg2', 'status' => 'confirmed'), array(array('id' => 'c2'))),
                     // El monitor del g1 también está inscrito al evento semanal:
                     // sin inscripción no hay asistencias suyas que contar, y la
                     // fila de sábados de su ficha diría «no está inscrito».
-                    $this->nvl(array('id' => 'regm1', 'status' => 'confirmed'), array(array('id' => 'm1'))),
+                    $this->monitorSinInscripcion ? null
+                        : $this->nvl(array('id' => 'regm1', 'status' => 'confirmed'), array(array('id' => 'm1'))),
                     // Cancelada: su asistencia no debe aparecer.
                     $this->nvl(array('id' => 'reg9', 'status' => 'cancelled'), array(array('id' => 'c9'))),
-                ));
+                ))), $creadas));
 
             case 'stic_Sessions:stic_attendances_stic_sessions':
                 $filas = array(
@@ -829,11 +878,13 @@ class FakeSCP
                 }
                 $out = array();
                 foreach ($filas as $id => $fila) {
+                    $desc = isset($this->attDesc[$id]) ? $this->attDesc[$id]
+                        : (isset($fila['desc']) ? $fila['desc'] : '');
                     $out[] = $this->nvl(
                         array(
                             'id' => $id,
                             'status' => $fila['status'],
-                            'description' => isset($fila['desc']) ? $fila['desc'] : '',
+                            'description' => $desc,
                         ),
                         array(array('id' => $fila['reg']))
                     );
@@ -854,9 +905,14 @@ class FakeSCP
                 // Y las del mismo monitor en las reuniones: vino a la primera y
                 // faltó a la segunda.
                 if (isset($p['module_id']) && $p['module_id'] === 'regr1') {
+                    // El motivo, si una prueba lo ha puesto (`attDesc`), viaja
+                    // en la misma lectura: es `description` de la asistencia.
+                    $desc = function ($id) {
+                        return isset($this->attDesc[$id]) ? $this->attDesc[$id] : '';
+                    };
                     return $this->apiShape(array(
-                        $this->nvl(array('id' => 'ar1', 'status' => 'yes'), array(array('id' => 'ru1'))),
-                        $this->nvl(array('id' => 'ar2', 'status' => 'no_unjustified'), array(array('id' => 'ru2'))),
+                        $this->nvl(array('id' => 'ar1', 'status' => 'yes', 'description' => $desc('ar1')), array(array('id' => 'ru1'))),
+                        $this->nvl(array('id' => 'ar2', 'status' => 'no_unjustified', 'description' => $desc('ar2')), array(array('id' => 'ru2'))),
                     ));
                 }
                 return $this->apiShape(array(
@@ -997,6 +1053,9 @@ class FakeSCP
     public function escribir($module, $data)
     {
         $this->writes[] = array('module' => $module, 'data' => $data);
+        if (!$this->enTanda) {
+            $this->escriturasSueltas[] = 'set_entry:' . $module;
+        }
 
         if (in_array($module, $this->failWrites, true)) {
             // La forma real de un rechazo: el CRM contesta 200 con un cuerpo de
@@ -1009,6 +1068,30 @@ class FakeSCP
         $id = isset($data['id']) ? $data['id'] : 'new-' . count($this->writes);
         if ($module === 'stic_Attendances' && array_key_exists('status', $data)) {
             $this->attStatus[$id] = (string) $data['status'];
+        }
+        if ($module === 'stic_Attendances' && array_key_exists('description', $data)) {
+            $this->attDesc[$id] = (string) $data['description'];
+        }
+        // LOS CAMPOS PLANOS ATAN AL GUARDAR, como en el CRM de verdad (parte de
+        // estado §3.1-bis): una asistencia creada con su sesión y su
+        // inscripción en el propio registro sale luego al leer la sesión, haya
+        // o no un `set_relationship` detrás.
+        if ($module === 'stic_Attendances' && !isset($data['id'])) {
+            if (!empty($data['stic_attendances_stic_sessionsstic_sessions_ida'])) {
+                $this->attSession[$id] = (string) $data['stic_attendances_stic_sessionsstic_sessions_ida'];
+            }
+            if (!empty($data['stic_attendances_stic_registrationsstic_registrations_ida'])) {
+                $this->attReg[$id] = (string) $data['stic_attendances_stic_registrationsstic_registrations_ida'];
+            }
+        }
+        // Y una inscripción creada con su persona y su evento sale al leer las
+        // inscripciones del evento. Sin esto el doble no puede ver el bug de la
+        // relectura con el mapa de inscripciones de antes de guardar.
+        if ($module === 'stic_Registrations' && !isset($data['id'])) {
+            $this->regsCreadas[$id] = array(
+                'contact' => isset($data['stic_registrations_contactscontacts_ida']) ? (string) $data['stic_registrations_contactscontacts_ida'] : '',
+                'event' => isset($data['stic_registrations_stic_eventsstic_events_ida']) ? (string) $data['stic_registrations_stic_eventsstic_events_ida'] : '',
+            );
         }
         if ($module === 'LIS_listas') {
             $previo = isset($this->listas[$id]) ? $this->listas[$id] : array();
@@ -1027,7 +1110,39 @@ class FakeSCP
 
     public function set_relationship($module, $id, $link, $ids)
     {
+        // EN RECOLECTA NO ESCRIBE, y lo que trae la tanda no se repite: el
+        // mismo contrato que `set_entry()` y que el transporte de verdad. Los
+        // enlaces de una lista o de las asistencias nuevas van ahora en tanda,
+        // y sin esto el doble los contaría dos veces.
+        $sig = 'sr|' . md5(serialize(array($module, $id, $link, $ids)));
+        if ($this->recolectando) {
+            if (!isset($this->recolectado[$sig])) {
+                $self = $this;
+                $this->recolectado[$sig] = array(
+                    'sig' => $sig,
+                    'label' => 'set_relationship:' . $module,
+                    'producer' => function () use ($self, $module, $id, $link, $ids) {
+                        return $self->relacionar($module, $id, $link, $ids);
+                    },
+                );
+            }
+            return null;
+        }
+        if (array_key_exists($sig, $this->traido)) {
+            $datos = $this->traido[$sig];
+            unset($this->traido[$sig]);
+            return $datos;
+        }
+        return $this->relacionar($module, $id, $link, $ids);
+    }
+
+    /** El enlace de verdad, para que la tanda y la llamada suelta compartan. */
+    public function relacionar($module, $id, $link, $ids)
+    {
         $this->relationships[] = array('module' => $module, 'id' => $id, 'link' => $link, 'ids' => $ids);
+        if (!$this->enTanda) {
+            $this->escriturasSueltas[] = 'set_relationship:' . $module;
+        }
 
         if ($this->failRelationships) {
             $this->lastError = 'set_relationship(' . $link . ') ha fallado en 1 de 1';
@@ -1047,6 +1162,9 @@ class FakeSCP
         }
         if ($module === 'LIS_listas' && $link === 'lis_listas_ajmcm_grupos') {
             $this->listas[$id]['__grupo'] = $primero;
+        }
+        if ($module === 'stic_Registrations' && $link === 'stic_registrations_stic_events' && isset($this->regsCreadas[$id])) {
+            $this->regsCreadas[$id]['event'] = $primero;
         }
         // La forma real: {created, failed, deleted}.
         return (object) array('created' => count((array) $ids), 'failed' => 0, 'deleted' => 0);
@@ -2774,6 +2892,261 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame('no_unjustified', $writes[0]['data']['status']);
     }
 
+    /**
+     * EL FALLO DE «PASAR LISTA DE MONITORES» (26/09/2026).
+     *
+     * Visto en el CRM real: la primera lista de la reunión de Segart dejó en el
+     * CRM las catorce inscripciones, las catorce asistencias y la lista, todo
+     * bien… y la pantalla tuvo que decir que no se había guardado. Releía con
+     * el mapa de inscripciones de ANTES de guardar, así que las asistencias
+     * recién creadas no eran «de nadie» y salían como marcas perdidas.
+     */
+    public function test_monitor_sin_inscripcion_se_guarda_y_la_pantalla_lo_dice()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $this->scp->monitorSinInscripcion = true;
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_monitores'),
+            'pl_marks' => json_encode(array()),
+        );
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        // Se le ha creado la inscripción, con la persona Y el evento dentro.
+        $regs = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Registrations';
+        }));
+        $this->assertCount(1, $regs);
+        $this->assertSame('m1', $regs[0]['data']['stic_registrations_contactscontacts_ida']);
+        $this->assertNotSame('', $regs[0]['data']['stic_registrations_stic_eventsstic_events_ida']);
+
+        // Y la asistencia nace atada a ella.
+        $att = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Attendances' && !isset($w['data']['id']);
+        }));
+        $this->assertCount(1, $att);
+        $this->assertSame('yes', $att[0]['data']['status']);
+
+        // Lo que importa: la pantalla dice que está guardado, porque lo está.
+        $this->assertStringContainsString('data-pl-saved-ok', $html);
+        $this->assertStringContainsString('Guardado', $html);
+        $this->assertStringNotContainsString('no ha quedado guardada', $html);
+    }
+
+    /**
+     * Y el guardado SIGUIENTE actualiza, no duplica. Antes el mapa cacheado no
+     * se enteraba de la inscripción nueva (el `flush('struct')` no existía), y
+     * cada guardado creaba otra inscripción y otra asistencia.
+     */
+    public function test_el_segundo_guardado_de_monitores_no_duplica_nada()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $this->scp->monitorSinInscripcion = true;
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_monitores'),
+            'pl_marks' => json_encode(array()),
+        );
+        $this->render('single_stic_pasar_lista_monitores');
+        $antes = count($this->scp->writes);
+
+        // Otra petición: misma caché, mismo CRM. Ahora falta.
+        $_POST['pl_marks'] = json_encode(array('m1' => 'no_unjustified'));
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        $nuevas = array_slice($this->scp->writes, $antes);
+        $regs = array_filter($nuevas, function ($w) {
+            return $w['module'] === 'stic_Registrations';
+        });
+        $this->assertCount(0, $regs, 'no se crea otra inscripción');
+        $altas = array_filter($nuevas, function ($w) {
+            return $w['module'] === 'stic_Attendances' && !isset($w['data']['id']);
+        });
+        $this->assertCount(0, $altas, 'no se crea otra asistencia: se actualiza la que hay');
+        $this->assertStringContainsString('data-pl-saved-ok', $html);
+    }
+
+    /**
+     * Varios monitores sin inscribir: cada paso sale EN TANDA, no uno detrás
+     * de otro. Eran cinco viajes en fila por monitor.
+     */
+    public function test_las_altas_de_monitores_van_en_tandas()
+    {
+        // Toda la delegación: m1 (COM) y m10 (MIC), ninguno inscrito.
+        $this->scp->coordEtapa = '';
+        $this->scp->monitorSinInscripcion = true;
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_monitores'),
+            'pl_marks' => json_encode(array()),
+        );
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        $this->assertStringContainsString('data-pl-saved-ok', $html);
+        $regs = array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Registrations';
+        });
+        $this->assertCount(2, $regs);
+        $altas = array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Attendances' && !isset($w['data']['id']);
+        });
+        $this->assertCount(2, $altas);
+        // Dos inscripciones, dos enlaces al evento, dos asistencias, cuatro
+        // enlaces de asistencia y los dos de la lista: todo en tandas. Lo único
+        // suelto es la propia lista, que no se puede atar antes de existir.
+        // Antes eran catorce escrituras en fila para dos monitores.
+        $this->assertSame(array('set_entry:LIS_listas'), $this->scp->escriturasSueltas,
+            'solo la lista debería salir sola: ' . implode(', ', $this->scp->escriturasSueltas));
+    }
+
+    /**
+     * EL MOTIVO, TAMBIÉN EN LOS MONITORES. La hoja lo dejaba escribir y el
+     * guardado lo tiraba. En una reunión de programación es lo que importa: por
+     * qué no vino.
+     */
+    public function test_monitores_guarda_el_motivo_de_la_falta()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_monitores'),
+            'pl_marks' => json_encode(array('m1' => 'no_justified')),
+            'pl_notes' => json_encode(array('m1' => 'Examen en la universidad', 'intruso' => 'no')),
+        );
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        $att = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Attendances';
+        }));
+        $this->assertCount(1, $att);
+        $this->assertSame('no_justified', $att[0]['data']['status']);
+        $this->assertSame('Examen en la universidad', $att[0]['data']['description']);
+        // Y al releer, la fila lo trae para que la hoja lo enseñe…
+        $this->assertStringContainsString('data-motive="Examen en la universidad"', $html);
+        // …y lo dice bajo el nombre, detrás del estado.
+        $this->assertStringContainsString('Justificada · Examen en la universidad', $html);
+        $this->assertStringContainsString('data-pl-saved-ok', $html);
+    }
+
+    /** En la lista de los chavales el motivo sigue solo en la hoja. */
+    public function test_marcar_no_pinta_el_motivo_bajo_el_nombre()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+        // a2 (Jaume) trae «Se fue antes» del CRM: está en la fila para la hoja…
+        $this->assertStringContainsString('data-motive="Se fue antes"', $html);
+        // …pero no se dice en la nota de debajo del nombre.
+        $this->assertStringNotContainsString('data-motive-note', $html);
+    }
+
+    /** El formulario de monitores manda los motivos, como el de los chavales. */
+    public function test_el_formulario_de_monitores_lleva_el_campo_de_motivos()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $html = $this->render('single_stic_pasar_lista_monitores');
+        $this->assertStringContainsString('name="pl_notes"', $html);
+        $this->assertStringContainsString('data-pl-notes', $html);
+    }
+
+    /**
+     * La cabecera dice SIEMPRE el alcance (design.md §6.4), también la
+     * delegación entera, y el subtítulo cuenta a cuántos hay que repasar: el
+     * día ya lo dice el selector de al lado.
+     */
+    public function test_monitores_la_cabecera_dice_el_alcance_y_cuantos_son()
+    {
+        $this->scp->coordEtapa = '';
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        $this->assertStringContainsString('<span class="pl-title-name">toda la delegación</span>', $html);
+        $this->assertStringContainsString('<div class="pl-subtitle">2 monitores</div>', $html);
+    }
+
+    /** En una reunión, el título es la reunión. */
+    public function test_la_lista_de_una_reunion_lleva_su_nombre_de_titulo()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_REQUEST = array('reunion' => '1', 'sesion' => 'ru2');
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        $this->assertStringContainsString('<span class="pl-title-code">Programación del 2.º trimestre</span>', $html);
+        $this->assertMatchesRegularExpression('/<div class="pl-subtitle">[^<]*· COM<\/div>/', $html);
+    }
+
+    /** La pista de los monitores dice dónde se justifica y se escribe el porqué. */
+    public function test_monitores_la_pista_explica_el_motivo()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $html = $this->render('single_stic_pasar_lista_monitores');
+        $this->assertStringContainsString('Mantén pulsado para justificarla y escribir el motivo', $html);
+        $this->assertStringNotContainsString('vino / no vino', $html);
+    }
+
+    /**
+     * LA PORTADA AVISA de la reunión sin pasar, como de una lista de grupo:
+     * ámbar, «Recuperar» y directo a la lista de esa reunión.
+     */
+    public function test_la_portada_avisa_de_la_reunion_sin_pasar()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $html = $this->render('single_stic_pasar_lista');
+
+        $this->assertStringContainsString('Reunión: Programación del 2.º trimestre', $html);
+        $this->assertStringContainsString('single_stic_pasar_lista_monitores&amp;reunion=1&amp;sesion=ru2', $html);
+        $this->assertStringContainsString('Recuperar', $html);
+    }
+
+    /** Pasada la lista de esa reunión, el aviso desaparece. */
+    public function test_la_portada_no_avisa_de_una_reunion_ya_pasada()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $id = $this->scp->set_entry('LIS_listas', array(
+            'estado' => 'pasada', 'ajmcm_tipo_c' => 'monitores', 'n_asistieron' => 1, 'n_faltaron' => 0,
+        ));
+        $this->scp->set_relationship('LIS_listas', $id, 'lis_listas_stic_sessions', array('ru2'));
+        $html = $this->render('single_stic_pasar_lista');
+
+        $this->assertStringNotContainsString('Reunión: Programación del 2.º trimestre', $html);
+    }
+
+    /**
+     * Pasado un mes, la reunión sin lista deja de reclamar en la portada: una
+     * suspendida no se puede quitar, y el ámbar se quedaría hasta la siguiente.
+     */
+    public function test_la_portada_deja_de_avisar_de_una_reunion_de_hace_mas_de_un_mes()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $GLOBALS['__stic_pl_now'] = mktime(17, 0, 0, 12, 20, 2025);   // ru2 fue el 8/11
+        $html = $this->render('single_stic_pasar_lista');
+
+        $this->assertStringNotContainsString('Reunión: Programación', $html);
+    }
+
+    /** A quien no coordina, ni el bloque ni sus avisos. */
+    public function test_la_portada_no_avisa_de_reuniones_a_un_monitor()
+    {
+        $html = $this->render('single_stic_pasar_lista');
+        $this->assertStringNotContainsString('Reunión:', $html);
+    }
+
+    /**
+     * Ficha: sin inscripción al evento de reuniones, no hay asistencias suyas.
+     * Se dice con palabras en vez de «0 de 0».
+     */
+    public function test_la_ficha_dice_si_aun_no_aparece_en_ninguna_reunion()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $this->scp->reunionSinInscripciones = true;
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $this->assertStringContainsString('Todavía no aparece en ninguna lista de reunión.', $html);
+    }
+
     /** Y en la home, junto a las dos filas que solo salen si coordinas. */
     public function test_la_home_de_pasar_lista_explica_el_bloque_de_coordinacion()
     {
@@ -3522,6 +3895,37 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('no está en los grupos de tu alcance', $html);
     }
 
+    /**
+     * LA FICHA DICE POR QUÉ FALTÓ A UNA REUNIÓN. Con tres o cuatro al año, una
+     * falta a una reunión de programación se habla, y lo primero que se
+     * pregunta es el porqué: va debajo de sus cuadraditos, una por línea.
+     */
+    public function test_la_ficha_dice_por_que_falto_a_una_reunion()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $this->scp->attDesc['ar2'] = 'Examen en la universidad';
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $this->assertStringContainsString('pl-track-faltas', $html);
+        $this->assertStringContainsString('Programación del 2.º trimestre', $html);
+        $this->assertStringContainsString('No vino: Examen en la universidad', $html);
+        // Y el cuadradito lo lleva en su título.
+        $this->assertStringContainsString('No vino · Examen en la universidad', $html);
+    }
+
+    /** Sin motivo también se dice: que no conste es un dato. */
+    public function test_una_falta_a_reunion_sin_motivo_se_dice()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $this->assertStringContainsString('No vino: sin motivo', $html);
+        // A la que vino no se la nombra: la lista es de faltas.
+        $this->assertStringNotContainsString('Programación del 1.er trimestre</span>', $html);
+    }
+
     /** Reuniones: se crean con nombre, día, hora y duración. */
     public function test_crear_una_reunion()
     {
@@ -3554,6 +3958,82 @@ final class PasarListaRenderTest extends TestCase
         // la ignora y pone la hora actual.
         $this->assertSame('2026-01-17 19:00:00', $sessions[0]['data']['start_date']);
         $this->assertSame('2026-01-17 21:00:00', $sessions[0]['data']['end_date']);
+    }
+
+    /**
+     * La lista de reuniones dice cuáles están pasadas, y con qué números, sin
+     * tener que entrar en cada una. Sale del índice de listas que ya se lee en
+     * la misma tanda: ni una consulta más.
+     */
+    public function test_reuniones_dice_que_lista_esta_pasada()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $id = $this->scp->set_entry('LIS_listas', array(
+            'estado' => 'pasada', 'ajmcm_tipo_c' => 'monitores',
+            'n_asistieron' => 11, 'n_faltaron' => 3,
+        ));
+        $this->scp->set_relationship('LIS_listas', $id, 'lis_listas_stic_sessions', array('ru1'));
+        $this->scp->writes = array();
+        $this->scp->relationships = array();
+
+        $html = $this->render('single_stic_pasar_lista_reuniones');
+
+        // Con el MISMO idioma que el historial de un grupo: el círculo ✓ y los
+        // números en la línea de debajo…
+        $this->assertStringContainsString('11 vinieron · 3 faltas', $html);
+        $this->assertStringContainsString('pl-done--yes', $html);
+        // …la otra ya celebrada, pendiente (círculo vacío)…
+        $this->assertStringContainsString('sin pasar', $html);
+        $this->assertStringContainsString('pl-done--no', $html);
+        // …y la que viene, sin círculo: no se debe nada todavía.
+        $this->assertStringContainsString('todavía no ha llegado', $html);
+        $this->assertSame(2, substr_count($html, 'class="pl-done '));
+    }
+
+    /**
+     * A esta pantalla se viene a ELEGIR una reunión: el alta va detrás de un
+     * botón secundario, y el único botón de marca deja de ser «Crear reunión».
+     */
+    public function test_reuniones_el_alta_va_detras_de_un_boton()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $html = $this->render('single_stic_pasar_lista_reuniones');
+
+        $this->assertStringContainsString('data-pl-seg-add', $html);
+        $this->assertMatchesRegularExpression('/<form[^>]*id="pl-reu-form"[^>]*\bhidden\b/', $html);
+        // El foco va al nombre al abrir.
+        $this->assertStringContainsString('name="pl_reunion_name" required maxlength="120" data-pl-seg-first', $html);
+        // Y el alcance, en la cabecera.
+        $this->assertStringContainsString('<span class="pl-title-name">COM</span>', $html);
+    }
+
+    /** Sin ninguna reunión no hay nada que elegir: el formulario sale abierto. */
+    public function test_reuniones_sin_ninguna_el_formulario_sale_abierto()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $this->scp->reunionSinSesiones = true;
+        $html = $this->render('single_stic_pasar_lista_reuniones');
+
+        $this->assertStringNotContainsString('data-pl-seg-add', $html);
+        $this->assertStringContainsString('id="pl-reu-form"', $html);
+        $this->assertDoesNotMatchRegularExpression('/<form[^>]*id="pl-reu-form"[^>]*\bhidden\b/', $html);
+        $this->assertStringContainsString('<div class="pl-sec">Nueva reunión</div>', $html);
+    }
+
+    /** Si el alta falla, el formulario se queda abierto para corregir. */
+    public function test_reuniones_un_alta_fallida_deja_el_formulario_abierto()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_POST = array(
+            'pl_nonce' => wp_create_nonce('pl_reuniones'),
+            'pl_reunion_name' => 'Sin fecha',
+            'pl_reunion_date' => 'mañana',
+        );
+        $html = $this->render('single_stic_pasar_lista_reuniones');
+
+        $this->assertStringNotContainsString('data-pl-seg-add', $html);
+        $this->assertDoesNotMatchRegularExpression('/<form[^>]*id="pl-reu-form"[^>]*\bhidden\b/', $html);
+        $this->assertStringContainsString('pl-notice--error', $html);
     }
 
     /** Un monitor no puede crear reuniones por POST. */
@@ -3877,6 +4357,22 @@ final class PasarListaRenderTest extends TestCase
 
         $this->assertSame($estructura, sticpa_pl_cache_key('people', $this->scp, 'g1'));
         $this->assertNotSame($estado, sticpa_pl_cache_key('state', $this->scp));
+    }
+
+    /**
+     * 'struct' también existe. Se usaba al crear una inscripción y la función
+     * solo entendía 'state' y 'all': caía en 'state' y el mapa de
+     * inscripciones se quedaba 24 horas viejo (el fallo del 26/09/2026).
+     */
+    public function testInvalidarLaEstructuraNoTocaElEstado()
+    {
+        $estructura = sticpa_pl_cache_key('regs', $this->scp, 'ev1');
+        $estado = sticpa_pl_cache_key('state', $this->scp);
+
+        sticpa_pl_flush($this->scp, 'struct');
+
+        $this->assertNotSame($estructura, sticpa_pl_cache_key('regs', $this->scp, 'ev1'));
+        $this->assertSame($estado, sticpa_pl_cache_key('state', $this->scp));
     }
 
     /**
