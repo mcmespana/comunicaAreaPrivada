@@ -74,6 +74,17 @@ class FakeSCP
     public $failWrites = array();
     /** Cuando es true, set_relationship falla. */
     public $failRelationships = false;
+
+    /** Cuando es true, esta instancia NO ata los campos planos al guardar: la
+     *  asistencia o la inscripción nueva se queda sin sesión, inscripción o
+     *  evento hasta que un `set_relationship` lo ate. Es el caso para el que
+     *  existe el refuerzo, y el que su comprobación tiene que ver. */
+    public $planosNoAtan = false;
+
+    /** Cuando es true, hay una participante colgada de un grupo COMODÍN
+     *  («⚠️ Grupo COM-LC - POR DEFINIR!»), que no es de la delegación: como
+     *  llegaban Mencía Saiz y Ana Pardo el 26/09/2026. */
+    public $conComodin = false;
     /** Lo que el transporte deja ahí para que arriba se pueda decir por qué. */
     public $lastError = '';
 
@@ -460,6 +471,11 @@ class FakeSCP
                     'grupo' => array('id' => 'g3', 'name' => 'Los Micos'),
                     'persona' => array('id' => 'm1', 'name' => 'David Soler', 'first_name' => 'David', 'last_name' => 'Soler'),
                 ) : null,
+                $this->conComodin ? array(
+                    'fields' => array('id' => 'r30', 'relationship_type' => 'grupo', 'end_date' => ''),
+                    'grupo' => array('id' => 'g-comodin', 'name' => '⚠️ Grupo COM-LC - POR DEFINIR!'),
+                    'persona' => array('id' => 'c30', 'name' => 'Mencia Saiz', 'first_name' => 'Mencia', 'last_name' => 'Saiz'),
+                ) : null,
                 // El rol `grupo` de los +18: cuenta como participante.
                 array(
                     'fields' => array('id' => 'r5', 'relationship_type' => 'grupo', 'end_date' => $fin),
@@ -501,6 +517,28 @@ class FakeSCP
                     'persona' => array('id' => 'm1', 'name' => 'David Soler', 'first_name' => 'David', 'last_name' => 'Soler'),
                 ),
             ), $rel);
+        }
+        // La comprobación de los enlaces de lo recién creado: por id, con los
+        // campos planos tal como han quedado (ver `sticpa_pl_enlaces_pendientes`).
+        if (in_array($module, array('stic_Attendances', 'stic_Registrations'), true)
+            && preg_match('/\.id IN \(([^)]*)\)/', (string) $query, $m)) {
+            $filas = array();
+            foreach (explode(',', str_replace("'", '', $m[1])) as $id) {
+                $id = trim($id);
+                if ($module === 'stic_Attendances') {
+                    $filas[] = array('fields' => array(
+                        'id' => $id,
+                        'stic_attendances_stic_sessionsstic_sessions_ida' => isset($this->attSession[$id]) ? $this->attSession[$id] : '',
+                        'stic_attendances_stic_registrationsstic_registrations_ida' => isset($this->attReg[$id]) ? $this->attReg[$id] : '',
+                    ));
+                } elseif (isset($this->regsCreadas[$id])) {
+                    $filas[] = array('fields' => array(
+                        'id' => $id,
+                        'stic_registrations_stic_eventsstic_events_ida' => $this->regsCreadas[$id]['event'],
+                    ));
+                }
+            }
+            return $this->entryListShape($filas, $rel);
         }
         if ($module === 'stic_Attendances') {
             // El cargador por rango de fechas: UNA llamada para las tres
@@ -1076,7 +1114,7 @@ class FakeSCP
         // estado §3.1-bis): una asistencia creada con su sesión y su
         // inscripción en el propio registro sale luego al leer la sesión, haya
         // o no un `set_relationship` detrás.
-        if ($module === 'stic_Attendances' && !isset($data['id'])) {
+        if ($module === 'stic_Attendances' && !isset($data['id']) && !$this->planosNoAtan) {
             if (!empty($data['stic_attendances_stic_sessionsstic_sessions_ida'])) {
                 $this->attSession[$id] = (string) $data['stic_attendances_stic_sessionsstic_sessions_ida'];
             }
@@ -1090,7 +1128,7 @@ class FakeSCP
         if ($module === 'stic_Registrations' && !isset($data['id'])) {
             $this->regsCreadas[$id] = array(
                 'contact' => isset($data['stic_registrations_contactscontacts_ida']) ? (string) $data['stic_registrations_contactscontacts_ida'] : '',
-                'event' => isset($data['stic_registrations_stic_eventsstic_events_ida']) ? (string) $data['stic_registrations_stic_eventsstic_events_ida'] : '',
+                'event' => (!$this->planosNoAtan && isset($data['stic_registrations_stic_eventsstic_events_ida'])) ? (string) $data['stic_registrations_stic_eventsstic_events_ida'] : '',
             );
         }
         if ($module === 'LIS_listas') {
@@ -1754,6 +1792,54 @@ final class PasarListaRenderTest extends TestCase
     }
 
     /**
+     * EL REFUERZO SOLO CUANDO HACE FALTA. Si el campo plano ha atado la
+     * asistencia y la inscripción nuevas —lo normal—, una lectura por id lo
+     * comprueba y no sale ni un `set_relationship`: eran dos por asistencia y
+     * guardar una reunión de catorce tardaba 15-20 s (26/09/2026).
+     */
+    public function test_sin_refuerzo_si_el_campo_plano_ya_ata()
+    {
+        $this->scp->coordEtapa = '';
+        $this->scp->monitorSinInscripcion = true;
+        $_REQUEST = array('reunion' => '1', 'sesion' => 'ru2');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_monitores'),
+            'pl_marks' => json_encode(array()),
+        );
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        $this->assertStringContainsString('data-pl-saved-ok', $html);
+        $refuerzos = array_filter($this->scp->relationships, function ($r) {
+            return in_array($r['module'], array('stic_Attendances', 'stic_Registrations'), true);
+        });
+        $this->assertCount(0, $refuerzos, 'el campo plano ya ata: no hace falta reforzar');
+    }
+
+    /** …y si NO ata, se refuerza lo que falta y el guardado sale bien igual. */
+    public function test_refuerzo_si_el_campo_plano_no_ata()
+    {
+        $this->scp->coordEtapa = '';
+        $this->scp->monitorSinInscripcion = true;
+        $this->scp->planosNoAtan = true;
+        $_REQUEST = array('reunion' => '1', 'sesion' => 'ru2');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_monitores'),
+            'pl_marks' => json_encode(array()),
+        );
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        $this->assertStringContainsString('data-pl-saved-ok', $html);
+        $links = array_count_values(array_map(function ($r) {
+            return $r['module'] . ':' . $r['link'];
+        }, $this->scp->relationships));
+        $this->assertGreaterThan(0, isset($links['stic_Attendances:stic_attendances_stic_sessions']) ? $links['stic_Attendances:stic_attendances_stic_sessions'] : 0);
+        $this->assertGreaterThan(0, isset($links['stic_Attendances:stic_attendances_stic_registrations']) ? $links['stic_Attendances:stic_attendances_stic_registrations'] : 0);
+        $this->assertGreaterThan(0, isset($links['stic_Registrations:stic_registrations_stic_events']) ? $links['stic_Registrations:stic_registrations_stic_events'] : 0);
+    }
+
+    /**
      * SI NO SE PUEDE ATAR LA ASISTENCIA, NO SE ESCRIBE.
      *
      * Antes se creaba igual y se apuntaba el fallo del enlace. Esa asistencia
@@ -1764,6 +1850,10 @@ final class PasarListaRenderTest extends TestCase
      */
     public function test_una_relacion_fallida_cuenta_como_fallo()
     {
+        // Una instancia que no ata el campo plano Y en la que el refuerzo
+        // falla: es el único caso en que el enlace no se puede hacer. Si el
+        // campo plano ata, el refuerzo ni se intenta.
+        $this->scp->planosNoAtan = true;
         $this->scp->failRelationships = true;
         $_REQUEST = array('grupo' => 'g1');
         $_POST = array(
@@ -2974,7 +3064,8 @@ final class PasarListaRenderTest extends TestCase
      */
     public function test_las_altas_de_monitores_van_en_tandas()
     {
-        // Toda la delegación: m1 (COM) y m10 (MIC), ninguno inscrito.
+        // Toda la delegación: m1 (COM), m10 (MIC) y m9 (sin grupo), ninguno
+        // inscrito.
         $this->scp->coordEtapa = '';
         $this->scp->monitorSinInscripcion = true;
         $_SERVER['REQUEST_METHOD'] = 'POST';
@@ -2989,17 +3080,48 @@ final class PasarListaRenderTest extends TestCase
         $regs = array_filter($this->scp->writes, function ($w) {
             return $w['module'] === 'stic_Registrations';
         });
-        $this->assertCount(2, $regs);
+        $this->assertCount(3, $regs);
         $altas = array_filter($this->scp->writes, function ($w) {
             return $w['module'] === 'stic_Attendances' && !isset($w['data']['id']);
         });
-        $this->assertCount(2, $altas);
-        // Dos inscripciones, dos enlaces al evento, dos asistencias, cuatro
-        // enlaces de asistencia y los dos de la lista: todo en tandas. Lo único
-        // suelto es la propia lista, que no se puede atar antes de existir.
-        // Antes eran catorce escrituras en fila para dos monitores.
-        $this->assertSame(array('set_entry:LIS_listas'), $this->scp->escriturasSueltas,
-            'solo la lista debería salir sola: ' . implode(', ', $this->scp->escriturasSueltas));
+        $this->assertCount(3, $altas);
+        // Inscripciones, asistencias, la lista y sus enlaces: TODO en tandas.
+        // La lista viaja con las asistencias y sus enlaces con la lectura de
+        // comprobación (26/09/2026); antes era lo único que salía solo, y al
+        // principio eran catorce escrituras en fila para dos monitores.
+        $this->assertSame(array(), $this->scp->escriturasSueltas,
+            'nada debería salir solo: ' . implode(', ', $this->scp->escriturasSueltas));
+        // Y la lista, creada y atada a su sesión.
+        $listas = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'LIS_listas' && !isset($w['data']['id']);
+        }));
+        $this->assertCount(1, $listas);
+        $this->assertSame('s3', $listas[0]['data']['lis_listas_stic_sessionsstic_sessions_ida']);
+    }
+
+    /** Al volver a guardar, la lista (que ya existe) va en la tanda de las actualizaciones. */
+    public function test_volver_a_guardar_monitores_no_deja_nada_suelto()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_monitores'),
+            'pl_marks' => json_encode(array()),
+        );
+        $this->render('single_stic_pasar_lista_monitores');
+        $this->scp->escriturasSueltas = array();
+        $antes = count($this->scp->writes);
+
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        $this->assertStringContainsString('data-pl-saved-ok', $html);
+        $nuevas = array_slice($this->scp->writes, $antes);
+        $listas = array_filter($nuevas, function ($w) {
+            return $w['module'] === 'LIS_listas';
+        });
+        $this->assertCount(1, $listas, 'una sola escritura de la lista');
+        $this->assertTrue(isset(array_values($listas)[0]['data']['id']), 'y es una actualización, no otra lista');
+        $this->assertSame(array(), $this->scp->escriturasSueltas);
     }
 
     /**
@@ -3063,7 +3185,32 @@ final class PasarListaRenderTest extends TestCase
         $html = $this->render('single_stic_pasar_lista_monitores');
 
         $this->assertStringContainsString('<span class="pl-title-name">toda la delegación</span>', $html);
-        $this->assertStringContainsString('<div class="pl-subtitle">2 monitores</div>', $html);
+        $this->assertStringContainsString('<div class="pl-subtitle">3 monitores</div>', $html);
+    }
+
+    /**
+     * Un monitor NUEVO llega con la relación apuntando a un grupo comodín («POR
+     * DEFINIR») o sin grupo. Quien coordina toda la delegación lo ve —con
+     * «Sin grupo asignado»— y puede abrir su ficha; quien coordina una etapa no,
+     * porque sin grupo no se sabe de qué etapa es.
+     */
+    public function test_monitores_sin_grupo_salen_para_toda_la_delegacion()
+    {
+        $this->scp->coordEtapa = '';
+        $html = $this->render('single_stic_pasar_lista_monitores');
+        $this->assertStringContainsString('data-contact="m9"', $html);
+        $this->assertStringContainsString('<span class="pl-rowsub">Sin grupo asignado</span>', $html);
+
+        $_REQUEST = array('monitor' => 'm9');
+        $ficha = $this->render('single_stic_pasar_lista_monitor');
+        $this->assertStringNotContainsString('no está en los grupos de tu alcance', $ficha);
+    }
+
+    public function test_monitores_sin_grupo_no_salen_a_quien_coordina_una_etapa()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $html = $this->render('single_stic_pasar_lista_monitores');
+        $this->assertStringNotContainsString('data-contact="m9"', $html);
     }
 
     /** En una reunión, el título es la reunión. */
@@ -5174,6 +5321,119 @@ final class PasarListaRenderTest extends TestCase
             return $r['module'] === 'stic_Contacts_Relationships';
         });
         $this->assertEmpty($escrituras, 'Sin nonce no se toca ni una relación.');
+    }
+
+    /**
+     * «VINCULAR» EN LA PRIMERA FILA VINCULA LA PRIMERA FILA. Todas las filas
+     * iban en el mismo formulario con un desplegable que se llamaba igual, y
+     * PHP se quedaba con el del último —vacío—: con dos personas sueltas, la
+     * primera no se podía vincular (26/09/2026).
+     */
+    public function test_vincular_en_una_fila_usa_su_propio_desplegable()
+    {
+        $this->scp->coordEtapa = '';
+        $_REQUEST = array('ver' => 'sueltos');
+        $html = $this->render('single_stic_mis_grupos');
+        $this->assertStringContainsString('name="pl_assign_group[r7]"', $html);
+        $this->assertStringContainsString('name="pl_assign_group[r8]"', $html);
+
+        $_POST = array(
+            'pl_nonce' => wp_create_nonce('pl_mis_grupos'),
+            'pl_assign_rel' => 'r7',
+            'pl_assign_group' => array('r7' => 'g1', 'r8' => ''),
+        );
+        $this->render('single_stic_mis_grupos');
+        $escrituras = array_values(array_filter($this->scp->relationships, function ($r) {
+            return $r['module'] === 'stic_Contacts_Relationships';
+        }));
+        $this->assertCount(1, $escrituras);
+        $this->assertSame('r7', $escrituras[0]['id']);
+        $this->assertSame(array('g1'), $escrituras[0]['ids']);
+    }
+
+    /** Una relación que no es de la delegación no se vincula, aunque coordines. */
+    public function test_vincular_una_relacion_de_otra_delegacion_no_escribe()
+    {
+        $this->scp->coordEtapa = '';
+        $_REQUEST = array('ver' => 'sueltos');
+        $_POST = array(
+            'pl_nonce' => wp_create_nonce('pl_mis_grupos'),
+            'pl_assign_rel' => 'rel-de-otra-delegacion',
+            'pl_assign_group' => array('rel-de-otra-delegacion' => 'g1'),
+        );
+        $html = $this->render('single_stic_mis_grupos');
+
+        $this->assertStringContainsString('No se ha podido vincular', $html);
+        $this->assertSame(array(), $this->scp->relationships);
+    }
+
+    /** Quien cuelga de un grupo COMODÍN tampoco está en ningún grupo: sale suelta. */
+    public function test_un_grupo_comodin_cuenta_como_sin_grupo()
+    {
+        $this->scp->coordEtapa = '';
+        $this->scp->conComodin = true;
+        $_REQUEST = array('ver' => 'sueltos');
+        $html = $this->render('single_stic_mis_grupos');
+
+        $this->assertStringContainsString('Mencia Saiz', $html);
+        $this->assertStringContainsString('name="pl_assign_group[r30]"', $html);
+    }
+
+    /**
+     * Mis grupos → Monitores: los monitores sin grupo, arriba y con «Vincular»,
+     * para quien coordina toda la delegación. Y no se repiten en «Sin etapa».
+     */
+    public function test_mis_grupos_monitores_sin_grupo_se_vinculan_ahi()
+    {
+        $this->scp->coordEtapa = '';
+        $_REQUEST = array('quien' => 'monitores');
+        $html = $this->render('single_stic_mis_grupos');
+
+        $this->assertStringContainsString('name="pl_assign_group[r9]"', $html);
+        $this->assertSame(1, substr_count($html, '<span class="pl-name">Un Monitor</span>'), 'una sola fila');
+        $this->assertStringNotContainsString('Sin etapa', $html);
+    }
+
+    /** La ficha de un monitor sin grupo dice que no tiene y deja vincularlo. */
+    public function test_la_ficha_de_un_monitor_sin_grupo_deja_vincularlo()
+    {
+        $this->scp->coordEtapa = '';
+        $_REQUEST = array('monitor' => 'm9');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $this->assertStringContainsString('Sin grupo asignado', $html);
+        $this->assertStringContainsString('name="pl_assign_group[r9]"', $html);
+
+        $_POST = array(
+            'pl_nonce' => wp_create_nonce('pl_asignar_m9'),
+            'pl_assign_rel' => 'r9',
+            'pl_assign_group' => array('r9' => 'g1'),
+        );
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $this->assertStringContainsString('Vinculado', $html);
+        $escrituras = array_values(array_filter($this->scp->relationships, function ($r) {
+            return $r['module'] === 'stic_Contacts_Relationships';
+        }));
+        $this->assertCount(1, $escrituras);
+        $this->assertSame('r9', $escrituras[0]['id']);
+        $this->assertSame('ajmcm_grupos_stic_contacts_relationships', $escrituras[0]['link']);
+    }
+
+    /** Desde la ficha solo se vincula SU relación: otra que llegue en el POST, no. */
+    public function test_la_ficha_no_vincula_otra_relacion_que_la_suya()
+    {
+        $this->scp->coordEtapa = '';
+        $_REQUEST = array('monitor' => 'm9');
+        $_POST = array(
+            'pl_nonce' => wp_create_nonce('pl_asignar_m9'),
+            'pl_assign_rel' => 'r7',
+            'pl_assign_group' => array('r7' => 'g1'),
+        );
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $this->assertStringContainsString('Elige un grupo de la lista', $html);
+        $this->assertSame(array(), $this->scp->relationships);
     }
 
     // ---- Salud arriba ----------------------------------------------------

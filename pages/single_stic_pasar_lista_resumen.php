@@ -65,7 +65,8 @@ if (!empty($_POST['pl_assign_rel'])) {
     } elseif (!$isCoord) {
         $assignMsg = __('Solo coordinación puede asignar grupos.', 'sticpa');
     } else {
-        $ok = sticpa_pl_assign_group($objSCP, $_POST['pl_assign_rel'], isset($_POST['pl_assign_group']) ? $_POST['pl_assign_group'] : '');
+        list($relAsignar, $grupoAsignar) = sticpa_pl_assign_post();
+        $ok = sticpa_pl_assign_group($objSCP, $relAsignar, $grupoAsignar);
         $assignMsg = $ok
             ? __('Grupo asignado.', 'sticpa')
             : __('No se ha podido asignar el grupo.', 'sticpa');

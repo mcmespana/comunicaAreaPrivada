@@ -178,6 +178,15 @@ puedan coger una tarea, entender el porqué y hacerla sin contexto previo.
 - [ ] `PL-MON-8` (P3 · S) Apagar el refuerzo de enlaces (`sticpa_pl_refuerzo_enlaces`) si se
       comprueba en el CRM que los campos planos atan solos; y que crear una reunión tire solo
       las sesiones de su evento y no toda la caché.
+- [ ] `PL-MON-10` (P2 · S) **Medir antes de probar `set_entries`**: guardar una lista de
+      monitores con `&pl_diag=1` y mirar los ms de cada `set_entry`. Si son casi todo red,
+      compensa juntar las altas en una llamada; si son de servidor, iría más lento que las
+      tandas de 4 en paralelo (parte de estado §1). La lista ya va en la tanda de las
+      asistencias (27/09). ↳ `sticpa_pl_write_attendances()`.
+- [!] `PL-MON-11` (P2 · S) **Relaciones de monitor sin `end_date` de gente que ya no es
+      monitor**: salen en la lista. Cerrarlas en el CRM (se puede sacar la lista de las
+      abiertas desde antes del 1/09/2026). Los nuevos que siguen en el comodín «POR
+      DEFINIR» ya se vinculan desde la app (ficha del monitor o Mis grupos → Monitores).
 - [ ] `PL-MON-9` (P3 · S) **Una reunión suspendida no se puede quitar**: no hay borrar ni
       «Sin registro» para la lista de monitores. Se queda como «sin pasar» en Reuniones (la
       portada deja de avisar al mes). ↳ `pages/single_stic_pasar_lista_reuniones.php`.
@@ -251,7 +260,13 @@ reuniones en una tanda y con su estado · el motivo de las faltas de monitores, 
 y en la ficha · pasada de UI (cabeceras con alcance y recuento, pista del motivo, estado
 de las reuniones con el idioma del historial y el alta detrás de «+ Nueva reunión», aviso
 en la portada de la última reunión sin lista durante un mes, 44 px en pestañas y selector)
-· «¿coordina?» en la primera tanda de la portada (5 → 4 esperas para todos).
+· «¿coordina?» en la primera tanda de la portada (5 → 4 esperas para todos). · (noche) el pulsado
+largo en iOS ya no selecciona la página y la hoja sale abajo (animación `both` →
+`backwards`), monitores sin grupo de la delegación visibles para toda la delegación, y
+el refuerzo de enlaces solo cuando el campo plano no ata (~17 → ~10 esperas al guardar)
+· (27/09) la lista en la tanda de las asistencias (~6-8 esperas), «Vincular» a un grupo
+a los monitores sin grupo desde su ficha y desde Mis grupos, «Sin grupo» cuenta a quien
+cuelga de un comodín, y el desplegable de «Vincular» ya no coge el de la última fila.
 
 **Rendimiento:** `PERF-01` caché de campos · `PERF-02` sin animaciones infinitas ·
 `PERF-03` sesión técnica del CRM compartida (25/09) · `PERF-04` foto por endpoint ·

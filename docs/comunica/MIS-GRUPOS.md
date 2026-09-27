@@ -209,12 +209,27 @@ curso al lado, que es lo que hace falta para decidir— y un botón. Un monitor
 raso ve la lista pero no el control, y se le dice a quién avisar.
 
 Escribe `sticpa_pl_assign_group()`, que es **el mismo** que ya usaba el resumen
-de grupos: comprueba por su cuenta que quien llama coordina y que el grupo es de
-su delegación, así que no hay una segunda copia de la regla que pueda quedarse
+de grupos: comprueba por su cuenta que quien llama coordina, que el grupo es de
+su delegación y —desde el 27/09/2026— que la RELACIÓN también lo es (el id llega
+en el POST), así que no hay una segunda copia de la regla que pueda quedarse
 desfasada. Lo que se comprueba en la pantalla es el nonce, que es suyo.
 
-Dos detalles que importan:
+**«Sin grupo» es sin grupo DE LA DELEGACIÓN** (27/09/2026): también quien
+cuelga de un comodín como «⚠️ Grupo COM-LC - POR DEFINIR!», que no es de ninguna
+delegación y antes no salía ni aquí ni en ninguna lista. Quien ya está en un
+grupo de verdad no sale aunque le quede una relación vieja en el comodín.
 
+**Monitores sin grupo** (27/09/2026): en la vista de monitores (`?quien=monitores`)
+salen ARRIBA, en su sección «Sin grupo» y con el mismo «Vincular», para quien
+coordina toda la delegación (ver `PASAR-LISTA-COORDINACION.md` §3). La ficha del
+monitor lo ofrece también.
+
+Tres detalles que importan:
+
+- **Cada fila tiene SU desplegable**: `pl_assign_group[<relación>]`, leído por
+  `sticpa_pl_assign_post()`. Todas las filas van en el mismo formulario, y cuando
+  el desplegable se llamaba igual en todas, PHP se quedaba con el de la ÚLTIMA
+  fila: con dos personas sueltas, vincular a la primera no funcionaba.
 - **El POST va antes de la tanda que lee.** `sticpa_pl_assign_group()` vacía la
   caché al escribir; si se leyera primero, la persona recién vinculada seguiría
   saliendo suelta hasta recargar a mano.
