@@ -49,21 +49,21 @@ puedan coger una tarea, entender el porqué y hacerla sin contexto previo.
 
 ## 🟠 Datos en el CRM (no es código)
 
-- [ ] `CRM-01` (P1 · S) **Entorno personal de Solete** asignado a «Administrador MCM» en vez
-      de a MCM Castellón (`00000cd2-159a-eef9-3639-68cd21b90b6a`): la ficha no lo ve.
-      Reasignarlo y revisar si hay más así. ↳ `PASAR-LISTA-ESTADO.md` §1.
-- [ ] `CRM-02` (P1 · S) **~100 asistencias basura `Unknown - Unknown |`** del 28/08 (sesión
-      del 02/05/2026, sin inscripción). Borrado lógico; el propietario dijo que las borra él.
-      NO tocar las 24 de Solete ni ninguna con inscripción.
-- [ ] `CRM-03` (P2 · S) **Dos `LIS_listas` para la sesión del 02/05/2026** (una de
-      monitores, otra de participantes «omitida»): decidir si la omitida es lo que se quiso.
-- [ ] `CRM-05` (P1 · S) **Una inscripción de renovación SIN compromiso de pago** (visto por
-      MCP el 25/09/2026): la de Solete Villarroya a «COM | Curso 2026-2027 · CS» (id
-      `00000900…`, nombre roto «sin evento»), con IBAN, cuota de 20 € y convivencia de
-      60 €. Su gemela de la convivencia sí tiene el suyo; la de la cuota, ninguno —ni del
-      alta ni de la modificación de 17 h después—. O se crea a mano el compromiso de la
-      cuota, o se decide que no toca. Revisar si hay más así (inscripciones con
-      `ajmcm_tutor1_iban_c` sin nada en `stic_payment_commitments_stic_registrations`).
+- [ ] `CRM-03` (P2 · S) **Dos `LIS_listas` para la sesión del 02/05/2026** del evento de
+      PRUEBA «COM | Sesiones semanales 2025-2026» (mirado por MCP el 27/09/2026): una de
+      `monitores` en `pasada` (`00000408…`) y otra de `participantes` en `omitida`
+      (`000007da…`), las dos de las pruebas del 27/08. Las asistencias de esas pruebas ya no
+      están en el CRM (el módulo empieza el 26/09/2026), así que lo lógico es borrar las dos
+      listas; decidirlo el propietario.
+- [ ] `CRM-05` (P1 · S) **Una inscripción de renovación SIN compromiso de pago** (MCP,
+      25 y 27/09/2026): «Solete Villarroya Meseguer -» (`stic_Registrations`
+      `00000900-db01-acfe-2649-6ab30955f412`, nombre roto sin el evento), a «COM | Curso
+      2026-2027 · CS», confirmada, con IBAN y `ajmcm_registration_amount_c` = 20. Su gemela
+      de la convivencia (`0000029c…`) sí tiene el suyo (Domiciliación, `services`, 60 €,
+      primer pago el 16/10/2026); la de la cuota, ninguno. Crear a mano el de la cuota
+      (20 €, Domiciliación, Cuota, Pago único, pagadora la madre, destinataria Solete,
+      MCM Castellón) o decidir que no toca. Quedan sin revisar las otras ~150 inscripciones
+      con IBAN (demasiadas llamadas por MCP).
 - [ ] `CRM-04` (P2 · M) **Claves de desplegables sin confirmar** en `CAMPOS.md` («Lo que
       queda por revisar»): `ajmcm_dirigido_a_c`, `ajmcm_ambito_c` (falta «nacional»), y si
       `dirigido_a` pasa a múltiple. Mirarlas en Studio y apuntarlas. Una clave mal escrita
@@ -270,6 +270,12 @@ diario apunta el tiempo de cada guardado, y la hoja deja sitio a la barra de la 
 **Mantenimiento:** `MNT-01` sin funciones de debug · `MNT-02` `getDestinationModule()`
 (24/09) · 25/09: 13 funciones muertas y 2 páginas rotas fuera (`single_stic_signup`,
 `delete_confirmation`, a `pages/archivo/`).
+
+**Datos del CRM (visto el 27/09 por MCP):** `CRM-01` el entorno personal de Solete ya
+está en MCM Castellón (lo corrigió el MCP el 25/09) y no queda ninguno asignado al
+«Administrador MCM» · `CRM-02` no queda ninguna asistencia `Unknown` (el módulo entero
+empieza el 26/09/2026). ⚠️ El id de Solete de `PASAR-LISTA-ESTADO.md` (`00000014…`) ya no
+existe: su ficha es `42e6c5d7-907b-4b86-8d46-a732beb570da` («Solete Villarroya Meseguer»).
 
 **Documentación y CI:** `DOC-01..02` · `CI-01` deploy automático a producción.
 
