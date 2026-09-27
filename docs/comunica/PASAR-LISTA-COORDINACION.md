@@ -164,6 +164,11 @@ las inscripciones las crea Pasar Lista al guardar.
   POR DEFINIR!», que no es de ninguna): sale solo a quien coordina **toda la
   delegación**, en «Sin etapa» y con «Sin grupo asignado». Es como llegan los
   monitores nuevos, y la reunión de septiembre es justo la suya.
+- **Se vincula desde la app** (27/09/2026): en su ficha («Sus grupos» dice
+  «Sin grupo asignado» con un desplegable y «Vincular») o en Mis grupos →
+  Monitores, sección «Sin grupo». La relación sale de la lista de monitores,
+  no del POST, y `sticpa_pl_assign_group()` vuelve a comprobar coordinación,
+  grupo y relación de la delegación.
 - **Un monitor del curso pasado que sigue saliendo** tiene la relación abierta:
   se arregla en el CRM poniéndole `end_date`.
 

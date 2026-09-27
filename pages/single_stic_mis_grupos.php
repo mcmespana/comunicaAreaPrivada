@@ -54,11 +54,8 @@ if (!empty($_POST['pl_assign_rel'])) {
     if (!isset($_POST['pl_nonce']) || !wp_verify_nonce($_POST['pl_nonce'], 'pl_mis_grupos')) {
         $asignarMsg = __('La sesión ha caducado. Vuelve a cargar la pantalla.', 'sticpa');
     } else {
-        $asignarMsg = sticpa_pl_assign_group(
-            $objSCP,
-            $_POST['pl_assign_rel'],
-            isset($_POST['pl_assign_group']) ? $_POST['pl_assign_group'] : ''
-        )
+        list($relAsignar, $grupoAsignar) = sticpa_pl_assign_post();
+        $asignarMsg = sticpa_pl_assign_group($objSCP, $relAsignar, $grupoAsignar)
             ? __('Vinculado. Ya sale en su grupo.', 'sticpa')
             : __('No se ha podido vincular. Si no eres de coordinación, no puedes hacerlo desde aquí.', 'sticpa');
     }
@@ -249,23 +246,7 @@ if ($ver === 'sueltos') {
             // El desplegable y el botón, en la misma fila que el nombre: el
             // trabajo aquí es «este chaval, a este grupo», y separarlo en dos
             // pasos convierte veinte asignaciones en cuarenta gestos.
-            $html .= '<span class="pl-suelto-act">';
-            $html .= '<select name="pl_assign_group" class="pl-review-select"'
-                . ' aria-label="' . esc_attr(sprintf(
-                    /* translators: %s: nombre de la persona */
-                    __('Grupo para %s', 'sticpa'),
-                    $row['name']
-                )) . '">';
-            $html .= '<option value="">' . esc_html__('Elegir grupo…', 'sticpa') . '</option>';
-            foreach ($groups as $gid => $g) {
-                $html .= '<option value="' . esc_attr($gid) . '">'
-                    . esc_html(trim($g['code'] . ($g['name'] !== '' ? ' · ' . $g['name'] : '')
-                        . ($g['cursos'] !== '' ? ' (' . $g['cursos'] . ')' : ''))) . '</option>';
-            }
-            $html .= '</select>';
-            $html .= '<button type="submit" name="pl_assign_rel" value="' . esc_attr($row['rel_id'])
-                . '" class="pl-review-btn">' . esc_html__('Vincular', 'sticpa') . '</button>';
-            $html .= '</span>';
+            $html .= sticpa_pl_vincular_html($row['rel_id'], $groups, $row['name']);
         }
         $html .= '</div>';
     }
@@ -396,6 +377,47 @@ if ($quien === 'monitores') {
     // Por etapa, con los mismos puntos de color que el árbol y que la lista de
     // monitores: es el idioma que la aplicación ya tiene, y aprenderlo dos
     // veces sería aprenderlo mal.
+    /* LOS MONITORES SIN GRUPO DE LA DELEGACIÓN, primero y aparte, con su
+     * «Vincular» al lado: es donde se arregla que un monitor nuevo no salga en
+     * la lista de su grupo. Solo existen para quien coordina toda la delegación
+     * (`sticpa_pl_coord_monitors()`). Salen de las secciones de abajo para no
+     * estar dos veces. */
+    $sinGrupo = array();
+    foreach ($monitors as $i => $m) {
+        if (empty($m['groups']) && !empty($m['rel_sin_grupo'])) {
+            $sinGrupo[] = $m;
+            unset($monitors[$i]);
+        }
+    }
+    if (!empty($sinGrupo)) {
+        $puedo = sticpa_pl_is_coordinator($objSCP);
+        $html .= '<div class="pl-sec-row"><div class="pl-sec">' . esc_html__('Sin grupo', 'sticpa') . '</div>'
+            . '<span class="pl-etapa-count">' . esc_html(sprintf(
+                /* translators: %d: cuántos monitores no tienen grupo */
+                _n('%d monitor', '%d monitores', count($sinGrupo), 'sticpa'),
+                count($sinGrupo)
+            )) . '</span></div>';
+        $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
+            . esc_html__('Tienen relación de monitor, pero no cuelgan de ningún grupo de la delegación. Elige el grupo que llevan y ya salen en su lista.', 'sticpa')
+            . '</span></p>';
+        $html .= '<form method="post">';
+        $html .= wp_nonce_field('pl_mis_grupos', 'pl_nonce', true, false);
+        $html .= '<div class="pl-list">';
+        foreach ($sinGrupo as $m) {
+            $html .= '<div class="pl-rowwrap pl-suelto">';
+            $html .= sticpa_pl_avatar_html($m, true);
+            $html .= '<span class="pl-row-body">';
+            $html .= '<span class="pl-name">' . esc_html($m['name']) . '</span>';
+            $html .= '<span class="pl-rowsub">' . esc_html__('Sin grupo asignado', 'sticpa') . '</span>';
+            $html .= '</span>';
+            if ($puedo) {
+                $html .= sticpa_pl_vincular_html($m['rel_sin_grupo'], $groups, $m['name']);
+            }
+            $html .= '</div>';
+        }
+        $html .= '</div></form>';
+    }
+
     $porEtapa = array();
     foreach ($monitors as $m) {
         $etapa = (isset($m['etapa']) && $m['etapa'] !== '') ? $m['etapa'] : '?';

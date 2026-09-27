@@ -148,8 +148,17 @@ Probado en producción con la reunión de Soñación: guardó bien, pero:
 - **Guardar tardó 15-20 s.** Con catorce monitores eran ~17 esperas; siete eran
   el refuerzo de enlaces (dos `set_relationship` por asistencia nueva). Ahora
   una lectura por id comprueba si el campo plano ya ató sesión, inscripción y
-  evento, y solo se refuerza lo que no (`sticpa_pl_enlaces_pendientes()`); y la
-  lista se relee dentro de la última tanda. Quedan ~9-10 esperas.
+  evento, y solo se refuerza lo que no (`sticpa_pl_enlaces_pendientes()`). La
+  lista (`LIS_listas`) se crea en la MISMA tanda que las asistencias, con su
+  sesión y quién la pasó en el propio registro, y sus enlaces viajan con la
+  lectura de comprobación; y se relee dentro de la última tanda. Con catorce
+  monitores ya inscritos quedan ~6-8 esperas (eran ~17).
+- **Vincular desde la app** (27/09/2026): quien coordina toda la delegación le
+  pone grupo a un monitor sin grupo desde su ficha o desde Mis grupos →
+  Monitores (sección «Sin grupo»). Y la vista «Sin grupo» de Mis grupos cuenta
+  ya a quien cuelga de un comodín, no solo a quien tiene el grupo vacío.
+  Arreglado de paso: con dos o más personas sueltas, «Vincular» cogía el
+  desplegable de la ÚLTIMA fila (se llamaban todos igual en un solo formulario).
 
 ### 🟡 Para la siguiente iteración: monitores y rendimiento (26/09/2026)
 
@@ -167,7 +176,7 @@ ciegas. Por orden de lo que más se va a notar cuando empiece el curso:
 | 🟡 | **El refuerzo de enlaces** (`set_relationship` tras el `set_entry`) cuesta dos llamadas por asistencia nueva. | Una tanda más en cada primer guardado de un sábado. | Comprobar en el CRM que una asistencia creada con el filtro `sticpa_pl_refuerzo_enlaces` a `false` queda atada a su sesión y su inscripción; si es así, apagarlo. |
 | ⚪ | **El alcance de coordinación pregunta el grupo de la relación** con una llamada suelta cuando la relación no tiene grupo (los tres de Castellón). | Una espera en la primera pantalla de coordinación del día. | Solo si se confirma que el campo plano del grupo llega siempre; si no, el segmento se perdería, y eso es quién edita qué. |
 | ⚪ | **Crear una reunión tira TODA la caché de la delegación** (`flush('all')`). | La pantalla siguiente de todo el mundo va en frío. Son 3-4 al año. | Tirar solo las sesiones del evento de reuniones. |
-| 🟠 | **Crear las asistencias en UNA llamada (`set_entries`)** en vez de tandas de 4: con catorce monitores, 4 esperas → 1. Y la lista (`LIS_listas`) en la misma tanda que las asistencias. | Es lo que queda de los 15-20 s del guardado de una reunión (~9-10 esperas hoy). | Probarlo UNA vez en el CRM con permiso (que `set_entries` ata los campos planos igual que `set_entry`), con vuelta a las tandas solo si el CRM contesta un error claro, para no duplicar. |
+| 🟡 | **¿`set_entries` (todas las altas en UNA llamada)?** No a ciegas: el CRM las guardaría una detrás de otra en una sola petición, y hoy van de cuatro en cuatro en paralelo. Si cada alta tarda sobre todo por el trabajo del CRM (arranque de la petición y automatismos al guardar) y no por la red, `set_entries` iría igual o más lento. | Es lo que queda del guardado de una reunión (~6-8 esperas, cuatro de ellas las altas). | Guardar una vez con `&pl_diag=1` y mirar los ms de cada `set_entry`: si son casi todo red (≲150 ms), compensa; si son de servidor (≳500 ms), no. |
 | 🟡 | **Relaciones de monitor sin fecha de fin** de gente que ya no es monitor (salen en la lista). | Coordinación ve a monitores del curso pasado. | Cerrarlas en el CRM; se puede sacar la lista de las que empezaron antes del 1/09/2026 y siguen abiertas. |
 | ⚪ | **Una reunión suspendida no se puede quitar**: ni borrar ni «Sin registro» para la lista de monitores. | Se queda como «sin pasar» en Reuniones para siempre (la portada deja de avisar al mes). | Un «Sin registro» como el de las listas de grupo, o borrar la sesión si no tiene asistencias. |
 

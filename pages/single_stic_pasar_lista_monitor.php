@@ -85,6 +85,37 @@ if ($mine === null) {
 // Alta de un seguimiento
 // ---------------------------------------------------------------------------
 
+/* VINCULAR A UN GRUPO a un monitor que no cuelga de ninguno de la delegación
+ * (el comodín «⚠️ Grupo monitoreado - POR DEFINIR!»). La relación sale de la
+ * lista de monitores, NO del POST: del formulario solo se toma el grupo, y el
+ * escritor vuelve a comprobar que quien lo pide coordina y que grupo y relación
+ * son de la delegación. Va antes de la tanda porque el escritor vacía la caché:
+ * así «Sus grupos» sale ya con el grupo nuevo. */
+$asignarMsg = '';
+$asignarOk = false;
+if (!empty($_POST['pl_assign_rel']) && !empty($mine['rel_sin_grupo'])) {
+    list($relPost, $grupoAsignar) = sticpa_pl_assign_post();
+    if (!isset($_POST['pl_nonce']) || !wp_verify_nonce($_POST['pl_nonce'], 'pl_asignar_' . $monitorId)) {
+        $asignarMsg = __('La sesión ha caducado. Vuelve a cargar la pantalla.', 'sticpa');
+    } elseif ($relPost !== $mine['rel_sin_grupo'] || $grupoAsignar === '') {
+        $asignarMsg = __('Elige un grupo de la lista.', 'sticpa');
+    } else {
+        $asignarOk = sticpa_pl_assign_group($objSCP, $mine['rel_sin_grupo'], $grupoAsignar);
+        $asignarMsg = $asignarOk
+            ? __('Vinculado. Ya sale en la lista de su grupo.', 'sticpa')
+            : __('No se ha podido vincular.', 'sticpa');
+        if ($asignarOk) {
+            // Releído: la caché ya está vacía y el monitor viene con su grupo.
+            foreach (sticpa_pl_coord_monitors($objSCP, $scope) as $m) {
+                if ($m['id'] === $monitorId) {
+                    $mine = $m;
+                    break;
+                }
+            }
+        }
+    }
+}
+
 /* El alta va AQUÍ, antes de la tanda que lee: si se leyeran los seguimientos
  * primero, la nota recién escrita no saldría hasta recargar. Y va después de la
  * comprobación de alcance, que es lo que impide escribirle una nota a alguien
@@ -594,8 +625,35 @@ if ($hayPistas) {
 // Sus grupos
 // ---------------------------------------------------------------------------
 
-if (!empty($grupos)) {
+if ($asignarMsg !== '') {
+    $html .= '<p class="pl-notice ' . ($asignarOk ? 'pl-notice--ok' : 'pl-notice--error') . '">'
+        . sticpa_pl_icon($asignarOk ? 'check' : 'warn')
+        . '<span>' . esc_html($asignarMsg) . '</span></p>';
+}
+
+/* SIN GRUPO DE LA DELEGACIÓN: se dice, y se arregla aquí mismo. Es lo que hay
+ * que hacer con un monitor nuevo, que llega colgado del comodín «POR DEFINIR» y
+ * por eso no sale en la lista de ningún grupo. Solo llega aquí quien coordina
+ * toda la delegación: los demás no ven a este monitor. */
+$sinGrupoDeLaDelegacion = empty($mine['groups']) && !empty($mine['rel_sin_grupo']);
+if ($sinGrupoDeLaDelegacion) {
     $html .= '<div class="pl-sec">' . esc_html__('Sus grupos', 'sticpa') . '</div>';
+    $html .= '<form method="post">';
+    $html .= wp_nonce_field('pl_asignar_' . $monitorId, 'pl_nonce', true, false);
+    $html .= '<div class="pl-list">';
+    $html .= '<div class="pl-rowwrap pl-suelto">';
+    $html .= '<span class="pl-row-body">';
+    $html .= '<span class="pl-name">' . esc_html__('Sin grupo asignado', 'sticpa') . '</span>';
+    $html .= '<span class="pl-rowsub">' . esc_html__('Elige el grupo que lleva y sale en su lista.', 'sticpa') . '</span>';
+    $html .= '</span>';
+    $html .= sticpa_pl_vincular_html($mine['rel_sin_grupo'], sticpa_pl_groups($objSCP), $mine['name']);
+    $html .= '</div></div></form>';
+}
+
+if (!empty($grupos)) {
+    if (!$sinGrupoDeLaDelegacion) {
+        $html .= '<div class="pl-sec">' . esc_html__('Sus grupos', 'sticpa') . '</div>';
+    }
     $html .= '<div class="pl-list">';
     foreach ($grupos as $g) {
         $esMonitor = ($g['papel'] === 'monitor');
