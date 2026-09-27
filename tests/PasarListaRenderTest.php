@@ -85,6 +85,11 @@ class FakeSCP
      *  («⚠️ Grupo COM-LC - POR DEFINIR!»), que no es de la delegación: como
      *  llegaban Mencía Saiz y Ana Pardo el 26/09/2026. */
     public $conComodin = false;
+
+    /** `set_entries`: 'ok' (la forma real, `{ids: [...]}`), 'no_soportado' (el
+     *  CRM contesta un error sin ids y no escribe nada), 'sin_respuesta' (escribe
+     *  pero la respuesta se pierde, como un timeout) o 'ids_incompletos'. */
+    public $setEntries = 'ok';
     /** Lo que el transporte deja ahí para que arriba se pueda decir por qué. */
     public $lastError = '';
 
@@ -1087,6 +1092,60 @@ class FakeSCP
         return $this->escribir($module, $data);
     }
 
+    public function set_entries($module, $rows)
+    {
+        // El mismo contrato que `set_entry()`: en recolecta no escribe, y lo
+        // que trajo la tanda no se repite.
+        $sig = 'ses|' . md5(serialize(array($module, $rows)));
+        if ($this->recolectando) {
+            if (!isset($this->recolectado[$sig])) {
+                $self = $this;
+                $this->recolectado[$sig] = array(
+                    'sig' => $sig,
+                    'label' => 'set_entries:' . $module,
+                    'producer' => function () use ($self, $module, $rows) {
+                        return $self->escribirVarias($module, $rows);
+                    },
+                );
+            }
+            return null;
+        }
+        if (array_key_exists($sig, $this->traido)) {
+            $datos = $this->traido[$sig];
+            unset($this->traido[$sig]);
+            return $datos;
+        }
+        return $this->escribirVarias($module, $rows);
+    }
+
+    /** Varias altas en una petición, con la forma real de la respuesta. */
+    public function escribirVarias($module, $rows)
+    {
+        if (!$this->enTanda) {
+            $this->escriturasSueltas[] = 'set_entries:' . $module;
+        }
+        if ($this->setEntries === 'no_soportado' || in_array($module, $this->failWrites, true)) {
+            $this->lastError = 'Invalid Method — #1';
+            return (object) array('name' => 'Invalid Method', 'number' => 1, 'description' => 'set_entries');
+        }
+        $antes = $this->enTanda;
+        $this->enTanda = true;   // una petición, no N escrituras sueltas
+        $ids = array();
+        foreach ((array) $rows as $row) {
+            $ids[] = $this->escribir($module, $row);
+        }
+        $this->enTanda = $antes;
+        $this->lastError = '';
+        if ($this->setEntries === 'sin_respuesta') {
+            $this->lastError = 'red: Operation timed out';
+            return null;
+        }
+        if ($this->setEntries === 'ids_incompletos') {
+            array_pop($ids);
+        }
+        return (object) array('ids' => $ids);
+    }
+
     /** La escritura de verdad, para que la tanda y la llamada suelta compartan. */
     public function escribir($module, $data)
     {
@@ -1551,7 +1610,7 @@ final class PasarListaRenderTest extends TestCase
         $_POST = array(
             'pl_action' => 'save',
             'pl_nonce' => wp_create_nonce('pl_save_g1'),
-            'pl_marks' => json_encode(array('c1' => 'yes')),
+            'pl_marks' => json_encode(array('c1' => 'partial')),
             'pl_notes' => json_encode(array('c1' => '')),
         );
         $this->render('single_stic_pasar_lista_marcar');
@@ -1584,7 +1643,7 @@ final class PasarListaRenderTest extends TestCase
              * `pl_notes` SIN c2 — `collectNotes()` solo mete las filas cuyo
              * motivo no está vacío. Probarlo con la cadena vacía dentro no
              * ejercita el caso real y deja pasar el fallo. */
-            'pl_marks' => json_encode(array('c1' => 'yes', 'c2' => 'yes')),
+            'pl_marks' => json_encode(array('c1' => 'partial', 'c2' => 'yes')),
             'pl_notes' => json_encode(array()),
         );
         $this->render('single_stic_pasar_lista_marcar');
@@ -1610,7 +1669,7 @@ final class PasarListaRenderTest extends TestCase
         $_POST = array(
             'pl_action' => 'save',
             'pl_nonce' => wp_create_nonce('pl_save_g1'),
-            'pl_marks' => json_encode(array('c1' => 'yes')),
+            'pl_marks' => json_encode(array('c1' => 'partial')),
             'pl_notes' => json_encode(array('c99' => 'de otro grupo')),
         );
         $this->render('single_stic_pasar_lista_marcar');
@@ -1748,7 +1807,7 @@ final class PasarListaRenderTest extends TestCase
         $_POST = array(
             'pl_action' => 'save',
             'pl_nonce' => wp_create_nonce('pl_save_g1'),
-            'pl_marks' => json_encode(array('c1' => 'yes')),
+            'pl_marks' => json_encode(array('c1' => 'partial')),
         );
         $html = $this->render('single_stic_pasar_lista_marcar');
 
@@ -1777,7 +1836,7 @@ final class PasarListaRenderTest extends TestCase
         $_POST = array(
             'pl_action' => 'save',
             'pl_nonce' => wp_create_nonce('pl_save_g1'),
-            'pl_marks' => json_encode(array('c1' => 'yes', 'c2' => 'no_unjustified')),
+            'pl_marks' => json_encode(array('c1' => 'partial', 'c2' => 'no_unjustified')),
         );
         $this->render('single_stic_pasar_lista_marcar');
 
@@ -1789,6 +1848,108 @@ final class PasarListaRenderTest extends TestCase
 
         // Y las dos en la MISMA tanda: alguna de las tandas lleva 2 peticiones.
         $this->assertContains(2, $this->scp->batches, 'las asistencias no van juntas');
+    }
+
+    /**
+     * LAS ALTAS VAN EN LOTES (27/09/2026). Tres monitores sin asistencia: sus
+     * tres asistencias y sus inscripciones salen como `set_entries`, no como
+     * una `set_entry` por fila, y se guarda bien.
+     */
+    public function test_las_altas_van_en_set_entries()
+    {
+        $this->scp->coordEtapa = '';
+        $this->scp->monitorSinInscripcion = true;
+        $_REQUEST = array('reunion' => '1', 'sesion' => 'ru2');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_monitores'),
+            'pl_marks' => json_encode(array()),
+        );
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        $this->assertStringContainsString('data-pl-saved-ok', $html);
+        $this->assertContains('set_entries:stic_Attendances', $this->scp->calls);
+        $this->assertContains('set_entries:stic_Registrations', $this->scp->calls);
+        $this->assertNotContains('set_entry:stic_Attendances', $this->scp->calls);
+        $altas = array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Attendances' && !isset($w['data']['id']);
+        });
+        $this->assertCount(3, $altas, 'una asistencia por monitor, ni una más');
+        $this->assertSame(array(), $this->scp->escriturasSueltas);
+    }
+
+    /** Si el CRM no conoce `set_entries` (error sin ids), se hace una a una, sin duplicar. */
+    public function test_sin_set_entries_se_hace_una_a_una()
+    {
+        $this->scp->coordEtapa = '';
+        $this->scp->monitorSinInscripcion = true;
+        $this->scp->setEntries = 'no_soportado';
+        $_REQUEST = array('reunion' => '1', 'sesion' => 'ru2');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_monitores'),
+            'pl_marks' => json_encode(array()),
+        );
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        $this->assertStringContainsString('data-pl-saved-ok', $html);
+        $altas = array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Attendances' && !isset($w['data']['id']);
+        });
+        $this->assertCount(3, $altas);
+        // Y la lista, que viajaba con los lotes, UNA sola vez en el respaldo.
+        $listas = array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'LIS_listas' && !isset($w['data']['id']);
+        });
+        $this->assertCount(1, $listas, 'la lista no se crea dos veces');
+    }
+
+    /**
+     * Si la respuesta se PIERDE (timeout), no se reintenta: el CRM puede haberlo
+     * escrito ya, y reintentar duplicaría. Se dice que no ha quedado guardado.
+     */
+    public function test_set_entries_sin_respuesta_no_duplica()
+    {
+        $this->scp->coordEtapa = '';
+        $this->scp->monitorSinInscripcion = true;
+        $this->scp->setEntries = 'sin_respuesta';
+        $_REQUEST = array('reunion' => '1', 'sesion' => 'ru2');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_monitores'),
+            'pl_marks' => json_encode(array()),
+        );
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        $this->assertStringNotContainsString('data-pl-saved-ok', $html);
+        $personas = array();
+        foreach ($this->scp->writes as $w) {
+            if ($w['module'] === 'stic_Registrations') {
+                $personas[] = $w['data']['stic_registrations_contactscontacts_ida'];
+            }
+        }
+        $this->assertNotEmpty($personas);
+        $this->assertSame(count($personas), count(array_unique($personas)), 'cada inscripción una sola vez');
+    }
+
+    /** Con ids de menos no se adivina cuál es cuál: esas filas fallan, sin reintentar. */
+    public function test_set_entries_con_ids_de_menos_no_adivina()
+    {
+        $this->scp->coordEtapa = '';
+        $this->scp->setEntries = 'ids_incompletos';
+        $_REQUEST = array('reunion' => '1', 'sesion' => 'ru2');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_monitores'),
+            'pl_marks' => json_encode(array()),
+        );
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        $this->assertStringNotContainsString('data-pl-saved-ok', $html);
+        $altas = array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Attendances' && !isset($w['data']['id']);
+        });
+        $this->assertLessThanOrEqual(3, count($altas), 'nada escrito dos veces');
     }
 
     /**
@@ -2084,7 +2245,7 @@ final class PasarListaRenderTest extends TestCase
         $_POST = array(
             'pl_action' => 'save',
             'pl_nonce' => wp_create_nonce('pl_save_g1'),
-            'pl_marks' => json_encode(array('c1' => 'yes', 'c2' => 'no_unjustified')),
+            'pl_marks' => json_encode(array('c1' => 'partial', 'c2' => 'no_unjustified')),
         );
         $html = $this->render('single_stic_pasar_lista_marcar');
 
@@ -2094,7 +2255,7 @@ final class PasarListaRenderTest extends TestCase
             return $w['module'] === 'stic_Attendances';
         }));
         $this->assertCount(2, $attWrites);
-        $this->assertSame('yes', $attWrites[0]['data']['status']);
+        $this->assertSame('partial', $attWrites[0]['data']['status']);
         $this->assertSame('a1', $attWrites[0]['data']['id']);
         $this->assertSame('no_unjustified', $attWrites[1]['data']['status']);
 
@@ -2120,7 +2281,7 @@ final class PasarListaRenderTest extends TestCase
         $_POST = array(
             'pl_action' => 'save',
             'pl_nonce' => wp_create_nonce('pl_save_g1'),
-            'pl_marks' => json_encode(array('c1' => 'yes', 'c2' => '')),
+            'pl_marks' => json_encode(array('c1' => 'partial', 'c2' => '')),
         );
         $this->render('single_stic_pasar_lista_marcar');
 
@@ -2138,7 +2299,7 @@ final class PasarListaRenderTest extends TestCase
             'pl_action' => 'save',
             'pl_nonce' => wp_create_nonce('pl_save_g1'),
             'pl_marks' => json_encode(array(
-                'c1' => 'yes',
+                'c1' => 'partial',
                 'c-de-otra-delegacion' => 'yes',
                 'c2' => 'zzz_valor_inventado',
             )),
@@ -2150,6 +2311,29 @@ final class PasarListaRenderTest extends TestCase
         }));
         $this->assertCount(1, $attWrites);
         $this->assertSame('a1', $attWrites[0]['data']['id']);
+    }
+
+    /**
+     * LO QUE NO CAMBIA NO SE ESCRIBE. c1 ya está «vino» en el CRM: volver a
+     * guardarlo así no manda nada, y c2 (que cambia) sí. Antes se reescribían
+     * todas: con treinta monitores, ocho esperas para corregir una (27/09/2026).
+     */
+    public function test_guardar_no_reescribe_lo_que_no_cambia()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => json_encode(array('c1' => 'yes', 'c2' => 'no_unjustified')),
+        );
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertStringContainsString('Lista guardada', $html);
+        $att = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Attendances';
+        }));
+        $this->assertCount(1, $att);
+        $this->assertSame('a2', $att[0]['data']['id']);
     }
 
     /** Sin nonce válido no se escribe NADA. */
@@ -3099,8 +3283,8 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame('s3', $listas[0]['data']['lis_listas_stic_sessionsstic_sessions_ida']);
     }
 
-    /** Al volver a guardar, la lista (que ya existe) va en la tanda de las actualizaciones. */
-    public function test_volver_a_guardar_monitores_no_deja_nada_suelto()
+    /** Volver a guardar sin cambios: la lista se actualiza y las asistencias no se reescriben. */
+    public function test_volver_a_guardar_monitores_sin_cambios_solo_toca_la_lista()
     {
         $this->scp->coordEtapa = 'COM';
         $_POST = array(
@@ -3121,7 +3305,11 @@ final class PasarListaRenderTest extends TestCase
         });
         $this->assertCount(1, $listas, 'una sola escritura de la lista');
         $this->assertTrue(isset(array_values($listas)[0]['data']['id']), 'y es una actualización, no otra lista');
-        $this->assertSame(array(), $this->scp->escriturasSueltas);
+        // Sin cambios, ni una asistencia reescrita: ya están así en el CRM.
+        $asistencias = array_filter($nuevas, function ($w) {
+            return $w['module'] === 'stic_Attendances';
+        });
+        $this->assertCount(0, $asistencias);
     }
 
     /**
