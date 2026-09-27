@@ -44,7 +44,9 @@ $getRelatedElements = $objSCP->getRelatedElementsForLoggedUser(array(
 // Etiquetas de los desplegables, tal y como están traducidas en el CRM (el
 // valor crudo es un código tipo "Confirmed", que no se le enseña a nadie).
 // Cacheada 6h, así que no añade una llamada por vista.
-$definition = sticpa_cached_field_definition($objSCP, 'stic_Registrations', array('status', 'participation_type'));
+// Con el curso y la clase: la tarjeta los enseña con su etiqueta, no con la
+// clave del desplegable («3_eso»). Misma llamada, dos campos más.
+$definition = sticpa_cached_field_definition($objSCP, 'stic_Registrations', array('status', 'participation_type', 'ajmcm_curso_escolar_c', 'ajmcm_clase_c'));
 
 $html .= "<div class='stic-entry-header'><h3>" . esc_html($listTitle) . "</h3></div>";
 $html .= sticpa_registrations_list_html($getRelatedElements, $definition);

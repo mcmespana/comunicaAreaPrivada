@@ -238,4 +238,28 @@ class RegistrationsViewTest extends TestCase
         $this->assertSame(1, substr_count($html, 'apuntaste'));
         $this->assertStringNotContainsString('Fecha de inscripción', $html);
     }
+
+    /** EV-11: el curso y la clase, con la etiqueta del desplegable y no con su clave. */
+    public function test_el_curso_y_la_clase_salen_con_su_etiqueta()
+    {
+        $def = $this->definition() + array(
+            'ajmcm_curso_escolar_c' => array('options' => array('3_eso' => array('value' => '3.º ESO'))),
+            'ajmcm_clase_c' => array('options' => array('c1' => array('value' => 'C1'))),
+        );
+        $row = $this->row(array('id' => 'r1', 'name' => 'INS-1', 'status' => 'Confirmed',
+            'stic_registrations_stic_events_name' => 'Convivencia', 'ajmcm_curso_escolar_c' => '3_eso', 'ajmcm_clase_c' => 'c1'));
+        $lista = sticpa_registrations_list_html(array($row), $def);
+        $this->assertStringContainsString('3.º ESO · C1', $lista);
+        $this->assertStringNotContainsString('3_eso', $lista);
+
+        $ficha = sticpa_registration_detail_html(sticpa_registration_view_model($row->name_value_list), $def);
+        $this->assertStringContainsString('3.º ESO', $ficha);
+        $this->assertStringNotContainsString('3_eso', $ficha);
+    }
+
+    public function test_no_aplica_no_es_un_curso_y_sin_etiqueta_vale_la_clave()
+    {
+        $this->assertSame('', sticpa_registration_aula_label(array(), 'ajmcm_curso_escolar_c', 'na'));
+        $this->assertSame('otros', sticpa_registration_aula_label(array(), 'ajmcm_curso_escolar_c', 'otros'));
+    }
 }

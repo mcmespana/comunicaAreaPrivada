@@ -75,24 +75,17 @@ puedan coger una tarea, entender el porqué y hacerla sin contexto previo.
 > `docs/comunica/EVENTOS.md` §9.5 y §10). EV-6 tiene el código listo y espera
 > a los campos.
 
-- [!] `EV-3` (P1 · M) Formularios web avanzados (FWA) desde el evento. Decidido
-      el 25/09/2026: el módulo FWA **no sale en Studio**, así que no hay
-      relación posible; va un **campo URL en `stic_Events`** con el enlace
-      público del FWA (nombre por decidir; al crearlo, a `CAMPOS.md`). Con él:
-      la página pública enseña «¿No estás en Comunica? Inscríbete aquí» y la
-      ficha del área privada abre el FWA ya rellenado con los datos de quien
-      ha entrado (`&Contacts0.first_name=…`, parámetros en la wiki de
-      SinergiaTIC). El FWA lleva regla de duplicados por DNI en modo
-      «Ampliar». Bloqueado hasta que exista el campo.
-      ⚠️ **Antes de crearlo, mirar `web_url_c`** (25/09/2026): ya existe en
-      `stic_Events`, es de tipo URL y hoy es «a dónde lleva *Inscribirme* en la
-      página pública» (vacío → al área privada). Puede que sea justo este
-      campo y no haga falta otro (`CLAUDE.md`: no crear un campo sin comprobar
-      que no existe ya). Decidir si se reutiliza o si hacen falta los dos.
-- [ ] `EV-4` (P2 · S) Reescribir la guía de eventos
-      (`comunicaFormularios/webs_landing_wordpress/guia_eventos_administradores.html`)
-      con el reparto área privada / FWA / clásico, muy esquemática, cuando esté
-      decidido `EV-3`.
+- [!] `EV-3` (P1 · M) Formularios web avanzados (FWA) desde el evento. **Decidido el
+      27/09/2026: campo PROPIO, no `web_url_c`**, porque a veces interesará que la gente
+      vaya por el área privada para que el formulario le llegue ya rellenado. Nombre
+      propuesto: **`ajmcm_fwa_url_c`** (URL, «Formulario web avanzado»), apuntado en
+      `CAMPOS.md` como por crear. `web_url_c` se queda como está (el botón de la web).
+      Con el campo: la página pública enseña las dos puertas («¿Ya estás en Comunica?
+      Entra» → ficha del área privada; «¿No? Inscríbete aquí» → el FWA) y la ficha del
+      área privada abre el FWA ya rellenado con los datos de quien ha entrado
+      (`&Contacts0.first_name=…`; los parámetros exactos, en la wiki de SinergiaTIC:
+      mirarlos antes de programar). El FWA lleva regla de duplicados por DNI en modo
+      «Ampliar». **Bloqueado hasta que exista el campo** (y pasar su nombre si no es este).
 - [!] `EV-6` (P2 · S) **Preguntas simples: el código está hecho, faltan los
       campos.** Crear en Studio `ajmcm_pregunta_1_c` / `ajmcm_pregunta_2_c`
       (texto 255, `stic_Events`) y `ajmcm_respuesta_1_c` / `ajmcm_respuesta_2_c`
@@ -115,11 +108,6 @@ puedan coger una tarea, entender el porqué y hacerla sin contexto previo.
       `id` y `from` (EV-8), pero con la app instalada el sistema abre la app, y
       si esta solo coge el token se entra a la portada. Lado app
       (`app/+native-intent.ts`), ver `CONTRATO-APP-WEBVIEW.md` §5.
-- [ ] `EV-11` (P3 · S) La ficha y la tarjeta de una inscripción enseñan el curso
-      con su clave cruda (`3_eso`) y no con la etiqueta del desplegable. Visto
-      al capturar EV-2. ↳ `sticpa_registration_detail_html()` y
-      `sticpa_registrations_list_html()`: pasar por `sticpa_record_enum_label()`
-      con `ajmcm_curso_escolar_c` en la definición.
 - [z] `EV-5` (P2 · S) Campos del DNI en Personas: número de soporte y fecha de
       expedición o caducidad. Se crearán en Studio más adelante; al crearlos,
       apuntarlos en `docs/comunica/CAMPOS.md`.
@@ -238,6 +226,11 @@ propiedad, campos firmados, participante validado, redirecciones seguras, XSS (2
 **Admin:** `ADMIN-01..03` buscador, ver/regenerar token, tokens masivos.
 
 **Plataforma:** `PLAT-00` la app es una WebView de esta web (`?app=1`).
+
+**Eventos e inscripciones (27/09):** `EV-4` guía de eventos en esquema de tres puertas
+(`comunicaFormularios/webs_landing_wordpress/guia_eventos_administradores.html`, se pega a
+mano) y ayuda corta para la ficha del CRM (`docs/comunica/AYUDA-FICHA-EVENTO.html`, campo
+HTML de Studio) · `EV-11` curso y clase con su etiqueta en las inscripciones.
 
 **Eventos e inscripciones (25/09):** `EV-1` ficha con el cartel a la izquierda, agenda y
 home a la ficha y la definición que se cura sola · `EV-2` cancelar y modificar la
