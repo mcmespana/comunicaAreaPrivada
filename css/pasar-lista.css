@@ -349,9 +349,25 @@
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
+    -webkit-user-select: none;
     user-select: none;
 }
 .pl-row:first-child { border-top: 0 !important; }
+/* iOS: el gesto largo es NUESTRO. Safari no entiende `user-select` sin el
+   prefijo, y el pulsado largo seleccionaba el texto de la pantalla entera en
+   vez de abrir la hoja (26/09/2026). Vale para toda la fila —la flecha de la
+   ficha incluida, que si no abre la vista previa del enlace— y, mientras dura
+   el gesto, para la página (`html.pl-holding`, lo pone el JS). */
+.pl-rowwrap,
+.pl-rowwrap * {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+html.pl-holding body * {
+    -webkit-user-select: none;
+    user-select: none;
+}
 .pl-row:active { background: var(--gray-50) !important; }
 
 /* Mientras se mantiene pulsado, la fila se hunde un poco. El hundido es la
@@ -2044,7 +2060,8 @@ a.pl-group .pl-name { display: block; }
 }
 .pl-review-name { font-size: 0.9rem; font-weight: 600; color: var(--warning-darker); flex-grow: 1; min-width: 8rem; }
 .pl-review-select {
-    min-height: 40px;
+    /* 44 px, el mínimo táctil (design.md §2): medía 40 (26/09/2026). */
+    min-height: 44px;
     max-width: 11rem;
     padding: 0 0.6rem;
     border-radius: var(--radius-md);
@@ -2059,7 +2076,7 @@ a.pl-group .pl-name { display: block; }
     display: inline-flex;
     align-items: center;
     gap: 0.3rem;
-    min-height: 40px;
+    min-height: 44px;
     font-size: 0.85rem;
     font-weight: 700;
     color: var(--warning-darker);
@@ -2068,7 +2085,7 @@ a.pl-group .pl-name { display: block; }
 .pl-review-link svg { width: 15px; height: 15px; }
 
 .pl-review-btn {
-    min-height: 40px;
+    min-height: 44px;
     padding: 0 0.9rem;
     border-radius: var(--radius-md);
     border: 0;

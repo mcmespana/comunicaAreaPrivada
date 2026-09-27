@@ -1629,6 +1629,76 @@ function sticpa_pl_session_attendances($objSCP, $sessionId, $regMap = array())
 }
 
 /**
+ * Qué enlaces de unos registros RECIÉN CREADOS no han quedado atados, en UNA
+ * lectura.
+ *
+ * El refuerzo de los enlaces era un `set_relationship` por enlace y registro
+ * nuevo: en la lista de una reunión con catorce monitores, veintiocho llamadas
+ * y unas siete esperas, para no crear nada, porque el campo plano ya los ata
+ * al guardar (§3.1-bis del parte de estado). Guardar esa lista tardaba 15-20 s
+ * (26/09/2026). Ahora se leen los registros nuevos por id —una llamada— y se
+ * refuerza SOLO lo que no esté atado.
+ *
+ * `$esperados`: [id nuevo => [campo plano => id que tendría que llevar]].
+ * Devuelve [id nuevo => [campos que faltan]]. Si la lectura falla, TODO queda
+ * pendiente: se paga el refuerzo de antes, nunca se deja un enlace sin mirar.
+ */
+function sticpa_pl_enlaces_pendientes($objSCP, $module, $table, $esperados)
+{
+    $esperados = (array) $esperados;
+    $ids = array();
+    foreach (array_keys($esperados) as $id) {
+        $id = sticpa_pl_safe_id($id);
+        if ($id !== '') {
+            $ids[] = "'" . $id . "'";
+        }
+    }
+    $todos = array();
+    foreach ($esperados as $id => $campos) {
+        $todos[$id] = array_keys((array) $campos);
+    }
+    if (empty($ids)) {
+        return $todos;
+    }
+
+    $campos = array('id');
+    foreach ($esperados as $cs) {
+        foreach (array_keys((array) $cs) as $c) {
+            if (!in_array($c, $campos, true)) {
+                $campos[] = $c;
+            }
+        }
+    }
+    $rows = $objSCP->getRecordsModule($module, $table . '.id IN (' . implode(',', $ids) . ')', $campos);
+    if (!is_array($rows)) {
+        return $todos;
+    }
+
+    $leidos = array();
+    foreach ($rows as $row) {
+        $v = isset($row->name_value_list) ? $row->name_value_list : null;
+        if ($v && !empty($v->id->value)) {
+            $leidos[(string) $v->id->value] = $v;
+        }
+    }
+
+    $out = array();
+    foreach ($esperados as $id => $cs) {
+        $faltan = array();
+        foreach ((array) $cs as $campo => $valor) {
+            $tiene = isset($leidos[$id]->$campo->value) ? (string) $leidos[$id]->$campo->value : '';
+            if ($tiene !== (string) $valor) {
+                $faltan[] = $campo;
+            }
+        }
+        if (!empty($faltan)) {
+            $out[$id] = $faltan;
+        }
+    }
+    return $out;
+}
+
+/**
  * ¿Se refuerzan con `set_relationship` los enlaces que ya van en el `set_entry`?
  *
  * Los enlaces de una inscripción o una asistencia nueva viajan DENTRO del
@@ -1770,9 +1840,20 @@ function sticpa_pl_ensure_registrations($objSCP, $eventId, $contactIds, &$regMap
     // una asistencia colgada de una inscripción sin evento no la vería nadie, y
     // el guardado siguiente crearía otra.
     if (sticpa_pl_refuerzo_enlaces()) {
+        // Solo las que el campo plano no haya atado (una lectura, ver
+        // `sticpa_pl_enlaces_pendientes()`).
+        $campoEvento = 'stic_registrations_stic_eventsstic_events_ida';
+        $esperados = array();
+        foreach ($nuevas as $regId => $contactId) {
+            $esperados[$regId] = array($campoEvento => $eventId);
+        }
+        $sinAtar = array_intersect_key(
+            $nuevas,
+            sticpa_pl_enlaces_pendientes($objSCP, 'stic_Registrations', 'stic_registrations', $esperados)
+        );
         $fallidas = array();
-        $enlazar = function () use ($objSCP, $nuevas, $eventId, &$fallidas) {
-            foreach ($nuevas as $regId => $contactId) {
+        $enlazar = function () use ($objSCP, $sinAtar, $eventId, &$fallidas) {
+            foreach ($sinAtar as $regId => $contactId) {
                 $ok = $objSCP->set_relationship('stic_Registrations', $regId, 'stic_registrations_stic_events', array($eventId));
                 if ($ok === false && !sticpa_pl_collecting()) {
                     $fallidas[$regId] = true;
@@ -1825,7 +1906,7 @@ function sticpa_pl_att_update_payload($existing, $personId, $key, $note = null)
  * Las que hay que CREAR no entran: necesitan el id que devuelve el CRM para
  * atarlas, así que van en serie. Son la excepción, no el caso normal.
  */
-function sticpa_pl_prime_attendance_updates($objSCP, $marks, $existing, $notes = null)
+function sticpa_pl_prime_attendance_updates($objSCP, $marks, $existing, $notes = null, $tambien = null)
 {
     $payloads = array();
     foreach ((array) $marks as $personId => $key) {
@@ -1846,14 +1927,22 @@ function sticpa_pl_prime_attendance_updates($objSCP, $marks, $existing, $notes =
             : (isset($notes[$personId]) ? (string) $notes[$personId] : '');
         $payloads[] = sticpa_pl_att_update_payload($existing, $personId, $key, $note);
     }
-    if (count($payloads) < 2) {
-        return;   // una sola escritura no gana nada por ir «en paralelo»
+    // `$tambien`: otra escritura que viaja en la MISMA tanda (la lista de
+    // monitores al volver a guardarla). Devuelve si ha habido tanda, para que
+    // quien la pasa sepa si su escritura ya está traída.
+    $extra = is_callable($tambien) ? 1 : 0;
+    if (count($payloads) + $extra < 2) {
+        return false;   // una sola escritura no gana nada por ir «en paralelo»
     }
-    sticpa_pl_prime($objSCP, function () use ($objSCP, $payloads) {
+    sticpa_pl_prime($objSCP, function () use ($objSCP, $payloads, $tambien) {
         foreach ($payloads as $p) {
             $objSCP->set_entry('stic_Attendances', $p);
         }
+        if (is_callable($tambien)) {
+            $tambien();
+        }
     });
+    return true;
 }
 
 /**
@@ -1912,10 +2001,26 @@ function sticpa_pl_att_create_payload($objSCP, $sessionId, $regId, $key, $sessio
  * @param array|null $notes  personId => motivo, o null si la pantalla no los tiene.
  * @return array personId => array('ok' => bool, 'error' => array|null)
  */
-function sticpa_pl_write_attendances($objSCP, $sessionId, $marks, $existing, &$regMap, $eventId = '', $sessionStart = 0, $notes = null)
+function sticpa_pl_write_attendances($objSCP, $sessionId, $marks, $existing, &$regMap, $eventId = '', $sessionStart = 0, $notes = null, $conLasAltas = null, $conLosEnlaces = null)
 {
     $regMap = (array) $regMap;
     $out = array();
+
+    /* LOS ACOMPAÑANTES (26/09/2026). `$conLasAltas` es otra escritura —la
+     * lista de monitores— que viaja en la MISMA tanda que las asistencias; y
+     * `$conLosEnlaces`, los enlaces de esa lista, en la tanda de la lectura de
+     * comprobación. Antes eran dos esperas más, una detrás de otra, al final
+     * del guardado. Se llaman dos veces cada uno (recolecta y de verdad), así
+     * que tienen que mandar lo mismo las dos y guardar su resultado solo fuera
+     * de la recolecta. Si su tanda no llega a hacerse, salen solos al final. */
+    $correr = function ($fn) use ($objSCP) {
+        if (is_callable($fn)) {
+            sticpa_pl_prime($objSCP, $fn);
+            $fn();
+        }
+    };
+    $altasHechas = !is_callable($conLasAltas);
+    $enlacesHechos = !is_callable($conLosEnlaces);
 
     $validas = array();
     foreach ((array) $marks as $personId => $key) {
@@ -1925,6 +2030,8 @@ function sticpa_pl_write_attendances($objSCP, $sessionId, $marks, $existing, &$r
         }
     }
     if (empty($validas)) {
+        $correr($altasHechas ? null : $conLasAltas);
+        $correr($enlacesHechos ? null : $conLosEnlaces);
         return $out;
     }
     // `null` = esta pantalla no tiene motivos; un array = sí los tiene, y el
@@ -1936,16 +2043,24 @@ function sticpa_pl_write_attendances($objSCP, $sessionId, $marks, $existing, &$r
         return isset($notes[$personId]) ? (string) $notes[$personId] : '';
     };
 
-    // 1. Las que ya existen: actualizar, todas en una tanda.
-    sticpa_pl_prime_attendance_updates($objSCP, $validas, $existing, $notes);
-
-    // 2. Las que no existen: primero la inscripción que les falte (en tanda)…
     $sinAsistencia = array();
     foreach ($validas as $personId => $key) {
         if (!isset($existing[$personId]['id'])) {
             $sinAsistencia[] = $personId;
         }
     }
+
+    // 1. Las que ya existen: actualizar, todas en una tanda. Si no hay nada
+    // que crear, el acompañante va aquí (volver a guardar una lista).
+    if (empty($sinAsistencia) && !$altasHechas) {
+        sticpa_pl_prime_attendance_updates($objSCP, $validas, $existing, $notes, $conLasAltas);
+        $conLasAltas();
+        $altasHechas = true;
+    } else {
+        sticpa_pl_prime_attendance_updates($objSCP, $validas, $existing, $notes);
+    }
+
+    // 2. Las que no existen: primero la inscripción que les falte (en tanda)…
     if (!empty($sinAsistencia)) {
         sticpa_pl_ensure_registrations($objSCP, $eventId, $sinAsistencia, $regMap);
     }
@@ -1962,11 +2077,23 @@ function sticpa_pl_write_attendances($objSCP, $sessionId, $marks, $existing, &$r
         );
     }
     if (!empty($altas)) {
-        sticpa_pl_prime($objSCP, function () use ($objSCP, $altas) {
+        $tambienAqui = $altasHechas ? null : $conLasAltas;
+        sticpa_pl_prime($objSCP, function () use ($objSCP, $altas, $tambienAqui) {
             foreach ($altas as $payload) {
                 $objSCP->set_entry('stic_Attendances', $payload);
             }
+            if (is_callable($tambienAqui)) {
+                $tambienAqui();
+            }
         });
+        if (is_callable($tambienAqui)) {
+            $tambienAqui();
+            $altasHechas = true;
+        }
+    }
+    if (!$altasHechas) {
+        $correr($conLasAltas);   // no ha habido tanda de altas: sale sola
+        $altasHechas = true;
     }
 
     // 3. Las escrituras de verdad: casi todas encuentran ya su respuesta.
@@ -2004,17 +2131,45 @@ function sticpa_pl_write_attendances($objSCP, $sessionId, $marks, $existing, &$r
         $out[$personId] = array('ok' => true, 'error' => null);
     }
 
-    // 4. Y además por relación, por si esta instancia no atara los campos
-    // planos: si ya están atados no crea nada. Todos los enlaces en UNA tanda.
+    // 4. Y por relación SOLO lo que el campo plano no haya atado: una lectura
+    // de las nuevas y, si alguna falla, su refuerzo en UNA tanda.
     if (!empty($creadas) && sticpa_pl_refuerzo_enlaces()) {
-        $enlazar = function () use ($objSCP, $creadas, $sessionId) {
-            foreach ($creadas as $attId => $regId) {
-                $objSCP->set_relationship('stic_Attendances', $attId, 'stic_attendances_stic_sessions', array($sessionId));
-                $objSCP->set_relationship('stic_Attendances', $attId, 'stic_attendances_stic_registrations', array($regId));
+        $campoSesion = 'stic_attendances_stic_sessionsstic_sessions_ida';
+        $campoInsc = 'stic_attendances_stic_registrationsstic_registrations_ida';
+        $esperados = array();
+        foreach ($creadas as $attId => $regId) {
+            $esperados[$attId] = array($campoSesion => $sessionId, $campoInsc => $regId);
+        }
+        // La lectura y los enlaces del acompañante, en UNA tanda.
+        $leer = function () use ($objSCP, $esperados, $conLosEnlaces, $enlacesHechos) {
+            sticpa_pl_enlaces_pendientes($objSCP, 'stic_Attendances', 'stic_attendances', $esperados);
+            if (!$enlacesHechos && is_callable($conLosEnlaces)) {
+                $conLosEnlaces();
             }
         };
-        sticpa_pl_prime($objSCP, $enlazar);
-        $enlazar();
+        sticpa_pl_prime($objSCP, $leer);
+        if (!$enlacesHechos) {
+            $conLosEnlaces();
+            $enlacesHechos = true;
+        }
+        $pendientes = sticpa_pl_enlaces_pendientes($objSCP, 'stic_Attendances', 'stic_attendances', $esperados);
+        if (!empty($pendientes)) {
+            $enlazar = function () use ($objSCP, $creadas, $sessionId, $pendientes, $campoSesion, $campoInsc) {
+                foreach ($pendientes as $attId => $faltan) {
+                    if (in_array($campoSesion, $faltan, true)) {
+                        $objSCP->set_relationship('stic_Attendances', $attId, 'stic_attendances_stic_sessions', array($sessionId));
+                    }
+                    if (in_array($campoInsc, $faltan, true)) {
+                        $objSCP->set_relationship('stic_Attendances', $attId, 'stic_attendances_stic_registrations', array($creadas[$attId]));
+                    }
+                }
+            };
+            sticpa_pl_prime($objSCP, $enlazar);
+            $enlazar();
+        }
+    }
+    if (!$enlacesHechos) {
+        $correr($conLosEnlaces);   // sin altas que comprobar: salen solos
     }
 
     return $out;
@@ -2617,19 +2772,23 @@ function sticpa_pl_check_saved($marks, $lista, $attendances, $omitida = false, $
  */
 function sticpa_pl_lista_enlazar($objSCP, $listaId, $sessionId, $groupId = '')
 {
-    $enlaces = array(
-        array('lis_listas_stic_sessions', (string) $sessionId, 'lista_enlazar_sesion', true),
-    );
-    if ((string) $groupId !== '') {
-        $enlaces[] = array('lis_listas_ajmcm_grupos', (string) $groupId, 'lista_enlazar_grupo', true);
-    }
-    $who = isset($_SESSION['scp_user_id']) ? (string) $_SESSION['scp_user_id'] : '';
-    if ($who !== '') {
-        $enlaces[] = array('lis_listas_contacts', $who, 'lista_enlazar_monitor', false);
-    }
+    $enlaces = sticpa_pl_lista_enlaces_de($sessionId, $groupId);
 
     $res = array('failed' => 0, 'errors' => array());
-    $enlazar = function () use ($objSCP, $listaId, $enlaces, &$res) {
+    $enlazar = sticpa_pl_lista_enlaces_fn($objSCP, $listaId, $enlaces, $res);
+    sticpa_pl_prime($objSCP, $enlazar);
+    $enlazar();
+    return $res;
+}
+
+/**
+ * Los enlaces de una lista como cierre, sin tanda propia: para meterlos en la
+ * tanda de otro (el guardado de monitores los manda con su lectura de
+ * comprobación). Apunta en `$res` los fallos, solo fuera de la recolecta.
+ */
+function sticpa_pl_lista_enlaces_fn($objSCP, $listaId, $enlaces, &$res)
+{
+    return function () use ($objSCP, $listaId, $enlaces, &$res) {
         foreach ($enlaces as $e) {
             $ok = $objSCP->set_relationship('LIS_listas', $listaId, $e[0], array($e[1]));
             if (sticpa_pl_collecting() || $ok !== false) {
@@ -2645,9 +2804,22 @@ function sticpa_pl_lista_enlazar($objSCP, $listaId, $sessionId, $groupId = '')
             );
         }
     };
-    sticpa_pl_prime($objSCP, $enlazar);
-    $enlazar();
-    return $res;
+}
+
+/** Qué enlaces lleva una lista: la sesión, el grupo si lo hay, y quién la pasó. */
+function sticpa_pl_lista_enlaces_de($sessionId, $groupId = '')
+{
+    $enlaces = array(
+        array('lis_listas_stic_sessions', (string) $sessionId, 'lista_enlazar_sesion', true),
+    );
+    if ((string) $groupId !== '') {
+        $enlaces[] = array('lis_listas_ajmcm_grupos', (string) $groupId, 'lista_enlazar_grupo', true);
+    }
+    $who = isset($_SESSION['scp_user_id']) ? (string) $_SESSION['scp_user_id'] : '';
+    if ($who !== '') {
+        $enlaces[] = array('lis_listas_contacts', $who, 'lista_enlazar_monitor', false);
+    }
+    return $enlaces;
 }
 
 /**
@@ -4206,14 +4378,36 @@ function sticpa_pl_listas_by_session($objSCP, $sessions, $limit = 12)
 function sticpa_pl_participants_without_group($objSCP)
 {
     $out = array();
+    // SIN GRUPO DE LA DELEGACIÓN, no solo sin grupo: la relación puede colgar
+    // de un comodín como «⚠️ Grupo COM-LC - POR DEFINIR!», que no es de ninguna
+    // delegación, y entonces no salía ni aquí ni en ninguna lista (26/09/2026).
+    // Quien ya está en un grupo de verdad no sale aunque le quede otra relación
+    // en el comodín: no es gente suelta, es una relación vieja.
+    $grupos = sticpa_pl_groups($objSCP);
+    $rels = sticpa_pl_all_relationships($objSCP);
+    $conGrupo = array();
+    foreach ($rels as $rel) {
+        if ($rel['role'] === 'participante' && $rel['group_id'] !== '' && isset($grupos[$rel['group_id']])) {
+            $conGrupo[$rel['person']['id']] = true;
+        }
+    }
     // Del mapa comun: antes esta funcion hacia su propia consulta a TODAS las
     // relaciones de la delegacion, la misma que ya hace el mapa. Y ademas
     // pasaba el nombre del enlace a pelo, lo que en PHP 8 era un TypeError
     // fatal que se llevaba la pantalla de resumen entera.
-    foreach (sticpa_pl_all_relationships($objSCP) as $rel) {
-        if ($rel['role'] !== 'participante' || $rel['group_id'] !== '') {
+    $vistos = array();
+    foreach ($rels as $rel) {
+        if ($rel['role'] !== 'participante') {
             continue;
         }
+        if ($rel['group_id'] !== '' && isset($grupos[$rel['group_id']])) {
+            continue;   // en un grupo de la delegación
+        }
+        $pid = $rel['person']['id'];
+        if ($pid !== '' && (isset($conGrupo[$pid]) || isset($vistos[$pid]))) {
+            continue;   // ya está en un grupo, o ya ha salido una vez
+        }
+        $vistos[$pid] = true;
         $name = $rel['person']['name'];
         // La EDAD y el id viajan también: sin la edad no se puede decidir a qué
         // grupo va alguien, que es lo único que se hace con esta lista, y sin el
@@ -4234,6 +4428,33 @@ function sticpa_pl_participants_without_group($objSCP)
     // única lista del plugin que se ordenaba distinta a las demás.
     usort($out, 'sticpa_pl_cmp_person');
     return $out;
+}
+
+/**
+ * La relación y el grupo de un «Vincular», del POST.
+ *
+ * El desplegable de cada fila se llama `pl_assign_group[<relación>]`: varias
+ * filas viajan en el MISMO formulario, y cuando todas se llamaban igual PHP se
+ * quedaba con el valor del ÚLTIMO desplegable —el que nadie había tocado—, así
+ * que «Vincular» en la primera fila vinculaba al grupo equivocado o a ninguno
+ * (26/09/2026). Se acepta también la forma vieja, un solo `pl_assign_group`,
+ * por si llega un formulario de antes.
+ *
+ * @return array{0:string,1:string} [relación, grupo]
+ */
+function sticpa_pl_assign_post()
+{
+    $relId = isset($_POST['pl_assign_rel']) ? sticpa_pl_safe_id($_POST['pl_assign_rel']) : '';
+    $grupo = '';
+    if (isset($_POST['pl_assign_group'])) {
+        $valor = $_POST['pl_assign_group'];
+        if (is_array($valor)) {
+            $grupo = isset($valor[$relId]) ? (string) $valor[$relId] : '';
+        } else {
+            $grupo = (string) $valor;
+        }
+    }
+    return array($relId, sticpa_pl_safe_id($grupo));
 }
 
 /**
@@ -4258,6 +4479,20 @@ function sticpa_pl_assign_group($objSCP, $relId, $groupId)
     // mover personas a grupos de otra.
     $groups = sticpa_pl_groups($objSCP);
     if (!isset($groups[$groupId])) {
+        return false;
+    }
+    // Y la RELACIÓN también: el id llega en el POST, y sin esto se podía colgar
+    // de un grupo propio la relación de una persona de otra delegación (los
+    // grupos de seguridad del CRM no protegen el área: ver CLAUDE.md). El mapa
+    // de relaciones ya viene filtrado por delegación y está en caché.
+    $deLaDelegacion = false;
+    foreach (sticpa_pl_all_relationships_raw($objSCP) as $rel) {
+        if ($rel['rel_id'] === $relId) {
+            $deLaDelegacion = true;
+            break;
+        }
+    }
+    if (!$deLaDelegacion) {
         return false;
     }
 
@@ -4524,8 +4759,33 @@ function sticpa_pl_curso_rank($cursos)
     return $base + $curso;
 }
 
-function sticpa_pl_monitors_of($objSCP, $groups)
+/**
+ * Los monitores que ve coordinación: la regla, en UN sitio (lista, ficha y
+ * Mis grupos). Los de los grupos de su alcance y, si coordina TODA la
+ * delegación, también los que tienen la relación de monitor sin un grupo de la
+ * delegación (ver `$sinGrupo` abajo).
+ */
+function sticpa_pl_coord_monitors($objSCP, $scope)
 {
+    $todaLaDelegacion = is_array($scope)
+        && (!isset($scope['etapa']) || $scope['etapa'] === '')
+        && (!isset($scope['segmento']) || $scope['segmento'] === '');
+    return sticpa_pl_monitors_of($objSCP, sticpa_pl_scoped_groups($objSCP, $scope), $todaLaDelegacion);
+}
+
+/**
+ * `$sinGrupo`: incluir también a quien tiene una relación de monitor VIGENTE de
+ * la delegación (la relación ya viene filtrada por `assigned_user_id`) pero sin
+ * grupo, o con un grupo que no es de la delegación. Es como llegan los monitores
+ * NUEVOS: el 26/09/2026 Mencía Saiz y Ana Pardo tenían su relación de monitor
+ * apuntando al comodín «⚠️ Grupo monitoreado - POR DEFINIR!», que no es de
+ * ninguna delegación, y no salían en la lista de la reunión de Soñación —que es
+ * justo la reunión a la que van los nuevos—. Solo para quien coordina toda la
+ * delegación: sin grupo no hay etapa, así que no se sabe de qué coordinador son.
+ */
+function sticpa_pl_monitors_of($objSCP, $groups, $sinGrupo = false)
+{
+    $grupoDeLaDelegacion = $sinGrupo ? sticpa_pl_groups($objSCP) : array();
     // UNA pasada por el mapa de relaciones, no una consulta por grupo.
     //
     // Antes esto llamaba a sticpa_pl_group_people() por cada grupo del alcance.
@@ -4544,7 +4804,24 @@ function sticpa_pl_monitors_of($objSCP, $groups)
         }
         $gid = $rel['group_id'];
         if ($gid === '' || !isset($groups[$gid])) {
-            continue;   // de otro alcance, o sin grupo
+            // De otro alcance, o sin grupo. Sin grupo DE LA DELEGACIÓN (vacío o
+            // un comodín) y con `$sinGrupo`, entra igual, sin etapa ni curso:
+            // la pantalla lo pone en «Sin grupo». Si luego aparece otra relación
+            // suya con grupo, esa rellena la etapa y el curso.
+            $id = $rel['person']['id'];
+            if ($sinGrupo && !isset($out[$id]) && ($gid === '' || !isset($grupoDeLaDelegacion[$gid]))) {
+                $out[$id] = $rel['person'];
+                $out[$id]['groups'] = array();
+                $out[$id]['etapa'] = '';
+                $out[$id]['etapas'] = array();
+                $out[$id]['curso'] = '';
+                $out[$id]['rank'] = 99999;
+                $out[$id]['grupo'] = '';
+                // La relación que hay que colgar de un grupo: la usa «Vincular»
+                // en la ficha y en Mis grupos, sin fiarse de un id del POST.
+                $out[$id]['rel_sin_grupo'] = $rel['rel_id'];
+            }
+            continue;
         }
         $id = $rel['person']['id'];
         if (!isset($out[$id])) {
@@ -4889,6 +5166,71 @@ function sticpa_pl_save_monitors($objSCP, $sessionId, $monitors, $marks, &$regMa
     // no la cuenta y NO SE PUEDE VOLVER A ENCONTRAR. Ahora se le crea la
     // inscripción que le falta (solo la primera vez) y la asistencia nace bien
     // atada. Y todo en tandas: ver `sticpa_pl_write_attendances()`.
+    // ---------------------------------------------------------------------
+    // La lista de monitores de la sesión.
+    // ---------------------------------------------------------------------
+    // Antes esto no se escribía: se guardaban las asistencias y no quedaba
+    // constancia de que la lista se hubiera pasado. `ajmcm_tipo_c` existe
+    // justo para esto —`monitores` frente a `participantes`— y el plugin
+    // tenía el mapa de valores sin que nadie lo llamara.
+    //
+    // NO lleva grupo, a diferencia de la de participantes: el alcance de
+    // coordinación es la etapa, no un grupo. Ver el aviso de
+    // `sticpa_pl_all_listas_monitores()` sobre qué pasa si dos etapas
+    // comparten evento.
+    //
+    // SE PREPARA ANTES de escribir las asistencias, y viaja CON ellas: los
+    // números salen de las marcas, no de lo escrito. Antes eran dos esperas
+    // más al final —crearla, y después enlazarla— (26/09/2026).
+    $estados = sticpa_pl_lista_estados();
+    $tipos = sticpa_pl_lista_tipos();
+    $existentes = sticpa_pl_all_listas_monitores($objSCP);
+    $lista = isset($existentes[$sessionId]) ? $existentes[$sessionId] : null;
+
+    $payload = array(
+        'estado' => $estados['pasada'],
+        'ajmcm_tipo_c' => $tipos['monitores'],
+        'pasada_el' => date('Y-m-d H:i:s', sticpa_pl_now()),
+        'n_asistieron' => $result['counts']['yes'],
+        'n_faltaron' => $result['counts']['no'],
+        'assigned_user_id' => sticpa_pl_delegation($objSCP),
+    );
+    $enlacesLista = sticpa_pl_lista_enlaces_de($sessionId, '');
+    if ($lista !== null) {
+        $payload['id'] = $lista['id'];
+    } else {
+        // Nueva: sus enlaces TAMBIÉN en el propio registro (§3.1-bis), y los
+        // `set_relationship` de siempre detrás, en la tanda de la comprobación.
+        foreach ($enlacesLista as $e) {
+            if ($e[0] === 'lis_listas_stic_sessions') {
+                $payload['lis_listas_stic_sessionsstic_sessions_ida'] = $e[1];
+            } elseif ($e[0] === 'lis_listas_contacts') {
+                $payload['lis_listas_contactscontacts_ida'] = $e[1];
+            }
+        }
+    }
+
+    $listaId = null;
+    $listaError = '';
+    $escribirLista = function () use ($objSCP, $payload, &$listaId, &$listaError) {
+        $id = $objSCP->set_entry('LIS_listas', $payload);
+        if (!sticpa_pl_collecting()) {
+            $listaId = $id ? $id : null;
+            $listaError = $id ? '' : sticpa_pl_crm_error($objSCP);
+        }
+    };
+    $enlaces = array('failed' => 0, 'errors' => array());
+    $enlazarLista = null;
+    if ($lista === null) {
+        $enlazarLista = function () use ($objSCP, &$listaId, $enlacesLista, &$enlaces) {
+            if (!$listaId) {
+                return;   // si no se ha creado, no hay nada que enlazar
+            }
+            $fn = sticpa_pl_lista_enlaces_fn($objSCP, $listaId, $enlacesLista, $enlaces);
+            $fn();
+        };
+    }
+
     $escritas = sticpa_pl_write_attendances(
         $objSCP,
         $sessionId,
@@ -4897,7 +5239,9 @@ function sticpa_pl_save_monitors($objSCP, $sessionId, $monitors, $marks, &$regMa
         $regMap,
         $eventId,
         $sessionStart,
-        (array) $notes
+        (array) $notes,
+        $escribirLista,
+        $enlazarLista
     );
     foreach ($efectivas as $monitorId => $key) {
         $res = isset($escritas[$monitorId]) ? $escritas[$monitorId] : null;
@@ -4912,56 +5256,26 @@ function sticpa_pl_save_monitors($objSCP, $sessionId, $monitors, $marks, &$regMa
         unset($result['written'][$monitorId]);   // no se ha escrito: no se afirma
     }
 
-    // ---------------------------------------------------------------------
-    // La lista de monitores de la sesión.
-    // ---------------------------------------------------------------------
-    // Antes esto no se escribía: se guardaban las asistencias y no quedaba
-    // constancia de que la lista se hubiera pasado. `ajmcm_tipo_c` existe
-    // justo para esto —`monitores` frente a `participantes`— y el plugin
-    // tenía el mapa de valores sin que nadie lo llamara.
-    //
-    // NO lleva grupo, a diferencia de la de participantes: el alcance de
-    // coordinación es la etapa, no un grupo. Ver el aviso de
-    // `sticpa_pl_all_listas_monitores()` sobre qué pasa si dos etapas
-    // comparten evento.
-    $estados = sticpa_pl_lista_estados();
-    $tipos = sticpa_pl_lista_tipos();
-    $existentes = sticpa_pl_all_listas_monitores($objSCP);
-    $lista = isset($existentes[$sessionId]) ? $existentes[$sessionId] : null;
-
-    $payload = array(
-        'estado' => $estados['pasada'],
-        'ajmcm_tipo_c' => $tipos['monitores'],
-        'pasada_el' => date('Y-m-d H:i:s', sticpa_pl_now()),
-        'n_asistieron' => $result['counts']['yes'],
-        'n_faltaron' => $result['counts']['no'],
-        'assigned_user_id' => sticpa_pl_delegation($objSCP),
-    );
-
+    // La lista ya se ha escrito con las asistencias: aquí solo se recoge.
     if ($lista !== null) {
-        $payload['id'] = $lista['id'];
-        $listaId = $objSCP->set_entry('LIS_listas', $payload);
         if (!$listaId) {
             $result['failed']++;
             $result['errors'][] = array(
                 'paso' => 'lista_actualizar',
                 'id' => $lista['id'],
-                'error' => sticpa_pl_crm_error($objSCP),
+                'error' => $listaError,
             );
         }
         $result['lista_id'] = $listaId ? $listaId : $lista['id'];
     } else {
-        $listaId = $objSCP->set_entry('LIS_listas', $payload);
         if (!$listaId) {
             $result['failed']++;
             $result['errors'][] = array(
                 'paso' => 'lista_crear',
                 'id' => '',
-                'error' => sticpa_pl_crm_error($objSCP),
+                'error' => $listaError,
             );
         } else {
-            // La sesión y quién la pasó, en una tanda (sin grupo: ver arriba).
-            $enlaces = sticpa_pl_lista_enlazar($objSCP, $listaId, $sessionId, '');
             $result['failed'] += $enlaces['failed'];
             $result['errors'] = array_merge($result['errors'], $enlaces['errors']);
         }

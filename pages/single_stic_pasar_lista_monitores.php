@@ -49,8 +49,7 @@ if ($scope === null) {
 $isReunion = !empty($_REQUEST['reunion']);
 $sessionId = isset($_REQUEST['sesion']) ? sticpa_pl_safe_id($_REQUEST['sesion']) : '';
 
-$groups = sticpa_pl_scoped_groups($objSCP, $scope);
-$monitors = sticpa_pl_monitors_of($objSCP, $groups);
+$monitors = sticpa_pl_coord_monitors($objSCP, $scope);
 
 // ---------------------------------------------------------------------------
 // De qué evento y qué sesión
@@ -211,10 +210,16 @@ if (!empty($_POST['pl_action'])) {
  * escribir dejaría en el memo la respuesta de antes de escribir, y la pantalla
  * enseñaría lo que había en vez de lo que acaba de guardarse. */
 $seguimientoOn = apply_filters('sticpa_pl_avisos_seguimiento', true);
-sticpa_pl_prime($objSCP, function () use ($objSCP, $session, $regMap, $sessions, $seguimientoOn) {
+sticpa_pl_prime($objSCP, function () use ($objSCP, $session, $regMap, $sessions, $seguimientoOn, $saved) {
     sticpa_pl_session_attendances($objSCP, $session['id'], $regMap);
     if ($seguimientoOn) {
         sticpa_pl_attendances_for_sessions($objSCP, $sessions, $regMap);
+    }
+    // Y, si se acaba de guardar, la lista de monitores: el guardado vacía la
+    // caché y salía SUELTA después de esta tanda, una espera más. Sin guardar
+    // ya viene de la caché, y aquí solo se pediría dos veces.
+    if (is_array($saved)) {
+        sticpa_pl_all_listas_monitores($objSCP);
     }
 });
 
@@ -493,6 +498,11 @@ foreach ($conFilas as $etapa) {
         $sub = implode(' · ', $m['groups']);
         if (!empty($m['curso'])) {
             $sub = ($sub !== '') ? $sub . ' · ' . $m['curso'] : $m['curso'];
+        }
+        if (empty($m['groups'])) {
+            // Monitor sin grupo de la delegación (un comodín «POR DEFINIR»):
+            // sale para poder pasarle lista, y se dice qué le falta.
+            $sub = __('Sin grupo asignado', 'sticpa');
         }
         $fichaUrl = '?internalpage=single_stic_pasar_lista_monitor&monitor=' . rawurlencode($m['id']);
         $aviso = isset($avisos[$m['id']]) ? $avisos[$m['id']] : '';

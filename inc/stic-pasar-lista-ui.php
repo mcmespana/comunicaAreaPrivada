@@ -552,6 +552,38 @@ function sticpa_pl_legend_html($monitores = false)
 }
 
 /**
+ * El «Vincular a un grupo» de una fila: el desplegable con los grupos de la
+ * delegación y su botón. Lo usan la vista «Sin grupo» de Mis grupos (chavales y
+ * monitores) y la ficha de un monitor sin grupo, y lo recoge
+ * `sticpa_pl_assign_post()`.
+ *
+ * El desplegable se llama `pl_assign_group[<relación>]` y no igual en todas las
+ * filas: van varias en el mismo formulario y PHP se quedaba con el ÚLTIMO.
+ */
+function sticpa_pl_vincular_html($relId, $groups, $nombre)
+{
+    $relId = sticpa_pl_safe_id($relId);
+    $html = '<span class="pl-suelto-act">';
+    $html .= '<select name="pl_assign_group[' . esc_attr($relId) . ']" class="pl-review-select"'
+        . ' aria-label="' . esc_attr(sprintf(
+            /* translators: %s: nombre de la persona */
+            __('Grupo para %s', 'sticpa'),
+            $nombre
+        )) . '">';
+    $html .= '<option value="">' . esc_html__('Elegir grupo…', 'sticpa') . '</option>';
+    foreach ((array) $groups as $gid => $g) {
+        $html .= '<option value="' . esc_attr($gid) . '">'
+            . esc_html(trim($g['code'] . ($g['name'] !== '' ? ' · ' . $g['name'] : '')
+                . ($g['cursos'] !== '' ? ' (' . $g['cursos'] . ')' : ''))) . '</option>';
+    }
+    $html .= '</select>';
+    $html .= '<button type="submit" name="pl_assign_rel" value="' . esc_attr($relId)
+        . '" class="pl-review-btn">' . esc_html__('Vincular', 'sticpa') . '</button>';
+    $html .= '</span>';
+    return $html;
+}
+
+/**
  * La hoja inferior con los cuatro estados.
  *
  * Es lo que abre el gesto largo. Se pinta una sola vez por pantalla y el JS le

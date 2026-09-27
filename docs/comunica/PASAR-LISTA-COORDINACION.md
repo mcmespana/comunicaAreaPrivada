@@ -153,6 +153,28 @@ decía que no se había guardado nada. El detalle está en el parte de estado §
 
 ---
 
+### Quién sale en la lista de monitores (26/09/2026)
+
+Sale quien tiene una relación **`monitor` vigente** (sin `end_date` o con ella
+en el futuro), asignada a la delegación, y colgada de un **grupo de la
+delegación** que entre en el alcance. **La inscripción al evento no cuenta**:
+las inscripciones las crea Pasar Lista al guardar.
+
+- **Sin grupo de la delegación** (vacía, o el comodín «⚠️ Grupo monitoreado -
+  POR DEFINIR!», que no es de ninguna): sale solo a quien coordina **toda la
+  delegación**, en «Sin etapa» y con «Sin grupo asignado». Es como llegan los
+  monitores nuevos, y la reunión de septiembre es justo la suya.
+- **Se vincula desde la app** (27/09/2026): en su ficha («Sus grupos» dice
+  «Sin grupo asignado» con un desplegable y «Vincular») o en Mis grupos →
+  Monitores, sección «Sin grupo». La relación sale de la lista de monitores,
+  no del POST, y `sticpa_pl_assign_group()` vuelve a comprobar coordinación,
+  grupo y relación de la delegación.
+- **Un monitor del curso pasado que sigue saliendo** tiene la relación abierta:
+  se arregla en el CRM poniéndole `end_date`.
+
+La regla está en `sticpa_pl_coord_monitors()` y la usan la lista, la ficha y
+Mis grupos, así que lo que se ve en una se puede abrir en las otras.
+
 ## 4. Los datos del monitor: mejor que el CRM, y en otro orden
 
 **Reescrita el 28/08/2026.** La primera versión abría con el certificado de
