@@ -775,3 +775,12 @@ delegación, y el handler lo rechaza aunque le llegue el POST
 El alta de una inscripción no ponía `assigned_user_id`: se quedaba a nombre del
 usuario técnico, en contra de la regla de `CLAUDE.md`. Ahora va a la delegación
 de la persona (`sticpa_pl_delegation()`), igual que su compromiso.
+
+### 10.5 La ayuda en la ficha del CRM y la guía (27/09/2026, TODO EV-4)
+
+- **Guía larga** para quien administra eventos: `comunicaFormularios/webs_landing_wordpress/guia_eventos_administradores.html`
+  (se pega a mano en una página de WordPress). Parte A: las tres puertas (área
+  privada, formulario web avanzado, clásico); parte B: la página del evento.
+- **Ayuda corta dentro del CRM**: `docs/comunica/AYUDA-FICHA-EVENTO.html`, para
+  un campo de tipo HTML de Studio en la vista de edición de Eventos. Solo HTML
+  básico con estilos en línea: el editor del CRM se lleva los `<style>`.

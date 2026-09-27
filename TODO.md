@@ -32,252 +32,149 @@ puedan coger una tarea, entender el porqué y hacerla sin contexto previo.
 
 ---
 
-## 🔴🟠 Decisiones del propietario (bloquean trabajo)
+## 🙋 Te toca a ti (decisiones, Studio y datos del CRM)
 
-- [!] `FAM-02` (P1 · S) **Medio de pago del familiar.** La pantalla usa `ajmcm_pago_*_c`,
-      que NO existen: el familiar mete su IBAN y se descarta en silencio. Los campos reales
-      (`ajmcm_iban_c`, `ajmcm_iban_titular_c`, `ajmcm_forma_pago_c`, ver CAMPOS.md) viven en
-      la ficha del **participante** y esta pantalla edita la del **familiar**. Decidir:
-      (a) quitar la sección hasta los compromisos de pago, (b) escribir en cada participante,
-      (c) en el familiar. De `ajmcm_forma_pago_c` solo se conoce `cargo_cuenta`.
-      ↳ `pages/single_stic_tutor_profile.php` (aviso ⚙️), `plans/015`.
-- [!] `DOC-03` (P2 · S) **¿Qué fue de `/aptest/`?** No se quitó desde este repo (es una página
-      de WordPress; ningún commit la toca). Da 404 desde el 24/09/2026 y el área de
-      pruebas era esa página. Cinco documentos la citan (`design-system.md`,
-      `PASAR-LISTA-ESTADO.md`, `PASAR-LISTA-README.md`, `CONTRATO-APP-WEBVIEW.md`,
-      `plans/018`). Si se quitó a propósito, cambiarlos a `/ap/`; si no, volver a crearla.
+Nada de esto es código; sin ello, el código que lo espera no avanza.
 
-## 🟠 Datos en el CRM (no es código)
-
-- [ ] `CRM-01` (P1 · S) **Entorno personal de Solete** asignado a «Administrador MCM» en vez
-      de a MCM Castellón (`00000cd2-159a-eef9-3639-68cd21b90b6a`): la ficha no lo ve.
-      Reasignarlo y revisar si hay más así. ↳ `PASAR-LISTA-ESTADO.md` §1.
-- [ ] `CRM-02` (P1 · S) **~100 asistencias basura `Unknown - Unknown |`** del 28/08 (sesión
-      del 02/05/2026, sin inscripción). Borrado lógico; el propietario dijo que las borra él.
-      NO tocar las 24 de Solete ni ninguna con inscripción.
-- [ ] `CRM-03` (P2 · S) **Dos `LIS_listas` para la sesión del 02/05/2026** (una de
-      monitores, otra de participantes «omitida»): decidir si la omitida es lo que se quiso.
-- [ ] `CRM-05` (P1 · S) **Una inscripción de renovación SIN compromiso de pago** (visto por
-      MCP el 25/09/2026): la de Solete Villarroya a «COM | Curso 2026-2027 · CS» (id
-      `00000900…`, nombre roto «sin evento»), con IBAN, cuota de 20 € y convivencia de
-      60 €. Su gemela de la convivencia sí tiene el suyo; la de la cuota, ninguno —ni del
-      alta ni de la modificación de 17 h después—. O se crea a mano el compromiso de la
-      cuota, o se decide que no toca. Revisar si hay más así (inscripciones con
-      `ajmcm_tutor1_iban_c` sin nada en `stic_payment_commitments_stic_registrations`).
-- [ ] `CRM-04` (P2 · M) **Claves de desplegables sin confirmar** en `CAMPOS.md` («Lo que
-      queda por revisar»): `ajmcm_dirigido_a_c`, `ajmcm_ambito_c` (falta «nacional»), y si
-      `dirigido_a` pasa a múltiple. Mirarlas en Studio y apuntarlas. Una clave mal escrita
-      no da error: el filtro deja de acertar en silencio.
-
-## 🟠 Eventos e inscripciones (apuntado el 25/09/2026)
-
-> EV-1, EV-2, EV-7 y EV-8 hechos el 25/09/2026 (ver **Hecho** y
-> `docs/comunica/EVENTOS.md` §9.5 y §10). EV-6 tiene el código listo y espera
-> a los campos.
-
-- [!] `EV-3` (P1 · M) Formularios web avanzados (FWA) desde el evento. Decidido
-      el 25/09/2026: el módulo FWA **no sale en Studio**, así que no hay
-      relación posible; va un **campo URL en `stic_Events`** con el enlace
-      público del FWA (nombre por decidir; al crearlo, a `CAMPOS.md`). Con él:
-      la página pública enseña «¿No estás en Comunica? Inscríbete aquí» y la
-      ficha del área privada abre el FWA ya rellenado con los datos de quien
-      ha entrado (`&Contacts0.first_name=…`, parámetros en la wiki de
-      SinergiaTIC). El FWA lleva regla de duplicados por DNI en modo
-      «Ampliar». Bloqueado hasta que exista el campo.
-      ⚠️ **Antes de crearlo, mirar `web_url_c`** (25/09/2026): ya existe en
-      `stic_Events`, es de tipo URL y hoy es «a dónde lleva *Inscribirme* en la
-      página pública» (vacío → al área privada). Puede que sea justo este
-      campo y no haga falta otro (`CLAUDE.md`: no crear un campo sin comprobar
-      que no existe ya). Decidir si se reutiliza o si hacen falta los dos.
-- [ ] `EV-4` (P2 · S) Reescribir la guía de eventos
-      (`comunicaFormularios/webs_landing_wordpress/guia_eventos_administradores.html`)
-      con el reparto área privada / FWA / clásico, muy esquemática, cuando esté
-      decidido `EV-3`.
-- [!] `EV-6` (P2 · S) **Preguntas simples: el código está hecho, faltan los
-      campos.** Crear en Studio `ajmcm_pregunta_1_c` / `ajmcm_pregunta_2_c`
-      (texto 255, `stic_Events`) y `ajmcm_respuesta_1_c` / `ajmcm_respuesta_2_c`
-      (texto 255, `stic_Registrations`) —nombres PROPUESTOS en `CAMPOS.md`; si
-      se crean con otros, cambiarlos en `sticpa_event_question_fields()`—. Se
-      activa solo en cuanto existen (hasta 6 h por la caché de la definición,
-      o `&refresh_fields=1`). Formato: `¿Pregunta? | opción 1; opción 2`.
-- [!] `EV-9` (P1 · S) **El formulario de pago con tarjeta registra una
-      DONACIÓN** (`payment_type = donation`) **asignada al «Administrador MCM»**
-      (`assigned_user_id = 1`), aunque se esté pagando una actividad. Viene de
-      antes (`pages/single_stic_payment_form.php`, formulario web
-      `webFormClass=Donation`) y no se ha tocado por no romper el cobro online.
-      Riesgo: una cuota o una convivencia pagada con tarjeta acabaría en el
-      modelo 182 como donativo, y fuera de la delegación. Decidir: probar el
-      formulario web con `payment_type=services` y la delegación, o montar el
-      pago con tarjeta de otra forma. Desde EV-7 el concepto bancario lleva el
-      nombre de la actividad para poder casarlo a mano.
-- [ ] `EV-10` (P2 · S) **App MCM: pasar el destino al abrir el enlace del
-      correo.** El puente `/app/acceso` ya reenvía `internalpage`, `action`,
-      `id` y `from` (EV-8), pero con la app instalada el sistema abre la app, y
-      si esta solo coge el token se entra a la portada. Lado app
-      (`app/+native-intent.ts`), ver `CONTRATO-APP-WEBVIEW.md` §5.
-- [ ] `EV-11` (P3 · S) La ficha y la tarjeta de una inscripción enseñan el curso
-      con su clave cruda (`3_eso`) y no con la etiqueta del desplegable. Visto
-      al capturar EV-2. ↳ `sticpa_registration_detail_html()` y
-      `sticpa_registrations_list_html()`: pasar por `sticpa_record_enum_label()`
-      con `ajmcm_curso_escolar_c` en la definición.
-- [z] `EV-5` (P2 · S) Campos del DNI en Personas: número de soporte y fecha de
-      expedición o caducidad. Se crearán en Studio más adelante; al crearlos,
-      apuntarlos en `docs/comunica/CAMPOS.md`.
-
----
-
-## 🟠 Seguridad
-
-- [ ] `SEC-10` (P2 · S) **Pruebas a mano que quedan de la seguridad de los handlers**
-      (en producción desde el 24/09/2026; lo demás se comprobó en la web real):
-      subir y borrar un documento, inscribirse a un evento, cambiar la contraseña, y con
-      una cuenta de FAMILIA cambiar a un hijo y volver. Si algo no guarda, casi seguro es un
-      campo `html` sin `'posts'` (ver `inc/stic-security.php`).
-      **Y lo de EV-2/EV-7 (25/09/2026):** inscribirse a una actividad con precio por Bizum
-      (sale UN compromiso en el CRM, atado a la inscripción y a la delegación), por
-      domiciliación (con IBAN) y con tarjeta (pasa al formulario de pago); modificar una
-      inscripción y cancelarla (estado «Cancelada» y el compromiso con fecha de fin); y
-      entrar por el enlace del correo desde la ficha de un evento (se aterriza en ella).
-- [~] `ADMIN-04` (P1 · M) **«Entrar como»** desde el admin: versión básica hecha. Falta
-      registro de quién entró como quién, banner visible y enlace de un solo uso en vez del
-      token permanente. ↳ `inc/stic-magic-login.php`.
-- [z] `SEC-03` (P3 · M) **Contraseñas sin cifrar** en el CRM. Aparcado por el propietario
-      (24/09/2026): se entra sobre todo por enlace, código o DNI. Si se retoma, valorar antes
-      retirar el login por contraseña.
-
-## 🟡 Pasar Lista
-
-> Monitores (26/09/2026): el «error» al guardar, las tandas, los respaldos y el
-> motivo de las faltas están hechos (ver **Hecho** y `PASAR-LISTA-ESTADO.md` §1).
-> Lo de abajo es lo que queda, por orden de lo que más se va a notar el 24/10.
-
-- [ ] `PL-MON-1` (P1 · S) **Comprobar en el CRM real el guardado de monitores** (§1 del
-      parte: «Guardado» a la primera, sin duplicados en el segundo guardado, inscripciones
-      con el nombre del evento, el motivo en `description`). Con `&pl_diag=1` se ven las
-      llamadas y los tiempos.
-- [!] `PL-MON-2` (P1 · S) **Los eventos de prueba 2025-2026 ya no salen**: Pasar Lista coge
-      los del curso en el nombre («2026-2027»). Decidir si se prueba sobre
-      `COM|MIC | Curso 2026-2027 · CS` o si hace falta un filtro para fijar el curso.
+**Decidir**
+- [!] `EV-9` (P1 · S) **El pago con tarjeta se registra como DONACIÓN** (`payment_type =
+      donation`) y a nombre del «Administrador MCM». Riesgo: una actividad pagada con tarjeta
+      acaba en el modelo 182 y fuera de la delegación. Decidir: probar el formulario web con
+      `services` y la delegación, o pagar con tarjeta de otra forma.
+      ↳ `pages/single_stic_payment_form.php` (`webFormClass=Donation`).
+- [!] `FAM-02` (P1 · S) **Medio de pago del familiar**: la pantalla usa `ajmcm_pago_*_c`, que
+      NO existen, y el IBAN que se mete se pierde. Los campos buenos (`ajmcm_iban_c`…) están
+      en el participante. Decidir: quitar la sección, escribir en cada participante o en el
+      familiar. ↳ `pages/single_stic_tutor_profile.php`, `plans/015`.
+- [!] `PL-MON-2` (P1 · S) **Los eventos de prueba 2025-2026 ya no salen** en Pasar Lista (coge
+      los del curso del nombre, «2026-2027»). Decidir si se prueba sobre los del curso nuevo o
+      hace falta fijar el curso.
 - [!] `PL-MON-3` (P1 · M) **Coordinación de toda la delegación con MIC y COM en eventos
-      separados**: la lista de monitores del sábado usa el de COM para todos y los de MIC
-      acabarían inscritos a él. Propuesta: selector de etapa en la pantalla cuando el
-      alcance es la delegación entera. ↳ `pages/single_stic_pasar_lista_monitores.php`.
-- [ ] `PL-MON-4` (P1 · M) **Leer las asistencias de una sesión sin páginas de 20 en fila**
-      (`get_relationships` corta en 20: un sábado lleno son 4-5 viajes seguidos en marcar y
-      monitores). Medir antes con `pl_diag`; si se confirma, `get_entry_list` con el filtro
-      de un día (`sticpa_pl_attendance_days_sql()`). ↳ `sticpa_pl_session_attendances()`.
-- [ ] `PL-MON-5` (P2 · M) **Los avisos de la lista de monitores leen el curso entero de la
-      delegación** (chavales incluidos). Leerlos por las inscripciones de los monitores, o
-      que el Guardián deje el porcentaje calculado de noche.
-- [!] `PL-MON-6` (P2 · S) **Las inscripciones que crea Pasar Lista van sin `status`** (es
-      obligatorio en el CRM). Decidir cuál (¿`confirmed`?) mirando si algún flujo del CRM
-      salta al confirmar.
-- [ ] `PL-MON-7` (P2 · S) **Los números de la lista de monitores cuando dos etapas comparten
-      reunión**: contar a todos los monitores de la sesión, no solo a los del alcance de
-      quien guarda. Sin llamadas extra. ↳ `sticpa_pl_save_monitors()`.
-- [ ] `PL-MON-8` (P3 · S) Apagar el refuerzo de enlaces (`sticpa_pl_refuerzo_enlaces`) si se
-      comprueba en el CRM que los campos planos atan solos; y que crear una reunión tire solo
-      las sesiones de su evento y no toda la caché.
-- [ ] `PL-MON-10` (P1 · S) **Comprobar en el CRM las altas en lotes** (`set_entries` en cuatro
-      trozos a la vez, 27/09): asistencias atadas, sin duplicados, y el tiempo en el diario
-      de guardados (`&pl_diag=1`, ahora apunta cuánto tardó y las llamadas más lentas).
-      ↳ `sticpa_pl_crear_en_lotes()`.
-- [!] `PL-MON-11` (P2 · S) **Relaciones de monitor sin `end_date` de gente que ya no es
-      monitor**: salen en la lista. Cerrarlas en el CRM (se puede sacar la lista de las
-      abiertas desde antes del 1/09/2026). Los nuevos que siguen en el comodín «POR
-      DEFINIR» ya se vinculan desde la app (ficha del monitor o Mis grupos → Monitores).
-- [ ] `PL-MON-9` (P3 · S) **Una reunión suspendida no se puede quitar**: no hay borrar ni
-      «Sin registro» para la lista de monitores. Se queda como «sin pasar» en Reuniones (la
-      portada deja de avisar al mes). ↳ `pages/single_stic_pasar_lista_reuniones.php`.
-- [!] `PL-036` (P3 · S) **Lo único que queda del plan 036**, y no es código: el correo
-      automático de avisos (se configura en el CRM) y verificar `CAMPOS.md` contra el CRM,
-      que necesita el **conector MCP de SinergiaCRM** en la sesión (el 25/09/2026 no estaba).
-      El resto del 036 y todo el 037 está hecho (ver `plans/README.md`).
+      separados**: la lista de monitores usa el de COM para todos. Propuesta: selector de
+      etapa cuando el alcance es la delegación. ↳ `pages/single_stic_pasar_lista_monitores.php`.
+- [!] `PL-MON-6` (P2 · S) **Las inscripciones que crea Pasar Lista van sin `status`**
+      (obligatorio en el CRM). Decidir cuál (¿`confirmed`?).
+- [!] `DOC-03` (P2 · S) **`/aptest/` da 404** desde el 24/09/2026 (es una página de
+      WordPress). Si se quitó a propósito, cambiar a `/ap/` los cinco documentos que la
+      citan; si no, volver a crearla.
 
-## 🟡 Rendimiento
+**Crear en Studio** (el código está hecho y se activa solo)
+- [!] `EV-6` (P2 · S) **Preguntas simples**: `ajmcm_pregunta_1_c` y `ajmcm_pregunta_2_c` en
+      Eventos, `ajmcm_respuesta_1_c` y `ajmcm_respuesta_2_c` en Inscripciones (texto 255).
+      Otros nombres → cambiarlos en `sticpa_event_question_fields()`.
+- [!] `EV-3` (P1 · M) **Enlace del formulario web avanzado**: `ajmcm_fwa_url_c` (URL) en
+      Eventos. Decidido el 27/09: campo propio, no `web_url_c`. Con él, dos puertas en la
+      página pública y el FWA ya rellenado desde el área privada (mirar antes los parámetros
+      de relleno en la wiki de SinergiaTIC). Esto sí hay que programarlo cuando exista.
+- [ ] `EV-4b` (P3 · S) **Pegar la ayuda en la ficha de Eventos**: campo de tipo HTML con
+      `docs/comunica/AYUDA-FICHA-EVENTO.html`, arriba en la vista de edición. Y pegar la guía
+      nueva en su página de WordPress.
 
-- [z] `PERF-08` (P3 · M) **Caché de lectura por pantalla**. Aparcado (25/09/2026): con el
-      plan 011 y el tope de página aprendido, cada pantalla va en 0,4-1,2 s, y el propietario
-      prefiere que un cambio hecho en el CRM se vea al momento. Si se retoma: 1 minuto como
-      mucho, que se borre al guardar uno mismo y que el botón de refrescar la salte.
-- [z] `PERF-09` (P2 · M) **Techo de filas en los listados** (plan 032): a futuro, hasta que
-      alguna lista crezca de verdad. ↳ `plans/032`.
+**Datos del CRM**
+- [ ] `CRM-05` (P1 · S) **Cuota de Solete sin compromiso**: la inscripción «Solete Villarroya
+      Meseguer -» (`00000900-db01-acfe-2649-6ab30955f412`, COM Curso 2026-2027) no tiene
+      compromiso de pago. Crearlo a mano (20 €, Domiciliación, Cuota, Pago único, pagadora la
+      madre, MCM Castellón) y arreglarle el nombre. Las otras ~150 con IBAN, sin revisar.
+- [ ] `CRM-03` (P2 · S) **Dos `LIS_listas` de pruebas** de la sesión del 02/05/2026 del evento
+      de prueba 2025-2026 (`00000408…` monitores/pasada y `000007da…` participantes/omitida).
+      Sus asistencias ya no existen: borrarlas.
+- [ ] `CRM-04` (P2 · S) **Claves de dos desplegables sin confirmar**: `ajmcm_dirigido_a_c`
+      (se esperan `grupo`, `monitor`, `participante_mic_com`, `coordinacion`,
+      `familiar_menor`) y `ajmcm_ambito_c` (`local`, falta confirmar `nacional`). Mirarlas en
+      Studio y apuntarlas en `CAMPOS.md`: una clave mal escrita no da error, deja de filtrar.
+- [!] `PL-MON-11` (P2 · S) **Relaciones de monitor sin `end_date`** de gente que ya no es
+      monitor: salen en la lista. Cerrarlas en el CRM (las abiertas desde antes del 1/09).
+- [!] `PL-036` (P3 · S) **El correo automático de avisos** de Pasar Lista: se configura en el
+      CRM. Es lo único que queda del plan 036.
 
-## ⚪ Frontend / diseño
-
-- [~] `UI-18` (P2 · L) **Consolidar CSS** (plan 018): F1 hecha; F2/F3 medidas, sin lote.
-- [~] `UI-24` (P2 · M) **Encaje con los grises de WordPress** (plan 024-B): pendiente de
-      verlo en el sitio real.
-
-## ⚪ Mantenimiento y calidad
-
-- [ ] `MNT-03` (P3 · M) Healthcheck de la conexión al CRM y de los flujos críticos.
-- [ ] `MNT-04` (P3 · S) i18n: revisar que las cadenas nuevas pasen por `__()` y
-      actualizar los `.po/.pot`.
-- [ ] `MNT-05` (P3 · S) **Funciones que solo usan los tests** (revisado el 25/09/2026):
-      `sticpa_pl_titulaciones`, `sticpa_pl_seg_trimestre`, `sticpa_commitment_amount_line`.
-      Decidir si se usan en alguna pantalla o se quitan con sus tests. (`mcm_cuerpo_titulo`
-      también, pero es del renderizador compartido con los formularios: se queda.)
-- [ ] `ADMIN-05` (P2 · S) Campo **URL de portal precalculada** (`ajmcm_pa_portal_url_c`)
-      para las plantillas de correo del CRM.
-- [ ] `FAM-01` (P1 · M) **Perfiles de familia con Sinergia**: verificar la carga real de
-      participantes con relaciones `stic_Personal_Environment` y el rol «familiar».
-- [ ] `CI-02` (P3 · S) Entorno de **staging** propio (hoy no hay: `/ap/` es producción).
+**Probar en producción**
+- [ ] `SEC-10` (P2 · S) **Pruebas a mano**: subir y borrar un documento; cambiar la
+      contraseña; con una cuenta de familia, cambiar a un hijo y volver; inscribirse a algo con
+      precio por Bizum, por domiciliación y con tarjeta (un compromiso, atado y de la
+      delegación); modificar y cancelar una inscripción; entrar por el enlace del correo desde
+      la ficha de un evento. Si algo no guarda, casi seguro es un campo `html` sin `'posts'`.
+- [ ] `PL-MON-1` (P1 · S) **Guardar la lista de monitores en el CRM real**: «Guardado» a la
+      primera, sin duplicados al repetir, inscripciones con el nombre del evento y el motivo en
+      `description` (`&pl_diag=1` enseña llamadas y tiempos).
+- [ ] `PL-MON-10` (P1 · S) **Las altas en lotes** (`set_entries`, 27/09): asistencias atadas,
+      sin duplicados, y el tiempo en el diario de guardados. ↳ `sticpa_pl_crear_en_lotes()`.
 
 ---
 
-## ✅ Hecho (una línea por tarea; el detalle está en git y en `plans/archive/`)
+## 🛠 Código
 
-**Acceso y seguridad:** `AUTH-01..04` token permanente y acceso mágico · `SEC-01` sin
-contraseña por correo · `SEC-02` consultas del login escapadas (24/09) · `SEC-04` TLS
-verificado (24/09) · `SEC-05` CSRF con la firma atada a la sesión (24/09) · `SEC-06`
-cookies seguras + modo estricto (24/09) · `SEC-07` `internalpage` saneado · `SEC-08`
-`exit` tras los redirects · `SEC-09` escapado en formularios · planes 001-008: sesión,
-propiedad, campos firmados, participante validado, redirecciones seguras, XSS (24/09).
+**Pasar Lista** (por orden de lo que más se va a notar el 24/10)
+- [ ] `PL-MON-4` (P1 · M) **Asistencias de una sesión sin páginas de 20 en fila**
+      (`get_relationships` corta en 20: 4-5 viajes seguidos un sábado lleno). Medir con
+      `pl_diag`; si se confirma, `get_entry_list` con el filtro de un día.
+      ↳ `sticpa_pl_session_attendances()`, `sticpa_pl_attendance_days_sql()`.
+- [ ] `PL-MON-5` (P2 · M) **Los avisos de la lista de monitores leen el curso entero** de la
+      delegación. Leerlos por las inscripciones de los monitores, o que el Guardián deje el
+      porcentaje calculado de noche.
+- [ ] `PL-MON-7` (P2 · S) **Los números de la lista de monitores cuando dos etapas comparten
+      reunión**: contar a todos los de la sesión, sin llamadas extra. ↳ `sticpa_pl_save_monitors()`.
+- [ ] `PL-MON-9` (P3 · S) **Una reunión suspendida no se puede quitar** (no hay borrar ni «Sin
+      registro»). ↳ `pages/single_stic_pasar_lista_reuniones.php`.
+- [ ] `PL-MON-8` (P3 · S) Apagar el refuerzo de enlaces (`sticpa_pl_refuerzo_enlaces`) si se
+      comprueba que los campos planos atan solos; y que crear una reunión tire solo las
+      sesiones de su evento, no toda la caché.
 
-**Admin:** `ADMIN-01..03` buscador, ver/regenerar token, tokens masivos.
+**App MCM** (otro repo)
+- [ ] `EV-10` (P2 · S) **Pasar el destino al abrir el enlace del correo**: el puente
+      `/app/acceso` ya reenvía `internalpage`, `action`, `id` y `from`; la app tiene que
+      pasarlos a la WebView. ↳ `mcm-app/app/+native-intent.ts`, `CONTRATO-APP-WEBVIEW.md` §5.
 
-**Plataforma:** `PLAT-00` la app es una WebView de esta web (`?app=1`).
+**Área privada**
+- [ ] `FAM-01` (P1 · M) **Perfiles de familia**: verificar la carga real de participantes con
+      `stic_Personal_Environment` y el rol «familiar».
+- [~] `ADMIN-04` (P1 · M) **«Entrar como»**: falta el registro de quién entró como quién, un
+      banner visible y un enlace de un solo uso. ↳ `inc/stic-magic-login.php`.
+- [ ] `ADMIN-05` (P2 · S) Campo **URL de portal precalculada** (`ajmcm_pa_portal_url_c`) para
+      las plantillas de correo del CRM.
+- [~] `UI-18` (P2 · L) **Consolidar CSS** (plan 018): F1 hecha; F2/F3 medidas, sin lote.
+- [~] `UI-24` (P2 · M) **Encaje con los grises de WordPress** (plan 024-B): verlo en el sitio.
+- [ ] `MNT-05` (P3 · S) **Funciones que solo usan los tests**: `sticpa_pl_titulaciones`,
+      `sticpa_pl_seg_trimestre`, `sticpa_commitment_amount_line`. Usarlas o quitarlas.
+- [ ] `MNT-04` (P3 · S) i18n: cadenas nuevas por `__()` y `.po/.pot` al día.
+- [ ] `MNT-03` (P3 · M) Healthcheck de la conexión al CRM y de los flujos críticos.
+- [ ] `CI-02` (P3 · S) Entorno de **staging** propio (hoy `/ap/` es producción).
 
-**Eventos e inscripciones (25/09):** `EV-1` ficha con el cartel a la izquierda, agenda y
-home a la ficha y la definición que se cura sola · `EV-2` cancelar y modificar la
-inscripción dentro de plazo · `EV-7` compromiso de pago al inscribirse (uno solo, de la
-delegación) o paso al pago con tarjeta · `EV-8` el destino sobrevive al login (código,
-enlace del correo, puente de la app) · y la inscripción, asignada a su delegación.
+---
 
-**Frontend:** `UI-01..16` estilos, paleta, login, carga, portada, menú, barra, subidas,
-modal de borrado, sistema de diseño, formularios Comunica, perfiles de familia, modo app ·
-24-25/09: menú del móvil en mosaicos, portada de 2 en 2, pestañas legibles, botones con
-texto blanco en claro, sin degradado de fondo, 12 px de margen en toda la web, calendario
-con la barra en una fila, buscador sin doble caja, sin cinta de «Pruebas».
+## 💤 Aparcado a propósito
 
-**Pasar Lista · monitores (26/09):** el «no ha quedado guardada» de la lista de monitores
-(relectura con el mapa de inscripciones viejo + `flush('struct')` que no existía) ·
-inscripciones, asistencias y enlaces en tandas (~75 esperas → ~22) · respaldos que ya no
-se bajan toda la delegación por un vacío · rango de asistencias solo de los días con sesión ·
-reuniones en una tanda y con su estado · el motivo de las faltas de monitores, en la lista
-y en la ficha · pasada de UI (cabeceras con alcance y recuento, pista del motivo, estado
-de las reuniones con el idioma del historial y el alta detrás de «+ Nueva reunión», aviso
-en la portada de la última reunión sin lista durante un mes, 44 px en pestañas y selector)
-· «¿coordina?» en la primera tanda de la portada (5 → 4 esperas para todos). · (noche) el pulsado
-largo en iOS ya no selecciona la página y la hoja sale abajo (animación `both` →
-`backwards`), monitores sin grupo de la delegación visibles para toda la delegación, y
-el refuerzo de enlaces solo cuando el campo plano no ata (~17 → ~10 esperas al guardar)
-· (27/09) la lista en la tanda de las asistencias (~6-8 esperas), «Vincular» a un grupo
-a los monitores sin grupo desde su ficha y desde Mis grupos, «Sin grupo» cuenta a quien
-cuelga de un comodín, y el desplegable de «Vincular» ya no coge el de la última fila ·
-(27/09, tarde) altas en lotes con `set_entries`, lo que no cambia no se reescribe, el
-diario apunta el tiempo de cada guardado, y la hoja deja sitio a la barra de la app.
+- [z] `EV-5` Campos del DNI en Personas (número de soporte, expedición o caducidad): cuando se
+      creen en Studio, a `CAMPOS.md`.
+- [z] `SEC-03` Contraseñas sin cifrar en el CRM (24/09): se entra por enlace, código o DNI; si
+      se retoma, valorar retirar el login por contraseña.
+- [z] `PERF-08` Caché de lectura por pantalla (25/09): las pantallas van en 0,4-1,2 s y se
+      prefiere ver al momento los cambios del CRM.
+- [z] `PERF-09` Techo de filas en los listados (plan 032), hasta que alguna lista crezca.
 
-**Rendimiento:** `PERF-01` caché de campos · `PERF-02` sin animaciones infinitas ·
-`PERF-03` sesión técnica del CRM compartida (25/09) · `PERF-04` foto por endpoint ·
-`PERF-05` / plan 011 consultas por fila en tandas + tope de página aprendido (25/09) ·
-`PERF-06` keep-alive · `PERF-07` / plan 031 assets condicionales, sin DataTables (25/09).
+---
 
-**Mantenimiento:** `MNT-01` sin funciones de debug · `MNT-02` `getDestinationModule()`
-(24/09) · 25/09: 13 funciones muertas y 2 páginas rotas fuera (`single_stic_signup`,
-`delete_confirmation`, a `pages/archivo/`).
+## ✅ Hecho (una línea por área; el detalle está en git y en `plans/archive/`)
 
-**Documentación y CI:** `DOC-01..02` · `CI-01` deploy automático a producción.
+- **Acceso y seguridad:** `AUTH-01..04` token y acceso mágico · `SEC-01..09` y planes
+  001-008 (sesión, propiedad, campos firmados, CSRF, cookies, TLS, XSS, redirecciones).
+- **Admin:** `ADMIN-01..03` buscador, ver/regenerar token, tokens masivos.
+- **Plataforma:** `PLAT-00` la app es una WebView de esta web (`?app=1`).
+- **Eventos e inscripciones (25-27/09):** `EV-1` ficha con cartel a la izquierda y agenda a
+  la ficha · `EV-2` cancelar y modificar dentro de plazo · `EV-7` compromiso de pago al
+  inscribirse (uno solo, de la delegación) · `EV-8` el destino sobrevive al login · `EV-4`
+  guía en tres puertas y ayuda para la ficha del CRM · `EV-11` curso y clase con su etiqueta.
+- **Pasar Lista · monitores (26-27/09):** guardado sin «error», en tandas y en lotes
+  (`set_entries`), motivo de las faltas, reuniones con su estado, monitores sin grupo
+  vinculables desde la app. Detalle en `PASAR-LISTA-ESTADO.md` §1.
+- **Frontend:** `UI-01..16` y la pasada del 24-25/09 (menú del móvil, portada, pestañas,
+  márgenes, calendario, buscador).
+- **Rendimiento:** `PERF-01..07` y plan 011 (caché de campos, sesión compartida, tandas,
+  tope de página, assets condicionales).
+- **Mantenimiento:** `MNT-01..02` · 13 funciones muertas y 2 páginas rotas fuera (25/09).
+- **Datos del CRM (27/09, por MCP):** `CRM-01` el entorno de Solete ya es de MCM Castellón y
+  no queda ninguno del «Administrador MCM» · `CRM-02` no queda ninguna asistencia `Unknown`.
+  ⚠️ El id de Solete de `PASAR-LISTA-ESTADO.md` (`00000014…`) ya no existe: es
+  `42e6c5d7-907b-4b86-8d46-a732beb570da`.
+- **Documentación y CI:** `DOC-01..02` · `CI-01` deploy a producción · `tests.yml` en los PR.
 
 > Mantén esta lista al día: al terminar, la tarea sale de arriba y entra aquí en una línea.

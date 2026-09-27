@@ -1,0 +1,86 @@
+<!--
+    AYUDA EN LA FICHA DEL EVENTO (SinergiaCRM) — TODO EV-4, 27/09/2026
+    ---------------------------------------------------------------------
+    Se pega en un campo de tipo HTML de Studio en Eventos (stic_Events),
+    en la vista de EDICIÓN (y, si se quiere, en la de detalle), ocupando
+    toda la fila. No se despliega solo: si cambia, se vuelve a pegar.
+
+    TODO EL ESTILO VA EN LÍNEA, y es a propósito. El editor del CRM limpia
+    el HTML al guardar: se lleva los bloques <style>, las clases y lo que
+    no sea CSS de siempre (los degradados, las sombras). Por eso:
+      · la franja de marca de arriba son tres celdas de color, no un
+        degradado;
+      · cada cosa tiene su color de fondo y su borde, que sobreviven;
+      · lo moderno (esquinas redondeadas) va de propina: si lo quita, se
+        sigue viendo bien.
+
+    La guía larga: comunicaFormularios/webs_landing_wordpress/guia_eventos_administradores.html
+    Los campos: docs/comunica/CAMPOS.md
+-->
+<div style="max-width:780px;margin:4px 0 10px;border:1px solid #dfe4ee;border-radius:12px;background-color:#ffffff;font-family:Arial,Helvetica,sans-serif;font-size:13px;line-height:1.5;color:#1f2937;overflow:hidden;">
+
+<table style="width:100%;border-collapse:collapse;"><tr>
+<td style="height:5px;padding:0;background-color:#1c6fb3;"></td>
+<td style="height:5px;padding:0;background-color:#6c4b9e;"></td>
+<td style="height:5px;padding:0;background-color:#9d1e74;"></td>
+</tr></table>
+
+<div style="padding:12px 16px 4px;">
+<span style="font-size:15px;font-weight:bold;color:#111827;">Cómo rellenar este evento</span>
+<span style="color:#6b7280;">&nbsp;·&nbsp;lo mínimo para que salga bien en la web y en el área privada</span>
+</div>
+
+<table style="width:100%;border-collapse:collapse;margin:6px 0 0;">
+
+<tr><td colspan="2" style="padding:10px 16px 4px;font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#1c6fb3;">Imprescindible</td></tr>
+<tr>
+<td style="width:34%;padding:7px 12px 7px 16px;vertical-align:top;border-top:1px solid #eef1f6;"><span style="display:inline-block;padding:2px 8px;border-radius:6px;background-color:#eaf4fb;color:#155a91;font-weight:bold;">Asignado a</span></td>
+<td style="padding:7px 16px 7px 0;vertical-align:top;border-top:1px solid #eef1f6;">Tu MCM Local. Sin esto, tu gente <b>no lo ve</b> en el área privada.</td>
+</tr>
+<tr>
+<td style="padding:7px 12px 7px 16px;vertical-align:top;border-top:1px solid #eef1f6;"><span style="display:inline-block;padding:2px 8px;border-radius:6px;background-color:#eaf4fb;color:#155a91;font-weight:bold;">Nombre</span></td>
+<td style="padding:7px 16px 7px 0;vertical-align:top;border-top:1px solid #eef1f6;"><span style="font-family:Consolas,Menlo,monospace;background-color:#f3f4f8;padding:1px 5px;border-radius:4px;">ETAPA | Nombre · SEDE</span> → COM | Convivencia Inicial 2026 · Buñol · CS</td>
+</tr>
+
+<tr><td colspan="2" style="padding:14px 16px 4px;font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#6c4b9e;">Inscripción</td></tr>
+<tr>
+<td style="padding:7px 12px 7px 16px;vertical-align:top;border-top:1px solid #eef1f6;"><span style="display:inline-block;padding:2px 8px;border-radius:6px;background-color:#f1edf8;color:#553a7d;font-weight:bold;">Inicio / fin de inscripción</span></td>
+<td style="padding:7px 16px 7px 0;vertical-align:top;border-top:1px solid #eef1f6;">Abren y cierran el botón «Inscribirme». Vacías = abierta siempre.</td>
+</tr>
+<tr>
+<td style="padding:7px 12px 7px 16px;vertical-align:top;border-top:1px solid #eef1f6;"><span style="display:inline-block;padding:2px 8px;border-radius:6px;background-color:#f1edf8;color:#553a7d;font-weight:bold;">Precio</span></td>
+<td style="padding:7px 16px 7px 0;vertical-align:top;border-top:1px solid #eef1f6;">0 no se enseña. Con precio, quien se apunta elige cómo paga y le queda el compromiso de pago.</td>
+</tr>
+<tr>
+<td style="padding:7px 12px 7px 16px;vertical-align:top;border-top:1px solid #eef1f6;"><span style="display:inline-block;padding:2px 8px;border-radius:6px;background-color:#f1edf8;color:#553a7d;font-weight:bold;">Dirigido a · Ámbito · Edades</span></td>
+<td style="padding:7px 16px 7px 0;vertical-align:top;border-top:1px solid #eef1f6;">Quién lo ve en el área privada. Vacío = todo tu MCM Local. Para todas las delegaciones: Ámbito.</td>
+</tr>
+<tr>
+<td style="padding:7px 12px 7px 16px;vertical-align:top;border-top:1px solid #eef1f6;"><span style="display:inline-block;padding:2px 8px;border-radius:6px;background-color:#f1edf8;color:#553a7d;font-weight:bold;">Pregunta simple 1 y 2</span></td>
+<td style="padding:7px 16px 7px 0;vertical-align:top;border-top:1px solid #eef1f6;"><span style="font-family:Consolas,Menlo,monospace;background-color:#f3f4f8;padding:1px 5px;border-radius:4px;">¿Cómo vienes? | En autobús; Por mi cuenta</span><br><span style="color:#6b7280;">La pregunta antes de la <b>|</b> y las opciones separadas por <b>;</b></span></td>
+</tr>
+
+<tr><td colspan="2" style="padding:14px 16px 4px;font-size:11px;font-weight:bold;letter-spacing:1px;text-transform:uppercase;color:#9d1e74;">La web</td></tr>
+<tr>
+<td style="padding:7px 12px 7px 16px;vertical-align:top;border-top:1px solid #eef1f6;"><span style="display:inline-block;padding:2px 8px;border-radius:6px;background-color:#fbeaf5;color:#82175f;font-weight:bold;">Publicar</span></td>
+<td style="padding:7px 16px 7px 0;vertical-align:top;border-top:1px solid #eef1f6;">Página en /actividades. Sin marcar, el texto se ve igual en el área privada.</td>
+</tr>
+<tr>
+<td style="padding:7px 12px 7px 16px;vertical-align:top;border-top:1px solid #eef1f6;"><span style="display:inline-block;padding:2px 8px;border-radius:6px;background-color:#fbeaf5;color:#82175f;font-weight:bold;">Cuerpo</span></td>
+<td style="padding:7px 16px 7px 0;vertical-align:top;border-top:1px solid #eef1f6;">Título 1 = sección · Cita = aviso · enlace solo en su línea = botón · primera imagen = cartel.</td>
+</tr>
+<tr>
+<td style="padding:7px 12px 7px 16px;vertical-align:top;border-top:1px solid #eef1f6;"><span style="display:inline-block;padding:2px 8px;border-radius:6px;background-color:#fbeaf5;color:#82175f;font-weight:bold;">Enlace de inscripción</span></td>
+<td style="padding:7px 16px 7px 0;vertical-align:top;border-top:1px solid #eef1f6;">El botón de la web. Vacío = a la ficha del evento en el área privada.</td>
+</tr>
+<tr>
+<td style="padding:7px 12px 7px 16px;vertical-align:top;border-top:1px solid #eef1f6;"><span style="display:inline-block;padding:2px 8px;border-radius:6px;background-color:#fbeaf5;color:#82175f;font-weight:bold;">Panel Documentos</span></td>
+<td style="padding:7px 16px 7px 0;vertical-align:top;border-top:1px solid #eef1f6;">Primera imagen = cartel · otras = galería · PDF = botón de descarga con el nombre del documento.</td>
+</tr>
+</table>
+
+<div style="margin:10px 16px 14px;padding:9px 12px;border-left:4px solid #d97706;border-radius:0 8px 8px 0;background-color:#fffbeb;color:#78350f;">
+<b>El cuerpo no es sitio para notas:</b> se lee aunque no esté publicado. Las notas del equipo, en la descripción. Los cambios tardan hasta 10 minutos en verse en la web.
+</div>
+
+</div>
