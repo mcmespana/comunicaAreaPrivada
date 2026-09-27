@@ -153,6 +153,23 @@ Probado en producción con la reunión de Soñación: guardó bien, pero:
   sesión y quién la pasó en el propio registro, y sus enlaces viajan con la
   lectura de comprobación; y se relee dentro de la última tanda. Con catorce
   monitores ya inscritos quedan ~6-8 esperas (eran ~17).
+- **Seguía tardando ~20 s** (27/09/2026, mediodía). Tres cosas más:
+  - **Las altas van en lotes**: en vez de una `set_entry` por fila de cuatro
+    en cuatro (treinta monitores = ocho esperas), cuatro `set_entries` a la
+    vez, cada uno con un cuarto de las filas (`sticpa_pl_crear_en_lotes()`):
+    una espera por paso, sea cual sea el número de filas. No puede ir más
+    lento que antes (si todo fuera guardar, empataría; el arranque de cada
+    petición se paga cuatro veces y no treinta). Red de seguridad: un error del
+    CRM sin `ids` → a la antigua, una a una; sin respuesta o con ids de menos →
+    no se reintenta, para no duplicar. Se apaga con `sticpa_pl_set_entries`.
+  - **Lo que no cambia no se escribe**: volver a guardar reescribía todas las
+    asistencias (`sticpa_pl_att_needs_update()`).
+  - **El diario de guardados apunta cuánto ha tardado** (la petición, lo que
+    ha sumado el CRM y las cinco llamadas más lentas). Se lee con `&pl_diag=1`
+    desde cualquier navegador, aunque el guardado se hiciera en la app.
+- **En la app, la hoja quedaba debajo de la barra de pestañas y de la píldora
+  de atrás/adelante** (27/09/2026): `body.sticpa-app-mode .pl-sheet` reserva
+  ~184 px abajo (CONTRATO-APP-WEBVIEW §3).
 - **Vincular desde la app** (27/09/2026): quien coordina toda la delegación le
   pone grupo a un monitor sin grupo desde su ficha o desde Mis grupos →
   Monitores (sección «Sin grupo»). Y la vista «Sin grupo» de Mis grupos cuenta
@@ -176,7 +193,7 @@ ciegas. Por orden de lo que más se va a notar cuando empiece el curso:
 | 🟡 | **El refuerzo de enlaces** (`set_relationship` tras el `set_entry`) cuesta dos llamadas por asistencia nueva. | Una tanda más en cada primer guardado de un sábado. | Comprobar en el CRM que una asistencia creada con el filtro `sticpa_pl_refuerzo_enlaces` a `false` queda atada a su sesión y su inscripción; si es así, apagarlo. |
 | ⚪ | **El alcance de coordinación pregunta el grupo de la relación** con una llamada suelta cuando la relación no tiene grupo (los tres de Castellón). | Una espera en la primera pantalla de coordinación del día. | Solo si se confirma que el campo plano del grupo llega siempre; si no, el segmento se perdería, y eso es quién edita qué. |
 | ⚪ | **Crear una reunión tira TODA la caché de la delegación** (`flush('all')`). | La pantalla siguiente de todo el mundo va en frío. Son 3-4 al año. | Tirar solo las sesiones del evento de reuniones. |
-| 🟡 | **¿`set_entries` (todas las altas en UNA llamada)?** No a ciegas: el CRM las guardaría una detrás de otra en una sola petición, y hoy van de cuatro en cuatro en paralelo. Si cada alta tarda sobre todo por el trabajo del CRM (arranque de la petición y automatismos al guardar) y no por la red, `set_entries` iría igual o más lento. | Es lo que queda del guardado de una reunión (~6-8 esperas, cuatro de ellas las altas). | Guardar una vez con `&pl_diag=1` y mirar los ms de cada `set_entry`: si son casi todo red (≲150 ms), compensa; si son de servidor (≳500 ms), no. |
+| 🟡 | **Comprobar en el CRM real las altas en lotes** (`set_entries` en cuatro trozos a la vez, 27/09/2026). | Es la primera vez que el plugin usa `set_entries`. | Tras el primer guardado de una sesión nueva: que las asistencias salen atadas a sesión e inscripción, sin duplicados, y mirar en el diario (`&pl_diag=1`) cuánto tardó y qué llamadas pesan. |
 | 🟡 | **Relaciones de monitor sin fecha de fin** de gente que ya no es monitor (salen en la lista). | Coordinación ve a monitores del curso pasado. | Cerrarlas en el CRM; se puede sacar la lista de las que empezaron antes del 1/09/2026 y siguen abiertas. |
 | ⚪ | **Una reunión suspendida no se puede quitar**: ni borrar ni «Sin registro» para la lista de monitores. | Se queda como «sin pasar» en Reuniones para siempre (la portada deja de avisar al mes). | Un «Sin registro» como el de las listas de grupo, o borrar la sesión si no tiene asistencias. |
 

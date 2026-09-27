@@ -146,6 +146,18 @@ function sticpa_pl_diag_html($objSCP)
                 (int) $entry['failed'],
                 (int) $entry['llamadas']
             ));
+            if (!empty($entry['ms'])) {
+                $html .= '<br>' . esc_html(sprintf(
+                    /* translators: 1: segundos de la petición, 2: segundos sumados en el CRM */
+                    __('tiempo: %1$s s (el CRM sumó %2$s s)', 'sticpa'),
+                    number_format($entry['ms'] / 1000, 1, ',', '.'),
+                    number_format((isset($entry['crm_ms']) ? $entry['crm_ms'] : 0) / 1000, 1, ',', '.')
+                ));
+                if (!empty($entry['lentas'])) {
+                    $html .= '<br>' . esc_html__('más lentas:', 'sticpa') . ' <code>'
+                        . esc_html(implode(' · ', (array) $entry['lentas'])) . '</code>';
+                }
+            }
             if (!empty($entry['lista_id'])) {
                 $html .= '<br>' . esc_html__('lista:', 'sticpa') . ' <code>' . esc_html((string) $entry['lista_id']) . '</code>';
             }

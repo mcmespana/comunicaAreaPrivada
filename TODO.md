@@ -178,11 +178,10 @@ puedan coger una tarea, entender el porqué y hacerla sin contexto previo.
 - [ ] `PL-MON-8` (P3 · S) Apagar el refuerzo de enlaces (`sticpa_pl_refuerzo_enlaces`) si se
       comprueba en el CRM que los campos planos atan solos; y que crear una reunión tire solo
       las sesiones de su evento y no toda la caché.
-- [ ] `PL-MON-10` (P2 · S) **Medir antes de probar `set_entries`**: guardar una lista de
-      monitores con `&pl_diag=1` y mirar los ms de cada `set_entry`. Si son casi todo red,
-      compensa juntar las altas en una llamada; si son de servidor, iría más lento que las
-      tandas de 4 en paralelo (parte de estado §1). La lista ya va en la tanda de las
-      asistencias (27/09). ↳ `sticpa_pl_write_attendances()`.
+- [ ] `PL-MON-10` (P1 · S) **Comprobar en el CRM las altas en lotes** (`set_entries` en cuatro
+      trozos a la vez, 27/09): asistencias atadas, sin duplicados, y el tiempo en el diario
+      de guardados (`&pl_diag=1`, ahora apunta cuánto tardó y las llamadas más lentas).
+      ↳ `sticpa_pl_crear_en_lotes()`.
 - [!] `PL-MON-11` (P2 · S) **Relaciones de monitor sin `end_date` de gente que ya no es
       monitor**: salen en la lista. Cerrarlas en el CRM (se puede sacar la lista de las
       abiertas desde antes del 1/09/2026). Los nuevos que siguen en el comodín «POR
@@ -266,7 +265,9 @@ largo en iOS ya no selecciona la página y la hoja sale abajo (animación `both`
 el refuerzo de enlaces solo cuando el campo plano no ata (~17 → ~10 esperas al guardar)
 · (27/09) la lista en la tanda de las asistencias (~6-8 esperas), «Vincular» a un grupo
 a los monitores sin grupo desde su ficha y desde Mis grupos, «Sin grupo» cuenta a quien
-cuelga de un comodín, y el desplegable de «Vincular» ya no coge el de la última fila.
+cuelga de un comodín, y el desplegable de «Vincular» ya no coge el de la última fila ·
+(27/09, tarde) altas en lotes con `set_entries`, lo que no cambia no se reescribe, el
+diario apunta el tiempo de cada guardado, y la hoja deja sitio a la barra de la app.
 
 **Rendimiento:** `PERF-01` caché de campos · `PERF-02` sin animaciones infinitas ·
 `PERF-03` sesión técnica del CRM compartida (25/09) · `PERF-04` foto por endpoint ·
