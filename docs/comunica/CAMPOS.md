@@ -916,6 +916,20 @@ definición del CRM). Si se crean con otro nombre, apúntalo aquí y cámbialo e
 Van por parejas y en campos separados (no todo junto en un texto largo) para que
 en el CRM se pueda filtrar y contar («¿cuántos van en autobús?»).
 
+**Enlace del formulario web avanzado — ⏳ PROPUESTO, NO CREADO** (27/09/2026, TODO
+EV-3). Decidido que sea un campo PROPIO y no `web_url_c`: `web_url_c` es el botón
+de la página pública, y el enlace del FWA lo usa además el área privada para
+abrir el formulario ya rellenado con los datos de quien ha entrado.
+
+| Módulo | Campo propuesto | Tipo | Para qué |
+|---|---|---|---|
+| `stic_Events` | `ajmcm_fwa_url_c` | URL | El enlace público del formulario web avanzado del evento. Vacío = el evento no usa FWA |
+
+**Ayuda en la propia ficha** (27/09/2026): `docs/comunica/AYUDA-FICHA-EVENTO.html`
+es un bloque corto para pegar en un campo de tipo HTML de Studio en Eventos, en
+la vista de edición. Si se añaden o se renombran campos del evento, se actualiza
+también allí.
+
 Los **documentos** del evento cuelgan de la relación `stic_events_documents_1`
 (nombre técnico; la API rechaza la etiqueta «Documents»). La primera imagen es
 el cartel si no hay otro, las demás van a galería y los PDF a descargar. Solo

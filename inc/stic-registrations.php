@@ -285,7 +285,10 @@ function sticpa_registrations_list_html($rows, $definition = array())
         }
         // El curso y la clase, en una sola línea: para una familia con varios
         // hijos es lo que distingue una inscripción de otra de un vistazo.
-        $aula = array_filter(array($reg['curso'], $reg['clase']));
+        $aula = array_filter(array(
+            sticpa_registration_aula_label($definition, 'ajmcm_curso_escolar_c', $reg['curso']),
+            sticpa_registration_aula_label($definition, 'ajmcm_clase_c', $reg['clase']),
+        ));
         if (!empty($aula)) {
             $lines[] = array('icon' => 'book', 'text' => implode(' · ', $aula));
         }
@@ -329,6 +332,23 @@ function sticpa_registrations_list_html($rows, $definition = array())
     }
 
     return sticpa_record_list_html($cards);
+}
+
+/**
+ * El curso o la clase de una inscripción, con la ETIQUETA del desplegable
+ * («3.º ESO») y no su clave («3_eso»), que es lo que se enseñaba (TODO EV-11).
+ *
+ * `na` es «no aplica» (CAMPOS.md): no es un curso y no se enseña. Si la
+ * definición no trae la etiqueta, la clave cruda es mejor que nada.
+ */
+function sticpa_registration_aula_label($definition, $field, $key)
+{
+    $key = trim((string) $key);
+    if ($key === '' || strtolower($key) === 'na') {
+        return '';
+    }
+    $label = sticpa_record_enum_label($definition, $field, $key);
+    return $label !== '' ? $label : $key;
 }
 
 /**
@@ -429,11 +449,13 @@ function sticpa_registration_detail_html($reg, $definition = array(), $extra = a
             'text'  => sticpa_record_date_line($reg['signed_ts']),
         );
     }
-    if ($reg['curso'] !== '') {
-        $facts[] = array('icon' => 'book', 'label' => __('Curso escolar', 'sticpa'), 'text' => $reg['curso']);
+    $curso = sticpa_registration_aula_label($definition, 'ajmcm_curso_escolar_c', $reg['curso']);
+    if ($curso !== '') {
+        $facts[] = array('icon' => 'book', 'label' => __('Curso escolar', 'sticpa'), 'text' => $curso);
     }
-    if ($reg['clase'] !== '') {
-        $facts[] = array('icon' => 'users', 'label' => __('Clase', 'sticpa'), 'text' => $reg['clase']);
+    $clase = sticpa_registration_aula_label($definition, 'ajmcm_clase_c', $reg['clase']);
+    if ($clase !== '') {
+        $facts[] = array('icon' => 'users', 'label' => __('Clase', 'sticpa'), 'text' => $clase);
     }
     $tipo = sticpa_record_enum_label($definition, 'participation_type', $val('participation_type'));
     if ($tipo !== '') {
@@ -823,7 +845,8 @@ function sticpa_registration_definition($objSCP)
         return array();
     }
     $def = sticpa_cached_field_definition($objSCP, 'stic_Registrations', array_merge(
-        array('status', 'participation_type', 'ajmcm_tutor1_relationship_c', 'ajmcm_tutor2_relationship_c'),
+        array('status', 'participation_type', 'ajmcm_tutor1_relationship_c', 'ajmcm_tutor2_relationship_c',
+            'ajmcm_curso_escolar_c', 'ajmcm_clase_c'),
         sticpa_event_question_answer_fields()
     ));
     return is_array($def) ? $def : array();
