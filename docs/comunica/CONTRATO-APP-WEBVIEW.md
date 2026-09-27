@@ -109,7 +109,14 @@ padding-bottom: calc(12px + env(safe-area-inset-bottom));
 ```
 
 Ya aplicado en la botonera sticky de los formularios y en el control de
-apariencia de la pantalla de login. Para que `env(safe-area-inset-*)` no valga
+apariencia de la pantalla de login.
+
+⚠️ **Con la tab bar flotante de la app el inset NO basta** (27/09/2026). Medido
+en un iPhone: la tab bar ocupa ~73 pt desde el borde de abajo y la píldora de
+atrás/adelante llega a ~168 pt. La hoja de estados de Pasar Lista quedaba
+debajo de las dos; ahora, solo en la app, reserva lo suyo:
+`body.sticpa-app-mode .pl-sheet { padding-bottom: 11.5rem; }`
+(`css/pasar-lista.css`). Un elemento fijo nuevo abajo tiene que hacer lo mismo. Para que `env(safe-area-inset-*)` no valga
 siempre 0 hace falta que el `<head>` lleve:
 
 ```html

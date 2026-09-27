@@ -1818,17 +1818,11 @@ function sticpa_pl_ensure_registrations($objSCP, $eventId, $contactIds, &$regMap
         return array();
     }
 
-    // Las altas, en UNA tanda: son independientes entre sí.
-    sticpa_pl_prime($objSCP, function () use ($objSCP, $payloads) {
-        foreach ($payloads as $payload) {
-            $objSCP->set_entry('stic_Registrations', $payload);
-        }
-    });
+    // Las altas, en lotes y en UNA tanda: son independientes entre sí.
     $nuevas = array();
-    foreach ($payloads as $contactId => $payload) {
-        $newId = $objSCP->set_entry('stic_Registrations', $payload);
+    foreach (sticpa_pl_crear_en_lotes($objSCP, 'stic_Registrations', $payloads) as $contactId => $newId) {
         if ($newId) {
-            $nuevas[(string) $newId] = $contactId;
+            $nuevas[(string) $newId] = (string) $contactId;
         }
     }
     if (empty($nuevas)) {
@@ -1896,6 +1890,149 @@ function sticpa_pl_att_update_payload($existing, $personId, $key, $note = null)
 }
 
 /**
+ * Crea varios registros del mismo módulo en POCAS peticiones y en UNA tanda.
+ *
+ * GUARDAR MONITORES TARDABA 20 s (27/09/2026). Con treinta monitores eran
+ * treinta `set_entry`, de cuatro en cuatro: ocho esperas, y en cada una el CRM
+ * arranca una petición entera para guardar UNA fila. Aquí las filas se reparten
+ * en cuatro `set_entries` —la concurrencia del transporte— que salen a la vez:
+ * una espera, y cada petición guarda un cuarto. Nunca va más lento que antes:
+ * si todo el tiempo fuera guardar, sería lo mismo; todo lo demás (red, arranque,
+ * sesión) se paga cuatro veces en vez de treinta.
+ *
+ * La red de seguridad, porque esto escribe:
+ *  - Si el CRM contesta un error SIN `ids` (p. ej. no conoce `set_entries`),
+ *    no ha escrito nada: ese lote se hace a la antigua, una a una.
+ *  - Si no hay respuesta, o faltan ids, NO se reintenta: podría duplicar. Esas
+ *    filas salen como fallidas; el guardado siguiente encuentra lo escrito
+ *    (va atado por los campos planos) y lo actualiza.
+ *  - Los enlaces se siguen comprobando después (`sticpa_pl_enlaces_pendientes`).
+ *
+ * `$tambien`: un acompañante que viaja en la misma tanda (la lista de
+ * monitores), y le quita un hueco a los lotes. Se apaga con el filtro
+ * `sticpa_pl_set_entries` y vuelve a ser una `set_entry` por fila.
+ *
+ * @return array [clave => id nuevo | null]; los motivos de los fallos, en $errores.
+ */
+function sticpa_pl_crear_en_lotes($objSCP, $module, $payloads, $tambien = null, &$errores = array())
+{
+    $payloads = (array) $payloads;
+    $claves = array_keys($payloads);
+    $out = array_fill_keys($claves, null);
+    $errores = array();
+
+    $enLotes = count($claves) >= 2
+        && method_exists($objSCP, 'set_entries')
+        && apply_filters('sticpa_pl_set_entries', true);
+
+    // El acompañante va como PARÁMETRO y no capturado: en el respaldo ya viajó
+    // con los lotes, y capturado aquí se habría mandado otra vez (una lista de
+    // monitores escrita dos veces).
+    $unaAUna = function ($lista, $conTambien) use ($objSCP, $module, $payloads, &$out, &$errores) {
+        $escribir = function () use ($objSCP, $module, $payloads, $lista, $conTambien) {
+            foreach ($lista as $k) {
+                $objSCP->set_entry($module, $payloads[$k]);
+            }
+            if (is_callable($conTambien)) {
+                $conTambien();
+            }
+        };
+        sticpa_pl_prime($objSCP, $escribir);
+        foreach ($lista as $k) {
+            $id = $objSCP->set_entry($module, $payloads[$k]);
+            $out[$k] = $id ? (string) $id : null;
+            if (!$id) {
+                $errores[$k] = sticpa_pl_crm_error($objSCP);
+            }
+        }
+        if (is_callable($conTambien)) {
+            $conTambien();
+        }
+    };
+
+    if (!$enLotes) {
+        $unaAUna($claves, $tambien);
+        return $out;
+    }
+
+    $huecos = max(1, (int) apply_filters('sticpa_pl_lotes', 4) - (is_callable($tambien) ? 1 : 0));
+    $lotes = array_chunk($claves, max(1, (int) ceil(count($claves) / $huecos)));
+    $respuestas = array();
+    $enviar = function () use ($objSCP, $module, $payloads, $lotes, $tambien, &$respuestas) {
+        foreach ($lotes as $i => $lote) {
+            $filas = array();
+            foreach ($lote as $k) {
+                $filas[] = $payloads[$k];
+            }
+            $r = $objSCP->set_entries($module, $filas);
+            if (!sticpa_pl_collecting()) {
+                $respuestas[$i] = array('r' => $r, 'error' => sticpa_pl_crm_error($objSCP));
+            }
+        }
+        if (is_callable($tambien)) {
+            $tambien();
+        }
+    };
+    sticpa_pl_prime($objSCP, $enviar);
+    $enviar();
+
+    $aLaAntigua = array();
+    foreach ($lotes as $i => $lote) {
+        $r = isset($respuestas[$i]['r']) ? $respuestas[$i]['r'] : null;
+        $motivo = isset($respuestas[$i]['error']) ? (string) $respuestas[$i]['error'] : '';
+        $ids = (is_object($r) && isset($r->ids) && is_array($r->ids)) ? array_values($r->ids) : null;
+        if ($ids !== null && count($ids) === count($lote)) {
+            foreach ($lote as $j => $k) {
+                $id = trim((string) $ids[$j]);
+                if ($id !== '' && $id !== '-1') {
+                    $out[$k] = $id;
+                } else {
+                    $errores[$k] = ($motivo !== '') ? $motivo : 'set_entries sin id para esta fila';
+                }
+            }
+            continue;
+        }
+        if (is_object($r) && !isset($r->ids)) {
+            $aLaAntigua = array_merge($aLaAntigua, $lote);   // error claro: no ha escrito nada
+            continue;
+        }
+        foreach ($lote as $k) {
+            $errores[$k] = ($motivo !== '') ? $motivo : 'set_entries sin respuesta completa: no se reintenta para no duplicar';
+        }
+    }
+    if (!empty($aLaAntigua)) {
+        $unaAUna($aLaAntigua, null);   // el acompañante ya viajó con los lotes
+    }
+    return $out;
+}
+
+/**
+ * ¿Hay que escribir esta asistencia, o ya está así en el CRM?
+ *
+ * Volver a guardar una lista reescribía TODAS las asistencias, también las que
+ * no habían cambiado: con treinta monitores, treinta escrituras (ocho esperas)
+ * para corregir una falta (27/09/2026). Si el estado es el mismo y el motivo
+ * también —o esta pantalla no tiene motivos—, no se escribe: el CRM ya lo dice.
+ * Lo usan la tanda y la escritura de verdad, que tienen que decidir lo mismo o
+ * el memo no acierta.
+ */
+function sticpa_pl_att_needs_update($existing, $personId, $key, $note = null)
+{
+    if (!isset($existing[$personId]['id'])) {
+        return true;
+    }
+    $antes = isset($existing[$personId]['status']) ? (string) $existing[$personId]['status'] : '';
+    if ($antes !== (string) $key) {
+        return true;
+    }
+    if ($note === null) {
+        return false;
+    }
+    $motivoAntes = isset($existing[$personId]['description']) ? (string) $existing[$personId]['description'] : '';
+    return (string) $note !== $motivoAntes;
+}
+
+/**
  * Adelanta EN UNA TANDA todas las asistencias que solo hay que actualizar.
  *
  * Guardar la lista de un C1 de doce eran doce escrituras en fila, una detrás de
@@ -1925,6 +2062,9 @@ function sticpa_pl_prime_attendance_updates($objSCP, $marks, $existing, $notes =
         $note = ($notes === null)
             ? null
             : (isset($notes[$personId]) ? (string) $notes[$personId] : '');
+        if (!sticpa_pl_att_needs_update($existing, $personId, $key, $note)) {
+            continue;   // ya está así en el CRM
+        }
         $payloads[] = sticpa_pl_att_update_payload($existing, $personId, $key, $note);
     }
     // `$tambien`: otra escritura que viaja en la MISMA tanda (la lista de
@@ -2076,18 +2216,13 @@ function sticpa_pl_write_attendances($objSCP, $sessionId, $marks, $existing, &$r
             $objSCP, $sessionId, (string) $regId, $validas[$personId], $sessionStart, $notaDe($personId)
         );
     }
+    // Las altas, en lotes y en UNA tanda (con la lista de acompañante).
+    $idsAltas = array();
+    $erroresAltas = array();
     if (!empty($altas)) {
         $tambienAqui = $altasHechas ? null : $conLasAltas;
-        sticpa_pl_prime($objSCP, function () use ($objSCP, $altas, $tambienAqui) {
-            foreach ($altas as $payload) {
-                $objSCP->set_entry('stic_Attendances', $payload);
-            }
-            if (is_callable($tambienAqui)) {
-                $tambienAqui();
-            }
-        });
+        $idsAltas = sticpa_pl_crear_en_lotes($objSCP, 'stic_Attendances', $altas, $tambienAqui, $erroresAltas);
         if (is_callable($tambienAqui)) {
-            $tambienAqui();
             $altasHechas = true;
         }
     }
@@ -2100,6 +2235,10 @@ function sticpa_pl_write_attendances($objSCP, $sessionId, $marks, $existing, &$r
     $creadas = array();
     foreach ($validas as $personId => $key) {
         if (isset($existing[$personId]['id'])) {
+            if (!sticpa_pl_att_needs_update($existing, $personId, $key, $notaDe($personId))) {
+                $out[$personId] = array('ok' => true, 'error' => null);
+                continue;   // ya está así en el CRM: no se reescribe
+            }
             $payload = sticpa_pl_att_update_payload($existing, $personId, $key, $notaDe($personId));
             $out[$personId] = $objSCP->set_entry('stic_Attendances', $payload)
                 ? array('ok' => true, 'error' => null)
@@ -2118,12 +2257,12 @@ function sticpa_pl_write_attendances($objSCP, $sessionId, $marks, $existing, &$r
             ));
             continue;
         }
-        $newId = $objSCP->set_entry('stic_Attendances', $altas[$personId]);
+        $newId = isset($idsAltas[$personId]) ? $idsAltas[$personId] : null;
         if (!$newId) {
             $out[$personId] = array('ok' => false, 'error' => array(
                 'paso' => 'asistencia_crear',
                 'id' => $personId,
-                'error' => sticpa_pl_crm_error($objSCP),
+                'error' => isset($erroresAltas[$personId]) ? $erroresAltas[$personId] : '',
             ));
             continue;
         }
@@ -2671,6 +2810,15 @@ function sticpa_pl_log_save($entry)
         'lista_id' => '',
         'errores' => array(),
         'llamadas' => class_exists('SugarRestApiCall') ? (int) SugarRestApiCall::$callCount : 0,
+        // CUÁNTO HA TARDADO, y en qué (27/09/2026). «Tarda 20 s» desde la app
+        // no se podía mirar: el panel de `pl_diag` solo enseña la petición en
+        // la que se abre. Esto queda en el diario y se lee luego desde un
+        // navegador: el tiempo de la petición hasta aquí, lo que ha sumado el
+        // CRM y las llamadas más lentas.
+        'ms' => isset($_SERVER['REQUEST_TIME_FLOAT'])
+            ? (int) round((microtime(true) - (float) $_SERVER['REQUEST_TIME_FLOAT']) * 1000) : 0,
+        'crm_ms' => class_exists('SugarRestApiCall') ? (int) round((float) SugarRestApiCall::$callMs) : 0,
+        'lentas' => sticpa_pl_llamadas_lentas(5),
     ), (array) $entry);
 
     // Los motivos se recortan: esto es un diario de diagnóstico, no un almacén.
@@ -2686,6 +2834,23 @@ function sticpa_pl_log_save($entry)
         $log = array_slice($log, -$max);
     }
     update_option('sticpa_pl_save_log', $log, false);
+}
+
+/** Las `$n` llamadas al CRM más lentas de esta petición, en texto corto. */
+function sticpa_pl_llamadas_lentas($n = 5)
+{
+    if (!class_exists('SugarRestApiCall')) {
+        return array();
+    }
+    $log = (array) SugarRestApiCall::$callLog;
+    usort($log, function ($a, $b) {
+        return ($b['ms'] <=> $a['ms']);
+    });
+    $out = array();
+    foreach (array_slice($log, 0, (int) $n) as $c) {
+        $out[] = $c['method'] . ($c['module'] !== '' ? ':' . $c['module'] : '') . ' ' . (int) round($c['ms']) . ' ms';
+    }
+    return $out;
 }
 
 /** El registro de intentos de guardado, del más reciente al más viejo. */

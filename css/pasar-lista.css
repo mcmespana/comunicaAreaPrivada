@@ -702,6 +702,14 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     display: none;
 }
 .pl-sheet.is-open { display: block; }
+/* EN MCM APP la web va a pantalla completa POR DETRÁS de su barra de pestañas
+   flotante y de la píldora de atrás/adelante, y un `position: fixed` no se
+   entera (CONTRATO-APP-WEBVIEW.md §3). La hoja tapaba el motivo, la ficha y
+   «Quitar la marca» (27/09/2026). Medido en un iPhone: la píldora empieza a
+   ~168 pt del borde de abajo, así que se reserva eso y un poco; la hoja hace
+   scroll si no cabe. Solo en la app: en el navegador no hay nada que esquivar.
+   Es la misma hoja en chavales y monitores. */
+body.sticpa-app-mode .pl-sheet { padding-bottom: 11.5rem; }
 /* Mientras el dedo la lleva, se promociona a capa propia: el movimiento va en
    el compositor y no toca el hilo principal. Fuera del arrastre se quita, que
    dejar capas promocionadas de más es peor que no promocionar. */

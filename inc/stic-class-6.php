@@ -803,6 +803,32 @@ class SugarRestApiCall
         return $set_entry_result->id;
     }
 
+    /**
+     * Varias altas del MISMO módulo en UNA petición (`set_entries` de la API
+     * v4.1). Cada fila es lo mismo que se le pasaría a `set_entry()`.
+     *
+     * Devuelve la respuesta tal cual —`{ids: [...]}` en el mismo orden que las
+     * filas, o un cuerpo de error— o null si no ha llegado respuesta. No
+     * interpreta nada: quien la usa decide si puede reintentar sin duplicar
+     * (ver `sticpa_pl_crear_en_lotes()`).
+     */
+    public function set_entries($module_name, $rows)
+    {
+        $lists = array();
+        foreach ((array) $rows as $row) {
+            $nameValueList = array();
+            foreach ((array) $row as $field => $value) {
+                $nameValueList[] = array('name' => $field, 'value' => $value);
+            }
+            $lists[] = $nameValueList;
+        }
+        return $this->call('set_entries', array(
+            'session' => $this->session_id,
+            'module_name' => $module_name,
+            'name_value_lists' => $lists,
+        ), $this->url);
+    }
+
     public function set_relationship($moduleName, $recordId, $relationship, $relatedIds = array())
     {
         $setRelationshipParameters = array(
