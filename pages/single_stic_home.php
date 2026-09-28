@@ -134,7 +134,7 @@ $portalName = get_option('sticpa_scp_name');
             );
         }
         if (!empty($tarjetas) && function_exists('sticpa_record_list_html')) {
-            // Misma etiqueta de grupo que usa "Tu cuenta" más abajo: no se
+            // Misma etiqueta de grupo que usa "Tu perfil" más abajo: no se
             // inventa una clase nueva para decir lo mismo.
             echo "<p class='stic-section-label stic-section-label--mini'>"
                 . esc_html__('A quién tienes a tu cargo', 'sticpa') . "</p>";
@@ -166,13 +166,11 @@ $portalName = get_option('sticpa_scp_name');
     /**
      * ORDEN CON SENTIDO EN LA HOME.
      * ------------------------------------------------------------------
-     * El menú tiene un orden pensado para la barra de navegación; la home
-     * necesita otro: primero lo que la persona VIENE A HACER (apuntarse a
-     * algo, ver qué tiene), y aparte —más pequeño— lo de "mi cuenta", que
-     * se toca una vez cada muchos meses.
-     *
-     * Las claves que no estén en la lista de prioridad se mantienen en el
-     * orden del menú, así que añadir una sección nueva sigue funcionando
+     * Los mismos tres bloques que el menú del móvil: primero lo que la
+     * persona VIENE A HACER (apuntarse a algo, ver qué tiene), luego las
+     * herramientas del equipo de monitores y aparte —más pequeño— lo de «tu
+     * cuenta», que se toca una vez cada muchos meses. Dentro de cada bloque,
+     * el orden del menú, así que añadir una sección nueva sigue funcionando
      * sin tocar esto.
      */
     $accountKeys = array(
@@ -185,22 +183,17 @@ $portalName = get_option('sticpa_scp_name');
         'single_stic_password_change',
         'single_stic_unsubscribe',
     );
-    $mainPriority = array(
-        'list_stic_events',
-        'list_stic_registrations',
-        'single_stic_activities_calendar',
-        'list_stic_documents',
-        'list_stic_payments',
-        'list_stic_payment_commitments',
-        'single_stic_payment_form',
-    );
+    // El orden de «Tu día a día» es EL DEL MENÚ (getSticMenuElements): antes
+    // había aquí una segunda lista de prioridades, y la home y la barra decían
+    // cosas distintas. Ahora el menú ya viene ordenado por uso, así que basta.
 
     /* EL GRUPO «EQUIPO DE MONITORES».
      * ------------------------------------------------------------------
      * Lo de monitor no es «tu día a día» (eso es lo que uno viene a hacer como
-     * miembro: apuntarse, mirar sus pagos) ni «tu cuenta»: es otro sombrero. Y
-     * estaba repartido entre los dos grupos, así que «Pasar lista» salía junto
-     * a «Eventos» y «Monitor/a» junto a «Cambiar contraseña».
+     * miembro: apuntarse, mirar sus pagos) ni «tu cuenta»: es otro sombrero.
+     * Van aquí las HERRAMIENTAS del equipo (Pasar lista, Grupos y fichas,
+     * Coordinación); tus propios datos de monitor van en «Tu perfil», con el
+     * resto de tus datos.
      *
      * Aquí van juntas, en su propio bloque y con el motivo escrito: quien entra
      * ve de un vistazo qué le corresponde por ser del equipo y qué, además, por
@@ -230,15 +223,6 @@ $portalName = get_option('sticpa_scp_name');
         }
     }
     $equipoCards = $ordenEquipo;
-    // Prioridad dentro del grupo principal (el resto, detrás y en su orden).
-    $ordered = array();
-    foreach ($mainPriority as $key) {
-        if (isset($mainCards[$key])) {
-            $ordered[$key] = $mainCards[$key];
-            unset($mainCards[$key]);
-        }
-    }
-    $mainCards = $ordered + $mainCards;
     // Las de cuenta en el orden en que aparecen en $accountKeys.
     $orderedAccount = array();
     foreach ($accountKeys as $key) {
@@ -271,7 +255,7 @@ $portalName = get_option('sticpa_scp_name');
     ?>
     <div class="stic-home-layout<?= $showAgenda ? '' : ' stic-home-layout--solo'; ?>">
         <div class="stic-home-main">
-            <p class="stic-section-label"><?= esc_html($accountCards ? __('Tu día a día', 'sticpa') : __('Tus secciones', 'sticpa')); ?></p>
+            <p class="stic-section-label"><?= esc_html($accountCards ? __('Actividades', 'sticpa') : __('Tus secciones', 'sticpa')); ?></p>
 
             <div class="stic-dashboard-grid">
                 <?php foreach ($mainCards as $key => $label) { $renderCard($key, $label); } ?>
@@ -285,7 +269,7 @@ $portalName = get_option('sticpa_scp_name');
     </div>
 
     <?php if ($equipoCards) : ?>
-        <?php /* Entre «Tu día a día» y «Tu cuenta»: se usa más que los datos
+        <?php /* Entre «Actividades» y «Tu perfil»: se usa más que los datos
                  personales y menos que apuntarse a algo. El chip y la frase
                  dicen POR QUÉ se ve, que es lo que no se podía saber antes:
                  las pantallas de coordinación aparecían sin más. El alcance
@@ -304,10 +288,10 @@ $portalName = get_option('sticpa_scp_name');
     <?php endif; ?>
 
     <?php if ($accountCards) : ?>
-        <?php // "Tu cuenta" va FUERA de la rejilla de 2 columnas: es el cierre de
+        <?php // "Tu perfil" va FUERA de la rejilla de 2 columnas: es el cierre de
               // la página (en móvil, lo último; en escritorio, una fila a lo ancho). ?>
         <section class="stic-home-account">
-            <p class="stic-section-label stic-section-label--mini"><?= esc_html__('Tu cuenta', 'sticpa'); ?></p>
+            <p class="stic-section-label stic-section-label--mini"><?= esc_html__('Tu perfil', 'sticpa'); ?></p>
             <div class="stic-dashboard-grid stic-dashboard-grid--mini">
                 <?php foreach ($accountCards as $key => $label) { $renderCard($key, $label); } ?>
             </div>

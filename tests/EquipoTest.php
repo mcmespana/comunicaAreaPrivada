@@ -5,8 +5,7 @@ use PHPUnit\Framework\TestCase;
 /**
  * EL EQUIPO DE MONITORES (inc/stic-equipo.php).
  * ----------------------------------------------------------------------------
- * Aquí se decide quién ve «Pasar lista», «Mis grupos» y las dos pantallas de
- * coordinación. Es una puerta, y las puertas se prueban por los dos lados: que
+ * Aquí se decide quién ve «Pasar lista», «Mis grupos» y «Coordinación». Es una puerta, y las puertas se prueban por los dos lados: que
  * abra a quien debe y que NO abra a quien no.
  *
  * El fallo que motiva el módulo: la condición era `rol === 'monitor'`, así que
@@ -136,38 +135,55 @@ class EquipoTest extends TestCase
         $GLOBALS['__stic_filters']['sticpa_profile_audience'] = 'miembro';
     }
 
-    public function test_un_monitor_ve_sus_tres_secciones_y_ninguna_de_coordinacion(): void
+    public function test_un_monitor_ve_sus_dos_herramientas_y_ninguna_de_coordinacion(): void
     {
         $this->conRelacion('^grupo^,^monitor^');
         $this->assertSame(array(
-            'single_stic_comunica_monitor',
             'single_stic_pasar_lista',
             'single_stic_mis_grupos',
         ), array_keys(sticpa_equipo_secciones()));
+        // Sus datos de monitor van aparte, con «Tu cuenta».
+        $this->assertSame(
+            array('single_stic_comunica_monitor'),
+            array_keys(sticpa_equipo_secciones_de_cuenta())
+        );
     }
 
-    public function test_coordinacion_anade_monitores_y_reuniones(): void
+    public function test_coordinacion_anade_una_sola_entrada(): void
     {
         $this->conRelacion('^grupo^,^monitor^,^coordinacion_mic_com^');
         $claves = array_keys(sticpa_equipo_secciones());
-        $this->assertContains('single_stic_pasar_lista_monitores', $claves);
-        $this->assertContains('single_stic_pasar_lista_reuniones', $claves);
-        // Y el orden: lo de coordinación va DETRÁS de lo de todos los días.
-        $this->assertSame('single_stic_pasar_lista', $claves[1]);
-        $this->assertSame('single_stic_pasar_lista_reuniones', end($claves));
+        // Una puerta, no dos: «Monitores» y «Reuniones» eran pasar lista a los
+        // monitores y confundían; todo lo de coordinar está en Coordinación.
+        $this->assertSame(array(
+            'single_stic_pasar_lista',
+            'single_stic_mis_grupos',
+            'single_stic_coordinacion',
+        ), $claves);
+        $this->assertNotContains('single_stic_pasar_lista_monitores', $claves);
+        $this->assertNotContains('single_stic_pasar_lista_reuniones', $claves);
     }
 
-    public function test_quien_solo_acompana_ve_las_fichas_pero_no_las_reuniones(): void
+    public function test_quien_solo_acompana_tambien_tiene_coordinacion(): void
     {
-        // Acompañar no es coordinar: se entra a las fichas (y a sus
-        // seguimientos), pero las reuniones de programación las monta
-        // coordinación.
+        // Acompañar no es coordinar, pero las fichas y los seguimientos son lo
+        // suyo, y están en Coordinación. Lo que no le toca (la lista del
+        // sábado, las reuniones) lo esconde la propia pantalla.
         $this->conRelacion('^acompanamiento_mic_com^');
         $claves = array_keys(sticpa_equipo_secciones());
-        $this->assertContains('single_stic_pasar_lista_monitores', $claves);
-        $this->assertNotContains('single_stic_pasar_lista_reuniones', $claves);
-        // Y sin ser monitor no tiene ficha de formación de monitores.
-        $this->assertNotContains('single_stic_comunica_monitor', $claves);
+        $this->assertContains('single_stic_coordinacion', $claves);
+        // Y sin ser monitor no tiene datos de monitor que rellenar.
+        $this->assertSame(array(), sticpa_equipo_secciones_de_cuenta());
+    }
+
+    public function test_un_familiar_viendo_a_su_hijo_no_tiene_datos_de_monitor(): void
+    {
+        $_SESSION['scp_relationship_raw'] = '^grupo^,^monitor^';
+        $_SESSION['scp_role'] = 'monitor';
+        $_SESSION['scp_role_resolved'] = true;
+        $GLOBALS['__stic_filters']['sticpa_profile_audience'] = 'participante';
+
+        $this->assertSame(array(), sticpa_equipo_secciones_de_cuenta());
     }
 
     // -----------------------------------------------------------------
@@ -239,7 +255,7 @@ class EquipoTest extends TestCase
     // estaba bien y la condición del menú, escrita a mano al lado, se quedó
     // vieja.
 
-    public function test_el_menu_le_da_a_coordinacion_sus_dos_pantallas(): void
+    public function test_el_menu_le_da_a_coordinacion_su_pantalla(): void
     {
         require_once __DIR__ . '/../menu.php';
         $this->conRelacion('^grupo^,^coordinacion_mic_com^');
@@ -249,29 +265,70 @@ class EquipoTest extends TestCase
         // Sin marca de monitor: antes se quedaba sin NADA de esto.
         $this->assertArrayHasKey('single_stic_pasar_lista', $items);
         $this->assertArrayHasKey('single_stic_mis_grupos', $items);
-        $this->assertArrayHasKey('single_stic_pasar_lista_monitores', $items);
-        $this->assertArrayHasKey('single_stic_pasar_lista_reuniones', $items);
-        // Y no se le ofrece la ficha de formación de monitores, que no es suya.
+        $this->assertArrayHasKey('single_stic_coordinacion', $items);
+        $this->assertSame('Coordinación', $items['single_stic_coordinacion']);
+        // Y no se le ofrecen datos de monitor, que no son suyos.
         $this->assertArrayNotHasKey('single_stic_comunica_monitor', $items);
     }
 
-    public function test_en_la_barra_lo_de_coordinacion_va_detras_de_lo_de_todos(): void
+    public function test_el_orden_de_la_barra_va_por_bloques(): void
     {
         require_once __DIR__ . '/../menu.php';
         $this->conRelacion('^grupo^,^monitor^,^coordinacion_mic_com^');
 
         $claves = array_keys(getSticMenuElements()[0]);
-        $pos = array_flip($claves);
 
-        // La barra es de UNA línea y lo que no cabe se va a «Más». Con las dos
-        // entradas de coordinación delante, «Eventos» —que usa todo el mundo,
-        // coordinación incluida— se caía dentro del desplegable.
-        $this->assertLessThan($pos['single_stic_pasar_lista_monitores'], $pos['list_stic_events']);
-        $this->assertLessThan($pos['single_stic_pasar_lista_reuniones'], $pos['single_stic_activities_calendar']);
-        // Y lo del sábado sigue arriba, que es lo que se usa cada semana.
-        $this->assertLessThan($pos['list_stic_events'], $pos['single_stic_pasar_lista']);
-        // La contraseña, la última.
-        $this->assertSame('single_stic_password_change', end($claves));
+        // Tres bloques que no se mezclan: Actividades (lo de miembro del MCM),
+        // Equipo de monitores (todo junto, Coordinación incluida) y Tu perfil.
+        $this->assertSame(array(
+            'list_stic_events',
+            'list_stic_registrations',
+            'single_stic_activities_calendar',
+            'list_stic_payments',
+            'list_stic_documents',
+            'single_stic_pasar_lista',
+            'single_stic_mis_grupos',
+            'single_stic_coordinacion',
+            'single_stic_comunica_perfil',
+            'single_stic_comunica_monitor',
+            'single_stic_password_change',
+        ), $claves);
+    }
+
+    public function test_los_nombres_dicen_que_hay_dentro(): void
+    {
+        require_once __DIR__ . '/../menu.php';
+        $this->conRelacion('^grupo^,^monitor^');
+
+        list($items, ) = getSticMenuElements();
+
+        // «Monitor/a» era el nombre de un papel, no de una pantalla.
+        $this->assertSame('Mis datos de monitor', $items['single_stic_comunica_monitor']);
+        $this->assertSame('Grupos y fichas', $items['single_stic_mis_grupos']);
+        $this->assertSame('Usuario y contraseña', $items['single_stic_password_change']);
+        $this->assertNotContains('Monitor/a', $items);
+    }
+
+    public function test_en_el_movil_los_datos_de_monitor_van_con_la_cuenta(): void
+    {
+        require_once __DIR__ . '/../menu.php';
+        $this->conRelacion('^grupo^,^monitor^,^coordinacion_mic_com^');
+
+        $claves = array_merge(array('single_stic_home'), array_keys(getSticMenuElements()[0]));
+        $layout = sticpa_nav_layout($claves);
+        $orden = function ($k) use ($layout) { return $layout['items'][$k]['order']; };
+
+        // Mismo bloque (centena) que «Mis datos», distinto que «Pasar lista».
+        $this->assertSame(
+            intdiv($orden('single_stic_comunica_perfil'), 100),
+            intdiv($orden('single_stic_comunica_monitor'), 100)
+        );
+        $this->assertSame(
+            intdiv($orden('single_stic_pasar_lista'), 100),
+            intdiv($orden('single_stic_coordinacion'), 100)
+        );
+        $this->assertLessThan($orden('single_stic_pasar_lista'), $orden('list_stic_documents'));
+        $this->assertLessThan($orden('single_stic_comunica_perfil'), $orden('single_stic_coordinacion'));
     }
 
     public function test_el_menu_de_un_miembro_normal_no_tiene_nada_de_monitor(): void
@@ -282,7 +339,8 @@ class EquipoTest extends TestCase
         list($items, ) = getSticMenuElements();
 
         $this->assertArrayNotHasKey('single_stic_pasar_lista', $items);
-        $this->assertArrayNotHasKey('single_stic_pasar_lista_monitores', $items);
+        $this->assertArrayNotHasKey('single_stic_coordinacion', $items);
+        $this->assertArrayNotHasKey('single_stic_comunica_monitor', $items);
         // Lo suyo sigue estando.
         $this->assertArrayHasKey('list_stic_events', $items);
     }

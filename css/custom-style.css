@@ -3115,6 +3115,14 @@ span.stic-field {
 }
 .stic-form li.stic-form-note.stic-note-warning strong { color: var(--warning-darker); }
 
+/* Usuario y contraseña (28/09/2026): el usuario se ENSEÑA pero no se edita, y
+   tiene que parecerlo — mismo fondo neutro que las notas suaves. */
+.stic-form input[readonly] {
+    background: var(--surface-2) !important;
+    color: var(--gray-700) !important;
+    cursor: default;
+}
+
 /* ============================================================
    30. CONSENTIMIENTOS LEGALES — enlace "ver condiciones" + select
    ------------------------------------------------------------

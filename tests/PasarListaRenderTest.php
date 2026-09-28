@@ -5211,32 +5211,91 @@ final class PasarListaRenderTest extends TestCase
     }
 
     /**
-     * Los monitores son de COORDINACIÓN. Un monitor raso que escriba
-     * `?quien=monitores` a mano no ve la lista de nadie: se le devuelve a los
-     * chavales, que es lo suyo.
+     * Mis grupos es de los CHAVALES (28/09/2026). La pestaña «Monitores» se fue
+     * a Coordinación: un `?quien=monitores` viejo no pinta ni la pestaña ni la
+     * lista de nadie, ni siquiera a quien coordina.
      */
-    public function test_mis_grupos_monitores_solo_con_alcance_de_coordinacion()
-    {
-        $_REQUEST = array('quien' => 'monitores');
-        $html = $this->render('single_stic_mis_grupos');
-
-        // Sin alcance no hay ni pestaña de monitores.
-        $this->assertStringNotContainsString('pl-tabs--quien', $html);
-        // Y lo que se pinta son los chavales.
-        $this->assertStringContainsString('Tus grupos', $html);
-    }
-
-    /** Con alcance, los monitores agrupados por etapa, como se pidió. */
-    public function test_mis_grupos_monitores_por_etapa_para_coordinacion()
+    public function test_mis_grupos_ya_no_tiene_pestana_de_monitores()
     {
         $this->scp->coordEtapa = 'COM';
         $_REQUEST = array('quien' => 'monitores');
         $html = $this->render('single_stic_mis_grupos');
 
-        $this->assertStringContainsString('pl-tabs--quien', $html);
+        $this->assertStringNotContainsString('pl-tabs--quien', $html);
+        $this->assertStringNotContainsString('Chavales</a>', $html);
+        $this->assertStringContainsString('Tus grupos', $html);
+    }
+
+    /**
+     * Dentro de un grupo, un monitor raso ve quién lo lleva pero SIN enlace: la
+     * ficha de un monitor es de coordinación y acompañamiento, y el enlace
+     * acababa en «Esta pantalla es de coordinación».
+     */
+    public function test_mis_grupos_un_monitor_raso_ve_a_sus_companeros_sin_enlace()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_mis_grupos');
+
         $this->assertStringContainsString('David Soler', $html);
-        // Enlaza a la ficha del monitor, no a la del participante.
+        $this->assertStringNotContainsString('single_stic_pasar_lista_monitor&amp;monitor=', $html);
+    }
+
+    /** Y quien coordina sí llega desde el grupo a la ficha del monitor. */
+    public function test_mis_grupos_coordinacion_abre_la_ficha_del_monitor_desde_el_grupo()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_mis_grupos');
+
         $this->assertStringContainsString('single_stic_pasar_lista_monitor&amp;monitor=', $html);
+    }
+
+    // ---- Coordinación: la portada ------------------------------------------
+
+    /** Sin coordinar ni acompañar, la portada lo dice y no enseña a nadie. */
+    public function test_coordinacion_cerrada_a_un_monitor_raso()
+    {
+        $html = $this->render('single_stic_coordinacion');
+
+        $this->assertStringContainsString('Esta pantalla es de coordinación', $html);
+        $this->assertStringNotContainsString('single_stic_pasar_lista_monitor&amp;monitor=', $html);
+    }
+
+    /** Coordinación: sus listas, el resumen y el equipo por etapa, con buscador. */
+    public function test_coordinacion_junta_listas_resumen_y_equipo()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $html = $this->render('single_stic_coordinacion');
+
+        $this->assertStringContainsString('single_stic_pasar_lista_monitores', $html);
+        $this->assertStringContainsString('single_stic_pasar_lista_reuniones', $html);
+        $this->assertStringContainsString('single_stic_pasar_lista_resumen', $html);
+        $this->assertStringContainsString('David Soler', $html);
+        $this->assertStringContainsString('single_stic_pasar_lista_monitor&amp;monitor=', $html);
+        // El alcance, de subtítulo.
+        $this->assertStringContainsString('COM', $html);
+        // Un solo buscador, y las filas de navegación fuera de lo que filtra.
+        $this->assertSame(1, substr_count($html, 'data-pl-filter '));
+        $this->assertStringContainsString('pl-list--nav', $html);
+        // Y el equipo va DEBAJO de las listas.
+        $this->assertLessThan(strpos($html, 'David Soler'), strpos($html, 'single_stic_pasar_lista_reuniones'));
+    }
+
+    /**
+     * EL FALLO: quien solo acompaña tenía «Monitores» en el menú y la pantalla
+     * le decía «es de coordinación». Ahora entra, ve las fichas, y no se le
+     * ofrecen ni la lista del sábado ni las reuniones, que no son suyas.
+     */
+    public function test_coordinacion_deja_entrar_a_quien_solo_acompana()
+    {
+        $this->scp->isAcomp = true;
+        $html = $this->render('single_stic_coordinacion');
+
+        $this->assertStringNotContainsString('Esta pantalla es de coordinación', $html);
+        $this->assertStringContainsString('Acompañamiento', $html);
+        $this->assertStringContainsString('single_stic_pasar_lista_monitor&amp;monitor=', $html);
+        $this->assertStringNotContainsString('single_stic_pasar_lista_monitores', $html);
+        $this->assertStringNotContainsString('single_stic_pasar_lista_reuniones', $html);
     }
 
     /** Un modo inventado en la URL no rompe nada: se cae al de por defecto. */
@@ -5568,18 +5627,32 @@ final class PasarListaRenderTest extends TestCase
     }
 
     /**
-     * Mis grupos → Monitores: los monitores sin grupo, arriba y con «Vincular»,
-     * para quien coordina toda la delegación. Y no se repiten en «Sin etapa».
+     * Coordinación → Tu equipo: los monitores sin grupo, arriba y con
+     * «Vincular», para quien coordina toda la delegación. Y no se repiten en
+     * «Sin etapa». (Antes vivía en la pestaña Monitores de Mis grupos.)
      */
-    public function test_mis_grupos_monitores_sin_grupo_se_vinculan_ahi()
+    public function test_coordinacion_monitores_sin_grupo_se_vinculan_ahi()
     {
         $this->scp->coordEtapa = '';
-        $_REQUEST = array('quien' => 'monitores');
-        $html = $this->render('single_stic_mis_grupos');
+        $html = $this->render('single_stic_coordinacion');
 
         $this->assertStringContainsString('name="pl_assign_group[r9]"', $html);
         $this->assertSame(1, substr_count($html, '<span class="pl-name">Un Monitor</span>'), 'una sola fila');
         $this->assertStringNotContainsString('Sin etapa', $html);
+    }
+
+    /** Y el vincular de Coordinación escribe, con su propio nonce. */
+    public function test_coordinacion_vincula_un_monitor_sin_grupo()
+    {
+        $this->scp->coordEtapa = '';
+        $_POST = array(
+            'pl_nonce' => wp_create_nonce('pl_coordinacion'),
+            'pl_assign_rel' => 'r9',
+            'pl_assign_group' => array('r9' => 'g1'),
+        );
+        $html = $this->render('single_stic_coordinacion');
+
+        $this->assertStringContainsString('Vinculado', $html);
     }
 
     /** La ficha de un monitor sin grupo dice que no tiene y deja vincularlo. */

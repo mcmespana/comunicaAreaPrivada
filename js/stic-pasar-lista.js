@@ -1217,7 +1217,9 @@
     // filas de persona (`sticpa_pl_person_link_html`). Las filas de MARCAR no
     // entran: allí no hay buscador, y esconder una fila de una lista que se está
     // guardando es pedir un lío.
-    var PL_FILTRABLE = '.pl-list .pl-group, .pl-mine, .pl-list .pl-rowlink';
+    // `.pl-list--nav` son filas de navegación (las de la portada de
+    // Coordinación): van encima del buscador y no son lo que se busca.
+    var PL_FILTRABLE = '.pl-list:not(.pl-list--nav) .pl-group, .pl-mine, .pl-list .pl-rowlink';
 
     var filterInput = document.querySelector('[data-pl-filter]');
     if (filterInput) {

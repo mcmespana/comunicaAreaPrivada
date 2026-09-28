@@ -136,7 +136,7 @@ $family = sticpa_pl_family($objSCP, $contactId);
  * precio que esa pantalla existe para no pagar. */
 $vengo = isset($_REQUEST['vengo']) ? (string) $_REQUEST['vengo'] : '';
 $volver = sticpa_pl_vengo_url($vengo, $groupId);
-$volverTexto = ($volver !== '') ? __('Volver a mis grupos', 'sticpa') : __('Volver a la lista', 'sticpa');
+$volverTexto = ($volver !== '') ? __('Volver a Grupos y fichas', 'sticpa') : __('Volver a la lista', 'sticpa');
 if ($volver === '') {
     // Un `vengo` que no es de los nuestros se TIRA aquí, y no solo se ignora al
     // construir el enlace: si no, el pie de «siguiente» lo seguía arrastrando de

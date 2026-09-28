@@ -395,7 +395,7 @@ if (!empty($sinGrupo)) {
  * se lee, y lo que se hace aquí el 95 % de las veces es entrar a marcar. Una
  * línea, al final, para quien venía a otra cosa. */
 $html .= '<p class="pl-footnote"><a class="pl-footnote-link" href="?internalpage=single_stic_mis_grupos">'
-    . esc_html__('¿Solo quieres mirar las fichas? Están en Mis grupos', 'sticpa')
+    . esc_html__('¿Solo quieres mirar las fichas? Están en Grupos y fichas', 'sticpa')
     . sticpa_pl_icon('next') . '</a></p>';
 
 $html .= sticpa_pl_grupos_ocultos_html($objSCP);

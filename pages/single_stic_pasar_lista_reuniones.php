@@ -73,7 +73,9 @@ $sessions = ($event !== null) ? sticpa_pl_event_sessions($objSCP, $event['id']) 
 $course = sticpa_pl_course_for();
 
 $html .= '<div class="pl-head">';
-$html .= '<a class="pl-back" href="?internalpage=single_stic_pasar_lista"'
+// Se vuelve por la puerta por la que se entró: Pasar lista o Coordinación.
+$desdeCoord = (isset($_REQUEST['desde']) && $_REQUEST['desde'] === 'coordinacion');
+$html .= '<a class="pl-back" href="' . ($desdeCoord ? '?internalpage=single_stic_coordinacion' : '?internalpage=single_stic_pasar_lista') . '"'
     . ' aria-label="' . esc_attr__('Volver', 'sticpa') . '">' . sticpa_pl_icon('back') . '</a>';
 $html .= '<div class="pl-head-titles">';
 // El ALCANCE en la cabecera, como en Monitores (design.md §6.4): la lista que
@@ -111,7 +113,7 @@ if (!empty($sessions)) {
             : 0;
 
         $html .= '<a class="pl-group" href="?internalpage=single_stic_pasar_lista_monitores&reunion=1&sesion='
-            . esc_attr($s['id']) . '">';
+            . esc_attr($s['id']) . ($desdeCoord ? '&desde=coordinacion' : '') . '">';
         $html .= '<span class="pl-group-body">';
         // EL NOMBRE MANDA. Una reunión es «Programación del 2.º trimestre», y
         // eso es lo que se busca en la lista; la fecha acompaña. En las sesiones
