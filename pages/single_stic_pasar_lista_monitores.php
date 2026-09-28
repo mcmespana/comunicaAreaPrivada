@@ -291,9 +291,12 @@ if (is_array($saved)) {
 // Pintado
 // ---------------------------------------------------------------------------
 
+// A esta lista se llega por dos puertas —Pasar lista y Coordinación— y se
+// vuelve por la que se entró (`desde`, lista blanca de un solo valor).
+$desdeCoord = (isset($_REQUEST['desde']) && $_REQUEST['desde'] === 'coordinacion');
 $backUrl = $isReunion
-    ? '?internalpage=single_stic_pasar_lista_reuniones'
-    : '?internalpage=single_stic_pasar_lista';
+    ? '?internalpage=single_stic_pasar_lista_reuniones' . ($desdeCoord ? '&desde=coordinacion' : '')
+    : ($desdeCoord ? '?internalpage=single_stic_coordinacion' : '?internalpage=single_stic_pasar_lista');
 
 $html .= '<div data-pl-marcar data-pl-monitores'
     . ($savedOk ? ' data-pl-saved-ok' : '')

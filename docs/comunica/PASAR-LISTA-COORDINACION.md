@@ -275,8 +275,9 @@ Lo que hay ahora:
   los tres papeles —monitor, coordinación, acompañamiento— y **sin llamar al
   CRM**. El menú y la home la usan; no se vuelve a escribir la condición.
 - **El «menú de datos de monitores» es un grupo propio en la home**, entre «Tu
-  día a día» y «Tu cuenta»: Monitor/a · Pasar lista · Mis grupos · Monitores ·
-  Reuniones. La barra de navegación es de una sola línea con desbordamiento a
+  día a día» y «Tu cuenta»: ~~Monitor/a · Pasar lista · Mis grupos · Monitores ·
+  Reuniones~~ → desde el 28/09/2026, **Pasar lista · Mis grupos · Coordinación**
+  (§5 quater). La barra de navegación es de una sola línea con desbordamiento a
   «Más» y no admite encabezados de grupo, así que el agrupado visual vive donde
   hay sitio para leerlo.
 - **«Monitores» es la puerta a los seguimientos**: la lista → la ficha de cada
@@ -334,6 +335,49 @@ portada, a la vez que el arreglo del guardado (parte de estado §1):
   «arregle» de vuelta.
 - **Los avisos de guardado** (verde / rojo) llevan clase —`pl-notice--ok`,
   `pl-notice--error`— y no un color en `style=`, que `design.md` §4 prohíbe.
+
+## 5 quater. Nombres y sitios, repasados (28/09/2026)
+
+El propietario: *«las de monitores y coordinación son un poco mareantes porque
+los nombres no están muy claros»*. Lo eran. Cinco secciones con nombres que no
+se entendían juntos:
+
+| Antes | Qué era de verdad | El problema |
+|---|---|---|
+| **Monitor/a** | Tus datos de monitor (trayectoria, formación, delitos sexuales) | El nombre de un papel, no de una pantalla. Y al lado de «Monitores» parecían lo mismo. |
+| **Monitores** | *Pasar lista* a los monitores el sábado | La descripción prometía «fichas y seguimientos»; las fichas estaban en otra pantalla. |
+| **Reuniones** | Otra forma de pasar esa misma lista | Sin decir de qué reuniones. |
+| **Mis grupos → Monitores** | El directorio de fichas de monitores | Metía monitores en la pantalla de los chavales. |
+| **Pasar lista** | Solo la lista de los chavales… y al final, la de monitores | — |
+
+**Y un fallo**: quien **solo acompaña** tenía «Monitores» en el menú y la
+pantalla le contestaba «Esta pantalla es de coordinación», igual que la pestaña
+de Mis grupos. No tenía por dónde llegar a las fichas y seguimientos que sí
+puede leer. **Otro**: en Mis grupos, dentro de un grupo, el nombre de cada
+monitor enlazaba a su ficha también para un monitor raso, que acababa en el
+mismo «es de coordinación».
+
+Lo que hay ahora — **un verbo por sección**:
+
+| Sección | Para qué | Quién |
+|---|---|---|
+| **Pasar lista** | Marcar quién ha venido. Para coordinación incluye, en su bloque del final, la **Lista de monitores** y las **Reuniones de programación**: pasar lista es pasar lista, sea de quien sea. | Equipo |
+| **Mis grupos** | Leer las fichas de los chavales, sin marcar nada. Dentro de un grupo se ve quién lo lleva. | Equipo |
+| **Coordinación** *(nueva, `single_stic_coordinacion`)* | Todo lo de coordinar en una pantalla: la reunión sin pasar (ámbar), **Lista de monitores**, **Reuniones de programación**, **Resumen de grupos** y **Tu equipo** — el directorio de monitores por etapa, con buscador, «Sin grupo» y «Vincular»; cada fila abre la ficha y sus seguimientos. | Coordinación y acompañamiento (este sin la lista ni las reuniones) |
+| **Mis datos de monitor** *(antes «Monitor/a»)* | Tu formación y certificados. Va en **Tu cuenta**, junto a «Mis datos»: es dato tuyo, no herramienta del equipo. | Monitores |
+
+Decisiones:
+
+- **La Lista de monitores y las Reuniones tienen dos puertas** (Pasar lista y
+  Coordinación). Es la misma pantalla, no dos: se vuelve por la que se entró
+  (`&desde=coordinacion`, lista blanca de un valor).
+- **La ficha del monitor vuelve a Coordinación** (antes a la lista del sábado,
+  que no es de donde se viene a leer una ficha). Desde Mis grupos sigue
+  volviendo a Mis grupos.
+- **El aviso de la reunión sin pasar** sale en las dos portadas con la misma
+  regla: `sticpa_pl_reunion_pendiente()` (`inc/stic-pasar-lista-ui.php`).
+- **Coste**: sin cargador propio. 7 llamadas en 3 viajes con la caché fría
+  (`CosteLlamadasTest`), lo que ya pedían sus piezas por separado.
 
 ## 6. Campos y valores que hay que crear
 

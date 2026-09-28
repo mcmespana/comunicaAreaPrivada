@@ -431,19 +431,19 @@ function sticpa_section_meta($key)
             'icon' => "<path d='M3 11l9-8 9 8'/><path d='M5 10v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V10'/><path d='M9 21v-6h6v6'/>",
         ),
         'list_stic_events' => array(
-            'desc' => __('Descubre los eventos y actividades disponibles.', 'sticpa'),
+            'desc' => __('Las actividades a las que te puedes apuntar.', 'sticpa'),
             'icon' => "<rect x='3' y='4' width='18' height='18' rx='2'/><path d='M16 2v4M8 2v4M3 10h18'/>",
         ),
         'list_stic_registrations' => array(
-            'desc' => __('Revisa tus inscripciones y su estado.', 'sticpa'),
+            'desc' => __('A qué estás apuntado y en qué estado está.', 'sticpa'),
             'icon' => "<path d='M9 11l3 3L22 4'/><path d='M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'/>",
         ),
         'list_stic_documents' => array(
-            'desc' => __('Accede y descarga tus documentos.', 'sticpa'),
+            'desc' => __('Tus documentos, para verlos y descargarlos.', 'sticpa'),
             'icon' => "<path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><path d='M14 2v6h6M9 13h6M9 17h6'/>",
         ),
         'list_stic_payments' => array(
-            'desc' => __('Consulta tu historial de pagos.', 'sticpa'),
+            'desc' => __('Tus pagos y recibos, con su estado.', 'sticpa'),
             'icon' => "<rect x='2' y='5' width='20' height='14' rx='2'/><path d='M2 10h20'/>",
         ),
         'list_stic_payment_commitments' => array(
@@ -455,7 +455,7 @@ function sticpa_section_meta($key)
             'icon' => "<rect x='2' y='5' width='20' height='14' rx='2'/><path d='M2 10h20M6 15h4'/>",
         ),
         'single_stic_activities_calendar' => array(
-            'desc' => __('Visualiza tus actividades en el calendario.', 'sticpa'),
+            'desc' => __('Tus actividades, día a día.', 'sticpa'),
             'icon' => "<rect x='3' y='4' width='18' height='18' rx='2'/><path d='M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01'/>",
         ),
         'single_stic_password_change' => array(
@@ -499,7 +499,7 @@ function sticpa_section_meta($key)
             'icon' => "<circle cx='12' cy='8' r='4'/><path d='M4 21v-1a8 8 0 0 1 16 0v1'/>",
         ),
         'single_stic_comunica_monitor' => array(
-            'desc' => __('Tu formación, certificados y datos de monitor/a.', 'sticpa'),
+            'desc' => __('Tu trayectoria, formación y certificado de delitos sexuales.', 'sticpa'),
             'icon' => "<path d='M22 10 12 5 2 10l10 5 10-5Z'/><path d='M6 12v5c0 1 2 3 6 3s6-2 6-3v-5'/>",
         ),
         'single_stic_comunica_laico' => array(
@@ -516,16 +516,19 @@ function sticpa_section_meta($key)
             'icon' => "<path d='M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2'/><rect x='9' y='3' width='6' height='4' rx='1'/><path d='m9 14 2 2 4-4'/>",
         ),
         'single_stic_mis_grupos' => array(
-            'desc' => __('Las fichas de tu gente, sin pasar lista.', 'sticpa'),
+            'desc' => __('Los chavales de cada grupo y sus fichas, sin pasar lista.', 'sticpa'),
             'icon' => "<circle cx='9' cy='8' r='3.5'/><path d='M2 20v-1a6 6 0 0 1 12 0v1'/><path d='M17 8.5a3 3 0 0 1 0 5'/><path d='M19 20v-1a5 5 0 0 0-2.5-4'/>",
         ),
-        'single_stic_pasar_lista_monitores' => array(
-            'desc' => __('Tu equipo: asistencia, fichas y seguimientos.', 'sticpa'),
+        // Una sola entrada para todo lo de coordinar (28/09/2026). Antes eran
+        // dos, «Monitores» y «Reuniones», y las dos eran en realidad pasar
+        // lista a los monitores; sus fichas estaban en otra pantalla.
+        'single_stic_coordinacion' => array(
+            // Quien solo acompaña no pasa la lista ni monta reuniones: no se le
+            // prometen en la tarjeta.
+            'desc' => (function_exists('sticpa_equipo_papeles') && !in_array('coordinacion', sticpa_equipo_papeles(), true))
+                ? __('Las fichas y los seguimientos de tu equipo de monitores.', 'sticpa')
+                : __('Tu equipo de monitores: fichas, seguimientos, asistencia y reuniones.', 'sticpa'),
             'icon' => "<circle cx='10' cy='8' r='3.5'/><path d='M3 20v-1a6 6 0 0 1 11-3.3'/><path d='m15 17 2 2 4-4'/>",
-        ),
-        'single_stic_pasar_lista_reuniones' => array(
-            'desc' => __('Reuniones de programación: crearlas y pasar lista.', 'sticpa'),
-            'icon' => "<rect x='3' y='4' width='18' height='18' rx='2'/><path d='M16 2v4M8 2v4M3 10h18'/><path d='M12 13v3l2 1'/>",
         ),
     );
 

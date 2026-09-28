@@ -385,71 +385,28 @@ if ($scope !== null) {
         . '</div>';
 
     /* LA REUNIÓN SIN LISTA, con el mismo aviso que las listas de tus grupos
-     * (ámbar y «Recuperar», que lleva directo a su lista). Solo la última
-     * celebrada: una reunión de programación sin lista es justo lo que se
-     * olvida, porque pasa tres o cuatro veces al año. Cero consultas: las
-     * sesiones van en la tanda de arriba y las listas ya están leídas.
-     *
-     * Y solo durante un MES: una reunión suspendida no se puede borrar desde
-     * aquí ni marcar «Sin registro», y dejaría el ámbar puesto hasta la
-     * siguiente, tres meses después. Pasado el mes sigue en Reuniones como
-     * «sin pasar», que es donde se mira la historia.
-     *
-     * La lista de monitores del SÁBADO no avisa, a propósito: si coordinación
-     * no la pasa cada semana, sería un ámbar fijo que enseña a no mirar el
-     * ámbar, también el de las listas de grupo. */
-    $listasMon = sticpa_pl_all_listas_monitores($objSCP);
-    $deudas = array();
-    if (is_array($reuEvent) && !empty($reuEvent['id'])) {
-        $ultima = null;
-        foreach (sticpa_pl_elapsed_sessions(sticpa_pl_event_sessions($objSCP, $reuEvent['id'])) as $s) {
-            $ultima = $s;   // van de la más antigua a la más reciente
-        }
-        if ($ultima !== null && empty($listasMon[$ultima['id']]['estado'])
-            && sticpa_pl_now() - (int) $ultima['start'] <= 30 * DAY_IN_SECONDS) {
-            $deudas[] = array(
-                'when' => sticpa_pl_session_label($ultima, false),
-                'what' => (isset($ultima['name']) && $ultima['name'] !== '')
-                    ? sprintf(
-                        /* translators: %s: nombre de la reunión */
-                        __('Reunión: %s', 'sticpa'),
-                        $ultima['name']
-                    )
-                    : __('Reunión', 'sticpa'),
-                'href' => '?internalpage=single_stic_pasar_lista_monitores&reunion=1&sesion=' . rawurlencode($ultima['id']),
-            );
-        }
-    }
-    if (!empty($deudas)) {
-        $html .= '<div class="pl-pending">';
-        foreach ($deudas as $d) {
-            $html .= '<a class="pl-pending-row" href="' . esc_url($d['href']) . '">';
-            $html .= '<span class="pl-pending-body">';
-            $html .= '<span class="pl-pending-when">' . esc_html($d['when']) . '</span>';
-            $html .= '<span class="pl-pending-group">' . esc_html($d['what']) . '</span>';
-            $html .= '</span>';
-            $html .= '<span class="pl-pending-cta">' . esc_html__('Recuperar', 'sticpa') . '</span>';
-            $html .= '</a>';
-        }
-        $html .= '</div>';
-    }
+     * (ámbar y «Recuperar», que lleva directo a su lista). La regla —solo la
+     * última, solo durante un mes, y la lista del sábado nunca— está en
+     * sticpa_pl_reunion_pendiente(), la misma que usa la portada de
+     * Coordinación. */
+    $html .= sticpa_pl_deudas_html(sticpa_pl_reunion_pendiente($objSCP, $reuEvent));
 
+    /* Las LISTAS del equipo, aquí porque esta es la pantalla de pasar lista:
+     * antes solo se pasaba la de los chavales y la de los monitores estaba «en
+     * otra parte», con otro nombre. Lo demás de coordinar (las fichas, los
+     * seguimientos) está en la sección Coordinación, que también tiene estas
+     * dos filas: son dos puertas a la misma lista, no dos listas. */
     $html .= '<div class="pl-list">';
-    $html .= '<a class="pl-group" href="?internalpage=single_stic_pasar_lista_monitores">';
-    $html .= '<span class="pl-group-body">';
-    $html .= '<span class="pl-name">' . esc_html__('Monitores', 'sticpa') . '</span>';
-    $html .= '<span class="pl-group-meta">' . esc_html__('Pasar lista del sábado', 'sticpa') . '</span>';
-    $html .= '</span>';
-    $html .= '<span class="pl-detail">' . sticpa_pl_icon('next') . '</span>';
-    $html .= '</a>';
-
-    $html .= '<a class="pl-group" href="?internalpage=single_stic_pasar_lista_reuniones">';
-    $html .= '<span class="pl-group-body">';
-    $html .= '<span class="pl-name">' . esc_html__('Reuniones', 'sticpa') . '</span>';
-    $html .= '<span class="pl-group-meta">' . esc_html__('Programación: crear y pasar lista', 'sticpa') . '</span>';
-    $html .= '</span>';
-    $html .= '<span class="pl-detail">' . sticpa_pl_icon('next') . '</span>';
-    $html .= '</a>';
+    $html .= sticpa_pl_nav_row_html(
+        '?internalpage=single_stic_pasar_lista_monitores',
+        __('Lista de monitores', 'sticpa'),
+        __('Quién ha venido el sábado', 'sticpa')
+    );
+    $html .= sticpa_pl_nav_row_html(
+        '?internalpage=single_stic_pasar_lista_reuniones',
+        __('Reuniones de programación', 'sticpa'),
+        __('Crearlas y pasar lista', 'sticpa')
+    );
     $html .= '</div>';
 }
 

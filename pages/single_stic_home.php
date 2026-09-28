@@ -166,13 +166,11 @@ $portalName = get_option('sticpa_scp_name');
     /**
      * ORDEN CON SENTIDO EN LA HOME.
      * ------------------------------------------------------------------
-     * El menú tiene un orden pensado para la barra de navegación; la home
-     * necesita otro: primero lo que la persona VIENE A HACER (apuntarse a
-     * algo, ver qué tiene), y aparte —más pequeño— lo de "mi cuenta", que
-     * se toca una vez cada muchos meses.
-     *
-     * Las claves que no estén en la lista de prioridad se mantienen en el
-     * orden del menú, así que añadir una sección nueva sigue funcionando
+     * Los mismos tres bloques que el menú del móvil: primero lo que la
+     * persona VIENE A HACER (apuntarse a algo, ver qué tiene), luego las
+     * herramientas del equipo de monitores y aparte —más pequeño— lo de «tu
+     * cuenta», que se toca una vez cada muchos meses. Dentro de cada bloque,
+     * el orden del menú, así que añadir una sección nueva sigue funcionando
      * sin tocar esto.
      */
     $accountKeys = array(
@@ -185,22 +183,17 @@ $portalName = get_option('sticpa_scp_name');
         'single_stic_password_change',
         'single_stic_unsubscribe',
     );
-    $mainPriority = array(
-        'list_stic_events',
-        'list_stic_registrations',
-        'single_stic_activities_calendar',
-        'list_stic_documents',
-        'list_stic_payments',
-        'list_stic_payment_commitments',
-        'single_stic_payment_form',
-    );
+    // El orden de «Tu día a día» es EL DEL MENÚ (getSticMenuElements): antes
+    // había aquí una segunda lista de prioridades, y la home y la barra decían
+    // cosas distintas. Ahora el menú ya viene ordenado por uso, así que basta.
 
     /* EL GRUPO «EQUIPO DE MONITORES».
      * ------------------------------------------------------------------
      * Lo de monitor no es «tu día a día» (eso es lo que uno viene a hacer como
-     * miembro: apuntarse, mirar sus pagos) ni «tu cuenta»: es otro sombrero. Y
-     * estaba repartido entre los dos grupos, así que «Pasar lista» salía junto
-     * a «Eventos» y «Monitor/a» junto a «Cambiar contraseña».
+     * miembro: apuntarse, mirar sus pagos) ni «tu cuenta»: es otro sombrero.
+     * Van aquí las HERRAMIENTAS del equipo (Pasar lista, Mis grupos,
+     * Coordinación); tus propios datos de monitor van en «Tu cuenta», con el
+     * resto de tus datos.
      *
      * Aquí van juntas, en su propio bloque y con el motivo escrito: quien entra
      * ve de un vistazo qué le corresponde por ser del equipo y qué, además, por
@@ -230,15 +223,6 @@ $portalName = get_option('sticpa_scp_name');
         }
     }
     $equipoCards = $ordenEquipo;
-    // Prioridad dentro del grupo principal (el resto, detrás y en su orden).
-    $ordered = array();
-    foreach ($mainPriority as $key) {
-        if (isset($mainCards[$key])) {
-            $ordered[$key] = $mainCards[$key];
-            unset($mainCards[$key]);
-        }
-    }
-    $mainCards = $ordered + $mainCards;
     // Las de cuenta en el orden en que aparecen en $accountKeys.
     $orderedAccount = array();
     foreach ($accountKeys as $key) {

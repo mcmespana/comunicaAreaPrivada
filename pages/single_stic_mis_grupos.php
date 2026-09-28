@@ -21,10 +21,11 @@
  *   ?ver=cursos                 por curso escolar, que cruza los grupos
  *   ?ver=az                     todas las personas, alfabético — aquí busca el buscador
  *
- * Y dos poblaciones:
- *
- *   ?quien=participantes (por defecto)
- *   ?quien=monitores     solo coordinación, agrupados por etapa
+ * UNA SOLA POBLACIÓN: los chavales. Hasta el 28/09/2026 coordinación tenía
+ * aquí una segunda pestaña, «Monitores», con las fichas del equipo; era lo que
+ * hacía de esta pantalla «un jaleo que habla de monitores y de niños». Ese
+ * directorio vive ahora en Coordinación (pages/single_stic_coordinacion.php).
+ * Dentro de un grupo sí se ve quién lo lleva: es parte de lo que es el grupo.
  *
  * Con ?grupo=<id> enseña la gente de ese grupo.
  */
@@ -67,6 +68,10 @@ sticpa_pl_prime($objSCP, function () use ($objSCP) {
     sticpa_pl_groups($objSCP);
     sticpa_pl_my_groups($objSCP);
     sticpa_pl_all_relationships($objSCP);
+    // Coordinar y acompañar salen de la MISMA consulta (sticpa_pl_mis_rels):
+    // deciden si los monitores de un grupo llevan enlace a su ficha.
+    sticpa_pl_coord_scope($objSCP);
+    sticpa_pl_is_acompanante($objSCP);
 });
 
 $groups = sticpa_pl_groups($objSCP);
@@ -76,21 +81,19 @@ $ver = isset($_REQUEST['ver']) ? (string) $_REQUEST['ver'] : 'grupos';
 if (!in_array($ver, array('grupos', 'cursos', 'az', 'sueltos'), true)) {
     $ver = 'grupos';
 }
-$quien = (isset($_REQUEST['quien']) && $_REQUEST['quien'] === 'monitores') ? 'monitores' : 'participantes';
 $groupId = isset($_REQUEST['grupo']) ? sticpa_pl_safe_id($_REQUEST['grupo']) : '';
 
-// Los monitores son cosa de coordinación, igual que su lista. Si alguien llega
-// con ?quien=monitores sin alcance, se le devuelve a los participantes en vez
-// de enseñarle una pantalla vacía sin explicación.
+// ¿Puede abrir la FICHA de un monitor? Coordinación y acompañamiento, igual que
+// la propia ficha (pages/single_stic_pasar_lista_monitor.php). A un monitor sin
+// esos papeles el nombre de sus compañeros se le enseña, pero sin enlace: antes
+// era un enlace que acababa en «Esta pantalla es de coordinación».
 $scope = sticpa_pl_coord_scope($objSCP);
-if ($quien === 'monitores' && $scope === null) {
-    $quien = 'participantes';
-}
+$veFichasDeMonitores = ($scope !== null) || sticpa_pl_is_acompanante($objSCP);
 
 /** El enlace a esta misma pantalla con un parámetro cambiado. */
-$url = function ($cambios = array()) use ($ver, $quien, $groupId) {
+$url = function ($cambios = array()) use ($ver, $groupId) {
     $q = array_merge(
-        array('internalpage' => 'single_stic_mis_grupos', 'ver' => $ver, 'quien' => $quien),
+        array('internalpage' => 'single_stic_mis_grupos', 'ver' => $ver),
         ($groupId !== '') ? array('grupo' => $groupId) : array(),
         $cambios
     );
@@ -280,6 +283,12 @@ if ($groupId !== '' && isset($groups[$groupId])) {
         $html .= '<div class="pl-sec">' . esc_html__('Monitores', 'sticpa') . '</div>';
         $html .= '<div class="pl-list">';
         foreach ($people['monitors'] as $m) {
+            if (!$veFichasDeMonitores) {
+                $html .= '<div class="pl-rowwrap pl-rowstatic">' . sticpa_pl_avatar_html($m, true)
+                    . '<span class="pl-row-body"><span class="pl-name">' . esc_html($m['name'])
+                    . '</span></span></div>';
+                continue;
+            }
             $html .= sticpa_pl_person_link_html(
                 $m,
                 '?internalpage=single_stic_pasar_lista_monitor&monitor=' . rawurlencode($m['id'])
@@ -325,8 +334,8 @@ if ($groupId !== '' && isset($groups[$groupId])) {
 // El índice
 // ---------------------------------------------------------------------------
 
-// Los tres modos de mirar, y las dos poblaciones. Es el mismo dato ordenado de
-// otra forma: por eso son pestañas y no pantallas distintas.
+// Los tres modos de mirar. Es el mismo dato ordenado de otra forma: por eso
+// son pestañas y no pantallas distintas.
 $html .= '<div class="pl-tabs" role="tablist">';
 foreach (array(
     'grupos' => __('Grupos', 'sticpa'),
@@ -340,139 +349,11 @@ foreach (array(
 }
 $html .= '</div>';
 
-if ($scope !== null) {
-    // Coordinación mira dos poblaciones distintas y con preguntas distintas.
-    $html .= '<div class="pl-tabs pl-tabs--quien" role="tablist">';
-    foreach (array(
-        'participantes' => __('Chavales', 'sticpa'),
-        'monitores' => __('Monitores', 'sticpa'),
-    ) as $q => $label) {
-        $activo = ($quien === $q);
-        $html .= '<a class="pl-tab' . ($activo ? ' is-active' : '') . '" role="tab"'
-            . ' aria-selected="' . ($activo ? 'true' : 'false') . '"'
-            . ' href="' . esc_url($url(array('quien' => $q, 'grupo' => null))) . '">'
-            . esc_html($label) . '</a>';
-    }
-    $html .= '</div>';
-}
-
 $html .= sticpa_pl_buscador_html(
     ($ver === 'grupos')
         ? __('Buscar grupo, monitor o curso…', 'sticpa')
         : __('Buscar por nombre…', 'sticpa')
 );
-
-// ---- Vista MONITORES (coordinación) ---------------------------------------
-
-if ($quien === 'monitores') {
-    $monitors = sticpa_pl_coord_monitors($objSCP, $scope);
-
-    if (empty($monitors)) {
-        $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
-            . esc_html__('No hay monitores con relación vigente en los grupos de tu alcance.', 'sticpa')
-            . '</span></p>';
-        return;
-    }
-
-    // Por etapa, con los mismos puntos de color que el árbol y que la lista de
-    // monitores: es el idioma que la aplicación ya tiene, y aprenderlo dos
-    // veces sería aprenderlo mal.
-    /* LOS MONITORES SIN GRUPO DE LA DELEGACIÓN, primero y aparte, con su
-     * «Vincular» al lado: es donde se arregla que un monitor nuevo no salga en
-     * la lista de su grupo. Solo existen para quien coordina toda la delegación
-     * (`sticpa_pl_coord_monitors()`). Salen de las secciones de abajo para no
-     * estar dos veces. */
-    $sinGrupo = array();
-    foreach ($monitors as $i => $m) {
-        if (empty($m['groups']) && !empty($m['rel_sin_grupo'])) {
-            $sinGrupo[] = $m;
-            unset($monitors[$i]);
-        }
-    }
-    if (!empty($sinGrupo)) {
-        $puedo = sticpa_pl_is_coordinator($objSCP);
-        $html .= '<div class="pl-sec-row"><div class="pl-sec">' . esc_html__('Sin grupo', 'sticpa') . '</div>'
-            . '<span class="pl-etapa-count">' . esc_html(sprintf(
-                /* translators: %d: cuántos monitores no tienen grupo */
-                _n('%d monitor', '%d monitores', count($sinGrupo), 'sticpa'),
-                count($sinGrupo)
-            )) . '</span></div>';
-        $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
-            . esc_html__('Tienen relación de monitor, pero no cuelgan de ningún grupo de la delegación. Elige el grupo que llevan y ya salen en su lista.', 'sticpa')
-            . '</span></p>';
-        $html .= '<form method="post">';
-        $html .= wp_nonce_field('pl_mis_grupos', 'pl_nonce', true, false);
-        $html .= '<div class="pl-list">';
-        foreach ($sinGrupo as $m) {
-            $html .= '<div class="pl-rowwrap pl-suelto">';
-            $html .= sticpa_pl_avatar_html($m, true);
-            $html .= '<span class="pl-row-body">';
-            $html .= '<span class="pl-name">' . esc_html($m['name']) . '</span>';
-            $html .= '<span class="pl-rowsub">' . esc_html__('Sin grupo asignado', 'sticpa') . '</span>';
-            $html .= '</span>';
-            if ($puedo) {
-                $html .= sticpa_pl_vincular_html($m['rel_sin_grupo'], $groups, $m['name']);
-            }
-            $html .= '</div>';
-        }
-        $html .= '</div></form>';
-    }
-
-    $porEtapa = array();
-    foreach ($monitors as $m) {
-        $etapa = (isset($m['etapa']) && $m['etapa'] !== '') ? $m['etapa'] : '?';
-        $porEtapa[$etapa][] = $m;
-    }
-    if ($ver === 'az') {
-        // Alfabético de verdad: sin secciones, todos seguidos.
-        $todos = $monitors;
-        usort($todos, 'sticpa_pl_cmp_person');
-        $porEtapa = array('*' => $todos);
-    }
-
-    $etapaDots = array('MIC' => 'var(--danger-color)', 'COM' => 'var(--success-color)', 'LC' => 'var(--primary-color)');
-    foreach (array('MIC', 'COM', 'LC', '?', '*') as $etapa) {
-        if (empty($porEtapa[$etapa])) {
-            continue;
-        }
-        if ($etapa !== '*' && count($porEtapa) > 1) {
-            $dot = isset($etapaDots[$etapa]) ? $etapaDots[$etapa] : 'var(--gray-300)';
-            $titulo = ($etapa === '?') ? __('Sin etapa', 'sticpa') : $etapa;
-            $html .= '<div class="pl-etapa-title">'
-                . '<span class="pl-etapa-dot" style="background:' . esc_attr($dot) . '"></span>'
-                . esc_html($titulo)
-                . '<span class="pl-etapa-count">' . esc_html(sprintf(
-                    /* translators: %d: cuántos monitores hay en la etapa */
-                    _n('%d monitor', '%d monitores', count($porEtapa[$etapa]), 'sticpa'),
-                    count($porEtapa[$etapa])
-                )) . '</span></div>';
-        }
-        $html .= '<div class="pl-list">';
-        foreach ($porEtapa[$etapa] as $m) {
-            $sub = implode(' · ', array_filter(array(
-                implode(' · ', $m['groups']),
-                isset($m['curso']) ? $m['curso'] : '',
-            )));
-            if (empty($m['groups'])) {
-                // La relación de monitor no tiene grupo de la delegación (un
-                // comodín «POR DEFINIR»): se dice, que es lo que hay que arreglar.
-                $sub = __('Sin grupo asignado', 'sticpa');
-            }
-            $html .= sticpa_pl_person_link_html(
-                $m,
-                '?internalpage=single_stic_pasar_lista_monitor&monitor=' . rawurlencode($m['id'])
-                    . '&vengo=monitores',
-                $sub,
-                '',
-                true
-            );
-        }
-        $html .= '</div>';
-    }
-
-    $html .= sticpa_pl_buscador_vacio_html();
-    return;
-}
 
 // ---- Vista GRUPOS ---------------------------------------------------------
 
