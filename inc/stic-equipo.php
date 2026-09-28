@@ -136,13 +136,13 @@ function sticpa_equipo_es_del_equipo()
  * grupos) y «Reuniones» era otra forma de pasar esa misma lista. Ahora:
  *
  *   · Pasar lista    → marcar quién ha venido (todo el equipo).
- *   · Mis grupos     → leer las fichas de los chavales, sin marcar nada.
+ *   · Grupos y fichas → leer las fichas de los chavales, sin marcar nada.
  *   · Coordinación   → todo lo del equipo de monitores en una sola pantalla:
  *                      sus fichas y seguimientos, su lista del sábado, las
  *                      reuniones y el resumen de grupos.
  *
  * Tus propios datos de monitor ya NO van aquí: son datos tuyos, como «Mis
- * datos», y van con ellos en «Tu cuenta» (sticpa_equipo_secciones_de_cuenta()).
+ * datos», y van con ellos en «Tu perfil» (sticpa_equipo_secciones_de_cuenta()).
  */
 function sticpa_equipo_secciones()
 {
@@ -150,7 +150,9 @@ function sticpa_equipo_secciones()
     $secciones = array();
 
     $secciones['single_stic_pasar_lista'] = __('Pasar lista', 'sticpa');
-    $secciones['single_stic_mis_grupos'] = __('Mis grupos', 'sticpa');
+    // «Grupos y fichas» y no «Mis grupos» (28/09/2026): a lo que se viene es a
+    // leer las fichas de los chavales, y quien coordina ve grupos que no son suyos.
+    $secciones['single_stic_mis_grupos'] = __('Grupos y fichas', 'sticpa');
 
     if (in_array('coordinacion', $papeles, true) || in_array('acompanamiento', $papeles, true)) {
         // Acompañamiento también entra: las fichas de los monitores y sus
@@ -164,7 +166,7 @@ function sticpa_equipo_secciones()
 
 /**
  * Lo de monitor que es DATO TUYO y no herramienta: tu formación, trayectoria y
- * certificados. Va en «Tu cuenta», al lado de «Mis datos», que es donde se
+ * certificados. Va en «Tu perfil», al lado de «Mis datos», que es donde se
  * busca lo que se rellena una vez al año.
  *
  * Se llama «Mis datos de monitor» y no «Monitor/a»: una sección con el nombre
@@ -177,27 +179,6 @@ function sticpa_equipo_secciones_de_cuenta()
         return array();
     }
     return array('single_stic_comunica_monitor' => __('Mis datos de monitor', 'sticpa'));
-}
-
-/**
- * De esas secciones, las que solo existen POR COORDINAR (o acompañar).
- *
- * Sirve para colocarlas: en la home van dentro del grupo, en su orden; en la
- * BARRA de navegación van al final, detrás de Eventos y compañía. La barra es
- * de una sola línea y lo que no cabe se va a «Más», así que meter entradas de
- * coordinación por delante empujaba «Eventos» —lo que usa todo el mundo,
- * coordinación incluida— dentro del desplegable. Lo que se usa más va delante.
- */
-function sticpa_equipo_secciones_de_coordinacion()
-{
-    $todas = sticpa_equipo_secciones();
-    $solo = array();
-    foreach (array('single_stic_coordinacion') as $clave) {
-        if (isset($todas[$clave])) {
-            $solo[$clave] = $todas[$clave];
-        }
-    }
-    return $solo;
 }
 
 /**

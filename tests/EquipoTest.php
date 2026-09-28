@@ -278,17 +278,16 @@ class EquipoTest extends TestCase
 
         $claves = array_keys(getSticMenuElements()[0]);
 
-        // Lo del sábado primero, luego lo de todos, luego coordinación y al
-        // final la cuenta. La barra es de UNA línea y lo que no cabe se va a
-        // «Más»: lo que se usa cada semana no puede ser lo que se cae.
+        // Tres bloques que no se mezclan: Actividades (lo de miembro del MCM),
+        // Equipo de monitores (todo junto, Coordinación incluida) y Tu perfil.
         $this->assertSame(array(
-            'single_stic_pasar_lista',
-            'single_stic_mis_grupos',
             'list_stic_events',
             'list_stic_registrations',
             'single_stic_activities_calendar',
             'list_stic_payments',
             'list_stic_documents',
+            'single_stic_pasar_lista',
+            'single_stic_mis_grupos',
             'single_stic_coordinacion',
             'single_stic_comunica_perfil',
             'single_stic_comunica_monitor',
@@ -305,6 +304,8 @@ class EquipoTest extends TestCase
 
         // «Monitor/a» era el nombre de un papel, no de una pantalla.
         $this->assertSame('Mis datos de monitor', $items['single_stic_comunica_monitor']);
+        $this->assertSame('Grupos y fichas', $items['single_stic_mis_grupos']);
+        $this->assertSame('Usuario y contraseña', $items['single_stic_password_change']);
         $this->assertNotContains('Monitor/a', $items);
     }
 
@@ -326,7 +327,7 @@ class EquipoTest extends TestCase
             intdiv($orden('single_stic_pasar_lista'), 100),
             intdiv($orden('single_stic_coordinacion'), 100)
         );
-        $this->assertLessThan($orden('single_stic_pasar_lista'), $orden('list_stic_events'));
+        $this->assertLessThan($orden('single_stic_pasar_lista'), $orden('list_stic_documents'));
         $this->assertLessThan($orden('single_stic_comunica_perfil'), $orden('single_stic_coordinacion'));
     }
 

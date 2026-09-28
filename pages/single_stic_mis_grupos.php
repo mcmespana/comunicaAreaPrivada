@@ -111,11 +111,11 @@ $html .= '<div class="pl-head">';
 // pestaña activa y se queda uno atrapado.
 if ($groupId !== '' || $ver === 'sueltos') {
     $html .= '<a class="pl-back" href="' . esc_url($url(array('grupo' => null, 'ver' => 'grupos'))) . '"'
-        . ' aria-label="' . esc_attr__('Volver a mis grupos', 'sticpa') . '">' . sticpa_pl_icon('back') . '</a>';
+        . ' aria-label="' . esc_attr__('Volver a Grupos y fichas', 'sticpa') . '">' . sticpa_pl_icon('back') . '</a>';
 }
 $html .= '<div class="pl-head-titles">';
 $html .= '<div class="pl-title"><span class="pl-title-code pl-title-code--main">'
-    . esc_html__('Mis grupos', 'sticpa') . '</span></div>';
+    . esc_html__('Grupos y fichas', 'sticpa') . '</span></div>';
 $html .= '<div class="pl-subtitle">' . esc_html(sticpa_pl_course_for()['label']) . '</div>';
 $html .= '</div>';
 $html .= '<a class="pl-session-pick" href="' . esc_url($url(array('refrescar' => '1'))) . '"'

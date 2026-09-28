@@ -17,7 +17,7 @@ los handlers `sticpa_handle_send_access*` de
 | Puerta | Para quién | Qué hace |
 |---|---|---|
 | **Por correo** (la de siempre) | Todo el mundo | Escribes tu correo y te llega UN mensaje con **enlace mágico + código de 6 cifras** |
-| **Contraseña** | Quien se la ha puesto desde su perfil | Usuario = su DNI |
+| **Contraseña** | Quien se la ha puesto en «Usuario y contraseña» | Usuario = `stic_pa_username_c` o, si no tiene, su DNI |
 | **Por documento** (10/09/2026) | Quien no sabe con qué correo se dio de alta | Te busca por el DNI y manda el acceso al correo que ya teníamos |
 
 El correo lleva las dos formas —enlace y código— a propósito: dentro de la app
@@ -31,6 +31,18 @@ toca en cada caso. La URL está en `sticpa_signup_url()` (opción
 **no existe**: era un enlace a un div vacío.
 
 ---
+
+### «Usuario y contraseña» (28/09/2026)
+
+La pantalla (`single_stic_password_change`) **enseña el usuario**, porque quien
+entra por el correo no lo ha visto nunca. Si la ficha no tiene
+`stic_pa_username_c`, el usuario es el DNI (`stic_identification_number_c`, en
+mayúsculas y sin guiones), se enseña sin poder editarlo y **se guarda como
+usuario** la primera vez que se pone contraseña; si no, la contraseña no
+serviría para entrar. Si ese DNI ya es el usuario de otra ficha, no se pisa
+(error 5). Sin usuario ni DNI no hay formulario. La contraseña actual solo se
+pide si ya existe: la sesión es la prueba de quién es. Mínimo 6 caracteres.
+Tests: `tests/PasswordChangeTest.php`.
 
 ## 2. La regla que no se toca: nunca decimos si un correo existe
 

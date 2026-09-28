@@ -134,7 +134,7 @@ $portalName = get_option('sticpa_scp_name');
             );
         }
         if (!empty($tarjetas) && function_exists('sticpa_record_list_html')) {
-            // Misma etiqueta de grupo que usa "Tu cuenta" más abajo: no se
+            // Misma etiqueta de grupo que usa "Tu perfil" más abajo: no se
             // inventa una clase nueva para decir lo mismo.
             echo "<p class='stic-section-label stic-section-label--mini'>"
                 . esc_html__('A quién tienes a tu cargo', 'sticpa') . "</p>";
@@ -191,8 +191,8 @@ $portalName = get_option('sticpa_scp_name');
      * ------------------------------------------------------------------
      * Lo de monitor no es «tu día a día» (eso es lo que uno viene a hacer como
      * miembro: apuntarse, mirar sus pagos) ni «tu cuenta»: es otro sombrero.
-     * Van aquí las HERRAMIENTAS del equipo (Pasar lista, Mis grupos,
-     * Coordinación); tus propios datos de monitor van en «Tu cuenta», con el
+     * Van aquí las HERRAMIENTAS del equipo (Pasar lista, Grupos y fichas,
+     * Coordinación); tus propios datos de monitor van en «Tu perfil», con el
      * resto de tus datos.
      *
      * Aquí van juntas, en su propio bloque y con el motivo escrito: quien entra
@@ -255,7 +255,7 @@ $portalName = get_option('sticpa_scp_name');
     ?>
     <div class="stic-home-layout<?= $showAgenda ? '' : ' stic-home-layout--solo'; ?>">
         <div class="stic-home-main">
-            <p class="stic-section-label"><?= esc_html($accountCards ? __('Tu día a día', 'sticpa') : __('Tus secciones', 'sticpa')); ?></p>
+            <p class="stic-section-label"><?= esc_html($accountCards ? __('Actividades', 'sticpa') : __('Tus secciones', 'sticpa')); ?></p>
 
             <div class="stic-dashboard-grid">
                 <?php foreach ($mainCards as $key => $label) { $renderCard($key, $label); } ?>
@@ -269,7 +269,7 @@ $portalName = get_option('sticpa_scp_name');
     </div>
 
     <?php if ($equipoCards) : ?>
-        <?php /* Entre «Tu día a día» y «Tu cuenta»: se usa más que los datos
+        <?php /* Entre «Actividades» y «Tu perfil»: se usa más que los datos
                  personales y menos que apuntarse a algo. El chip y la frase
                  dicen POR QUÉ se ve, que es lo que no se podía saber antes:
                  las pantallas de coordinación aparecían sin más. El alcance
@@ -288,10 +288,10 @@ $portalName = get_option('sticpa_scp_name');
     <?php endif; ?>
 
     <?php if ($accountCards) : ?>
-        <?php // "Tu cuenta" va FUERA de la rejilla de 2 columnas: es el cierre de
+        <?php // "Tu perfil" va FUERA de la rejilla de 2 columnas: es el cierre de
               // la página (en móvil, lo último; en escritorio, una fila a lo ancho). ?>
         <section class="stic-home-account">
-            <p class="stic-section-label stic-section-label--mini"><?= esc_html__('Tu cuenta', 'sticpa'); ?></p>
+            <p class="stic-section-label stic-section-label--mini"><?= esc_html__('Tu perfil', 'sticpa'); ?></p>
             <div class="stic-dashboard-grid stic-dashboard-grid--mini">
                 <?php foreach ($accountCards as $key => $label) { $renderCard($key, $label); } ?>
             </div>

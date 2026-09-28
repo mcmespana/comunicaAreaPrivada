@@ -1,4 +1,7 @@
-# Mis grupos — leer las fichas sin pasar lista
+# Grupos y fichas (antes «Mis grupos») — leer las fichas sin pasar lista
+
+> En el menú se llama **«Grupos y fichas»** desde el 28/09/2026. El archivo y la
+> clave (`single_stic_mis_grupos`) no cambian, para no romper enlaces.
 
 Una sección del área privada, al lado de Pasar Lista y con la misma gente vista
 de otra manera. Existe para una queja concreta: **para mirar un teléfono o leer

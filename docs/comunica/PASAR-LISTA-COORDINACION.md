@@ -362,9 +362,15 @@ Lo que hay ahora — **un verbo por sección**:
 | Sección | Para qué | Quién |
 |---|---|---|
 | **Pasar lista** | Marcar quién ha venido. Para coordinación incluye, en su bloque del final, la **Lista de monitores** y las **Reuniones de programación**: pasar lista es pasar lista, sea de quien sea. | Equipo |
-| **Mis grupos** | Leer las fichas de los chavales, sin marcar nada. Dentro de un grupo se ve quién lo lleva. | Equipo |
+| **Grupos y fichas** *(antes «Mis grupos»)* | Leer las fichas de los chavales, sin marcar nada. Dentro de un grupo se ve quién lo lleva. | Equipo |
 | **Coordinación** *(nueva, `single_stic_coordinacion`)* | Todo lo de coordinar en una pantalla: la reunión sin pasar (ámbar), **Lista de monitores**, **Reuniones de programación**, **Resumen de grupos** y **Tu equipo** — el directorio de monitores por etapa, con buscador, «Sin grupo» y «Vincular»; cada fila abre la ficha y sus seguimientos. | Coordinación y acompañamiento (este sin la lista ni las reuniones) |
-| **Mis datos de monitor** *(antes «Monitor/a»)* | Tu formación y certificados. Va en **Tu cuenta**, junto a «Mis datos»: es dato tuyo, no herramienta del equipo. | Monitores |
+| **Mis datos de monitor** *(antes «Monitor/a»)* | Tu formación y certificados. Va en **Tu perfil**, junto a «Mis datos»: es dato tuyo, no herramienta del equipo. | Monitores |
+
+**Los bloques del menú** (igual en la barra, el móvil y la portada, y sin
+mezclarse): **Actividades** (Eventos, Inscripciones, Calendario, Pagos,
+Documentos — lo de miembro del MCM) · **Equipo de monitores** (Pasar lista,
+Grupos y fichas, Coordinación) · **Tu perfil** (Mis datos, Mis datos de
+monitor, Usuario y contraseña).
 
 Decisiones:
 

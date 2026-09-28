@@ -459,7 +459,7 @@ function sticpa_section_meta($key)
             'icon' => "<rect x='3' y='4' width='18' height='18' rx='2'/><path d='M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01'/>",
         ),
         'single_stic_password_change' => array(
-            'desc' => __('Actualiza tu contraseña de acceso.', 'sticpa'),
+            'desc' => __('Con qué usuario entras y tu contraseña, por si no quieres esperar al correo.', 'sticpa'),
             'icon' => "<rect x='4' y='11' width='16' height='10' rx='2'/><path d='M8 11V7a4 4 0 0 1 8 0v4'/>",
         ),
         'single_stic_profile' => array(

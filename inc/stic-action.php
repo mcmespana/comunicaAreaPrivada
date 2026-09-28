@@ -686,6 +686,48 @@ function prefix_admin_single_stic_events()
  */
 add_action('admin_post_single_stic_password_change', 'prefix_admin_single_stic_password_change'); 
 add_action('admin_post_nopriv_single_stic_password_change', 'prefix_admin_single_stic_password_change'); 
+/**
+ * De QUIÉN es la contraseña que se cambia: la persona adulta que ha entrado o,
+ * si ha entrado un familiar, el familiar (un menor no tiene contraseña propia).
+ * La misma regla en la pantalla y en el handler, para que la pantalla no enseñe
+ * el usuario de una persona y el handler guarde la contraseña de otra.
+ */
+function sticpa_password_owner_id()
+{
+    return !empty($_SESSION['scp_user_adult'])
+        ? ($_SESSION['scp_user_id'] ?? '')
+        : ($_SESSION['scp_tutor_user_id'] ?? ($_SESSION['scp_user_id'] ?? ''));
+}
+
+/**
+ * EL USUARIO CON EL QUE SE ENTRA POR CONTRASEÑA (28/09/2026).
+ *
+ * Casi todo el mundo entra por el enlace del correo y nunca ha visto su
+ * usuario: si se pone una contraseña y no sabe con qué usuario usarla, no le
+ * sirve de nada. Por eso la pantalla lo ENSEÑA.
+ *
+ * Si la ficha no tiene usuario (`stic_pa_username_c`), el usuario es su DNI
+ * (`stic_identification_number_c`), que es la convención de esta entidad
+ * (docs/ACCESO.md): se enseña, no se puede cambiar, y se guarda como usuario la
+ * primera vez que se pone contraseña. Mismo molde que el acceso por documento:
+ * mayúsculas y sin espacios ni guiones.
+ *
+ * @param object|null $data name_value_list de la ficha.
+ * @return array{usuario:string, desde_dni:bool}
+ */
+function sticpa_portal_username($data)
+{
+    $val = function ($campo) use ($data) {
+        return (is_object($data) && isset($data->$campo->value)) ? trim((string) $data->$campo->value) : '';
+    };
+    $usuario = $val('stic_pa_username_c');
+    if ($usuario !== '') {
+        return array('usuario' => $usuario, 'desde_dni' => false);
+    }
+    $dni = preg_replace('/[^A-Z0-9]/', '', strtoupper($val('stic_identification_number_c')));
+    return array('usuario' => $dni, 'desde_dni' => ($dni !== ''));
+}
+
 function prefix_admin_single_stic_password_change() 
 { 
     // Sin sesión, `$userId` quedaba vacío, la contraseña guardada también, y
@@ -697,35 +739,56 @@ function prefix_admin_single_stic_password_change()
     }
     $objSCP = SugarRestApiCall::getObjSCP();
 
-    $userId = !empty($_SESSION['scp_user_adult']) ? $_SESSION['scp_user_id'] : ($_SESSION['scp_tutor_user_id'] ?? $_SESSION['scp_user_id']);
+    $userId = sticpa_password_owner_id();
     $getContactInfo = $objSCP->getUserInformation($userId)->entry_list[0]->name_value_list;
-    $password = $getContactInfo->stic_pa_password_c->value;
+    $password = isset($getContactInfo->stic_pa_password_c->value) ? (string) $getContactInfo->stic_pa_password_c->value : '';
+    $old = stripslashes_deep($_REQUEST['add-profile-old-password'] ?? '');
+    $new = stripslashes_deep($_REQUEST['add-profile-new-password'] ?? '');
+    $confirm = stripslashes_deep($_REQUEST['add-profile-confirm-password'] ?? '');
 
-    if ($password == stripslashes_deep($_REQUEST['add-profile-old-password'])) {
-        if (stripslashes_deep($_REQUEST['add-profile-new-password']) == stripslashes_deep($_REQUEST['add-profile-confirm-password'])) {
-
-            $new_password = stripslashes_deep($_REQUEST['add-profile-new-password']);
-            $updateUserInfo = array(
-                'id' => $userId,
-                'stic_pa_password_c' => $new_password,
-            );
-
-            $isChangePassword = $objSCP->set_entry(getDestinationModule(), $updateUserInfo);
-
-            if ($isChangePassword != null) {
-                $redirect_url = sticpa_return_url() . '&success=true';
-            } else {
-                $redirect_url = sticpa_return_url() . '&error=1';
-            }
-        } else {
-            $redirect_url = sticpa_return_url() . '&error=1';
-        }
-    } else {
-        $redirect_url = sticpa_return_url() . '&error=2';
+    // LA ANTIGUA SOLO SE PIDE SI LA HAY. Quien entró por el enlace del correo
+    // y nunca se puso contraseña no tiene «antigua» que escribir, y pedírsela
+    // era dejarle fuera. Lo que prueba que es él es la sesión (arriba), igual
+    // que en cualquier otra pantalla del área.
+    if ($password !== '' && $password !== $old) {
+        wp_safe_redirect(sticpa_return_url() . '&error=2');
+        exit;
     }
-    wp_safe_redirect($redirect_url);
-    exit;
+    if ($new === '' || $new !== $confirm) {
+        wp_safe_redirect(sticpa_return_url() . '&error=1');
+        exit;
+    }
+    if (strlen($new) < 6) {
+        wp_safe_redirect(sticpa_return_url() . '&error=4');
+        exit;
+    }
 
+    $updateUserInfo = array(
+        'id' => $userId,
+        'stic_pa_password_c' => $new,
+    );
+
+    // Sin usuario no hay con qué entrar: se usa el DNI, y se guarda.
+    $cuenta = sticpa_portal_username($getContactInfo);
+    if ($cuenta['usuario'] === '') {
+        wp_safe_redirect(sticpa_return_url() . '&error=3');
+        exit;
+    }
+    if ($cuenta['desde_dni']) {
+        // Que ese DNI no sea ya el usuario de OTRA ficha: el login se queda
+        // con la primera que encuentra y entraría en la cuenta equivocada.
+        $otra = $objSCP->getUserInformationByUsername($cuenta['usuario']);
+        $otraId = ($otra && isset($otra->entry_list[0]->id)) ? $otra->entry_list[0]->id : '';
+        if ($otraId !== '' && $otraId !== $userId) {
+            wp_safe_redirect(sticpa_return_url() . '&error=5');
+            exit;
+        }
+        $updateUserInfo['stic_pa_username_c'] = $cuenta['usuario'];
+    }
+
+    $isChangePassword = $objSCP->set_entry(getDestinationModule(), $updateUserInfo);
+    wp_safe_redirect(sticpa_return_url() . ($isChangePassword != null ? '&success=true' : '&error=1'));
+    exit;
 }
 
 /**

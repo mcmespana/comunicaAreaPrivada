@@ -13,17 +13,16 @@ function getSticMenuElements()
      * lo de pasar lista, luego lo de todos, luego coordinación y al final la
      * contraseña. Lo tuyo estaba en los dos extremos y lo del equipo, partido.
      *
-     * Ahora son cuatro bloques, los mismos que la portada y el menú del móvil:
+     * Ahora son tres bloques que NO SE MEZCLAN, los mismos y en el mismo orden
+     * en la barra, en el menú del móvil y en la portada:
      *
-     *   1. Lo del equipo que se usa CADA SEMANA (Pasar lista, Mis grupos) — solo
-     *      para el equipo de monitores. Delante porque es lo que más se abre, y
-     *      la barra de escritorio manda a «Más» lo que no cabe.
-     *   2. Lo de todos: Eventos, Inscripciones, Calendario, Pagos, Documentos.
-     *      En el orden en que se usan: apuntarse, ver a qué, cuándo, pagarlo, y
-     *      los papeles.
-     *   3. Coordinación — una sola entrada para todo lo de coordinar.
-     *   4. Tu cuenta: tus datos, tus datos de monitor y la contraseña. Se tocan
-     *      una vez cada muchos meses, así que van al final.
+     *   1. ACTIVIDADES — lo que haces como miembro del MCM (o lo que hace tu
+     *      hijo): Eventos, Inscripciones, Calendario, Pagos, Documentos.
+     *   2. EQUIPO DE MONITORES — Pasar lista, Grupos y fichas, Coordinación.
+     *      Solo para el equipo. Otro sombrero, así que va junto y aparte:
+     *      apuntarse a un evento no es cosa de monitor.
+     *   3. TU PERFIL — tus datos, tus datos de monitor, y tu usuario y
+     *      contraseña. Se tocan una vez cada muchos meses: lo último.
      *
      * Quién ve cada cosa lo deciden otras dos funciones, no este orden:
      * sticpa_equipo_secciones() (inc/stic-equipo.php) para lo del equipo, y
@@ -40,45 +39,39 @@ function getSticMenuElements()
     // tiene dentro la audiencia: un familiar mirando la ficha de su hijo no
     // pasa lista de nadie, aunque él sea monitor.
     $esDelEquipo = (function_exists('sticpa_equipo_es_del_equipo') && sticpa_equipo_es_del_equipo());
-    $deCoordinacion = array();
+    $delEquipo = array();
     $deCuenta = array();
     if ($esDelEquipo) {
-        $deCoordinacion = sticpa_equipo_secciones_de_coordinacion();
+        $delEquipo = sticpa_equipo_secciones();
         $deCuenta = sticpa_equipo_secciones_de_cuenta();
-        foreach (sticpa_equipo_secciones() as $clave => $etiqueta) {
-            if (isset($deCoordinacion[$clave])) {
-                continue;
-            }
-            $menuElements[$clave] = $etiqueta;
-        }
     } elseif ($role === 'monitor' && $audience !== 'participante') {
         // Salvavidas por si el módulo del equipo no estuviera cargado: lo
-        // mínimo de un monitor, con los nombres de siempre.
-        $menuElements['single_stic_pasar_lista'] = __('Pasar lista', 'sticpa');
-        $menuElements['single_stic_mis_grupos'] = __('Mis grupos', 'sticpa');
+        // mínimo de un monitor.
+        $delEquipo['single_stic_pasar_lista'] = __('Pasar lista', 'sticpa');
+        $delEquipo['single_stic_mis_grupos'] = __('Grupos y fichas', 'sticpa');
         $deCuenta['single_stic_comunica_monitor'] = __('Mis datos de monitor', 'sticpa');
     }
 
-    // --- Lo de todos ---
+    // --- 1. Actividades ---
     $menuElements['list_stic_events'] = __('Eventos', 'sticpa');
     $menuElements['list_stic_registrations'] = __('Inscripciones', 'sticpa');
     $menuElements['single_stic_activities_calendar'] = __('Calendario', 'sticpa');
     $menuElements['list_stic_payments'] = __('Pagos', 'sticpa');
     $menuElements['list_stic_documents'] = __('Documentos', 'sticpa');
 
-    // --- Coordinación, detrás de lo de todos ---
-    foreach ($deCoordinacion as $clave => $etiqueta) {
+    // --- 2. Equipo de monitores, todo junto ---
+    foreach ($delEquipo as $clave => $etiqueta) {
         $menuElements[$clave] = $etiqueta;
     }
 
-    // --- Tu cuenta, lo último ---
+    // --- 3. Tu perfil, lo último ---
     $menuElements['single_stic_comunica_perfil'] = ($audience === 'participante')
         ? sticpa_datos_de_label()
         : __('Mis datos', 'sticpa');
     foreach ($deCuenta as $clave => $etiqueta) {
         $menuElements[$clave] = $etiqueta;
     }
-    $menuElements['single_stic_password_change'] = __('Cambiar contraseña', 'sticpa');
+    $menuElements['single_stic_password_change'] = __('Usuario y contraseña', 'sticpa');
 
     // Opcionales (descomentar si se usan):
     // $menuElements['list_stic_payment_commitments'] = __('Compromisos de pago', 'sticpa');
@@ -124,7 +117,7 @@ function defaultMenuElement()
  * CÓMO SE AGRUPA EL MENÚ EN EL MÓVIL.
  *
  * Los mismos grupos que la portada, en su mismo orden: Inicio suelto arriba,
- * «Tu día a día», «Equipo de monitores» y «Tu cuenta». Cada grupo va en
+ * «Actividades», «Equipo de monitores» y «Tu perfil». Cada grupo va en
  * mosaicos de dos en dos; si le toca un número impar, el último ocupa el
  * ancho entero, para que no quede un hueco a la derecha.
  *
@@ -144,9 +137,9 @@ function sticpa_nav_layout($keys)
 
     $groups = array(
         'inicio' => array('label' => '', 'keys' => array()),
-        'dia'    => array('label' => __('Tu día a día', 'sticpa'), 'keys' => array()),
+        'dia'    => array('label' => __('Actividades', 'sticpa'), 'keys' => array()),
         'equipo' => array('label' => __('Equipo de monitores', 'sticpa'), 'keys' => array()),
-        'cuenta' => array('label' => __('Tu cuenta', 'sticpa'), 'keys' => array()),
+        'cuenta' => array('label' => __('Tu perfil', 'sticpa'), 'keys' => array()),
     );
     foreach ($keys as $key) {
         if ($key === 'single_stic_home') {
@@ -375,7 +368,7 @@ function menu()
     // El avatar y el nombre llevan a INICIO: es el "logo" de la barra, el
     // atajo más natural para volver (un tap grande, sin ir a buscar el item
     // "Inicio" del menú). Los accesos a "mis datos" siguen disponibles desde
-    // el menú y desde la home ("Tu cuenta"), así que no se pierde nada.
+    // el menú y desde la home ("Tu perfil"), así que no se pierde nada.
     $homeTitle = esc_attr__('Ir a inicio', 'sticpa');
     $account = "<div class='stic-account'>";
     $account .= "<a class='stic-avatar-link' href='?internalpage=single_stic_home' title='{$homeTitle}'>";

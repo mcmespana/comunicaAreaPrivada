@@ -6942,3 +6942,11 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
    «Ver la actividad» en su propia línea. */
 .stic-event-card-meta svg { width: 16px; height: 16px; flex-shrink: 0; }
 .stic-event-card-link { display: flex; width: fit-content; }
+
+/* Usuario y contraseña (28/09/2026): el usuario se ENSEÑA pero no se edita, y
+   tiene que parecerlo — mismo fondo neutro que las notas suaves. */
+.stic-form input[readonly] {
+    background: var(--surface-2) !important;
+    color: var(--gray-700) !important;
+    cursor: default;
+}
