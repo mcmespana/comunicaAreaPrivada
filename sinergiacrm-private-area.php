@@ -241,6 +241,7 @@ function register_sugar_crm_portal_settings()
     register_setting('sugar_crm_portal-settings-group', 'sticpa_scp_case_per_page');
     register_setting('sugar_crm_portal-settings-group', 'sticpa_scp_sugar_crm_version');
     register_setting('sugar_crm_portal-settings-group', 'sticpa_android_sha256');
+    register_setting('sugar_crm_portal-settings-group', 'sticpa_card_campaign_id');
 }
 
 function sugar_crm_portal_settings_page()
@@ -305,6 +306,14 @@ function sugar_crm_portal_settings_page()
                         <td>
                             <input type='text' class='regular-text' value="<?php echo esc_attr(get_option('sticpa_android_sha256')); ?>" name='sticpa_android_sha256'>
                             <p class="description"><?=__('Necesaria para que los enlaces de los correos abran la app en Android. Play Console → Setup → App integrity → App signing → «SHA-256 certificate fingerprint». Formato AA:BB:…:99, varias separadas por comas. En iOS no hace falta nada.', 'sticpa');?></p>
+                        </td>
+                    </tr>
+
+                    <tr valign='top'>
+                        <th scope='row'><?=__('Campaña de los pagos con tarjeta', 'sticpa');?></th>
+                        <td>
+                            <input type='text' class='regular-text' value="<?php echo esc_attr(get_option('sticpa_card_campaign_id')); ?>" name='sticpa_card_campaign_id' placeholder='<?php echo esc_attr(sticpa_card_campaign_default()); ?>'>
+                            <p class="description"><?=__('Id de la campaña del CRM de la que cuelgan los pagos con tarjeta (el formulario de pago de SinergiaCRM la exige, y tiene que estar ACTIVA o el pago falla). Vacío = la de siempre.', 'sticpa');?></p>
                         </td>
                     </tr>
 
