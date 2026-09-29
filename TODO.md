@@ -53,9 +53,10 @@ Nada de esto es código; sin ello, el código que lo espera no avanza.
       WordPress). Si se quitó a propósito, cambiar a `/ap/` los cinco documentos que la
       citan; si no, volver a crearla.
 
-- [ ] `EV-9b` (P1 · S) **La campaña de los pagos con tarjeta**: crear en el CRM la campaña
-      «Pagos con tarjeta» (Campañas → Crear; activa) y pegar su id en los ajustes del plugin
-      (`Campaña de los pagos con tarjeta`). Hoy va la `ab11ebc9…` de siempre, sin mirar qué es.
+- [!] `EV-9c` (P1 · S) **El TPV está en modo PRUEBAS** (`TPV_TEST = 1` en los ajustes del CRM,
+      visto el 29/09/2026): los pagos con tarjeta van al entorno de pruebas de Redsys y no
+      cobran de verdad. Probar con la tarjeta de pruebas y, cuando vaya, ponerlo a `0`
+      (Admin → Ajustes de SinergiaCRM → TPV). Decidir cuándo.
 
 **Crear en Studio** (el código está hecho y se activa solo)
 - [!] `EV-6` (P2 · S) **Preguntas simples**: `ajmcm_pregunta_1_c` y `ajmcm_pregunta_2_c` en
@@ -162,7 +163,8 @@ Nada de esto es código; sin ello, el código que lo espera no avanza.
   la ficha · `EV-2` cancelar y modificar dentro de plazo · `EV-7` compromiso de pago al
   inscribirse (uno solo, de la delegación) · `EV-8` el destino sobrevive al login · `EV-4`
   guía en tres puertas y ayuda para la ficha del CRM · `EV-11` curso y clase con su etiqueta ·
-  `EV-9` la tarjeta de una inscripción es `services`, de la delegación y atada a ella (29/09).
+  `EV-9` la tarjeta de una inscripción es `services`, de la delegación y atada a ella, con
+  la campaña «Pagos con tarjeta» (la de antes no existía y la tarjeta nunca había ido) (29/09).
 - **Pasar Lista · monitores (26-27/09):** guardado sin «error», en tandas y en lotes
   (`set_entries`), motivo de las faltas, reuniones con su estado, monitores sin grupo
   vinculables desde la app. Detalle en `PASAR-LISTA-ESTADO.md` §1.
