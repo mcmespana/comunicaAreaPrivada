@@ -37,11 +37,6 @@ puedan coger una tarea, entender el porqué y hacerla sin contexto previo.
 Nada de esto es código; sin ello, el código que lo espera no avanza.
 
 **Decidir**
-- [!] `EV-9` (P1 · S) **El pago con tarjeta se registra como DONACIÓN** (`payment_type =
-      donation`) y a nombre del «Administrador MCM». Riesgo: una actividad pagada con tarjeta
-      acaba en el modelo 182 y fuera de la delegación. Decidir: probar el formulario web con
-      `services` y la delegación, o pagar con tarjeta de otra forma.
-      ↳ `pages/single_stic_payment_form.php` (`webFormClass=Donation`).
 - [!] `FAM-02` (P1 · S) **Medio de pago del familiar**: la pantalla usa `ajmcm_pago_*_c`, que
       NO existen, y el IBAN que se mete se pierde. Los campos buenos (`ajmcm_iban_c`…) están
       en el participante. Decidir: quitar la sección, escribir en cada participante o en el
@@ -162,7 +157,8 @@ Nada de esto es código; sin ello, el código que lo espera no avanza.
 - **Eventos e inscripciones (25-27/09):** `EV-1` ficha con cartel a la izquierda y agenda a
   la ficha · `EV-2` cancelar y modificar dentro de plazo · `EV-7` compromiso de pago al
   inscribirse (uno solo, de la delegación) · `EV-8` el destino sobrevive al login · `EV-4`
-  guía en tres puertas y ayuda para la ficha del CRM · `EV-11` curso y clase con su etiqueta.
+  guía en tres puertas y ayuda para la ficha del CRM · `EV-11` curso y clase con su etiqueta ·
+  `EV-9` la tarjeta de una inscripción es `services`, de la delegación y atada a ella (29/09).
 - **Pasar Lista · monitores (26-27/09):** guardado sin «error», en tandas y en lotes
   (`set_entries`), motivo de las faltas, reuniones con su estado, monitores sin grupo
   vinculables desde la app. Detalle en `PASAR-LISTA-ESTADO.md` §1.
