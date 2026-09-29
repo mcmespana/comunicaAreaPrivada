@@ -779,6 +779,15 @@ colgar un compromiso suyo de una inscripción ajena.
 El pago suelto desde «Mis pagos» sigue siendo una aportación (`donation`), pero
 ya también de la delegación.
 
+**La campaña.** El formulario de pago de SinergiaCRM la exige: «todos los
+formularios de captación de fondos deben estar vinculados obligatoriamente a
+una campaña» (wiki de SinergiaTIC, «Formularios»), y tiene que estar **activa**
+o el pago falla. Ata a ella el compromiso y apunta a la persona en la campaña.
+Se elige en los ajustes del plugin (**Campaña de los pagos con tarjeta**,
+`sticpa_card_campaign_id`); vacío, la de siempre (`ab11ebc9-…`). Solo la usa el
+pago con tarjeta: con Bizum, transferencia, efectivo o domiciliación el
+compromiso lo crea el área directamente por la API, sin formulario ni campaña.
+
 ### 10.3 Cancelar y modificar (EV-2)
 
 Desde la ficha de la inscripción, **mientras el plazo esté abierto** (el mismo
