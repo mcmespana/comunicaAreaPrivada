@@ -1198,6 +1198,24 @@ function sticpa_registration_end_commitments($objSCP, $regId)
  * ajena. La firma no depende de la sesión: el compromiso se ata cuando se
  * vuelve, y puede ser otro día.
  */
+/**
+ * LA CAMPAÑA de los pagos con tarjeta. El formulario de pago de SinergiaCRM
+ * (clase `Donation`) la EXIGE —«todos los formularios de captación de fondos
+ * deben estar vinculados obligatoriamente a una campaña», wiki de SinergiaTIC,
+ * «Formularios»— y tiene que estar activa: ata a ella el compromiso y apunta
+ * a la persona. Se configura en los ajustes del plugin; vacío, la de siempre.
+ */
+function sticpa_card_campaign_default()
+{
+    return 'ab11ebc9-de54-9306-3eaf-6267c96fee96';
+}
+
+function sticpa_card_campaign_id()
+{
+    $id = trim((string) get_option('sticpa_card_campaign_id', ''));
+    return preg_match('/^[0-9a-f-]{36}$/i', $id) ? $id : sticpa_card_campaign_default();
+}
+
 function sticpa_registration_card_marker($regId)
 {
     $regId = trim((string) $regId);

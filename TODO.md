@@ -53,6 +53,10 @@ Nada de esto es código; sin ello, el código que lo espera no avanza.
       WordPress). Si se quitó a propósito, cambiar a `/ap/` los cinco documentos que la
       citan; si no, volver a crearla.
 
+- [ ] `EV-9b` (P1 · S) **La campaña de los pagos con tarjeta**: crear en el CRM la campaña
+      «Pagos con tarjeta» (Campañas → Crear; activa) y pegar su id en los ajustes del plugin
+      (`Campaña de los pagos con tarjeta`). Hoy va la `ab11ebc9…` de siempre, sin mirar qué es.
+
 **Crear en Studio** (el código está hecho y se activa solo)
 - [!] `EV-6` (P2 · S) **Preguntas simples**: `ajmcm_pregunta_1_c` y `ajmcm_pregunta_2_c` en
       Eventos, `ajmcm_respuesta_1_c` y `ajmcm_respuesta_2_c` en Inscripciones (texto 255).

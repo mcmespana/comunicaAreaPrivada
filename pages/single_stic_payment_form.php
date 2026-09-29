@@ -156,7 +156,7 @@ $tutorIsUser = $_SESSION['scp_tutor_is_user'] ?? ($_SESSION['scp_user_adult'] ??
 $html .= '
 <form action="'.$hostUrl.'/index.php?entryPoint=stic_Web_Forms_save" name="WebToLeadForm"
     method="POST" id="WebToLeadForm">
-    <p><input type="hidden" id="campaign_id" name="campaign_id" value="ab11ebc9-de54-9306-3eaf-6267c96fee96" />
+    <p><input type="hidden" id="campaign_id" name="campaign_id" value="'.esc_attr(sticpa_card_campaign_id()).'" />
       <input type="hidden" id="redirect_url" name="redirect_url"
         value="'.esc_attr($redirectOk).'" />
       <input type="hidden" id="redirect_ko_url" name="redirect_ko_url"
