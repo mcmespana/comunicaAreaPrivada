@@ -41,7 +41,7 @@ function pageCacheName() {
  *
  * Copia de `sticpa_es_pantalla_pl()` (inc/stic-pasar-lista.php): el service
  * worker no ve PHP. Si allí se añade una pantalla, aquí también. */
-var PL_EXTRA = ['single_stic_mis_grupos'];
+var PL_EXTRA = ['single_stic_mis_grupos', 'single_stic_coordinacion'];
 
 function isPasarLista(url) {
     var page = url.searchParams.get('internalpage');

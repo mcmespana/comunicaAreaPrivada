@@ -100,6 +100,7 @@ function sticpa_es_pantalla_pl($page)
     }
     return in_array($page, apply_filters('sticpa_pl_pantallas_extra', array(
         'single_stic_mis_grupos',
+        'single_stic_coordinacion',
     )), true);
 }
 

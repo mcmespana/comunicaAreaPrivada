@@ -129,53 +129,56 @@ function sticpa_equipo_es_del_equipo()
  * saber qué tarjetas van en el grupo «Equipo de monitores». Si estuviera
  * escrita dos veces, un día dirían cosas distintas.
  *
- * Las dos últimas son de coordinación y hasta hoy solo se llegaba a ellas
- * bajando del todo en la home de Pasar lista.
+ * TRES COMO MUCHO, Y CADA UNA CON UN VERBO (repaso del 28/09/2026). Antes eran
+ * cinco —«Monitor/a», «Pasar lista», «Mis grupos», «Monitores», «Reuniones»— y
+ * no se entendían juntas: «Monitor/a» eran TUS datos, «Monitores» era pasar
+ * lista a los monitores (no ver sus fichas, que estaban en una pestaña de Mis
+ * grupos) y «Reuniones» era otra forma de pasar esa misma lista. Ahora:
+ *
+ *   · Pasar lista    → marcar quién ha venido (todo el equipo).
+ *   · Grupos y fichas → leer las fichas de los chavales, sin marcar nada.
+ *   · Coordinación   → todo lo del equipo de monitores en una sola pantalla:
+ *                      sus fichas y seguimientos, su lista del sábado, las
+ *                      reuniones y el resumen de grupos.
+ *
+ * Tus propios datos de monitor ya NO van aquí: son datos tuyos, como «Mis
+ * datos», y van con ellos en «Tu perfil» (sticpa_equipo_secciones_de_cuenta()).
  */
 function sticpa_equipo_secciones()
 {
     $papeles = sticpa_equipo_papeles();
     $secciones = array();
 
-    if (in_array('monitor', $papeles, true)) {
-        $secciones['single_stic_comunica_monitor'] = __('Monitor/a', 'sticpa');
-    }
     $secciones['single_stic_pasar_lista'] = __('Pasar lista', 'sticpa');
-    $secciones['single_stic_mis_grupos'] = __('Mis grupos', 'sticpa');
+    // «Grupos y fichas» y no «Mis grupos» (28/09/2026): a lo que se viene es a
+    // leer las fichas de los chavales, y quien coordina ve grupos que no son suyos.
+    $secciones['single_stic_mis_grupos'] = __('Grupos y fichas', 'sticpa');
 
     if (in_array('coordinacion', $papeles, true) || in_array('acompanamiento', $papeles, true)) {
-        // La puerta a las fichas de monitor y, dentro de cada una, a sus
-        // seguimientos: es el camino que pediste para «ver los seguimientos».
-        $secciones['single_stic_pasar_lista_monitores'] = __('Monitores', 'sticpa');
-    }
-    if (in_array('coordinacion', $papeles, true)) {
-        $secciones['single_stic_pasar_lista_reuniones'] = __('Reuniones', 'sticpa');
+        // Acompañamiento también entra: las fichas de los monitores y sus
+        // seguimientos son justo lo suyo. Lo que dentro es solo de coordinar
+        // (la lista del sábado, las reuniones) la pantalla ya no se lo enseña.
+        $secciones['single_stic_coordinacion'] = __('Coordinación', 'sticpa');
     }
 
     return (array) apply_filters('sticpa_equipo_secciones', $secciones, $papeles);
 }
 
 /**
- * De esas secciones, las que solo existen POR COORDINAR (o acompañar).
+ * Lo de monitor que es DATO TUYO y no herramienta: tu formación, trayectoria y
+ * certificados. Va en «Tu perfil», al lado de «Mis datos», que es donde se
+ * busca lo que se rellena una vez al año.
  *
- * Sirve para colocarlas: en la home van dentro del grupo, en su orden; en la
- * BARRA de navegación van al final, detrás de Eventos y compañía. La barra es
- * de una sola línea y lo que no cabe se va a «Más», así que meter dos entradas
- * de coordinación por delante empujaba «Eventos» —lo que usa todo el mundo,
- * coordinación incluida— dentro del desplegable. Lo que se usa más va delante:
- * es la misma regla que pone el bloque de coordinación DEBAJO de los grupos en
- * Pasar lista.
+ * Se llama «Mis datos de monitor» y no «Monitor/a»: una sección con el nombre
+ * de un papel no dice qué hay dentro, y al lado de «Monitores» (que era otra
+ * cosa) parecían la misma.
  */
-function sticpa_equipo_secciones_de_coordinacion()
+function sticpa_equipo_secciones_de_cuenta()
 {
-    $todas = sticpa_equipo_secciones();
-    $solo = array();
-    foreach (array('single_stic_pasar_lista_monitores', 'single_stic_pasar_lista_reuniones') as $clave) {
-        if (isset($todas[$clave])) {
-            $solo[$clave] = $todas[$clave];
-        }
+    if (!sticpa_equipo_es_del_equipo() || !in_array('monitor', sticpa_equipo_papeles(), true)) {
+        return array();
     }
-    return $solo;
+    return array('single_stic_comunica_monitor' => __('Mis datos de monitor', 'sticpa'));
 }
 
 /**

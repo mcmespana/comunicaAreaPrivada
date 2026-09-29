@@ -72,8 +72,10 @@ class CosteLlamadasTest extends TestCase
             'single_stic_mis_grupos' => array(),
             'single_stic_mis_grupos#az' => array('ver' => 'az'),
             'single_stic_mis_grupos#grupo' => array('grupo' => 'g1'),
-            'single_stic_mis_grupos#monitores' => array('__coord' => 'COM', 'quien' => 'monitores'),
             'single_stic_mis_grupos#sueltos' => array('ver' => 'sueltos'),
+            // Coordinación (28/09/2026): se quedó con el directorio de
+            // monitores que antes era la pestaña de Mis grupos.
+            'single_stic_coordinacion' => array('__coord' => 'COM'),
         );
 
         $lineas = array();
@@ -174,8 +176,7 @@ class CosteLlamadasTest extends TestCase
              * mapa recorriéndolo en memoria.
              *
              * Por eso el tope es 4 y no «unas cuantas»: cualquier consulta
-             * nueva aquí es casi seguro una que ya se hizo. La vista de
-             * monitores cuesta lo mismo, y eso es lo que se está probando. */
+             * nueva aquí es casi seguro una que ya se hizo. */
             'single_stic_mis_grupos' => array(array(), 4),
             'single_stic_mis_grupos#az' => array(array('ver' => 'az'), 4),
             'single_stic_mis_grupos#cursos' => array(array('ver' => 'cursos'), 4),
@@ -185,10 +186,15 @@ class CosteLlamadasTest extends TestCase
              * el precio de no enseñar un grupo vacío un sábado, y es UNA vez,
              * no una por grupo — el índice usa `_bulk`, que nunca cae. */
             'single_stic_mis_grupos#grupo' => array(array('grupo' => 'g1'), 5),
-            'single_stic_mis_grupos#monitores' => array(array('__coord' => 'COM', 'quien' => 'monitores'), 4),
             // La lista de quien no tiene grupo sale del MISMO mapa que todo lo
             // demás: si esto sube, alguien ha vuelto a preguntar por ellos.
             'single_stic_mis_grupos#sueltos' => array(array('ver' => 'sueltos'), 4),
+            /* COORDINACIÓN: sin cargador propio. Lo que ya pedían sus piezas
+             * por separado —el alcance, la gente de la delegación, el evento
+             * de reuniones y sus listas— en dos tandas. El directorio de
+             * monitores sale del mapa de relaciones: si esto sube con el
+             * número de grupos, alguien ha metido una consulta por grupo. */
+            'single_stic_coordinacion' => array(array('__coord' => 'COM'), 7),
         );
 
         // Viajes de ida y vuelta: ninguna pantalla puede pasar de esto.

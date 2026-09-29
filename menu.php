@@ -7,72 +7,71 @@ function getSticMenuElements()
 {
     $menuElements = array();
 
-    // --- Edición de datos (Comunica) — según el ROL del contacto ---
-    // "Mis datos" es común a todos (incluye TODOS los datos generales: contacto,
-    // dirección, MCM, salud, RGPD). Solo monitor/a tiene sección propia: el
-    // formulario de laicos no pide nada que no sea general (ver
-    // pages/single_stic_comunica_laico.php para el histórico de esa decisión).
+    /* EL ORDEN DEL MENÚ (repaso del 28/09/2026).
+     * ------------------------------------------------------------------
+     * Antes era un jaleo: «Mis datos» el primero, «Monitor/a» el segundo, luego
+     * lo de pasar lista, luego lo de todos, luego coordinación y al final la
+     * contraseña. Lo tuyo estaba en los dos extremos y lo del equipo, partido.
+     *
+     * Ahora son tres bloques que NO SE MEZCLAN, los mismos y en el mismo orden
+     * en la barra, en el menú del móvil y en la portada:
+     *
+     *   1. ACTIVIDADES — lo que haces como miembro del MCM (o lo que hace tu
+     *      hijo): Eventos, Inscripciones, Calendario, Pagos, Documentos.
+     *   2. EQUIPO DE MONITORES — Pasar lista, Grupos y fichas, Coordinación.
+     *      Solo para el equipo. Otro sombrero, así que va junto y aparte:
+     *      apuntarse a un evento no es cosa de monitor.
+     *   3. TU PERFIL — tus datos, tus datos de monitor, y tu usuario y
+     *      contraseña. Se tocan una vez cada muchos meses: lo último.
+     *
+     * Quién ve cada cosa lo deciden otras dos funciones, no este orden:
+     * sticpa_equipo_secciones() (inc/stic-equipo.php) para lo del equipo, y
+     * sticpa_visible_sections() (inc/stic-family.php) para las familias.
+     */
     $role = function_exists('sticpa_get_comunica_role') ? sticpa_get_comunica_role() : '';
-    // La etiqueta depende de la AUDIENCIA (ver sticpa_profile_audience):
-    // un familiar viendo a un participante ve "Sus datos" (no son los suyos).
+    // La etiqueta depende de la AUDIENCIA (ver sticpa_profile_audience): un
+    // familiar viendo a un participante ve «Datos de Lucía», no «Mis datos»
+    // (no son los suyos, y así nunca hay duda de qué ficha está tocando).
     $audience = function_exists('sticpa_profile_audience') ? sticpa_profile_audience() : 'miembro';
-    $menuElements['single_stic_comunica_perfil'] = ($audience === 'participante')
-        ? __('Datos participante', 'sticpa')
-        : __('Mis datos', 'sticpa');
-    // LO DE MONITOR VA JUNTO Y LO DECIDE UNA SOLA FUNCIÓN.
-    // ------------------------------------------------------------------
-    // Antes esto eran dos `if` con la misma condición escrita a mano
-    // (`$role === 'monitor'`), y esa condición dejaba fuera a quien coordina o
-    // acompaña sin llevar además la marca de monitor: ni «Pasar lista» ni
-    // «Mis grupos», o sea que tampoco llegaba a las pantallas de coordinación
-    // que cuelgan de ellas. Hoy no le pasa a nadie porque la única persona con
-    // `coordinacion_mic_com` lleva también `monitor` — funciona de casualidad.
-    //
-    // `sticpa_equipo_secciones()` (inc/stic-equipo.php) responde por los tres
-    // papeles y devuelve además las dos pantallas de coordinación, que hasta
-    // ahora solo se alcanzaban bajando del todo en la home de Pasar lista.
-    // La misma función ordena el grupo «Equipo de monitores» de la home: una
-    // sola lista, un solo sitio donde cambiarla.
-    //
-    // La audiencia sigue mandando y está DENTRO de la función: un familiar
-    // mirando la ficha de su hijo no pasa lista de nadie, aunque él sea
-    // monitor.
-    //
-    // EN LA BARRA, eso sí, lo de coordinación va al FINAL (ver abajo): la barra
-    // es de una línea y lo que no cabe cae en «Más», así que dos entradas más
-    // aquí arriba enterraban «Eventos».
+
+    // LO DE MONITOR LO DECIDE UNA SOLA FUNCIÓN (sticpa_equipo_secciones), que
+    // responde por los tres papeles —monitor, coordinación, acompañamiento— y
+    // tiene dentro la audiencia: un familiar mirando la ficha de su hijo no
+    // pasa lista de nadie, aunque él sea monitor.
     $esDelEquipo = (function_exists('sticpa_equipo_es_del_equipo') && sticpa_equipo_es_del_equipo());
-    $deCoordinacion = array();
+    $delEquipo = array();
+    $deCuenta = array();
     if ($esDelEquipo) {
-        $deCoordinacion = sticpa_equipo_secciones_de_coordinacion();
-        foreach (sticpa_equipo_secciones() as $clave => $etiqueta) {
-            if (isset($deCoordinacion[$clave])) {
-                continue;
-            }
-            $menuElements[$clave] = $etiqueta;
-        }
+        $delEquipo = sticpa_equipo_secciones();
+        $deCuenta = sticpa_equipo_secciones_de_cuenta();
     } elseif ($role === 'monitor' && $audience !== 'participante') {
-        // Salvavidas por si el módulo del equipo no estuviera cargado: se
-        // mantiene lo que había, ni más ni menos.
-        $menuElements['single_stic_comunica_monitor'] = __('Monitor/a', 'sticpa');
-        $menuElements['single_stic_pasar_lista'] = __('Pasar lista', 'sticpa');
-        $menuElements['single_stic_mis_grupos'] = __('Mis grupos', 'sticpa');
+        // Salvavidas por si el módulo del equipo no estuviera cargado: lo
+        // mínimo de un monitor.
+        $delEquipo['single_stic_pasar_lista'] = __('Pasar lista', 'sticpa');
+        $delEquipo['single_stic_mis_grupos'] = __('Grupos y fichas', 'sticpa');
+        $deCuenta['single_stic_comunica_monitor'] = __('Mis datos de monitor', 'sticpa');
     }
 
-    // --- Secciones del área privada (las que ya había) ---
+    // --- 1. Actividades ---
     $menuElements['list_stic_events'] = __('Eventos', 'sticpa');
     $menuElements['list_stic_registrations'] = __('Inscripciones', 'sticpa');
-    $menuElements['list_stic_documents'] = __('Documentos', 'sticpa');
-    $menuElements['list_stic_payments'] = __('Pagos', 'sticpa');
     $menuElements['single_stic_activities_calendar'] = __('Calendario', 'sticpa');
+    $menuElements['list_stic_payments'] = __('Pagos', 'sticpa');
+    $menuElements['list_stic_documents'] = __('Documentos', 'sticpa');
 
-    // Lo de coordinación, aquí: después de lo de todos y antes de la
-    // contraseña, que es lo último de todo.
-    foreach ($deCoordinacion as $clave => $etiqueta) {
+    // --- 2. Equipo de monitores, todo junto ---
+    foreach ($delEquipo as $clave => $etiqueta) {
         $menuElements[$clave] = $etiqueta;
     }
 
-    $menuElements['single_stic_password_change'] = __('Cambiar contraseña', 'sticpa');
+    // --- 3. Tu perfil, lo último ---
+    $menuElements['single_stic_comunica_perfil'] = ($audience === 'participante')
+        ? sticpa_datos_de_label()
+        : __('Mis datos', 'sticpa');
+    foreach ($deCuenta as $clave => $etiqueta) {
+        $menuElements[$clave] = $etiqueta;
+    }
+    $menuElements['single_stic_password_change'] = __('Usuario y contraseña', 'sticpa');
 
     // Opcionales (descomentar si se usan):
     // $menuElements['list_stic_payment_commitments'] = __('Compromisos de pago', 'sticpa');
@@ -89,6 +88,25 @@ function getSticMenuElements()
 }
 #########################################################
 
+/**
+ * «Datos de Lucía»: la etiqueta de la ficha del participante que está viendo
+ * un familiar. Con el nombre de pila y no «Datos participante», que era como
+ * se llamaba: con dos hijos, el nombre es lo que dice de quién son.
+ */
+function sticpa_datos_de_label()
+{
+    $nombre = trim((string) ($_SESSION['scp_user_contact_name'] ?? ''));
+    if (strpos($nombre, ',') !== false) {
+        $partes = explode(',', $nombre, 2);
+        $nombre = trim($partes[1]) !== '' ? trim($partes[1]) : trim($partes[0]);
+    }
+    $nombre = ($nombre !== '') ? preg_split('/\s+/', $nombre)[0] : '';
+    return ($nombre !== '')
+        /* translators: %s: nombre de pila del participante */
+        ? sprintf(__('Datos de %s', 'sticpa'), $nombre)
+        : __('Sus datos', 'sticpa');
+}
+
 function defaultMenuElement()
 {
     global $defaultMenuElement;
@@ -99,7 +117,7 @@ function defaultMenuElement()
  * CÓMO SE AGRUPA EL MENÚ EN EL MÓVIL.
  *
  * Los mismos grupos que la portada, en su mismo orden: Inicio suelto arriba,
- * «Tu día a día», «Equipo de monitores» y «Tu cuenta». Cada grupo va en
+ * «Actividades», «Equipo de monitores» y «Tu perfil». Cada grupo va en
  * mosaicos de dos en dos; si le toca un número impar, el último ocupa el
  * ancho entero, para que no quede un hueco a la derecha.
  *
@@ -111,16 +129,17 @@ function defaultMenuElement()
 function sticpa_nav_layout($keys)
 {
     $equipo = function_exists('sticpa_equipo_secciones') ? array_keys(sticpa_equipo_secciones()) : array();
-    $equipo = array_merge($equipo, array('single_stic_comunica_monitor', 'single_stic_pasar_lista', 'single_stic_mis_grupos',
-        'single_stic_pasar_lista_monitores', 'single_stic_pasar_lista_reuniones'));
-    $cuenta = array('single_stic_comunica_perfil', 'single_stic_tutor_profile', 'single_stic_profile',
-        'single_stic_password_change', 'single_stic_profile_selection', 'single_stic_unsubscribe');
+    $equipo = array_merge($equipo, array('single_stic_pasar_lista', 'single_stic_mis_grupos', 'single_stic_coordinacion'));
+    // «Mis datos de monitor» va en la CUENTA: son datos tuyos, no una
+    // herramienta del equipo (ver sticpa_equipo_secciones_de_cuenta()).
+    $cuenta = array('single_stic_comunica_perfil', 'single_stic_comunica_monitor', 'single_stic_tutor_profile',
+        'single_stic_profile', 'single_stic_password_change', 'single_stic_profile_selection', 'single_stic_unsubscribe');
 
     $groups = array(
         'inicio' => array('label' => '', 'keys' => array()),
-        'dia'    => array('label' => __('Tu día a día', 'sticpa'), 'keys' => array()),
+        'dia'    => array('label' => __('Actividades', 'sticpa'), 'keys' => array()),
         'equipo' => array('label' => __('Equipo de monitores', 'sticpa'), 'keys' => array()),
-        'cuenta' => array('label' => __('Tu cuenta', 'sticpa'), 'keys' => array()),
+        'cuenta' => array('label' => __('Tu perfil', 'sticpa'), 'keys' => array()),
     );
     foreach ($keys as $key) {
         if ($key === 'single_stic_home') {
@@ -349,7 +368,7 @@ function menu()
     // El avatar y el nombre llevan a INICIO: es el "logo" de la barra, el
     // atajo más natural para volver (un tap grande, sin ir a buscar el item
     // "Inicio" del menú). Los accesos a "mis datos" siguen disponibles desde
-    // el menú y desde la home ("Tu cuenta"), así que no se pierde nada.
+    // el menú y desde la home ("Tu perfil"), así que no se pierde nada.
     $homeTitle = esc_attr__('Ir a inicio', 'sticpa');
     $account = "<div class='stic-account'>";
     $account .= "<a class='stic-avatar-link' href='?internalpage=single_stic_home' title='{$homeTitle}'>";

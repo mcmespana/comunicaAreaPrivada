@@ -278,7 +278,8 @@ function sticpa_pl_vengo_url($vengo, $vgrupo = '')
         return $base . '&ver=' . $vengo;
     }
     if ($vengo === 'monitores') {
-        return $base . '&quien=monitores';
+        // El directorio de monitores vive en Coordinación desde el 28/09/2026.
+        return '?internalpage=single_stic_coordinacion';
     }
     return '';
 }
@@ -1184,4 +1185,206 @@ function sticpa_pl_sq_usados($squares)
         }
     }
     return $out;
+}
+
+/**
+ * LA REUNIÓN SIN LISTA, como fila de deuda (ámbar y «Recuperar»).
+ *
+ * Solo la última celebrada y solo durante un MES: una reunión suspendida no se
+ * puede borrar desde aquí ni marcar «Sin registro», y dejaría el ámbar puesto
+ * hasta la siguiente, tres meses después. Pasado el mes sigue en Reuniones como
+ * «sin pasar», que es donde se mira la historia.
+ *
+ * La lista de monitores del SÁBADO no avisa, a propósito: si coordinación no la
+ * pasa cada semana, sería un ámbar fijo que enseña a no mirar el ámbar.
+ *
+ * Cero consultas si las sesiones del evento de reuniones y las listas de
+ * monitores ya van en la tanda de quien llama. La usan la portada de Pasar
+ * lista y la de Coordinación: el aviso es el mismo en las dos.
+ *
+ * @return array<int, array{when:string, what:string, href:string}>
+ */
+function sticpa_pl_reunion_pendiente($objSCP, $reuEvent)
+{
+    if (!is_array($reuEvent) || empty($reuEvent['id'])) {
+        return array();
+    }
+    $listasMon = sticpa_pl_all_listas_monitores($objSCP);
+    $ultima = null;
+    foreach (sticpa_pl_elapsed_sessions(sticpa_pl_event_sessions($objSCP, $reuEvent['id'])) as $s) {
+        $ultima = $s;   // van de la más antigua a la más reciente
+    }
+    if ($ultima === null || !empty($listasMon[$ultima['id']]['estado'])
+        || sticpa_pl_now() - (int) $ultima['start'] > 30 * DAY_IN_SECONDS) {
+        return array();
+    }
+    return array(array(
+        'when' => sticpa_pl_session_label($ultima, false),
+        'what' => (isset($ultima['name']) && $ultima['name'] !== '')
+            ? sprintf(
+                /* translators: %s: nombre de la reunión */
+                __('Reunión: %s', 'sticpa'),
+                $ultima['name']
+            )
+            : __('Reunión', 'sticpa'),
+        'href' => '?internalpage=single_stic_pasar_lista_monitores&reunion=1&sesion=' . rawurlencode($ultima['id']),
+    ));
+}
+
+/** Las filas ámbar de «Recuperar» para lo que devuelve sticpa_pl_reunion_pendiente(). */
+function sticpa_pl_deudas_html($deudas)
+{
+    if (empty($deudas)) {
+        return '';
+    }
+    $html = '<div class="pl-pending">';
+    foreach ($deudas as $d) {
+        $html .= '<a class="pl-pending-row" href="' . esc_url($d['href']) . '">';
+        $html .= '<span class="pl-pending-body">';
+        $html .= '<span class="pl-pending-when">' . esc_html($d['when']) . '</span>';
+        $html .= '<span class="pl-pending-group">' . esc_html($d['what']) . '</span>';
+        $html .= '</span>';
+        $html .= '<span class="pl-pending-cta">' . esc_html__('Recuperar', 'sticpa') . '</span>';
+        $html .= '</a>';
+    }
+    $html .= '</div>';
+    return $html;
+}
+
+/**
+ * Una fila de navegación de la casa: nombre, línea gris y flecha.
+ *
+ * Es el `pl-group` de siempre (árbol de grupos, bloque de coordinación). Se
+ * saca a función porque la portada de Coordinación está hecha casi solo de
+ * esto y escribirlo seis veces es escribirlo seis veces distinto.
+ */
+function sticpa_pl_nav_row_html($href, $name, $meta = '')
+{
+    $html = '<a class="pl-group" href="' . esc_url($href) . '">';
+    $html .= '<span class="pl-group-body">';
+    $html .= '<span class="pl-name">' . esc_html($name) . '</span>';
+    if ($meta !== '') {
+        $html .= '<span class="pl-group-meta">' . esc_html($meta) . '</span>';
+    }
+    $html .= '</span>';
+    $html .= '<span class="pl-detail">' . sticpa_pl_icon('next') . '</span>';
+    $html .= '</a>';
+    return $html;
+}
+
+/**
+ * EL DIRECTORIO DE MONITORES: los del alcance, por etapa, cada uno con el
+ * enlace a su ficha (y de ahí a sus seguimientos).
+ *
+ * Vivía como la pestaña «Monitores» de Mis grupos, y esa pestaña era lo que
+ * hacía de Mis grupos «un jaleo que habla de monitores y de niños». Desde el
+ * 28/09/2026 está en la portada de Coordinación, que es donde se buscan los
+ * monitores; Mis grupos se queda con los chavales.
+ *
+ * Los monitores SIN GRUPO de la delegación van primero y aparte, con su
+ * «Vincular»: es donde se arregla que un monitor nuevo no salga en la lista de
+ * su grupo. Solo existen para quien coordina toda la delegación
+ * (`sticpa_pl_coord_monitors()`), y solo coordinación puede vincular.
+ *
+ * Cero consultas: todo sale del mapa de relaciones.
+ *
+ * @param array  $monitors lo que devuelve sticpa_pl_coord_monitors().
+ * @param array  $groups   los grupos de la delegación (para el desplegable).
+ * @param bool   $puedoVincular si quien mira coordina.
+ * @param string $nonce    la acción del nonce del formulario de vincular.
+ */
+function sticpa_pl_directorio_monitores_html($monitors, $groups, $puedoVincular, $nonce)
+{
+    $html = '';
+    if (empty($monitors)) {
+        return '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
+            . esc_html__('No hay monitores con relación vigente en los grupos de tu alcance.', 'sticpa')
+            . '</span></p>';
+    }
+
+    $sinGrupo = array();
+    foreach ($monitors as $i => $m) {
+        if (empty($m['groups']) && !empty($m['rel_sin_grupo'])) {
+            $sinGrupo[] = $m;
+            unset($monitors[$i]);
+        }
+    }
+    if (!empty($sinGrupo)) {
+        $html .= '<div class="pl-sec-row"><div class="pl-sec">' . esc_html__('Sin grupo', 'sticpa') . '</div>'
+            . '<span class="pl-etapa-count">' . esc_html(sprintf(
+                /* translators: %d: cuántos monitores no tienen grupo */
+                _n('%d monitor', '%d monitores', count($sinGrupo), 'sticpa'),
+                count($sinGrupo)
+            )) . '</span></div>';
+        $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
+            . esc_html__('Tienen relación de monitor, pero no cuelgan de ningún grupo de la delegación. Elige el grupo que llevan y ya salen en su lista.', 'sticpa')
+            . '</span></p>';
+        $html .= '<form method="post">';
+        $html .= wp_nonce_field($nonce, 'pl_nonce', true, false);
+        $html .= '<div class="pl-list">';
+        foreach ($sinGrupo as $m) {
+            $html .= '<div class="pl-rowwrap pl-suelto">';
+            $html .= sticpa_pl_avatar_html($m, true);
+            $html .= '<span class="pl-row-body">';
+            $html .= '<span class="pl-name">' . esc_html($m['name']) . '</span>';
+            $html .= '<span class="pl-rowsub">' . esc_html__('Sin grupo asignado', 'sticpa') . '</span>';
+            $html .= '</span>';
+            if ($puedoVincular) {
+                $html .= sticpa_pl_vincular_html($m['rel_sin_grupo'], $groups, $m['name']);
+            }
+            $html .= '</div>';
+        }
+        $html .= '</div></form>';
+    }
+
+    // Por etapa, con los mismos puntos de color que el árbol y que la lista de
+    // monitores: es el idioma que la aplicación ya tiene.
+    $porEtapa = array();
+    foreach ($monitors as $m) {
+        $etapa = (isset($m['etapa']) && $m['etapa'] !== '') ? $m['etapa'] : '?';
+        $porEtapa[$etapa][] = $m;
+    }
+
+    $etapaDots = array('MIC' => 'var(--danger-color)', 'COM' => 'var(--success-color)', 'LC' => 'var(--primary-color)');
+    foreach (array('MIC', 'COM', 'LC', '?') as $etapa) {
+        if (empty($porEtapa[$etapa])) {
+            continue;
+        }
+        if (count($porEtapa) > 1) {
+            $dot = isset($etapaDots[$etapa]) ? $etapaDots[$etapa] : 'var(--gray-300)';
+            $titulo = ($etapa === '?') ? __('Sin etapa', 'sticpa') : $etapa;
+            $html .= '<div class="pl-etapa-title">'
+                . '<span class="pl-etapa-dot" style="background:' . esc_attr($dot) . '"></span>'
+                . esc_html($titulo)
+                . '<span class="pl-etapa-count">' . esc_html(sprintf(
+                    /* translators: %d: cuántos monitores hay en la etapa */
+                    _n('%d monitor', '%d monitores', count($porEtapa[$etapa]), 'sticpa'),
+                    count($porEtapa[$etapa])
+                )) . '</span></div>';
+        }
+        $html .= '<div class="pl-list">';
+        foreach ($porEtapa[$etapa] as $m) {
+            $sub = implode(' · ', array_filter(array(
+                implode(' · ', $m['groups']),
+                isset($m['curso']) ? $m['curso'] : '',
+            )));
+            if (empty($m['groups'])) {
+                // La relación de monitor no tiene grupo de la delegación (un
+                // comodín «POR DEFINIR»): se dice, que es lo que hay que arreglar.
+                $sub = __('Sin grupo asignado', 'sticpa');
+            }
+            $html .= sticpa_pl_person_link_html(
+                $m,
+                '?internalpage=single_stic_pasar_lista_monitor&monitor=' . rawurlencode($m['id'])
+                    . '&vengo=monitores',
+                $sub,
+                '',
+                true
+            );
+        }
+        $html .= '</div>';
+    }
+
+    $html .= sticpa_pl_buscador_vacio_html();
+    return $html;
 }

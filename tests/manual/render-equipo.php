@@ -30,11 +30,9 @@ $chips = sticpa_equipo_chips_html();
 // Las tarjetas de la home, con los mismos iconos y descripciones de verdad.
 $secciones = sticpa_equipo_secciones();
 $meta = array(
-    'single_stic_comunica_monitor' => array('Tu formación, certificados y datos de monitor/a.', "<path d='M22 10 12 5 2 10l10 5 10-5Z'/><path d='M6 12v5c0 1 2 3 6 3s6-2 6-3v-5'/>"),
     'single_stic_pasar_lista' => array('Marca quién ha venido, sábado a sábado.', "<path d='M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2'/><rect x='9' y='3' width='6' height='4' rx='1'/><path d='m9 14 2 2 4-4'/>"),
-    'single_stic_mis_grupos' => array('Las fichas de tu gente, sin pasar lista.', "<circle cx='9' cy='8' r='3.5'/><path d='M2 20v-1a6 6 0 0 1 12 0v1'/><path d='M17 8.5a3 3 0 0 1 0 5'/><path d='M19 20v-1a5 5 0 0 0-2.5-4'/>"),
-    'single_stic_pasar_lista_monitores' => array('Tu equipo: asistencia, fichas y seguimientos.', "<circle cx='10' cy='8' r='3.5'/><path d='M3 20v-1a6 6 0 0 1 11-3.3'/><path d='m15 17 2 2 4-4'/>"),
-    'single_stic_pasar_lista_reuniones' => array('Reuniones de programación: crearlas y pasar lista.', "<rect x='3' y='4' width='18' height='18' rx='2'/><path d='M16 2v4M8 2v4M3 10h18'/><path d='M12 13v3l2 1'/>"),
+    'single_stic_mis_grupos' => array('Los chavales de cada grupo y sus fichas, sin pasar lista.', "<circle cx='9' cy='8' r='3.5'/><path d='M2 20v-1a6 6 0 0 1 12 0v1'/><path d='M17 8.5a3 3 0 0 1 0 5'/><path d='M19 20v-1a5 5 0 0 0-2.5-4'/>"),
+    'single_stic_coordinacion' => array('Tu equipo de monitores: fichas, seguimientos, asistencia y reuniones.', "<circle cx='10' cy='8' r='3.5'/><path d='M3 20v-1a6 6 0 0 1 11-3.3'/><path d='m15 17 2 2 4-4'/>"),
 );
 
 $cards = '';
@@ -75,8 +73,8 @@ body{margin:0;background:var(--bg-color,#f6f7f9)}.harness{padding:1rem}
 <div class=harness-pl>
 <div class='pl-etapa-title'><span class='pl-etapa-dot' style='background:var(--secondary-color)'></span>Coordinación<span class='pl-scope'>COM · COM 2</span></div>
 <div class='pl-list'>
-  <a class='pl-group' href='#'><span class='pl-group-body'><span class='pl-name'>Monitores</span><span class='pl-group-meta'>Pasar lista del sábado</span></span></a>
-  <a class='pl-group' href='#'><span class='pl-group-body'><span class='pl-name'>Reuniones</span><span class='pl-group-meta'>Programación: crear y pasar lista</span></span></a>
+  <a class='pl-group' href='#'><span class='pl-group-body'><span class='pl-name'>Lista de monitores</span><span class='pl-group-meta'>Quién ha venido el sábado</span></span></a>
+  <a class='pl-group' href='#'><span class='pl-group-body'><span class='pl-name'>Reuniones de programación</span><span class='pl-group-meta'>Crearlas y pasar lista</span></span></a>
 </div>
 </div>
 <h2>Los dos chips (contraste en los dos temas)</h2>

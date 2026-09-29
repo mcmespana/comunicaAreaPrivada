@@ -1,4 +1,7 @@
-# Mis grupos — leer las fichas sin pasar lista
+# Grupos y fichas (antes «Mis grupos») — leer las fichas sin pasar lista
+
+> En el menú se llama **«Grupos y fichas»** desde el 28/09/2026. El archivo y la
+> clave (`single_stic_mis_grupos`) no cambian, para no romper enlaces.
 
 Una sección del área privada, al lado de Pasar Lista y con la misma gente vista
 de otra manera. Existe para una queja concreta: **para mirar un teléfono o leer
@@ -9,8 +12,17 @@ para otra cosa y que además ata lo que ves a una sesión concreta.
 > [roadmap](PASAR-LISTA-ROADMAP.md).
 
 **Archivo:** `pages/single_stic_mis_grupos.php`
-**Menú:** `menu.php`, con la misma condición que Pasar Lista — monitor, y no
-mirando la ficha de un participante.
+**Menú:** `menu.php`, con la misma condición que Pasar Lista — del equipo de
+monitores (`sticpa_equipo_secciones()`), y no mirando la ficha de un
+participante.
+
+> **28/09/2026 — Mis grupos es de los CHAVALES.** La pestaña «Chavales /
+> Monitores» que tenía coordinación se quitó: el directorio de monitores (con su
+> «Sin grupo» y su «Vincular») vive ahora en **Coordinación**
+> (`pages/single_stic_coordinacion.php`, ver `PASAR-LISTA-COORDINACION.md`
+> §5 quater). Dentro de un grupo se sigue viendo quién lo lleva, pero el nombre
+> del monitor solo enlaza a su ficha para coordinación y acompañamiento: a un
+> monitor raso le llevaba a «Esta pantalla es de coordinación».
 
 ---
 
@@ -35,7 +47,7 @@ poblaciones:
 | `?ver=cursos` | Por curso escolar, que **cruza los grupos**: «todos los de 1.º de ESO» están repartidos en C1 y C2 y por grupo no se ven juntos nunca. |
 | `?ver=az` | Toda la gente seguida, por apellido. |
 | `?grupo=<id>` | La gente de un grupo: monitores arriba, participantes debajo. |
-| `?quien=monitores` | **Solo coordinación.** Los monitores del alcance, agrupados por etapa. |
+| ~~`?quien=monitores`~~ | **Retirado el 28/09/2026.** Los monitores están en Coordinación. Un enlace viejo pinta los chavales. |
 | `?ver=sueltos` | Quien no está en ningún grupo, y el control para vincularlo. Se llega por la tarjeta del final del índice, que solo sale si hay alguien. |
 
 Más un buscador que filtra lo ya pintado, sin acentos ni mayúsculas, y sin ir
@@ -219,8 +231,8 @@ cuelga de un comodín como «⚠️ Grupo COM-LC - POR DEFINIR!», que no es de 
 delegación y antes no salía ni aquí ni en ninguna lista. Quien ya está en un
 grupo de verdad no sale aunque le quede una relación vieja en el comodín.
 
-**Monitores sin grupo** (27/09/2026): en la vista de monitores (`?quien=monitores`)
-salen ARRIBA, en su sección «Sin grupo» y con el mismo «Vincular», para quien
+**Monitores sin grupo** (27/09/2026; desde el 28/09 en **Coordinación**, que
+heredó la vista de monitores): salen ARRIBA, en su sección «Sin grupo» y con el mismo «Vincular», para quien
 coordina toda la delegación (ver `PASAR-LISTA-COORDINACION.md` §3). La ficha del
 monitor lo ofrece también.
 
@@ -271,7 +283,7 @@ mantiene, para que el botón que queda no se descoloque al centro.
 marcando. Era justo la pega de llegar a la ficha por la pantalla de marcar.
 
 **Las pestañas miden 44 px de alto** (`.pl-tab`, 26/09/2026). Las de «Grupos /
-Cursos / A-Z» medían 37 y las de «Chavales / Monitores», 32: por debajo del
+Cursos / A-Z» medían 37 y las de «Chavales / Monitores» (ya retiradas), 32: por debajo del
 mínimo táctil de `design.md` §2, que gana a lo demás. No hay artboard de esta
 pantalla; si algún día lo hay y dibuja pestañas más bajas, esto no se «arregla»
 de vuelta.

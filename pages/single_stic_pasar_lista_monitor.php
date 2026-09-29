@@ -240,9 +240,12 @@ $volver = sticpa_pl_vengo_url(
     isset($_REQUEST['vengo']) ? $_REQUEST['vengo'] : '',
     isset($_REQUEST['vgrupo']) ? $_REQUEST['vgrupo'] : ''
 );
-$volverTexto = ($volver !== '') ? __('Volver a mis grupos', 'sticpa') : __('Volver a monitores', 'sticpa');
+// Sin `vengo` (o con `vengo=monitores`, el directorio) se vuelve a
+// Coordinación, que es donde está la lista del equipo desde el 28/09/2026.
+$vengoGrupos = in_array(sticpa_pl_vengo_modo(isset($_REQUEST['vengo']) ? $_REQUEST['vengo'] : ''), array('grupo', 'grupos', 'cursos', 'az'), true);
+$volverTexto = $vengoGrupos ? __('Volver a Grupos y fichas', 'sticpa') : __('Volver a coordinación', 'sticpa');
 if ($volver === '') {
-    $volver = '?internalpage=single_stic_pasar_lista_monitores';
+    $volver = '?internalpage=single_stic_coordinacion';
 }
 
 $html .= '<div class="pl-head">';

@@ -3193,6 +3193,15 @@ a.pl-group .pl-name { display: block; }
 .pl-rowlink:active { background: var(--gray-100); }
 .pl-rowlink .pl-name { color: var(--gray-800); }
 
+/* La MISMA fila cuando no se abre nada: un compañero del grupo que un monitor
+   raso ve pero cuya ficha no puede abrir (es de coordinación). Mismo relleno,
+   sin fondo al pulsar y sin flecha: nada promete que se vaya a abrir. */
+.pl-rowstatic {
+    gap: 0.75rem;
+    padding: 0.7rem 0.85rem;
+}
+.pl-rowstatic .pl-name { color: var(--gray-800); }
+
 /* La flecha que solo indica «esto se abre». En la lista de marcar la flecha es
    un enlace propio con su objetivo táctil de 44 px; aquí el objetivo es la fila
    entera, así que la flecha es decoración y no necesita su caja. */
