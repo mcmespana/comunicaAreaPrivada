@@ -444,15 +444,15 @@ class RegistrationManageTest extends TestCase
         $this->assertSame('del-cs', $this->hidden($html, 'assigned_user_id'));
     }
 
-    public function test_la_campana_sale_de_los_ajustes_y_si_no_la_de_siempre()
+    public function test_la_campana_sale_de_los_ajustes_y_si_no_pagos_con_tarjeta()
     {
-        $this->assertSame('ab11ebc9-de54-9306-3eaf-6267c96fee96', sticpa_card_campaign_id());
+        $this->assertSame('00000edb-e11b-2a0f-4757-6abc23a90262', sticpa_card_campaign_id());
         update_option('sticpa_card_campaign_id', ' 11111111-2222-3333-4444-555555555555 ');
         $this->crm->events['ev-1'] = $this->evento();
         $html = $this->formularioDePago(array());
         $this->assertSame('11111111-2222-3333-4444-555555555555', $this->hidden($html, 'campaign_id'));
         update_option('sticpa_card_campaign_id', 'no es un id');
-        $this->assertSame('ab11ebc9-de54-9306-3eaf-6267c96fee96', sticpa_card_campaign_id());
+        $this->assertSame('00000edb-e11b-2a0f-4757-6abc23a90262', sticpa_card_campaign_id());
         unset($GLOBALS['__stic_options']['sticpa_card_campaign_id']);
     }
 
