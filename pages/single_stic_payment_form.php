@@ -77,7 +77,13 @@ $email = $userData->email1->value ?? '';
 $last_name = $userData->last_name->value ?? '';
 $first_name = $userData->first_name->value ?? '';
 $stic_identification_number_c = $userData->stic_identification_number_c->value ?? '';
-$assignedUserId = '1';
+// A LA DELEGACIÓN, como todo lo que se crea en el CRM (antes iba fijo al
+// «Administrador MCM», `1`, y el cobro se quedaba fuera de su MCM Local). El
+// formulario web asigna a este usuario el compromiso y el pago que crea.
+$assignedUserId = function_exists('sticpa_pl_delegation') ? (string) sticpa_pl_delegation($objSCP) : '';
+if ($assignedUserId === '') {
+    $assignedUserId = '1';
+}
 
 if (!$email || !$last_name || !$first_name || !$stic_identification_number_c) {
     $html .= sticpa_payment_form_bounce(
@@ -90,23 +96,44 @@ if (!$email || !$last_name || !$first_name || !$stic_identification_number_c) {
 }
 
 $bankingConcept = '';
+// Lo que es el pago. Suelto (desde «Mis pagos»), una aportación: `donation`.
+// De una inscripción, NUNCA: es el precio de una actividad (EV-9).
+$paymentType = 'donation';
+$paymentDescription = '';
+$redirectOk = home_url() . '/?internalpage=list_stic_payments';
+$forInscripcion = false;
 if ($eventId !== '') {
-  $eventData = $objSCP->getRecordDetail($eventId, 'stic_Events', array('id', 'name'))->entry_list[0]->name_value_list;
+  $eventData = $objSCP->getRecordDetail($eventId, 'stic_Events', array('id', 'name', 'price'))->entry_list[0]->name_value_list;
 
   $eventName = $eventData->name->value ?? '';
 
   $html .= "<div class='stic-entry-header'>
   <h5>".__('Event', 'sticpa') .": ".esc_html($eventName)."</h5>";
 
-  // PAGAR UNA INSCRIPCIÓN CON TARJETA (TODO EV-7). Este formulario es un
-  // formulario web de SinergiaCRM y crea SU compromiso, que no se puede atar a
-  // la inscripción. Para que la delegación sepa de qué es, el concepto lleva el
-  // nombre de la actividad. Solo si la inscripción es de quien paga: el
+  // PAGAR UNA INSCRIPCIÓN CON TARJETA (EV-7 y EV-9). Este formulario es un
+  // formulario web de SinergiaCRM y crea SU compromiso; el área lo ata a la
+  // inscripción a la vuelta (ver sticpa_registration_card_marker()). El
+  // concepto lleva el nombre de la actividad, que es lo que se ve en el TPV y
+  // en el extracto. Solo si la inscripción es de quien paga: el
   // `registrationId` viaja por la URL.
   if ($registrationId !== '' && function_exists('sticpa_user_owns_record')
       && sticpa_user_owns_record($objSCP, 'stic_Registrations', $registrationId)) {
     $plano = trim(html_entity_decode((string) $eventName, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
     $bankingConcept = function_exists('mb_substr') ? mb_substr($plano, 0, 140, 'UTF-8') : substr($plano, 0, 140);
+
+    // EV-9: el cobro de una inscripción es un servicio, de la delegación, por
+    // el precio del evento y con tarjeta. La descripción lleva la marca con la
+    // que la ficha ata después el compromiso a la inscripción, y la vuelta es a
+    // esa ficha, que es donde se ata.
+    $marca = sticpa_registration_card_marker($registrationId);
+    $precio = sticpa_event_price($eventData);
+    if ($marca !== '' && $precio > 0) {
+      $forInscripcion = true;
+      $paymentType = sticpa_registration_payment_type();
+      $suggestedAmount = number_format($precio, 2, '.', '');
+      $paymentDescription = sprintf('Pago con tarjeta de la inscripción a «%s», desde el área privada. %s', $plano, $marca);
+      $redirectOk = home_url() . '/?internalpage=single_stic_registrations&action=detail&id=' . rawurlencode($registrationId) . '&msg=pagado';
+    }
   }
 }
 
@@ -114,8 +141,10 @@ if ($eventId !== '') {
 // pantalla llamaba a getFieldDefinition en CADA visita, saltándose la caché.
 $paymentMethodDef = sticpa_cached_field_definition($objSCP, 'stic_Payment_Commitments', array('payment_method'));
 $paymentMethodOptions = $paymentMethodDef['payment_method']['options'] ?? array();
-$paymentMethodOptionsHtml = "<option value='' label='' ></option>";
-$paymentMethod = array('card', 'cash', 'direct_debit', 'bizum');
+$paymentMethodOptionsHtml = $forInscripcion ? '' : "<option value='' label='' ></option>";
+// Una inscripción llega aquí porque se eligió tarjeta: los demás medios se
+// eligen al inscribirse y no pasan por este formulario.
+$paymentMethod = $forInscripcion ? array('card') : array('card', 'cash', 'direct_debit', 'bizum');
 foreach($paymentMethod as $elem) {
     $optionLabel = $paymentMethodOptions[$elem]['value'] ?? $elem;
     $paymentMethodOptionsHtml .= "<option value='".esc_attr($elem)."' label='".esc_attr($optionLabel)."' >".esc_html($optionLabel)."</option>";
@@ -129,19 +158,20 @@ $html .= '
     method="POST" id="WebToLeadForm">
     <p><input type="hidden" id="campaign_id" name="campaign_id" value="ab11ebc9-de54-9306-3eaf-6267c96fee96" />
       <input type="hidden" id="redirect_url" name="redirect_url"
-        value="'.home_url().'/?internalpage=list_stic_payments" />
+        value="'.esc_attr($redirectOk).'" />
       <input type="hidden" id="redirect_ko_url" name="redirect_ko_url"
         value="'.home_url().'/?internalpage=single_stic_payment_error" />
       <input type="hidden" id="validate_identification_number" name="validate_identification_number" value="0" />
       <input type="hidden" id="allow_card_recurring_payments" name="allow_card_recurring_payments" value="0" />
       <input type="hidden" id="allow_paypal_recurring_payments" name="allow_paypal_recurring_payments" value="0" />
-      <input type="hidden" id="assigned_user_id" name="assigned_user_id" value="'.$assignedUserId.'" />
+      <input type="hidden" id="assigned_user_id" name="assigned_user_id" value="'.esc_attr($assignedUserId).'" />
       <input type="hidden" id="req_id" name="req_id"
         value="Contacts___first_name;Contacts___last_name;Contacts___email1;Contacts___stic_identification_number_c;stic_Payment_Commitments___amount;stic_Payment_Commitments___payment_method;stic_Payment_Commitments___periodicity;" />
       <input type="hidden" id="bool_id" name="bool_id" value="" />
       <input type="hidden" id="webFormClass" name="webFormClass" value="Donation" />
       <input type="hidden" id="stic_Payment_Commitments___payment_type" name="stic_Payment_Commitments___payment_type"
-        value="donation" />
+        value="'.esc_attr($paymentType).'" />'.($paymentDescription !== '' ? '
+      <input type="hidden" id="stic_Payment_Commitments___description" name="stic_Payment_Commitments___description" value="'.esc_attr($paymentDescription).'" />' : '').'
       <input type="hidden" id="web_module" name="web_module" value="Contacts" />
       <input type="hidden" id="language" name="language" value="es_ES" />
       <input type="hidden" id="defParams" name="defParams"
@@ -223,7 +253,7 @@ $html .= '
             </span></td>
           <td id="td_stic_Payment_Commitments___amount" class="column_25"><span>
               <input id="stic_Payment_Commitments___amount" name="stic_Payment_Commitments___amount" type="number" min="0"
-                step="0.01" inputmode="decimal" span="" sugar="slot" required value="'.esc_attr($suggestedAmount).'"/>
+                step="0.01" inputmode="decimal" span="" sugar="slot" required'.($forInscripcion ? ' readonly class="stic-locked-field"' : '').' value="'.esc_attr($suggestedAmount).'"/>
             </span></td>
         </tr>
         <tr>
