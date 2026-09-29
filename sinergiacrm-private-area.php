@@ -313,7 +313,7 @@ function sugar_crm_portal_settings_page()
                         <th scope='row'><?=__('Campaña de los pagos con tarjeta', 'sticpa');?></th>
                         <td>
                             <input type='text' class='regular-text' value="<?php echo esc_attr(get_option('sticpa_card_campaign_id')); ?>" name='sticpa_card_campaign_id' placeholder='<?php echo esc_attr(sticpa_card_campaign_default()); ?>'>
-                            <p class="description"><?=__('Id de la campaña del CRM de la que cuelgan los pagos con tarjeta (el formulario de pago de SinergiaCRM la exige, y tiene que estar ACTIVA o el pago falla). Vacío = la de siempre.', 'sticpa');?></p>
+                            <p class="description"><?=__('Id de la campaña del CRM de la que cuelgan los pagos con tarjeta (el formulario de pago de SinergiaCRM la exige, y tiene que estar ACTIVA o el pago falla). Vacío = «Pagos con tarjeta».', 'sticpa');?></p>
                         </td>
                     </tr>
 

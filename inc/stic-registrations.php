@@ -1203,11 +1203,16 @@ function sticpa_registration_end_commitments($objSCP, $regId)
  * (clase `Donation`) la EXIGE —«todos los formularios de captación de fondos
  * deben estar vinculados obligatoriamente a una campaña», wiki de SinergiaTIC,
  * «Formularios»— y tiene que estar activa: ata a ella el compromiso y apunta
- * a la persona. Se configura en los ajustes del plugin; vacío, la de siempre.
+ * a la persona. Se puede cambiar en los ajustes del plugin; vacío, esta.
+ *
+ * ⚠️ La que iba fija hasta el 29/09/2026 (`ab11ebc9-…`) NO EXISTÍA en el CRM:
+ * el formulario se paraba al no encontrarla y el pago con tarjeta no había
+ * funcionado nunca (no había ni un compromiso `card`). La de ahora es «Pagos
+ * con tarjeta», creada por MCP ese día, activa y del «Administrador MCM».
  */
 function sticpa_card_campaign_default()
 {
-    return 'ab11ebc9-de54-9306-3eaf-6267c96fee96';
+    return '00000edb-e11b-2a0f-4757-6abc23a90262';
 }
 
 function sticpa_card_campaign_id()

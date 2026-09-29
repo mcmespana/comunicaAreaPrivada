@@ -543,6 +543,11 @@ Tiene 78 campos. Los que importan:
 `stic_payments_stic_payment_commitments` (→ Pagos ya cobrados). **No hay campos
 planos `_ida` que sirvan para escribir**: los dos lados se atan por relación.
 
+**Campaña de los pagos con tarjeta:** «Pagos con tarjeta»
+(`00000edb-e11b-2a0f-4757-6abc23a90262`, `campaign_type = Survey` como las otras
+campañas de formularios web, activa). La exige el formulario de pago con tarjeta
+del área (`EVENTOS.md` §10.2.1); si se desactiva, el pago con tarjeta falla.
+
 #### Las claves de los desplegables, y de dónde salen
 
 El MCP no devuelve las opciones de un `enum`, así que estas **no** están

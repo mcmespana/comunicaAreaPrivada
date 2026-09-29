@@ -783,8 +783,13 @@ ya también de la delegación.
 formularios de captación de fondos deben estar vinculados obligatoriamente a
 una campaña» (wiki de SinergiaTIC, «Formularios»), y tiene que estar **activa**
 o el pago falla. Ata a ella el compromiso y apunta a la persona en la campaña.
-Se elige en los ajustes del plugin (**Campaña de los pagos con tarjeta**,
-`sticpa_card_campaign_id`); vacío, la de siempre (`ab11ebc9-…`). Solo la usa el
+Es **«Pagos con tarjeta»** (`00000edb-e11b-2a0f-4757-6abc23a90262`, creada por
+MCP el 29/09/2026, activa, del «Administrador MCM»); se puede cambiar en los
+ajustes del plugin (**Campaña de los pagos con tarjeta**,
+`sticpa_card_campaign_id`). ⚠️ La que iba fija hasta entonces (`ab11ebc9-…`)
+**no existía**: el formulario se paraba al no encontrarla y el pago con tarjeta
+no había funcionado nunca (en el CRM no había ni un compromiso `card`). Si se
+desactiva la campaña, vuelve a pasar. Solo la usa el
 pago con tarjeta: con Bizum, transferencia, efectivo o domiciliación el
 compromiso lo crea el área directamente por la API, sin formulario ni campaña.
 
