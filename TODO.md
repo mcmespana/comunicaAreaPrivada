@@ -53,6 +53,11 @@ Nada de esto es código; sin ello, el código que lo espera no avanza.
       WordPress). Si se quitó a propósito, cambiar a `/ap/` los cinco documentos que la
       citan; si no, volver a crearla.
 
+- [!] `EV-9c` (P1 · S) **El TPV está en modo PRUEBAS** (`TPV_TEST = 1` en los ajustes del CRM,
+      visto el 29/09/2026): los pagos con tarjeta van al entorno de pruebas de Redsys y no
+      cobran de verdad. Probar con la tarjeta de pruebas y, cuando vaya, ponerlo a `0`
+      (Admin → Ajustes de SinergiaCRM → TPV). Decidir cuándo.
+
 **Crear en Studio** (el código está hecho y se activa solo)
 - [!] `EV-6` (P2 · S) **Preguntas simples**: `ajmcm_pregunta_1_c` y `ajmcm_pregunta_2_c` en
       Eventos, `ajmcm_respuesta_1_c` y `ajmcm_respuesta_2_c` en Inscripciones (texto 255).

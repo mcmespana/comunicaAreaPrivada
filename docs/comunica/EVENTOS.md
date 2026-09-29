@@ -789,7 +789,8 @@ ajustes del plugin (**Campaña de los pagos con tarjeta**,
 `sticpa_card_campaign_id`). ⚠️ La que iba fija hasta entonces (`ab11ebc9-…`)
 **no existía**: el formulario se paraba al no encontrarla y el pago con tarjeta
 no había funcionado nunca (en el CRM no había ni un compromiso `card`). Si se
-desactiva la campaña, vuelve a pasar. Solo la usa el
+desactiva la campaña, vuelve a pasar. ⚠️ El TPV del CRM está en **modo pruebas** (`TPV_TEST = 1`,
+29/09/2026): hasta ponerlo a `0`, la tarjeta no cobra de verdad. Solo la usa el
 pago con tarjeta: con Bizum, transferencia, efectivo o domiciliación el
 compromiso lo crea el área directamente por la API, sin formulario ni campaña.
 
