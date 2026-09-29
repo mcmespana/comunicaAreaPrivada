@@ -585,9 +585,9 @@ function sticpa_registration_detail_html($reg, $definition = array(), $extra = a
     // --- Qué se puede hacer desde aquí ---
     $actions = array();
     // Una actividad con precio SIN compromiso de pago: o se eligió tarjeta y el
-    // pago no se terminó, o la inscripción es de antes de que el área dejara
-    // el pago anotado. Se ofrece pagar, con cuidado de no afirmar lo que no
-    // sabemos: el formulario de pago con tarjeta no se ata a la inscripción.
+    // pago no se llegó a hacer, o la inscripción es de antes de que el área
+    // dejara el pago anotado. Un pago con tarjeta hecho ya está atado cuando se
+    // llega aquí (la página lo busca antes, EV-9), así que no se cobra dos veces.
     $pagarUrl = (string) ($extra['pagar_url'] ?? '');
     if ($pagarUrl !== '' && empty($extra['pagos']) && (float) ($extra['precio'] ?? 0) > 0 && $tone !== 'danger' && !$reg['is_past']) {
         $actions[] = array(
@@ -1180,6 +1180,91 @@ function sticpa_registration_end_commitments($objSCP, $regId)
     return $n;
 }
 
+/*
+ * PAGAR UNA INSCRIPCIÓN CON TARJETA (EV-9).
+ *
+ * El cobro con tarjeta lo hace un formulario web de SinergiaCRM
+ * (`stic_Web_Forms_save`, clase `Donation`), que crea SU compromiso. Ese
+ * formulario copia al compromiso cualquier campo del módulo que le llegue
+ * (`payment_type`, `description`…), y lo asigna al `assigned_user_id` del
+ * formulario; lo que no puede es atarlo a la inscripción: el enlace
+ * compromiso–inscripción es una relación, no un campo. Así que el compromiso
+ * se lleva en la descripción una MARCA con el id de la inscripción, y cuando
+ * la persona vuelve del pago a su inscripción, el área busca el compromiso por
+ * esa marca y lo ata ella (sticpa_registration_claim_card_commitment()).
+ *
+ * La marca va FIRMADA: el formulario web del CRM está abierto a internet, y
+ * sin firma cualquiera podría colgar un compromiso suyo de una inscripción
+ * ajena. La firma no depende de la sesión: el compromiso se ata cuando se
+ * vuelve, y puede ser otro día.
+ */
+function sticpa_registration_card_marker($regId)
+{
+    $regId = trim((string) $regId);
+    if (!preg_match('/^[0-9a-f-]{36}$/i', $regId) || !function_exists('sticpa_form_secret')) {
+        return '';
+    }
+    $firma = substr(hash_hmac('sha256', 'insc|' . strtolower($regId), sticpa_form_secret()), 0, 16);
+    return '[insc:' . strtolower($regId) . ':' . $firma . ']';
+}
+
+/**
+ * ¿Tiene este compromiso algún pago COBRADO? El formulario web crea el
+ * compromiso y su pago (pendiente) ANTES de mandar al TPV; si la persona lo
+ * abandona o el banco lo rechaza, el compromiso se queda. Atarlo quitaría el
+ * botón de pagar de una inscripción sin pagar.
+ */
+function sticpa_commitment_has_paid_payment($objSCP, $commitmentId)
+{
+    $rows = $objSCP->getRelatedElementsForLoggedUser(array(
+        'module_name' => 'stic_Payment_Commitments',
+        'module_id' => (string) $commitmentId,
+        'link_field_name' => 'stic_payments_stic_payment_commitments',
+        'related_fields' => array('id', 'status'),
+        'related_module_link_name_to_fields_array' => array(),
+        'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
+    ));
+    foreach ((array) $rows as $row) {
+        if ((string) ($row->name_value_list->status->value ?? '') === 'paid') {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Ata a la inscripción el compromiso que dejó el pago con tarjeta, si lo hay
+ * y está cobrado. Si el aviso del banco aún no ha llegado, se ata en la
+ * siguiente visita.
+ * Se llama desde la ficha cuando la actividad cuesta algo y la inscripción no
+ * tiene compromiso: una consulta, solo en ese caso.
+ *
+ * @return int Cuántos compromisos se han atado.
+ */
+function sticpa_registration_claim_card_commitment($objSCP, $regId)
+{
+    $marca = sticpa_registration_card_marker($regId);
+    if ($objSCP === null || $marca === '') {
+        return 0;
+    }
+    // La marca solo lleva hexadecimales, guiones y corchetes: nada que escapar
+    // en un LIKE (ni `%` ni `_` ni comillas).
+    $rows = $objSCP->getRecordsModule('stic_Payment_Commitments',
+        "stic_payment_commitments.description LIKE '%" . $marca . "%'", array('id'));
+    $n = 0;
+    foreach ((array) $rows as $row) {
+        $cid = (string) ($row->id ?? ($row->name_value_list->id->value ?? ''));
+        if ($cid === '' || !sticpa_commitment_has_paid_payment($objSCP, $cid)) {
+            continue;
+        }
+        if ($objSCP->set_relationship('stic_Payment_Commitments', $cid,
+                'stic_payment_commitments_stic_registrations', array((string) $regId))) {
+            $n++;
+        }
+    }
+    return $n;
+}
+
 /* ---- 3. Cancelar y modificar (EV-2) ------------------------------------ */
 
 /** La clave de «cancelada» en el desplegable de estado de la inscripción. */
@@ -1302,6 +1387,8 @@ function sticpa_registration_saved_note($msg)
             return array('tone' => 'ok', 'icon' => 'check', 'text' => __('Listo: ya estás inscrito.', 'sticpa'));
         case 'inscrita_pago':
             return array('tone' => 'ok', 'icon' => 'check', 'text' => __('Listo: ya estás inscrito.', 'sticpa'));
+        case 'pagado':
+            return array('tone' => 'ok', 'icon' => 'check', 'text' => __('Pago hecho. Ya estás inscrito.', 'sticpa'));
         case 'true':
             return array('tone' => 'ok', 'icon' => 'check', 'text' => __('Cambios guardados.', 'sticpa'));
         case 'cancelada':

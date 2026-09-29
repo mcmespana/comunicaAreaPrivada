@@ -80,6 +80,11 @@ if (($_REQUEST['action'] ?? '') === 'detail') {
     $metodos = array();
     if ($precio > 0) {
         $pagos = (array) sticpa_registration_commitments($objSCP, $registrationId);
+        // Sin compromiso: quizá se pagó con tarjeta y aún no se ha atado (el
+        // formulario del CRM no puede; lo hace el área al volver, EV-9).
+        if (empty($pagos) && sticpa_registration_claim_card_commitment($objSCP, $registrationId) > 0) {
+            $pagos = (array) sticpa_registration_commitments($objSCP, $registrationId);
+        }
         if (!empty($pagos)) {
             $metodos = sticpa_crm_enum_options(
                 sticpa_cached_field_definition($objSCP, 'stic_Payment_Commitments', array('payment_method')),
@@ -93,7 +98,9 @@ if (($_REQUEST['action'] ?? '') === 'detail') {
         'pagos'     => $pagos,
         'metodos'   => $metodos,
         'precio'    => $precio,
-        'pagar_url' => $precio > 0
+        // Recién vuelto del TPV, el aviso del banco puede no haber llegado aún:
+        // no se ofrece pagar otra vez en esa misma pantalla.
+        'pagar_url' => $precio > 0 && ($_REQUEST['msg'] ?? '') !== 'pagado'
             ? '?internalpage=single_stic_payment_form&amount=' . rawurlencode(number_format($precio, 2, '.', ''))
                 . '&eventId=' . rawurlencode($registration['event_id']) . '&registrationId=' . rawurlencode($registrationId)
             : '',

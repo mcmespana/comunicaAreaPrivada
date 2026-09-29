@@ -111,6 +111,10 @@ class RegistrationManageTest extends TestCase
             public $statusOptions = array('confirmed' => 'Confirmada', 'cancelled' => 'Cancelada');
             public $methodOptions = array('direct_debit' => 'Domiciliación', 'card' => 'Tarjeta', 'bizum' => 'Bizum', 'stripe' => 'Stripe');
             public $answerFieldsExist = true;
+            public $contacts = array();
+            public $commitmentsByDescription = array(); // id => description
+            public $paymentsOfCommitment = array();     // id => [status, …]
+            public $queries = array();
             private $n = 0;
             private $t;
             public function __construct($t) { $this->t = $t; }
@@ -135,7 +139,7 @@ class RegistrationManageTest extends TestCase
             }
             public function getRecordDetail($id, $module, $fields = null)
             {
-                $src = $module === 'stic_Events' ? $this->events : ($module === 'stic_Registrations' ? $this->registrations : array());
+                $src = $module === 'stic_Events' ? $this->events : ($module === 'stic_Registrations' ? $this->registrations : ($module === 'Contacts' ? $this->contacts : array()));
                 if (!isset($src[$id])) {
                     return (object) array('entry_list' => array());
                 }
@@ -158,11 +162,32 @@ class RegistrationManageTest extends TestCase
                     }
                     return $out;
                 }
+                if ($link === 'stic_payments_stic_payment_commitments') {
+                    $out = array();
+                    foreach ($this->paymentsOfCommitment[$p['module_id']] ?? array() as $i => $status) {
+                        $out[] = (object) array('id' => 'pay-' . $i, 'name_value_list' => $this->nvl(array('id' => 'pay-' . $i, 'status' => $status)));
+                    }
+                    return $out;
+                }
                 if ($link === 'stic_registrations_stic_events') {
                     $ev = $this->registrations[$p['module_id']]['stic_registrations_stic_eventsstic_events_ida'] ?? '';
                     return $ev !== '' ? array((object) array('id' => $ev)) : array();
                 }
                 return array();
+            }
+            public function getRecordsModule($module, $query = '', $fields = array(), $rel = null)
+            {
+                $this->queries[] = array($module, $query);
+                $out = array();
+                if ($module === 'stic_Payment_Commitments'
+                    && preg_match("/description LIKE '%(.*)%'$/", $query, $m)) {
+                    foreach ($this->commitmentsByDescription as $id => $desc) {
+                        if (strpos($desc, $m[1]) !== false) {
+                            $out[] = (object) array('id' => $id, 'name_value_list' => $this->nvl(array('id' => $id)));
+                        }
+                    }
+                }
+                return $out;
             }
             public function set_entry($module, $data)
             {
@@ -368,6 +393,81 @@ class RegistrationManageTest extends TestCase
         $this->assertStringContainsString('internalpage=single_stic_payment_form', $url);
         $this->assertStringContainsString('amount=60.00', $url);
         $this->assertStringContainsString('eventId=ev-1', $url);
+    }
+
+    /* ---- Pagar con tarjeta (EV-9) ------------------------------------ */
+
+    /** Pinta el formulario de pago con tarjeta y devuelve su HTML. */
+    private function formularioDePago(array $request)
+    {
+        $this->crm->contacts['c1'] = array('id' => 'c1', 'email1' => 'lucia@example.test', 'first_name' => 'Lucía',
+            'last_name' => 'Pérez', 'stic_identification_number_c' => '12345678Z');
+        $_REQUEST = $request;
+        $html = '';
+        include __DIR__ . '/../pages/single_stic_payment_form.php';
+        return $html;
+    }
+
+    private function hidden($html, $name)
+    {
+        return preg_match('/name="' . preg_quote($name, '/') . '"[^>]*value="([^"]*)"/', $html, $m)
+            ? html_entity_decode($m[1], ENT_QUOTES, 'UTF-8') : null;
+    }
+
+    public function test_pagar_una_inscripcion_con_tarjeta_NO_es_una_donacion_y_es_de_la_delegacion()
+    {
+        $reg = '00000900-db01-acfe-2649-6ab30955f412';
+        $this->crm->events['ev-1'] = $this->evento(array('price' => '110.00'));
+        $this->crm->myRegs[$reg] = 'confirmed';
+        $html = $this->formularioDePago(array('eventId' => 'ev-1', 'registrationId' => $reg, 'amount' => '5'));
+
+        $this->assertSame('services', $this->hidden($html, 'stic_Payment_Commitments___payment_type'));
+        $this->assertSame('del-cs', $this->hidden($html, 'assigned_user_id'));
+        // El importe es el precio del evento, no el de la URL, y no se toca.
+        $this->assertMatchesRegularExpression('/name="stic_Payment_Commitments___amount"[^>]*readonly[^>]*value="110.00"/', $html);
+        // Solo tarjeta: los demás medios se eligen al inscribirse.
+        $this->assertStringContainsString("value='card'", $html);
+        $this->assertStringNotContainsString("value='direct_debit'", $html);
+        // Lleva la marca firmada y vuelve a la ficha de la inscripción.
+        $this->assertStringContainsString(sticpa_registration_card_marker($reg), (string) $this->hidden($html, 'stic_Payment_Commitments___description'));
+        $this->assertStringContainsString('single_stic_registrations&action=detail&id=' . $reg, (string) $this->hidden($html, 'redirect_url'));
+    }
+
+    public function test_una_inscripcion_ajena_no_se_paga_como_inscripcion()
+    {
+        $reg = '00000900-db01-acfe-2649-6ab30955f412';
+        $this->crm->events['ev-1'] = $this->evento();
+        $html = $this->formularioDePago(array('eventId' => 'ev-1', 'registrationId' => $reg));
+        $this->assertNull($this->hidden($html, 'stic_Payment_Commitments___description'));
+        $this->assertStringNotContainsString('single_stic_registrations', (string) $this->hidden($html, 'redirect_url'));
+        // Aun así, a la delegación.
+        $this->assertSame('del-cs', $this->hidden($html, 'assigned_user_id'));
+    }
+
+    public function test_la_marca_va_firmada_y_solo_vale_para_un_id_del_crm()
+    {
+        $a = sticpa_registration_card_marker('00000900-db01-acfe-2649-6ab30955f412');
+        $this->assertMatchesRegularExpression('/^\[insc:00000900-db01-acfe-2649-6ab30955f412:[0-9a-f]{16}\]$/', $a);
+        $this->assertNotSame($a, sticpa_registration_card_marker('00000900-db01-acfe-2649-6ab30955f413'));
+        $this->assertSame('', sticpa_registration_card_marker("x' OR 1=1 -- aaaaaaaaaaaaaaaaaaaaaaaa"));
+    }
+
+    public function test_a_la_vuelta_se_ata_el_compromiso_cobrado_y_solo_ese()
+    {
+        $reg = '00000900-db01-acfe-2649-6ab30955f412';
+        $marca = sticpa_registration_card_marker($reg);
+        $this->crm->commitmentsByDescription = array(
+            'pc-abandonado' => 'Pago con tarjeta… ' . $marca,
+            'pc-cobrado' => 'Pago con tarjeta… ' . $marca,
+            'pc-falso' => 'Pago con tarjeta… [insc:' . $reg . ':0000000000000000]',
+        );
+        $this->crm->paymentsOfCommitment = array(
+            'pc-abandonado' => array('pending'),
+            'pc-cobrado' => array('paid'),
+            'pc-falso' => array('paid'),
+        );
+        $this->assertSame(1, sticpa_registration_claim_card_commitment($this->crm, $reg));
+        $this->assertSame(array(array('stic_Payment_Commitments', 'pc-cobrado', 'stic_payment_commitments_stic_registrations', array($reg))), $this->crm->relations);
     }
 
     public function test_una_respuesta_que_no_es_opcion_no_deja_inscribirse()

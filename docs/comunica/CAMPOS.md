@@ -556,7 +556,7 @@ constructor de formularios del CRM las dejó escritas como campos ocultos:
 | `payment_method` | `direct_debit` | Domiciliación bancaria |
 | `payment_method` | `card` | Tarjeta (visto en el único registro real) |
 | `payment_type` | `fee` | Cuota |
-| `payment_type` | `services` | Servicios. **Observada en datos** (MCP, 25/09/2026): la pone el propio CRM a los compromisos que crea para las convivencias. La usa el área para el pago de una actividad (`EVENTOS.md` §10.2) |
+| `payment_type` | `services` | Servicios. **Observada en datos** (MCP, 25/09/2026): la pone el propio CRM a los compromisos que crea para las convivencias. La usa el área para el pago de una actividad, también con tarjeta (`EVENTOS.md` §10.2 y §10.2.1). `donation` queda solo para el pago suelto de «Mis pagos» |
 | `periodicity` | `punctual` | Pago único |
 
 > **El área privada no escribe claves de `payment_method` a ciegas**: al

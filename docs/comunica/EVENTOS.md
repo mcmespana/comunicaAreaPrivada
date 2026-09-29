@@ -722,7 +722,7 @@ pide un IBAN y se comprueba (módulo 97) antes de escribir nada.
 | Medio | Qué pasa al inscribirse |
 |---|---|
 | Cualquiera menos tarjeta | Se crea **UN** compromiso: importe = `price`, `punctual`, tipo `services`, primer pago hoy, asignado a la delegación, atado a quien paga (el familiar si la sesión es de un participante, y el participante como destinatario) y a la inscripción |
-| Tarjeta | NO se crea compromiso aquí: se pasa al formulario de pago (`single_stic_payment_form`), que es un formulario web de SinergiaCRM y crea el suyo. Con dos serían dos cobros |
+| Tarjeta | NO se crea compromiso aquí: se pasa al formulario de pago (`single_stic_payment_form`), que es un formulario web de SinergiaCRM y crea el suyo. Con dos serían dos cobros. Ver §10.2.1 |
 
 ⚠️ **El CRM tiene su propio automatismo.** Al guardar una inscripción con el
 IBAN del tutor y un importe (lo que manda la renovación), crea él solo un
@@ -736,9 +736,48 @@ la renovación, que cobró dos veces el 22/09/2026.
 
 La ficha de la inscripción enseña el pago («60,00 € · Bizum», que lleva a su
 compromiso). Si la actividad cuesta algo y la inscripción no tiene compromiso
-(se eligió tarjeta, o es de antes de esto), ofrece «Pagar con tarjeta» diciendo
-«si todavía no lo has pagado»: el pago con tarjeta no queda atado a la
-inscripción y el área no sabe si se hizo.
+(el pago con tarjeta no se llegó a hacer, o es de antes de esto), ofrece
+«Pagar X € con tarjeta».
+
+#### 10.2.1 Pagar con tarjeta (EV-9, 29/09/2026)
+
+Hasta el 29/09 el formulario de pago mandaba a fuego `payment_type = donation` y
+`assigned_user_id = 1`: el precio de una actividad acababa como **donación** (y
+en el modelo 182) y a nombre del «Administrador MCM», fuera de la delegación.
+**Una inscripción nunca es una donación.**
+
+El formulario web del CRM (`stic_Web_Forms_save`, clase `Donation`; su código es
+`modules/stic_Web_Forms/Catcher/` de SinergiaCRM) copia al compromiso **cualquier
+campo del módulo que le llegue** con el prefijo `stic_Payment_Commitments___`, y
+asigna el compromiso y su pago al `assigned_user_id` del formulario. Así que,
+cuando se paga una inscripción propia:
+
+| Campo | Valor |
+|---|---|
+| `payment_type` | `services` (como los compromisos del resto de medios) |
+| `assigned_user_id` | la delegación (`sticpa_pl_delegation()`); `1` solo si no se sabe |
+| `amount` | el `price` del evento, bloqueado (no el de la URL) |
+| `payment_method` | solo `card` |
+| `banking_concept` | el nombre del evento (lo que se ve en el TPV y en el extracto) |
+| `description` | «Pago con tarjeta de la inscripción a «…»» + una **marca firmada** `[insc:<id>:<firma>]` |
+| `redirect_url` | la ficha de la inscripción, con `msg=pagado` |
+
+**Atarlo a la inscripción.** El enlace compromiso–inscripción es una relación,
+no un campo, y el formulario web no la puede escribir. Lo hace el área: al
+abrir la ficha de una inscripción con precio y sin compromiso, busca el
+compromiso por la marca y, **si tiene un pago cobrado (`paid`)**, lo ata
+(`sticpa_registration_claim_card_commitment()`). Si el pago se abandonó o el
+banco lo rechazó, el compromiso existe igual (el CRM lo crea antes de mandar al
+TPV) pero no se ata, y la ficha sigue ofreciendo pagar. Si el aviso del banco
+llega después que la persona, se ata en la siguiente visita; mientras, la ficha
+recién vuelta del TPV no ofrece pagar otra vez.
+
+La marca va firmada con el secreto del área (`sticpa_form_secret()`): el
+formulario web del CRM está abierto a internet y, sin firma, cualquiera podría
+colgar un compromiso suyo de una inscripción ajena.
+
+El pago suelto desde «Mis pagos» sigue siendo una aportación (`donation`), pero
+ya también de la delegación.
 
 ### 10.3 Cancelar y modificar (EV-2)
 
