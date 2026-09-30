@@ -1239,15 +1239,7 @@ function sticpa_registration_card_marker($regId)
  */
 function sticpa_commitment_has_paid_payment($objSCP, $commitmentId)
 {
-    $rows = $objSCP->getRelatedElementsForLoggedUser(array(
-        'module_name' => 'stic_Payment_Commitments',
-        'module_id' => (string) $commitmentId,
-        'link_field_name' => 'stic_payments_stic_payment_commitments',
-        'related_fields' => array('id', 'status'),
-        'related_module_link_name_to_fields_array' => array(),
-        'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
-    ));
-    foreach ((array) $rows as $row) {
+    foreach (sticpa_commitment_payments($objSCP, $commitmentId) as $row) {
         if ((string) ($row->name_value_list->status->value ?? '') === 'paid') {
             return true;
         }
@@ -1255,10 +1247,74 @@ function sticpa_commitment_has_paid_payment($objSCP, $commitmentId)
     return false;
 }
 
+/** Los pagos de un compromiso (id, estado, nombre y tipo). */
+function sticpa_commitment_payments($objSCP, $commitmentId)
+{
+    $rows = $objSCP->getRelatedElementsForLoggedUser(array(
+        'module_name' => 'stic_Payment_Commitments',
+        'module_id' => (string) $commitmentId,
+        'link_field_name' => 'stic_payments_stic_payment_commitments',
+        'related_fields' => array('id', 'status', 'name', 'payment_type'),
+        'related_module_link_name_to_fields_array' => array(),
+        'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
+    ));
+    return is_array($rows) ? $rows : array();
+}
+
+/**
+ * El cobro con tarjeta de una inscripción es un SERVICIO, no una donación.
+ *
+ * ⚠️ El formulario manda `payment_type = services` y el código público de
+ * SinergiaCRM lo respeta (se copia al compromiso tal cual), pero ESTA instancia
+ * lo guarda como `donation` igualmente: el primer pago de prueba (30/09/2026,
+ * `000003ee-…`) salió «David Soler Balado - Donativo - 110,00», sin ningún
+ * flujo de trabajo en Compromisos que lo explique. Así que, al atarlo, el área
+ * lo corrige: el tipo y el «Donativo» del nombre, en el compromiso y en sus
+ * pagos, y los pagos fuera del modelo 182 (`m182_excluded`), que es para
+ * donaciones.
+ */
+function sticpa_card_commitment_as_service($objSCP, $commitmentId, $name, $type, array $payments)
+{
+    $tipo = sticpa_registration_payment_type();
+    $labels = function_exists('sticpa_cached_field_definition')
+        ? sticpa_crm_enum_options(sticpa_cached_field_definition($objSCP, 'stic_Payment_Commitments', array('payment_type')), 'payment_type')
+        : array();
+    $renombra = function ($nombre, $de) use ($labels, $tipo) {
+        $viejo = (string) ($labels[$de] ?? '');
+        $nuevo = (string) ($labels[$tipo] ?? '');
+        if ($viejo === '' || $nuevo === '' || $viejo === $nuevo) {
+            return (string) $nombre;
+        }
+        return str_replace(' - ' . $viejo . ' - ', ' - ' . $nuevo . ' - ', (string) $nombre);
+    };
+
+    if ($type !== $tipo) {
+        $objSCP->set_entry('stic_Payment_Commitments', array(
+            'id' => (string) $commitmentId,
+            'payment_type' => $tipo,
+            'name' => $renombra($name, $type),
+        ));
+    }
+    foreach ($payments as $row) {
+        $nvl = $row->name_value_list ?? null;
+        $pid = (string) ($row->id ?? ($nvl->id->value ?? ''));
+        $ptype = (string) ($nvl->payment_type->value ?? '');
+        if ($pid === '' || $ptype === $tipo) {
+            continue;
+        }
+        $objSCP->set_entry('stic_Payments', array(
+            'id' => $pid,
+            'payment_type' => $tipo,
+            'name' => $renombra((string) ($nvl->name->value ?? ''), $ptype),
+            'm182_excluded' => 1,
+        ));
+    }
+}
+
 /**
  * Ata a la inscripción el compromiso que dejó el pago con tarjeta, si lo hay
- * y está cobrado. Si el aviso del banco aún no ha llegado, se ata en la
- * siguiente visita.
+ * y está cobrado, y lo deja como servicio. Si el aviso del banco aún no ha
+ * llegado, se ata en la siguiente visita.
  * Se llama desde la ficha cuando la actividad cuesta algo y la inscripción no
  * tiene compromiso: una consulta, solo en ese caso.
  *
@@ -1273,16 +1329,27 @@ function sticpa_registration_claim_card_commitment($objSCP, $regId)
     // La marca solo lleva hexadecimales, guiones y corchetes: nada que escapar
     // en un LIKE (ni `%` ni `_` ni comillas).
     $rows = $objSCP->getRecordsModule('stic_Payment_Commitments',
-        "stic_payment_commitments.description LIKE '%" . $marca . "%'", array('id'));
+        "stic_payment_commitments.description LIKE '%" . $marca . "%'", array('id', 'name', 'payment_type'));
     $n = 0;
     foreach ((array) $rows as $row) {
-        $cid = (string) ($row->id ?? ($row->name_value_list->id->value ?? ''));
-        if ($cid === '' || !sticpa_commitment_has_paid_payment($objSCP, $cid)) {
+        $nvl = $row->name_value_list ?? null;
+        $cid = (string) ($row->id ?? ($nvl->id->value ?? ''));
+        if ($cid === '') {
+            continue;
+        }
+        $pagos = sticpa_commitment_payments($objSCP, $cid);
+        $cobrado = false;
+        foreach ($pagos as $p) {
+            $cobrado = $cobrado || (string) ($p->name_value_list->status->value ?? '') === 'paid';
+        }
+        if (!$cobrado) {
             continue;
         }
         if ($objSCP->set_relationship('stic_Payment_Commitments', $cid,
                 'stic_payment_commitments_stic_registrations', array((string) $regId))) {
             $n++;
+            sticpa_card_commitment_as_service($objSCP, $cid, (string) ($nvl->name->value ?? ''),
+                (string) ($nvl->payment_type->value ?? ''), $pagos);
         }
     }
     return $n;

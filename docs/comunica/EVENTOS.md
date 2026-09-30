@@ -760,7 +760,7 @@ cuando se paga una inscripción propia:
 | `payment_method` | solo `card` |
 | `banking_concept` | el nombre del evento (lo que se ve en el TPV y en el extracto) |
 | `description` | «Pago con tarjeta de la inscripción a «…»» + una **marca firmada** `[insc:<id>:<firma>]` |
-| `redirect_url` | la ficha de la inscripción, con `msg=pagado` |
+| `redirect_url` | la ficha de la inscripción, con `msg=pagado`, **en el área** (`/ap/`, `sticpa_area_absolute_url()`): el plugin original usaba `home_url()` y volvía a la raíz de la web |
 
 **Atarlo a la inscripción.** El enlace compromiso–inscripción es una relación,
 no un campo, y el formulario web no la puede escribir. Lo hace el área: al
@@ -771,6 +771,18 @@ banco lo rechazó, el compromiso existe igual (el CRM lo crea antes de mandar al
 TPV) pero no se ata, y la ficha sigue ofreciendo pagar. Si el aviso del banco
 llega después que la persona, se ata en la siguiente visita; mientras, la ficha
 recién vuelta del TPV no ofrece pagar otra vez.
+
+⚠️ **El CRM lo guarda como donativo aunque se le mande `services`** (primer pago
+de prueba, 30/09/2026: «David Soler Balado - Donativo - 110,00»). El código
+público de SinergiaCRM copia el `payment_type` del formulario y no hay ningún
+flujo de trabajo en Compromisos, así que la causa está en esta instancia y no se
+ve desde fuera. Por eso, al atarlo, el área lo **corrige**: `payment_type =
+services` y «Servicios» en vez de «Donativo» en el nombre, en el compromiso y en
+sus pagos, y los pagos con `m182_excluded = 1` (el modelo 182 es de donaciones).
+`sticpa_card_commitment_as_service()`.
+
+Lo que llegue aún a la raíz con `?internalpage=` (enlaces viejos) se reenvía al
+área con sus parámetros (`sticpa_root_internalpage_redirect()`).
 
 La marca va firmada con el secreto del área (`sticpa_form_secret()`): el
 formulario web del CRM está abierto a internet y, sin firma, cualquiera podría
