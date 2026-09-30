@@ -942,6 +942,23 @@ abrir el formulario ya rellenado con los datos de quien ha entrado.
 |---|---|---|---|
 | `stic_Events` | `ajmcm_fwa_url_c` | URL | El enlace público del formulario web avanzado del evento. Vacío = el evento no usa FWA |
 
+**Ocultar en el área privada — ⏳ PROPUESTO, NO CREADO** (30/09/2026). Hay muchos
+eventos en los listados y el filtro por edades no acaba de aclarar cuáles se ven.
+Un interruptor simple por evento. Es de OCULTAR y no de mostrar a propósito: los
+eventos que ya existen lo tienen vacío, y vacío = «se ve como hasta ahora»; con
+«mostrar», editar un evento antiguo (que saldría sin marcar) lo escondería sin
+querer.
+
+| Módulo | Campo propuesto | Tipo | Para qué |
+|---|---|---|---|
+| `stic_Events` | `ajmcm_ocultar_area_c` | casilla (por defecto sin marcar) | Etiqueta «Ocultar en el área privada». Marcada, el evento NO sale en Eventos, calendario ni agenda de la home **a quien aún no se ha apuntado**. No cierra la puerta: con el enlace directo a la ficha se sigue pudiendo ver y apuntarse, y lo ya inscrito no desaparece. En «Mis inscripciones», las inscripciones de eventos ocultos van plegadas bajo «Otros eventos» |
+
+Código: `sticpa_event_hidden_field()` / `sticpa_event_is_hidden()` (filtro en
+`sticpa_filter_events_for_viewer()`) y `sticpa_registration_hidden_event_ids()`
+(una consulta de una columna cada 5 min, y ninguna si el campo no existe). La
+definición de campos de eventos va cacheada 6 h: si se crea el campo y no hace
+efecto, abrir una vez con `&refresh_fields=1`.
+
 **Ayuda en la propia ficha** (27/09/2026): `docs/comunica/AYUDA-FICHA-EVENTO.html`
 es un bloque corto para pegar en un campo de tipo HTML de Studio en Eventos, en
 la vista de edición. Si se añaden o se renombran campos del evento, se actualiza

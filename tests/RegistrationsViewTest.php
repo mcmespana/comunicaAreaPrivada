@@ -113,6 +113,53 @@ class RegistrationsViewTest extends TestCase
         $this->assertSame('INS-000124', $sinEvento['title']);
     }
 
+    /**
+     * EL PARAGUAS «OTROS EVENTOS» (30/09/2026): la inscripción de un evento
+     * oculto sigue en la lista, pero plegada debajo de lo principal y contada.
+     * Sin eventos ocultos, la lista es exactamente la de antes.
+     */
+    public function testLasInscripcionesDeEventosOcultosVanBajoOtrosEventos()
+    {
+        $filas = array(
+            $this->row(array('id' => 'r-a', 'name' => 'A', 'status' => 'pending',
+                'stic_registrations_stic_events_name' => 'Actividad normal',
+                'stic_registrations_stic_eventsstic_events_ida' => 'ev-normal')),
+            $this->row(array('id' => 'r-b', 'name' => 'B', 'status' => 'pending',
+                'stic_registrations_stic_events_name' => 'Reunión de monitores',
+                'stic_registrations_stic_eventsstic_events_ida' => 'ev-oculto')),
+        );
+
+        $html = sticpa_registrations_list_html($filas, $this->definition(), array('ev-oculto' => true));
+        $this->assertStringContainsString('stic-rec-other', $html);
+        $this->assertStringContainsString('Otros eventos', $html);
+        $this->assertLessThan(strpos($html, 'Reunión de monitores'), strpos($html, 'Actividad normal'));
+        $this->assertGreaterThan(strpos($html, 'Otros eventos'), strpos($html, 'Reunión de monitores'));
+        $this->assertStringNotContainsString(' open', substr($html, strpos($html, '<details'), 40));
+
+        // Sin ocultos: nada de paraguas.
+        $sin = sticpa_registrations_list_html($filas, $this->definition());
+        $this->assertStringNotContainsString('stic-rec-other', $sin);
+        $this->assertStringContainsString('Reunión de monitores', $sin);
+
+        // Si TODO está oculto, el paraguas sale abierto (no parece una lista vacía).
+        $todo = sticpa_registrations_list_html(array($filas[1]), $this->definition(), array('ev-oculto' => true));
+        $this->assertStringContainsString('<details class=\'stic-rec-other\' open>', $todo);
+    }
+
+    /** Sin el campo en el CRM no se consulta nada y no hay nada oculto. */
+    public function testSinElCampoNoSeConsultaNada()
+    {
+        require_once __DIR__ . '/../inc/stic-events.php';
+        require_once __DIR__ . '/../inc/stic-event-audience.php';
+        $scp = new class {
+            public $llamadas = 0;
+            public function getFieldDefinition($m, $f) { return (object) array('module_fields' => array('name' => array())); }
+            public function getRecordsModule($m, $q = '', $f = array(), $r = null) { $this->llamadas++; return array(); }
+        };
+        $this->assertSame(array(), sticpa_registration_hidden_event_ids($scp));
+        $this->assertSame(0, $scp->llamadas);
+    }
+
     /** Lo cancelado y lo ya celebrado no encabeza la lista. */
     public function testLoCerradoSeVaAbajo()
     {

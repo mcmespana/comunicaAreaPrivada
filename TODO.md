@@ -66,6 +66,7 @@ Nada de esto es código; sin ello, el código que lo espera no avanza.
       Eventos. Decidido el 27/09: campo propio, no `web_url_c`. Con él, dos puertas en la
       página pública y el FWA ya rellenado desde el área privada (mirar antes los parámetros
       de relleno en la wiki de SinergiaTIC). Esto sí hay que programarlo cuando exista.
+- [!] `EV-12` (P2 · S) **Ocultar en el área privada**: crear `ajmcm_ocultar_area_c` (casilla, sin marcar) en Eventos. El código ya está; ver `CAMPOS.md`.
 - [ ] `EV-4b` (P3 · S) **Pegar la ayuda en la ficha de Eventos**: campo de tipo HTML con
       `docs/comunica/AYUDA-FICHA-EVENTO.html`, arriba en la vista de edición. Y pegar la guía
       nueva en su página de WordPress.
