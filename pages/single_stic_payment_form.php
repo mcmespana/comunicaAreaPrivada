@@ -100,7 +100,7 @@ $bankingConcept = '';
 // De una inscripción, NUNCA: es el precio de una actividad (EV-9).
 $paymentType = 'donation';
 $paymentDescription = '';
-$redirectOk = home_url() . '/?internalpage=list_stic_payments';
+$redirectOk = sticpa_area_absolute_url('internalpage=list_stic_payments');
 $forInscripcion = false;
 if ($eventId !== '') {
   $eventData = $objSCP->getRecordDetail($eventId, 'stic_Events', array('id', 'name', 'price'))->entry_list[0]->name_value_list;
@@ -132,7 +132,7 @@ if ($eventId !== '') {
       $paymentType = sticpa_registration_payment_type();
       $suggestedAmount = number_format($precio, 2, '.', '');
       $paymentDescription = sprintf('Pago con tarjeta de la inscripción a «%s», desde el área privada. %s', $plano, $marca);
-      $redirectOk = home_url() . '/?internalpage=single_stic_registrations&action=detail&id=' . rawurlencode($registrationId) . '&msg=pagado';
+      $redirectOk = sticpa_area_absolute_url('internalpage=single_stic_registrations&action=detail&id=' . rawurlencode($registrationId) . '&msg=pagado');
     }
   }
 }
@@ -160,7 +160,7 @@ $html .= '
       <input type="hidden" id="redirect_url" name="redirect_url"
         value="'.esc_attr($redirectOk).'" />
       <input type="hidden" id="redirect_ko_url" name="redirect_ko_url"
-        value="'.home_url().'/?internalpage=single_stic_payment_error" />
+        value="'.esc_attr(sticpa_area_absolute_url('internalpage=single_stic_payment_error')).'" />
       <input type="hidden" id="validate_identification_number" name="validate_identification_number" value="0" />
       <input type="hidden" id="allow_card_recurring_payments" name="allow_card_recurring_payments" value="0" />
       <input type="hidden" id="allow_paypal_recurring_payments" name="allow_paypal_recurring_payments" value="0" />

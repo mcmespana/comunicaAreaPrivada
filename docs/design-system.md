@@ -724,6 +724,12 @@ Sirviéndolo por HTTP puedes recorrer `document.styleSheets` y preguntar
 `el.matches(regla.selectorText)` para saber **exactamente qué regla y de qué
 archivo** está ganando. Es la diferencia entre arreglarlo y probar cosas.
 
+**Astra fija `height: 40px` a los `input` y a los `<select>`** (su CSS en
+línea). Con el relleno del área el texto no cabe y sale cortado por abajo; en los
+desplegables se ve enseguida. Lo neutraliza `height: auto` en `custom-style.css`
+§10, con `:where()` para no subir la especificidad: un componente que fije su
+altura con una clase sigue mandando (30/09/2026).
+
 ### 11.9 La trampa de `.stic-form`
 
 La tarjeta de login lleva las clases `stic-login-form` **y `stic-form`**. Y

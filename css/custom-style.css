@@ -1348,6 +1348,21 @@ span.stic-field {
     box-shadow: var(--shadow-glow) !important;
 }
 
+/* LA ALTURA LA PONE EL RELLENO, NO EL TEMA (30/09/2026). Astra fija
+   `height: 40px` a los input y a los <select>; con el relleno del área
+   (stic-base.css, ~13,5 px arriba y abajo) y el texto a 18 px, el contenido se
+   quedaba en 10 px y la letra salía cortada por abajo —muy a la vista en los
+   desplegables («Tarjeta (vía Redsys)» del formulario de pago)—. `:where()`
+   deja la especificidad en la del tema: gana por ir después, y cualquier
+   componente que fije su altura con una clase le sigue ganando a esto. */
+:where(.stic-tab-content, .stic-auth-shell) :is(
+    input[type="text"], input[type="email"], input[type="password"],
+    input[type="number"], input[type="date"], input[type="tel"],
+    input[type="url"], input[type="search"], input[type="datetime-local"],
+    select) {
+    height: auto;
+}
+
 /* ============================================================
    11. BOTONES DEL ÁREA PRIVADA — gradiente con barrido de brillo
    ------------------------------------------------------------

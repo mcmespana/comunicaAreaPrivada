@@ -89,6 +89,21 @@ function sticpa_return_path()
 }
 
 /**
+ * Una URL ABSOLUTA de una pantalla del área, para quien vuelve desde FUERA de
+ * ella (el TPV, el formulario web del CRM). El plugin original usaba
+ * `home_url()`, que es la raíz de la web: vale si el área es la portada, pero
+ * aquí vive en `/ap/` y la vuelta del pago dejaba a la persona en
+ * `https://…/?internalpage=…`, fuera del área (30/09/2026).
+ */
+function sticpa_area_absolute_url($query = '')
+{
+    $area = parse_url((string) get_option('sticpa_scp_area_url', ''), PHP_URL_PATH);
+    $path = sticpa_is_local_path($area) ? $area : '/';
+    $query = ltrim((string) $query, '?');
+    return home_url($path) . ($query !== '' ? '?' . $query : '');
+}
+
+/**
  * `scp_current_url` sin host: ruta y query. A esto se le siguen pegando los
  * `&msg=true` de siempre, que es lo que esperan las pantallas.
  */

@@ -135,6 +135,9 @@ class RegistrationManageTest extends TestCase
                 if (isset($def['payment_method'])) {
                     $def['payment_method']['options'] = $this->opts($this->methodOptions);
                 }
+                if (isset($def['payment_type'])) {
+                    $def['payment_type']['options'] = $this->opts(array('donation' => 'Donativo', 'services' => 'Servicios'));
+                }
                 return (object) array('module_fields' => $def);
             }
             public function getRecordDetail($id, $module, $fields = null)
@@ -165,7 +168,8 @@ class RegistrationManageTest extends TestCase
                 if ($link === 'stic_payments_stic_payment_commitments') {
                     $out = array();
                     foreach ($this->paymentsOfCommitment[$p['module_id']] ?? array() as $i => $status) {
-                        $out[] = (object) array('id' => 'pay-' . $i, 'name_value_list' => $this->nvl(array('id' => 'pay-' . $i, 'status' => $status)));
+                        $out[] = (object) array('id' => 'pay-' . $i, 'name_value_list' => $this->nvl(array('id' => 'pay-' . $i, 'status' => $status,
+                            'name' => 'David Soler Balado - Donativo - 110,00 - 2026-09-30', 'payment_type' => 'donation')));
                     }
                     return $out;
                 }
@@ -183,7 +187,8 @@ class RegistrationManageTest extends TestCase
                     && preg_match("/description LIKE '%(.*)%'$/", $query, $m)) {
                     foreach ($this->commitmentsByDescription as $id => $desc) {
                         if (strpos($desc, $m[1]) !== false) {
-                            $out[] = (object) array('id' => $id, 'name_value_list' => $this->nvl(array('id' => $id)));
+                            $out[] = (object) array('id' => $id, 'name_value_list' => $this->nvl(array('id' => $id,
+                                'name' => 'David Soler Balado - Donativo - 110,00', 'payment_type' => 'donation')));
                         }
                     }
                 }
@@ -419,7 +424,12 @@ class RegistrationManageTest extends TestCase
         $reg = '00000900-db01-acfe-2649-6ab30955f412';
         $this->crm->events['ev-1'] = $this->evento(array('price' => '110.00'));
         $this->crm->myRegs[$reg] = 'confirmed';
+        $GLOBALS['__stic_options']['sticpa_scp_area_url'] = 'https://example.test/ap/';
         $html = $this->formularioDePago(array('eventId' => 'ev-1', 'registrationId' => $reg, 'amount' => '5'));
+        unset($GLOBALS['__stic_options']['sticpa_scp_area_url']);
+        // Vuelve al ÁREA (/ap/), no a la raíz de la web.
+        $this->assertStringStartsWith('https://example.test/ap/?internalpage=', (string) $this->hidden($html, 'redirect_url'));
+        $this->assertStringStartsWith('https://example.test/ap/?internalpage=single_stic_payment_error', (string) $this->hidden($html, 'redirect_ko_url'));
 
         $this->assertSame('services', $this->hidden($html, 'stic_Payment_Commitments___payment_type'));
         $this->assertSame('del-cs', $this->hidden($html, 'assigned_user_id'));
@@ -480,6 +490,15 @@ class RegistrationManageTest extends TestCase
         );
         $this->assertSame(1, sticpa_registration_claim_card_commitment($this->crm, $reg));
         $this->assertSame(array(array('stic_Payment_Commitments', 'pc-cobrado', 'stic_payment_commitments_stic_registrations', array($reg))), $this->crm->relations);
+
+        // Y, aunque el CRM lo haya guardado como donativo, queda como SERVICIO:
+        // el compromiso y su pago, con el nombre corregido y fuera del 182.
+        $pc = $this->crm->writesTo('stic_Payment_Commitments');
+        $this->assertSame(array('id' => 'pc-cobrado', 'payment_type' => 'services', 'name' => 'David Soler Balado - Servicios - 110,00'), $pc[0]['data']);
+        $pay = $this->crm->writesTo('stic_Payments');
+        $this->assertSame(array('id' => 'pay-0', 'payment_type' => 'services',
+            'name' => 'David Soler Balado - Servicios - 110,00 - 2026-09-30', 'm182_excluded' => 1), $pay[0]['data']);
+        $this->assertCount(1, $pay);
     }
 
     public function test_una_respuesta_que_no_es_opcion_no_deja_inscribirse()
