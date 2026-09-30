@@ -38,27 +38,31 @@ $filterParam = function_exists('sticpa_events_window_filter') ? sticpa_events_wi
 $listSettings['fileName'] = basename(__FILE__, ".php"); //The list name, from the filename. Don't touch.
 $getElements = $objSCP->getRecordsModule($listSettings['moduleName'], $filterParam, $fields);
 
+// TUS INSCRIPCIONES (evento => inscripción). Van ANTES de la audiencia: a lo
+// que ya te has apuntado no se le aplica el filtro —quien tiene su plaza la ve
+// aunque hoy no lo cumpla (le han cambiado el curso…)—, igual que en la ficha.
+// Antes estos eventos se QUITABAN de aquí al inscribirte; ahora salen arriba,
+// en «Te has apuntado», hasta que pasan (ver sticpa_events_list_html()).
+$mine = function_exists('prefix_user_active_registration_map') ? prefix_user_active_registration_map($objSCP) : array();
+
 // AUDIENCIA: fuera los eventos que no son para quien mira (otra delegación,
-// otro perfil, otro curso escolar). Va ANTES del filtro de "ya inscrito"
-// porque es más barato y porque reduce el trabajo del siguiente.
+// otro perfil, otro curso escolar).
 //
 // OJO, esto no lo hace el CRM por nosotros: el área privada se conecta con UN
 // usuario técnico, así que los grupos de seguridad no filtran nada de lo que
 // se lee aquí. Ver inc/stic-event-audience.php.
 if (is_array($getElements) && function_exists('sticpa_filter_events_for_viewer')) {
-    $getElements = sticpa_filter_events_for_viewer($objSCP, $getElements);
-}
-
-// Ocultamos de "Eventos disponibles" los que el usuario YA tiene inscritos
-// (siguen visibles en "Inscripciones"). Evita ofrecer "Inscribirse" a algo ya hecho.
-if (is_array($getElements) && function_exists('prefix_user_active_event_ids')) {
-    $registeredIds = prefix_user_active_event_ids($objSCP);
-    if (!empty($registeredIds)) {
-        $getElements = array_values(array_filter($getElements, function ($ev) use ($registeredIds) {
-            $evId = $ev->name_value_list->id->value ?? null;
-            return $evId === null || !in_array($evId, $registeredIds, true);
-        }));
+    $mias = array();
+    $resto = array();
+    foreach ($getElements as $ev) {
+        $evId = (string) ($ev->name_value_list->id->value ?? '');
+        if ($evId !== '' && isset($mine[$evId])) {
+            $mias[] = $ev;
+        } else {
+            $resto[] = $ev;
+        }
     }
+    $getElements = array_merge($mias, sticpa_filter_events_for_viewer($objSCP, $resto));
 }
 
 // Etiquetas del desplegable `status` tal y como están traducidas en el CRM
@@ -77,4 +81,4 @@ if (!empty($statusDef['status']['options']) && is_array($statusDef['status']['op
 
 $html .= renderDeleteMessage($listSettings['msgDelete'] ?? array());
 $html .= "<div class='stic-entry-header'><h3>" . esc_html($listSettings['title']) . "</h3></div>";
-$html .= sticpa_events_list_html($getElements, $statusMap);
+$html .= sticpa_events_list_html($getElements, $statusMap, $mine);

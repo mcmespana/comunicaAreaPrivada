@@ -774,6 +774,54 @@ class EventAudienceTest extends TestCase
         $this->assertStringContainsString('Ver detalle', $html);
     }
 
+    /**
+     * LO QUE YA TE HAS APUNTADO SIGUE EN EVENTOS (30/09/2026), arriba y con su
+     * propio bloque, hasta que pasa. Antes desaparecía al inscribirte y quien
+     * volvía a mirar si se había apuntado no lo encontraba. Lo ya celebrado no
+     * sale en Eventos: está en Inscripciones.
+     */
+    public function testLoQueYaTeHasApuntadoSaleArribaHastaQuePasa()
+    {
+        $fila = function ($id, $name, $start, $extra = array()) {
+            $f = new stdClass();
+            $f->name_value_list = $this->nvl(array_merge(array('id' => $id, 'name' => $name, 'start_date' => $start), $extra));
+            return $f;
+        };
+        $html = sticpa_events_list_html(array(
+            $fila('e-otro', 'Pascua 2027', date('Y-m-d', strtotime('+5 months')), array('ajmcm_end_inscripcion_c' => date('Y-m-d', strtotime('+2 months')))),
+            $fila('e-mio', 'Convivencia de inicio', date('Y-m-d', strtotime('+1 month'))),
+            $fila('e-pasado-mio', 'Campamento 2026', date('Y-m-d', strtotime('-2 months'))),
+            $fila('e-pasado', 'Encuentro de verano', date('Y-m-d', strtotime('-1 month'))),
+        ), array(), array('e-mio' => 'reg-1', 'e-pasado-mio' => 'reg-0'));
+
+        // Dos bloques, en este orden.
+        $apuntado = strpos($html, 'Te has apuntado');
+        $paraApuntarte = strpos($html, 'Para apuntarte');
+        $this->assertNotFalse($apuntado);
+        $this->assertNotFalse($paraApuntarte);
+        $this->assertLessThan($paraApuntarte, $apuntado);
+        $this->assertLessThan($paraApuntarte, strpos($html, 'Convivencia de inicio'));
+        $this->assertGreaterThan($paraApuntarte, strpos($html, 'Pascua 2027'));
+        // Lo tuyo lleva a TU inscripción y no ofrece apuntarse otra vez.
+        $this->assertStringContainsString('single_stic_registrations&amp;action=detail&amp;id=reg-1', $html);
+        $this->assertStringContainsString('Inscrito', $html);
+        $this->assertSame(1, substr_count($html, 'Inscribirme'));
+        // Lo ya celebrado, fuera: tuyo o no.
+        $this->assertStringNotContainsString('Campamento 2026', $html);
+        $this->assertStringNotContainsString('Encuentro de verano', $html);
+    }
+
+    /** Sin nada tuyo, un solo bloque y sin título: como siempre. */
+    public function testSinNadaTuyoNoHayBloques()
+    {
+        $f = new stdClass();
+        $f->name_value_list = $this->nvl(array('id' => 'e1', 'name' => 'Pascua', 'start_date' => date('Y-m-d', strtotime('+2 months'))));
+        $html = sticpa_events_list_html(array($f));
+        $this->assertStringNotContainsString('Te has apuntado', $html);
+        $this->assertStringNotContainsString('Para apuntarte', $html);
+        $this->assertStringContainsString('Pascua', $html);
+    }
+
     /** Y antes de abrirse, igual: el chip lo dice y la línea da la fecha. */
     public function testAntesDeAbrirseElChipLoDiceYLaLineaDaLaFecha()
     {
