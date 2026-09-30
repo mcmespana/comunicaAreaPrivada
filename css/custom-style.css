@@ -1354,12 +1354,14 @@ span.stic-field {
    quedaba en 10 px y la letra salía cortada por abajo —muy a la vista en los
    desplegables («Tarjeta (vía Redsys)» del formulario de pago)—. `:where()`
    deja la especificidad en la del tema: gana por ir después, y cualquier
-   componente que fije su altura con una clase le sigue ganando a esto. */
+   componente que fije su altura con una clase le sigue ganando a esto.
+   Fuera de `.stic-form`, que ya lleva su `min-height` (§ «Inputs / selects») y
+   no se corta: tocarlo allí agrandaba 6 px los campos del login. */
 :where(.stic-tab-content, .stic-auth-shell) :is(
     input[type="text"], input[type="email"], input[type="password"],
     input[type="number"], input[type="date"], input[type="tel"],
     input[type="url"], input[type="search"], input[type="datetime-local"],
-    select) {
+    select):where(:not(.stic-form *)) {
     height: auto;
 }
 

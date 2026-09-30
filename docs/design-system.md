@@ -728,7 +728,8 @@ archivo** está ganando. Es la diferencia entre arreglarlo y probar cosas.
 línea). Con el relleno del área el texto no cabe y sale cortado por abajo; en los
 desplegables se ve enseguida. Lo neutraliza `height: auto` en `custom-style.css`
 §10, con `:where()` para no subir la especificidad: un componente que fije su
-altura con una clase sigue mandando (30/09/2026).
+altura con una clase sigue mandando. Solo fuera de `.stic-form`, que ya tiene su
+`min-height` (30/09/2026).
 
 ### 11.9 La trampa de `.stic-form`
 
