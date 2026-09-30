@@ -591,50 +591,77 @@ function sticpa_event_date_line($startTs, $endTs)
 }
 
 /**
- * LISTADO DE EVENTOS como tarjetas.
+ * LISTADO DE EVENTOS como tarjetas, en dos bloques (30/09/2026):
  *
- * Dos acciones y bien separadas: "Ver detalle" (secundaria) e "Inscribirme"
- * (la principal). Antes solo había "Inscribirse", sin manera de saber a qué te
- * estabas apuntando.
+ *   · «Te has apuntado»: lo que ya tienes inscrito y aún no ha pasado. Antes
+ *     esto DESAPARECÍA de Eventos al inscribirte, y quien volvía a mirar si se
+ *     había apuntado no lo encontraba («ay, mecachis, aquí no está»). Cada
+ *     tarjeta lleva a su inscripción.
+ *   · «Para apuntarte»: el resto de lo que viene.
+ *
+ * Lo ya celebrado NO sale: Eventos es lo que viene. Tu historial, con todo lo
+ * antiguo, está en «Inscripciones».
  *
  * @param array $events    Registros del CRM (objetos con ->name_value_list).
  * @param array $statusMap Mapa valor→etiqueta del enum `status` (del CRM).
+ * @param array $mine      Tus inscripciones activas, evento => inscripción
+ *                         (prefix_user_active_registration_map()).
  */
-function sticpa_events_list_html($events, $statusMap = array())
+function sticpa_events_list_html($events, $statusMap = array(), $mine = array())
 {
-    $models = array();
+    $mias = array();
+    $resto = array();
     foreach ((array) $events as $row) {
         $nvl = $row->name_value_list ?? null;
         if (!$nvl) {
             continue;
         }
         $model = sticpa_event_view_model($nvl);
-        if ($model) {
-            $models[] = $model;
+        if (!$model || $model['is_past']) {
+            continue;
+        }
+        if (isset($mine[$model['id']])) {
+            $model['registration_id'] = (string) $mine[$model['id']];
+            $mias[] = $model;
+        } else {
+            $resto[] = $model;
         }
     }
 
-    if (empty($models)) {
+    // Lo que antes ocurre, arriba.
+    $porFecha = function ($a, $b) {
+        return ($a['start_ts'] ?? PHP_INT_MAX) <=> ($b['start_ts'] ?? PHP_INT_MAX);
+    };
+    usort($mias, $porFecha);
+    usort($resto, $porFecha);
+
+    if (empty($mias) && empty($resto)) {
         return sticpa_record_empty_html(
             'calendar',
-            __('No hay eventos abiertos ahora mismo', 'sticpa'),
-            __('Cuando se abra la inscripción de una actividad, aparecerá aquí. Los eventos en los que ya estás inscrito están en “Inscripciones”.', 'sticpa'),
+            __('No hay actividades próximas ahora mismo', 'sticpa'),
+            __('Cuando se abra la inscripción de una actividad, aparecerá aquí. Las que ya pasaron están en “Inscripciones”.', 'sticpa'),
             array('label' => __('Ver mis inscripciones', 'sticpa'), 'url' => '?internalpage=list_stic_registrations')
         );
     }
 
-    // Próximos primero (por fecha) y los ya celebrados al final: la pantalla
-    // sirve para APUNTARSE, así que lo accionable va arriba.
-    usort($models, function ($a, $b) {
-        if ($a['is_past'] !== $b['is_past']) {
-            return $a['is_past'] ? 1 : -1;
+    $html = '';
+    if (!empty($mias)) {
+        $html .= "<h4 class='stic-rec-group-title'>" . esc_html__('Te has apuntado', 'sticpa') . "</h4>";
+        $html .= sticpa_record_list_html(sticpa_events_cards($mias, $statusMap));
+    }
+    if (!empty($resto)) {
+        // El título solo hace falta si hay dos bloques que distinguir.
+        if (!empty($mias)) {
+            $html .= "<h4 class='stic-rec-group-title'>" . esc_html__('Para apuntarte', 'sticpa') . "</h4>";
         }
-        // Próximos: lo que antes ocurre, arriba. Ya celebrados: al revés, lo más
-        // reciente primero (de un evento de hace tres años ya no te acuerdas).
-        $cmp = ($a['start_ts'] ?? PHP_INT_MAX) <=> ($b['start_ts'] ?? PHP_INT_MAX);
-        return $a['is_past'] ? -$cmp : $cmp;
-    });
+        $html .= sticpa_record_list_html(sticpa_events_cards($resto, $statusMap));
+    }
+    return $html;
+}
 
+/** Las tarjetas de una lista de eventos (modelos de sticpa_event_view_model()). */
+function sticpa_events_cards($models, $statusMap = array())
+{
     $cards = array();
     foreach ($models as $event) {
         $detailUrl = '?internalpage=single_stic_events&action=detail&id=' . rawurlencode($event['id']);
@@ -662,13 +689,18 @@ function sticpa_events_list_html($events, $statusMap = array())
         // «Inscripción cerrada» y en una lista la fecha exacta de algo que se
         // pasó no sirve para nada. En la ficha sí se enseña, que es donde uno
         // va a mirar cuándo se le pasó.
+        //
+        // A lo que ya te has apuntado no se le cuenta el plazo: ya no te toca.
+        $regId = (string) ($event['registration_id'] ?? '');
         $regFact = sticpa_event_registration_fact($event['registro']);
-        if (!$event['is_past'] && $regFact !== null && ($event['registro']['estado'] ?? '') !== 'cerrada') {
+        if ($regId === '' && !$event['is_past'] && $regFact !== null && ($event['registro']['estado'] ?? '') !== 'cerrada') {
             $lines[] = array('icon' => $regFact['icon'], 'text' => $regFact['text']);
         }
 
         $chips = array();
-        if ($event['is_past']) {
+        if ($regId !== '') {
+            $chips[] = array('label' => __('Inscrito', 'sticpa'), 'tone' => 'ok');
+        } elseif ($event['is_past']) {
             $chips[] = array('label' => __('Ya celebrado', 'sticpa'), 'tone' => 'past');
         } elseif ($regChip !== null) {
             // Las fechas mandan sobre el `status` del CRM. Ver la nota de
@@ -679,9 +711,13 @@ function sticpa_events_list_html($events, $statusMap = array())
         }
 
         $actions = array(array('label' => __('Ver detalle', 'sticpa'), 'url' => $detailUrl));
-        // Fuera del plazo no se ofrece «Inscribirme»: el botón que lleva a un
-        // formulario que va a rechazarte es peor que no tener botón.
-        if (!$event['is_past'] && !empty($event['registro']['abierta'])) {
+        if ($regId !== '') {
+            // Lo tuyo: a TU inscripción (estado, pago, cambiar o cancelar).
+            $actions[] = array('label' => __('Mi inscripción', 'sticpa'), 'primary' => true,
+                'url' => '?internalpage=single_stic_registrations&action=detail&id=' . rawurlencode($regId));
+        } elseif (!$event['is_past'] && !empty($event['registro']['abierta'])) {
+            // Fuera del plazo no se ofrece «Inscribirme»: el botón que lleva a
+            // un formulario que va a rechazarte es peor que no tener botón.
             $actions[] = array('label' => __('Inscribirme', 'sticpa'), 'url' => $signUpUrl, 'primary' => true);
         }
 
@@ -696,7 +732,7 @@ function sticpa_events_list_html($events, $statusMap = array())
         );
     }
 
-    return sticpa_record_list_html($cards);
+    return $cards;
 }
 
 /**

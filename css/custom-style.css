@@ -6967,3 +6967,20 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
    «Ver la actividad» en su propia línea. */
 .stic-event-card-meta svg { width: 16px; height: 16px; flex-shrink: 0; }
 .stic-event-card-link { display: flex; width: fit-content; }
+
+/* ============================================================
+   61. EVENTOS — «Te has apuntado» y «Para apuntarte» (30/09/2026)
+   ------------------------------------------------------------
+   La lista de Eventos va en dos bloques: lo que ya tienes inscrito
+   y aún no ha pasado, y lo demás. El título de cada bloque, con el
+   mismo peso que los títulos de sección de la ficha.
+   ============================================================ */
+.stic-container .stic-rec-group-title,
+.stic-rec-group-title {
+    margin: 1.4rem 0 0.7rem;
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--gray-900);
+}
+.stic-container .stic-rec-group-title:first-of-type,
+.stic-rec-group-title:first-of-type { margin-top: 0.4rem; }

@@ -504,7 +504,7 @@ pago quiera enlazar a su recibo, ya está.
 
 | Pantalla | Archivo | Qué muestra |
 |----------|---------|-------------|
-| Listado | `pages/list_stic_events.php` | Tarjetas con fecha, nombre, lugar y estado. **Filtradas por audiencia**, y sin botón fuera de plazo. Próximos primero; los ya inscritos se ocultan (están en "Inscripciones") |
+| Listado | `pages/list_stic_events.php` | Tarjetas con fecha, nombre, lugar y estado, **solo lo que viene** (lo ya celebrado está en «Inscripciones»). En dos bloques desde el 30/09/2026: **«Te has apuntado»** —lo que ya tienes inscrito, con «Mi inscripción», sin filtro de audiencia, igual que la ficha— y **«Para apuntarte»** —**filtrado por audiencia**, y sin botón fuera de plazo—. Antes lo inscrito se ocultaba y quien volvía a mirar si se había apuntado no lo encontraba. El evento → inscripción sale de `prefix_user_active_registration_map()` |
 | Detalle | `pages/single_stic_events.php` | Ficha completa + botón de inscripción, o el motivo por el que no lo hay. **Con la información de la web** si el evento la tiene (§9) |
 | Inscripción | `pages/single_stic_registrations.php` | Formulario con la tarjeta del evento arriba; o el aviso de que no es para ti |
 
