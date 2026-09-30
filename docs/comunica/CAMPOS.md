@@ -175,14 +175,23 @@ CRM ya lo devuelve como **`multienum`**: alguien cambió el tipo en Studio. Ya s
 puede marcar «monitores Y coordinación» en el mismo evento. El código no se
 tocó: el troceador aguantaba las dos formas.
 
-### 4. `stic_personal_environment_relationship_type_list` — «Tutor/a legal» PENDIENTE (lo hace el propietario)
+### 4. `stic_personal_environment_relationship_type_list` — ✅ lista completa conocida (30/09/2026)
 
 Los parentescos del entorno personal. En datos (25/09/2026) se ven `son`,
 `mother`, `father` y **`legal`** (1 registro). `legal` es la candidata obvia a
 «Tutor/a legal» —y el código ya la busca (`RELATIONSHIP_TUTOR_TYPES`, junto a
 `carer`)—, pero **el propietario del CRM ha dicho que la clave de tutor/a legal
 la cierra él y nos avisa**. Hasta entonces: no se escribe `legal` ni `carer`
-desde el área, y la lista entera de Studio sigue sin apuntarse aquí.
+desde el área.
+
+Lista completa (dada por el propietario el 30/09/2026, copiada de Studio; clave [etiqueta]):
+`father` [Padre] · `mother` [Madre] · `brother` [Hermano] · `sister` [Hermana] ·
+`son` [Hijo] · `daughter` [Hija] · `uncle` [Tío] · `aunt` [Tía] · `couple` [Pareja] ·
+`friend` [Amigo/a] · `carer` [Cuidador/a] · `neighbor` [Vecino/a] · `legal` [Tutor/a] ·
+`school_partner` [Compañero/a de escuela] · `work_partner` [Compañero/a de trabajo] ·
+`culture` [Espacio/Organización cultural] · `sports` [Espacio/Organización deportiva].
+
+**Resuelto el 30/09/2026:** la clave de tutor/a legal es `legal` [Tutor/a] (la lista de arriba la confirma). Lo que ya estaba escrito antes de esta fecha habla de «pendiente»; vale esta nota.
 
 ### 5. `ajmcm_GRUPOS.ajmcm_segmento_com_c` — valores observados, no leídos
 
@@ -218,7 +227,7 @@ ya está aquí**:
 | `stic_AWF_Forms` | Formularios Web Avanzados | |
 | `stic_Signatures`, `stic_Signers`, `stic_Signature_Log` | Firmas | Firma electrónica de SinergiaCRM |
 
-`AVI_avisos` y `LIS_listas` sí están documentados, en los papeles de Pasar Lista;
+`AVI_avisos` y `LIS_listas` sí están documentados, en los papeles de Pasar Lista (`LIS_listas.ajmcm_tipo_c`, «Tipo de lista»: valores `participantes` y `monitores`, creados en Studio y confirmados por el propietario el 30/09/2026);
 `stic_Remittances` (24 campos, ninguno custom) tiene su nota en §1.
 
 ---
@@ -439,12 +448,12 @@ Vistas en datos el 25/09/2026, sobre ~360 registros:
 | `mother` | El lado B es la madre del lado A | La que lee el área privada |
 | `father` | El lado B es el padre del lado A | La que lee el área privada |
 | `son` | El lado B es el hijo del lado A | La trajo la migración de 2025, **mal puesta** (ver abajo). Quedan 14 |
-| `legal` | ¿Tutor/a legal? | 1 registro. **Pendiente: la clave de tutor/a legal la cierra el propietario del CRM** (pendiente 4 de arriba) |
+| `legal` | Tutor/a | 1 registro. Confirmada el 30/09/2026 como «Tutor/a legal» (pendiente 4 de arriba) |
 
 El código busca `father`, `mother`, `legal` y `carer`
 (`RELATIONSHIP_TUTOR_TYPES`). La lista completa de Studio
-(`stic_personal_environment_relationship_type_list`) sigue sin apuntarse; no se
-inventa ninguna clave.
+(`stic_personal_environment_relationship_type_list`) está en el pendiente 4 de arriba; no se
+inventa ninguna clave fuera de ella.
 
 Quien escriba en este módulo, que lo haga **sin bloquear el resto del guardado**:
 la API acepta cualquier cadena en un `enum` sin rechistar, así que una clave
@@ -905,13 +914,14 @@ las devuelve la API: si las necesitas, míralas allí.
 | `web_lema_c` | texto (255) | El subtítulo bajo el título («Sin Rodeos: Soy Consolación») |
 | `web_slug_c` | texto (255) | La URL bonita (`?e=convivencia26-cs-com`). Vacío → se saca del nombre |
 
-**Preguntas simples — ⏳ PROPUESTOS, NO CREADOS** (25/09/2026, TODO EV-6). Para
-que un evento sí/no con una o dos preguntas no necesite un formulario web
-avanzado. **Hasta que se creen, el área no los pide** (cruza cada nombre con la
-definición del CRM). Si se crean con otro nombre, apúntalo aquí y cámbialo en
+**Preguntas simples — ✅ CREADOS** (propuestos el 25/09/2026, TODO EV-6; creados en Studio
+por el propietario del CRM, comunicado el 30/09/2026; **no verificados por MCP**: el
+MCP del 30/09 aún no los devolvía, comprobar). Para que un evento sí/no con una o dos
+preguntas no necesite un formulario web avanzado. El área los pide solo si existen en
+la definición del CRM. Si tienen otro nombre, apúntalo aquí y cámbialo en
 `sticpa_event_question_fields()`. Formato y comportamiento en `EVENTOS.md` §10.1.
 
-| Módulo | Campo propuesto | Tipo | Para qué |
+| Módulo | Campo | Tipo | Para qué |
 |---|---|---|---|
 | `stic_Events` | `ajmcm_pregunta_1_c` | texto (255) | «Pregunta simple 1»: `¿Pregunta? \| opción 1; opción 2`. La pregunta (antes de la `\|`) es opcional; opciones separadas por `;`, dos como mínimo |
 | `stic_Events` | `ajmcm_pregunta_2_c` | texto (255) | «Pregunta simple 2», igual |
@@ -921,12 +931,14 @@ definición del CRM). Si se crean con otro nombre, apúntalo aquí y cámbialo e
 Van por parejas y en campos separados (no todo junto en un texto largo) para que
 en el CRM se pueda filtrar y contar («¿cuántos van en autobús?»).
 
-**Enlace del formulario web avanzado — ⏳ PROPUESTO, NO CREADO** (27/09/2026, TODO
-EV-3). Decidido que sea un campo PROPIO y no `web_url_c`: `web_url_c` es el botón
+**Enlace del formulario web avanzado — ✅ CREADO** (propuesto el 27/09/2026, TODO
+EV-3; creado por el propietario, comunicado el 30/09/2026, **no verificado por MCP**).
+El campo existe; la parte de programar las dos puertas y el relleno desde el área
+privada sigue pendiente. Decidido que sea un campo PROPIO y no `web_url_c`: `web_url_c` es el botón
 de la página pública, y el enlace del FWA lo usa además el área privada para
 abrir el formulario ya rellenado con los datos de quien ha entrado.
 
-| Módulo | Campo propuesto | Tipo | Para qué |
+| Módulo | Campo | Tipo | Para qué |
 |---|---|---|---|
 | `stic_Events` | `ajmcm_fwa_url_c` | URL | El enlace público del formulario web avanzado del evento. Vacío = el evento no usa FWA |
 
@@ -1028,7 +1040,7 @@ nadie cree uno igual: `inc_*` (34, programa Incorpora / SEPE), `sepe_*` (4) y
 | `ajmcm_tutor1_email_c` | `varchar(48)` | Correo |
 | `ajmcm_tutor1_dni_c` | `varchar(14)` | DNI |
 | `ajmcm_tutor1_iban_c` | `varchar(40)` | IBAN (dato bancario: se enmascara al pintarlo) |
-| `ajmcm_tutor2_*` | ídem | Lo mismo para el tutor/a 2, **sin IBAN** |
+| `ajmcm_tutor2_*` | ídem | Lo mismo para el tutor/a 2 (`firstname`, `lastname`, `relationship`, `phone`, `email`, `dni`), **sin IBAN**. `ajmcm_tutor2_dni_c` (`varchar(14)`) verificado por MCP el 30/09/2026 |
 
 **Relaciones con personas (`stic_Contacts_Relationships`)** — la etapa también
 está en [`PASAR-LISTA-CAMPOS-CRM.md`](PASAR-LISTA-CAMPOS-CRM.md)
