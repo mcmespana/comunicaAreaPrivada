@@ -111,6 +111,40 @@ function sticpa_app_link_url($url)
 }
 
 /**
+ * RED DE SEGURIDAD: una pantalla del área pedida en la RAÍZ de la web
+ * (`https://…/?internalpage=…`) se reenvía al área (`/ap/`) con los mismos
+ * parámetros. Así volvía el pago con tarjeta hasta el 30/09/2026 (el plugin
+ * original da por hecho que el área es la portada), y puede quedar algún enlace
+ * viejo en un correo o en el TPV. Solo GET: un POST no se reenvía sin perder
+ * lo que lleva.
+ */
+add_action('init', 'sticpa_root_internalpage_redirect', 0);
+function sticpa_root_internalpage_redirect()
+{
+    $dest = sticpa_root_internalpage_target();
+    if ($dest !== '') {
+        wp_safe_redirect($dest, 302);
+        exit;
+    }
+}
+
+/** A dónde reenviar esta petición, o '' si no toca. Separado para probarlo. */
+function sticpa_root_internalpage_target()
+{
+    if ((function_exists('is_admin') && is_admin()) || empty($_GET['internalpage'])
+        || strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET')) !== 'GET') {
+        return '';
+    }
+    $home = rtrim((string) parse_url(home_url('/'), PHP_URL_PATH), '/');
+    $area = parse_url((string) get_option('sticpa_scp_area_url', ''), PHP_URL_PATH);
+    if (sticpa_current_path() !== $home || !sticpa_is_local_path($area) || rtrim($area, '/') === $home) {
+        return '';
+    }
+    $query = parse_url((string) ($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_QUERY);
+    return sticpa_area_absolute_url(is_string($query) ? str_replace(array("\r", "\n"), '', $query) : '');
+}
+
+/**
  * Ruta puente. Solo se ejecuta cuando el sistema operativo NO ha abierto la app
  * (no está instalada, es un ordenador, o el cliente de correo ha envuelto el
  * enlace en un redirector y se ha perdido el universal link).
