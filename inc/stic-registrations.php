@@ -126,6 +126,55 @@ function sticpa_registration_event_index()
 }
 
 /**
+ * Ids de los eventos marcados «Ocultar en el área privada».
+ *
+ * Es lo que decide qué inscripciones van bajo «Otros eventos» (TODO 30/09/2026):
+ * reuniones de monitores, actividades de otra etapa… que te constan pero no son
+ * lo que vienes a mirar. La inscripción solo trae el nombre y el id de su
+ * evento, no sus campos, así que se pregunta UNA vez por todos los ocultos.
+ *
+ * Coste: cero si el campo aún no existe (se mira en la definición cacheada de
+ * eventos, que ya se paga en otras pantallas), y si existe, una sola consulta
+ * de una columna cada 5 minutos para TODO el mundo (el transient no es por
+ * persona, porque lo oculto no depende de quién mire). Si algo falla, la
+ * respuesta es «ninguno oculto»: las inscripciones salen como siempre.
+ *
+ * @return array<string,true> id de evento => true
+ */
+function sticpa_registration_hidden_event_ids($objSCP)
+{
+    if (!function_exists('sticpa_event_hidden_field') || !function_exists('sticpa_event_field_definition')) {
+        return array();
+    }
+    $field = sticpa_event_hidden_field();
+    $cacheKey = 'sticpa_hidden_event_ids';
+    if (function_exists('get_transient')) {
+        $cached = get_transient($cacheKey);
+        if (is_array($cached)) {
+            return $cached;
+        }
+    }
+
+    $definition = sticpa_event_field_definition($objSCP);
+    if ($field === '' || !is_array($definition) || !isset($definition[$field])) {
+        return array();   // el campo no existe: no hay nada oculto, y no se consulta
+    }
+
+    $rows = $objSCP->getRecordsModule('stic_Events', "(stic_events_cstm.{$field} = 1)", array('id'));
+    $ids = array();
+    foreach ((is_array($rows) ? $rows : array()) as $row) {
+        $id = (string) ($row->name_value_list->id->value ?? '');
+        if ($id !== '') {
+            $ids[$id] = true;
+        }
+    }
+    if (function_exists('set_transient')) {
+        set_transient($cacheKey, $ids, 5 * MINUTE_IN_SECONDS);
+    }
+    return $ids;
+}
+
+/**
  * Clave de comparación de un nombre de evento: sin mayúsculas, sin acentos y
  * sin espacios de más. El nombre viaja por dos caminos distintos (el campo
  * relate y el módulo de eventos) y basta un espacio doble para no casar.
@@ -145,9 +194,11 @@ function sticpa_registration_name_key($name)
  *
  * @param object $nvl        name_value_list del registro.
  * @param array  $eventIndex Salida de sticpa_registration_event_index().
+ * @param array  $hiddenEvents Salida de sticpa_registration_hidden_event_ids(): si el
+ *                           evento está oculto, la inscripción va a «Otros eventos».
  * @return array|null null si es una fila sin nombre (basura).
  */
-function sticpa_registration_view_model($nvl, $eventIndex = array())
+function sticpa_registration_view_model($nvl, $eventIndex = array(), $hiddenEvents = array())
 {
     $val = function ($field) use ($nvl) {
         return isset($nvl->$field->value) ? trim((string) $nvl->$field->value) : '';
@@ -181,6 +232,8 @@ function sticpa_registration_view_model($nvl, $eventIndex = array())
     $refTs = $endTs ?: $startTs;
     $isPast = ($refTs !== null && $refTs < strtotime('today'));
 
+    $resolvedEventId = $eventId !== '' ? $eventId : (string) ($event['id'] ?? '');
+
     return array(
         'id'         => $val('id'),
         'title'      => $title,
@@ -188,12 +241,13 @@ function sticpa_registration_view_model($nvl, $eventIndex = array())
         'event_name' => $eventName,
         // El enlace manda sobre la caché: la caché puede estar fría, el
         // enlace viene siempre con el registro.
-        'event_id'   => $eventId !== '' ? $eventId : (string) ($event['id'] ?? ''),
+        'event_id'   => $resolvedEventId,
         'status'     => $val('status'),
         'signed_ts'  => $signedTs,
         'start_ts'   => $startTs,
         'end_ts'     => $endTs,
         'is_past'    => $isPast,
+        'event_hidden' => $resolvedEventId !== '' && isset($hiddenEvents[$resolvedEventId]),
         'clase'      => $val('ajmcm_clase_c'),
         'curso'      => $val('ajmcm_curso_escolar_c'),
         'nvl'        => $nvl,
@@ -232,7 +286,7 @@ function sticpa_registration_when_line($reg)
  * @param array $definition Definición de campos cacheada (para las etiquetas
  *                          de los desplegables; nunca se enseña la clave cruda).
  */
-function sticpa_registrations_list_html($rows, $definition = array())
+function sticpa_registrations_list_html($rows, $definition = array(), $hiddenEvents = array())
 {
     $eventIndex = sticpa_registration_event_index();
 
@@ -242,7 +296,7 @@ function sticpa_registrations_list_html($rows, $definition = array())
         if (!$nvl) {
             continue;
         }
-        $model = sticpa_registration_view_model($nvl, $eventIndex);
+        $model = sticpa_registration_view_model($nvl, $eventIndex, $hiddenEvents);
         if ($model) {
             $models[] = $model;
         }
@@ -277,6 +331,7 @@ function sticpa_registrations_list_html($rows, $definition = array())
     });
 
     $cards = array();
+    $otherCards = array();   // inscripciones de eventos ocultos: bajo «Otros eventos»
     foreach ($models as $reg) {
         $lines = array();
         $when = sticpa_registration_when_line($reg);
@@ -317,7 +372,7 @@ function sticpa_registrations_list_html($rows, $definition = array())
         // se gana su sitio: se añade aquí.
         $actions = array();
 
-        $cards[] = array(
+        $card = array(
             'url'     => $detailUrl,
             // La cápsula lleva la fecha del EVENTO si se sabe; si no, la de la
             // inscripción, que es lo único que hay.
@@ -329,9 +384,28 @@ function sticpa_registrations_list_html($rows, $definition = array())
             'is_past' => $reg['is_past'] || sticpa_record_status_tone($reg['status']) === 'danger',
             'actions' => $actions,
         );
+        if (!empty($reg['event_hidden'])) {
+            $otherCards[] = $card;
+        } else {
+            $cards[] = $card;
+        }
     }
 
-    return sticpa_record_list_html($cards);
+    if (empty($otherCards)) {
+        return sticpa_record_list_html($cards);
+    }
+
+    // EL PARAGUAS «OTROS EVENTOS» (30/09/2026). Lo que consta pero no es lo que
+    // vienes a mirar —reuniones de monitores, actividades de otra etapa— sigue
+    // ahí, plegado y contado, debajo de lo principal. Si TODO está bajo el
+    // paraguas, se abre: una pantalla con solo un título cerrado parece vacía.
+    $html = empty($cards) ? '' : sticpa_record_list_html($cards);
+    $html .= "<details class='stic-rec-other'" . (empty($cards) ? ' open' : '') . ">"
+        . "<summary><span>" . esc_html__('Otros eventos', 'sticpa') . "</span>"
+        . "<span class='stic-rec-other-count'>" . (int) count($otherCards) . "</span></summary>"
+        . sticpa_record_list_html($otherCards)
+        . "</details>";
+    return $html;
 }
 
 /**

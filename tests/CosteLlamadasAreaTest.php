@@ -168,8 +168,14 @@ class CosteLlamadasAreaTest extends TestCase
             // 3, y eran 4 hasta el 18/09/2026: pedía la definición de campos
             // dos veces con dos listas distintas. Ver sticpa_event_field_definition().
             'list_stic_events' => 3,
-            // 2 los cuatro listados: las filas y la definición del desplegable.
-            'list_stic_registrations' => 2,
+            // 4, y eran 2 hasta el 30/09/2026. Las dos de más son del paraguas
+            // «Otros eventos» y SOLO se pagan con la caché fría: la definición de
+            // eventos (`getFieldDefinition:stic_Events`, la MISMA cacheada 6 h que
+            // usan Eventos y la home, así que casi siempre ya está caliente) y la
+            // consulta de una columna con los eventos ocultos (cacheada 5 min
+            // para TODO el mundo, no por persona). En régimen normal, cero
+            // llamadas de más. Si el campo no existe en el CRM, ni se consulta.
+            'list_stic_registrations' => 4,
             'list_stic_payments' => 2,
             'list_stic_payment_commitments' => 2,
             'list_stic_documents' => 2,
