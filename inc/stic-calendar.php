@@ -255,7 +255,7 @@ function sticpa_calendar_flush_cache()
  * Devuelve un array con:
  *   'sessions'              => [ ['id','title','event_id','event_name','start','end'], … ]
  *   'attendance_by_session' => [ sessionId => statusKey, … ]
- *   'registered_events'     => [ ['id','name','start','end'], … ]
+ *   'registered_events'     => [ ['id','registration_id','name','start','end'], … ]
  *   'available_events'      => [ ['id','name','start','end'], … ]   (no inscritos)
  * Cacheado en transient (TTL vía filtro 'sticpa_calendar_cache_ttl', 300s por defecto).
  */
@@ -394,6 +394,9 @@ function sticpa_gather_calendar_data($objSCP)
             if (!isset($registeredEvents[$evId])) {
                 $registeredEvents[$evId] = array(
                     'id' => $evId,
+                    // La inscripción que lo hace «tuyo»: la lista de Eventos
+                    // enlaza con ella desde «Te has apuntado».
+                    'registration_id' => (string) $regId,
                     'name' => $evData->name->value ?? '',
                     'start' => $evData->start_date->value ?? '',
                     'end' => $evData->end_date->value ?? '',

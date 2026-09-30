@@ -352,10 +352,56 @@ function prefix_user_active_event_ids($objSCP, $fresh = false)
         }
     }
 
+    $memo = array_keys(prefix_user_active_registration_map($objSCP, $fresh));
+    return $memo;
+}
+
+/**
+ * Tus inscripciones activas (no canceladas), como evento => inscripción.
+ * La lista de Eventos lo necesita para «Te has apuntado»: el evento y el
+ * enlace a TU inscripción. Mismas consultas que antes hacía
+ * prefix_user_active_event_ids(), que ahora sale de aquí.
+ *
+ * @return array<string,string>
+ */
+function prefix_user_active_registration_map($objSCP, $fresh = false)
+{
+    static $memo = null;
+    if (!$fresh && $memo !== null) {
+        return $memo;
+    }
+
+    // El calendario ya lo tiene calculado y cacheado: se aprovecha SOLO si
+    // está caliente y trae el id de la inscripción (las cachés de antes del
+    // 30/09/2026 no lo traen; caducan solas).
+    if (!$fresh && function_exists('sticpa_calendar_cache_key')) {
+        $cached = get_transient(sticpa_calendar_cache_key());
+        if (is_array($cached) && isset($cached['registered_events']) && is_array($cached['registered_events'])) {
+            $map = array();
+            $completo = true;
+            foreach ($cached['registered_events'] as $ev) {
+                $evId = (string) (is_array($ev) ? ($ev['id'] ?? '') : ($ev->id ?? ''));
+                $regId = (string) (is_array($ev) ? ($ev['registration_id'] ?? '') : ($ev->registration_id ?? ''));
+                if ($evId === '') {
+                    continue;
+                }
+                if ($regId === '') {
+                    $completo = false;
+                    break;
+                }
+                $map[$evId] = $regId;
+            }
+            if ($completo) {
+                $memo = $map;
+                return $memo;
+            }
+        }
+    }
+
     $module = getDestinationModule();
     $relationship = ($module === 'Accounts') ? 'stic_registrations_accounts' : 'stic_registrations_contacts';
 
-    $ids = array();
+    $map = array();
     $myRegs = $objSCP->getRelatedElementsForLoggedUser(array(
         'module_name' => $module,
         'module_id' => $_SESSION['scp_user_id'],
@@ -365,8 +411,8 @@ function prefix_user_active_event_ids($objSCP, $fresh = false)
         'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
     ));
     if (!is_array($myRegs)) {
-        $memo = $ids;
-        return $ids;
+        $memo = $map;
+        return $map;
     }
     // El evento de cada inscripción, EN UNA TANDA (plan 011): eran 1+N
     // llamadas en fila. Son las mismas consultas, y la decisión (¿ya estás
@@ -398,13 +444,13 @@ function prefix_user_active_event_ids($objSCP, $fresh = false)
         $regEvents = $objSCP->getRelatedElementsForLoggedUser($eventParams($reg->id));
         if (is_array($regEvents)) {
             foreach ($regEvents as $re) {
-                if (!empty($re->id)) {
-                    $ids[] = $re->id;
+                if (!empty($re->id) && !isset($map[(string) $re->id])) {
+                    $map[(string) $re->id] = (string) $reg->id;
                 }
             }
         }
     }
-    $memo = array_values(array_unique($ids));
+    $memo = $map;
     return $memo;
 }
 
