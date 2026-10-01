@@ -1097,6 +1097,15 @@ Fuente: https://wiki.sinergiatic.org/index.php?title=Estructura_de_datos:_m%C3%B
   - Usado por nosotros: **Sí**
 - `stic_identification_number_c` — Número de identificación (texto)
   - Usado por nosotros: **Sí**
+- `stic_identification_sup_c` — Número de soporte del DNI (texto)
+  - Lo piden los albergues públicos. **Opcional** en todos los formularios: se
+    ofrece en el alta de monitores y en las actualizaciones (formulario de
+    edición y «Mis datos» del área privada), con un aviso «Ya lo tenemos» si
+    la ficha ya lo trae (porque se pidió en alguna actividad).
+  - Usado por nosotros: **Sí**
+- `stic_identification_exp_c` — Fecha de expedición del DNI (fecha)
+  - Igual que el anterior: opcional, para los albergues públicos.
+  - Usado por nosotros: **Sí**
 - `stic_relationship_type_c` — Tipo de relación actual (selección múltiple: Socio / Donante / Voluntario / Usuario / Trabajador / …)
   - Usado por nosotros: **Sí**
   - **Claves internas vistas en el CRM real** (08/09/2026, por MCP). El campo es
