@@ -176,8 +176,13 @@ class CosteLlamadasAreaTest extends TestCase
             // para TODO el mundo, no por persona). En régimen normal, cero
             // llamadas de más. Si el campo no existe en el CRM, ni se consulta.
             'list_stic_registrations' => 4,
-            'list_stic_payments' => 2,
-            'list_stic_payment_commitments' => 2,
+            // 3, y eran 2 hasta el 01/10/2026 (plan 041): la de más son los
+            // compromisos de quien paga, para no enseñar como deuda un intento
+            // de tarjeta ni lo pendiente de algo ya sustituido, y para reclamar
+            // el pago con tarjeta al volver del TPV.
+            'list_stic_payments' => 3,
+            // Desde el 01/10/2026 enseña Pagos (plan 041): su mismo tope.
+            'list_stic_payment_commitments' => 3,
             'list_stic_documents' => 2,
         );
 

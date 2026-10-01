@@ -115,6 +115,13 @@ class RegistrationManageTest extends TestCase
             public $commitmentsByDescription = array(); // id => description
             public $paymentsOfCommitment = array();     // id => [status, …]
             public $queries = array();
+            public $payments = array();          // id => campos (getRecordDetail de stic_Payments)
+            public $commitments = array();       // id => campos (getRecordDetail de stic_Payment_Commitments)
+            public $regsOfCommitment = array();  // compromiso => [inscripción, …]
+            public $myPayments = array();        // pagos de quien está en sesión
+            public $commitmentMeta = array();    // id => campos extra en getRecordsModule
+            public $autoPayments = false;        // como el CRM: al crear un compromiso, su pago pendiente
+            public $paymentStatusOptions = array('paid' => 'Pagado', 'pending' => 'Pendiente', 'not_remitted' => 'No remesado', 'cancelled' => 'Anulado');
             private $n = 0;
             private $t;
             public function __construct($t) { $this->t = $t; }
@@ -136,13 +143,25 @@ class RegistrationManageTest extends TestCase
                     $def['payment_method']['options'] = $this->opts($this->methodOptions);
                 }
                 if (isset($def['payment_type'])) {
-                    $def['payment_type']['options'] = $this->opts(array('donation' => 'Donativo', 'services' => 'Servicios'));
+                    $def['payment_type']['options'] = $this->opts(array('donation' => 'Donativo', 'services' => 'Servicios', 'fee' => 'Cuota'));
+                }
+                if (isset($def['status']) && $module === 'stic_Payments') {
+                    $def['status']['options'] = $this->opts($this->paymentStatusOptions);
                 }
                 return (object) array('module_fields' => $def);
             }
             public function getRecordDetail($id, $module, $fields = null)
             {
                 $src = $module === 'stic_Events' ? $this->events : ($module === 'stic_Registrations' ? $this->registrations : ($module === 'Contacts' ? $this->contacts : array()));
+                if ($module === 'stic_Payments') {
+                    $src = $this->payments;
+                }
+                if ($module === 'stic_Payment_Commitments') {
+                    $src = $this->commitments;
+                    foreach ($this->commitmentsByDescription as $cid => $desc) {
+                        $src[$cid] = array_merge(array('id' => $cid, 'description' => $desc), $src[$cid] ?? array());
+                    }
+                }
                 if (!isset($src[$id])) {
                     return (object) array('entry_list' => array());
                 }
@@ -158,6 +177,20 @@ class RegistrationManageTest extends TestCase
                     }
                     return $out;
                 }
+                if ($link === 'stic_payments_contacts') {
+                    $out = array();
+                    foreach ($this->myPayments as $id) {
+                        $out[] = (object) array('id' => $id, 'name_value_list' => $this->nvl(array('id' => $id)));
+                    }
+                    return $out;
+                }
+                if ($link === 'stic_payment_commitments_stic_registrations' && ($p['module_name'] ?? '') === 'stic_Payment_Commitments') {
+                    $out = array();
+                    foreach ($this->regsOfCommitment[$p['module_id']] ?? array() as $rid) {
+                        $out[] = (object) array('id' => $rid, 'name_value_list' => $this->nvl(array('id' => $rid)));
+                    }
+                    return $out;
+                }
                 if ($link === 'stic_payment_commitments_stic_registrations') {
                     $out = array();
                     foreach ($this->commitmentsOfReg[$p['module_id']] ?? array() as $c) {
@@ -168,8 +201,11 @@ class RegistrationManageTest extends TestCase
                 if ($link === 'stic_payments_stic_payment_commitments') {
                     $out = array();
                     foreach ($this->paymentsOfCommitment[$p['module_id']] ?? array() as $i => $status) {
-                        $out[] = (object) array('id' => 'pay-' . $i, 'name_value_list' => $this->nvl(array('id' => 'pay-' . $i, 'status' => $status,
-                            'name' => 'David Soler Balado - Donativo - 110,00 - 2026-09-30', 'payment_type' => 'donation')));
+                        // Un estado suelto, o los campos del pago.
+                        $f = is_array($status) ? $status : array('status' => $status);
+                        $f = array_merge(array('id' => 'pay-' . $i,
+                            'name' => 'David Soler Balado - Donativo - 110,00 - 2026-09-30', 'payment_type' => 'donation'), $f);
+                        $out[] = (object) array('id' => $f['id'], 'name_value_list' => $this->nvl($f));
                     }
                     return $out;
                 }
@@ -187,8 +223,9 @@ class RegistrationManageTest extends TestCase
                     && preg_match("/description LIKE '%(.*)%'$/", $query, $m)) {
                     foreach ($this->commitmentsByDescription as $id => $desc) {
                         if (strpos($desc, $m[1]) !== false) {
-                            $out[] = (object) array('id' => $id, 'name_value_list' => $this->nvl(array('id' => $id,
-                                'name' => 'David Soler Balado - Donativo - 110,00', 'payment_type' => 'donation')));
+                            $out[] = (object) array('id' => $id, 'name_value_list' => $this->nvl(array_merge(array('id' => $id,
+                                'name' => 'David Soler Balado - Donativo - 110,00', 'payment_type' => 'donation',
+                                'date_entered' => gmdate('Y-m-d H:i:s'), 'description' => $desc), $this->commitmentMeta[$id] ?? array())));
                         }
                     }
                 }
@@ -198,6 +235,9 @@ class RegistrationManageTest extends TestCase
             {
                 $id = $data['id'] ?? ($module . '-new-' . (++$this->n));
                 $this->writes[] = array('module' => $module, 'data' => $data, 'id' => $id);
+                if ($this->autoPayments && $module === 'stic_Payment_Commitments' && empty($data['id'])) {
+                    $this->paymentsOfCommitment[$id] = array(array('id' => 'pay-de-' . $id, 'status' => 'pending'));
+                }
                 return $id;
             }
             public function set_relationship($module, $id, $link, $ids = array())
@@ -388,16 +428,43 @@ class RegistrationManageTest extends TestCase
         $this->assertSame(array(), $this->crm->writes);
     }
 
-    public function test_con_tarjeta_se_pasa_al_formulario_de_pago_sin_crear_compromiso()
+    /**
+     * CON TARJETA TAMBIÉN SE CREA EL COMPROMISO (plan 041): lo que se debe se
+     * ve aunque el pago no se termine, y se va a pagar SU pago pendiente. El
+     * pago con tarjeta lo sustituirá a la vuelta: un solo compromiso vivo.
+     */
+    public function test_con_tarjeta_se_crea_su_compromiso_y_se_va_a_pagar_su_pago_pendiente()
+    {
+        $this->crm->events['ev-1'] = $this->evento();
+        $this->crm->autoPayments = true;
+        $url = $this->inscribirse(array('sticpa_pago_metodo' => 'card'));
+        $pcs = $this->crm->writesTo('stic_Payment_Commitments');
+        $this->assertCount(1, $pcs);
+        $this->assertSame('card', $pcs[0]['data']['payment_method']);
+        $this->assertSame('services', $pcs[0]['data']['payment_type']);
+        $this->assertStringContainsString('internalpage=single_stic_payment_form', $url);
+        $this->assertStringContainsString('paymentId=pay-de-' . $pcs[0]['id'], $url);
+    }
+
+    /** Si el CRM no hubiera generado el pago, se paga por la inscripción, como antes. */
+    public function test_con_tarjeta_y_sin_pago_generado_se_paga_por_la_inscripcion()
     {
         $this->crm->events['ev-1'] = $this->evento();
         $url = $this->inscribirse(array('sticpa_pago_metodo' => 'card'));
-        $this->assertCount(1, $this->crm->writesTo('stic_Registrations'));
-        $this->assertSame(array(), $this->crm->writesTo('stic_Payment_Commitments'),
-            'el formulario de pago crea el suyo: con otro aquí serían dos cobros');
-        $this->assertStringContainsString('internalpage=single_stic_payment_form', $url);
-        $this->assertStringContainsString('amount=60.00', $url);
+        $this->assertStringContainsString('registrationId=', $url);
         $this->assertStringContainsString('eventId=ev-1', $url);
+    }
+
+    /**
+     * EL DINERO DE UN EVENTO ES DE QUIEN LO ORGANIZA (plan 041, D-1): un
+     * evento nacional (de ECE) no se parte entre las delegaciones de cada uno.
+     */
+    public function test_la_inscripcion_y_su_compromiso_son_del_organizador_del_evento()
+    {
+        $this->crm->events['ev-1'] = $this->evento(array('assigned_user_id' => 'ece', 'ajmcm_ambito_c' => 'nacional'));
+        $this->inscribirse(array('sticpa_pago_metodo' => 'bizum'));
+        $this->assertSame('ece', $this->crm->writesTo('stic_Registrations')[0]['data']['assigned_user_id']);
+        $this->assertSame('ece', $this->crm->writesTo('stic_Payment_Commitments')[0]['data']['assigned_user_id']);
     }
 
     /* ---- Pagar con tarjeta (EV-9) ------------------------------------ */
@@ -443,23 +510,33 @@ class RegistrationManageTest extends TestCase
         $this->assertStringContainsString('single_stic_registrations&action=detail&id=' . $reg, (string) $this->hidden($html, 'redirect_url'));
     }
 
-    public function test_una_inscripcion_ajena_no_se_paga_como_inscripcion()
+    /** Una inscripción ajena no se paga: ni como inscripción ni como donativo suelto. */
+    public function test_una_inscripcion_ajena_no_se_paga()
     {
         $reg = '00000900-db01-acfe-2649-6ab30955f412';
         $this->crm->events['ev-1'] = $this->evento();
         $html = $this->formularioDePago(array('eventId' => 'ev-1', 'registrationId' => $reg));
-        $this->assertNull($this->hidden($html, 'stic_Payment_Commitments___description'));
-        $this->assertStringNotContainsString('single_stic_registrations', (string) $this->hidden($html, 'redirect_url'));
-        // Aun así, a la delegación.
-        $this->assertSame('del-cs', $this->hidden($html, 'assigned_user_id'));
+        $this->assertNull($this->hidden($html, 'campaign_id'), 'no hay formulario');
+        $this->assertStringContainsString('Este pago no está pendiente', $html);
+    }
+
+    /** Sin nada que pagar no hay formulario: desde el área no se hacen aportaciones sueltas. */
+    public function test_sin_nada_que_pagar_no_hay_formulario_de_donativo()
+    {
+        $html = $this->formularioDePago(array('amount' => '110'));
+        $this->assertNull($this->hidden($html, 'campaign_id'));
+        $this->assertStringContainsString('No hay nada que pagar aquí', $html);
+        $this->assertSame(array(), $this->crm->writes);
     }
 
     public function test_la_campana_sale_de_los_ajustes_y_si_no_pagos_con_tarjeta()
     {
         $this->assertSame('00000edb-e11b-2a0f-4757-6abc23a90262', sticpa_card_campaign_id());
         update_option('sticpa_card_campaign_id', ' 11111111-2222-3333-4444-555555555555 ');
+        $reg = '00000900-db01-acfe-2649-6ab30955f412';
         $this->crm->events['ev-1'] = $this->evento();
-        $html = $this->formularioDePago(array());
+        $this->crm->myRegs[$reg] = 'confirmed';
+        $html = $this->formularioDePago(array('eventId' => 'ev-1', 'registrationId' => $reg));
         $this->assertSame('11111111-2222-3333-4444-555555555555', $this->hidden($html, 'campaign_id'));
         update_option('sticpa_card_campaign_id', 'no es un id');
         $this->assertSame('00000edb-e11b-2a0f-4757-6abc23a90262', sticpa_card_campaign_id());
@@ -499,6 +576,154 @@ class RegistrationManageTest extends TestCase
         $this->assertSame(array('id' => 'pay-0', 'payment_type' => 'services',
             'name' => 'David Soler Balado - Servicios - 110,00 - 2026-09-30', 'm182_excluded' => 1), $pay[0]['data']);
         $this->assertCount(1, $pay);
+    }
+
+    /* ---- Pagar con tarjeta lo que se debe (plan 041) ------------------- */
+
+    const PAGO = '00000fd6-ad2f-3d62-adbc-6abd9452eef9';
+
+    /** Un pago pendiente de 110 € del Foro, de ECE, colgado de la inscripción reg-1. */
+    private function pagoPendiente(array $extra = array())
+    {
+        $this->crm->payments[self::PAGO] = array_merge(array(
+            'id' => self::PAGO, 'name' => 'María Gascó Compte - Transferencia - 110 - 2026-10-01', 'amount' => '110.00',
+            'status' => 'pending', 'payment_method' => 'transfer', 'payment_type' => 'services',
+            'assigned_user_id' => 'ece', 'stic_paymebfe2itments_ida' => 'pc-orig',
+        ), $extra);
+        $this->crm->commitments['pc-orig'] = array('id' => 'pc-orig', 'banking_concept' => 'LC | Foro de Laicos Consolación 2026',
+            'assigned_user_id' => 'ece', 'description' => 'Creado por el formulario del Foro.');
+        $this->crm->regsOfCommitment['pc-orig'] = array('reg-1');
+        $this->crm->myPayments = array(self::PAGO);
+    }
+
+    public function test_pagar_un_pendiente_con_tarjeta_usa_su_importe_su_tipo_y_su_dueno()
+    {
+        $this->pagoPendiente();
+        $html = $this->formularioDePago(array('paymentId' => self::PAGO));
+        $this->assertMatchesRegularExpression('/name="stic_Payment_Commitments___amount"[^>]*readonly[^>]*value="110.00"/', $html);
+        $this->assertSame('services', $this->hidden($html, 'stic_Payment_Commitments___payment_type'));
+        $this->assertSame('ece', $this->hidden($html, 'assigned_user_id'), 'de quien organiza, no de la delegación de quien paga');
+        $this->assertSame('LC | Foro de Laicos Consolación 2026', $this->hidden($html, 'stic_Payment_Commitments___banking_concept'));
+        $this->assertStringContainsString(sticpa_pay_marker(self::PAGO), (string) $this->hidden($html, 'stic_Payment_Commitments___description'));
+        $vuelta = (string) $this->hidden($html, 'redirect_url');
+        $this->assertStringContainsString('single_stic_registrations&action=detail&id=reg-1', $vuelta);
+        $this->assertStringContainsString('pago=' . self::PAGO, $vuelta);
+    }
+
+    public function test_no_se_paga_con_tarjeta_lo_ajeno_ni_lo_que_va_a_remesa()
+    {
+        $this->pagoPendiente();
+        $this->crm->myPayments = array();
+        $this->assertStringContainsString('Este pago no está pendiente', $this->formularioDePago(array('paymentId' => self::PAGO)));
+
+        $this->pagoPendiente(array('status' => 'not_remitted', 'payment_method' => 'direct_debit'));
+        $this->assertStringContainsString('Este pago no está pendiente', $this->formularioDePago(array('paymentId' => self::PAGO)));
+
+        $this->pagoPendiente(array('status' => 'paid'));
+        $this->assertStringContainsString('Este pago no está pendiente', $this->formularioDePago(array('paymentId' => self::PAGO)));
+    }
+
+    /**
+     * LA SUSTITUCIÓN: cobrado el pago con tarjeta, hereda la inscripción y el
+     * tipo del viejo, el viejo se cierra y su pago queda anulado. Y la marca se
+     * reescribe, para no volver a hacerlo.
+     */
+    public function test_a_la_vuelta_el_pago_con_tarjeta_sustituye_al_pendiente()
+    {
+        $this->pagoPendiente(array('payment_type' => 'fee'));
+        $marca = sticpa_pay_marker(self::PAGO);
+        $this->crm->commitmentsByDescription['pc-card'] = 'Pago con tarjeta… ' . $marca;
+        $this->crm->paymentsOfCommitment['pc-card'] = array('paid');
+        $this->crm->paymentsOfCommitment['pc-orig'] = array(array('id' => self::PAGO, 'status' => 'pending'));
+
+        $this->assertSame('pagado', sticpa_pay_claim($this->crm, self::PAGO));
+
+        $this->assertContains(array('stic_Payment_Commitments', 'pc-card', 'stic_payment_commitments_stic_registrations', array('reg-1')), $this->crm->relations);
+        $porId = array();
+        foreach ($this->crm->writes as $w) {
+            $porId[$w['id']][] = $w['data'];
+        }
+        // El nuevo, con el tipo del viejo (una cuota) y sin «Donativo».
+        $this->assertSame('fee', $porId['pc-card'][0]['payment_type']);
+        $this->assertSame('David Soler Balado - Cuota - 110,00', $porId['pc-card'][0]['name']);
+        // El viejo, cerrado y con su porqué; su pago, anulado.
+        $this->assertSame(date('Y-m-d'), $porId['pc-orig'][0]['end_date']);
+        $this->assertStringContainsString('Pagado con tarjeta', $porId['pc-orig'][0]['description']);
+        $this->assertSame(array('id' => self::PAGO, 'status' => 'cancelled'), $porId[self::PAGO][0]);
+        // La marca, reescrita.
+        $ultima = end($porId['pc-card']);
+        $this->assertStringContainsString('[pagado:' . self::PAGO . ']', $ultima['description']);
+        $this->assertStringNotContainsString($marca, $ultima['description']);
+    }
+
+    /** Sin estado de «anulado» en el CRM, el pago sin cobrar del viejo se borra (no hay dinero en él). */
+    public function test_sin_estado_anulado_el_pago_sin_cobrar_se_borra()
+    {
+        $this->crm->paymentStatusOptions = array('paid' => 'Pagado', 'pending' => 'Pendiente');
+        $this->pagoPendiente();
+        $this->crm->commitmentsByDescription['pc-card'] = 'Pago… ' . sticpa_pay_marker(self::PAGO);
+        $this->crm->paymentsOfCommitment['pc-card'] = array('paid');
+        $this->crm->paymentsOfCommitment['pc-orig'] = array(array('id' => self::PAGO, 'status' => 'pending'));
+        sticpa_pay_claim($this->crm, self::PAGO);
+        $this->assertContains(array('id' => self::PAGO, 'deleted' => 1), array_column($this->crm->writesTo('stic_Payments'), 'data'));
+    }
+
+    /** Un intento de tarjeta sin terminar se cierra a las 24 h, y lo que se debía sigue debiéndose. */
+    public function test_un_intento_de_tarjeta_abandonado_se_cierra_y_el_pendiente_sigue()
+    {
+        $this->pagoPendiente();
+        $marca = sticpa_pay_marker(self::PAGO);
+        $this->crm->commitmentsByDescription['pc-card'] = 'Pago… ' . $marca;
+        $this->crm->commitmentMeta['pc-card'] = array('date_entered' => gmdate('Y-m-d H:i:s', time() - 3 * 86400));
+        $this->crm->paymentsOfCommitment['pc-card'] = array(array('id' => 'pay-intento', 'status' => 'pending'));
+
+        $this->assertSame('abandonado', sticpa_pay_claim($this->crm, self::PAGO));
+        $porId = array();
+        foreach ($this->crm->writes as $w) {
+            $porId[$w['id']][] = $w['data'];
+        }
+        $this->assertSame(date('Y-m-d'), $porId['pc-card'][0]['end_date']);
+        $this->assertStringContainsString('[abandonado:', $porId['pc-card'][0]['description']);
+        $this->assertSame('cancelled', $porId['pay-intento'][0]['status']);
+        $this->assertArrayNotHasKey('pc-orig', $porId, 'lo que se debía no se toca');
+        $this->assertSame(array(), $this->crm->relations);
+    }
+
+    /** Un intento de hace un rato (el banco aún no ha contestado) no se toca. */
+    public function test_un_intento_reciente_no_se_toca()
+    {
+        $this->pagoPendiente();
+        $this->crm->commitmentsByDescription['pc-card'] = 'Pago… ' . sticpa_pay_marker(self::PAGO);
+        $this->crm->paymentsOfCommitment['pc-card'] = array('pending');
+        $this->assertSame('', sticpa_pay_claim($this->crm, self::PAGO));
+        $this->assertSame(array(), $this->crm->writes);
+    }
+
+    /** El estado del pago de una inscripción, en una palabra. */
+    public function test_el_estado_del_pago_de_una_inscripcion()
+    {
+        $pc = array('id' => 'pc-1', 'amount' => '60.00', 'payment_method' => 'direct_debit', 'end_date' => '');
+        $this->crm->commitmentsOfReg['reg-1'] = array($pc);
+
+        $this->crm->paymentsOfCommitment['pc-1'] = array(array('id' => 'p1', 'status' => 'not_remitted', 'amount' => '60.00',
+            'payment_date' => '2026-10-16', 'payment_method' => 'direct_debit'));
+        $this->assertSame('domiciliado', sticpa_registration_payment_state($this->crm, 'reg-1', 0.0)['estado']);
+
+        $this->crm->paymentsOfCommitment['pc-1'] = array(array('id' => 'p1', 'status' => 'pending', 'amount' => '60.00', 'payment_method' => 'bizum'));
+        $estado = sticpa_registration_payment_state($this->crm, 'reg-1', 60.0);
+        $this->assertSame('pendiente', $estado['estado']);
+        $this->assertSame('p1', $estado['pago_id']);
+
+        // El viejo cerrado no cuenta; el nuevo cobrado, sí.
+        $this->crm->commitmentsOfReg['reg-1'] = array(array_merge($pc, array('end_date' => '2026-10-01')),
+            array('id' => 'pc-2', 'amount' => '60.00', 'payment_method' => 'card', 'end_date' => ''));
+        $this->crm->paymentsOfCommitment['pc-2'] = array(array('id' => 'p2', 'status' => 'paid', 'amount' => '60.00', 'payment_method' => 'card'));
+        $this->assertSame('pagado', sticpa_registration_payment_state($this->crm, 'reg-1', 60.0)['estado']);
+
+        // Sin nada anotado y con precio, como antes.
+        $this->crm->commitmentsOfReg['reg-1'] = array();
+        $this->assertSame('sin_compromiso', sticpa_registration_payment_state($this->crm, 'reg-1', 60.0)['estado']);
+        $this->assertSame('', sticpa_registration_payment_state($this->crm, 'reg-1', 0.0)['estado']);
     }
 
     public function test_una_respuesta_que_no_es_opcion_no_deja_inscribirse()
@@ -649,17 +874,29 @@ class RegistrationManageTest extends TestCase
             'id' => 'reg-1', 'name' => 'INS-1', 'status' => 'confirmed',
             'stic_registrations_stic_events_name' => 'Convivencia', 'ajmcm_respuesta_1_c' => 'Sí, voy en autobús',
         )));
-        $pago = (object) array('id' => 'com-1', 'name_value_list' => $this->nvl(array('id' => 'com-1', 'amount' => '60.00', 'payment_method' => 'bizum', 'end_date' => '')));
+        $pago = array('estado' => 'pendiente', 'importe' => '60.00', 'metodo' => 'bizum', 'fecha' => '', 'pago_id' => 'pay-1');
         $html = sticpa_registration_detail_html($reg, array(), array(
             'aviso' => sticpa_registration_saved_note('true'),
-            'pagos' => array($pago), 'metodos' => array('bizum' => 'Bizum'), 'precio' => 60.0,
+            'pago' => $pago, 'metodos' => array('bizum' => 'Bizum'),
             'pagar_url' => '?internalpage=single_stic_payment_form',
         ));
         $this->assertStringContainsString('Sí, voy en autobús', $html);
+        $this->assertStringContainsString('Pendiente de pagar', $html);
         $this->assertStringContainsString('Bizum', $html);
-        $this->assertStringContainsString("href='?internalpage=single_stic_payment_commitments&amp;action=detail&amp;id=com-1'", $html,
-            'el pago lleva a su compromiso, en la misma pestaña');
-        $this->assertStringNotContainsString('Pagar con tarjeta', $html, 'con compromiso no se ofrece pagar otra vez');
+        // Se paga SU pago pendiente, y la palabra «compromiso» no sale.
+        $this->assertStringContainsString('paymentId=pay-1', $html);
+        $this->assertStringNotContainsString('compromiso', strtolower($html));
         $this->assertStringContainsString('stic-rec-note--ok', $html);
+    }
+
+    public function test_recien_vuelto_del_tpv_no_se_ofrece_pagar_otra_vez()
+    {
+        $reg = sticpa_registration_view_model($this->nvl(array('id' => 'reg-1', 'name' => 'INS-1', 'status' => 'confirmed')));
+        $html = sticpa_registration_detail_html($reg, array(), array(
+            'pago' => array('estado' => 'pendiente', 'importe' => '60.00', 'metodo' => 'card', 'fecha' => '', 'pago_id' => 'pay-1'),
+            'esperando' => true,
+        ));
+        $this->assertStringNotContainsString('paymentId=', $html);
+        $this->assertStringContainsString('confirmación del banco', $html);
     }
 }

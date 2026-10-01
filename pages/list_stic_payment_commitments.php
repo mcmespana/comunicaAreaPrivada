@@ -19,6 +19,12 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+// YA NO SE ENSEÑA (plan 041, 01/10/2026): «compromiso» no es una palabra de
+// las familias, y lo que se viene a mirar —qué debo, qué se cobrará, qué está
+// pagado— está en Pagos. Un enlace viejo a esta pantalla enseña Pagos.
+include __DIR__ . '/list_stic_payments.php';
+return;
+
 switch (getDestinationModule()) {
     case 'Accounts':
         $relationship = 'stic_payment_commitments_accounts';

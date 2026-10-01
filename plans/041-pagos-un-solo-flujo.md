@@ -14,6 +14,33 @@
 **Prioridad: P1** (hay dinero real y gente pagando ya). **Esfuerzo: M** en el
 área, más decisiones y configuración en el CRM.
 
+> ## Estado al 01/10/2026 (tarde): decidido y hecho en el área
+>
+> **Decisiones del propietario:**
+>
+> | # | Decisión |
+> |---|---|
+> | D-1 | El dinero de un evento es **del organizador**. |
+> | D-2 | En el formulario avanzado, **la persona elige el medio de pago**, y el correo lleva las instrucciones de los dos. «Especie» era una prueba: el propietario lo cambia en el formulario. |
+> | D-3 | Con tarjeta, **se cierra el compromiso viejo** (ver la nota de abajo). |
+> | D-4 | Los intentos abandonados **se cierran a las 24 h**. |
+> | D-5 | **Aparcado**: las instrucciones van en el correo. Solo valdría la pena si el mismo texto sirviera para el correo y para el área. |
+> | D-6 | «Compromisos» **no se enseña a nadie**: no era el sitio donde se pagaba, y todo lo de pagar está en Pagos y en la inscripción. |
+>
+> Además: **no se hacen aportaciones sueltas** desde el área, y lo de los niños
+> (70 €) se queda fuera: pagan por transferencia.
+>
+> **D-3, en concreto.** El propietario preguntó si no sería mejor no crear el
+> compromiso cuando se elige tarjeta. Se queda creándolo, y la tarjeta lo
+> sustituye, por tres razones:
+> - la tesorería ve quién debe;
+> - «Pendiente de pagar» sale de los mismos datos;
+> - si el pago no se termina, la deuda no desaparece.
+>
+> **Hecho en el área:** F1 y F2 enteras (§8). Del §5.3, el chip de Eventos y
+> la tarjeta de la portada quedan para después. F3 (el organizador es el
+> dueño) también. Ver `inc/stic-pay-card.php`.
+
 ---
 
 ## 0. En seis líneas

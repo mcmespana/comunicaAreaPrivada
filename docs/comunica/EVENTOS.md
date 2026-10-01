@@ -721,8 +721,8 @@ pide un IBAN y se comprueba (módulo 97) antes de escribir nada.
 
 | Medio | Qué pasa al inscribirse |
 |---|---|
-| Cualquiera menos tarjeta | Se crea **UN** compromiso: importe = `price`, `punctual`, tipo `services`, primer pago hoy, asignado a la delegación, atado a quien paga (el familiar si la sesión es de un participante, y el participante como destinatario) y a la inscripción |
-| Tarjeta | NO se crea compromiso aquí: se pasa al formulario de pago (`single_stic_payment_form`), que es un formulario web de SinergiaCRM y crea el suyo. Con dos serían dos cobros. Ver §10.2.1 |
+| Cualquiera | Se crea **UN** compromiso: importe = `price`, `punctual`, tipo `services`, primer pago hoy, **de quien organiza el evento** (su `assigned_user_id`, plan 041), atado a quien paga (el familiar si la sesión es de un participante, y el participante como destinatario) y a la inscripción. El CRM le genera solo su pago (`pending`, o `not_remitted` si es domiciliación) |
+| Tarjeta, además | Se va al formulario de tarjeta con **ese pago pendiente** (`paymentId`). El formulario del CRM crea otro compromiso (no sabe pagar uno que ya existe), y a la vuelta **lo sustituye**: ver §10.2.1. Desde el 01/10/2026; antes con tarjeta no se creaba nada aquí |
 
 ⚠️ **El CRM tiene su propio automatismo.** Al guardar una inscripción con el
 IBAN del tutor y un importe (lo que manda la renovación), crea él solo un
@@ -734,12 +734,31 @@ no salía ningún compromiso. **Antes de crear, se mira si la inscripción ya ti
 uno: si lo tiene se completa ese, y si no se crea.** Es la misma salvaguarda de
 la renovación, que cobró dos veces el 22/09/2026.
 
-La ficha de la inscripción enseña el pago («60,00 € · Bizum», que lleva a su
-compromiso). Si la actividad cuesta algo y la inscripción no tiene compromiso
-(el pago con tarjeta no se llegó a hacer, o es de antes de esto), ofrece
-«Pagar X € con tarjeta».
+La ficha de la inscripción dice **cómo está el pago en una línea**
+(`sticpa_registration_payment_state()`): «110,00 € · Pendiente de pagar ·
+Transferencia», «Se cobra por domiciliación el 16 oct», «Pagado · Tarjeta» o
+«No se pudo cobrar». Si hay algo que pagar, **«Pagar X € con tarjeta» es la
+acción principal** y lleva al pago pendiente. Ya no enlaza al «compromiso»:
+esa palabra no es de las familias (plan 041). Sin nada anotado y con precio
+(inscripciones de antes del 01/10/2026), se paga por el precio del evento,
+como antes.
 
-#### 10.2.1 Pagar con tarjeta (EV-9, 29/09/2026)
+#### 10.2.1 Pagar con tarjeta (EV-9, 29/09/2026; plan 041, 01/10/2026)
+
+> **Desde el 01/10/2026 lo que se paga con tarjeta es un PAGO pendiente**, no
+> una inscripción: `single_stic_payment_form&paymentId=<pago>`. El importe, el
+> tipo y el dueño son los de ese pago. La marca es `[pago:<id>:<firma>]`, y a
+> la vuelta `sticpa_pay_claim()` hace la **sustitución**:
+> - el compromiso con tarjeta hereda las inscripciones y el tipo del viejo;
+> - el viejo se cierra (fecha de fin y nota) y su pago sin cobrar pasa a
+>   «anulado», o se borra si el CRM no tiene ese estado;
+> - un intento que no se termina se cierra a las 24 h.
+>
+> Lo de abajo (la marca `[insc:…]`) sigue valiendo para las inscripciones sin
+> compromiso. Sin pago ni inscripción, **el formulario ya no deja hacer un
+> donativo suelto**. Todo en `inc/stic-pay-card.php` y en
+> `plans/041-pagos-un-solo-flujo.md`.
+
 
 Hasta el 29/09 el formulario de pago mandaba a fuego `payment_type = donation` y
 `assigned_user_id = 1`: el precio de una actividad acababa como **donación** (y

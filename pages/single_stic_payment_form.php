@@ -37,29 +37,21 @@ function sticpa_payment_form_bounce($title, $sub, $link, $linkLabel)
 }
 }
 
-$eventId = !empty($_REQUEST['eventId']) ? $_REQUEST['eventId'] : '';
-$registrationId = !empty($_REQUEST['registrationId']) ? $_REQUEST['registrationId'] : '';
+$eventId = !empty($_REQUEST['eventId']) ? (string) $_REQUEST['eventId'] : '';
+$registrationId = !empty($_REQUEST['registrationId']) ? (string) $_REQUEST['registrationId'] : '';
+// LO QUE SE DEBE (plan 041): el pago pendiente que se viene a saldar.
+$paymentId = !empty($_REQUEST['paymentId']) ? (string) $_REQUEST['paymentId'] : '';
 
-// Importe sugerido (lo pone la ficha de un compromiso de pago al enlazar aquí:
-// llegas con la cifra puesta y solo tienes que elegir cómo pagas). Se SANEA a
-// un número con dos decimales: viaja por la URL, así que no se toca sin lavar.
-// Es una sugerencia, no una imposición: el campo se puede seguir editando.
-$suggestedAmount = '';
-if (isset($_REQUEST['amount']) && is_scalar($_REQUEST['amount'])) {
-    $raw = (float) str_replace(',', '.', (string) $_REQUEST['amount']);
-    if ($raw > 0 && $raw < 1000000) {
-        $suggestedAmount = number_format($raw, 2, '.', '');
-    }
-}
-
-// Guard SIN llamadas al CRM: si venimos de un evento pero no hay inscripción,
-// esta pantalla no tiene nada que cobrar. Se sale antes de gastar 3 round-trips.
-if ($eventId !== '' && $registrationId === '') {
+// SIN NADA QUE PAGAR NO HAY FORMULARIO. Antes, sin contexto, esto era una
+// «aportación» suelta: un donativo con el importe que se escribiera. Desde el
+// área no se hacen aportaciones (decisión del 01/10/2026), y por ahí salieron
+// los compromisos de más del Foro. Guard sin llamadas al CRM.
+if ($paymentId === '' && ($eventId === '' || $registrationId === '')) {
     $html .= sticpa_payment_form_bounce(
-        __('No encontramos la inscripción', 'sticpa'),
-        __('Para pagar una actividad hace falta estar inscrito. Vuelve a Eventos y apúntate primero.', 'sticpa'),
-        '?internalpage=list_stic_events',
-        __('Ir a Eventos', 'sticpa')
+        __('No hay nada que pagar aquí', 'sticpa'),
+        __('Lo que tengas pendiente de pagar está en Pagos.', 'sticpa'),
+        '?internalpage=list_stic_payments',
+        __('Ir a Pagos', 'sticpa')
     );
     return;
 }
@@ -77,13 +69,6 @@ $email = $userData->email1->value ?? '';
 $last_name = $userData->last_name->value ?? '';
 $first_name = $userData->first_name->value ?? '';
 $stic_identification_number_c = $userData->stic_identification_number_c->value ?? '';
-// A LA DELEGACIÓN, como todo lo que se crea en el CRM (antes iba fijo al
-// «Administrador MCM», `1`, y el cobro se quedaba fuera de su MCM Local). El
-// formulario web asigna a este usuario el compromiso y el pago que crea.
-$assignedUserId = function_exists('sticpa_pl_delegation') ? (string) sticpa_pl_delegation($objSCP) : '';
-if ($assignedUserId === '') {
-    $assignedUserId = '1';
-}
 
 if (!$email || !$last_name || !$first_name || !$stic_identification_number_c) {
     $html .= sticpa_payment_form_bounce(
@@ -95,57 +80,96 @@ if (!$email || !$last_name || !$first_name || !$stic_identification_number_c) {
     return;
 }
 
+$noPagable = function () use (&$html) {
+    $html .= sticpa_payment_form_bounce(
+        __('Este pago no está pendiente', 'sticpa'),
+        __('Puede que ya esté pagado o que se cobre por domiciliación. Míralo en Pagos.', 'sticpa'),
+        '?internalpage=list_stic_payments',
+        __('Ir a Pagos', 'sticpa')
+    );
+};
+
+$plano = function ($texto) {
+    $texto = trim(html_entity_decode((string) $texto, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    return function_exists('mb_substr') ? mb_substr($texto, 0, 140, 'UTF-8') : substr($texto, 0, 140);
+};
+
+// Lo que se manda al formulario de SinergiaCRM. Nunca un donativo: lo que se
+// paga desde el área es siempre una actividad o una cuota (EV-9).
+$paymentType = sticpa_registration_payment_type();
 $bankingConcept = '';
-// Lo que es el pago. Suelto (desde «Mis pagos»), una aportación: `donation`.
-// De una inscripción, NUNCA: es el precio de una actividad (EV-9).
-$paymentType = 'donation';
 $paymentDescription = '';
-$redirectOk = sticpa_area_absolute_url('internalpage=list_stic_payments');
-$forInscripcion = false;
-if ($eventId !== '') {
-  $eventData = $objSCP->getRecordDetail($eventId, 'stic_Events', array('id', 'name', 'price'))->entry_list[0]->name_value_list;
+$suggestedAmount = '';
+$assignedUserId = '';
+$redirectOk = '';
 
-  $eventName = $eventData->name->value ?? '';
-
-  $html .= "<div class='stic-entry-header'>
-  <h5>".__('Event', 'sticpa') .": ".esc_html($eventName)."</h5>";
-
-  // PAGAR UNA INSCRIPCIÓN CON TARJETA (EV-7 y EV-9). Este formulario es un
-  // formulario web de SinergiaCRM y crea SU compromiso; el área lo ata a la
-  // inscripción a la vuelta (ver sticpa_registration_card_marker()). El
-  // concepto lleva el nombre de la actividad, que es lo que se ve en el TPV y
-  // en el extracto. Solo si la inscripción es de quien paga: el
-  // `registrationId` viaja por la URL.
-  if ($registrationId !== '' && function_exists('sticpa_user_owns_record')
-      && sticpa_user_owns_record($objSCP, 'stic_Registrations', $registrationId)) {
-    $plano = trim(html_entity_decode((string) $eventName, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
-    $bankingConcept = function_exists('mb_substr') ? mb_substr($plano, 0, 140, 'UTF-8') : substr($plano, 0, 140);
-
-    // EV-9: el cobro de una inscripción es un servicio, de la delegación, por
-    // el precio del evento y con tarjeta. La descripción lleva la marca con la
-    // que la ficha ata después el compromiso a la inscripción, y la vuelta es a
-    // esa ficha, que es donde se ata.
-    $marca = sticpa_registration_card_marker($registrationId);
-    $precio = sticpa_event_price($eventData);
-    if ($marca !== '' && $precio > 0) {
-      $forInscripcion = true;
-      $paymentType = sticpa_registration_payment_type();
-      $suggestedAmount = number_format($precio, 2, '.', '');
-      $paymentDescription = sprintf('Pago con tarjeta de la inscripción a «%s», desde el área privada. %s', $plano, $marca);
-      $redirectOk = sticpa_area_absolute_url('internalpage=single_stic_registrations&action=detail&id=' . rawurlencode($registrationId) . '&msg=pagado');
+if ($paymentId !== '') {
+    // PAGAR LO QUE SE DEBE: el pago tiene que ser tuyo (el id viaja por la
+    // URL) y estar pendiente. El importe, el tipo y el dueño son LOS DEL PAGO:
+    // es lo que se debe, no el precio del evento.
+    if (!sticpa_user_owns_record($objSCP, 'stic_Payments', $paymentId)) {
+        $noPagable();
+        return;
     }
-  }
+    $ctx = sticpa_pay_context($objSCP, $paymentId);
+    $marca = sticpa_pay_marker($paymentId);
+    if (!$ctx || $marca === '' || (float) $ctx['amount'] <= 0 || !sticpa_pay_is_payable($ctx['status'], $ctx['method'])) {
+        $noPagable();
+        return;
+    }
+    $suggestedAmount = number_format((float) $ctx['amount'], 2, '.', '');
+    if ($ctx['type'] !== '' && $ctx['type'] !== 'donation') {
+        $paymentType = $ctx['type'];
+    }
+    $assignedUserId = $ctx['assigned'];
+    $bankingConcept = $plano($ctx['concept']);
+    $paymentDescription = sprintf('Pago con tarjeta de «%s», desde el área privada. Sustituye al pago %s. %s',
+        $bankingConcept, $paymentId, $marca);
+    // La vuelta, a la inscripción si la hay (es donde se mira «¿lo he
+    // pagado?»), o a Pagos. Las dos reclaman el pago al entrar.
+    $vuelta = !empty($ctx['registrations'])
+        ? 'internalpage=single_stic_registrations&action=detail&id=' . rawurlencode($ctx['registrations'][0])
+        : 'internalpage=list_stic_payments';
+    $redirectOk = sticpa_area_absolute_url($vuelta . '&msg=pagado&pago=' . rawurlencode($paymentId));
+    $html .= "<div class='stic-entry-header'><h5>" . esc_html($bankingConcept) . "</h5></div>";
+} else {
+    // UNA INSCRIPCIÓN SIN COMPROMISO (las de antes del 01/10/2026): se paga
+    // por el precio del evento y el área la ata a la vuelta por su marca
+    // (sticpa_registration_card_marker()). Solo si la inscripción es tuya.
+    $eventData = $objSCP->getRecordDetail($eventId, 'stic_Events', array('id', 'name', 'price', 'assigned_user_id'))->entry_list[0]->name_value_list ?? null;
+    $marca = sticpa_registration_card_marker($registrationId);
+    $precio = $eventData ? sticpa_event_price($eventData) : 0.0;
+    if (!$eventData || $marca === '' || $precio <= 0
+        || !sticpa_user_owns_record($objSCP, 'stic_Registrations', $registrationId)) {
+        $noPagable();
+        return;
+    }
+    $eventName = (string) ($eventData->name->value ?? '');
+    $bankingConcept = $plano($eventName);
+    $suggestedAmount = number_format($precio, 2, '.', '');
+    // De quien organiza el evento (plan 041, D-1).
+    $assignedUserId = trim((string) ($eventData->assigned_user_id->value ?? ''));
+    $paymentDescription = sprintf('Pago con tarjeta de la inscripción a «%s», desde el área privada. %s', $bankingConcept, $marca);
+    $redirectOk = sticpa_area_absolute_url('internalpage=single_stic_registrations&action=detail&id=' . rawurlencode($registrationId) . '&msg=pagado');
+    $html .= "<div class='stic-entry-header'><h5>" . esc_html($bankingConcept) . "</h5></div>";
 }
 
-// Definición cacheada 6h (como el resto de formularios del área): antes esta
-// pantalla llamaba a getFieldDefinition en CADA visita, saltándose la caché.
+// EL DUEÑO: el del pago o el del evento (quien organiza, plan 041 D-1). Si no
+// se sabe, la delegación de quien paga; y solo como último recurso el
+// «Administrador MCM».
+if ($assignedUserId === '' && function_exists('sticpa_pl_delegation')) {
+    $assignedUserId = (string) sticpa_pl_delegation($objSCP);
+}
+if ($assignedUserId === '') {
+    $assignedUserId = '1';
+}
+$forInscripcion = true;
+
+// Solo tarjeta: los demás medios se eligen al inscribirse y no pasan por aquí.
 $paymentMethodDef = sticpa_cached_field_definition($objSCP, 'stic_Payment_Commitments', array('payment_method'));
 $paymentMethodOptions = $paymentMethodDef['payment_method']['options'] ?? array();
-$paymentMethodOptionsHtml = $forInscripcion ? '' : "<option value='' label='' ></option>";
-// Una inscripción llega aquí porque se eligió tarjeta: los demás medios se
-// eligen al inscribirse y no pasan por este formulario.
-$paymentMethod = $forInscripcion ? array('card') : array('card', 'cash', 'direct_debit', 'bizum');
-foreach($paymentMethod as $elem) {
+$paymentMethodOptionsHtml = '';
+foreach (array('card') as $elem) {
     $optionLabel = $paymentMethodOptions[$elem]['value'] ?? $elem;
     $paymentMethodOptionsHtml .= "<option value='".esc_attr($elem)."' label='".esc_attr($optionLabel)."' >".esc_html($optionLabel)."</option>";
 }

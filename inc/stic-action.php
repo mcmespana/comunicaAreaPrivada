@@ -651,10 +651,16 @@ function prefix_admin_single_stic_registrations()
         }
         unset($moduleData['sticpa_pago_metodo'], $moduleData['sticpa_pago_iban']);
 
-        // Asignada a SU delegación, como todo lo que se crea en el CRM
-        // (CLAUDE.md): de ahí cuelga el grupo de seguridad y así la ve quien
-        // la tiene que ver. Antes se quedaba a nombre del usuario técnico.
-        $delegacion = function_exists('sticpa_pl_delegation') ? (string) sticpa_pl_delegation($objSCP) : '';
+        // DE QUIEN ORGANIZA EL EVENTO (plan 041, D-1, 01/10/2026): la
+        // inscripción, su compromiso y sus pagos van al `assigned_user_id` del
+        // evento. En lo local es la delegación, como siempre; en lo nacional
+        // (el Foro, de ECE) deja de partirse entre la delegación de cada uno y
+        // la del evento. Sin evento con dueño, la delegación de quien se apunta.
+        // Antes se quedaba a nombre del usuario técnico.
+        $delegacion = trim((string) ($eventNvl->assigned_user_id->value ?? ''));
+        if ($delegacion === '' && function_exists('sticpa_pl_delegation')) {
+            $delegacion = (string) sticpa_pl_delegation($objSCP);
+        }
         if ($delegacion !== '') {
             $moduleData['assigned_user_id'] = $delegacion;
         }
@@ -678,13 +684,27 @@ function prefix_admin_single_stic_registrations()
     $newDetail = sticpa_return_path() . '?internalpage=single_stic_registrations&action=detail&id=' . rawurlencode($isUpdate);
     $eventId = (string) ($moduleData['stic_registrations_stic_eventsstic_events_ida'] ?? '');
 
-    // Con tarjeta, al formulario de pago con el importe puesto: es el que cobra
-    // online. Ese formulario crea su propio compromiso (es un formulario web de
-    // SinergiaCRM), así que aquí NO se crea otro: serían dos cobros.
+    // CON TARJETA TAMBIÉN SE CREA EL COMPROMISO (plan 041): así lo que se
+    // debe se ve —en Pagos, en la ficha y en el CRM— aunque el pago no se
+    // termine. Luego se va al formulario de tarjeta con SU pago pendiente, y
+    // a la vuelta el pago con tarjeta lo sustituye (sticpa_pay_claim()): un
+    // solo compromiso vivo, nunca dos cobros.
     if ($pago !== null && $pago['metodo'] === 'card') {
+        $compromiso = sticpa_registration_ensure_commitment($objSCP, $isUpdate, $eventNvl, $pago, $delegacion);
+        $pendiente = '';
+        if ($compromiso['id'] !== '' && function_exists('sticpa_commitment_payments')) {
+            foreach (sticpa_commitment_payments($objSCP, $compromiso['id']) as $row) {
+                if ((string) ($row->name_value_list->status->value ?? '') === 'pending') {
+                    $pendiente = (string) ($row->id ?? ($row->name_value_list->id->value ?? ''));
+                    break;
+                }
+            }
+        }
         wp_safe_redirect(sticpa_return_path() . '?internalpage=single_stic_payment_form'
-            . '&amount=' . rawurlencode(number_format(sticpa_event_price($eventNvl), 2, '.', ''))
-            . '&registrationId=' . rawurlencode($isUpdate) . '&eventId=' . rawurlencode($eventId));
+            . ($pendiente !== ''
+                ? '&paymentId=' . rawurlencode($pendiente)
+                // Si el CRM no ha generado el pago, por la inscripción, como antes.
+                : '&registrationId=' . rawurlencode($isUpdate) . '&eventId=' . rawurlencode($eventId)));
         exit;
     }
     if ($pago !== null) {
