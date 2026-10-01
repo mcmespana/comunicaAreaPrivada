@@ -74,35 +74,24 @@ if (($_REQUEST['action'] ?? '') === 'detail') {
     $derechos = sticpa_registration_manage_rights($registration['status'], $eventNvl, $definition);
     $precio = $eventNvl ? sticpa_event_price($eventNvl) : 0.0;
 
-    // El pago, solo si la actividad cuesta algo: una llamada que no se paga
-    // en las inscripciones gratis.
-    $pagos = array();
-    $metodos = array();
-    if ($precio > 0) {
-        $pagos = (array) sticpa_registration_commitments($objSCP, $registrationId);
-        // Sin compromiso: quizá se pagó con tarjeta y aún no se ha atado (el
-        // formulario del CRM no puede; lo hace el área al volver, EV-9).
-        if (empty($pagos) && sticpa_registration_claim_card_commitment($objSCP, $registrationId) > 0) {
-            $pagos = (array) sticpa_registration_commitments($objSCP, $registrationId);
-        }
-        if (!empty($pagos)) {
-            $metodos = sticpa_crm_enum_options(
-                sticpa_cached_field_definition($objSCP, 'stic_Payment_Commitments', array('payment_method')),
-                'payment_method'
-            );
-        }
-    }
+    // EL PAGO (plan 041): cómo está, en una palabra, y de paso se reclama el
+    // pago con tarjeta si se vuelve del TPV. Se mira SIEMPRE, no solo si el
+    // evento tiene precio: la cuota del curso o la convivencia las pone el
+    // automatismo del CRM con su importe, aunque el evento no tenga `price`.
+    $pago = sticpa_registration_payment_state($objSCP, $registrationId, $precio);
+    $metodos = $pago['estado'] !== ''
+        ? sticpa_crm_enum_options(sticpa_cached_field_definition($objSCP, 'stic_Payment_Commitments', array('payment_method')), 'payment_method')
+        : array();
 
     $html .= sticpa_registration_detail_html($registration, $definition, array(
         'aviso'     => sticpa_registration_saved_note($_REQUEST['msg'] ?? ''),
-        'pagos'     => $pagos,
+        'pago'      => $pago,
         'metodos'   => $metodos,
-        'precio'    => $precio,
         // Recién vuelto del TPV, el aviso del banco puede no haber llegado aún:
-        // no se ofrece pagar otra vez en esa misma pantalla.
-        'pagar_url' => $precio > 0 && ($_REQUEST['msg'] ?? '') !== 'pagado'
-            ? '?internalpage=single_stic_payment_form&amount=' . rawurlencode(number_format($precio, 2, '.', ''))
-                . '&eventId=' . rawurlencode($registration['event_id']) . '&registrationId=' . rawurlencode($registrationId)
+        // si el pago sigue pendiente, no se ofrece pagar otra vez.
+        'esperando' => ($_REQUEST['msg'] ?? '') === 'pagado',
+        'pagar_url' => $precio > 0
+            ? '?internalpage=single_stic_payment_form&eventId=' . rawurlencode($registration['event_id']) . '&registrationId=' . rawurlencode($registrationId)
             : '',
         'derechos'  => $derechos,
         'gestion'   => sticpa_registration_manage_html($registrationId, $derechos),

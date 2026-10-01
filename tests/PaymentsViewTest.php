@@ -98,8 +98,50 @@ class PaymentsViewTest extends TestCase
 
         $this->assertStringContainsString('stic-rec-chip--danger', $html);
         $this->assertStringContainsString('Devuelto', $html);
-        // Y se apaga: ya no cuenta como dinero cobrado.
-        $this->assertStringContainsString('is-past', $html);
+        // Es algo que se debe (plan 041): va en «Pendiente de pagar», y se
+        // puede pagar con tarjeta desde ahí.
+        $this->assertStringContainsString('Pendiente de pagar', $html);
+        $this->assertStringContainsString('paymentId=p1', $html);
+    }
+
+    /**
+     * LOS TRES BLOQUES (plan 041): lo que debes, lo que se cobrará y lo
+     * pagado, y en ese orden. Ni los intentos de tarjeta ni lo pendiente de un
+     * compromiso cerrado son una deuda.
+     */
+    public function testLosPagosVanEnTresBloques()
+    {
+        $html = sticpa_payments_list_html(array(
+            $this->row(array('id' => 'pag', 'name' => 'Ana - COM | Curso 2026-2027 · CS - Domiciliación - 20 - 2026-10-01', 'amount' => '20.00',
+                'payment_date' => '2026-10-01', 'status' => 'paid', 'payment_method' => 'direct_debit')),
+            $this->row(array('id' => 'dom', 'name' => 'Sandra Roy - Maria Lorenz Roy - COM | Convivencia Inicial 2026 · Buñol · CS - Domiciliación - 60 - 2026-10-16',
+                'amount' => '60.00', 'payment_date' => '2026-10-16', 'status' => 'not_remitted', 'payment_method' => 'direct_debit')),
+            $this->row(array('id' => 'pen', 'name' => 'David Soler - LC | Foro de Laicos 2026', 'amount' => '110.00',
+                'payment_date' => '2026-10-01', 'status' => 'pending', 'payment_method' => 'transfer', 'stic_paymebfe2itments_ida' => 'pc-foro')),
+            $this->row(array('id' => 'intento', 'name' => 'David Soler - Donativo - 110,00 - 2026-10-01', 'amount' => '110.00',
+                'payment_date' => '2026-10-01', 'status' => 'pending', 'payment_method' => 'card', 'stic_paymebfe2itments_ida' => 'pc-tpv')),
+            $this->row(array('id' => 'viejo', 'name' => 'David Soler - LC | Foro de Laicos 2026', 'amount' => '110.00',
+                'payment_date' => '2026-09-30', 'status' => 'pending', 'payment_method' => 'kind', 'stic_paymebfe2itments_ida' => 'pc-cerrado')),
+        ), $this->defPagos(), array(
+            'pc-foro'    => array('end_date' => '', 'payment_method' => 'transfer', 'channel' => '', 'description' => '', 'banking_concept' => ''),
+            'pc-tpv'     => array('end_date' => '', 'payment_method' => 'card', 'channel' => 'web', 'description' => 'Donativo web', 'banking_concept' => ''),
+            'pc-cerrado' => array('end_date' => '2026-10-01', 'payment_method' => 'kind', 'channel' => '', 'description' => '', 'banking_concept' => ''),
+        ));
+        $pendiente = strpos($html, 'Pendiente de pagar');
+        $domiciliado = strpos($html, 'Se cobrará por domiciliación');
+        $pagado = strpos($html, '>Pagado<');
+        $this->assertNotFalse($pendiente);
+        $this->assertLessThan($domiciliado, $pendiente);
+        $this->assertLessThan($pagado, $domiciliado);
+        // El título es DE QUÉ es, no la ristra del CRM; y para quién, si es de un hijo.
+        $this->assertStringContainsString('>COM | Convivencia Inicial 2026 · Buñol · CS<', $html);
+        $this->assertStringContainsString('Para Maria Lorenz Roy', $html);
+        $this->assertStringNotContainsString('Domiciliación - 60', $html);
+        // Lo que se debe, con su botón; el intento y lo cerrado, fuera.
+        $this->assertStringContainsString('paymentId=pen', $html);
+        $this->assertStringNotContainsString('id=intento', $html);
+        $this->assertStringNotContainsString('id=viejo', $html);
+        $this->assertStringNotContainsString('paymentId=dom', $html, 'lo que va a remesa no se paga con tarjeta');
     }
 
     /** En la ficha, lo primero que se lee es POR QUÉ falló y qué hacer. */
@@ -137,8 +179,8 @@ class PaymentsViewTest extends TestCase
     public function testLosPagosVanDelMasRecienteAlMasAntiguo()
     {
         $html = sticpa_payments_list_html(array(
-            $this->row(array('id' => 'a', 'name' => 'El viejo', 'amount' => '1.00', 'payment_date' => '2020-01-01')),
-            $this->row(array('id' => 'b', 'name' => 'El nuevo', 'amount' => '2.00', 'payment_date' => '2026-08-01')),
+            $this->row(array('id' => 'a', 'name' => 'El viejo', 'amount' => '1.00', 'payment_date' => '2020-01-01', 'status' => 'paid')),
+            $this->row(array('id' => 'b', 'name' => 'El nuevo', 'amount' => '2.00', 'payment_date' => '2026-08-01', 'status' => 'paid')),
         ), $this->defPagos());
         $this->assertLessThan(strpos($html, 'El viejo'), strpos($html, 'El nuevo'));
     }
@@ -180,8 +222,12 @@ class PaymentsViewTest extends TestCase
         $this->assertStringContainsString('terminó el', $html);
     }
 
-    /** A uno vivo sí, con el importe pendiente ya puesto en el enlace. */
-    public function testUnCompromisoVivoOfrecePagarConElImportePuesto()
+    /**
+     * Ni a uno vivo: «Hacer una aportación» creaba un donativo nuevo que no
+     * saldaba nada (así salieron los compromisos de más del Foro, 30/09/2026).
+     * Lo que se debe se paga desde Pagos o desde la inscripción (plan 041).
+     */
+    public function testUnCompromisoVivoYaNoOfreceAportar()
     {
         $com = sticpa_commitment_view_model($this->nvl(array(
             'id' => 'c1', 'name' => 'X', 'amount' => '20.00',
@@ -191,20 +237,9 @@ class PaymentsViewTest extends TestCase
         $nvl->pending_annualized_fee = (object) array('value' => '80.00');
         $html = sticpa_commitment_detail_html($com, $this->defCom());
 
-        $this->assertStringContainsString('Hacer una aportación', $html);
-        $this->assertStringContainsString('amount=80.00', $html);
-        // Y se dice lo que es: una aportación puntual, no la liquidación de
-        // este compromiso. El formulario de pago no sabe hacer lo segundo.
-        $this->assertStringContainsString('aportación puntual', $html);
-    }
-
-    /** El importe del enlace de pago se sanea: viaja por la URL. */
-    public function testElImporteDelEnlaceDePago()
-    {
-        $this->assertStringContainsString('amount=20.00', sticpa_commitment_pay_url('20'));
-        $this->assertStringNotContainsString('amount=', sticpa_commitment_pay_url('0'));
-        $this->assertStringNotContainsString('amount=', sticpa_commitment_pay_url(''));
-        $this->assertStringNotContainsString('amount=', sticpa_commitment_pay_url('-5'));
+        $this->assertStringNotContainsString('Hacer una aportación', $html);
+        $this->assertStringNotContainsString('single_stic_payment_form', $html);
+        $this->assertStringContainsString('list_stic_payments', $html);
     }
 
     /**
@@ -286,8 +321,8 @@ class PaymentsViewTest extends TestCase
         // Se ve TODO: cuenta (enmascarada) y forma de pago.
         $this->assertStringContainsString('3456', $html);
         $this->assertStringContainsString('Domiciliación bancaria', $html);
-        // Y se puede aportar desde aquí.
-        $this->assertStringContainsString('Hacer una aportación', $html);
+        // Y ya no se ofrece «aportar» desde aquí (plan 041).
+        $this->assertStringNotContainsString('Hacer una aportación', $html);
 
         unset($GLOBALS['__stic_filters']['sticpa_profile_audience']);
     }

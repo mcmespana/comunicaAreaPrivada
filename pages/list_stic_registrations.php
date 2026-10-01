@@ -49,4 +49,10 @@ $getRelatedElements = $objSCP->getRelatedElementsForLoggedUser(array(
 $definition = sticpa_cached_field_definition($objSCP, 'stic_Registrations', array('status', 'participation_type', 'ajmcm_curso_escolar_c', 'ajmcm_clase_c'));
 
 $html .= "<div class='stic-entry-header'><h3>" . esc_html($listTitle) . "</h3></div>";
-$html .= sticpa_registrations_list_html($getRelatedElements, $definition);
+// Las inscripciones de eventos marcados «Ocultar en el área privada» van bajo
+// «Otros eventos». Una consulta de una columna cada 5 min, y ninguna si el
+// campo aún no existe en el CRM.
+$hiddenEvents = function_exists('sticpa_registration_hidden_event_ids')
+    ? sticpa_registration_hidden_event_ids($objSCP)
+    : array();
+$html .= sticpa_registrations_list_html($getRelatedElements, $definition, $hiddenEvents);

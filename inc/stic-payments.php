@@ -36,6 +36,9 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+// Pagar con tarjeta lo que se debe (plan 041): los bloques de Pagos lo usan.
+require_once __DIR__ . '/stic-pay-card.php';
+
 /* ==========================================================================
    1. PAGOS
    ========================================================================== */
@@ -54,7 +57,147 @@ function sticpa_payment_list_fields()
         'status',
         'payment_type',
         'payment_method',
+        // De qué es (plan 041): el concepto, y el compromiso del que cuelga
+        // para saber si es un intento de tarjeta o algo ya sustituido.
+        'banking_concept',
+        'stic_paymebfe2itments_ida',
     );
+}
+
+/**
+ * DE QUÉ ES UN PAGO, dicho como lo diría una familia: «Convivencia Inicial ·
+ * Buñol» y, si es de un hijo, para quién. El nombre que pone el CRM es una
+ * ristra técnica («Sandra Roy - Maria Lorenz Roy - COM | Convivencia… -
+ * Domiciliación - 60 - 2026-10-16»): el evento es el trozo con «|», lo de
+ * antes son personas y lo de después, forma de pago, importe y fecha.
+ *
+ * @param string $name     Nombre del pago o del compromiso.
+ * @param string $concepto `banking_concept`, si lo hay: manda sobre el nombre.
+ * @return array title, para ('' si no se sabe o es la misma persona).
+ */
+function sticpa_payment_concept($name, $concepto = '')
+{
+    $name = trim((string) $name);
+    $concepto = trim((string) $concepto);
+    $trozos = array_values(array_filter(array_map('trim', explode(' - ', $name)), 'strlen'));
+    $evento = -1;
+    foreach ($trozos as $i => $t) {
+        if (strpos($t, '|') !== false) {
+            $evento = $i;
+            break;
+        }
+    }
+    $para = '';
+    if ($evento >= 1) {
+        // «Tutor - Participante - Evento…»: el participante es el de justo antes.
+        // «Participante - Evento» (los del área): el primero.
+        $para = $trozos[$evento - 1];
+    }
+    if ($concepto !== '') {
+        $title = $concepto;
+    } elseif ($evento >= 0) {
+        $title = $trozos[$evento];
+    } else {
+        // Sin evento: lo que no sea fecha, importe ni nombre de persona del
+        // principio. Mejor corto que una ristra.
+        $resto = array_filter(array_slice($trozos, 1), function ($t) {
+            return !preg_match('/^\d{4}-\d{2}(-\d{2})?$/', $t) && !preg_match('/^[\d.,]+( ?€)?$/', $t);
+        });
+        $title = !empty($resto) ? implode(' · ', $resto) : ($trozos[0] ?? __('Pago', 'sticpa'));
+    }
+    $quien = trim((string) ($_SESSION['scp_user_contact_name'] ?? ''));
+    if ($para !== '' && $quien !== '' && stripos($quien, $para) !== false) {
+        $para = '';
+    }
+    return array('title' => $title, 'para' => $para);
+}
+
+/**
+ * ¿Es un intento de tarjeta (el compromiso que crea el formulario del TPV) y
+ * no algo que se debe? Lo son los que llevan la marca del área o los de
+ * tarjeta por la web. Mientras no se cobran no son una deuda: lo que se debe
+ * sigue en su compromiso de siempre.
+ */
+function sticpa_commitment_is_card_attempt($pc)
+{
+    if (!$pc) {
+        return false;
+    }
+    $desc = (string) ($pc['description'] ?? '');
+    if (strpos($desc, '[pago:') !== false || strpos($desc, '[insc:') !== false) {
+        return true;
+    }
+    return ($pc['payment_method'] ?? '') === 'card' && ($pc['channel'] ?? '') === 'web';
+}
+
+/** Campos que la pantalla de Pagos lee de los compromisos. */
+function sticpa_payments_commitment_fields()
+{
+    return array('id', 'name', 'description', 'end_date', 'payment_method', 'channel', 'banking_concept', 'date_entered');
+}
+
+/** Los compromisos de quien paga (filas del CRM). */
+function sticpa_payments_commitment_rows($objSCP, $module, $link)
+{
+    $rows = $objSCP->getRelatedElementsForLoggedUser(array(
+        'module_name' => $module,
+        'module_id' => $_SESSION['scp_user_id'] ?? '',
+        'link_field_name' => $link,
+        'related_fields' => sticpa_payments_commitment_fields(),
+        'related_module_link_name_to_fields_array' => array(),
+        'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
+    ));
+    return is_array($rows) ? $rows : array();
+}
+
+/** compromiso => sus datos, para sticpa_payments_list_html(). */
+function sticpa_payments_commitment_map($rows)
+{
+    $map = array();
+    foreach ((array) $rows as $row) {
+        $nvl = $row->name_value_list ?? null;
+        $id = (string) ($row->id ?? ($nvl->id->value ?? ''));
+        if ($id === '' || !$nvl) {
+            continue;
+        }
+        $map[$id] = array();
+        foreach (array('description', 'end_date', 'payment_method', 'channel', 'banking_concept') as $f) {
+            $map[$id][$f] = isset($nvl->$f->value) ? (string) $nvl->$f->value : '';
+        }
+    }
+    return $map;
+}
+
+/**
+ * Pone en orden los intentos de tarjeta de quien paga antes de enseñar nada:
+ * los cobrados sustituyen a lo que debían, y los abandonados se cierran
+ * (sticpa_pay_claim() y sticpa_registration_claim_card_commitment()). Solo
+ * mira los compromisos vivos que llevan marca, así que de normal no cuesta
+ * ninguna llamada.
+ *
+ * @return bool Si ha cambiado algo (y hay que volver a leer).
+ */
+function sticpa_payments_settle($objSCP, $commitmentRows)
+{
+    if (!function_exists('sticpa_pay_claim')) {
+        return false;
+    }
+    $cambio = false;
+    foreach ((array) $commitmentRows as $row) {
+        $nvl = $row->name_value_list ?? null;
+        if (!$nvl || trim((string) ($nvl->end_date->value ?? '')) !== '') {
+            continue;
+        }
+        $desc = (string) ($nvl->description->value ?? '');
+        if (preg_match('/\[pago:([0-9a-f-]{36}):[0-9a-f]{16}\]/', $desc, $m)) {
+            $cambio = (sticpa_pay_claim($objSCP, $m[1]) !== '') || $cambio;
+        } elseif (preg_match('/\[insc:([0-9a-f-]{36}):[0-9a-f]{16}\]/', $desc, $m) && function_exists('sticpa_registration_claim_card_commitment')) {
+            // De una inscripción sin compromiso: si se cobró, se ata; si se
+            // abandonó, se cierra (lo hace la misma función).
+            $cambio = (sticpa_registration_claim_card_commitment($objSCP, $m[1]) > 0) || $cambio;
+        }
+    }
+    return $cambio;
 }
 
 /** Campos de la FICHA de un pago: aquí sí interesan el porqué y el si falló. */
@@ -126,75 +269,133 @@ function sticpa_payment_view_model($nvl)
 }
 
 /**
- * LISTADO de pagos como tarjetas.
+ * LISTADO DE PAGOS en tres bloques (plan 041, 01/10/2026):
  *
- * @param array $rows       Registros del CRM.
- * @param array $definition Definición cacheada del módulo (etiquetas de enums).
+ *   · «Pendiente de pagar»: lo que se debe, con «Pagar con tarjeta». Y lo que
+ *     no se pudo cobrar (devuelto, rechazado), en rojo.
+ *   · «Se cobrará por domiciliación»: lo que entra en la próxima remesa. No
+ *     hay nada que hacer, y decirlo tranquiliza.
+ *   · «Pagado»: el historial.
+ *
+ * Antes era una lista revuelta de recibos, con estados del CRM («No
+ * remesado»). Lo que NO sale: los intentos de tarjeta sin terminar (no son una
+ * deuda) y lo pendiente de un compromiso ya cerrado (sustituido o cancelado).
+ *
+ * @param array $rows        Pagos del CRM.
+ * @param array $definition  Definición cacheada de stic_Payments.
+ * @param array $commitments compromiso => array(description, end_date,
+ *                           payment_method, channel, banking_concept).
  */
-function sticpa_payments_list_html($rows, $definition = array())
+function sticpa_payments_list_html($rows, $definition = array(), $commitments = array())
 {
-    $models = array();
+    $bloques = array('pendiente' => array(), 'domiciliado' => array(), 'pagado' => array(), 'otro' => array());
     foreach ((array) $rows as $row) {
         $nvl = $row->name_value_list ?? null;
         if (!$nvl) {
             continue;
         }
-        $model = sticpa_payment_view_model($nvl);
-        if ($model) {
-            $models[] = $model;
+        $pay = sticpa_payment_view_model($nvl);
+        if (!$pay) {
+            continue;
         }
+        $pcId = isset($nvl->stic_paymebfe2itments_ida->value) ? trim((string) $nvl->stic_paymebfe2itments_ida->value) : '';
+        $pc = $pcId !== '' ? ($commitments[$pcId] ?? null) : null;
+        $pagado = $pay['status'] === 'paid' || sticpa_record_status_tone($pay['status']) === 'ok';
+        $cerrado = $pc && trim((string) ($pc['end_date'] ?? '')) !== '';
+        // Ni los intentos de tarjeta ni lo pendiente de algo ya cerrado.
+        if (!$pagado && ($cerrado || sticpa_commitment_is_card_attempt($pc) || preg_match('/cancel|anulad/i', $pay['status']))) {
+            continue;
+        }
+        $tone = sticpa_record_status_tone($pay['status']);
+        if ($pagado) {
+            $bloque = 'pagado';
+        } elseif ($tone === 'danger' || sticpa_pay_is_payable($pay['status'], $pay['method'])) {
+            $bloque = 'pendiente';
+        } elseif (strpos($pay['status'], 'remit') !== false) {
+            $bloque = 'domiciliado';
+        } else {
+            $bloque = 'otro';
+        }
+        $pay['concepto'] = sticpa_payment_concept($pay['name'], $pc['banking_concept'] ?? ($nvl->banking_concept->value ?? ''));
+        $bloques[$bloque][] = $pay;
     }
 
-    if (empty($models)) {
+    if (empty(array_filter($bloques))) {
         return sticpa_record_empty_html(
             'card',
-            __('Todavía no hay ningún pago', 'sticpa'),
-            __('Aquí aparecerán los recibos con su importe y su estado, en cuanto se emita el primero.', 'sticpa')
+            __('No tienes ningún pago', 'sticpa'),
+            __('Cuando te apuntes a algo que cueste dinero, aquí verás lo que tienes pendiente, lo que se cobrará y lo pagado.', 'sticpa')
         );
     }
 
-    // Lo más reciente arriba. En dinero, lo que se busca es el último recibo:
-    // "¿me han cobrado ya el de este mes?".
-    usort($models, function ($a, $b) {
-        return ($b['date_ts'] ?? 0) <=> ($a['date_ts'] ?? 0);
-    });
-
-    $cards = array();
-    foreach ($models as $pay) {
-        $tone = sticpa_record_status_tone($pay['status']);
-
-        // UNA sola línea bajo el título, y es la forma de pago. El tipo
-        // ("Cuota", "Donación") estaba también aquí y se cayó al mirar la
-        // captura: con el importe ocupando la derecha, al título le quedan
-        // ~180px a 375px, y dos líneas más un chip lo partían en tres. Lo que
-        // se recorre en una lista de recibos es importe, fecha y estado; el
-        // tipo es material de ficha.
-        $lines = array();
-        $method = sticpa_record_enum_label($definition, 'payment_method', $pay['method']);
-        if ($method !== '') {
-            $lines[] = array('icon' => 'card', 'text' => $method);
+    $titulos = array(
+        'pendiente'   => __('Pendiente de pagar', 'sticpa'),
+        'domiciliado' => __('Se cobrará por domiciliación', 'sticpa'),
+        'pagado'      => __('Pagado', 'sticpa'),
+        'otro'        => __('Otros', 'sticpa'),
+    );
+    $html = '';
+    foreach ($bloques as $bloque => $pagos) {
+        if (empty($pagos)) {
+            continue;
         }
-
-        $chips = array();
-        $statusLabel = sticpa_record_enum_label($definition, 'status', $pay['status']);
-        if ($statusLabel !== '') {
-            $chips[] = array('label' => $statusLabel, 'tone' => $tone);
+        // Lo que viene, por fecha; lo pagado, lo último arriba.
+        usort($pagos, function ($a, $b) use ($bloque) {
+            $cmp = ($a['date_ts'] ?? 0) <=> ($b['date_ts'] ?? 0);
+            return $bloque === 'pagado' ? -$cmp : $cmp;
+        });
+        $cards = array();
+        foreach ($pagos as $pay) {
+            $cards[] = sticpa_payment_card($pay, $bloque, $definition);
         }
+        $html .= "<h4 class='stic-rec-group-title'>" . esc_html($titulos[$bloque]) . "</h4>";
+        $html .= sticpa_record_list_html($cards);
+    }
+    return $html;
+}
 
-        $cards[] = array(
-            'url'    => '?internalpage=single_stic_payments&action=detail&id=' . rawurlencode($pay['id']),
-            'ts'     => $pay['date_ts'],
-            'icon'   => 'card',
-            'name'   => $pay['name'],
-            'lines'  => $lines,
-            'chips'  => $chips,
-            'amount' => $pay['amount_txt'],
-            // Un recibo devuelto se apaga: ya no cuenta como dinero cobrado.
-            'is_past' => $tone === 'danger',
-        );
+/** La tarjeta de un pago en su bloque. */
+function sticpa_payment_card($pay, $bloque, $definition = array())
+{
+    $tone = sticpa_record_status_tone($pay['status']);
+    $method = sticpa_record_enum_label($definition, 'payment_method', $pay['method']);
+
+    $lines = array();
+    if ($pay['concepto']['para'] !== '') {
+        /* translators: %s = nombre de la persona para quien es el pago */
+        $lines[] = array('icon' => 'user', 'text' => sprintf(__('Para %s', 'sticpa'), $pay['concepto']['para']));
+    }
+    // La fecha ya la dice la cápsula de la izquierda: no se repite.
+    if ($bloque === 'domiciliado') {
+        $lines[] = array('icon' => 'bank', 'text' => __('Por domiciliación', 'sticpa'));
+    } elseif ($bloque === 'pagado') {
+        $lines[] = array('icon' => 'check', 'text' => $method);
+    } elseif ($method !== '' && $pay['method'] !== 'card') {
+        $lines[] = array('icon' => 'card', 'text' => $method);
     }
 
-    return sticpa_record_list_html($cards);
+    // El chip, solo cuando dice algo que el bloque no dice ya: un devuelto.
+    $chips = array();
+    if ($tone === 'danger') {
+        $label = sticpa_record_enum_label($definition, 'status', $pay['status']);
+        $chips[] = array('label' => $label !== '' ? $label : __('No se pudo cobrar', 'sticpa'), 'tone' => 'danger');
+    }
+
+    $actions = array();
+    if ($bloque === 'pendiente' && function_exists('sticpa_pay_url')) {
+        $actions[] = array('label' => __('Pagar con tarjeta', 'sticpa'), 'url' => sticpa_pay_url($pay['id']), 'primary' => true);
+    }
+
+    return array(
+        'url'     => '?internalpage=single_stic_payments&action=detail&id=' . rawurlencode($pay['id']),
+        'ts'      => $pay['date_ts'],
+        'icon'    => 'card',
+        'name'    => $pay['concepto']['title'],
+        'lines'   => $lines,
+        'chips'   => $chips,
+        'amount'  => $pay['amount_txt'],
+        'actions' => $actions,
+    );
 }
 
 /**
@@ -285,12 +486,10 @@ function sticpa_payment_detail_html($pay, $definition = array())
     if ($val('in_kind_description') !== '') {
         $facts[] = array('icon' => 'info', 'label' => __('Descripción', 'sticpa'), 'text' => $val('in_kind_description'));
     }
-    // De qué venía el pago: el compromiso o la inscripción que lo originó.
-    if ($val('stic_payments_stic_registrations_name') !== '') {
-        $facts[] = array('icon' => 'check', 'label' => __('Inscripción', 'sticpa'), 'text' => $val('stic_payments_stic_registrations_name'));
-    }
-    if ($val('stic_payments_stic_payment_commitments_name') !== '') {
-        $facts[] = array('icon' => 'repeat', 'label' => __('Compromiso de pago', 'sticpa'), 'text' => $val('stic_payments_stic_payment_commitments_name'));
+    // Para quién, si es de otra persona (un hijo). El «de qué» ya es el título.
+    $concepto = sticpa_payment_concept($pay['name'], $val('banking_concept'));
+    if ($concepto['para'] !== '') {
+        $facts[] = array('icon' => 'user', 'label' => __('Para', 'sticpa'), 'text' => $concepto['para']);
     }
     // La referencia de la transacción, la última: es lo que hay que decir por
     // teléfono cuando algo va mal, y no antes.
@@ -298,17 +497,23 @@ function sticpa_payment_detail_html($pay, $definition = array())
         $facts[] = array('icon' => 'tag', 'label' => __('Referencia', 'sticpa'), 'text' => $val('transaction_code'));
     }
 
+    // Lo que se debe se paga desde aquí; lo demás no tiene nada que hacer.
+    // (Antes había un «Mis compromisos de pago»: esa palabra no es de las
+    // familias, plan 041.)
+    $actions = array();
+    if (!empty($pay['pagable']) && function_exists('sticpa_pay_url')) {
+        $actions[] = array('label' => sprintf(__('Pagar %s con tarjeta', 'sticpa'), $pay['amount_txt']), 'url' => sticpa_pay_url($pay['id']), 'primary' => true, 'icon' => 'go');
+    }
+
     return sticpa_record_detail_html(array(
-        'back'     => array('url' => '?internalpage=list_stic_payments', 'label' => __('Mis pagos', 'sticpa')),
-        'title'    => $pay['name'],
+        'back'     => array('url' => '?internalpage=list_stic_payments', 'label' => __('Pagos', 'sticpa')),
+        'title'    => $concepto['title'],
         'meta'     => array(array('icon' => 'calendar', 'text' => $pay['date_ts'] ? sticpa_record_date_line($pay['date_ts']) : '')),
         'chips'    => $chips,
         'headline' => $headline,
         'notes'    => $notes,
         'facts'    => $facts,
-        'actions'  => array(
-            array('label' => __('Mis compromisos de pago', 'sticpa'), 'url' => '?internalpage=list_stic_payment_commitments'),
-        ),
+        'actions'  => $actions,
     ));
 }
 
@@ -488,27 +693,6 @@ function sticpa_commitments_list_html($rows, $definition = array())
 }
 
 /**
- * URL para hacer un pago suelto, con el importe ya puesto.
- *
- * OJO, Y ESTO IMPORTA: el formulario de pago del área crea un compromiso NUEVO
- * de tipo puntual (es un formulario web de SinergiaCRM, `webFormClass=Donation`)
- * y NO liquida el compromiso desde el que se le llama — el formulario web no
- * tiene por dónde recibir un compromiso existente. Así que esto es "hacer una
- * aportación por este importe", no "pagar este recibo", y la ficha lo dice con
- * esas palabras. Enlazar de verdad un pago con su compromiso necesita trabajo
- * en el CRM (un punto de entrada que acepte el id del compromiso).
- */
-function sticpa_commitment_pay_url($amount = '')
-{
-    $url = '?internalpage=single_stic_payment_form';
-    $amount = trim((string) $amount);
-    if ($amount !== '' && (float) $amount > 0) {
-        $url .= '&amount=' . rawurlencode(number_format((float) $amount, 2, '.', ''));
-    }
-    return $url;
-}
-
-/**
  * ¿Este compromiso lo paga OTRA persona en nombre de quien estamos viendo?
  *
  * SinergiaCRM separa a propósito la persona PAGADORA (obligatoria, la del IBAN y
@@ -638,30 +822,15 @@ function sticpa_commitment_detail_html($com, $definition = array())
     }
 
     // --- La acción ---
-    // Solo tiene sentido ofrecer aportar en un compromiso VIVO. En uno
-    // terminado, el botón sería una invitación a pagar algo que ya no existe.
-    $actions = array();
+    // Ya NO hay «Hacer una aportación» (01/10/2026): creaba un donativo nuevo
+    // que no saldaba nada —así salieron los compromisos de más del Foro— y
+    // desde el área no se hacen aportaciones. Lo que se debe se paga desde
+    // «Pagos» o desde la inscripción (plan 041).
+    $actions = array(array('label' => __('Ver mis pagos', 'sticpa'), 'url' => '?internalpage=list_stic_payments', 'primary' => true));
     $ctaNote = '';
-    if ($com['active']) {
-        $importePago = ($pendiente !== '' && (float) $pendiente > 0) ? $pendiente : $com['amount'];
-        $actions[] = array(
-            'label'   => __('Hacer una aportación', 'sticpa'),
-            'url'     => sticpa_commitment_pay_url($importePago),
-            'primary' => true,
-            'icon'    => 'go',
-        );
-        // Se dice lo que es. El formulario de pago registra una aportación
-        // puntual; no liquida este compromiso por su cuenta.
-        $ctaNote = __('Se registra como una aportación puntual. Tu delegación la asocia a este compromiso.', 'sticpa');
-        if ($loPagaOtra && $titular !== '') {
-            /* translators: %s = nombre de quien tiene domiciliado el compromiso */
-            $ctaNote .= ' ' . sprintf(__('La domiciliación sigue a nombre de %s.', 'sticpa'), $titular);
-        }
-    }
-    $actions[] = array('label' => __('Ver mis pagos', 'sticpa'), 'url' => '?internalpage=list_stic_payments');
 
     return sticpa_record_detail_html(array(
-        'back'     => array('url' => '?internalpage=list_stic_payment_commitments', 'label' => __('Mis compromisos', 'sticpa')),
+        'back'     => array('url' => '?internalpage=list_stic_payments', 'label' => __('Pagos', 'sticpa')),
         'title'    => $com['name'],
         // La cabecera dice DESDE CUÁNDO, no cuánto: el cuánto va justo debajo
         // en grande, y decirlo dos veces seguidas es gastar media pantalla de

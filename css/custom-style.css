@@ -6984,3 +6984,49 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 }
 .stic-container .stic-rec-group-title:first-of-type,
 .stic-rec-group-title:first-of-type { margin-top: 0.4rem; }
+
+
+/* ============================================================
+   62. INSCRIPCIONES — el paraguas «Otros eventos» (30/09/2026)
+   ------------------------------------------------------------
+   Las inscripciones de eventos marcados «Ocultar en el área
+   privada» se pliegan bajo un <details> debajo de lo principal.
+   ============================================================ */
+.stic-rec-other { margin-top: 1.4rem; }
+.stic-rec-other > summary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 44px;              /* objetivo táctil cómodo en móvil */
+    cursor: pointer;
+    list-style: none;
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--gray-700);
+}
+.stic-rec-other > summary::-webkit-details-marker { display: none; }
+.stic-rec-other > summary::before {
+    content: "";
+    width: 0.5rem;
+    height: 0.5rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform 0.15s ease;
+}
+.stic-rec-other[open] > summary::before { transform: rotate(45deg); }
+.stic-rec-other > summary:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+    border-radius: 6px;
+}
+.stic-rec-other-count {
+    min-width: 1.5rem;
+    padding: 0 0.45rem;
+    border-radius: 999px;
+    background: var(--gray-100);
+    color: var(--gray-600);
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-align: center;
+}

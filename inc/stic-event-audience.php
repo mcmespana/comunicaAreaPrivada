@@ -125,6 +125,39 @@ function sticpa_event_audience_field_curso_persona()
 }
 
 /**
+ * Campo (casilla) «Ocultar en el área privada» del evento (30/09/2026).
+ *
+ * Es una casilla de OCULTAR y no de mostrar a propósito: los eventos que ya
+ * existen la tienen vacía, y vacío tiene que significar «se ve como hasta
+ * ahora». Con una casilla de «mostrar», cualquiera que editara un evento
+ * antiguo (que en la ficha saldría sin marcar) lo escondería sin querer.
+ *
+ * Solo afecta a los LISTADOS (Eventos, calendario y agenda de la home) y solo
+ * a lo que aún no te has apuntado. No cierra la puerta: quien llega con el
+ * enlace directo a la ficha (un correo, el formulario web) sigue pudiendo
+ * verla y apuntarse, y lo que ya tienes inscrito no desaparece.
+ */
+function sticpa_event_hidden_field()
+{
+    return (string) apply_filters('sticpa_event_hidden_field', 'ajmcm_ocultar_area_c');
+}
+
+/**
+ * ¿Está marcado «Ocultar en el área privada» en este evento?
+ *
+ * @param object|null $nvl name_value_list del evento. Si el campo no viene
+ *                         (no existe en el CRM, o no se pidió) → no está oculto.
+ */
+function sticpa_event_is_hidden($nvl)
+{
+    $field = sticpa_event_hidden_field();
+    if (!is_object($nvl) || $field === '' || !isset($nvl->$field->value)) {
+        return false;
+    }
+    return in_array(strtolower(trim((string) $nvl->$field->value)), array('1', 'on', 'true', 'yes'), true);
+}
+
+/**
  * Campos del evento que hay que pedirle al CRM para decidir la audiencia.
  * `sticpa_event_fields_to_request()` los cruza con los que EXISTEN de verdad,
  * así que aquí se pueden nombrar campos aún sin crear.
@@ -135,6 +168,9 @@ function sticpa_event_audience_fields()
         sticpa_event_audience_field_ambito(),
         sticpa_event_audience_field_perfiles(),
         sticpa_event_audience_field_cursos(),
+        // No es audiencia, pero se decide en el mismo sitio y en las mismas
+        // pantallas: así se pide siempre junto, y sin una llamada de más.
+        sticpa_event_hidden_field(),
     )));
 }
 
@@ -519,8 +555,19 @@ function sticpa_event_audience_match($audience, $viewer)
  */
 function sticpa_filter_events_for_viewer($objSCP, $events)
 {
-    if (!is_array($events) || empty($events) || !sticpa_event_audience_enabled()) {
-        return is_array($events) ? $events : array();
+    if (!is_array($events)) {
+        return array();
+    }
+
+    // Primero lo que alguien ha marcado como «Ocultar en el área privada». Va
+    // ANTES del interruptor de audiencia: es otra decisión, y apagar la
+    // audiencia no tiene que destapar lo que se escondió a propósito.
+    $events = array_values(array_filter($events, function ($row) {
+        return !sticpa_event_is_hidden($row->name_value_list ?? null);
+    }));
+
+    if (empty($events) || !sticpa_event_audience_enabled()) {
+        return $events;
     }
 
     // ¿Restringe ALGÚN evento por perfil o por curso? Si no, no hace falta

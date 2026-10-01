@@ -33,6 +33,9 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+// Pagar con tarjeta lo que se debe (plan 041): la ficha de la inscripción lo usa.
+require_once __DIR__ . '/stic-pay-card.php';
+
 /**
  * Campos que se piden al CRM para el LISTADO. Cortos a propósito: cada campo
  * de más viaja por cada inscripción.
@@ -126,6 +129,55 @@ function sticpa_registration_event_index()
 }
 
 /**
+ * Ids de los eventos marcados «Ocultar en el área privada».
+ *
+ * Es lo que decide qué inscripciones van bajo «Otros eventos» (TODO 30/09/2026):
+ * reuniones de monitores, actividades de otra etapa… que te constan pero no son
+ * lo que vienes a mirar. La inscripción solo trae el nombre y el id de su
+ * evento, no sus campos, así que se pregunta UNA vez por todos los ocultos.
+ *
+ * Coste: cero si el campo aún no existe (se mira en la definición cacheada de
+ * eventos, que ya se paga en otras pantallas), y si existe, una sola consulta
+ * de una columna cada 5 minutos para TODO el mundo (el transient no es por
+ * persona, porque lo oculto no depende de quién mire). Si algo falla, la
+ * respuesta es «ninguno oculto»: las inscripciones salen como siempre.
+ *
+ * @return array<string,true> id de evento => true
+ */
+function sticpa_registration_hidden_event_ids($objSCP)
+{
+    if (!function_exists('sticpa_event_hidden_field') || !function_exists('sticpa_event_field_definition')) {
+        return array();
+    }
+    $field = sticpa_event_hidden_field();
+    $cacheKey = 'sticpa_hidden_event_ids';
+    if (function_exists('get_transient')) {
+        $cached = get_transient($cacheKey);
+        if (is_array($cached)) {
+            return $cached;
+        }
+    }
+
+    $definition = sticpa_event_field_definition($objSCP);
+    if ($field === '' || !is_array($definition) || !isset($definition[$field])) {
+        return array();   // el campo no existe: no hay nada oculto, y no se consulta
+    }
+
+    $rows = $objSCP->getRecordsModule('stic_Events', "(stic_events_cstm.{$field} = 1)", array('id'));
+    $ids = array();
+    foreach ((is_array($rows) ? $rows : array()) as $row) {
+        $id = (string) ($row->name_value_list->id->value ?? '');
+        if ($id !== '') {
+            $ids[$id] = true;
+        }
+    }
+    if (function_exists('set_transient')) {
+        set_transient($cacheKey, $ids, 5 * MINUTE_IN_SECONDS);
+    }
+    return $ids;
+}
+
+/**
  * Clave de comparación de un nombre de evento: sin mayúsculas, sin acentos y
  * sin espacios de más. El nombre viaja por dos caminos distintos (el campo
  * relate y el módulo de eventos) y basta un espacio doble para no casar.
@@ -145,9 +197,11 @@ function sticpa_registration_name_key($name)
  *
  * @param object $nvl        name_value_list del registro.
  * @param array  $eventIndex Salida de sticpa_registration_event_index().
+ * @param array  $hiddenEvents Salida de sticpa_registration_hidden_event_ids(): si el
+ *                           evento está oculto, la inscripción va a «Otros eventos».
  * @return array|null null si es una fila sin nombre (basura).
  */
-function sticpa_registration_view_model($nvl, $eventIndex = array())
+function sticpa_registration_view_model($nvl, $eventIndex = array(), $hiddenEvents = array())
 {
     $val = function ($field) use ($nvl) {
         return isset($nvl->$field->value) ? trim((string) $nvl->$field->value) : '';
@@ -181,6 +235,8 @@ function sticpa_registration_view_model($nvl, $eventIndex = array())
     $refTs = $endTs ?: $startTs;
     $isPast = ($refTs !== null && $refTs < strtotime('today'));
 
+    $resolvedEventId = $eventId !== '' ? $eventId : (string) ($event['id'] ?? '');
+
     return array(
         'id'         => $val('id'),
         'title'      => $title,
@@ -188,12 +244,13 @@ function sticpa_registration_view_model($nvl, $eventIndex = array())
         'event_name' => $eventName,
         // El enlace manda sobre la caché: la caché puede estar fría, el
         // enlace viene siempre con el registro.
-        'event_id'   => $eventId !== '' ? $eventId : (string) ($event['id'] ?? ''),
+        'event_id'   => $resolvedEventId,
         'status'     => $val('status'),
         'signed_ts'  => $signedTs,
         'start_ts'   => $startTs,
         'end_ts'     => $endTs,
         'is_past'    => $isPast,
+        'event_hidden' => $resolvedEventId !== '' && isset($hiddenEvents[$resolvedEventId]),
         'clase'      => $val('ajmcm_clase_c'),
         'curso'      => $val('ajmcm_curso_escolar_c'),
         'nvl'        => $nvl,
@@ -232,7 +289,7 @@ function sticpa_registration_when_line($reg)
  * @param array $definition Definición de campos cacheada (para las etiquetas
  *                          de los desplegables; nunca se enseña la clave cruda).
  */
-function sticpa_registrations_list_html($rows, $definition = array())
+function sticpa_registrations_list_html($rows, $definition = array(), $hiddenEvents = array())
 {
     $eventIndex = sticpa_registration_event_index();
 
@@ -242,7 +299,7 @@ function sticpa_registrations_list_html($rows, $definition = array())
         if (!$nvl) {
             continue;
         }
-        $model = sticpa_registration_view_model($nvl, $eventIndex);
+        $model = sticpa_registration_view_model($nvl, $eventIndex, $hiddenEvents);
         if ($model) {
             $models[] = $model;
         }
@@ -277,6 +334,7 @@ function sticpa_registrations_list_html($rows, $definition = array())
     });
 
     $cards = array();
+    $otherCards = array();   // inscripciones de eventos ocultos: bajo «Otros eventos»
     foreach ($models as $reg) {
         $lines = array();
         $when = sticpa_registration_when_line($reg);
@@ -317,7 +375,7 @@ function sticpa_registrations_list_html($rows, $definition = array())
         // se gana su sitio: se añade aquí.
         $actions = array();
 
-        $cards[] = array(
+        $card = array(
             'url'     => $detailUrl,
             // La cápsula lleva la fecha del EVENTO si se sabe; si no, la de la
             // inscripción, que es lo único que hay.
@@ -329,9 +387,28 @@ function sticpa_registrations_list_html($rows, $definition = array())
             'is_past' => $reg['is_past'] || sticpa_record_status_tone($reg['status']) === 'danger',
             'actions' => $actions,
         );
+        if (!empty($reg['event_hidden'])) {
+            $otherCards[] = $card;
+        } else {
+            $cards[] = $card;
+        }
     }
 
-    return sticpa_record_list_html($cards);
+    if (empty($otherCards)) {
+        return sticpa_record_list_html($cards);
+    }
+
+    // EL PARAGUAS «OTROS EVENTOS» (30/09/2026). Lo que consta pero no es lo que
+    // vienes a mirar —reuniones de monitores, actividades de otra etapa— sigue
+    // ahí, plegado y contado, debajo de lo principal. Si TODO está bajo el
+    // paraguas, se abre: una pantalla con solo un título cerrado parece vacía.
+    $html = empty($cards) ? '' : sticpa_record_list_html($cards);
+    $html .= "<details class='stic-rec-other'" . (empty($cards) ? ' open' : '') . ">"
+        . "<summary><span>" . esc_html__('Otros eventos', 'sticpa') . "</span>"
+        . "<span class='stic-rec-other-count'>" . (int) count($otherCards) . "</span></summary>"
+        . sticpa_record_list_html($otherCards)
+        . "</details>";
+    return $html;
 }
 
 /**
@@ -379,10 +456,10 @@ function sticpa_registration_tutor($nvl, $prefix, $definition)
  * @param array $definition Definición de campos cacheada del módulo.
  * @param array $extra      Lo que la página ha averiguado aparte (EV-2/6/7):
  *   'aviso'       => nota tras guardar (sticpa_registration_saved_note()),
- *   'pagos'       => compromisos de pago de la inscripción (filas del CRM),
+ *   'pago'        => sticpa_registration_payment_state() (plan 041),
  *   'metodos'     => clave => etiqueta de `payment_method`,
  *   'pagar_url'   => a dónde lleva «Pagar con tarjeta» si no hay compromiso,
- *   'precio'      => precio del evento (float),
+ *   'esperando'   => recién vuelto del TPV: no se ofrece pagar otra vez,
  *   'derechos'    => sticpa_registration_manage_rights(),
  *   'gestion'     => HTML de sticpa_registration_manage_html().
  */
@@ -501,30 +578,13 @@ function sticpa_registration_detail_html($reg, $definition = array(), $extra = a
             'text'  => $respuesta,
         );
     }
-    // El pago (EV-7): el compromiso que dejó la inscripción, con su medio.
-    $metodos = (array) ($extra['metodos'] ?? array());
-    foreach ((array) ($extra['pagos'] ?? array()) as $pago) {
-        $pnvl = $pago->name_value_list ?? null;
-        $pid = (string) ($pago->id ?? ($pnvl->id->value ?? ''));
-        $importe = trim((string) ($pnvl->amount->value ?? ''));
-        $metodo = trim((string) ($pnvl->payment_method->value ?? ''));
-        $partes = array_filter(array(
-            $importe !== '' ? (string) formatValue($importe, 'currency') : '',
-            $metodos[$metodo] ?? '',
-            trim((string) ($pnvl->end_date->value ?? '')) !== '' ? __('dado de baja', 'sticpa') : '',
-        ));
-        if (empty($partes) || $pid === '') {
-            continue;
-        }
-        $facts[] = array(
-            'icon'  => 'card',
-            'label' => __('Pago', 'sticpa'),
-            'text'  => implode(' · ', $partes),
-            'link'  => array(
-                'url' => '?internalpage=single_stic_payment_commitments&action=detail&id=' . rawurlencode($pid),
-                'label' => __('Ver el compromiso de pago', 'sticpa'),
-            ),
-        );
+    // EL PAGO, en una línea y con lo que toca hacer (plan 041). Sin enlace
+    // al «compromiso»: esa palabra no es de las familias, y lo que se viene a
+    // mirar aquí es si está pagado y, si no, cómo se paga.
+    $pago = (array) ($extra['pago'] ?? array());
+    $pagoUi = sticpa_payment_state_ui($pago, (array) ($extra['metodos'] ?? array()), !empty($extra['esperando']));
+    if ($pagoUi['fact'] !== null) {
+        $facts[] = $pagoUi['fact'];
     }
     // El código administrativo, al final y solo si es distinto del título: es
     // lo que hay que decir por teléfono cuando algo va mal.
@@ -582,29 +642,40 @@ function sticpa_registration_detail_html($reg, $definition = array(), $extra = a
         $notes[] = array('tone' => 'info', 'icon' => 'info', 'text' => $extra['derechos']['motivo']);
     }
 
+    if ($pagoUi['note'] !== null) {
+        $notes[] = $pagoUi['note'];
+    }
+
     // --- Qué se puede hacer desde aquí ---
     $actions = array();
-    // Una actividad con precio SIN compromiso de pago: o se eligió tarjeta y el
-    // pago no se llegó a hacer, o la inscripción es de antes de que el área
-    // dejara el pago anotado. Un pago con tarjeta hecho ya está atado cuando se
-    // llega aquí (la página lo busca antes, EV-9), así que no se cobra dos veces.
-    $pagarUrl = (string) ($extra['pagar_url'] ?? '');
-    if ($pagarUrl !== '' && empty($extra['pagos']) && (float) ($extra['precio'] ?? 0) > 0 && $tone !== 'danger' && !$reg['is_past']) {
+    // Pagar, si hay algo que pagar. Lo que se cobra es el PAGO pendiente (su
+    // importe, no el precio del evento); sin compromiso anotado, por el precio
+    // del evento, como antes. Nunca en una inscripción cancelada.
+    $pagarUrl = '';
+    if ($tone !== 'danger' && in_array($pago['estado'] ?? '', array('pendiente', 'devuelto'), true) && empty($extra['esperando'])) {
+        $pagarUrl = sticpa_pay_url($pago['pago_id']);
+    } elseif ($tone !== 'danger' && ($pago['estado'] ?? '') === 'sin_compromiso' && !$reg['is_past'] && empty($extra['esperando'])) {
+        $pagarUrl = (string) ($extra['pagar_url'] ?? '');
+    }
+    // Si hay algo que pagar, pagar es LA acción de la pantalla; si no, ver la
+    // actividad.
+    if ($pagarUrl !== '') {
         $actions[] = array(
-            /* translators: %s = precio de la actividad, ya formateado */
-            'label' => sprintf(__('Pagar %s con tarjeta', 'sticpa'), (string) formatValue((string) $extra['precio'], 'currency')),
+            /* translators: %s = importe, ya formateado */
+            'label' => sprintf(__('Pagar %s con tarjeta', 'sticpa'), (string) formatValue((string) $pago['importe'], 'currency')),
             'url' => $pagarUrl,
+            'primary' => true,
+            'icon' => 'go',
         );
     }
     if ($reg['event_id'] !== '') {
         $actions[] = array(
             'label'   => __('Ver la actividad', 'sticpa'),
             'url'     => '?internalpage=single_stic_events&action=detail&id=' . rawurlencode($reg['event_id']),
-            'primary' => true,
+            'primary' => $pagarUrl === '',
             'icon'    => 'go',
         );
     }
-    $actions[] = array('label' => __('Mis pagos', 'sticpa'), 'url' => '?internalpage=list_stic_payments');
 
     return sticpa_record_detail_html(array(
         'back'     => array('url' => '?internalpage=list_stic_registrations', 'label' => __('Mis inscripciones', 'sticpa')),
@@ -1254,7 +1325,7 @@ function sticpa_commitment_payments($objSCP, $commitmentId)
         'module_name' => 'stic_Payment_Commitments',
         'module_id' => (string) $commitmentId,
         'link_field_name' => 'stic_payments_stic_payment_commitments',
-        'related_fields' => array('id', 'status', 'name', 'payment_type'),
+        'related_fields' => array('id', 'status', 'name', 'payment_type', 'amount', 'payment_date', 'payment_method'),
         'related_module_link_name_to_fields_array' => array(),
         'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
     ));
@@ -1273,9 +1344,11 @@ function sticpa_commitment_payments($objSCP, $commitmentId)
  * pagos, y los pagos fuera del modelo 182 (`m182_excluded`), que es para
  * donaciones.
  */
-function sticpa_card_commitment_as_service($objSCP, $commitmentId, $name, $type, array $payments)
+function sticpa_card_commitment_as_service($objSCP, $commitmentId, $name, $type, array $payments, $tipo = null)
 {
-    $tipo = sticpa_registration_payment_type();
+    // El tipo que le toca: el del pago al que sustituye (una cuota es `fee`),
+    // o el de una actividad.
+    $tipo = ($tipo !== null && $tipo !== '') ? (string) $tipo : sticpa_registration_payment_type();
     $labels = function_exists('sticpa_cached_field_definition')
         ? sticpa_crm_enum_options(sticpa_cached_field_definition($objSCP, 'stic_Payment_Commitments', array('payment_type')), 'payment_type')
         : array();
@@ -1329,7 +1402,7 @@ function sticpa_registration_claim_card_commitment($objSCP, $regId)
     // La marca solo lleva hexadecimales, guiones y corchetes: nada que escapar
     // en un LIKE (ni `%` ni `_` ni comillas).
     $rows = $objSCP->getRecordsModule('stic_Payment_Commitments',
-        "stic_payment_commitments.description LIKE '%" . $marca . "%'", array('id', 'name', 'payment_type'));
+        "stic_payment_commitments.description LIKE '%" . $marca . "%'", array('id', 'name', 'payment_type', 'date_entered', 'description'));
     $n = 0;
     foreach ((array) $rows as $row) {
         $nvl = $row->name_value_list ?? null;
@@ -1343,6 +1416,12 @@ function sticpa_registration_claim_card_commitment($objSCP, $regId)
             $cobrado = $cobrado || (string) ($p->name_value_list->status->value ?? '') === 'paid';
         }
         if (!$cobrado) {
+            // Un intento abandonado se cierra a las 24 h (plan 041, D-4).
+            if (function_exists('sticpa_pay_is_stale') && sticpa_pay_is_stale($nvl->date_entered->value ?? '')) {
+                sticpa_pay_close_commitment($objSCP, $cid,
+                    sprintf('Intento de pago con tarjeta sin terminar: cerrado por el área privada el %s.', date('d/m/Y')),
+                    $marca, '[abandonado:' . strtolower((string) $regId) . ']');
+            }
             continue;
         }
         if ($objSCP->set_relationship('stic_Payment_Commitments', $cid,
@@ -1350,6 +1429,11 @@ function sticpa_registration_claim_card_commitment($objSCP, $regId)
             $n++;
             sticpa_card_commitment_as_service($objSCP, $cid, (string) ($nvl->name->value ?? ''),
                 (string) ($nvl->payment_type->value ?? ''), $pagos);
+            // La marca, reescrita: ya está atado y no se vuelve a buscar.
+            $objSCP->set_entry('stic_Payment_Commitments', array(
+                'id' => $cid,
+                'description' => str_replace($marca, '[atada:' . strtolower((string) $regId) . ']', (string) ($nvl->description->value ?? '')),
+            ));
         }
     }
     return $n;

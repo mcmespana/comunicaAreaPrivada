@@ -103,6 +103,47 @@ class CalendarAudienceTest extends TestCase
     }
 
     /**
+     * «OCULTAR EN EL ÁREA PRIVADA» (30/09/2026). Un evento con la casilla
+     * marcada no sale en la agenda; el de al lado, con la casilla vacía o a 0
+     * (los de siempre), sí. Y si el campo aún no existe en el CRM, no se pide
+     * y todo se ve como antes.
+     */
+    public function testLaAgendaNoEnsenaLosEventosOcultos()
+    {
+        $eventos = array(
+            $this->evento(array('id' => 'ev-oculto', 'name' => 'Reunión de monitores', 'start_date' => '2026-10-20',
+                'assigned_user_id' => 'deleg-castellon', 'ajmcm_ocultar_area_c' => '1')),
+            $this->evento(array('id' => 'ev-visible', 'name' => 'Convivencia', 'start_date' => '2026-10-21',
+                'assigned_user_id' => 'deleg-castellon', 'ajmcm_ocultar_area_c' => '0')),
+            $this->evento(array('id' => 'ev-antiguo', 'name' => 'Evento de siempre', 'start_date' => '2026-10-22',
+                'assigned_user_id' => 'deleg-castellon')),
+        );
+        $scp = new FakeCalendarSCP(array('ajmcm_ocultar_area_c' => array()), $eventos);
+        $data = sticpa_gather_calendar_data($scp);
+        $this->assertSame(array('Convivencia', 'Evento de siempre'), $this->nombres($data['available_events']));
+        $this->assertContains('ajmcm_ocultar_area_c', $scp->fieldsPedidos);
+
+        // Sin el campo en el CRM: no se pide (pedir una columna que no existe da error).
+        $GLOBALS['__stic_transients'] = array();   // la definición va cacheada 6 h
+        $scp2 = new FakeCalendarSCP(array(), $eventos);
+        sticpa_gather_calendar_data($scp2);
+        $this->assertNotContains('ajmcm_ocultar_area_c', $scp2->fieldsPedidos);
+    }
+
+    /** Ocultar no depende del interruptor de audiencia: apagarlo no destapa lo escondido. */
+    public function testOcultarValeConLaAudienciaApagada()
+    {
+        $GLOBALS['__stic_filters']['sticpa_event_audience_enabled'] = false;
+        $filas = array(
+            $this->evento(array('id' => 'a', 'name' => 'A', 'ajmcm_ocultar_area_c' => '1')),
+            $this->evento(array('id' => 'b', 'name' => 'B')),
+        );
+        $out = sticpa_filter_events_for_viewer(new FakeCalendarSCP(), $filas);
+        $this->assertCount(1, $out);
+        $this->assertSame('b', $out[0]->id);
+    }
+
+    /**
      * Un evento nacional se ve desde cualquier delegación. Es la otra dirección
      * del mismo fallo y hay que probarla: esconder de más deja el calendario
      * vacío y parece que el área está rota.

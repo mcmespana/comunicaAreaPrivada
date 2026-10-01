@@ -25,7 +25,7 @@ switch (getDestinationModule()) {
 // como "ETIQUETA: valor" — y el importe, que es LA columna, quedaba en medio de
 // la fila sin alinear. Se pinta con sticpa_payments_list_html()
 // (inc/stic-payments.php). La acción principal era "Editar" un pago: fuera.
-$listTitle = __('Mis pagos', 'sticpa');
+$listTitle = __('Pagos', 'sticpa');
 
 
 // Los campos que se piden. La novedad es `payment_date`: el listado NO la pedía,
@@ -59,6 +59,14 @@ if ((isset($_SESSION['scp_tutor_is_user']) && $_SESSION['scp_tutor_is_user']) ||
     // destinatario". Con 50 pagos, 50 viajes. Esa columna ya no existe: en la
     // tarjeta manda el importe, la fecha y el estado, y de quién es el pago ya
     // lo dice la barra de identidad de arriba, que es de quien estás viendo.
+    // LOS COMPROMISOS de quien paga (plan 041): para saber qué pago es un
+    // intento de tarjeta y qué cuelga de algo ya cerrado, y para reclamar.
+    $commitmentRows = sticpa_payments_commitment_rows($objSCP, $parentModule,
+        $parentModule === 'Accounts' ? 'stic_payment_commitments_accounts' : 'stic_payment_commitments_contacts');
+    if (sticpa_payments_settle($objSCP, $commitmentRows)) {
+        $commitmentRows = sticpa_payments_commitment_rows($objSCP, $parentModule,
+            $parentModule === 'Accounts' ? 'stic_payment_commitments_accounts' : 'stic_payment_commitments_contacts');
+    }
     $availablePayments = $objSCP->getRelatedElementsForLoggedUser($params);
 
 } else {
@@ -66,7 +74,7 @@ if ((isset($_SESSION['scp_tutor_is_user']) && $_SESSION['scp_tutor_is_user']) ||
         'module_name' => $parentModule,
         "module_id" => $_SESSION['scp_user_id'], //Do not touch
         "link_field_name" => 'stic_payment_commitments_contacts_1',
-        "related_fields" => array('id'), //Do not touch
+        "related_fields" => sticpa_payments_commitment_fields(),
         "related_module_link_name_to_fields_array" => array(),
         "deleted" => 0, //show or not deleted elements (usually 0)
         "order_by" => "",
@@ -75,6 +83,10 @@ if ((isset($_SESSION['scp_tutor_is_user']) && $_SESSION['scp_tutor_is_user']) ||
     );
 
     $getRelatedElements = $objSCP->getRelatedElementsForLoggedUser($params);
+    if (sticpa_payments_settle($objSCP, (array) $getRelatedElements)) {
+        $getRelatedElements = $objSCP->getRelatedElementsForLoggedUser($params);
+    }
+    $commitmentRows = is_array($getRelatedElements) ? $getRelatedElements : array();
 
     // Los pagos de un participante menor cuelgan de SUS compromisos, y no hay
     // forma de pedirlos todos de una vez: una consulta por compromiso. Lo que
@@ -118,7 +130,10 @@ if ((isset($_SESSION['scp_tutor_is_user']) && $_SESSION['scp_tutor_is_user']) ||
 $definition = sticpa_cached_field_definition($objSCP, 'stic_Payments', array('status', 'payment_method', 'payment_type'));
 
 $html .= "<div class='stic-entry-header'><h3>" . esc_html($listTitle) . "</h3></div>";
-$html .= sticpa_payments_list_html($availablePayments, $definition);
+if (($_REQUEST['msg'] ?? '') === 'pagado') {
+    $html .= sticpa_record_note_html(array('tone' => 'ok', 'icon' => 'check', 'text' => __('Pago hecho. Si aún lo ves pendiente, el banco está terminando de confirmarlo.', 'sticpa')));
+}
+$html .= sticpa_payments_list_html($availablePayments, $definition, sticpa_payments_commitment_map($commitmentRows ?? array()));
 
 // El certificado de donaciones, si el CRM tiene plantilla configurada, va al
 // final y como acción secundaria: no es a lo que se entra.
