@@ -33,6 +33,9 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+// Pagar con tarjeta lo que se debe (plan 041): la ficha de la inscripción lo usa.
+require_once __DIR__ . '/stic-pay-card.php';
+
 /**
  * Campos que se piden al CRM para el LISTADO. Cortos a propósito: cada campo
  * de más viaja por cada inscripción.
@@ -453,10 +456,10 @@ function sticpa_registration_tutor($nvl, $prefix, $definition)
  * @param array $definition Definición de campos cacheada del módulo.
  * @param array $extra      Lo que la página ha averiguado aparte (EV-2/6/7):
  *   'aviso'       => nota tras guardar (sticpa_registration_saved_note()),
- *   'pagos'       => compromisos de pago de la inscripción (filas del CRM),
+ *   'pago'        => sticpa_registration_payment_state() (plan 041),
  *   'metodos'     => clave => etiqueta de `payment_method`,
  *   'pagar_url'   => a dónde lleva «Pagar con tarjeta» si no hay compromiso,
- *   'precio'      => precio del evento (float),
+ *   'esperando'   => recién vuelto del TPV: no se ofrece pagar otra vez,
  *   'derechos'    => sticpa_registration_manage_rights(),
  *   'gestion'     => HTML de sticpa_registration_manage_html().
  */
@@ -575,30 +578,13 @@ function sticpa_registration_detail_html($reg, $definition = array(), $extra = a
             'text'  => $respuesta,
         );
     }
-    // El pago (EV-7): el compromiso que dejó la inscripción, con su medio.
-    $metodos = (array) ($extra['metodos'] ?? array());
-    foreach ((array) ($extra['pagos'] ?? array()) as $pago) {
-        $pnvl = $pago->name_value_list ?? null;
-        $pid = (string) ($pago->id ?? ($pnvl->id->value ?? ''));
-        $importe = trim((string) ($pnvl->amount->value ?? ''));
-        $metodo = trim((string) ($pnvl->payment_method->value ?? ''));
-        $partes = array_filter(array(
-            $importe !== '' ? (string) formatValue($importe, 'currency') : '',
-            $metodos[$metodo] ?? '',
-            trim((string) ($pnvl->end_date->value ?? '')) !== '' ? __('dado de baja', 'sticpa') : '',
-        ));
-        if (empty($partes) || $pid === '') {
-            continue;
-        }
-        $facts[] = array(
-            'icon'  => 'card',
-            'label' => __('Pago', 'sticpa'),
-            'text'  => implode(' · ', $partes),
-            'link'  => array(
-                'url' => '?internalpage=single_stic_payment_commitments&action=detail&id=' . rawurlencode($pid),
-                'label' => __('Ver el compromiso de pago', 'sticpa'),
-            ),
-        );
+    // EL PAGO, en una línea y con lo que toca hacer (plan 041). Sin enlace
+    // al «compromiso»: esa palabra no es de las familias, y lo que se viene a
+    // mirar aquí es si está pagado y, si no, cómo se paga.
+    $pago = (array) ($extra['pago'] ?? array());
+    $pagoUi = sticpa_payment_state_ui($pago, (array) ($extra['metodos'] ?? array()), !empty($extra['esperando']));
+    if ($pagoUi['fact'] !== null) {
+        $facts[] = $pagoUi['fact'];
     }
     // El código administrativo, al final y solo si es distinto del título: es
     // lo que hay que decir por teléfono cuando algo va mal.
@@ -656,17 +642,25 @@ function sticpa_registration_detail_html($reg, $definition = array(), $extra = a
         $notes[] = array('tone' => 'info', 'icon' => 'info', 'text' => $extra['derechos']['motivo']);
     }
 
+    if ($pagoUi['note'] !== null) {
+        $notes[] = $pagoUi['note'];
+    }
+
     // --- Qué se puede hacer desde aquí ---
     $actions = array();
-    // Una actividad con precio SIN compromiso de pago: o se eligió tarjeta y el
-    // pago no se llegó a hacer, o la inscripción es de antes de que el área
-    // dejara el pago anotado. Un pago con tarjeta hecho ya está atado cuando se
-    // llega aquí (la página lo busca antes, EV-9), así que no se cobra dos veces.
-    $pagarUrl = (string) ($extra['pagar_url'] ?? '');
-    if ($pagarUrl !== '' && empty($extra['pagos']) && (float) ($extra['precio'] ?? 0) > 0 && $tone !== 'danger' && !$reg['is_past']) {
+    // Pagar, si hay algo que pagar. Lo que se cobra es el PAGO pendiente (su
+    // importe, no el precio del evento); sin compromiso anotado, por el precio
+    // del evento, como antes. Nunca en una inscripción cancelada.
+    $pagarUrl = '';
+    if ($tone !== 'danger' && in_array($pago['estado'] ?? '', array('pendiente', 'devuelto'), true) && empty($extra['esperando'])) {
+        $pagarUrl = sticpa_pay_url($pago['pago_id']);
+    } elseif ($tone !== 'danger' && ($pago['estado'] ?? '') === 'sin_compromiso' && !$reg['is_past'] && empty($extra['esperando'])) {
+        $pagarUrl = (string) ($extra['pagar_url'] ?? '');
+    }
+    if ($pagarUrl !== '') {
         $actions[] = array(
-            /* translators: %s = precio de la actividad, ya formateado */
-            'label' => sprintf(__('Pagar %s con tarjeta', 'sticpa'), (string) formatValue((string) $extra['precio'], 'currency')),
+            /* translators: %s = importe, ya formateado */
+            'label' => sprintf(__('Pagar %s con tarjeta', 'sticpa'), (string) formatValue((string) $pago['importe'], 'currency')),
             'url' => $pagarUrl,
         );
     }
@@ -678,7 +672,6 @@ function sticpa_registration_detail_html($reg, $definition = array(), $extra = a
             'icon'    => 'go',
         );
     }
-    $actions[] = array('label' => __('Mis pagos', 'sticpa'), 'url' => '?internalpage=list_stic_payments');
 
     return sticpa_record_detail_html(array(
         'back'     => array('url' => '?internalpage=list_stic_registrations', 'label' => __('Mis inscripciones', 'sticpa')),
@@ -1328,7 +1321,7 @@ function sticpa_commitment_payments($objSCP, $commitmentId)
         'module_name' => 'stic_Payment_Commitments',
         'module_id' => (string) $commitmentId,
         'link_field_name' => 'stic_payments_stic_payment_commitments',
-        'related_fields' => array('id', 'status', 'name', 'payment_type'),
+        'related_fields' => array('id', 'status', 'name', 'payment_type', 'amount', 'payment_date', 'payment_method'),
         'related_module_link_name_to_fields_array' => array(),
         'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
     ));
@@ -1347,9 +1340,11 @@ function sticpa_commitment_payments($objSCP, $commitmentId)
  * pagos, y los pagos fuera del modelo 182 (`m182_excluded`), que es para
  * donaciones.
  */
-function sticpa_card_commitment_as_service($objSCP, $commitmentId, $name, $type, array $payments)
+function sticpa_card_commitment_as_service($objSCP, $commitmentId, $name, $type, array $payments, $tipo = null)
 {
-    $tipo = sticpa_registration_payment_type();
+    // El tipo que le toca: el del pago al que sustituye (una cuota es `fee`),
+    // o el de una actividad.
+    $tipo = ($tipo !== null && $tipo !== '') ? (string) $tipo : sticpa_registration_payment_type();
     $labels = function_exists('sticpa_cached_field_definition')
         ? sticpa_crm_enum_options(sticpa_cached_field_definition($objSCP, 'stic_Payment_Commitments', array('payment_type')), 'payment_type')
         : array();
@@ -1403,7 +1398,7 @@ function sticpa_registration_claim_card_commitment($objSCP, $regId)
     // La marca solo lleva hexadecimales, guiones y corchetes: nada que escapar
     // en un LIKE (ni `%` ni `_` ni comillas).
     $rows = $objSCP->getRecordsModule('stic_Payment_Commitments',
-        "stic_payment_commitments.description LIKE '%" . $marca . "%'", array('id', 'name', 'payment_type'));
+        "stic_payment_commitments.description LIKE '%" . $marca . "%'", array('id', 'name', 'payment_type', 'date_entered', 'description'));
     $n = 0;
     foreach ((array) $rows as $row) {
         $nvl = $row->name_value_list ?? null;
@@ -1417,6 +1412,12 @@ function sticpa_registration_claim_card_commitment($objSCP, $regId)
             $cobrado = $cobrado || (string) ($p->name_value_list->status->value ?? '') === 'paid';
         }
         if (!$cobrado) {
+            // Un intento abandonado se cierra a las 24 h (plan 041, D-4).
+            if (function_exists('sticpa_pay_is_stale') && sticpa_pay_is_stale($nvl->date_entered->value ?? '')) {
+                sticpa_pay_close_commitment($objSCP, $cid,
+                    sprintf('Intento de pago con tarjeta sin terminar: cerrado por el área privada el %s.', date('d/m/Y')),
+                    $marca, '[abandonado:' . strtolower((string) $regId) . ']');
+            }
             continue;
         }
         if ($objSCP->set_relationship('stic_Payment_Commitments', $cid,
@@ -1424,6 +1425,11 @@ function sticpa_registration_claim_card_commitment($objSCP, $regId)
             $n++;
             sticpa_card_commitment_as_service($objSCP, $cid, (string) ($nvl->name->value ?? ''),
                 (string) ($nvl->payment_type->value ?? ''), $pagos);
+            // La marca, reescrita: ya está atado y no se vuelve a buscar.
+            $objSCP->set_entry('stic_Payment_Commitments', array(
+                'id' => $cid,
+                'description' => str_replace($marca, '[atada:' . strtolower((string) $regId) . ']', (string) ($nvl->description->value ?? '')),
+            ));
         }
     }
     return $n;
