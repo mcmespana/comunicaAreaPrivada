@@ -657,18 +657,22 @@ function sticpa_registration_detail_html($reg, $definition = array(), $extra = a
     } elseif ($tone !== 'danger' && ($pago['estado'] ?? '') === 'sin_compromiso' && !$reg['is_past'] && empty($extra['esperando'])) {
         $pagarUrl = (string) ($extra['pagar_url'] ?? '');
     }
+    // Si hay algo que pagar, pagar es LA acción de la pantalla; si no, ver la
+    // actividad.
     if ($pagarUrl !== '') {
         $actions[] = array(
             /* translators: %s = importe, ya formateado */
             'label' => sprintf(__('Pagar %s con tarjeta', 'sticpa'), (string) formatValue((string) $pago['importe'], 'currency')),
             'url' => $pagarUrl,
+            'primary' => true,
+            'icon' => 'go',
         );
     }
     if ($reg['event_id'] !== '') {
         $actions[] = array(
             'label'   => __('Ver la actividad', 'sticpa'),
             'url'     => '?internalpage=single_stic_events&action=detail&id=' . rawurlencode($reg['event_id']),
-            'primary' => true,
+            'primary' => $pagarUrl === '',
             'icon'    => 'go',
         );
     }

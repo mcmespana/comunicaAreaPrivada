@@ -72,7 +72,9 @@ contexto**. Reglas:
 - **Todo lo que se cree en el CRM va asignado a su delegación**
   (`assigned_user_id` = el usuario de la delegación), porque de ahí cuelga el
   grupo de seguridad y así cada delegación controla lo suyo. Un monitor solo ve
-  lo de su delegación.
+  lo de su delegación. **Lo de un evento —la inscripción, su compromiso y sus
+  pagos— es de quien lo organiza**: el `assigned_user_id` del evento (en lo
+  local es la delegación; el Foro, de ECE). Decidido el 01/10/2026, plan 041.
 - **Nada interdelegacional.**
 - ⚠️ **Los grupos de seguridad del CRM NO protegen el área privada.** El plugin
   se conecta al CRM con **un usuario técnico**, no con la persona que ha

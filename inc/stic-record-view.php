@@ -330,6 +330,19 @@ function sticpa_record_card_html($card)
     return $html;
 }
 
+/** Un aviso: array('tone' => ok|warn|danger|info, 'icon'?, 'text'). */
+function sticpa_record_note_html($note)
+{
+    $text = trim((string) ($note['text'] ?? ''));
+    if ($text === '') {
+        return '';
+    }
+    $tone = in_array($note['tone'] ?? '', array('ok', 'warn', 'danger', 'info'), true) ? $note['tone'] : 'info';
+    return "<p class='stic-rec-note stic-rec-note--" . esc_attr($tone) . "'>"
+        . sticpa_record_icon($note['icon'] ?? ($tone === 'ok' ? 'check' : ($tone === 'info' ? 'info' : 'alert')))
+        . "<span>" . esc_html($text) . "</span></p>";
+}
+
 /** La rejilla de tarjetas (1 columna en móvil, 2 desde 768px). */
 function sticpa_record_list_html($cards)
 {
@@ -465,14 +478,7 @@ function sticpa_record_detail_html($spec)
 
     // --- Avisos: lo que hay que saber antes de leer los datos ---
     foreach ((array) ($spec['notes'] ?? array()) as $note) {
-        $text = trim((string) ($note['text'] ?? ''));
-        if ($text === '') {
-            continue;
-        }
-        $tone = in_array($note['tone'] ?? '', array('ok', 'warn', 'danger', 'info'), true) ? $note['tone'] : 'info';
-        $html .= "<p class='stic-rec-note stic-rec-note--" . esc_attr($tone) . "'>"
-            . sticpa_record_icon($note['icon'] ?? ($tone === 'ok' ? 'check' : ($tone === 'info' ? 'info' : 'alert')))
-            . "<span>" . esc_html($text) . "</span></p>";
+        $html .= sticpa_record_note_html($note);
     }
 
     // --- El progreso, si la ficha cuenta una historia de "llevas X de Y" ---

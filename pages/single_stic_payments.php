@@ -54,6 +54,23 @@ if (($_REQUEST['action'] ?? '') === 'detail') {
         'status', 'payment_method', 'payment_type', 'sepa_rejected_reason', 'c19_rejected_reason',
     ));
 
+    // ¿Se puede pagar desde aquí? Si está pendiente o devuelto, y su
+    // compromiso sigue vivo y no es un intento de tarjeta (plan 041).
+    $payment['pagable'] = false;
+    if (sticpa_pay_is_payable($payment['status'], $payment['method'])) {
+        $pcId = trim((string) ($nvl->stic_paymebfe2itments_ida->value ?? ''));
+        $pcNvl = $pcId !== ''
+            ? ($objSCP->getRecordDetail($pcId, 'stic_Payment_Commitments', array('id', 'description', 'end_date', 'payment_method', 'channel'))->entry_list[0]->name_value_list ?? null)
+            : null;
+        $pc = $pcNvl ? array(
+            'description'    => (string) ($pcNvl->description->value ?? ''),
+            'end_date'       => (string) ($pcNvl->end_date->value ?? ''),
+            'payment_method' => (string) ($pcNvl->payment_method->value ?? ''),
+            'channel'        => (string) ($pcNvl->channel->value ?? ''),
+        ) : null;
+        $payment['pagable'] = $pc !== null && trim($pc['end_date']) === '' && !sticpa_commitment_is_card_attempt($pc);
+    }
+
     $html .= sticpa_payment_detail_html($payment, $definition);
     return;
 }

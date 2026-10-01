@@ -407,7 +407,7 @@ function sticpa_payment_state_ui($pago, $metodos = array(), $esperando = false)
             if ($esperando) {
                 $out['note'] = array('tone' => 'info', 'icon' => 'info', 'text' => __('Estamos esperando la confirmación del banco. En unos minutos lo verás como pagado.', 'sticpa'));
             } elseif ($estado === 'pendiente' && in_array($pago['metodo'] ?? '', array('transfer', 'bizum', 'cash'), true)) {
-                $out['note'] = array('tone' => 'info', 'icon' => 'info', 'text' => __('Si ya lo has pagado, tu delegación lo marcará en cuanto lo vea. Si prefieres, también puedes pagarlo con tarjeta.', 'sticpa'));
+                $out['note'] = array('tone' => 'info', 'icon' => 'info', 'text' => __('¿Ya lo has pagado? Tu delegación lo marcará en cuanto lo vea.', 'sticpa'));
             }
             break;
     }

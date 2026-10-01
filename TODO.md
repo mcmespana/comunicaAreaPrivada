@@ -37,11 +37,11 @@ puedan coger una tarea, entender el porqué y hacerla sin contexto previo.
 Nada de esto es código; sin ello, el código que lo espera no avanza.
 
 **Decidir**
-- [!] `PAG-01` (P1 · M) **Pagos: un solo flujo** — [`plans/041`](plans/041-pagos-un-solo-flujo.md).
-      Pagar con tarjeta crea otro compromiso en vez de saldar el que hay (el Foro de Laicos
-      dejó dos por persona, uno como donativo y de otra delegación). Seis decisiones en su §9
-      (D-1 de quién es el dinero de un evento … D-6 si se enseñan los compromisos). Antes de
-      nada, la limpieza del Foro (F0).
+- [ ] `PAG-01` (P1 · M) **Pagos: un solo flujo** — [`plans/041`](plans/041-pagos-un-solo-flujo.md).
+      Hecho en el área el 01/10 (pagar con tarjeta sustituye el pendiente, Pagos en tres
+      bloques, el organizador es el dueño, fuera «aportación» y «compromiso»). Te queda el
+      **formulario avanzado del Foro**: que pregunte cómo se paga (transferencia o tarjeta) y
+      cree el compromiso con ESE medio (no «Especie»), de ECE. Y en el correo, las dos opciones.
 - [!] `FAM-02` (P1 · S) **Medio de pago del familiar**: la pantalla usa `ajmcm_pago_*_c`, que
       NO existen, y el IBAN que se mete se pierde. Los campos buenos (`ajmcm_iban_c`…) están
       en el participante. Decidir: quitar la sección, escribir en cada participante o en el
@@ -57,11 +57,6 @@ Nada de esto es código; sin ello, el código que lo espera no avanza.
 - [!] `DOC-03` (P2 · S) **`/aptest/` da 404** desde el 24/09/2026 (es una página de
       WordPress). Si se quitó a propósito, cambiar a `/ap/` los cinco documentos que la
       citan; si no, volver a crearla.
-
-- [!] `EV-9c` (P1 · S) **El TPV está en modo PRUEBAS** (`TPV_TEST = 1` en los ajustes del CRM,
-      visto el 29/09/2026): los pagos con tarjeta van al entorno de pruebas de Redsys y no
-      cobran de verdad. Probar con la tarjeta de pruebas y, cuando vaya, ponerlo a `0`
-      (Admin → Ajustes de SinergiaCRM → TPV). Decidir cuándo.
 
 **Crear en Studio** (el código está hecho y se activa solo)
 - [x] `EV-6` (P2 · S) **Preguntas simples — campos creados el 30/09**: `ajmcm_pregunta_1_c` y `ajmcm_pregunta_2_c` en

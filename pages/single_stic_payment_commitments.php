@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) {
 
 // ¿Es tuyo? Antes esta pantalla abría el registro de cualquier `?id=` que se
 // le pasara (inc/stic-security.php, sticpa_record_denied_html).
-$sticpaDenied = sticpa_record_denied_html($objSCP, 'stic_Payment_Commitments', $_REQUEST['id'] ?? '', 'list_stic_payment_commitments', __('Este compromiso ya no está disponible', 'sticpa'));
+$sticpaDenied = sticpa_record_denied_html($objSCP, 'stic_Payment_Commitments', $_REQUEST['id'] ?? '', 'list_stic_payments', __('Este pago ya no está disponible', 'sticpa'));
 if ($sticpaDenied !== '') {
     $html .= $sticpaDenied;
     return;
@@ -30,9 +30,9 @@ if (($_REQUEST['action'] ?? '') === 'detail') {
     if ($commitmentId === '') {
         $html .= sticpa_record_empty_html(
             'repeat',
-            __('No hemos encontrado el compromiso', 'sticpa'),
-            __('Puede que el enlace esté incompleto. Vuelve a tus compromisos y entra de nuevo.', 'sticpa'),
-            array('label' => __('Ver mis compromisos', 'sticpa'), 'url' => '?internalpage=list_stic_payment_commitments', 'primary' => true)
+            __('No hemos encontrado este pago', 'sticpa'),
+            __('Puede que el enlace esté incompleto. Vuelve a Pagos y entra de nuevo.', 'sticpa'),
+            array('label' => __('Ver mis pagos', 'sticpa'), 'url' => '?internalpage=list_stic_payments', 'primary' => true)
         );
         return;
     }
@@ -44,9 +44,9 @@ if (($_REQUEST['action'] ?? '') === 'detail') {
     if (!$commitment) {
         $html .= sticpa_record_empty_html(
             'repeat',
-            __('Este compromiso ya no está disponible', 'sticpa'),
-            __('Consulta el resto de tus compromisos de pago.', 'sticpa'),
-            array('label' => __('Ver mis compromisos', 'sticpa'), 'url' => '?internalpage=list_stic_payment_commitments', 'primary' => true)
+            __('Este pago ya no está disponible', 'sticpa'),
+            __('Consulta el resto de tus pagos.', 'sticpa'),
+            array('label' => __('Ver mis pagos', 'sticpa'), 'url' => '?internalpage=list_stic_payments', 'primary' => true)
         );
         return;
     }
