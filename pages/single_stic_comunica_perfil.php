@@ -98,25 +98,20 @@ if (in_array('identidad', $sections, true)) {
     $fieldList[] = array('name' => 'stic_identification_number_c', 'required' => false, 'attributes' => array('disabled' => 'disabled'));
     $fieldList[] = array('name' => 'birthdate', 'required' => false, 'attributes' => array('disabled' => 'disabled', 'autocomplete' => 'bday'));
     $fieldList[] = array('name' => 'stic_gender_c', 'required' => false, 'label' => __('Género', 'sticpa'));
-    // Soporte y expedición del DNI: opcionales. Los piden los albergues
-    // públicos; si ya los tenemos (por una inscripción anterior) lo decimos.
-    $dniSup = trim((string) ($data->stic_identification_sup_c->value ?? ''));
-    $dniExp = trim((string) ($data->stic_identification_exp_c->value ?? ''));
-    $dniSiLoTenemos = function ($lo_tenemos) {
-        return $lo_tenemos
-            ? __('✓ Ya lo tenemos. Puedes corregirlo si cambia.', 'sticpa')
-            : __('Opcional. Lo piden en los albergues públicos.', 'sticpa');
-    };
-    $fieldList[] = array(
-        'name' => 'stic_identification_sup_c', 'required' => false,
-        'label' => __('Número de soporte del DNI (opcional)', 'sticpa'),
-        'hint' => esc_html($dniSiLoTenemos($dniSup !== '')),
-    );
-    $fieldList[] = array(
-        'name' => 'stic_identification_exp_c', 'required' => false,
-        'label' => __('Fecha de expedición del DNI (opcional)', 'sticpa'),
-        'hint' => esc_html($dniSiLoTenemos($dniExp !== '')),
-    );
+    // Soporte y expedición del DNI: solo se enseñan si ya los tenemos (los vamos
+    // pidiendo en los eventos que los necesitan, p. ej. albergues públicos).
+    foreach (array(
+        'stic_identification_sup_c' => __('Número de soporte del DNI', 'sticpa'),
+        'stic_identification_exp_c' => __('Fecha de expedición del DNI', 'sticpa'),
+    ) as $dniCampo => $dniEtiqueta) {
+        if (trim((string) ($data->$dniCampo->value ?? '')) === '') {
+            continue;
+        }
+        $fieldList[] = array(
+            'name' => $dniCampo, 'required' => false, 'label' => $dniEtiqueta,
+            'hint' => esc_html__('✓ Ya lo tenemos. Puedes corregirlo si cambia.', 'sticpa'),
+        );
+    }
 
     // Aviso: los campos con asterisco morado no se pueden editar desde aquí.
     $fieldList[] = array(
