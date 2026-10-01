@@ -37,6 +37,11 @@ puedan coger una tarea, entender el porqué y hacerla sin contexto previo.
 Nada de esto es código; sin ello, el código que lo espera no avanza.
 
 **Decidir**
+- [!] `PAG-01` (P1 · M) **Pagos: un solo flujo** — [`plans/041`](plans/041-pagos-un-solo-flujo.md).
+      Pagar con tarjeta crea otro compromiso en vez de saldar el que hay (el Foro de Laicos
+      dejó dos por persona, uno como donativo y de otra delegación). Seis decisiones en su §9
+      (D-1 de quién es el dinero de un evento … D-6 si se enseñan los compromisos). Antes de
+      nada, la limpieza del Foro (F0).
 - [!] `FAM-02` (P1 · S) **Medio de pago del familiar**: la pantalla usa `ajmcm_pago_*_c`, que
       NO existen, y el IBAN que se mete se pierde. Los campos buenos (`ajmcm_iban_c`…) están
       en el participante. Decidir: quitar la sección, escribir en cada participante o en el
