@@ -101,7 +101,7 @@ if (in_array('identidad', $sections, true)) {
     // Soporte y expedición del DNI: solo se enseñan si ya los tenemos (los vamos
     // pidiendo en los eventos que los necesitan, p. ej. albergues públicos).
     foreach (array(
-        'stic_identification_sup_c' => __('Número de soporte del DNI', 'sticpa'),
+        'stic_identification_supp_c' => __('Número de soporte del DNI', 'sticpa'),
         'stic_identification_exp_c' => __('Fecha de expedición del DNI', 'sticpa'),
     ) as $dniCampo => $dniEtiqueta) {
         if (trim((string) ($data->$dniCampo->value ?? '')) === '') {

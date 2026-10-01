@@ -1097,7 +1097,7 @@ Fuente: https://wiki.sinergiatic.org/index.php?title=Estructura_de_datos:_m%C3%B
   - Usado por nosotros: **Sí**
 - `stic_identification_number_c` — Número de identificación (texto)
   - Usado por nosotros: **Sí**
-- `stic_identification_sup_c` — Número de soporte del DNI (texto)
+- `stic_identification_supp_c` — Número de soporte del DNI (texto)
   - Lo piden los albergues públicos. **Opcional** en todos los formularios: se
     ofrece en el alta de monitores y en las actualizaciones (formulario de
     edición y «Mis datos» del área privada), con un aviso «Ya lo tenemos» si
