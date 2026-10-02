@@ -831,23 +831,14 @@ function sticpa_access_code_form($html = "")
     }
 
     /* ---------- Formulario del código ---------- */
-    // maxlength 7 y no 6: al pegar «123 456» desde el correo cabe el espacio.
-    // El servidor se queda solo con los dígitos.
-    $codeForm = "
-        <form action='" . site_url() . "/wp-admin/admin-post.php' method='post' class='stic-loading-form stic-code-form'
-              data-loading-text='" . esc_attr__('Comprobando tu código…', 'sticpa') . "'
-              data-loading-sub='" . esc_attr__('Un segundo y estás dentro.', 'sticpa') . "'>
-            <label class='stic-code-label' for='stic-otp-code'>" . esc_html__('Código de 6 cifras', 'sticpa') . "</label>
-            <input type='text' id='stic-otp-code' name='sticpa_otp_code' class='stic-code-input" . ($error === 'bad' ? " is-wrong" : "") . "'
-                   inputmode='numeric' autocomplete='one-time-code' maxlength='7'
-                   placeholder='000 000' aria-describedby='stic-code-hint' required autofocus>
-            <p class='stic-code-hint' id='stic-code-hint'>" . sprintf(
-                esc_html__('Caduca en %d minutos.', 'sticpa'),
-                (int) round(sticpa_otp_ttl() / MINUTE_IN_SECONDS)
-            ) . "</p>";
-
+    // ¿De quién es el código? Si se pidió en otro sitio (típico: correo en el
+    // ordenador, app en el móvil), no lo sabemos y hay que preguntarlo. Ese
+    // campo va ANTES que el código: el código se envía solo al llegar a la
+    // sexta cifra (`bindCodeInput`), y con el correo debajo y vacío el envío
+    // se paraba en «rellena este campo» y parecía que el código había fallado.
+    $whose = '';
     if ($pending !== '' && !$viaDni) {
-        $codeForm .= "<input type='hidden' name='sticpa_otp_email' value='" . esc_attr($pending) . "'>";
+        $whose = "<input type='hidden' name='sticpa_otp_email' value='" . esc_attr($pending) . "'>";
     } elseif ($viaDni) {
         // POR DOCUMENTO NO SE PINTA LA DIRECCIÓN, ni siquiera oculta: quien
         // mirara el código fuente vería entera la que estamos enseñando
@@ -855,16 +846,31 @@ function sticpa_access_code_form($html = "")
         // saca de la sesión cuando no viene en el formulario
         // (`sticpa_handle_verify_code`).
     } else {
-        // Se pidió el código en otro sitio (típico: correo en el ordenador, app
-        // en el móvil). Necesitamos saber de quién es el código.
-        $codeForm .= "
+        $whose = "
             <label class='stic-code-label' for='stic-otp-email'>" . esc_html__('Tu correo', 'sticpa') . "</label>
             <span class='stic-field'>
                 <span class='stic-field-icon'>" . sticpa_icon('mail') . "</span>
                 <input type='email' class='input-text' id='stic-otp-email' name='sticpa_otp_email'
-                       autocomplete='email' inputmode='email' placeholder='" . esc_attr__('nombre@correo.com', 'sticpa') . "' required>
+                       autocomplete='email' inputmode='email' placeholder='" . esc_attr__('nombre@correo.com', 'sticpa') . "' required autofocus>
             </span>";
     }
+    $askEmail = ($pending === '' && !$viaDni);
+
+    // maxlength 7 y no 6: al pegar «123 456» desde el correo cabe el espacio.
+    // El servidor se queda solo con los dígitos.
+    $codeForm = "
+        <form action='" . site_url() . "/wp-admin/admin-post.php' method='post' class='stic-loading-form stic-code-form'
+              data-loading-text='" . esc_attr__('Comprobando tu código…', 'sticpa') . "'
+              data-loading-sub='" . esc_attr__('Un segundo y estás dentro.', 'sticpa') . "'>
+            " . $whose . "
+            <label class='stic-code-label' for='stic-otp-code'>" . esc_html__('Código de 6 cifras', 'sticpa') . "</label>
+            <input type='text' id='stic-otp-code' name='sticpa_otp_code' class='stic-code-input" . ($error === 'bad' ? " is-wrong" : "") . "'
+                   inputmode='numeric' autocomplete='one-time-code' maxlength='7'
+                   placeholder='000 000' aria-describedby='stic-code-hint' required" . ($askEmail ? "" : " autofocus") . ">
+            <p class='stic-code-hint' id='stic-code-hint'>" . sprintf(
+                esc_html__('Caduca en %d minutos.', 'sticpa'),
+                (int) round(sticpa_otp_ttl() / MINUTE_IN_SECONDS)
+            ) . "</p>";
 
     $codeForm .= "
             <input type='hidden' name='action' value='sticpa_verify_code'>

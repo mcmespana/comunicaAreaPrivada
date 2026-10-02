@@ -24,6 +24,13 @@ El correo lleva las dos formas —enlace y código— a propósito: dentro de la
 MCM el enlace falla más, y el código es la red. Está explicado en la cabecera de
 `inc/stic-otp.php`.
 
+Desde el 02/10/2026 las dos van **con el mismo peso**: el correo las pinta como
+dos tarjetas iguales («Escribe este código» · o · «Entra con un toque») y la
+pantalla de después enseña el campo del código abierto y grande, con el enlace
+recordado debajo. El código va además **en el asunto** («123 456 es tu código
+de acceso a…»), para leerlo en la notificación sin abrir el correo; se ve en la
+pantalla bloqueada, como en casi todos los servicios, y caduca en minutos.
+
 **Las altas no se hacen aquí.** Se hacen en la web pública, con el formulario que
 toca en cada caso. La URL está en `sticpa_signup_url()` (opción
 `sticpa_signup_url`, por defecto `comunica.movimientoconsolacion.com`). Hasta el
