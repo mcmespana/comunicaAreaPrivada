@@ -98,6 +98,20 @@ if (in_array('identidad', $sections, true)) {
     $fieldList[] = array('name' => 'stic_identification_number_c', 'required' => false, 'attributes' => array('disabled' => 'disabled'));
     $fieldList[] = array('name' => 'birthdate', 'required' => false, 'attributes' => array('disabled' => 'disabled', 'autocomplete' => 'bday'));
     $fieldList[] = array('name' => 'stic_gender_c', 'required' => false, 'label' => __('Género', 'sticpa'));
+    // Soporte y expedición del DNI: solo se enseñan si ya los tenemos (los vamos
+    // pidiendo en los eventos que los necesitan, p. ej. albergues públicos).
+    foreach (array(
+        'stic_identification_supp_c' => __('Número de soporte del DNI', 'sticpa'),
+        'stic_identification_exp_c' => __('Fecha de expedición del DNI', 'sticpa'),
+    ) as $dniCampo => $dniEtiqueta) {
+        if (trim((string) ($data->$dniCampo->value ?? '')) === '') {
+            continue;
+        }
+        $fieldList[] = array(
+            'name' => $dniCampo, 'required' => false, 'label' => $dniEtiqueta,
+            'hint' => esc_html__('✓ Ya lo tenemos. Puedes corregirlo si cambia.', 'sticpa'),
+        );
+    }
 
     // Aviso: los campos con asterisco morado no se pueden editar desde aquí.
     $fieldList[] = array(
