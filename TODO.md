@@ -58,6 +58,11 @@ Nada de esto es código; sin ello, el código que lo espera no avanza.
       WordPress). Si se quitó a propósito, cambiar a `/ap/` los cinco documentos que la
       citan; si no, volver a crearla.
 
+- [ ] `PAG-02` (P3 · M) **Pagar por transferencia desde un pago pendiente**: que, junto a «Pagar con
+      tarjeta», salgan las instrucciones de transferencia de ESE evento o de su delegación
+      (cuenta, concepto, a quién mandar el justificante). Hoy van solo en el correo. Idea del
+      propietario (02/10): sacarlas de la delegación (organización) en MCM Bank. Para el futuro.
+
 **Crear en Studio** (el código está hecho y se activa solo)
 - [x] `EV-6` (P2 · S) **Preguntas simples — campos creados el 30/09**: `ajmcm_pregunta_1_c` y `ajmcm_pregunta_2_c` en
       Eventos, `ajmcm_respuesta_1_c` y `ajmcm_respuesta_2_c` en Inscripciones (texto 255).
