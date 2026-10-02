@@ -743,7 +743,32 @@ esa palabra no es de las familias (plan 041). Sin nada anotado y con precio
 (inscripciones de antes del 01/10/2026), se paga por el precio del evento,
 como antes.
 
+⚠️ **Dos fallos del 02/10/2026, ya arreglados** (salieron con el pago de David
+en el Congreso de Monitores):
+
+- **El importe se guardaba ×100.** El área mandaba `amount = "35.00"` y el CRM
+  guardó **3.500 €**: el usuario técnico de la API tiene la coma como separador
+  decimal y el punto como el de miles. Ahora va `sticpa_crm_amount()`: sin
+  decimales si es entero («35»), que se lee igual con cualquier preferencia, y
+  con coma si lleva céntimos. Es el mismo fallo que ya tuvo el precio del evento.
+- **El pago salía sin persona** y por eso no aparecía en Pagos: el CRM genera el
+  pago al guardar el compromiso, antes de que el área le ponga la persona (por la
+  API es una segunda llamada), y solo lo completa si viene de un FWA. Ahora el
+  área le pone la persona al pago en cuanto lo crea, y Pagos enseña —y arregla—
+  los que se quedaron así (`sticpa_payments_without_payer()`).
+
 #### 10.2.1 Pagar con tarjeta (EV-9, 29/09/2026; plan 041, 01/10/2026)
+
+> **La pantalla de pago es un resumen, no un formulario (02/10/2026).** Se ve
+> qué se paga, cuánto, quién paga y cómo, y un único botón «Pagar 35,00 €».
+> Nada es editable: lo que va al CRM son campos ocultos. **La excepción es el
+> importe**, detrás de «Pagar otra cantidad» (descuentos, becas, arreglos con la
+> delegación): se escribe la cantidad y el botón la repite. Si se cambia, la
+> descripción del compromiso con tarjeta lo dice («Importe cambiado por la
+> persona al pagar: 20.00 (lo indicado era 35.00)») y, al sustituir, el
+> compromiso viejo se cierra igual con una nota «se pagaron X en vez de Y». Se
+> trata como un descuento, no como un pago a medias: lo que no se pagó no queda
+> pendiente. Si un día hacen falta pagos en partes, eso es otra cosa.
 
 > **Desde el 01/10/2026 lo que se paga con tarjeta es un PAGO pendiente**, no
 > una inscripción: `single_stic_payment_form&paymentId=<pago>`. El importe, el
@@ -775,7 +800,7 @@ cuando se paga una inscripción propia:
 |---|---|
 | `payment_type` | `services` (como los compromisos del resto de medios) |
 | `assigned_user_id` | la delegación (`sticpa_pl_delegation()`); `1` solo si no se sabe |
-| `amount` | el `price` del evento, bloqueado (no el de la URL) |
+| `amount` | el del pago pendiente (o el `price` del evento), oculto; solo cambia con «Pagar otra cantidad» |
 | `payment_method` | solo `card` |
 | `banking_concept` | el nombre del evento (lo que se ve en el TPV y en el extracto) |
 | `description` | «Pago con tarjeta de la inscripción a «…»» + una **marca firmada** `[insc:<id>:<firma>]` |
@@ -824,6 +849,38 @@ desactiva la campaña, vuelve a pasar. ⚠️ El TPV del CRM está en **modo pru
 29/09/2026): hasta ponerlo a `0`, la tarjeta no cobra de verdad. Solo la usa el
 pago con tarjeta: con Bizum, transferencia, efectivo o domiciliación el
 compromiso lo crea el área directamente por la API, sin formulario ni campaña.
+
+### 10.2.2 Eventos con formulario web avanzado (EV-3, 02/10/2026)
+
+Si el evento tiene relleno **`ajmcm_fwa_url_c`**, el área **no hace la
+inscripción corta**: ese evento necesita más datos (el Foro, el Congreso…).
+«Inscribirme», en la tarjeta del listado y en la ficha, lleva al FWA.
+
+- **Por una puerta del área**, no directo: `admin-post.php?action=sticpa_evento_fwa&e=<evento>`
+  (`sticpa_event_fwa_endpoint()`). Mira la sesión, que no estés ya inscrito
+  (sin caché), y la audiencia y el plazo; si algo no cuadra, vuelve al alta del
+  área, que es la pantalla que explica cada caso. Si todo cuadra, redirige al FWA.
+- **El FWA sale relleno** con los datos de quien ha entrado. El FWA de
+  SinergiaCRM rellena cualquier campo cuyo nombre llegue en la URL
+  (`FormRenderService::prefillFieldsFromRequest()` y `prefillFromUrl()` en el
+  navegador; admite también `[disabled]campo` y `[hidden]campo`, que aquí no se
+  usan). Se mandan `first_name`, `last_name`, `email1`, `phone_mobile`,
+  `stic_identification_number_c` y `stic_identification_supp_c`
+  (`sticpa_event_fwa_prefill_fields()`): con su correo y su DNI exactos, el FWA
+  encuentra a la persona en el CRM en vez de crear otra. Lo vacío no viaja, y lo
+  que ya trae el enlace (`id` del formulario) no se toca. Ojo: si el FWA tiene
+  dos bloques de contacto (participante y tutor), los dos salen rellenos con lo
+  mismo; hoy los FWA con enlace son de adultos.
+- **El CRM devuelve el enlace escapado** (`…renderForm&amp;id=…`): se deshace
+  antes de usarlo (`sticpa_event_fwa_url()`), o el FWA no sabe qué formulario
+  pintar.
+- **El alta corta queda cerrada para ese evento**: la pantalla de inscripción,
+  si se llega por un enlace viejo, enseña «Esta actividad tiene su propio
+  formulario» con el botón al FWA, y el guardado no crea nada.
+- El pago lo hace el FWA (el medio lo elige la persona en el propio FWA). Lo
+  que quede pendiente sale en **Pagos** y se puede pagar con tarjeta desde ahí.
+- **Configurar en el FWA**: a dónde vuelve al terminar. Lo natural es el área,
+  `https://comunica.movimientoconsolacion.com/ap/?internalpage=list_stic_registrations`.
 
 ### 10.3 Cancelar y modificar (EV-2)
 

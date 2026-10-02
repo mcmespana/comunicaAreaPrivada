@@ -334,3 +334,32 @@ mandando a pagar con tarjeta), F2 después, F3 junto a F1 si se decide.
 - No borrar pagos ni compromisos con dinero cobrado.
 - No tocar los compromisos de domiciliación del automatismo del CRM (las 216
   de la renovación).
+
+---
+
+## 10. Después de desplegar (02/10/2026)
+
+Lo que salió al probarlo con el Congreso de Monitores (David Soler, por el alta
+corta del área antes de que el área supiera del FWA):
+
+- **El compromiso se guardó con 3.500 € en vez de 35 €.** Por la API v4.1,
+  «35.00» se lee con las preferencias del usuario técnico (coma decimal, punto
+  de miles). Ahora el importe se manda con `sticpa_crm_amount()`: «35», o «35,50»
+  con céntimos. Ver CAMPOS.md (`amount`) y CLAUDE.md.
+- **Su pago pendiente no salía en Pagos.** El CRM genera el pago al guardar el
+  compromiso y la persona se le pone después (otra llamada); el CRM solo rellena
+  los pagos huérfanos si el compromiso viene de un FWA. Ahora el área le pone la
+  persona al pago al crearlo, y Pagos enseña y arregla los que se quedaron sin
+  ella (`sticpa_payments_without_payer()`: solo lo vivo que no tenga ya un pago
+  en la lista, así que lo normal es que no cueste ninguna llamada).
+- **La pantalla de pago era un formulario con cajas** (nombre, DNI, importe):
+  de solo lectura, pero con pinta de editables. Ahora es un resumen con un
+  botón «Pagar 35,00 €». El importe se puede cambiar a propósito tras «Pagar
+  otra cantidad» (descuentos, becas): queda escrito en el compromiso con
+  tarjeta y en la nota del viejo, que se cierra igual. **Decisión: se trata
+  como un descuento, no como un pago parcial.** Lo que no se paga no queda
+  pendiente.
+- **Con FWA, el área ya no inscribe**: «Inscribirme» lleva al FWA relleno
+  (EVENTOS.md §10.2.2).
+- «Referencia» (el nombre del registro en el CRM) fuera de la ficha de la
+  inscripción, y el «Concepto» del pago ya no se repite debajo del título.

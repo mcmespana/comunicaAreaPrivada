@@ -68,6 +68,12 @@ if ((isset($_SESSION['scp_tutor_is_user']) && $_SESSION['scp_tutor_is_user']) ||
             $parentModule === 'Accounts' ? 'stic_payment_commitments_accounts' : 'stic_payment_commitments_contacts');
     }
     $availablePayments = $objSCP->getRelatedElementsForLoggedUser($params);
+    $availablePayments = is_array($availablePayments) ? $availablePayments : array();
+    // Lo que se debe y no tiene a nadie puesto (lo generaba el área al
+    // inscribirse): se enseña igual y se arregla. Ver la función.
+    $availablePayments = array_merge($availablePayments, sticpa_payments_without_payer(
+        $objSCP, $commitmentRows, $availablePayments, $fieldsToRetrieve,
+        (string) ($_SESSION['scp_user_id'] ?? ''), $relationship));
 
 } else {
     $params = array(

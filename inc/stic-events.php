@@ -136,6 +136,177 @@ function sticpa_event_map_url($explicito = '', $direccion = '', $lugar = '')
 }
 
 /**
+ * Campo con el ENLACE DEL FORMULARIO WEB AVANZADO (TODO EV-3, campo creado el
+ * 30/09/2026). Vacío = el evento se apunta con el alta corta del área.
+ */
+function sticpa_event_fwa_field()
+{
+    return (string) apply_filters('sticpa_event_fwa_field', 'ajmcm_fwa_url_c');
+}
+
+/**
+ * El enlace del FWA de un evento, listo para usar, o '' si no tiene.
+ *
+ * El CRM lo devuelve ESCAPADO (`…renderForm&amp;id=…`): sin deshacerlo, el
+ * formulario recibe un parámetro `amp;id` y no sabe qué formulario pintar.
+ * Y se valida como cualquier URL que escribe una persona en el CRM.
+ */
+function sticpa_event_fwa_url($raw)
+{
+    $url = trim(html_entity_decode((string) $raw, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    return function_exists('sticpa_record_safe_url') ? sticpa_record_safe_url($url) : '';
+}
+
+/**
+ * LOS DATOS QUE EL ÁREA LE PASA AL FWA para que salga ya relleno.
+ *
+ * El FWA de SinergiaCRM rellena solo cualquier campo cuyo NOMBRE llegue en la
+ * URL (`FormRenderService::prefillFieldsFromRequest()` en el servidor y
+ * `prefillFromUrl()` en el navegador): `?first_name=Ana` rellena el campo
+ * `first_name` de cualquier bloque. Lo que el formulario no tiene, lo ignora.
+ *
+ * Son los del CRM tal cual, y van los que identifican a la persona: con su
+ * correo y su DNI exactos, el FWA la encuentra en el CRM en vez de crear un
+ * contacto repetido. La fecha de nacimiento no va: su formato en el FWA no
+ * está comprobado, y una fecha mal leída es peor que una vacía.
+ */
+function sticpa_event_fwa_prefill_fields()
+{
+    return (array) apply_filters('sticpa_event_fwa_prefill_fields', array(
+        'first_name', 'last_name', 'email1', 'phone_mobile',
+        'stic_identification_number_c', 'stic_identification_supp_c',
+    ));
+}
+
+/**
+ * El enlace del FWA con los datos de quien ha entrado.
+ *
+ * Lo que ya trae el enlace (`entryPoint`, `id`) no se toca: un campo del
+ * contacto con ese nombre no puede cambiar de formulario.
+ *
+ * @param string $fwaUrl   sticpa_event_fwa_url().
+ * @param array  $contacto campo => valor.
+ */
+function sticpa_event_fwa_prefilled_url($fwaUrl, $contacto)
+{
+    $fwaUrl = (string) $fwaUrl;
+    $fragmento = '';
+    if (($pos = strpos($fwaUrl, '#')) !== false) {
+        $fragmento = substr($fwaUrl, $pos);
+        $fwaUrl = substr($fwaUrl, 0, $pos);
+    }
+    $ya = array();
+    parse_str((string) parse_url($fwaUrl, PHP_URL_QUERY), $ya);
+
+    $params = array();
+    foreach (sticpa_event_fwa_prefill_fields() as $campo) {
+        $valor = trim((string) ($contacto[$campo] ?? ''));
+        if ($valor !== '' && !array_key_exists($campo, $ya)) {
+            $params[$campo] = $valor;
+        }
+    }
+    if (empty($params)) {
+        return $fwaUrl . $fragmento;
+    }
+    return $fwaUrl . (strpos($fwaUrl, '?') === false ? '?' : '&')
+        . http_build_query($params, '', '&', PHP_QUERY_RFC3986) . $fragmento;
+}
+
+/**
+ * LA PUERTA DEL ÁREA AL FWA. «Inscribirme» en un evento con FWA no apunta al
+ * formulario directamente sino aquí: el handler mira la sesión, que de verdad
+ * puedas apuntarte, y lee tus datos para mandarte al formulario ya relleno.
+ * Leer el contacto en cada tarjeta del listado sería una llamada al CRM por
+ * pintar; así solo se lee cuando alguien pulsa.
+ */
+function sticpa_event_fwa_door_url($eventId)
+{
+    $base = function_exists('admin_url') ? admin_url('admin-post.php') : '/wp-admin/admin-post.php';
+    return $base . '?action=sticpa_evento_fwa&e=' . rawurlencode((string) $eventId);
+}
+
+/** A dónde lleva «Inscribirme»: el FWA (por la puerta) si lo tiene, si no el alta corta. */
+function sticpa_event_signup_url($event)
+{
+    if (($event['fwa_url'] ?? '') !== '') {
+        return sticpa_event_fwa_door_url($event['id']);
+    }
+    return '?internalpage=single_stic_registrations&action=create&from=stic_events&id=' . rawurlencode($event['id']);
+}
+
+add_action('admin_post_sticpa_evento_fwa', 'sticpa_event_fwa_endpoint');
+add_action('admin_post_nopriv_sticpa_evento_fwa', 'sticpa_event_fwa_endpoint');
+
+/**
+ * Manda al FWA del evento, relleno con los datos de quien ha entrado.
+ *
+ * Si no toca —ya estás inscrito, la actividad no es para ti, el plazo está
+ * cerrado o el evento no tiene FWA— vuelve al alta del área, que es la
+ * pantalla que ya sabe explicar cada caso. El FWA es público y no lo protege
+ * esto; lo que se evita es que el área ofrezca lo que no debe.
+ */
+function sticpa_event_fwa_endpoint()
+{
+    sticpa_require_session();
+
+    $eventId = isset($_GET['e']) ? (string) $_GET['e'] : '';
+    if (!preg_match('/^[a-f0-9-]{10,64}$/i', $eventId)) {
+        wp_safe_redirect(sticpa_return_path() . '?internalpage=list_stic_events');
+        exit;
+    }
+    $alta = sticpa_return_path() . '?internalpage=single_stic_registrations&action=create&from=stic_events&id=' . rawurlencode($eventId);
+
+    $objSCP = SugarRestApiCall::getObjSCP();
+    $ev = $objSCP->getRecordDetail($eventId, 'stic_Events', sticpa_event_fields_to_request($objSCP));
+    $nvl = $ev->entry_list[0]->name_value_list ?? null;
+    $campo = sticpa_event_fwa_field();
+    $fwa = $nvl ? sticpa_event_fwa_url($nvl->$campo->value ?? '') : '';
+
+    $noToca = $fwa === ''
+        // Fresco, sin caché: quien acaba de apuntarse por el FWA y vuelve a
+        // pulsar tiene que ver «ya estás inscrito», no el formulario otra vez.
+        || (function_exists('prefix_user_active_event_ids') && in_array($eventId, prefix_user_active_event_ids($objSCP, true), true))
+        || (function_exists('sticpa_event_signup_block') && !empty(sticpa_event_signup_block($objSCP, $eventId, $nvl)['bloqueado']));
+    if ($noToca) {
+        wp_safe_redirect($alta);
+        exit;
+    }
+
+    $destino = sticpa_event_fwa_prefilled_url($fwa, sticpa_event_fwa_contact($objSCP));
+    // El FWA vive en otro host (el del CRM): se permite SOLO para esta
+    // redirección, y solo el del enlace que viene del propio evento.
+    $host = (string) parse_url($destino, PHP_URL_HOST);
+    add_filter('allowed_redirect_hosts', function ($hosts) use ($host) {
+        $hosts[] = $host;
+        return $hosts;
+    });
+    wp_safe_redirect($destino);
+    exit;
+}
+
+/**
+ * Los datos de quien ha entrado que se le pasan al FWA. Un fallo al leerlos no
+ * impide apuntarse: el formulario sale vacío, como si se abriera a mano.
+ */
+function sticpa_event_fwa_contact($objSCP)
+{
+    $id = (string) ($_SESSION['scp_user_id'] ?? '');
+    if ($id === '') {
+        return array();
+    }
+    $campos = sticpa_event_fwa_prefill_fields();
+    $res = $objSCP->getRecordDetail($id, 'Contacts', $campos);
+    $nvl = $res->entry_list[0]->name_value_list ?? null;
+    $out = array();
+    foreach ($campos as $campo) {
+        if (isset($nvl->$campo->value)) {
+            $out[$campo] = html_entity_decode((string) $nvl->$campo->value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        }
+    }
+    return $out;
+}
+
+/**
  * Campos que hay que PEDIR al CRM para pintar un evento: los básicos más los
  * opcionales QUE EXISTAN de verdad en este SinergiaCRM.
  *
@@ -235,6 +406,7 @@ function sticpa_event_wanted_fields()
     }
     $wanted = array_merge($wanted, sticpa_event_registration_fields());
     $wanted[] = sticpa_event_map_field();
+    $wanted[] = sticpa_event_fwa_field();
     // Las preguntas simples (EV-6): textos cortos que el formulario de
     // inscripción convierte en opciones. Como todo lo de aquí, solo si existen.
     if (function_exists('sticpa_event_question_event_fields')) {
@@ -376,6 +548,9 @@ function sticpa_event_view_model($nvl)
             $val('ajmcm_direccion_c'),
             $val('ajmcm_lugar_c')
         ),
+        // El formulario web avanzado del evento, si tiene: entonces
+        // «Inscribirme» lleva allí y no al alta corta del área.
+        'fwa_url' => sticpa_event_fwa_url($val(sticpa_event_fwa_field())),
         // A quién va dirigido (delegación, perfiles, cursos). Va en el modelo
         // para que listado y ficha decidan con lo mismo, igual que las fechas.
         'audiencia' => function_exists('sticpa_event_audience_from_nvl')
@@ -665,7 +840,7 @@ function sticpa_events_cards($models, $statusMap = array())
     $cards = array();
     foreach ($models as $event) {
         $detailUrl = '?internalpage=single_stic_events&action=detail&id=' . rawurlencode($event['id']);
-        $signUpUrl = '?internalpage=single_stic_registrations&action=create&from=stic_events&id=' . rawurlencode($event['id']);
+        $signUpUrl = sticpa_event_signup_url($event);
 
         $lines = array();
         $dateLine = sticpa_record_date_line($event['start_ts'], $event['end_ts']);
@@ -756,7 +931,7 @@ function sticpa_events_cards($models, $statusMap = array())
 function sticpa_event_detail_html($event, $statusLabel = '', $canSignUp = true, $blockNote = '', $web = null)
 {
     $dateLine = sticpa_record_date_line($event['start_ts'], $event['end_ts']);
-    $signUpUrl = '?internalpage=single_stic_registrations&action=create&from=stic_events&id=' . rawurlencode($event['id']);
+    $signUpUrl = sticpa_event_signup_url($event);
 
     $regChip = $event['is_past'] ? null : sticpa_event_registration_chip($event['registro']);
 
@@ -838,6 +1013,11 @@ function sticpa_event_detail_html($event, $statusLabel = '', $canSignUp = true, 
             'primary' => true,
             'icon'    => 'go',
         );
+        // Con FWA, el botón saca a otra pantalla que no es del área: se dice
+        // antes, para que no parezca que algo se ha roto.
+        if (($event['fwa_url'] ?? '') !== '') {
+            $ctaNote = __('La inscripción se hace en el formulario de la actividad. Te lo abrimos con tus datos ya puestos.', 'sticpa');
+        }
     }
 
     // EL TEXTO: el de la web si lo hay, y si no, la descripción de siempre.

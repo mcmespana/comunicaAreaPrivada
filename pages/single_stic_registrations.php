@@ -428,12 +428,21 @@ if ($eventId && $_REQUEST['action'] !== 'edit' && $_REQUEST['action'] !== 'detai
 // quien ya tiene su plaza no se le dice que llega tarde ni que no es para ella.
 $blockedTitle = '';
 $blockedText = '';
+$fwaDoor = '';
 if ($alreadyRegistered) {
     $blockedTitle = __('Ya estás inscrito', 'sticpa');
     $blockedText = __('Ya cuentas con una inscripción activa para este evento. No es necesario que te vuelvas a inscribir.', 'sticpa');
 } elseif (!empty($signupBlock['bloqueado'])) {
     $blockedTitle = $signupBlock['titulo'];
     $blockedText = $signupBlock['texto'];
+} elseif ($_REQUEST['action'] == 'create' && $eventNvl && function_exists('sticpa_event_fwa_url')
+    && sticpa_event_fwa_url($eventNvl->{sticpa_event_fwa_field()}->value ?? '') !== '') {
+    // CON FORMULARIO WEB AVANZADO, el alta corta NO vale (EV-3): ese evento
+    // necesita más datos de los que pide esta pantalla. Se llega aquí por un
+    // enlace viejo o pegado a mano; los botones del área ya van directos.
+    $fwaDoor = sticpa_event_fwa_door_url($eventId);
+    $blockedTitle = __('Esta actividad tiene su propio formulario', 'sticpa');
+    $blockedText = __('La inscripción se hace en el formulario de la actividad, que pide algún dato más. Te lo abrimos con tus datos ya puestos.', 'sticpa');
 }
 
 if ($blockedText !== '') {
@@ -445,6 +454,15 @@ if ($blockedText !== '') {
             'onclick' => "location.href='?internalpage=list_stic_registrations';",
         ),
     );
+    if ($fwaDoor !== '') {
+        $formSettings['submitButton']['fwa'] = __('Ir al formulario de inscripción', 'sticpa');
+        $formSettings['submitButtonType']['fwa'] = 'button';
+        $formSettings['submitButtonActions']['fwa'] = array(
+            // processFormActions() lo mete entre comillas dobles sin
+            // escapar: comillas simples dentro, y esc_js para el resto.
+            'onclick' => "location.href='" . esc_js($fwaDoor) . "';",
+        );
+    }
     
     // Dejamos solo la tarjeta del evento + el aviso (nada de formulario que permita guardar).
     $eventCard = null;

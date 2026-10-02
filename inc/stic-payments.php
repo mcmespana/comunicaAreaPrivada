@@ -150,6 +150,63 @@ function sticpa_payments_commitment_rows($objSCP, $module, $link)
     return is_array($rows) ? $rows : array();
 }
 
+/**
+ * LOS PAGOS QUE NO TIENEN A NADIE (02/10/2026). Pagos lista lo de un adulto
+ * por la relación pago↔contacto, y hay pagos que no la tienen: el CRM genera
+ * el pago al guardar el compromiso, ANTES de que se le ponga la persona (por la
+ * API la relación va en una segunda llamada), y solo los rellena después si el
+ * compromiso viene de un formulario web avanzado. Así, lo que el área creaba al
+ * inscribirse con precio no salía en Pagos: se debía y no se veía.
+ *
+ * Solo se mira lo vivo (sin fecha de fin, sin ser un intento de tarjeta) que no
+ * tenga ya algún pago en la lista: lo normal es que no haya ninguno, y entonces
+ * esto no cuesta ni una llamada. Lo que se encuentra se enseña y SE ARREGLA:
+ * se le pone la persona, y la próxima vez ya sale por la vía normal.
+ *
+ * @param array  $commitmentRows Los compromisos de quien paga.
+ * @param array  $payments       Lo que ya se va a enseñar.
+ * @param array  $fields         Campos de pago que pide la lista.
+ * @param string $payerId        Quien paga (para arreglar la relación).
+ * @param string $link           `stic_payments_contacts` o `stic_payments_accounts`.
+ * @return array Los pagos que faltaban.
+ */
+function sticpa_payments_without_payer($objSCP, $commitmentRows, $payments, $fields, $payerId, $link)
+{
+    $vistos = array();
+    foreach ((array) $payments as $p) {
+        $cid = strtolower(trim((string) ($p->name_value_list->stic_paymebfe2itments_ida->value ?? '')));
+        if ($cid !== '') {
+            $vistos[$cid] = true;
+        }
+    }
+    $faltan = array();
+    $map = sticpa_payments_commitment_map($commitmentRows);
+    foreach ($map as $cid => $pc) {
+        if (isset($vistos[strtolower($cid)]) || trim((string) ($pc['end_date'] ?? '')) !== '' || sticpa_commitment_is_card_attempt($pc)) {
+            continue;
+        }
+        $rows = $objSCP->getRelatedElementsForLoggedUser(array(
+            'module_name' => 'stic_Payment_Commitments',
+            'module_id' => $cid,
+            'link_field_name' => 'stic_payments_stic_payment_commitments',
+            'related_fields' => $fields,
+            'related_module_link_name_to_fields_array' => array(),
+            'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
+        ));
+        foreach ((is_array($rows) ? $rows : array()) as $row) {
+            $pid = (string) ($row->id ?? ($row->name_value_list->id->value ?? ''));
+            if ($pid === '') {
+                continue;
+            }
+            $faltan[] = $row;
+            if ($payerId !== '') {
+                $objSCP->set_relationship('stic_Payments', $pid, $link, array($payerId));
+            }
+        }
+    }
+    return $faltan;
+}
+
 /** compromiso => sus datos, para sticpa_payments_list_html(). */
 function sticpa_payments_commitment_map($rows)
 {
@@ -480,14 +537,15 @@ function sticpa_payment_detail_html($pay, $definition = array())
     if ($cuenta !== '') {
         $facts[] = array('icon' => 'bank', 'label' => __('Cuenta', 'sticpa'), 'text' => $cuenta);
     }
-    if ($val('banking_concept') !== '') {
+    // El concepto ya es el título cuando lo hay: no se repite debajo.
+    $concepto = sticpa_payment_concept($pay['name'], $val('banking_concept'));
+    if ($val('banking_concept') !== '' && $val('banking_concept') !== $concepto['title']) {
         $facts[] = array('icon' => 'tag', 'label' => __('Concepto', 'sticpa'), 'text' => $val('banking_concept'));
     }
     if ($val('in_kind_description') !== '') {
         $facts[] = array('icon' => 'info', 'label' => __('Descripción', 'sticpa'), 'text' => $val('in_kind_description'));
     }
     // Para quién, si es de otra persona (un hijo). El «de qué» ya es el título.
-    $concepto = sticpa_payment_concept($pay['name'], $val('banking_concept'));
     if ($concepto['para'] !== '') {
         $facts[] = array('icon' => 'user', 'label' => __('Para', 'sticpa'), 'text' => $concepto['para']);
     }

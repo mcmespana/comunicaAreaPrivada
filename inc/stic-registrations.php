@@ -586,11 +586,10 @@ function sticpa_registration_detail_html($reg, $definition = array(), $extra = a
     if ($pagoUi['fact'] !== null) {
         $facts[] = $pagoUi['fact'];
     }
-    // El código administrativo, al final y solo si es distinto del título: es
-    // lo que hay que decir por teléfono cuando algo va mal.
-    if ($reg['own_name'] !== '' && $reg['own_name'] !== $reg['title']) {
-        $facts[] = array('icon' => 'tag', 'label' => __('Referencia', 'sticpa'), 'text' => $reg['own_name']);
-    }
+    // El nombre del registro en el CRM («Ana Pérez - Foro | 2026») NO se
+    // enseña (02/10/2026): salía como «Referencia» y a nadie le dice nada. Si
+    // hay que localizar una inscripción por teléfono, con la persona y la
+    // actividad basta.
 
     // --- Quién responde por el participante ---
     // Es LO que distingue esta pantalla del resto: aquí quien lee suele ser la
@@ -1160,6 +1159,25 @@ function sticpa_registration_commitments($objSCP, $regId, $fields = array('id', 
  *
  * @return array estado ('creado'|'completado'|'error'), id.
  */
+/**
+ * UN IMPORTE COMO LO ENTIENDE EL CRM AL ESCRIBIR POR LA API.
+ *
+ * ⚠️ «35.00» se guarda como 3.500 € (comprobado el 02/10/2026 con un pago del
+ * Congreso de Monitores): el usuario técnico tiene la coma como separador
+ * decimal y el punto como el de miles, y la API lo lee con esas preferencias.
+ * Por eso un importe entero va SIN decimales («35»), que se lee igual con
+ * cualquier preferencia, y uno con céntimos va con la coma del CRM.
+ */
+function sticpa_crm_amount($n)
+{
+    $n = round((float) $n, 2);
+    if (abs($n - round($n)) < 0.005) {
+        return (string) (int) round($n);
+    }
+    $sep = (string) apply_filters('sticpa_crm_decimal_separator', ',');
+    return number_format($n, 2, $sep, '');
+}
+
 function sticpa_registration_ensure_commitment($objSCP, $regId, $eventNvl, $choice, $delegacion)
 {
     $price = sticpa_event_price($eventNvl);
@@ -1178,7 +1196,7 @@ function sticpa_registration_ensure_commitment($objSCP, $regId, $eventNvl, $choi
         // Lo que se ve en el extracto del banco: el nombre de la actividad, y
         // no más de lo que cabe en un concepto SEPA.
         'banking_concept' => function_exists('mb_substr') ? mb_substr($eventName, 0, 140, 'UTF-8') : substr($eventName, 0, 140),
-        'amount' => number_format($price, 2, '.', ''),
+        'amount' => sticpa_crm_amount($price),
         'payment_method' => $choice['metodo'],
         'payment_type' => sticpa_registration_payment_type(),
         'periodicity' => 'punctual',
@@ -1223,6 +1241,18 @@ function sticpa_registration_ensure_commitment($objSCP, $regId, $eventNvl, $choi
         $objSCP->set_relationship('stic_Payment_Commitments', $id, 'stic_payment_commitments_contacts_1', array($personas['destinatario']));
     }
     $objSCP->set_relationship('stic_Payment_Commitments', $id, 'stic_payment_commitments_stic_registrations', array((string) $regId));
+    // EL PAGO QUE ACABA DE GENERAR EL CRM NO TIENE A NADIE: lo crea al guardar
+    // el compromiso, antes de las relaciones de arriba, y solo lo completa
+    // solo si viene de un FWA. Sin esto no salía en Pagos (02/10/2026).
+    if (function_exists('sticpa_commitment_payments')) {
+        foreach (sticpa_commitment_payments($objSCP, (string) $id) as $row) {
+            $pid = (string) ($row->id ?? ($row->name_value_list->id->value ?? ''));
+            if ($pid !== '') {
+                $objSCP->set_relationship('stic_Payments', $pid,
+                    $accounts ? 'stic_payments_accounts' : 'stic_payments_contacts', array($personas['pagador']));
+            }
+        }
+    }
     return array('estado' => 'creado', 'id' => (string) $id);
 }
 
