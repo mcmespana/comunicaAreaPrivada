@@ -774,24 +774,18 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
  * Pantalla "ya te hemos mandado el acceso", con el formulario del código de 6
  * cifras. Se llega aquí después de pedir acceso (`?sticpa_code=1`).
  *
- * Dos presentaciones, misma capacidad:
- *
- *  · Dentro de la app MCM el código va ABIERTO y es lo primero que se ve. Es el
- *    caso en el que el enlace del correo falla más (ver `inc/stic-otp.php`), y
- *    además es donde más duele: la sesión de la app dura un año, así que esto
- *    se hace una vez y ya.
- *  · En navegador el enlace del correo funciona bien, así que manda el mensaje
- *    de "míralo en tu correo" y el código queda detrás de un botón pequeño.
- *
- * El desplegable es un <details> nativo a propósito: sin JS sigue abriéndose, y
- * el lector de pantalla ya sabe contarlo.
+ * El código va SIEMPRE abierto, grande y enfocado, en la app y en navegador
+ * (02/10/2026). Antes, en navegador quedaba detrás de un <details> pequeño
+ * («¿Prefieres introducir el código?») porque allí el enlace funciona bien;
+ * pero mucha gente lee el correo en el móvil y entra en el ordenador, y el
+ * código es lo único que sirve entre dos dispositivos. El enlace del correo
+ * sigue funcionando igual: la pantalla solo lo recuerda debajo.
  */
 function sticpa_access_code_form($html = "")
 {
     $base_url = strtok($_SERVER['REQUEST_URI'], '?');
     // El destino sigue viajando (EV-8): el código también lleva a él.
     $return_url = sticpa_url_with_destination($base_url . '?stic_auth=1', sticpa_login_destination_args($_GET));
-    $appMode = function_exists('sticpa_is_app_mode') && sticpa_is_app_mode();
 
     // Solo sirve para pre-rellenar y para enseñar a dónde se mandó. Si no hay
     // nada (se pidió en otro dispositivo), se pide el correo a mano.
@@ -834,8 +828,6 @@ function sticpa_access_code_form($html = "")
 
     if ($errorMsg !== '') {
         $html .= "<span class='error' role='alert'>" . esc_html($errorMsg) . "</span>";
-    } elseif (!$appMode) {
-        $html .= "<span class='success' role='status'>" . esc_html__('¡Listo! Abre el correo y pulsa el botón para entrar. 📩', 'sticpa') . "</span>";
     }
 
     /* ---------- Formulario del código ---------- */
@@ -848,7 +840,7 @@ function sticpa_access_code_form($html = "")
             <label class='stic-code-label' for='stic-otp-code'>" . esc_html__('Código de 6 cifras', 'sticpa') . "</label>
             <input type='text' id='stic-otp-code' name='sticpa_otp_code' class='stic-code-input" . ($error === 'bad' ? " is-wrong" : "") . "'
                    inputmode='numeric' autocomplete='one-time-code' maxlength='7'
-                   placeholder='000 000' aria-describedby='stic-code-hint' required" . ($appMode ? " autofocus" : "") . ">
+                   placeholder='000 000' aria-describedby='stic-code-hint' required autofocus>
             <p class='stic-code-hint' id='stic-code-hint'>" . sprintf(
                 esc_html__('Caduca en %d minutos.', 'sticpa'),
                 (int) round(sticpa_otp_ttl() / MINUTE_IN_SECONDS)
@@ -883,19 +875,11 @@ function sticpa_access_code_form($html = "")
             </button>
         </form>";
 
-    if ($appMode) {
-        $html .= "<div class='stic-code'>"
-            . "<p class='stic-auth-help'>" . esc_html__('Escribe el código que te hemos mandado y entras directo.', 'sticpa') . "</p>"
-            . $codeForm . "</div>";
-    } else {
-        $html .= "
-            <details class='stic-code-reveal'" . ($errorMsg !== '' ? " open" : "") . ">
-                <summary>" . sticpa_icon('lock', 'stic-hint-icon') . "<span>"
-                    . esc_html__('¿Prefieres introducir el código?', 'sticpa') . "</span>"
-                    . sticpa_icon('chevron', 'stic-hint-chevron') . "</summary>
-                <div class='stic-code'>" . $codeForm . "</div>
-            </details>";
-    }
+    $html .= "<div class='stic-code stic-code--hero'>"
+        . "<p class='stic-auth-help'>" . esc_html__('Escribe el código que te hemos mandado y entras directo.', 'sticpa') . "</p>"
+        . $codeForm
+        . "<p class='stic-code-or'>" . esc_html__('…o abre el correo y pulsa «Acceder a mi área privada».', 'sticpa') . "</p>"
+        . "</div>";
 
     /* ---------- Reenvío ---------- */
     // Reenviar solo tiene sentido cuando escribió él el correo. Por la vía del

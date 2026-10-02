@@ -203,15 +203,12 @@ Por eso el mismo correo lleva **un código de 6 cifras** además del enlace
 ([`inc/stic-otp.php`](../../inc/stic-otp.php)). Es lo único que sobrevive a
 cualquier cliente de correo, porque lo transporta la persona.
 
-- **Dentro de la app** (`sticpa_is_app_mode()`), al pedir acceso el campo del
-  código sale **abierto y enfocado**: es el camino principal.
-- **En navegador** manda el enlace y el código queda detrás de un `<details>`
-  pequeño ("¿Prefieres introducir el código?").
-
-⚠️ Esto es lo único de todo el contrato en lo que `app=1` cambia algo más que
-presentación pura, así que conviene decirlo claro: cambia **qué se ve primero**,
-nunca **qué se puede hacer**. Las dos vías están siempre disponibles en las dos
-partes, porque `app=1` es una cookie de 30 días y no es una señal fiable (§1).
+Al pedir acceso, el campo del código sale **abierto, grande y enfocado**, en
+la app y en navegador por igual: es el camino principal, y el enlace del correo
+queda recordado en una frase debajo. Hasta el 02/10/2026 en navegador iba
+escondido detrás de un `<details>` («¿Prefieres introducir el código?»); se
+abrió porque mucha gente lee el correo en el móvil y entra en el ordenador, y
+ahí solo sirve el código. Así que en esta pantalla `app=1` ya no cambia nada.
 
 Como la sesión de la app dura un año deslizante, esto se hace **una vez** y
 luego se olvida — que es justo por lo que merece la pena que ese primer día
