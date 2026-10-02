@@ -428,7 +428,11 @@ span.stic-field {
 .stic-login-form .input_login input.input-text,
 .stic-login-form .input_login span > input,
 .stic-forgotpas-form input.input-text,
-.stic-field input {
+.stic-field input,
+/* Fuera de `.input_login` (el DNI del rescate, el correo de la pantalla del
+   código) ganaba `.stic-form input[type="text"]` (§ «Inputs / selects») con
+   su `padding: 0.8rem 1rem`, y el icono quedaba encima del texto (02/10/2026). */
+.stic-form .stic-field input.input-text {
     width: 100% !important;
     padding: 0.95rem 3rem 0.95rem 2.85rem !important;
     font-size: 1rem;
