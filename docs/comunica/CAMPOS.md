@@ -536,7 +536,7 @@ Tiene 78 campos. Los que importan:
 | Campo | Tipo | ¿Obligatorio? | Para qué |
 |---|---|---|---|
 | `name` | nombre | no | Cómo se lee en el CRM |
-| `amount` | decimal | **sí** | El importe |
+| `amount` | decimal | **sí** | El importe. ⚠️ **Por la API v4.1, «35.00» se guarda como 3.500** (el usuario técnico usa coma decimal y punto de miles; visto el 02/10/2026). Se manda «35», o «35,50» con céntimos: `sticpa_crm_amount()` |
 | `payment_method` | `enum` | **sí** | Cómo se cobra |
 | `payment_type` | `enum` | **sí** | Qué clase de cobro es |
 | `periodicity` | `enum` | **sí** | Cada cuánto |
@@ -932,9 +932,11 @@ Van por parejas y en campos separados (no todo junto en un texto largo) para que
 en el CRM se pueda filtrar y contar («¿cuántos van en autobús?»).
 
 **Enlace del formulario web avanzado — ✅ CREADO** (propuesto el 27/09/2026, TODO
-EV-3; creado por el propietario, comunicado el 30/09/2026, **no verificado por MCP**).
-El campo existe; la parte de programar las dos puertas y el relleno desde el área
-privada sigue pendiente. Decidido que sea un campo PROPIO y no `web_url_c`: `web_url_c` es el botón
+EV-3; creado por el propietario el 30/09/2026; **visto por MCP el 02/10/2026** en
+el Congreso de Monitores, relleno y con el `&` escapado como `&amp;`).
+**Programado en el área el 02/10/2026**: con él relleno, «Inscribirme» lleva al
+FWA ya relleno y el alta corta no se ofrece (EVENTOS.md §10.2.2). La puerta de la
+página pública sigue pendiente. Decidido que sea un campo PROPIO y no `web_url_c`: `web_url_c` es el botón
 de la página pública, y el enlace del FWA lo usa además el área privada para
 abrir el formulario ya rellenado con los datos de quien ha entrado.
 
@@ -1096,6 +1098,15 @@ Fuente: https://wiki.sinergiatic.org/index.php?title=Estructura_de_datos:_m%C3%B
 - `stic_identification_type_c` — Tipo de identificación (desplegable: NIF / NIE / CIF / Pasaporte)
   - Usado por nosotros: **Sí**
 - `stic_identification_number_c` — Número de identificación (texto)
+  - Usado por nosotros: **Sí**
+- `stic_identification_supp_c` — Número de soporte del DNI (texto)
+  - Lo piden los albergues públicos. **Opcional** en todos los formularios: se
+    ofrece en el alta de monitores y en las actualizaciones (formulario de
+    edición y «Mis datos» del área privada), con un aviso «Ya lo tenemos» si
+    la ficha ya lo trae (porque se pidió en alguna actividad).
+  - Usado por nosotros: **Sí**
+- `stic_identification_exp_c` — Fecha de expedición del DNI (fecha)
+  - Igual que el anterior: opcional, para los albergues públicos.
   - Usado por nosotros: **Sí**
 - `stic_relationship_type_c` — Tipo de relación actual (selección múltiple: Socio / Donante / Voluntario / Usuario / Trabajador / …)
   - Usado por nosotros: **Sí**

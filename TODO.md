@@ -58,14 +58,20 @@ Nada de esto es código; sin ello, el código que lo espera no avanza.
       WordPress). Si se quitó a propósito, cambiar a `/ap/` los cinco documentos que la
       citan; si no, volver a crearla.
 
+- [ ] `PAG-02` (P3 · M) **Pagar por transferencia desde un pago pendiente**: que, junto a «Pagar con
+      tarjeta», salgan las instrucciones de transferencia de ESE evento o de su delegación
+      (cuenta, concepto, a quién mandar el justificante). Hoy van solo en el correo. Idea del
+      propietario (02/10): sacarlas de la delegación (organización) en MCM Bank. Para el futuro.
+
 **Crear en Studio** (el código está hecho y se activa solo)
 - [x] `EV-6` (P2 · S) **Preguntas simples — campos creados el 30/09**: `ajmcm_pregunta_1_c` y `ajmcm_pregunta_2_c` en
       Eventos, `ajmcm_respuesta_1_c` y `ajmcm_respuesta_2_c` en Inscripciones (texto 255).
       Otros nombres → cambiarlos en `sticpa_event_question_fields()`.
-- [!] `EV-3` (P1 · M) **Enlace del formulario web avanzado** (campo creado el 30/09; falta programarlo): `ajmcm_fwa_url_c` (URL) en
-      Eventos. Decidido el 27/09: campo propio, no `web_url_c`. Con él, dos puertas en la
-      página pública y el FWA ya rellenado desde el área privada (mirar antes los parámetros
-      de relleno en la wiki de SinergiaTIC). Esto sí hay que programarlo cuando exista.
+- [x] `EV-3` (P1 · M) **Enlace del formulario web avanzado — en el área, hecho el 02/10**: con `ajmcm_fwa_url_c`
+      relleno, «Inscribirme» lleva al FWA ya relleno (nombre, apellidos, correo, móvil, DNI y soporte) y el
+      alta corta no se ofrece ni se guarda. EVENTOS.md §10.2.2.
+      - [ ] Las dos puertas en la **página pública** del evento (`comunicaFormularios`).
+      - [ ] **Configurar en cada FWA** a dónde vuelve al terminar: el área, `…/ap/?internalpage=list_stic_registrations`.
 - [!] `EV-12` (P2 · S) **Ocultar en el área privada**: crear `ajmcm_ocultar_area_c` (casilla, sin marcar) en Eventos. El código ya está; ver `CAMPOS.md`.
 - [ ] `EV-4b` (P3 · S) **Pegar la ayuda en la ficha de Eventos**: campo de tipo HTML con
       `docs/comunica/AYUDA-FICHA-EVENTO.html`, arriba en la vista de edición. Y pegar la guía

@@ -48,6 +48,7 @@ class RegistrationManageTest extends TestCase
         require_once __DIR__ . '/../inc/eventos-cuerpo.php';
         require_once __DIR__ . '/../inc/stic-event-web.php';
         require_once __DIR__ . '/../inc/stic-registrations.php';
+        require_once __DIR__ . '/../inc/stic-payments.php';
     }
 
     /** @var object */
@@ -363,7 +364,9 @@ class RegistrationManageTest extends TestCase
         $coms = $this->crm->writesTo('stic_Payment_Commitments');
         $this->assertCount(1, $coms, 'uno, y solo uno');
         $c = $coms[0]['data'];
-        $this->assertSame('60.00', $c['amount']);
+        // SIN «.00»: el CRM lee «60.00» como 6.000 (coma decimal en el
+        // usuario técnico). Pasó con el Congreso: 35 € guardados como 3.500.
+        $this->assertSame('60', $c['amount']);
         $this->assertSame('bizum', $c['payment_method']);
         $this->assertSame('services', $c['payment_type']);
         $this->assertSame('punctual', $c['periodicity']);
@@ -446,6 +449,30 @@ class RegistrationManageTest extends TestCase
         $this->assertStringContainsString('paymentId=pay-de-' . $pcs[0]['id'], $url);
     }
 
+    /**
+     * EL PAGO QUE GENERA EL CRM QUEDA A NOMBRE DE QUIEN PAGA. El CRM lo crea al
+     * guardar el compromiso, antes de que tenga persona, y sin esto no salía
+     * en Pagos (el de David en el Congreso, 02/10/2026).
+     */
+    public function test_el_pago_generado_se_pone_a_nombre_de_quien_paga()
+    {
+        $this->crm->events['ev-1'] = $this->evento();
+        $this->crm->autoPayments = true;
+        $this->inscribirse(array('sticpa_pago_metodo' => 'bizum'));
+        $pc = $this->crm->writesTo('stic_Payment_Commitments')[0]['id'];
+        $links = array_map(function ($r) { return $r[0] . ':' . $r[1] . ':' . $r[2] . ':' . implode(',', $r[3]); }, $this->crm->relations);
+        $this->assertContains('stic_Payments:pay-de-' . $pc . ':stic_payments_contacts:c1', $links);
+    }
+
+    public function test_un_importe_se_escribe_como_lo_lee_el_crm()
+    {
+        $this->assertSame('35', sticpa_crm_amount(35.0));
+        $this->assertSame('35', sticpa_crm_amount('35.00'));
+        $this->assertSame('35,50', sticpa_crm_amount(35.5));
+        $this->assertSame('1200', sticpa_crm_amount(1200), 'sin separador de miles: el punto lo leería como decimal en otro CRM');
+        $this->assertSame('0,99', sticpa_crm_amount(0.99));
+    }
+
     /** Si el CRM no hubiera generado el pago, se paga por la inscripción, como antes. */
     public function test_con_tarjeta_y_sin_pago_generado_se_paga_por_la_inscripcion()
     {
@@ -465,6 +492,129 @@ class RegistrationManageTest extends TestCase
         $this->inscribirse(array('sticpa_pago_metodo' => 'bizum'));
         $this->assertSame('ece', $this->crm->writesTo('stic_Registrations')[0]['data']['assigned_user_id']);
         $this->assertSame('ece', $this->crm->writesTo('stic_Payment_Commitments')[0]['data']['assigned_user_id']);
+    }
+
+    /* ---- El formulario web avanzado (EV-3) ---------------------------- */
+
+    private const FWA = 'https://crm.example.test/index.php?entryPoint=stic_AWF_renderForm&amp;id=f-1';
+    /** La puerta solo acepta ids con forma de id del CRM. */
+    private const EV = '00000ff6-facb-3ed5-0a30-6abe610c4cc0';
+
+    /** Lanza la puerta del área al FWA y devuelve a dónde manda. */
+    private function puertaFwa($eventId)
+    {
+        $_GET = array('e' => $eventId);
+        try {
+            sticpa_event_fwa_endpoint();
+        } catch (StiRedirect $r) {
+            return $r->url;
+        }
+        $this->fail('la puerta no redirigió');
+    }
+
+    public function test_el_enlace_del_fwa_llega_limpio_y_seguro()
+    {
+        $this->assertSame('https://crm.example.test/index.php?entryPoint=stic_AWF_renderForm&id=f-1', sticpa_event_fwa_url(self::FWA),
+            'el CRM lo devuelve con &amp; y así el FWA no sabe qué formulario pintar');
+        $this->assertSame('', sticpa_event_fwa_url('javascript:alert(1)'));
+        $this->assertSame('', sticpa_event_fwa_url(''));
+    }
+
+    public function test_el_fwa_sale_relleno_sin_tocar_lo_que_ya_trae_el_enlace()
+    {
+        $url = sticpa_event_fwa_prefilled_url('https://crm.example.test/index.php?entryPoint=stic_AWF_renderForm&id=f-1#arriba', array(
+            'first_name' => 'Lucía', 'last_name' => 'Pérez Gil', 'email1' => 'lucia+mcm@example.test', 'id' => 'otro', 'stic_identification_number_c' => '',
+        ));
+        $this->assertStringStartsWith('https://crm.example.test/index.php?entryPoint=stic_AWF_renderForm&id=f-1&', $url);
+        $this->assertStringEndsWith('#arriba', $url);
+        parse_str(parse_url($url, PHP_URL_QUERY), $q);
+        $this->assertSame('f-1', $q['id'], 'un dato de la persona no cambia de formulario');
+        $this->assertSame('Lucía', $q['first_name']);
+        $this->assertSame('Pérez Gil', $q['last_name']);
+        $this->assertSame('lucia+mcm@example.test', $q['email1']);
+        $this->assertArrayNotHasKey('stic_identification_number_c', $q, 'lo vacío no viaja');
+    }
+
+    public function test_con_fwa_inscribirme_lleva_al_formulario_y_no_al_alta_corta()
+    {
+        $con = sticpa_event_view_model($this->nvl($this->evento(array('ajmcm_fwa_url_c' => self::FWA))));
+        $sin = sticpa_event_view_model($this->nvl($this->evento()));
+        $this->assertStringContainsString('action=sticpa_evento_fwa&e=ev-1', sticpa_event_signup_url($con));
+        $this->assertStringContainsString('internalpage=single_stic_registrations&action=create', sticpa_event_signup_url($sin));
+
+        $card = sticpa_events_cards(array($con))[0];
+        $this->assertStringContainsString('action=sticpa_evento_fwa', end($card['actions'])['url']);
+        $ficha = sticpa_event_detail_html($con);
+        $this->assertStringContainsString('action=sticpa_evento_fwa', $ficha);
+        $this->assertStringContainsString('formulario de la actividad', $ficha, 'se avisa de que se sale del área');
+    }
+
+    public function test_la_puerta_manda_al_fwa_con_tus_datos()
+    {
+        $this->crm->events[self::EV] = $this->evento(array('id' => self::EV, 'ajmcm_fwa_url_c' => self::FWA));
+        $this->crm->contacts['c1'] = array('id' => 'c1', 'first_name' => 'Lucía', 'last_name' => 'Pérez', 'email1' => 'lucia@example.test',
+            'stic_identification_number_c' => '12345678Z');
+        $url = $this->puertaFwa(self::EV);
+        $this->assertStringStartsWith('https://crm.example.test/index.php?entryPoint=stic_AWF_renderForm&id=f-1&', $url);
+        $this->assertStringContainsString('email1=lucia%40example.test', $url);
+        $this->assertStringContainsString('stic_identification_number_c=12345678Z', $url);
+        $this->assertSame(array(), $this->crm->writes, 'la puerta no escribe nada en el CRM');
+    }
+
+    public function test_la_puerta_no_abre_el_fwa_si_no_toca()
+    {
+        // Ya inscrita: a la pantalla del área, que lo explica.
+        $this->crm->events[self::EV] = $this->evento(array('id' => self::EV, 'ajmcm_fwa_url_c' => self::FWA));
+        $this->crm->myRegs['reg-9'] = 'confirmed';
+        $this->crm->registrations['reg-9'] = array('id' => 'reg-9', 'stic_registrations_stic_eventsstic_events_ida' => self::EV);
+        $this->assertStringContainsString('internalpage=single_stic_registrations&action=create&from=stic_events&id=' . self::EV, $this->puertaFwa(self::EV));
+
+        // Plazo cerrado.
+        $this->crm->myRegs = array();
+        $this->crm->events[self::EV] = $this->evento(array('id' => self::EV, 'ajmcm_fwa_url_c' => self::FWA, 'ajmcm_end_inscripcion_c' => date('Y-m-d', strtotime('-2 days'))));
+        $this->assertStringContainsString('internalpage=single_stic_registrations&action=create', $this->puertaFwa(self::EV));
+
+        // Sin FWA, y un id que no es un id.
+        $this->crm->events[self::EV] = $this->evento(array('id' => self::EV));
+        $this->assertStringContainsString('internalpage=single_stic_registrations&action=create', $this->puertaFwa(self::EV));
+        $this->assertStringContainsString('internalpage=list_stic_events', $this->puertaFwa('../../x'));
+    }
+
+    public function test_con_fwa_el_alta_corta_no_crea_nada()
+    {
+        $this->crm->events['ev-1'] = $this->evento(array('ajmcm_fwa_url_c' => self::FWA));
+        $url = $this->inscribirse();
+        $this->assertSame(array(), $this->crm->writesTo('stic_Registrations'));
+        $this->assertSame(array(), $this->crm->writesTo('stic_Payment_Commitments'));
+        $this->assertStringContainsString('action=create&from=stic_events&id=ev-1', $url);
+    }
+
+    /* ---- Pagos que no tienen a nadie --------------------------------- */
+
+    public function test_pagos_ensena_y_arregla_lo_que_se_debe_sin_persona()
+    {
+        $row = function ($id, array $f) {
+            $o = new stdClass();
+            $o->id = $id;
+            $o->name_value_list = $this->nvl(array_merge(array('id' => $id), $f));
+            return $o;
+        };
+        $compromisos = array(
+            $row('pc-congreso', array('description' => 'Creado desde el área privada al inscribirse', 'end_date' => '', 'payment_method' => 'bizum')),
+            $row('pc-visto', array('description' => '', 'end_date' => '')),
+            $row('pc-cerrado', array('description' => '', 'end_date' => '2026-09-01')),
+            $row('pc-intento', array('description' => '[pago:00000fc4-a82c-13b3-7646-6abfc100354e:0123456789abcdef]', 'end_date' => '')),
+        );
+        $this->crm->paymentsOfCommitment['pc-congreso'] = array(array('id' => 'pay-congreso', 'status' => 'pending'));
+        $this->crm->paymentsOfCommitment['pc-cerrado'] = array(array('id' => 'pay-cerrado', 'status' => 'cancelled'));
+        $this->crm->paymentsOfCommitment['pc-intento'] = array(array('id' => 'pay-intento', 'status' => 'pending'));
+        $yaSalen = array($row('pay-visto', array('stic_paymebfe2itments_ida' => 'pc-visto')));
+
+        $faltan = sticpa_payments_without_payer($this->crm, $compromisos, $yaSalen, sticpa_payment_list_fields(), 'c1', 'stic_payments_contacts');
+        $this->assertSame(array('pay-congreso'), array_map(function ($r) { return $r->id; }, $faltan),
+            'solo lo vivo: ni lo cerrado, ni los intentos de tarjeta, ni lo que ya sale');
+        $this->assertSame(array(array('stic_Payments', 'pay-congreso', 'stic_payments_contacts', array('c1'))), $this->crm->relations,
+            'y se le pone la persona, para que la próxima vez salga solo');
     }
 
     /* ---- Pagar con tarjeta (EV-9) ------------------------------------ */
@@ -501,10 +651,17 @@ class RegistrationManageTest extends TestCase
         $this->assertSame('services', $this->hidden($html, 'stic_Payment_Commitments___payment_type'));
         $this->assertSame('del-cs', $this->hidden($html, 'assigned_user_id'));
         // El importe es el precio del evento, no el de la URL, y no se toca.
-        $this->assertMatchesRegularExpression('/name="stic_Payment_Commitments___amount"[^>]*readonly[^>]*value="110.00"/', $html);
+        $this->assertSame('110.00', $this->hidden($html, 'stic_Payment_Commitments___amount'));
+        $this->assertMatchesRegularExpression('/type="hidden"[^>]*name="stic_Payment_Commitments___amount"/', $html);
         // Solo tarjeta: los demás medios se eligen al inscribirse.
-        $this->assertStringContainsString("value='card'", $html);
-        $this->assertStringNotContainsString("value='direct_debit'", $html);
+        $this->assertSame('card', $this->hidden($html, 'stic_Payment_Commitments___payment_method'));
+        $this->assertStringNotContainsString('direct_debit', $html);
+        // Nada que editar: ni datos de quien paga ni desplegables. El único
+        // campo visible es «Pagar otra cantidad», que va sin `name` (lo copia
+        // el script al oculto) y empieza escondido.
+        $this->assertDoesNotMatchRegularExpression('/<input(?![^>]*type="hidden")[^>]*\bname=/', $html);
+        $this->assertStringNotContainsString('<select', $html);
+        $this->assertMatchesRegularExpression('/id="stic-pay-otro"[^>]*hidden/', $html);
         // Lleva la marca firmada y vuelve a la ficha de la inscripción.
         $this->assertStringContainsString(sticpa_registration_card_marker($reg), (string) $this->hidden($html, 'stic_Payment_Commitments___description'));
         $this->assertStringContainsString('single_stic_registrations&action=detail&id=' . $reg, (string) $this->hidden($html, 'redirect_url'));
@@ -600,7 +757,8 @@ class RegistrationManageTest extends TestCase
     {
         $this->pagoPendiente();
         $html = $this->formularioDePago(array('paymentId' => self::PAGO));
-        $this->assertMatchesRegularExpression('/name="stic_Payment_Commitments___amount"[^>]*readonly[^>]*value="110.00"/', $html);
+        $this->assertSame('110.00', $this->hidden($html, 'stic_Payment_Commitments___amount'));
+        $this->assertStringContainsString('Pagar otra cantidad', $html);
         $this->assertSame('services', $this->hidden($html, 'stic_Payment_Commitments___payment_type'));
         $this->assertSame('ece', $this->hidden($html, 'assigned_user_id'), 'de quien organiza, no de la delegación de quien paga');
         $this->assertSame('LC | Foro de Laicos Consolación 2026', $this->hidden($html, 'stic_Payment_Commitments___banking_concept'));
