@@ -252,8 +252,22 @@ function sticpa_pay_claim($objSCP, $paymentId)
         sticpa_card_commitment_as_service($objSCP, $cid, (string) ($nvl->name->value ?? ''),
             (string) ($nvl->payment_type->value ?? ''), $pagos, $tipo !== '' && $tipo !== 'donation' ? $tipo : null);
         if (!empty($ctx['commitment_id']) && $ctx['commitment_id'] !== $cid) {
+            // «Pagar otra cantidad» (02/10/2026): si lo cobrado no es lo que se
+            // debía, se cierra igual —es un descuento o un arreglo, no una
+            // deuda a medias— pero queda escrito, para que tesorería lo vea.
+            $pagado = 0.0;
+            foreach ($pagos as $p) {
+                if ((string) ($p->name_value_list->status->value ?? '') === 'paid') {
+                    $pagado += (float) ($p->name_value_list->amount->value ?? 0);
+                }
+            }
+            $debia = (float) ($ctx['amount'] ?? 0);
+            $otra = ($pagado > 0 && $debia > 0 && abs($pagado - $debia) >= 0.005)
+                ? sprintf(' Ojo: se pagaron %s en vez de %s (la persona cambió el importe al pagar).',
+                    number_format($pagado, 2, ',', '.'), number_format($debia, 2, ',', '.'))
+                : '';
             sticpa_pay_close_commitment($objSCP, $ctx['commitment_id'],
-                sprintf('Pagado con tarjeta desde el área privada el %s (compromiso %s).', date('d/m/Y'), $cid));
+                sprintf('Pagado con tarjeta desde el área privada el %s (compromiso %s).', date('d/m/Y'), $cid) . $otra);
         }
         // La marca, reescrita: este ya no se vuelve a reclamar.
         $desc = $objSCP->getRecordDetail($cid, 'stic_Payment_Commitments', array('id', 'description'));

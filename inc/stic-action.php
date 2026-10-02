@@ -617,7 +617,14 @@ function prefix_admin_single_stic_registrations()
         if (!$duplicada && $eventId !== '' && function_exists('sticpa_event_signup_block')) {
             $noAdmitida = !empty(sticpa_event_signup_block($objSCP, $eventId, $eventNvl)['bloqueado']);
         }
-        if ($duplicada || $noAdmitida) {
+        // Con formulario web avanzado, el alta corta no se crea (EV-3): ese
+        // evento pide más datos. La pantalla de inscripción manda al FWA.
+        $conFwa = false;
+        if ($eventNvl && function_exists('sticpa_event_fwa_url')) {
+            $campoFwa = sticpa_event_fwa_field();
+            $conFwa = sticpa_event_fwa_url($eventNvl->$campoFwa->value ?? '') !== '';
+        }
+        if ($duplicada || $noAdmitida || $conFwa) {
             wp_safe_redirect($formUrl);
             exit;
         }

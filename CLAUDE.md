@@ -76,6 +76,11 @@ contexto**. Reglas:
   pagos— es de quien lo organiza**: el `assigned_user_id` del evento (en lo
   local es la delegación; el Foro, de ECE). Decidido el 01/10/2026, plan 041.
 - **Nada interdelegacional.**
+- ⚠️ **Un importe escrito por la API v4.1 se escribe sin «.00»**: «35.00» se
+  guarda como 3.500 € (el usuario técnico tiene la coma decimal). Usa
+  `sticpa_crm_amount()`. Y un pago que genera el CRM al crear un compromiso
+  nace **sin persona**: pónsela tú (`stic_payments_contacts`), o no sale en
+  Pagos. Los dos, 02/10/2026.
 - ⚠️ **Los grupos de seguridad del CRM NO protegen el área privada.** El plugin
   se conecta al CRM con **un usuario técnico**, no con la persona que ha
   entrado, así que los grupos de seguridad no filtran ni una fila de lo que se

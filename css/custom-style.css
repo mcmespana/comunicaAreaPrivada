@@ -7030,3 +7030,119 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     font-weight: 700;
     text-align: center;
 }
+
+/* ============================================================
+   63. PAGAR CON TARJETA — un resumen, no un formulario (02/10/2026)
+   ------------------------------------------------------------
+   pages/single_stic_payment_form.php. Lo que va al CRM son campos
+   ocultos; aquí solo se enseña qué se paga, cuánto y quién. El
+   único dato que se puede cambiar es el importe, y detrás de
+   «Pagar otra cantidad» (descuentos, becas, arreglos).
+   ============================================================ */
+.stic-pay { margin: 0; }
+.stic-pay-card {
+    padding: 1.1rem 1.2rem;
+    background: var(--surface);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+}
+.stic-pay-concept {
+    margin: 0 0 0.6rem;
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--gray-900);
+}
+.stic-pay-amount {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+}
+.stic-pay-amount-label {
+    font-size: 0.66rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--gray-500);
+}
+.stic-pay-amount strong {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1.15;
+    color: var(--primary-color);
+}
+.stic-pay-otro { margin-top: 0.9rem; }
+.stic-pay-otro[hidden] { display: none; }
+.stic-pay-otro label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--gray-800);
+}
+.stic-pay-otro-campo {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    max-width: 14rem;
+}
+.stic-pay-otro-campo input {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 44px;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+.stic-pay-otro-campo span { font-weight: 700; color: var(--gray-600); }
+.stic-pay-otro-nota {
+    margin: 0.45rem 0 0;
+    font-size: 0.82rem;
+    color: var(--gray-600);
+}
+/* Parece un enlace a propósito: es la vía de escape, no la acción. El tema de
+   WordPress pinta los <button> (mayúsculas, fondo, padding): se deshace. */
+.stic-pay-otro-toggle {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    margin: 0.4rem 0 0 !important; /* el tema de WP pinta los <button> */
+    padding: 0 !important; /* el tema de WP pinta los <button> */
+    background: none !important; /* el tema de WP pinta los <button> */
+    border: 0 !important; /* el tema de WP pinta los <button> */
+    box-shadow: none !important; /* el tema de WP pinta los <button> */
+    color: var(--primary-color) !important; /* el tema de WP pinta los <button> */
+    font: inherit;
+    font-size: 0.9rem !important; /* el tema de WP pinta los <button> */
+    font-weight: 700 !important; /* el tema de WP pinta los <button> */
+    letter-spacing: normal !important; /* el tema de WP pinta los <button> */
+    text-transform: none !important; /* el tema de WP pinta los <button> */
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+}
+.stic-pay-otro-toggle:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+    border-radius: 6px;
+}
+.stic-pay-cta { margin-top: 1rem; }
+/* El botón de pagar es un <button type=submit>: mismas defensas que el de
+   cancelar una inscripción (§60) contra el estilo del tema. */
+.stic-pay-submit.stic-rec-btn {
+    min-height: 48px !important; /* el tema de WP pinta los <button> */
+    padding: 0.6rem 1.2rem !important; /* el tema de WP pinta los <button> */
+    border: 0 !important; /* el tema de WP pinta los <button> */
+    border-radius: var(--radius-md) !important; /* el tema de WP pinta los <button> */
+    font: inherit;
+    font-size: 1rem !important; /* el tema de WP pinta los <button> */
+    font-weight: 800 !important; /* el tema de WP pinta los <button> */
+    letter-spacing: normal !important; /* el tema de WP pinta los <button> */
+    text-transform: none !important; /* el tema de WP pinta los <button> */
+    line-height: 1.2 !important; /* el tema de WP pinta los <button> */
+    cursor: pointer;
+}
+.stic-pay-submit.stic-rec-btn--primary {
+    background: var(--grad-brand) !important; /* el tema de WP pinta los <button> */
+    color: var(--on-brand) !important; /* el tema de WP pinta los <button> */
+}
+.stic-pay-cta .stic-rec-btn--ghost { min-height: 48px; }
+.stic-pay-submit.stic-rec-btn:disabled { opacity: 0.5; cursor: not-allowed; }
