@@ -362,16 +362,17 @@ function sticpa_support_email()
  * EL FORMULARIO DE «no sé con qué correo me di de alta».
  *
  * Se pinta en dos sitios —el login y la pantalla del código— y por eso está
- * aquí: es el mismo formulario, y dos copias acaban divergiendo. Va siempre
- * DENTRO de un `<details>` cerrado: es la salida de emergencia, no la puerta
- * principal, y quien tiene su correo a mano no debería ni verla.
+ * aquí: es el mismo formulario, y dos copias acaban divergiendo. Devuelve SOLO
+ * el formulario: lo envuelve el desplegable de ayuda de cada pantalla
+ * (`sticpa_login_help_html`, `sticpa_access_rescue_html`), siempre cerrado,
+ * porque es la salida de emergencia y no la puerta principal.
  *
  * El porqué de esta vía y lo que NO hace (no abre sesión) está en
  * `inc/stic-otp.php` y en `sticpa_handle_send_access_dni`.
  */
 function sticpa_dni_access_form_html($return_url)
 {
-    $html = "
+    return "
         <form action='" . site_url() . "/wp-admin/admin-post.php' method='post' class='stic-loading-form stic-dni-form'
               data-loading-text='" . esc_attr__('Buscándote…', 'sticpa') . "'
               data-loading-sub='" . esc_attr__('Si te encontramos, te mandamos el acceso a tu correo.', 'sticpa') . "'>
@@ -386,25 +387,55 @@ function sticpa_dni_access_form_html($return_url)
             <input type='hidden' name='scp_current_url' value='" . esc_attr($return_url) . "'>
             <button type='submit' class='stic-btn-magic'>
                 <span class='stic-btn-magic-icon'>" . sticpa_otp_icon('send') . "</span>
-                <span>" . esc_html__('Buscarme y mandarme el acceso', 'sticpa') . "</span>
+                <span>" . esc_html__('Enviarme el acceso', 'sticpa') . "</span>
             </button>
         </form>";
+}
 
+/**
+ * Un desplegable de ayuda: la pregunta fuera, todo lo demás dentro.
+ *
+ * Las dos pantallas del acceso tienen UNO, y solo uno (03/10/2026): antes el
+ * login llevaba dos (`¿Qué correo debo poner?` entre el campo y el botón, y
+ * `No sé con qué correo me di de alta` debajo) y la pantalla del código una
+ * lista de cuatro consejos siempre a la vista. Es lo que hacen las pantallas
+ * de acceso de cualquier servicio: campo, botón y la ayuda plegada.
+ */
+function sticpa_auth_help_details($summary, $body, $open = false)
+{
     return "
-        <details class='stic-code-reveal stic-dni-reveal'>
-            <summary>" . sticpa_otp_icon('help', 'stic-hint-icon') . "<span>"
-                . esc_html__('No sé con qué correo me di de alta', 'sticpa') . "</span>"
+        <details class='stic-code-reveal stic-auth-rescue'" . ($open ? " open" : "") . ">
+            <summary>" . sticpa_otp_icon('help', 'stic-hint-icon') . "<span>" . esc_html($summary) . "</span>"
                 . sticpa_otp_icon('chevron', 'stic-hint-chevron') . "</summary>
-            <div class='stic-code'>" . $html . "</div>
+            <div class='stic-auth-rescue-body'>" . $body . "</div>
         </details>";
 }
 
 /**
- * EL BLOQUE DE RESCATE de la pantalla del código: «¿no te llega nada?».
+ * La ayuda del LOGIN: qué correo poner y, si no lo sabes, el DNI.
  *
- * Las cuatro cosas que puede hacer quien está esperando un correo que no llega,
- * en orden de probabilidad, y la salida de verdad —buscarse por el documento—.
- * El porqué está arriba, en la cabecera de esta sección.
+ * @param bool $open Abierto cuando se vuelve de un error del DNI: el mensaje
+ *                   sale arriba y el formulario tiene que estar a mano.
+ */
+function sticpa_login_help_html($return_url, $open = false)
+{
+    $body = "<p><strong>" . esc_html__('Familias de MIC y COM:', 'sticpa') . "</strong> "
+        . esc_html__('el correo del familiar, no el del participante.', 'sticpa') . "</p>"
+        . "<p><strong>" . esc_html__('Miembros del MCM:', 'sticpa') . "</strong> "
+        . esc_html__('tu correo propio.', 'sticpa') . "</p>"
+        . "<p>" . esc_html__('¿No recuerdas cuál? Escribe tu DNI y te mandamos el acceso al correo que tenemos.', 'sticpa') . "</p>"
+        . sticpa_dni_access_form_html($return_url);
+
+    return sticpa_auth_help_details(__('¿Qué correo pongo?', 'sticpa'), $body, $open);
+}
+
+/**
+ * LA AYUDA de la pantalla del código: «¿necesitas ayuda?».
+ *
+ * El acceso nunca dice si un correo existe, así que quien escribe una
+ * dirección equivocada ve lo mismo que quien la escribe bien y espera un correo
+ * que no llega. Aquí están las salidas, en orden de probabilidad: spam, la
+ * dirección mal escrita, buscarse por el DNI y, al final, la oficina técnica.
  *
  * @param string $masked     El correo al que se mandó, ya tapado (puede ir vacío).
  * @param string $return_url URL de vuelta al área, para el formulario.
@@ -412,28 +443,22 @@ function sticpa_dni_access_form_html($return_url)
 function sticpa_access_rescue_html($masked, $return_url)
 {
     $soporte = sticpa_support_email();
-    $html = "<div class='stic-auth-rescue'>";
-    $html .= "<p class='stic-auth-rescue-title'>" . esc_html__('¿No te llega nada?', 'sticpa') . "</p>";
-    $html .= "<ul class='stic-auth-rescue-list'>";
-    $html .= "<li>" . esc_html__('Mira la carpeta de spam o correo no deseado.', 'sticpa') . "</li>";
+    $body = "<ul class='stic-auth-rescue-list'>";
+    $body .= "<li>" . esc_html__('Mira en la carpeta de spam.', 'sticpa') . "</li>";
     if ($masked !== '') {
-        $html .= "<li>" . sprintf(
-            /* translators: %s: el correo escrito, con parte tapada (dav••@mov•••.com) */
-            esc_html__('Comprueba que el correo esté bien escrito. Lo hemos mandado a %s.', 'sticpa'),
-            "<strong>" . esc_html($masked) . "</strong>"
-        ) . "</li>";
+        // La dirección ya sale tapada en el subtítulo; aquí no se repite.
+        $body .= "<li>" . esc_html__('Comprueba que el correo de arriba sea el tuyo.', 'sticpa') . "</li>";
     }
-    $html .= "<li>" . esc_html__('Si te diste de alta con otro correo y no recuerdas cuál, búscate por tu DNI aquí abajo.', 'sticpa') . "</li>";
-    $html .= "<li>" . sprintf(
+    $body .= "<li>" . esc_html__('¿Te diste de alta con otro correo? Búscate por tu DNI:', 'sticpa') . "</li>";
+    $body .= "</ul>";
+    $body .= sticpa_dni_access_form_html($return_url);
+    $body .= "<p class='stic-auth-rescue-foot'>" . sprintf(
         /* translators: %s: enlace al correo de la oficina técnica */
-        esc_html__('Y si nada de esto funciona, escríbenos a %s y te echamos una mano.', 'sticpa'),
+        esc_html__('¿Sigues sin poder entrar? Escríbenos a %s.', 'sticpa'),
         "<a href='mailto:" . esc_attr($soporte) . "'>" . esc_html($soporte) . "</a>"
-    ) . "</li>";
-    $html .= "</ul>";
-    $html .= sticpa_dni_access_form_html($return_url);
-    $html .= "</div>";
+    ) . "</p>";
 
-    return $html;
+    return sticpa_auth_help_details(__('¿Necesitas ayuda?', 'sticpa'), $body);
 }
 
 /**
