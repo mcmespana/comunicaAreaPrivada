@@ -887,10 +887,13 @@ function sticpa_mask_display_name($name)
 }
 
 /**
- * Email HTML (branded, mobile-first) con las DOS formas de entrar: el botón del
- * enlace mágico primero (es lo más fácil para casi todo el mundo) y, debajo,
- * el código de 6 cifras para quien prefiera teclearlo o vaya a entrar desde la
- * app MCM (ver `inc/stic-otp.php` para el porqué del código).
+ * Email HTML (branded, mobile-first) con las DOS formas de entrar, y las dos
+ * con el mismo peso (02/10/2026): dos tarjetas iguales, «Escribe este código»
+ * y «Entra con un toque», separadas por una «o». Antes el código iba debajo
+ * del botón como plan B («si te resulta más fácil…»), pero la pantalla de
+ * acceso ya lo pone primero, y el correo y la pantalla tienen que contar lo
+ * mismo. El código va arriba por eso; el botón no es peor, es igual de bueno.
+ * Por qué hacen falta las dos: `inc/stic-otp.php`.
  *
  * Colores de marca MCM: azul #1c6fb3, magenta #9d1e74. Estilos inline porque
  * los clientes de correo no respetan <style> ni CSS externo.
@@ -904,29 +907,44 @@ function sticpa_magic_email_html($name, $link, $portalName, $code = '')
     $saludo = $name !== '' ? sprintf(__('Hola %s,', 'sticpa'), $name) : __('Hola,', 'sticpa');
     $intro = __('Has solicitado entrar en el área privada de MCM Comunica.', 'sticpa');
     $btn = __('Acceder a mi área privada', 'sticpa');
-    $otroModo = __('Si te resulta más fácil, o si vas a entrar desde la app, usa este código:', 'sticpa');
     $expira = sprintf(__('Por seguridad, el código y el enlace caducan en %d minutos. Si caducan, pídelos de nuevo desde la web.', 'sticpa'), $minutos);
     $fallback = __('¿El botón no funciona? Copia y pega esta dirección en tu navegador:', 'sticpa');
     $ignore = __('Si no has solicitado este acceso, puedes ignorar este correo. Nadie puede entrar en tu cuenta sin este mensaje.', 'sticpa');
 
-    // Bloque del código. Se dibuja con una tabla y tamaños en px porque es lo
-    // único que respetan Outlook y Gmail; el espacio de «123 456» es literal
-    // (letter-spacing solo, sin el espacio, se pierde en varios clientes).
-    $codeBlock = '';
-    if ($code !== '') {
-        $codeBlock = '
-          <p style="margin:0 0 10px;text-align:center;color:#9ca3af;font-size:13px;">' . esc_html($otroModo) . '</p>
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+    // Las dos tarjetas comparten marco para que se lean como dos opciones
+    // iguales. Tablas y px porque es lo único que respetan Outlook y Gmail.
+    $card = function ($title, $inner, $note) {
+        return '
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0;">
             <tr><td align="center" style="background:#f4f6fb;border:1px solid #e3e8f2;border-radius:14px;padding:18px 12px;">
-              <div style="font-size:13px;color:#6b7280;letter-spacing:.04em;text-transform:uppercase;margin-bottom:8px;">'
-                . esc_html__('Tu código de acceso', 'sticpa') . '</div>
-              <div style="font-size:38px;line-height:1.1;font-weight:bold;color:#1c6fb3;letter-spacing:.12em;font-family:Consolas,Menlo,Monaco,monospace;">'
-                . esc_html(sticpa_otp_format_code($code)) . '</div>
-              <div style="font-size:13px;color:#6b7280;margin-top:10px;">'
-                . esc_html__('Escríbelo en la pantalla de acceso.', 'sticpa') . '</div>
+              <div style="font-size:13px;color:#6b7280;letter-spacing:.04em;text-transform:uppercase;margin-bottom:10px;">' . esc_html($title) . '</div>
+              ' . $inner . '
+              <div style="font-size:13px;color:#6b7280;margin-top:10px;">' . esc_html($note) . '</div>
             </td></tr>
           </table>';
+    };
+    $or = '
+          <div style="text-align:center;color:#9ca3af;font-size:13px;font-weight:bold;letter-spacing:.08em;text-transform:uppercase;margin:12px 0;">' . esc_html__('o', 'sticpa') . '</div>';
+
+    // El espacio de «123 456» es literal (letter-spacing solo, sin el espacio,
+    // se pierde en varios clientes).
+    $codeBlock = '';
+    if ($code !== '') {
+        $codeBlock = $card(
+            __('Escribe este código', 'sticpa'),
+            '<div style="font-size:38px;line-height:1.1;font-weight:bold;color:#1c6fb3;letter-spacing:.12em;font-family:Consolas,Menlo,Monaco,monospace;">'
+                . esc_html(sticpa_otp_format_code($code)) . '</div>',
+            __('En la pantalla de acceso, en la web o en la app.', 'sticpa')
+        ) . $or;
     }
+
+    $btnBlock = $card(
+        __('Entra con un toque', 'sticpa'),
+        '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;"><tr><td align="center" style="border-radius:12px;background:linear-gradient(135deg,#1c6fb3,#9d1e74);background-color:#1c6fb3;">
+                <a href="' . $linkAttr . '" style="display:inline-block;padding:14px 28px;color:#ffffff;text-decoration:none;font-weight:bold;font-size:16px;border-radius:12px;">' . esc_html($btn) . '</a>
+              </td></tr></table>',
+        __('Te lleva dentro sin escribir nada.', 'sticpa')
+    );
 
     // Logo del pie: "Consolación para el Mundo", el logo institucional real
     // (antes había aquí una insignia "MCM" dibujada en CSS porque no teníamos
@@ -954,11 +972,8 @@ function sticpa_magic_email_html($name, $link, $portalName, $code = '')
         <tr><td style="padding:28px 28px 8px;color:#1f2937;font-size:16px;line-height:1.55;">
           <p style="margin:0 0 14px;">' . $saludo . '</p>
           <p style="margin:0 0 22px;color:#4b5563;">' . esc_html($intro) . '</p>
-          <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto 22px;"><tr><td align="center" style="border-radius:12px;background:linear-gradient(135deg,#1c6fb3,#9d1e74);">
-            <a href="' . $linkAttr . '" style="display:inline-block;padding:14px 28px;color:#ffffff;text-decoration:none;font-weight:bold;font-size:16px;border-radius:12px;">' . esc_html($btn) . '</a>
-          </td></tr></table>
-          ' . $codeBlock . '
-          <p style="margin:0 0 18px;color:#6b7280;font-size:13px;line-height:1.5;">' . esc_html($expira) . '</p>
+          ' . $codeBlock . $btnBlock . '
+          <p style="margin:22px 0 18px;color:#6b7280;font-size:13px;line-height:1.5;">' . esc_html($expira) . '</p>
           <p style="margin:0 0 6px;color:#6b7280;font-size:13px;">' . esc_html($fallback) . '</p>
           <p style="margin:0 0 22px;word-break:break-all;"><a href="' . $linkAttr . '" style="color:#1c6fb3;font-size:13px;">' . $linkAttr . '</a></p>
         </td></tr>
@@ -1077,7 +1092,13 @@ function sticpa_send_access_email($contact, $module, $email, $areaUrl)
         'From: ' . $portalName . ' <' . $fromEmail . '>',
         'Reply-To: ' . $portalName . ' <' . $fromEmail . '>',
     );
-    $subject = sprintf(__('Tu acceso a %s', 'sticpa'), $portalName);
+    // El código va en el ASUNTO (02/10/2026): así se lee en la notificación
+    // del móvil sin abrir el correo, y iOS/Android lo ofrecen para pegarlo en
+    // el campo (`autocomplete='one-time-code'`). Se ve en la pantalla
+    // bloqueada, sí: como en casi todos los servicios, y caduca en minutos.
+    $subject = $code !== ''
+        ? sprintf(__('%1$s es tu código de acceso a %2$s', 'sticpa'), sticpa_otp_format_code($code), $portalName)
+        : sprintf(__('Tu acceso a %s', 'sticpa'), $portalName);
     $body = sticpa_magic_email_html($name, $link, $portalName, $code);
 
     return wp_mail($email, $subject, $body, $headers);

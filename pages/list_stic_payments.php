@@ -68,12 +68,13 @@ if ((isset($_SESSION['scp_tutor_is_user']) && $_SESSION['scp_tutor_is_user']) ||
             $parentModule === 'Accounts' ? 'stic_payment_commitments_accounts' : 'stic_payment_commitments_contacts');
     }
     $availablePayments = $objSCP->getRelatedElementsForLoggedUser($params);
-    $availablePayments = is_array($availablePayments) ? $availablePayments : array();
-    // Lo que se debe y no tiene a nadie puesto (lo generaba el área al
-    // inscribirse): se enseña igual y se arregla. Ver la función.
-    $availablePayments = array_merge($availablePayments, sticpa_payments_without_payer(
-        $objSCP, $commitmentRows, $availablePayments, $fieldsToRetrieve,
-        (string) ($_SESSION['scp_user_id'] ?? ''), $relationship));
+    // De qué compromiso es cada pago, los que no tienen persona y los que no
+    // tienen nombre: ver la función.
+    $completo = sticpa_payments_complete($objSCP, $commitmentRows,
+        is_array($availablePayments) ? $availablePayments : array(), $fieldsToRetrieve,
+        (string) ($_SESSION['scp_user_id'] ?? ''), $relationship);
+    $availablePayments = $completo['payments'];
+    $commitmentMap = $completo['map'];
 
 } else {
     $params = array(
@@ -139,7 +140,7 @@ $html .= "<div class='stic-entry-header'><h3>" . esc_html($listTitle) . "</h3></
 if (($_REQUEST['msg'] ?? '') === 'pagado') {
     $html .= sticpa_record_note_html(array('tone' => 'ok', 'icon' => 'check', 'text' => __('Pago hecho. Si aún lo ves pendiente, el banco está terminando de confirmarlo.', 'sticpa')));
 }
-$html .= sticpa_payments_list_html($availablePayments, $definition, sticpa_payments_commitment_map($commitmentRows ?? array()));
+$html .= sticpa_payments_list_html($availablePayments, $definition, $commitmentMap ?? sticpa_payments_commitment_map($commitmentRows ?? array()));
 
 // El certificado de donaciones, si el CRM tiene plantilla configurada, va al
 // final y como acción secundaria: no es a lo que se entra.

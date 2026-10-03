@@ -15,6 +15,12 @@
 require_once __DIR__ . '/../bootstrap.php';
 $B = dirname(__DIR__, 2) . '/';
 require_once $B . 'inc/stic-otp.php';
+// Los iconos de verdad: sin ellos (`sticpa_otp_icon` devuelve '' si no existe
+// `sticpa_icon`) no se veía que el del DNI se montaba encima del texto.
+if (!function_exists('sticpa_icon')
+    && preg_match('/function sticpa_icon\(.*?\n}\n/s', file_get_contents($B . 'sinergiacrm-private-area.php'), $m)) {
+    eval($m[0]);
+}
 
 $scheme = (isset($argv[1]) && $argv[1] === 'dark') ? 'dark' : 'light';
 $volver = '/area-privada?stic_auth=1';
