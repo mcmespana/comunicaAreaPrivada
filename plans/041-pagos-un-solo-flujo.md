@@ -363,3 +363,28 @@ corta del área antes de que el área supiera del FWA):
   (EVENTOS.md §10.2.2).
 - «Referencia» (el nombre del registro en el CRM) fuera de la ficha de la
   inscripción, y el «Concepto» del pago ya no se repite debajo del título.
+
+### 10.1 La sustitución no cerraba el viejo (02-03/10/2026)
+
+Con el Foro por FWA, David pagó con tarjeta y en Pagos salían **dos pendientes
+de 110 € y un pagado**, todos llamados «Tarjeta (vía Redsys)».
+
+- **El pendiente viejo seguía vivo** porque por la API v4.1 el pago no trae su
+  compromiso en el campo plano (`stic_paymebfe2itments_ida` llega vacío): la
+  sustitución no encontraba el compromiso viejo y no lo cerraba ni pasaba la
+  inscripción al nuevo. Ahora `sticpa_payment_commitment_id()` pregunta por la
+  relación. Las que se quedaron a medias (marca `[pagado:…]`) se terminan solas
+  al entrar en Pagos; la marca final es `[sustituido:…]`.
+- **Salía dos veces** porque Pagos tampoco sabía de qué compromiso era cada
+  pago. `sticpa_payments_complete()` lo rellena desde los compromisos vivos (una
+  llamada por compromiso, en paralelo) y quita repetidos.
+- **Sin nombre**: el FWA no pone concepto. Pagos le pone al compromiso y a sus
+  pagos el evento de su inscripción, una vez, y «Tarjeta (vía Redsys)» ya no se
+  toma por concepto (`sticpa_concept_is_blank()`), ni en Pagos ni en lo que se
+  manda al banco.
+- **Mejor aún, en el FWA**: si el formulario pone él el concepto bancario del
+  compromiso (el nombre del evento, valor fijo), el CRM lo tiene desde el
+  principio y no hace falta arreglarlo después.
+- Que el pago con tarjeta cree OTRO compromiso en vez de pagar el existente es
+  cosa del formulario de pago de SinergiaCRM (siempre crea uno). Preguntado en el
+  foro de soporte; mientras, el área sustituye.

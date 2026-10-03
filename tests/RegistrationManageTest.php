@@ -122,6 +122,10 @@ class RegistrationManageTest extends TestCase
             public $myPayments = array();        // pagos de quien está en sesión
             public $commitmentMeta = array();    // id => campos extra en getRecordsModule
             public $autoPayments = false;        // como el CRM: al crear un compromiso, su pago pendiente
+            // COMO LA API v4.1 DE VERDAD (02/10/2026): el campo plano
+            // `stic_paymebfe2itments_ida` de un pago llega VACÍO; el compromiso
+            // solo se sabe por la relación. El doble que lo daba mentía.
+            public $flatPaymentLink = false;
             public $paymentStatusOptions = array('paid' => 'Pagado', 'pending' => 'Pendiente', 'not_remitted' => 'No remesado', 'cancelled' => 'Anulado');
             private $n = 0;
             private $t;
@@ -156,6 +160,11 @@ class RegistrationManageTest extends TestCase
                 $src = $module === 'stic_Events' ? $this->events : ($module === 'stic_Registrations' ? $this->registrations : ($module === 'Contacts' ? $this->contacts : array()));
                 if ($module === 'stic_Payments') {
                     $src = $this->payments;
+                    if (!$this->flatPaymentLink) {
+                        foreach ($src as $k => $v) {
+                            unset($src[$k]['stic_paymebfe2itments_ida']);
+                        }
+                    }
                 }
                 if ($module === 'stic_Payment_Commitments') {
                     $src = $this->commitments;
@@ -188,7 +197,7 @@ class RegistrationManageTest extends TestCase
                 if ($link === 'stic_payment_commitments_stic_registrations' && ($p['module_name'] ?? '') === 'stic_Payment_Commitments') {
                     $out = array();
                     foreach ($this->regsOfCommitment[$p['module_id']] ?? array() as $rid) {
-                        $out[] = (object) array('id' => $rid, 'name_value_list' => $this->nvl(array('id' => $rid)));
+                        $out[] = (object) array('id' => $rid, 'name_value_list' => $this->nvl(array_merge(array('id' => $rid), $this->registrations[$rid] ?? array())));
                     }
                     return $out;
                 }
@@ -198,6 +207,10 @@ class RegistrationManageTest extends TestCase
                         $out[] = (object) array('id' => $c['id'], 'name_value_list' => $this->nvl($c));
                     }
                     return $out;
+                }
+                if ($link === 'stic_payments_stic_payment_commitments' && ($p['module_name'] ?? '') === 'stic_Payments') {
+                    $cid = $this->payments[$p['module_id']]['stic_paymebfe2itments_ida'] ?? '';
+                    return $cid !== '' ? array((object) array('id' => $cid, 'name_value_list' => $this->nvl(array('id' => $cid)))) : array();
                 }
                 if ($link === 'stic_payments_stic_payment_commitments') {
                     $out = array();
@@ -608,13 +621,40 @@ class RegistrationManageTest extends TestCase
         $this->crm->paymentsOfCommitment['pc-congreso'] = array(array('id' => 'pay-congreso', 'status' => 'pending'));
         $this->crm->paymentsOfCommitment['pc-cerrado'] = array(array('id' => 'pay-cerrado', 'status' => 'cancelled'));
         $this->crm->paymentsOfCommitment['pc-intento'] = array(array('id' => 'pay-intento', 'status' => 'pending'));
-        $yaSalen = array($row('pay-visto', array('stic_paymebfe2itments_ida' => 'pc-visto')));
 
-        $faltan = sticpa_payments_without_payer($this->crm, $compromisos, $yaSalen, sticpa_payment_list_fields(), 'c1', 'stic_payments_contacts');
-        $this->assertSame(array('pay-congreso'), array_map(function ($r) { return $r->id; }, $faltan),
-            'solo lo vivo: ni lo cerrado, ni los intentos de tarjeta, ni lo que ya sale');
-        $this->assertSame(array(array('stic_Payments', 'pay-congreso', 'stic_payments_contacts', array('c1'))), $this->crm->relations,
+        $this->crm->paymentsOfCommitment['pc-visto'] = array(array('id' => 'pay-visto', 'status' => 'pending'));
+        // Como la API: sin el compromiso en el campo plano, y uno repetido.
+        $yaSalen = array($row('pay-visto', array()), $row('pay-visto', array()));
+
+        $res = sticpa_payments_complete($this->crm, $compromisos, $yaSalen, sticpa_payment_list_fields(), 'c1', 'stic_payments_contacts');
+        $ids = array_map(function ($r) { return $r->id; }, $res['payments']);
+        $this->assertSame(array('pay-visto', 'pay-congreso'), $ids,
+            'sin repetidos, y lo que se debe sin persona; ni lo cerrado ni los intentos de tarjeta');
+        $this->assertSame('pc-visto', $res['payments'][0]->name_value_list->stic_paymebfe2itments_ida->value, 'cada pago sabe de qué compromiso es');
+        $this->assertContains(array('stic_Payments', 'pay-congreso', 'stic_payments_contacts', array('c1')), $this->crm->relations,
             'y se le pone la persona, para que la próxima vez salga solo');
+    }
+
+    /** Un compromiso del FWA sin concepto: en Pagos se llama como el evento, y se queda así en el CRM. */
+    public function test_pagos_pone_nombre_a_lo_que_se_llamaba_tarjeta_via_redsys()
+    {
+        $fila = (object) array('id' => 'pc-fwa', 'name_value_list' => $this->nvl(array('id' => 'pc-fwa', 'end_date' => '',
+            'payment_method' => 'card', 'description' => '', 'banking_concept' => 'Tarjeta (vía Redsys)')));
+        $this->crm->paymentsOfCommitment['pc-fwa'] = array(array('id' => 'pay-fwa', 'status' => 'pending', 'banking_concept' => ''));
+        $this->crm->regsOfCommitment['pc-fwa'] = array('reg-fwa');
+        $this->crm->registrations['reg-fwa'] = array('name' => 'David Soler Balado - LC | Foro de Laicos Consolación 2026');
+        $pago = (object) array('id' => 'pay-fwa', 'name_value_list' => $this->nvl(array('id' => 'pay-fwa',
+            'name' => 'David Soler Balado - Tarjeta (vía Redsys) - 110 - 2026-10-02', 'amount' => '110.00', 'status' => 'pending',
+            'payment_method' => 'card', 'payment_date' => '2026-10-02')));
+
+        $res = sticpa_payments_complete($this->crm, array($fila), array($pago), sticpa_payment_list_fields(), 'c1', 'stic_payments_contacts');
+        $this->assertSame('LC | Foro de Laicos Consolación 2026', $res['map']['pc-fwa']['banking_concept']);
+        $datos = array_column($this->crm->writes, 'data');
+        $this->assertContains(array('id' => 'pc-fwa', 'banking_concept' => 'LC | Foro de Laicos Consolación 2026'), $datos);
+        $this->assertContains(array('id' => 'pay-fwa', 'banking_concept' => 'LC | Foro de Laicos Consolación 2026'), $datos);
+        $html = sticpa_payments_list_html($res['payments'], array(), $res['map']);
+        $this->assertStringContainsString('Foro de Laicos', $html);
+        $this->assertStringNotContainsString('Tarjeta (vía Redsys)</', $html);
     }
 
     /* ---- Pagar con tarjeta (EV-9) ------------------------------------ */
@@ -810,8 +850,57 @@ class RegistrationManageTest extends TestCase
         $this->assertSame(array('id' => self::PAGO, 'status' => 'cancelled'), $porId[self::PAGO][0]);
         // La marca, reescrita.
         $ultima = end($porId['pc-card']);
-        $this->assertStringContainsString('[pagado:' . self::PAGO . ']', $ultima['description']);
+        $this->assertStringContainsString('[sustituido:' . self::PAGO . ']', $ultima['description']);
         $this->assertStringNotContainsString($marca, $ultima['description']);
+        // Y con nombre: el concepto del viejo, no «Tarjeta (vía Redsys)».
+        $this->assertContains(array('id' => 'pc-card', 'banking_concept' => 'LC | Foro de Laicos Consolación 2026'),
+            array_column($this->crm->writesTo('stic_Payment_Commitments'), 'data'));
+    }
+
+    /**
+     * LO QUE PASÓ EL 02/10/2026: el compromiso del FWA no tiene concepto ni la
+     * API da el compromiso del pago en su campo plano. Antes, el viejo no se
+     * cerraba (el pendiente seguía al lado del pagado) y todo se llamaba
+     * «Tarjeta (vía Redsys)». Ahora el compromiso sale por la relación y el
+     * nombre, del evento de la inscripción.
+     */
+    public function test_un_pendiente_del_fwa_se_sustituye_y_se_llama_como_el_evento()
+    {
+        $this->pagoPendiente(array('name' => 'David Soler Balado - Tarjeta (vía Redsys) - 110 - 2026-10-02', 'payment_method' => 'card'));
+        $this->crm->commitments['pc-orig'] = array('id' => 'pc-orig', 'assigned_user_id' => 'ece', 'description' => '');
+        // Como la inscripción del FWA: el evento, en su nombre.
+        $this->crm->registrations['reg-1'] = array('name' => 'David Soler Balado - LC | Foro de Laicos Consolación 2026');
+        $this->assertSame('pc-orig', sticpa_payment_commitment_id($this->crm, self::PAGO, null), 'por la relación');
+
+        $ctx = sticpa_pay_context($this->crm, self::PAGO);
+        $this->assertSame('pc-orig', $ctx['commitment_id']);
+        $this->assertSame('LC | Foro de Laicos Consolación 2026', $ctx['concept'], 'del evento, no del medio de pago');
+
+        $marca = sticpa_pay_marker(self::PAGO);
+        $this->crm->commitmentsByDescription['pc-card'] = 'Pago con tarjeta… ' . $marca;
+        $this->crm->paymentsOfCommitment['pc-card'] = array('paid');
+        $this->crm->paymentsOfCommitment['pc-orig'] = array(array('id' => self::PAGO, 'status' => 'pending'));
+        sticpa_pay_claim($this->crm, self::PAGO);
+        $this->assertContains(array('id' => self::PAGO, 'status' => 'cancelled'), array_column($this->crm->writesTo('stic_Payments'), 'data'),
+            'el pendiente viejo, anulado');
+    }
+
+    /** Las sustituciones que se quedaron a medias (`[pagado:…]`) se terminan al entrar en Pagos. */
+    public function test_pagos_termina_una_sustitucion_a_medias()
+    {
+        $this->pagoPendiente();
+        $this->crm->commitments['pc-card'] = array('id' => 'pc-card', 'description' => 'Pago con tarjeta… [pagado:' . self::PAGO . ']');
+        $this->crm->paymentsOfCommitment['pc-card'] = array('paid');
+        $this->crm->paymentsOfCommitment['pc-orig'] = array(array('id' => self::PAGO, 'status' => 'pending'));
+        $fila = (object) array('id' => 'pc-card', 'name_value_list' => $this->nvl(array('id' => 'pc-card', 'name' => 'David Soler Balado - Servicios - 110,00',
+            'payment_type' => 'services', 'end_date' => '', 'description' => 'Pago con tarjeta… [pagado:' . self::PAGO . ']')));
+
+        $this->assertTrue(sticpa_payments_settle($this->crm, array($fila)));
+        $datos = array_column($this->crm->writes, 'data');
+        $this->assertContains(array('id' => self::PAGO, 'status' => 'cancelled'), $datos, 'el pendiente viejo se anula');
+        $this->assertContains(array('stic_Payment_Commitments', 'pc-card', 'stic_payment_commitments_stic_registrations', array('reg-1')), $this->crm->relations,
+            'la inscripción pasa al nuevo');
+        $this->assertStringContainsString('[sustituido:' . self::PAGO . ']', end($datos)['description'], 'y no se vuelve a hacer');
     }
 
     /** Sin estado de «anulado» en el CRM, el pago sin cobrar del viejo se borra (no hay dinero en él). */
