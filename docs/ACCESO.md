@@ -24,10 +24,9 @@ El correo lleva las dos formas —enlace y código— a propósito: dentro de la
 MCM el enlace falla más, y el código es la red. Está explicado en la cabecera de
 `inc/stic-otp.php`.
 
-Desde el 02/10/2026 las dos van **con el mismo peso**: el correo las pinta como
-dos tarjetas iguales («Escribe este código» · o · «Entra con un toque») y la
-pantalla de después enseña el campo del código abierto y grande, con el enlace
-recordado debajo. El código va además **en el asunto** («123 456 es tu código
+Desde el 02/10/2026 las dos van **a la vista**: el correo pinta el código
+grande, una «o» y el botón, y la pantalla de después enseña el campo del código
+abierto y grande, con el botón del correo recordado debajo. El código va además **en el asunto** («123 456 es tu código
 de acceso a…»), para leerlo en la notificación sin abrir el correo; se ve en la
 pantalla bloqueada, como en casi todos los servicios, y caduca en minutos.
 
@@ -63,21 +62,35 @@ terminaba en una llamada a la oficina técnica.
 
 ---
 
-## 3. El rescate: «¿no te llega nada?»
+## 3. El rescate: «¿necesitas ayuda?»
 
-La solución **no** ha sido romper la regla de arriba, sino dar las cuatro cosas
-que puede hacer, en orden de probabilidad, al final de la pantalla del código
-(`sticpa_access_rescue_html`):
+La solución **no** ha sido romper la regla de arriba, sino dar las salidas que
+tiene, en orden de probabilidad, dentro de un desplegable cerrado al final de la
+pantalla del código (`sticpa_access_rescue_html`):
 
 1. Mirar la carpeta de spam.
-2. Comprobar que el correo esté bien escrito — y se enseña **a cuál se mandó**,
-   tapado (`da•••@movimientoconsolacion.com`).
+2. Comprobar que el correo esté bien escrito: se enseña **a cuál se mandó**,
+   tapado (`da•••@movimientoconsolacion.com`), en el subtítulo de la pantalla.
 3. **Buscarse por el DNI** (§4). Es la que resuelve de verdad el caso «me di de
    alta con otro correo».
 4. Escribir a la oficina técnica (`sticpa_support_email()`, por defecto
    `comunica@movimientoconsolacion.com`).
 
-Es discreto a propósito: la mayoría abre el correo y no llega a leerlo.
+### Una pantalla, una cosa (03/10/2026)
+
+Las dos pantallas del acceso siguen el patrón de cualquier servicio: **campo,
+botón y la ayuda plegada**. Una sola ayuda por pantalla
+(`sticpa_auth_help_details()`):
+
+| Pantalla | Lo que se ve | Lo plegado |
+|---|---|---|
+| Login | Correo · «Enviarme el acceso» | «¿Qué correo pongo?»: familias / miembros y el DNI |
+| Código | Código · «Entrar» · «O entra con el botón del correo» · «Reenviar código · Usar otro correo» | «¿Necesitas ayuda?»: lo de arriba |
+
+Antes el login tenía dos desplegables (uno metido entre el campo y el botón) y
+la pantalla del código seis bloques de texto para una sola acción. La ayuda del
+login se abre sola cuando se vuelve de un error del DNI, para tener el
+formulario a mano.
 
 ---
 

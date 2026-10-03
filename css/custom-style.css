@@ -606,42 +606,9 @@ span.stic-field {
     50%      { opacity: 1; transform: scale(1.12) rotate(12deg); }
 }
 
-/* ---- Indicador sutil "¿Qué correo debo poner?" (details/summary) ---- */
-.stic-hint { margin-top: 0.5rem; }
-.stic-hint summary {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    width: fit-content;
-    list-style: none;
-    cursor: pointer;
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: var(--gray-500);
-    padding: 0.25rem 0.1rem;
-    transition: color 0.18s ease;
-    -webkit-tap-highlight-color: transparent;
-}
-.stic-hint summary::-webkit-details-marker { display: none; }
-.stic-hint summary:hover { color: var(--primary-color); }
+/* ---- Iconos de los desplegables de ayuda del acceso (.stic-code-reveal) ---- */
 .stic-hint-icon { width: 15px; height: 15px; flex-shrink: 0; }
 .stic-hint-chevron { width: 14px; height: 14px; flex-shrink: 0; transition: transform 0.25s var(--ease-spring); }
-.stic-hint[open] summary .stic-hint-chevron { transform: rotate(180deg); }
-.stic-hint-body {
-    margin-top: 0.5rem;
-    padding: 0.8rem 0.95rem;
-    background: var(--surface-2);
-    border: 1px solid var(--gray-200);
-    border-left: 3px solid var(--secondary-color);
-    border-radius: var(--radius-md);
-    font-size: 0.85rem;
-    line-height: 1.5;
-    color: var(--gray-600);
-    animation: stic-fade-up 0.3s var(--ease-out) backwards;
-}
-.stic-hint-body p { margin: 0 0 0.45rem; }
-.stic-hint-body p:last-child { margin-bottom: 0; }
-.stic-hint-body strong { color: var(--gray-800); }
 
 /* CTA destacada de acceso por enlace mágico */
 .stic-magic-cta {
@@ -5908,7 +5875,7 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     color: var(--gray-500);
 }
 
-/* ---- El <details> pequeño (lo reutiliza el bloque del DNI, §58) ---- */
+/* ---- El <details> de ayuda del acceso (login y pantalla del código, §58) ---- */
 .stic-code-reveal {
     margin-top: var(--space-4);
     border-top: 1px solid var(--gray-200);
@@ -5923,19 +5890,17 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     min-height: 44px;          /* objetivo táctil cómodo en móvil */
     cursor: pointer;
     list-style: none;
-    /* Sube de `sm` a `base`: no es una nota al pie, es LA segunda puerta de
-       entrada —la que salva a quien está dentro de la app MCM, donde el enlace
-       del correo falla más—. En `sm` parecía letra pequeña y se leía como un
-       aviso legal en vez de como la alternativa que es. */
-    font-size: var(--font-size-base);
+    /* Ayuda plegada, no una segunda puerta (03/10/2026): el código ya está
+       abierto en la pantalla, así que esto vuelve a ser letra discreta. */
+    font-size: var(--font-size-sm);
     font-weight: 600;
-    color: var(--primary-color);
+    color: var(--gray-500);
     border-radius: var(--radius-md);
 }
 
 .stic-code-reveal > summary::-webkit-details-marker { display: none; }
 
-.stic-code-reveal > summary:hover { color: var(--primary-dark); }
+.stic-code-reveal > summary:hover { color: var(--primary-color); }
 
 .stic-code-reveal > summary:focus-visible {
     outline: 2px solid var(--primary-color);
@@ -5946,18 +5911,17 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 
 .stic-code-reveal .stic-hint-chevron { transition: transform var(--transition-fast); }
 
-/* ---- "¿No te llega? Envíamelo otra vez" ---- */
+/* ---- «Reenviar código · Usar otro correo» ---- */
 .stic-code-resend {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
     justify-content: center;
-    gap: var(--space-2);
+    gap: var(--space-1);
     margin-top: var(--space-4);
-    /* Mismo cuerpo que la fila de arriba: las dos son salidas de este atasco
-       («el enlace no me va» / «no me ha llegado»), y en `sm` se leían como el
-       pie de página. */
-    font-size: var(--font-size-base);
+    /* `sm` y sin «¿No te llega?» delante: así cabe en UNA línea a 375px
+       (con él, medido, 338px en 309). */
+    font-size: var(--font-size-sm);
     color: var(--gray-500);
 }
 
@@ -6000,6 +5964,15 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 .stic-code-resend button:focus-visible {
     outline: 2px solid var(--primary-color) !important;
     outline-offset: 2px;
+}
+
+/* «Usar otro correo», en la misma fila que «Reenviar» y con su mismo aspecto. */
+.stic-code-resend a {
+    padding: var(--space-1) var(--space-2);
+    font-weight: 600;
+    color: var(--primary-color);
+    text-decoration: underline;
+    border-radius: var(--radius-sm);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -6504,26 +6477,25 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
    avisa de nada, es una lista de opciones y se lee como tal.
 
    Discreto a propósito: el 95 % de la gente abre el correo y no
-   llega a leer esto. Gris, pequeño, al final, y el formulario del
-   documento dentro de un `<details>` cerrado.
+   llega a leer esto. Desde el 03/10/2026 va entero dentro de UN
+   `<details>` cerrado («¿Necesitas ayuda?»), igual que la ayuda del
+   login («¿Qué correo pongo?»): `sticpa_auth_help_details()`.
    ============================================================ */
 
-.stic-auth-rescue {
-    margin-top: var(--space-5);
-    padding-top: var(--space-4);
-    border-top: 1px solid var(--gray-200);
+/* El desplegable es un .stic-code-reveal (§55); esto es su contenido. */
+.stic-auth-rescue-body {
+    margin-top: var(--space-2);
     font-size: var(--font-size-sm);
+    line-height: 1.5;
     color: var(--gray-600);
 }
 
-.stic-auth-rescue-title {
-    margin: 0 0 var(--space-2);
-    font-weight: 700;
-    color: var(--gray-700);
-}
+.stic-auth-rescue-body > p { margin: 0 0 var(--space-2); }
+.stic-auth-rescue-body strong { color: var(--gray-800); }
+.stic-auth-rescue-body .stic-dni-form { margin-bottom: var(--space-3); }
 
 .stic-auth-rescue-list {
-    margin: 0;
+    margin: 0 0 var(--space-3);
     padding-left: 1.15rem;      /* el sangrado de la viñeta, no un tabulador */
     display: flex;
     flex-direction: column;
@@ -6534,7 +6506,7 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 .stic-auth-rescue-list li { margin: 0; }
 .stic-auth-rescue-list strong { color: var(--gray-800); }
 
-.stic-auth-rescue-list a {
+.stic-auth-rescue-body a {
     color: var(--primary-color);
     font-weight: 600;
     /* Es un mailto: que se vea que se puede pulsar, sin adornos. */
@@ -6545,16 +6517,7 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
    pegado después del toque (design.md §11.5, y hay un test que lo comprueba
    contando apariciones, así que ni el comentario puede nombrarlo). */
 @media (hover: hover) {
-    .stic-auth-rescue-list a:hover { color: var(--primary-dark); }
-}
-
-/* El `<details>` del documento reutiliza .stic-code-reveal (§55): mismo
-   desplegable, misma flecha, mismo objetivo táctil. Aquí solo se le quita el
-   filete de arriba, porque ya lo pone el bloque de rescate. */
-.stic-auth-rescue .stic-dni-reveal {
-    border-top: 0;
-    padding-top: 0;
-    margin-top: var(--space-3);
+    .stic-auth-rescue-body a:hover { color: var(--primary-dark); }
 }
 
 /* El campo del documento: en mayúsculas, porque es como está en el CRM y

@@ -7,9 +7,10 @@
  *   php tests/manual/render-acceso.php > /tmp/acceso.html
  *   php tests/manual/render-acceso.php dark > /tmp/acceso-dark.html
  *
- * Se pinta el bloque de «¿no te llega nada?» —con y sin correo conocido—, el
- * formulario del documento abierto (que es como se ve cuando alguien lo pulsa)
- * y los cuatro mensajes de error, que es donde más fácil es escribir de más.
+ * Se pinta la ayuda de la pantalla del código («¿Necesitas ayuda?») —con y sin
+ * correo conocido—, las dos ayudas abiertas (que es como se ven cuando alguien
+ * las pulsa) y los cuatro mensajes de error, que es donde más fácil es
+ * escribir de más.
  */
 
 require_once __DIR__ . '/../bootstrap.php';
@@ -27,8 +28,8 @@ $volver = '/area-privada?stic_auth=1';
 
 $conCorreo = sticpa_access_rescue_html(sticpa_otp_mask_email('david@movimientoconsolacion.com'), $volver);
 $sinCorreo = sticpa_access_rescue_html('', $volver);
-// El mismo `<details>`, abierto: es lo que ve quien lo pulsa.
-$abierto = str_replace('<details class=', '<details open class=', sticpa_dni_access_form_html($volver));
+// Las dos ayudas, abiertas: es lo que ve quien las pulsa.
+$abierto = str_replace('<details class=', '<details open class=', $conCorreo . sticpa_login_help_html($volver));
 
 $errores = '';
 foreach (array('formato', 'throttled', 'sincorreo', 'nohay') as $caso) {
@@ -47,6 +48,6 @@ body{margin:0;background:var(--bg-color,#f6f7f9)}.harness{padding:1rem}
 <div class='stic-auth-shell'><div class='stic-login-form stic-form'><div class='stic-auth-panel'><div class=harness>
 <h2>Sabemos a qué correo se mandó</h2>{$conCorreo}
 <h2>No lo sabemos (se pidió en otro dispositivo)</h2>{$sinCorreo}
-<h2>El formulario del documento, abierto</h2>{$abierto}
+<h2>Las dos ayudas, abiertas</h2>{$abierto}
 <h2>Los cuatro mensajes de error</h2>{$errores}
 </div></div></div></div></body></html>";
