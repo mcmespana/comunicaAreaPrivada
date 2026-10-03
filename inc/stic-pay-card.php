@@ -73,6 +73,84 @@ function sticpa_pay_fields()
 }
 
 /**
+ * EL COMPROMISO DEL QUE CUELGA UN PAGO.
+ *
+ * ⚠️ Por la API v4.1 el campo plano `stic_paymebfe2itments_ida` de un pago
+ * llega VACÍO (visto el 02/10/2026: el MCP sí lo da, el área no). Fiarse de él
+ * dejó sin cerrar el compromiso viejo al pagar con tarjeta: el pendiente seguía
+ * vivo al lado del pagado. Si no viene, se pregunta por la relación, que sí
+ * funciona desde los dos lados.
+ */
+function sticpa_payment_commitment_id($objSCP, $paymentId, $nvl = null)
+{
+    $plano = $nvl ? trim((string) ($nvl->stic_paymebfe2itments_ida->value ?? '')) : '';
+    if ($plano !== '' || $objSCP === null || trim((string) $paymentId) === '') {
+        return $plano;
+    }
+    $rows = $objSCP->getRelatedElementsForLoggedUser(array(
+        'module_name' => 'stic_Payments',
+        'module_id' => (string) $paymentId,
+        'link_field_name' => 'stic_payments_stic_payment_commitments',
+        'related_fields' => array('id'),
+        'related_module_link_name_to_fields_array' => array(),
+        'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 1,
+    ));
+    foreach ((is_array($rows) ? $rows : array()) as $row) {
+        $id = (string) ($row->id ?? ($row->name_value_list->id->value ?? ''));
+        if ($id !== '') {
+            return $id;
+        }
+    }
+    return '';
+}
+
+/**
+ * ¿Un concepto que no dice de qué es? Vacío, o el nombre del medio de pago:
+ * el FWA no rellena el concepto, y entonces lo único que había era
+ * «Tarjeta (vía Redsys)», que acabó hasta en el TPV (02/10/2026).
+ */
+function sticpa_concept_is_blank($concepto)
+{
+    $concepto = trim(html_entity_decode((string) $concepto, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    return $concepto === ''
+        || (bool) preg_match('/^(tarjeta|bizum|transferencia|domiciliaci[oó]n|efectivo|paypal|stripe|especie)\b[^|]*$/iu', $concepto);
+}
+
+/**
+ * De qué es un compromiso que no lo dice: el evento de su inscripción. Del
+ * nombre de la inscripción («David Soler - LC | Foro…») si el campo plano del
+ * evento no llega.
+ *
+ * @param array $regRows Inscripciones ya leídas (si no, se piden).
+ */
+function sticpa_commitment_event_concept($objSCP, $commitmentId, $regRows = null)
+{
+    if ($regRows === null) {
+        $regRows = $objSCP->getRelatedElementsForLoggedUser(array(
+            'module_name' => 'stic_Payment_Commitments',
+            'module_id' => (string) $commitmentId,
+            'link_field_name' => 'stic_payment_commitments_stic_registrations',
+            'related_fields' => array('id', 'name', 'stic_registrations_stic_events_name'),
+            'related_module_link_name_to_fields_array' => array(),
+            'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
+        ));
+    }
+    foreach ((is_array($regRows) ? $regRows : array()) as $row) {
+        $nvl = $row->name_value_list ?? null;
+        $evento = trim((string) ($nvl->stic_registrations_stic_events_name->value ?? ''));
+        if ($evento === '' && function_exists('sticpa_payment_concept')) {
+            $nombre = (string) ($nvl->name->value ?? '');
+            $evento = strpos($nombre, '|') !== false ? sticpa_payment_concept($nombre)['title'] : '';
+        }
+        if ($evento !== '') {
+            $evento = html_entity_decode($evento, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            return function_exists('mb_substr') ? mb_substr($evento, 0, 140, 'UTF-8') : substr($evento, 0, 140);
+        }
+    }
+    return '';
+}
+
+/**
  * El pago, su compromiso y las inscripciones del compromiso: todo lo que hace
  * falta para cobrarlo con tarjeta y, a la vuelta, para sustituirlo.
  *
@@ -88,9 +166,10 @@ function sticpa_pay_context($objSCP, $paymentId)
     $val = function ($o, $f) {
         return isset($o->$f->value) ? trim((string) $o->$f->value) : '';
     };
-    $pcId = $val($nvl, 'stic_paymebfe2itments_ida');
+    $pcId = sticpa_payment_commitment_id($objSCP, $paymentId, $nvl);
     $pc = null;
     $regs = array();
+    $regRows = array();
     if ($pcId !== '') {
         $pcDetail = $objSCP->getRecordDetail($pcId, 'stic_Payment_Commitments',
             array('id', 'name', 'banking_concept', 'description', 'end_date', 'payment_type', 'assigned_user_id'));
@@ -99,10 +178,11 @@ function sticpa_pay_context($objSCP, $paymentId)
             'module_name' => 'stic_Payment_Commitments',
             'module_id' => $pcId,
             'link_field_name' => 'stic_payment_commitments_stic_registrations',
-            'related_fields' => array('id', 'name'),
+            'related_fields' => array('id', 'name', 'stic_registrations_stic_events_name'),
             'related_module_link_name_to_fields_array' => array(),
             'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
         ));
+        $regRows = is_array($rows) ? $rows : array();
         foreach ((array) $rows as $row) {
             $rid = (string) ($row->id ?? ($row->name_value_list->id->value ?? ''));
             if ($rid !== '') {
@@ -110,11 +190,16 @@ function sticpa_pay_context($objSCP, $paymentId)
             }
         }
     }
+    // DE QUÉ ES: el concepto del compromiso o del pago si dicen algo; si no,
+    // el evento de su inscripción; y solo al final, lo que se saque del nombre.
     $concepto = $pc ? $val($pc, 'banking_concept') : '';
-    if ($concepto === '') {
+    if (sticpa_concept_is_blank($concepto)) {
         $concepto = $val($nvl, 'banking_concept');
     }
-    if ($concepto === '' && function_exists('sticpa_payment_concept')) {
+    if (sticpa_concept_is_blank($concepto) && $pcId !== '') {
+        $concepto = sticpa_commitment_event_concept($objSCP, $pcId, $regRows);
+    }
+    if (sticpa_concept_is_blank($concepto) && function_exists('sticpa_payment_concept')) {
         $concepto = sticpa_payment_concept($val($nvl, 'name'))['title'];
     }
     return array(
@@ -243,42 +328,72 @@ function sticpa_pay_claim($objSCP, $paymentId)
         }
 
         // COBRADO: el nuevo hereda lo del viejo y el viejo se cierra.
-        $ctx = sticpa_pay_context($objSCP, $paymentId);
-        foreach ((array) ($ctx['registrations'] ?? array()) as $regId) {
-            $objSCP->set_relationship('stic_Payment_Commitments', $cid,
-                'stic_payment_commitments_stic_registrations', array($regId));
-        }
-        $tipo = (string) ($ctx['type'] ?? '');
-        sticpa_card_commitment_as_service($objSCP, $cid, (string) ($nvl->name->value ?? ''),
-            (string) ($nvl->payment_type->value ?? ''), $pagos, $tipo !== '' && $tipo !== 'donation' ? $tipo : null);
-        if (!empty($ctx['commitment_id']) && $ctx['commitment_id'] !== $cid) {
-            // «Pagar otra cantidad» (02/10/2026): si lo cobrado no es lo que se
-            // debía, se cierra igual —es un descuento o un arreglo, no una
-            // deuda a medias— pero queda escrito, para que tesorería lo vea.
-            $pagado = 0.0;
-            foreach ($pagos as $p) {
-                if ((string) ($p->name_value_list->status->value ?? '') === 'paid') {
-                    $pagado += (float) ($p->name_value_list->amount->value ?? 0);
-                }
-            }
-            $debia = (float) ($ctx['amount'] ?? 0);
-            $otra = ($pagado > 0 && $debia > 0 && abs($pagado - $debia) >= 0.005)
-                ? sprintf(' Ojo: se pagaron %s en vez de %s (la persona cambió el importe al pagar).',
-                    number_format($pagado, 2, ',', '.'), number_format($debia, 2, ',', '.'))
-                : '';
-            sticpa_pay_close_commitment($objSCP, $ctx['commitment_id'],
-                sprintf('Pagado con tarjeta desde el área privada el %s (compromiso %s).', date('d/m/Y'), $cid) . $otra);
-        }
-        // La marca, reescrita: este ya no se vuelve a reclamar.
-        $desc = $objSCP->getRecordDetail($cid, 'stic_Payment_Commitments', array('id', 'description'));
-        $texto = (string) ($desc->entry_list[0]->name_value_list->description->value ?? '');
-        $objSCP->set_entry('stic_Payment_Commitments', array(
-            'id' => $cid,
-            'description' => str_replace($marca, '[pagado:' . strtolower($paymentId) . ']', $texto),
-        ));
+        sticpa_pay_substitute($objSCP, $cid, $nvl, $pagos, $paymentId, $marca);
         $hecho = 'pagado';
     }
     return $hecho;
+}
+
+/**
+ * LA SUSTITUCIÓN: el compromiso con tarjeta $cid, ya cobrado, ocupa el sitio
+ * del pago $paymentId. Hereda sus inscripciones, su tipo y su concepto; el
+ * viejo se cierra y su pago sin cobrar se anula; y la marca $marca pasa a
+ * `[sustituido:<pago>]` para que no se vuelva a hacer.
+ *
+ * La usa la vuelta del TPV y también el arreglo de las que quedaron a medias
+ * (`[pagado:…]`, del 01-02/10/2026: el compromiso viejo no se encontraba, ver
+ * sticpa_payment_commitment_id()).
+ */
+function sticpa_pay_substitute($objSCP, $cid, $nvl, $pagos, $paymentId, $marca)
+{
+    $ctx = sticpa_pay_context($objSCP, $paymentId);
+    foreach ((array) ($ctx['registrations'] ?? array()) as $regId) {
+        $objSCP->set_relationship('stic_Payment_Commitments', $cid,
+            'stic_payment_commitments_stic_registrations', array($regId));
+    }
+    $tipo = (string) ($ctx['type'] ?? '');
+    sticpa_card_commitment_as_service($objSCP, $cid, (string) ($nvl->name->value ?? ''),
+        (string) ($nvl->payment_type->value ?? ''), $pagos, $tipo !== '' && $tipo !== 'donation' ? $tipo : null);
+
+    // El concepto, en el compromiso nuevo y en sus pagos: es lo que se lee en
+    // Pagos («LC | Foro…» y no «Tarjeta (vía Redsys)»).
+    $concepto = (string) ($ctx['concept'] ?? '');
+    if (!sticpa_concept_is_blank($concepto)) {
+        $objSCP->set_entry('stic_Payment_Commitments', array('id' => $cid, 'banking_concept' => $concepto));
+        foreach ($pagos as $p) {
+            $pid = (string) ($p->id ?? ($p->name_value_list->id->value ?? ''));
+            if ($pid !== '') {
+                $objSCP->set_entry('stic_Payments', array('id' => $pid, 'banking_concept' => $concepto));
+            }
+        }
+    }
+
+    $viejoVivo = trim((string) ($ctx['commitment']->end_date->value ?? '')) === '';
+    if (!empty($ctx['commitment_id']) && $ctx['commitment_id'] !== $cid && $viejoVivo) {
+        // «Pagar otra cantidad» (02/10/2026): si lo cobrado no es lo que se
+        // debía, se cierra igual —es un descuento o un arreglo, no una
+        // deuda a medias— pero queda escrito, para que tesorería lo vea.
+        $pagado = 0.0;
+        foreach ($pagos as $p) {
+            if ((string) ($p->name_value_list->status->value ?? '') === 'paid') {
+                $pagado += (float) ($p->name_value_list->amount->value ?? 0);
+            }
+        }
+        $debia = (float) ($ctx['amount'] ?? 0);
+        $otra = ($pagado > 0 && $debia > 0 && abs($pagado - $debia) >= 0.005)
+            ? sprintf(' Ojo: se pagaron %s en vez de %s (la persona cambió el importe al pagar).',
+                number_format($pagado, 2, ',', '.'), number_format($debia, 2, ',', '.'))
+            : '';
+        sticpa_pay_close_commitment($objSCP, $ctx['commitment_id'],
+            sprintf('Pagado con tarjeta desde el área privada el %s (compromiso %s).', date('d/m/Y'), $cid) . $otra);
+    }
+    // La marca, reescrita: este ya no se vuelve a reclamar.
+    $desc = $objSCP->getRecordDetail($cid, 'stic_Payment_Commitments', array('id', 'description'));
+    $texto = (string) ($desc->entry_list[0]->name_value_list->description->value ?? '');
+    $objSCP->set_entry('stic_Payment_Commitments', array(
+        'id' => $cid,
+        'description' => str_replace($marca, '[sustituido:' . strtolower((string) $paymentId) . ']', $texto),
+    ));
 }
 
 /**

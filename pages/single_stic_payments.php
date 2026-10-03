@@ -58,7 +58,10 @@ if (($_REQUEST['action'] ?? '') === 'detail') {
     // compromiso sigue vivo y no es un intento de tarjeta (plan 041).
     $payment['pagable'] = false;
     if (sticpa_pay_is_payable($payment['status'], $payment['method'])) {
-        $pcId = trim((string) ($nvl->stic_paymebfe2itments_ida->value ?? ''));
+        // Por la relación si el campo plano no llega (no llega por la API v4.1).
+        $pcId = function_exists('sticpa_payment_commitment_id')
+            ? sticpa_payment_commitment_id($objSCP, (string) $paymentId, $nvl)
+            : trim((string) ($nvl->stic_paymebfe2itments_ida->value ?? ''));
         $pcNvl = $pcId !== ''
             ? ($objSCP->getRecordDetail($pcId, 'stic_Payment_Commitments', array('id', 'description', 'end_date', 'payment_method', 'channel'))->entry_list[0]->name_value_list ?? null)
             : null;

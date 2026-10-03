@@ -79,6 +79,11 @@ function sticpa_payment_concept($name, $concepto = '')
 {
     $name = trim((string) $name);
     $concepto = trim((string) $concepto);
+    // «Tarjeta (vía Redsys)» no es un concepto: es el medio (lo que queda
+    // cuando el FWA no pone concepto). Se ignora y se busca el evento.
+    if (function_exists('sticpa_concept_is_blank') && sticpa_concept_is_blank($concepto)) {
+        $concepto = '';
+    }
     $trozos = array_values(array_filter(array_map('trim', explode(' - ', $name)), 'strlen'));
     $evento = -1;
     foreach ($trozos as $i => $t) {
@@ -133,7 +138,7 @@ function sticpa_commitment_is_card_attempt($pc)
 /** Campos que la pantalla de Pagos lee de los compromisos. */
 function sticpa_payments_commitment_fields()
 {
-    return array('id', 'name', 'description', 'end_date', 'payment_method', 'channel', 'banking_concept', 'date_entered');
+    return array('id', 'name', 'description', 'end_date', 'payment_method', 'payment_type', 'channel', 'banking_concept', 'date_entered');
 }
 
 /** Los compromisos de quien paga (filas del CRM). */
@@ -151,60 +156,119 @@ function sticpa_payments_commitment_rows($objSCP, $module, $link)
 }
 
 /**
- * LOS PAGOS QUE NO TIENEN A NADIE (02/10/2026). Pagos lista lo de un adulto
- * por la relación pago↔contacto, y hay pagos que no la tienen: el CRM genera
- * el pago al guardar el compromiso, ANTES de que se le ponga la persona (por la
- * API la relación va en una segunda llamada), y solo los rellena después si el
- * compromiso viene de un formulario web avanzado. Así, lo que el área creaba al
- * inscribirse con precio no salía en Pagos: se debía y no se veía.
+ * LO QUE PAGOS NECESITA SABER Y LA API NO DA (02/10/2026). Tres arreglos, con
+ * las mismas llamadas: los pagos de cada compromiso VIVO de quien paga (una por
+ * compromiso, en paralelo si se puede).
  *
- * Solo se mira lo vivo (sin fecha de fin, sin ser un intento de tarjeta) que no
- * tenga ya algún pago en la lista: lo normal es que no haya ninguno, y entonces
- * esto no cuesta ni una llamada. Lo que se encuentra se enseña y SE ARREGLA:
- * se le pone la persona, y la próxima vez ya sale por la vía normal.
+ *   1. **De qué compromiso es cada pago.** Por la API v4.1 el campo plano
+ *      `stic_paymebfe2itments_ida` de un pago llega vacío, y sin él la lista
+ *      no sabía qué era un intento de tarjeta ni qué estaba sustituido: el
+ *      mismo pendiente salía dos veces. Se rellena desde el compromiso.
+ *   2. **Los pagos sin persona.** El CRM genera el pago al guardar el
+ *      compromiso, antes de que se le ponga la persona, y Pagos lista por
+ *      persona: lo que se debía no salía. Se enseña y SE ARREGLA (se le pone la
+ *      persona), salvo en los intentos de tarjeta.
+ *   3. **Pagos sin nombre.** El FWA no pone concepto, y todos se llamaban
+ *      «Tarjeta (vía Redsys)». Se le pone el evento de su inscripción, al
+ *      compromiso y a sus pagos, una vez (lo que no tiene inscripción no se
+ *      vuelve a mirar en 12 h).
  *
  * @param array  $commitmentRows Los compromisos de quien paga.
- * @param array  $payments       Lo que ya se va a enseñar.
+ * @param array  $payments       Los pagos de quien paga.
  * @param array  $fields         Campos de pago que pide la lista.
  * @param string $payerId        Quien paga (para arreglar la relación).
  * @param string $link           `stic_payments_contacts` o `stic_payments_accounts`.
- * @return array Los pagos que faltaban.
+ * @return array 'payments' (sin repetidos, con su compromiso) y 'map'
+ *               (sticpa_payments_commitment_map() con los conceptos puestos).
  */
-function sticpa_payments_without_payer($objSCP, $commitmentRows, $payments, $fields, $payerId, $link)
+function sticpa_payments_complete($objSCP, $commitmentRows, $payments, $fields, $payerId, $link)
 {
-    $vistos = array();
+    $porId = array();
     foreach ((array) $payments as $p) {
-        $cid = strtolower(trim((string) ($p->name_value_list->stic_paymebfe2itments_ida->value ?? '')));
-        if ($cid !== '') {
-            $vistos[$cid] = true;
+        $pid = strtolower((string) ($p->id ?? ($p->name_value_list->id->value ?? '')));
+        if ($pid !== '' && !isset($porId[$pid])) {
+            $porId[$pid] = $p;
         }
     }
-    $faltan = array();
     $map = sticpa_payments_commitment_map($commitmentRows);
+    $vivos = array();
     foreach ($map as $cid => $pc) {
-        if (isset($vistos[strtolower($cid)]) || trim((string) ($pc['end_date'] ?? '')) !== '' || sticpa_commitment_is_card_attempt($pc)) {
-            continue;
+        if (trim((string) ($pc['end_date'] ?? '')) === '') {
+            $vivos[] = $cid;
         }
-        $rows = $objSCP->getRelatedElementsForLoggedUser(array(
+    }
+    $params = function ($cid) use ($fields) {
+        return array(
             'module_name' => 'stic_Payment_Commitments',
             'module_id' => $cid,
             'link_field_name' => 'stic_payments_stic_payment_commitments',
             'related_fields' => $fields,
             'related_module_link_name_to_fields_array' => array(),
             'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
-        ));
+        );
+    };
+    if (count($vivos) > 1 && function_exists('sticpa_pl_prime')) {
+        sticpa_pl_prime($objSCP, function () use ($objSCP, $vivos, $params) {
+            foreach ($vivos as $cid) {
+                $objSCP->getRelatedElementsForLoggedUser($params($cid));
+            }
+        });
+    }
+
+    $deCompromiso = array();
+    foreach ($vivos as $cid) {
+        $rows = $objSCP->getRelatedElementsForLoggedUser($params($cid));
+        $deCompromiso[$cid] = array();
         foreach ((is_array($rows) ? $rows : array()) as $row) {
-            $pid = (string) ($row->id ?? ($row->name_value_list->id->value ?? ''));
+            $pid = strtolower((string) ($row->id ?? ($row->name_value_list->id->value ?? '')));
             if ($pid === '') {
                 continue;
             }
-            $faltan[] = $row;
-            if ($payerId !== '') {
-                $objSCP->set_relationship('stic_Payments', $pid, $link, array($payerId));
+            if (isset($porId[$pid])) {
+                $row = $porId[$pid];
+            } elseif (sticpa_commitment_is_card_attempt($map[$cid])) {
+                continue;
+            } else {
+                $porId[$pid] = $row;
+                if ($payerId !== '') {
+                    $objSCP->set_relationship('stic_Payments', (string) ($row->id ?? $pid), $link, array($payerId));
+                }
             }
+            if (isset($row->name_value_list) && trim((string) ($row->name_value_list->stic_paymebfe2itments_ida->value ?? '')) === '') {
+                $row->name_value_list->stic_paymebfe2itments_ida = (object) array('value' => $cid);
+            }
+            $deCompromiso[$cid][] = $row;
         }
     }
-    return $faltan;
+
+    // El nombre: el evento de la inscripción, si el compromiso no dice nada.
+    foreach ($vivos as $cid) {
+        if (!function_exists('sticpa_concept_is_blank') || !sticpa_concept_is_blank($map[$cid]['banking_concept'] ?? '')) {
+            continue;
+        }
+        $clave = 'sticpa_pc_sin_evento_' . md5($cid);
+        if (function_exists('get_transient') && get_transient($clave)) {
+            continue;
+        }
+        $concepto = sticpa_commitment_event_concept($objSCP, $cid);
+        if ($concepto === '') {
+            if (function_exists('set_transient')) {
+                set_transient($clave, 1, 12 * HOUR_IN_SECONDS);
+            }
+            continue;
+        }
+        $objSCP->set_entry('stic_Payment_Commitments', array('id' => $cid, 'banking_concept' => $concepto));
+        foreach ($deCompromiso[$cid] as $row) {
+            $nvl = $row->name_value_list ?? null;
+            if ($nvl && sticpa_concept_is_blank($nvl->banking_concept->value ?? '')) {
+                $objSCP->set_entry('stic_Payments', array('id' => (string) ($row->id ?? ($nvl->id->value ?? '')), 'banking_concept' => $concepto));
+                $nvl->banking_concept = (object) array('value' => $concepto);
+            }
+        }
+        $map[$cid]['banking_concept'] = $concepto;
+    }
+
+    return array('payments' => array_values($porId), 'map' => $map);
 }
 
 /** compromiso => sus datos, para sticpa_payments_list_html(). */
@@ -246,7 +310,15 @@ function sticpa_payments_settle($objSCP, $commitmentRows)
             continue;
         }
         $desc = (string) ($nvl->description->value ?? '');
-        if (preg_match('/\[pago:([0-9a-f-]{36}):[0-9a-f]{16}\]/', $desc, $m)) {
+        if (preg_match('/\[pagado:([0-9a-f-]{36})\]/', $desc, $m) && function_exists('sticpa_pay_substitute')) {
+            // Una sustitución que se quedó a medias (01-02/10/2026: el pago
+            // viejo no se encontraba). Se termina, y queda `[sustituido:]`.
+            $cid = (string) ($row->id ?? ($nvl->id->value ?? ''));
+            if ($cid !== '') {
+                sticpa_pay_substitute($objSCP, $cid, $nvl, sticpa_commitment_payments($objSCP, $cid), $m[1], $m[0]);
+                $cambio = true;
+            }
+        } elseif (preg_match('/\[pago:([0-9a-f-]{36}):[0-9a-f]{16}\]/', $desc, $m)) {
             $cambio = (sticpa_pay_claim($objSCP, $m[1]) !== '') || $cambio;
         } elseif (preg_match('/\[insc:([0-9a-f-]{36}):[0-9a-f]{16}\]/', $desc, $m) && function_exists('sticpa_registration_claim_card_commitment')) {
             // De una inscripción sin compromiso: si se cobró, se ata; si se
@@ -373,7 +445,10 @@ function sticpa_payments_list_html($rows, $definition = array(), $commitments = 
         } else {
             $bloque = 'otro';
         }
-        $pay['concepto'] = sticpa_payment_concept($pay['name'], $pc['banking_concept'] ?? ($nvl->banking_concept->value ?? ''));
+        $conceptoPc = (string) ($pc['banking_concept'] ?? '');
+        $pay['concepto'] = sticpa_payment_concept($pay['name'],
+            (function_exists('sticpa_concept_is_blank') ? !sticpa_concept_is_blank($conceptoPc) : $conceptoPc !== '')
+                ? $conceptoPc : (string) ($nvl->banking_concept->value ?? ''));
         $bloques[$bloque][] = $pay;
     }
 

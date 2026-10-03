@@ -80,7 +80,10 @@ contexto**. Reglas:
   guarda como 3.500 € (el usuario técnico tiene la coma decimal). Usa
   `sticpa_crm_amount()`. Y un pago que genera el CRM al crear un compromiso
   nace **sin persona**: pónsela tú (`stic_payments_contacts`), o no sale en
-  Pagos. Los dos, 02/10/2026.
+  Pagos. Los dos, 02/10/2026. Y **el compromiso de un pago no llega en su
+  campo plano** (`stic_paymebfe2itments_ida` viene vacío por la API v4.1,
+  aunque el MCP sí lo dé): usa `sticpa_payment_commitment_id()`, que pregunta
+  por la relación.
 - ⚠️ **Los grupos de seguridad del CRM NO protegen el área privada.** El plugin
   se conecta al CRM con **un usuario técnico**, no con la persona que ha
   entrado, así que los grupos de seguridad no filtran ni una fila de lo que se
