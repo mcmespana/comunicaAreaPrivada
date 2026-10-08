@@ -4,10 +4,11 @@
 
 ---
 
-> **⏳ HAY UNA LISTA DE PENDIENTES JUSTO DEBAJO** (§ Lo que queda por revisar).
-> Por crear no queda nada; lo que falta es **leer en Studio las opciones de dos
-> desplegables de eventos**, porque si no casan con lo que espera el código el
-> filtro falla EN SILENCIO. Míralo antes de tocar la audiencia de eventos.
+> **Por crear no queda nada y los dos desplegables de eventos están aclarados
+> (08/10/2026, el propietario):** `ajmcm_ambito_c` solo tiene `local` y
+> `nacional`, y `ajmcm_dirigido_a_c` usa las mismas claves que la lista de
+> relaciones (ver § Lo que queda por revisar, puntos 1 y 2). Lo único abierto
+> es que el código no mapea todavía las claves «asesora» y «laico incorporado».
 >
 > **Última revisión contra el CRM: 25 de septiembre de 2026 — la primera
 > COMPLETA por MCP.** Se comparó el documento entero con `get_module_fields` de
@@ -113,7 +114,17 @@ Es el peor modo de fallo que tiene este proyecto, y ya nos ha mordido dos veces
 (el rol «laico» que buscaba tres cadenas inexistentes y no se disparó jamás; el
 `na` de los cursos, que habría excluido a gente en silencio).
 
-### 1. `stic_Events.ajmcm_dirigido_a_c` — una clave CONFIRMADA, el resto no ⚠️ RIESGO MEDIO
+### 1. `stic_Events.ajmcm_dirigido_a_c` — misma lista que las relaciones ✅ (08/10/2026) ⚠️ queda un cabo
+
+**El propietario confirma el 08/10/2026 que `ajmcm_dirigido_a_c` usa literalmente
+las mismas claves que el desplegable de tipo de relación** (el que incluye, por
+ejemplo, «asesora» y «laico incorporado»): es la misma lista, no dos. Las claves
+exactas de esas dos etiquetas no están apuntadas aquí (anotadas por el propietario
+solo por su etiqueta); léelas en Studio antes de mapearlas, no las inventes.
+**Cabo abierto:** el mapa del código (`sticpa_event_audience_perfil_map()`) solo
+conoce las cinco claves de la tabla de abajo; una clave que no esté en el mapa casa
+consigo misma, así que un evento marcado «asesora» o «laico incorporado» solo lo
+vería quien tenga ese tipo de relación.
 
 El campo existe y es **`multienum`** (verificado el 25/09/2026; el 10/09 era
 `enum` simple, ver punto 3). Las opciones de Studio siguen sin leerse, pero se
@@ -148,15 +159,19 @@ error y sin aviso.
 el mapa con `add_filter('sticpa_event_audience_perfil_map', …)`. No hay que
 rehacer nada.
 
-### 2. `stic_Events.ajmcm_ambito_c` — `local` CONFIRMADO, `nacional` no ⚠️ RIESGO MEDIO
+### 2. `stic_Events.ajmcm_ambito_c` — ✅ CERRADO (08/10/2026): solo `local` y `nacional`
+
+**El propietario confirma que el desplegable solo tiene `local` y `nacional`, y
+nada más.** Son exactamente las claves que espera el código, así que **ya no hay
+riesgo de que una clave no case**. El resto de este punto es el historial:
 
 Existe (`enum(100)`) y las opciones de Studio siguen sin leerse, pero los datos
 del 20/09/2026 confirman la mitad que importa: **seis de los siete eventos
 llevan `ajmcm_ambito_c = local`**, la clave literal que espera
 `sticpa_event_audience_scope()`. El eje local funciona.
 
-Lo que **sigue sin confirmar es la clave de «para todas las delegaciones»**,
-porque ningún evento la usa aún. El código acepta tres sinónimos —`nacional`,
+Lo que entonces no estaba confirmado era la clave de «para todas las delegaciones»
+(resuelto: es `nacional`). El código acepta tres sinónimos —`nacional`,
 `todas` e `interdelegacional`— y **cualquier otra cosa la entiende como local**.
 
 **Qué pasa si no casa:** el primer evento nacional que se cree marcado `estatal`
@@ -205,10 +220,10 @@ menos grave porque aquí no hay comparación cruzada.
 `varchar(255)`, **vacío en todos los contactos** (25/09/2026). No hay nada que
 perder si algún día se le da uso; anotado para que nadie cree otro igual.
 
-### 7. Módulos del CRM que este documento no recoge — PENDIENTE (lo hace el propietario)
+### 7. Módulos del CRM que este documento no recoge — NO RELEVANTES por ahora (propietario, 08/10/2026)
 
 `get_available_modules` (25/09/2026) devuelve 38 módulos. Estos existen y
-**aquí no aparecen**; el propietario ha dicho que se documentarán más adelante.
+**aquí no aparecen**; el propietario dijo el 08/10/2026 que, por ahora, no son relevantes y no hay que documentarlos.
 Mientras tanto, antes de crear un módulo o un campo para algo de esto, **mira si
 ya está aquí**:
 
