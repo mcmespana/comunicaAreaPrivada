@@ -6,9 +6,9 @@
 
 > **Por crear no queda nada y los dos desplegables de eventos están aclarados
 > (08/10/2026, el propietario):** `ajmcm_ambito_c` solo tiene `local` y
-> `nacional`, y `ajmcm_dirigido_a_c` usa las mismas claves que la lista de
-> relaciones (ver § Lo que queda por revisar, puntos 1 y 2). Lo único abierto
-> es que el código no mapea todavía las claves «asesora» y «laico incorporado».
+> `nacional`, y `ajmcm_dirigido_a_c` usa la lista de etapa (`MIC`, `COM`, `LC`,
+> `lcincorporado`, `asesora`, `apoyo`; ver § Lo que queda por revisar, puntos 1
+> y 2). Lo abierto: el código no mapea esas claves (punto 1).
 >
 > **Última revisión contra el CRM: 25 de septiembre de 2026 — la primera
 > COMPLETA por MCP.** Se comparó el documento entero con `get_module_fields` de
@@ -114,24 +114,41 @@ Es el peor modo de fallo que tiene este proyecto, y ya nos ha mordido dos veces
 (el rol «laico» que buscaba tres cadenas inexistentes y no se disparó jamás; el
 `na` de los cursos, que habría excluido a gente en silencio).
 
-### 1. `stic_Events.ajmcm_dirigido_a_c` — misma lista que las relaciones ✅ (08/10/2026) ⚠️ queda un cabo
+### 1. `stic_Events.ajmcm_dirigido_a_c` — usa la lista de ETAPA ✅ (08/10/2026) ⚠️ el código no la mapea
 
-**El propietario confirma el 08/10/2026 que `ajmcm_dirigido_a_c` usa literalmente
-las mismas claves que el desplegable de tipo de relación** (el que incluye, por
-ejemplo, «asesora» y «laico incorporado»): es la misma lista, no dos. Las claves
-exactas de esas dos etiquetas no están apuntadas aquí (anotadas por el propietario
-solo por su etiqueta); léelas en Studio antes de mapearlas, no las inventes.
-**Cabo abierto:** el mapa del código (`sticpa_event_audience_perfil_map()`) solo
-conoce las cinco claves de la tabla de abajo; una clave que no esté en el mapa casa
-consigo misma, así que un evento marcado «asesora» o «laico incorporado» solo lo
-vería quien tenga ese tipo de relación.
+**Lista leída en Studio por el propietario el 08/10/2026:** `ajmcm_dirigido_a_c`
+usa la misma lista que la etapa, `ajmcm_etapa_c_list`:
+
+| Clave | Etiqueta |
+|---|---|
+| `-vacío-` | -vacío- |
+| `MIC` | MIC |
+| `COM` | COM |
+| `LC` | LC |
+| `lcincorporado` | LC Incorporado |
+| `asesora` | Asesora |
+| `apoyo` | Monitor/a Apoyo |
+
+⚠️ **Esto contradice lo que se anotó antes** (25/09/2026): entonces cinco eventos
+llevaban `^participante_mic_com^`, una clave del tipo de relación que **no está en
+esta lista**, y el texto de abajo decía que el vocabulario era el de
+`relationship_type`. Si el campo cambió de lista, esos valores ya no son
+seleccionables; si no, hay que mirar los datos. **Sin resolver.**
+
+⚠️ **El código no casa con esta lista.** El mapa de
+`sticpa_event_audience_perfil_map()` espera `grupo`, `monitor`,
+`participante_mic_com`, `coordinacion` y `familiar_menor`; ninguna es una clave de
+etapa. Una clave que no está en el mapa casa consigo misma, así que un evento
+marcado `MIC`, `asesora` o `apoyo` buscaría a gente con ese papel literal y, como
+no existe, **se escondería a todos**. Hay que decidir cómo se traduce etapa →
+perfil antes de usar el campo así.
+
+*(Lo que sigue es el estado del 25/09/2026, anterior a esta aclaración.)*
 
 El campo existe y es **`multienum`** (verificado el 25/09/2026; el 10/09 era
-`enum` simple, ver punto 3). Las opciones de Studio siguen sin leerse, pero se
-leyeron **los datos**, que es la otra forma de confirmarlas: el 25/09/2026 hay
+`enum` simple, ver punto 3). Se leyeron **los datos**: el 25/09/2026 hay
 **5 de 10 eventos** con el campo relleno y **los cinco llevan
-`^participante_mic_com^`**, o sea **la clave exacta que espera el código**. Dos
-cosas que eso cierra:
+`^participante_mic_com^`**. Dos cosas que eso cerraba:
 
 - El vocabulario **es** el de `relationship_type`, como se pidió. No hay dos
   listas.
