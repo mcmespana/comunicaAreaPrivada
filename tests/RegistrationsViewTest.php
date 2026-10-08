@@ -218,6 +218,34 @@ class RegistrationsViewTest extends TestCase
         $this->assertStringContainsString('stic-rec-chip--ok', $html);
     }
 
+    /** «No invitado» es interno: la persona está inscrita y no se le dice (08/10/2026). */
+    public function testNoInvitadoNoSeEnseña()
+    {
+        $this->calentarCalendario();
+        $def = $this->definition();
+        $def['status']['options']['uninvited'] = array('value' => 'No invitado');
+        $html = sticpa_registrations_list_html(array(
+            $this->row(array('id' => 'r1', 'name' => 'X', 'status' => 'uninvited',
+                'registration_date' => '2026-03-14 00:00:00',
+                'stic_registrations_stic_events_name' => 'Campamento de verano 2026')),
+        ), $def);
+        $this->assertStringContainsString('Campamento de verano 2026', $html);
+        $this->assertStringNotContainsString('No invitado', $html);
+    }
+
+    /** La lista dice qué es y lleva a Eventos para lo que aún no te has apuntado. */
+    public function testLaListaExplicaQueEsYEnlazaAEventos()
+    {
+        $this->calentarCalendario();
+        $html = sticpa_registrations_list_html(array(
+            $this->row(array('id' => 'r1', 'name' => 'X', 'status' => 'Confirmed',
+                'registration_date' => '2026-03-14 00:00:00',
+                'stic_registrations_stic_events_name' => 'Campamento de verano 2026')),
+        ), $this->definition());
+        $this->assertStringContainsString('a los que te has apuntado', $html);
+        $this->assertStringContainsString("href='?internalpage=list_stic_events'", $html);
+    }
+
     /** Un estado que el CRM no sabe traducir no pinta un chip con el código. */
     public function testUnEstadoDesconocidoNoPintaChip()
     {
