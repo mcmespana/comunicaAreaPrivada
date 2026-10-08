@@ -6081,6 +6081,11 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 }
 
 .stic-rec-note svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 0.1rem; }
+/* Un enlace dentro de un aviso: del color del aviso, subrayado y en negrita,
+   y el aviso no pega con la lista que tiene debajo. */
+.stic-rec-note a { color: inherit; font-weight: 600; text-decoration: underline; }
+.stic-rec-note + .stic-rec-list,
+.stic-rec-note + .stic-rec-other { margin-top: 1.1rem; }
 
 .stic-rec-note--info   { background: var(--info-light);   color: var(--info-dark); }
 .stic-rec-note--ok     { background: var(--success-soft); color: var(--success-dark); }

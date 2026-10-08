@@ -604,7 +604,9 @@ function sticpa_payment_detail_html($pay, $definition = array())
     // --- Datos clave ---
     // La fecha del pago NO se repite aquí: ya la lleva la cabecera.
     $facts = array();
-    $type = sticpa_record_enum_label($definition, 'payment_type', $pay['type']);
+    // «Servicios» es jerga del CRM y casi todo lo que se paga lo es: no dice
+    // nada. «Cuota», «Donativo»… sí distinguen un recibo de otro.
+    $type = strtolower((string) $pay['type']) === 'services' ? '' : sticpa_record_enum_label($definition, 'payment_type', $pay['type']);
     if ($type !== '') {
         $facts[] = array('icon' => 'tag', 'label' => __('Tipo', 'sticpa'), 'text' => $type);
     }
@@ -625,9 +627,13 @@ function sticpa_payment_detail_html($pay, $definition = array())
         $facts[] = array('icon' => 'user', 'label' => __('Para', 'sticpa'), 'text' => $concepto['para']);
     }
     // La referencia de la transacción, la última: es lo que hay que decir por
-    // teléfono cuando algo va mal, y no antes.
+    // teléfono cuando algo va mal, y no antes. Con tarjeta es el número de
+    // operación del TPV, y así se llama (a «Referencia» nadie le encuentra
+    // sentido).
     if ($val('transaction_code') !== '') {
-        $facts[] = array('icon' => 'tag', 'label' => __('Referencia', 'sticpa'), 'text' => $val('transaction_code'));
+        $facts[] = array('icon' => 'tag',
+            'label' => $val('payment_method') === 'card' ? __('Nº de operación', 'sticpa') : __('Referencia', 'sticpa'),
+            'text'  => $val('transaction_code'));
     }
 
     // Lo que se debe se paga desde aquí; lo demás no tiene nada que hacer.

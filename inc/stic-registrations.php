@@ -352,7 +352,7 @@ function sticpa_registrations_list_html($rows, $definition = array(), $hiddenEve
         }
 
         $chips = array();
-        $statusLabel = sticpa_record_enum_label($definition, 'status', $reg['status']);
+        $statusLabel = sticpa_registration_status_label($definition, $reg['status']);
         if ($statusLabel !== '') {
             $chips[] = array('label' => $statusLabel, 'tone' => sticpa_record_status_tone($reg['status']));
         }
@@ -394,21 +394,41 @@ function sticpa_registrations_list_html($rows, $definition = array(), $hiddenEve
         }
     }
 
+    // Lo primero, qué es esta pantalla y dónde está lo otro (08/10/2026):
+    // «Inscripciones» y «Eventos» se confundían.
+    $intro = "<p class='stic-rec-note stic-rec-note--info'>" . sticpa_record_icon('info') . "<span>"
+        . esc_html__('Aquí están las actividades y eventos a los que te has apuntado.', 'sticpa') . ' '
+        . esc_html__('Si quieres ver a cuáles puedes apuntarte, mira la sección', 'sticpa') . ' '
+        . "<a href='" . esc_url('?internalpage=list_stic_events') . "'>" . esc_html__('Eventos', 'sticpa') . "</a>.</span></p>";
+
     if (empty($otherCards)) {
-        return sticpa_record_list_html($cards);
+        return $intro . sticpa_record_list_html($cards);
     }
 
     // EL PARAGUAS «OTROS EVENTOS» (30/09/2026). Lo que consta pero no es lo que
     // vienes a mirar —reuniones de monitores, actividades de otra etapa— sigue
     // ahí, plegado y contado, debajo de lo principal. Si TODO está bajo el
     // paraguas, se abre: una pantalla con solo un título cerrado parece vacía.
-    $html = empty($cards) ? '' : sticpa_record_list_html($cards);
+    $html = $intro . (empty($cards) ? '' : sticpa_record_list_html($cards));
     $html .= "<details class='stic-rec-other'" . (empty($cards) ? ' open' : '') . ">"
         . "<summary><span>" . esc_html__('Otros eventos', 'sticpa') . "</span>"
         . "<span class='stic-rec-other-count'>" . (int) count($otherCards) . "</span></summary>"
         . sticpa_record_list_html($otherCards)
         . "</details>";
     return $html;
+}
+
+/**
+ * La etiqueta del estado de una inscripción para el chip. `uninvited` («No
+ * invitado») es un estado interno de monitores y de pruebas: la persona está
+ * inscrita y decírselo solo confunde (08/10/2026), así que no se enseña.
+ */
+function sticpa_registration_status_label($definition, $key)
+{
+    if (strtolower(trim((string) $key)) === 'uninvited') {
+        return '';
+    }
+    return sticpa_record_enum_label($definition, 'status', $key);
 }
 
 /**
@@ -470,7 +490,7 @@ function sticpa_registration_detail_html($reg, $definition = array(), $extra = a
         return isset($nvl->$field->value) ? trim((string) $nvl->$field->value) : '';
     };
 
-    $statusLabel = sticpa_record_enum_label($definition, 'status', $reg['status']);
+    $statusLabel = sticpa_registration_status_label($definition, $reg['status']);
     $tone = sticpa_record_status_tone($reg['status']);
 
     $chips = array();

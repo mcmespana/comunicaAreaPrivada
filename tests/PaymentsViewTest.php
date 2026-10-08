@@ -196,6 +196,21 @@ class PaymentsViewTest extends TestCase
         $this->assertStringNotContainsString('Fecha del pago', $html);
     }
 
+    /** «Servicios» no se enseña, y el código del TPV es un «Nº de operación» (08/10/2026). */
+    public function testLaFichaDeUnPagoConTarjetaNoEnseñaServiciosNiReferencia()
+    {
+        $pay = sticpa_payment_view_model($this->nvl(array(
+            'id' => 'p1', 'name' => 'Foro', 'amount' => '110.00', 'payment_date' => '2026-10-02',
+            'status' => 'paid', 'payment_method' => 'card', 'payment_type' => 'services',
+            'transaction_code' => '320',
+        )));
+        $html = sticpa_payment_detail_html($pay, $this->defPagos());
+        $this->assertStringNotContainsString('>Tipo<', $html);
+        $this->assertStringNotContainsString('>Referencia<', $html);
+        $this->assertStringContainsString('Nº de operación', $html);
+        $this->assertStringContainsString('320', $html);
+    }
+
     /* -------------------------------------------------------- Compromisos */
 
     /** Un compromiso con fecha de fin pasada está terminado, diga lo que diga

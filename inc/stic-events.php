@@ -682,6 +682,19 @@ function sticpa_event_registration_chip($registro)
 }
 
 /**
+ * La etiqueta del estado de un evento en el chip. El CRM llama «Inscripciones»
+ * a `registration`, que en un chip suelto no se entiende (¿hay inscripciones?
+ * ¿me han inscrito?): lo que dice es que están ABIERTAS (08/10/2026). El resto
+ * de estados conserva la etiqueta del CRM.
+ */
+function sticpa_event_status_label($key, $crmLabel)
+{
+    return strtolower(trim((string) $key)) === 'registration'
+        ? __('Inscripciones abiertas', 'sticpa')
+        : (string) $crmLabel;
+}
+
+/**
  * El motivo, en cristiano, por el que no se puede apuntar AHORA por fechas.
  * Cadena vacía si sí se puede.
  */
@@ -819,17 +832,19 @@ function sticpa_events_list_html($events, $statusMap = array(), $mine = array())
         );
     }
 
+    // «Para apuntarte» va PRIMERO (08/10/2026): es a lo que se viene a esta
+    // pantalla. Lo que ya tienes, debajo. Los títulos solo hacen falta si hay
+    // dos bloques que distinguir.
     $html = '';
-    if (!empty($mias)) {
-        $html .= "<h4 class='stic-rec-group-title'>" . esc_html__('Te has apuntado', 'sticpa') . "</h4>";
-        $html .= sticpa_record_list_html(sticpa_events_cards($mias, $statusMap));
-    }
     if (!empty($resto)) {
-        // El título solo hace falta si hay dos bloques que distinguir.
         if (!empty($mias)) {
             $html .= "<h4 class='stic-rec-group-title'>" . esc_html__('Para apuntarte', 'sticpa') . "</h4>";
         }
         $html .= sticpa_record_list_html(sticpa_events_cards($resto, $statusMap));
+    }
+    if (!empty($mias)) {
+        $html .= "<h4 class='stic-rec-group-title'>" . esc_html__('Te has apuntado', 'sticpa') . "</h4>";
+        $html .= sticpa_record_list_html(sticpa_events_cards($mias, $statusMap));
     }
     return $html;
 }
@@ -882,7 +897,7 @@ function sticpa_events_cards($models, $statusMap = array())
             // sticpa_event_registration_chip().
             $chips[] = $regChip;
         } elseif (!empty($statusMap[$event['status']])) {
-            $chips[] = array('label' => $statusMap[$event['status']], 'tone' => '');
+            $chips[] = array('label' => sticpa_event_status_label($event['status'], $statusMap[$event['status']]), 'tone' => '');
         }
 
         $actions = array(array('label' => __('Ver detalle', 'sticpa'), 'url' => $detailUrl));
@@ -943,7 +958,7 @@ function sticpa_event_detail_html($event, $statusLabel = '', $canSignUp = true, 
         // sticpa_event_registration_chip().
         $chips[] = $regChip;
     } elseif ($statusLabel !== '' || $event['status'] !== '') {
-        $chips[] = array('label' => $statusLabel !== '' ? $statusLabel : $event['status'], 'tone' => '');
+        $chips[] = array('label' => sticpa_event_status_label($event['status'], $statusLabel !== '' ? $statusLabel : $event['status']), 'tone' => '');
     }
 
     $facts = array();
