@@ -191,7 +191,7 @@ Lista completa (dada por el propietario el 30/09/2026, copiada de Studio; clave 
 `school_partner` [Compañero/a de escuela] · `work_partner` [Compañero/a de trabajo] ·
 `culture` [Espacio/Organización cultural] · `sports` [Espacio/Organización deportiva].
 
-**Resuelto el 30/09/2026:** la clave de tutor/a legal es `legal` [Tutor/a] (la lista de arriba la confirma). Lo que ya estaba escrito antes de esta fecha habla de «pendiente»; vale esta nota.
+**Resuelto el 30/09/2026:** la clave de tutor/a legal es `legal` [Tutor/a] (la lista de arriba la confirma).
 
 ### 5. `ajmcm_GRUPOS.ajmcm_segmento_com_c` — valores observados, no leídos
 
@@ -915,8 +915,9 @@ las devuelve la API: si las necesitas, míralas allí.
 | `web_slug_c` | texto (255) | La URL bonita (`?e=convivencia26-cs-com`). Vacío → se saca del nombre |
 
 **Preguntas simples — ✅ CREADOS** (propuestos el 25/09/2026, TODO EV-6; creados en Studio
-por el propietario del CRM, comunicado el 30/09/2026; **no verificados por MCP**: el
-MCP del 30/09 aún no los devolvía, comprobar). Para que un evento sí/no con una o dos
+por el propietario del CRM, comunicado el 30/09/2026; **`stic_Events.ajmcm_pregunta_1_c` y
+`_2_c` vistos por MCP el 08/10/2026** (`text`); los dos `ajmcm_respuesta_*_c` de
+`stic_Registrations` siguen sin verificar por MCP). Para que un evento sí/no con una o dos
 preguntas no necesite un formulario web avanzado. El área los pide solo si existen en
 la definición del CRM. Si tienen otro nombre, apúntalo aquí y cámbialo en
 `sticpa_event_question_fields()`. Formato y comportamiento en `EVENTOS.md` §10.1.
@@ -944,14 +945,14 @@ abrir el formulario ya rellenado con los datos de quien ha entrado.
 |---|---|---|---|
 | `stic_Events` | `ajmcm_fwa_url_c` | URL | El enlace público del formulario web avanzado del evento. Vacío = el evento no usa FWA |
 
-**Ocultar en el área privada — ⏳ PROPUESTO, NO CREADO** (30/09/2026). Hay muchos
+**Ocultar en el área privada — ✅ CREADO** (propuesto el 30/09/2026; **visto por MCP el 08/10/2026**: `bool`, por defecto 0). Hay muchos
 eventos en los listados y el filtro por edades no acaba de aclarar cuáles se ven.
 Un interruptor simple por evento. Es de OCULTAR y no de mostrar a propósito: los
 eventos que ya existen lo tienen vacío, y vacío = «se ve como hasta ahora»; con
 «mostrar», editar un evento antiguo (que saldría sin marcar) lo escondería sin
 querer.
 
-| Módulo | Campo propuesto | Tipo | Para qué |
+| Módulo | Campo | Tipo | Para qué |
 |---|---|---|---|
 | `stic_Events` | `ajmcm_ocultar_area_c` | casilla (por defecto sin marcar) | Etiqueta «Ocultar en el área privada». Marcada, el evento NO sale en Eventos, calendario ni agenda de la home **a quien aún no se ha apuntado**. No cierra la puerta: con el enlace directo a la ficha se sigue pudiendo ver y apuntarse, y lo ya inscrito no desaparece. En «Mis inscripciones», las inscripciones de eventos ocultos van plegadas bajo «Otros eventos» |
 
