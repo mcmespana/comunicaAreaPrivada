@@ -364,6 +364,114 @@ class FamilyContextTest extends TestCase
     }
 
     /**
+     * EL ENLACE PROFUNDO CON VARIOS HIJOS (plan 042, FAM-a1). El arranque no
+     * puede elegir por ella, así que `scp_user_id` seguía siendo la madre y el
+     * área la trataba como «participante» de sí misma: «Inscribirme» la
+     * apuntaba A ELLA. Ahora, mientras no elija, la página pedida se cambia por
+     * la de elegir; y en cuanto elige (a un hijo o a sí misma), los enlaces
+     * pasan: no puede haber bucle.
+     */
+    public function testEnlaceProfundoConVariosHijosPideElegirAntes()
+    {
+        $this->sesionFamiliar();
+        $GLOBALS['__stic_filters']['sticpa_familia_participants'] = array(
+            array('id' => 'lucia', 'name' => 'Messeguer, Lucía'),
+            array('id' => 'martin', 'name' => 'Messeguer, Martín'),
+        );
+
+        // La URL traía ?internalpage=single_stic_events&action=detail&id=…
+        sticpa_bootstrap_family(null);
+
+        $this->assertSame('f1', $_SESSION['scp_user_id'], 'No se elige por ella');
+        $this->assertArrayNotHasKey('scp_tutor_is_user', $_SESSION);
+        $this->assertTrue(sticpa_family_must_choose_first('single_stic_events'),
+            'Antes de la ficha del evento, a quién');
+        $this->assertTrue(sticpa_family_must_choose_first('single_stic_registrations'));
+        $this->assertFalse(sticpa_family_must_choose_first('single_stic_profile_selection'),
+            'La pantalla de elegir no se sustituye por sí misma');
+
+        // Y el destino se guarda para después, saneado.
+        $destino = sticpa_family_deep_link_destination(array(
+            'internalpage' => 'single_stic_events',
+            'action' => 'detail',
+            'id' => '000006cd-2b27-b8e1-ad34-6ab060f8cb01',
+            'stic_auth' => '1',
+        ));
+        $this->assertSame(array(
+            'internalpage' => 'single_stic_events',
+            'action' => 'detail',
+            'id' => '000006cd-2b27-b8e1-ad34-6ab060f8cb01',
+        ), $destino);
+
+        // Elige a Martín (lo que deja el handler): el enlace ya pasa.
+        $_SESSION['scp_tutor_is_user'] = false;
+        $_SESSION['scp_user_id'] = 'martin';
+        sticpa_bootstrap_family(null);
+        $this->assertFalse(sticpa_family_must_choose_first('single_stic_events'), 'Sin bucle tras elegir a un hijo');
+        $this->assertSame('martin', $_SESSION['scp_user_id']);
+        $this->assertSame('participante', sticpa_viewing_context()['audiencia']);
+
+        // Y si se elige a sí misma, también.
+        $_SESSION['scp_tutor_is_user'] = true;
+        $_SESSION['scp_user_id'] = 'f1';
+        $this->assertFalse(sticpa_family_must_choose_first('single_stic_events'), 'Sin bucle tras elegirse a sí misma');
+    }
+
+    /** Con un hijo o ninguno, o siendo además miembro, el enlace profundo va derecho como antes. */
+    public function testEnlaceProfundoSinNadaQueElegirVaDerecho()
+    {
+        $this->sesionFamiliar();
+        $GLOBALS['__stic_filters']['sticpa_familia_participants'] = array(
+            array('id' => 'solete', 'name' => 'Messeguer, Solete'),
+        );
+        sticpa_bootstrap_family(null);
+        $this->assertFalse(sticpa_family_must_choose_first('single_stic_events'), 'Un hijo: se eligió solo');
+        $this->assertSame('solete', $_SESSION['scp_user_id']);
+
+        $_SESSION = array();
+        $this->sesionFamiliar();
+        $_SESSION['scp_available_profiles'] = array();
+        sticpa_bootstrap_family(null);
+        $this->assertFalse(sticpa_family_must_choose_first('single_stic_events'), 'Ninguno: su propia área');
+
+        $_SESSION = array();
+        $this->sesionFamiliar('monitor');
+        $this->crmCon(2);
+        sticpa_bootstrap_family(null);
+        $this->assertFalse(sticpa_family_must_choose_first('single_stic_events'), 'Miembro y familiar: lo suyo');
+        $this->assertSame('f1', $_SESSION['scp_user_id']);
+
+        $_SESSION = array();
+        $this->sesionMiembro();
+        $this->assertFalse(sticpa_family_must_choose_first('single_stic_events'), 'Un miembro normal, nada');
+    }
+
+    /**
+     * El destino de después de elegir viaja en la tarjeta como UNA query, y al
+     * volver pasa por la lista blanca del login: nada de URLs ni de hosts.
+     */
+    public function testElDestinoTrasElegirPasaPorLaListaBlanca()
+    {
+        $id = '000006cd-2b27-b8e1-ad34-6ab060f8cb01';
+        // Ida y vuelta como en la tarjeta: http_build_query + rawurlencode, y
+        // PHP lo decodifica una vez al llegar a `$_REQUEST['dest']`.
+        $viaja = rawurldecode(rawurlencode(http_build_query(
+            array('internalpage' => 'single_stic_events', 'action' => 'detail', 'id' => $id),
+            '', '&', PHP_QUERY_RFC3986
+        )));
+        $this->assertSame(
+            array('internalpage' => 'single_stic_events', 'action' => 'detail', 'id' => $id),
+            sticpa_family_deep_link_destination($viaja)
+        );
+        $this->assertSame(array(), sticpa_family_deep_link_destination('internalpage=https://malo.example'));
+        $this->assertSame(array(), sticpa_family_deep_link_destination('internalpage=../../wp-config'));
+        $this->assertSame(array(), sticpa_family_deep_link_destination('internalpage=single_stic_profile_selection'),
+            'Volver a la selección no es un destino');
+        $this->assertSame(array('internalpage' => 'list_stic_events'),
+            sticpa_family_deep_link_destination('internalpage=list_stic_events&id=no-es-un-uuid&redirect_to=https://malo.example'));
+    }
+
+    /**
      * El arranque es IDEMPOTENTE: se ejecuta en cada petición, así que no puede
      * deshacer la elección de participante que la persona acaba de hacer.
      */

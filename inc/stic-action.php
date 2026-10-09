@@ -68,8 +68,20 @@ function prefix_admin_single_stic_profile_selection()
     // acabas de decir "quiero ver a X" y lo primero que quieres es el panel de X,
     // no una sección cualquiera. El parámetro `default_page` ya no se usa (se
     // acepta en la URL por compatibilidad con enlaces antiguos, pero se ignora).
+    //
+    // LA EXCEPCIÓN (FAM-a1): si la selección se pintó en lugar de la página de
+    // un enlace profundo, la tarjeta trae ese destino en `dest` y se vuelve a
+    // él. Pasa por la misma lista blanca que el login —una página de `pages/`
+    // y `action`/`id`/`from` con su forma—, nada de URLs, y solo con una
+    // elección válida. La página de destino hace sus comprobaciones de siempre.
+    $destino = array();
+    if (isset($perfil) && $perfil !== null && isset($_REQUEST['dest']) && is_string($_REQUEST['dest'])) {
+        $destino = sticpa_family_deep_link_destination(wp_unslash($_REQUEST['dest']));
+    }
     if (!isset($_SESSION['scp_tutor_user_id'])) {
         $redirectUrl = sticpa_return_path() . "?internalpage=single_stic_profile_selection";
+    } elseif (!empty($destino)) {
+        $redirectUrl = sticpa_url_with_destination(sticpa_return_path(), $destino);
     } else {
         $redirectUrl = sticpa_return_path() . "?internalpage=single_stic_home";
     }
