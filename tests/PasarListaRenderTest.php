@@ -3084,8 +3084,19 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('pl-cell--gap', $html);
         // Y el número de huecos, dicho con palabras.
         $this->assertStringContainsString('sin pasar', $html);
-        // Cuántas sesiones entran en la tira, dicho en vez de recortado en silencio.
-        $this->assertStringContainsString('últimas', $html);
+        // Cuántas sesiones entran en la tira, dicho en vez de recortado en
+        // silencio. En el doble hay tres, por debajo del tope de 12: se dice lo
+        // que se ve, no el tope (plan 042, COO-9).
+        $this->assertStringContainsString('La tira enseña las sesiones del curso hasta hoy.', $html);
+        $this->assertStringNotContainsString('últimas 12', $html);
+    }
+
+    /** Con la tira llena, sí se dice el tope. */
+    public function test_resumen_dice_el_tope_de_la_tira_cuando_lo_alcanza()
+    {
+        $GLOBALS['__stic_filters']['sticpa_pl_resumen_strip_sessions'] = 2;
+        $html = $this->render('single_stic_pasar_lista_resumen');
+        $this->assertStringContainsString('La tira enseña las últimas 2 sesiones.', $html);
     }
 
     /**
@@ -3330,6 +3341,32 @@ final class PasarListaRenderTest extends TestCase
         $_REQUEST = array();
     }
 
+    /** «Hora» y «Horas» se confundían; la duración, de un desplegable (COO-9). */
+    public function test_nueva_reunion_dice_empieza_y_dura()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $html = $this->render('single_stic_pasar_lista_reuniones');
+        $this->assertStringContainsString('Reuniones de programación', $html);
+        $this->assertStringContainsString('>Empieza<', $html);
+        $this->assertStringContainsString('>Dura<', $html);
+        $this->assertStringContainsString('<option value="1.5" selected>1,5 h</option>', $html);
+        $this->assertStringNotContainsString('>Horas<', $html);
+    }
+
+    /**
+     * «1 de 3 · Las ha pasado siempre» se leía como que no había faltado
+     * ninguna (plan 042, COO-9). En el doble, David pasó la única lista del C1
+     * que hay, y faltan las otras dos.
+     */
+    public function test_la_ficha_del_monitor_no_dice_siempre_con_listas_que_faltan()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+        $this->assertStringContainsString('Faltan 2 · la que hay es suya', $html);
+        $this->assertStringNotContainsString('Las ha pasado siempre', $html);
+    }
+
     public function test_resumen_lista_los_participantes_sin_grupo()
     {
         $html = $this->render('single_stic_pasar_lista_resumen');
@@ -3353,7 +3390,10 @@ final class PasarListaRenderTest extends TestCase
         $html = $this->render('single_stic_pasar_lista_resumen');
         $this->assertStringContainsString('Sol Messeguer', $html);
         $this->assertStringNotContainsString('pl-review-select', $html);
-        $this->assertStringContainsString('no editarlo', $html);
+        // Se dice quién lo arregla y dónde; el «tú puedes verlo, pero no
+        // editarlo» era una frase de «por qué ves esto» (plan 042, COO-9).
+        $this->assertStringContainsString('A su grupo los vincula coordinación, desde Grupos y fichas.', $html);
+        $this->assertStringNotContainsString('no editarlo', $html);
     }
 
     /**

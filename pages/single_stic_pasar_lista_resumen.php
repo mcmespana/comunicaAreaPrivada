@@ -456,11 +456,20 @@ foreach (array(
         . '<span class="pl-legend-label">' . esc_html($label) . '</span></span>';
 }
 $html .= '</div>';
-$html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>' . esc_html(sprintf(
-    /* translators: %d: número de sesiones que entran en la tira */
-    _n('La tira enseña la última sesión.', 'La tira enseña las últimas %d sesiones.', $stripLimit, 'sticpa'),
-    $stripLimit
-)) . '</span></p>';
+/* Lo que SE VE, no el tope configurado (plan 042, COO-9): en noviembre la tira
+ * tiene tres marcas y decía «las últimas 12 sesiones». Si no llega al tope, es
+ * que enseña el curso entero hasta hoy. */
+$enTira = 0;
+foreach (array_merge(array_values($tirasMias), isset($tirasResto) ? array_values($tirasResto) : array()) as $tira) {
+    $enTira = max($enTira, count($tira['grid']));
+}
+$html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>' . esc_html($enTira < $stripLimit
+    ? __('La tira enseña las sesiones del curso hasta hoy.', 'sticpa')
+    : sprintf(
+        /* translators: %d: número de sesiones que entran en la tira */
+        _n('La tira enseña la última sesión.', 'La tira enseña las últimas %d sesiones.', $stripLimit, 'sticpa'),
+        $stripLimit
+    )) . '</span></p>';
 
 // ---------------------------------------------------------------------------
 // Datos por revisar
@@ -535,9 +544,13 @@ if (!empty($noGroup) || !empty($noCode)) {
 
     $html .= '</div>';
 
-    if (!$isCoord) {
+    /* Desde el 01/09 el Resumen ya no arregla nada (se vincula en Grupos y
+     * fichas), y «tú puedes verlo, pero no editarlo» era una frase de «por qué
+     * ves esto», que design.md §6.4 retiró (plan 042, COO-9). Solo se dice
+     * quién lo arregla, y solo si hay gente sin grupo. */
+    if (!$isCoord && !empty($noGroup)) {
         $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
-            . esc_html__('Coordinación puede arreglarlo desde aquí. Tú puedes verlo, pero no editarlo.', 'sticpa')
+            . esc_html__('A su grupo los vincula coordinación, desde Grupos y fichas.', 'sticpa')
             . '</span></p>';
     }
 }

@@ -329,7 +329,9 @@ if ($isReunion) {
     $html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html($titulo) . '</span></div>';
     $subtitulo = sticpa_pl_session_label($session) . ' · ' . $scopeLabel;
 } else {
-    $html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html__('Monitores', 'sticpa') . '</span>'
+    // El mismo nombre que la fila que la abre (plan 042, COO-9): «Monitores»
+    // a secas era justo el nombre que confundía (§5 quater).
+    $html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html__('Lista de monitores', 'sticpa') . '</span>'
         . '<span class="pl-title-name">' . esc_html($scopeLabel) . '</span></div>';
     // El día ya lo dice el selector de al lado: el subtítulo cuenta a cuántos
     // hay que repasar, que es lo que no se ve sin bajar.

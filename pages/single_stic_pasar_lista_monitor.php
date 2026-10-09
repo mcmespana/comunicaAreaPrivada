@@ -593,9 +593,10 @@ if ($hayPistas) {
              * cero. */
             $pie = '';
             if ($t['suyas'] > 0 && $t['otras'] > 0) {
+                // Sin género: «un compañero» daba por hecho quién cubrió.
                 $pie = sprintf(
                     /* translators: 1: cuántas pasó esta persona, 2: cuántas pasó otra */
-                    __('%1$d las pasó, %2$d un compañero', 'sticpa'),
+                    __('%1$d suyas, %2$d de otra persona', 'sticpa'),
                     $t['suyas'],
                     $t['otras']
                 );
@@ -604,7 +605,23 @@ if ($hayPistas) {
                     ? __('La pasó otra persona', 'sticpa')
                     : __('Las pasó otra persona', 'sticpa');
             } elseif ($t['suyas'] > 0) {
-                $pie = __('Las ha pasado siempre', 'sticpa');
+                /* «1 de 3 · Las ha pasado siempre» se leía como que no había
+                 * faltado ninguna, con dos casillas de «sin lista» al lado
+                 * (plan 042, COO-9). «Siempre» solo cuando no falta ninguna;
+                 * si faltan, se dice cuántas y que las que hay son suyas. */
+                $faltanL = max(0, (int) $t['esperadas'] - (int) $t['con_lista']);
+                $pie = ($faltanL === 0)
+                    ? __('Las ha pasado siempre', 'sticpa')
+                    : sprintf(
+                        /* translators: 1: «Falta 1» / «Faltan 2»; 2: «la que hay es suya» / «las que hay son suyas» */
+                        __('%1$s · %2$s', 'sticpa'),
+                        sprintf(
+                            /* translators: %d: listas del grupo que no se han pasado */
+                            _n('Falta %d', 'Faltan %d', $faltanL, 'sticpa'),
+                            $faltanL
+                        ),
+                        _n('la que hay es suya', 'las que hay son suyas', (int) $t['con_lista'], 'sticpa')
+                    );
             }
             if ($t['omitidas'] > 0) {
                 $pie .= ($pie !== '' ? ' · ' : '') . sprintf(
