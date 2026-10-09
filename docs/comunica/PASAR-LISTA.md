@@ -233,6 +233,13 @@ Debajo, el bloque de **listas que faltan** (solo si las hay) — esto es lo que 
 no existe y hace que se pierdan semanas. Después, el acceso a **otro grupo** por
 etapa, y al final el resumen.
 
+**Qué entra en «listas que faltan»** (09/10/2026, plan 042 PL-4): de todos tus
+grupos —también el del atajo—, la sesión que toca si está sin pasar y las
+**anteriores sin lista de las últimas cuatro sesiones celebradas** (un mes). La
+más reciente arriba; con más de cuatro, tres y una fila «Y N más» que lleva al
+historial del grupo. No cuesta llamadas: sale de `sticpa_pl_all_listas()` y de
+las sesiones que la portada ya trae en sus dos tandas.
+
 Si el monitor lleva varios grupos, salen varias tarjetas. Si no lleva ninguno
 (coordinación), se entra directo al árbol.
 
@@ -268,7 +275,12 @@ pantalla y no una falta.
   vinieron— frente a los 10 de ir uno por uno. El AppSheet arrancaba en «no»
   porque no tenía ese botón; aquí no hace falta.
 - **«Han venido todos»** está arriba del todo: desmarcar dos ausentes es más
-  rápido que marcar diez.
+  rápido que marcar diez. **Solo rellena lo que está sin marcar** (09/10/2026,
+  plan 042 PL-2): sirven los dos órdenes —«todos y luego los que faltan» y
+  «los que faltan y luego el resto»— y ninguno borra una falta, una
+  justificada o una parcial ya puestas. Con alguna marca, el botón dice «El
+  resto ha venido (N)»; sin nadie por marcar, se apaga. Para poner en verde a
+  alguien que ya tenía otra marca está el toque en su fila.
 - **Tocar la fila entera** alterna sin marcar → vino → falta. El target es la
   fila completa.
 - **La flecha del final abre la ficha**, con 44 px de área táctil. Marcar es lo

@@ -238,7 +238,9 @@ foreach (array('MIC', 'COM', 'LC') as $etapa) {
         }
 
         // La pastilla dice el estado de la ÚLTIMA sesión, que es la pregunta
-        // frecuente; el número de huecos contesta la de fondo.
+        // frecuente; el número de huecos contesta la de fondo. Con el mismo
+        // vocabulario que la tira, y «Al día» SOLO si no hay ningún hueco
+        // (plan 042, PL-6): antes decía «Al día» con «2 sin pasar» debajo.
         $badge = __('Al día', 'sticpa');
         $badgeClass = 'pl-badge--ok';
         if ($lastMark === 'gap') {
@@ -247,6 +249,8 @@ foreach (array('MIC', 'COM', 'LC') as $etapa) {
         } elseif ($lastMark === 'skip') {
             $badge = __('Sin registro', 'sticpa');
             $badgeClass = 'pl-badge--skip';
+        } elseif ($gaps > 0) {
+            $badge = __('Pasada', 'sticpa');
         }
 
         $stripHtml .= '<div class="pl-grouprow">';
@@ -260,6 +264,19 @@ foreach (array('MIC', 'COM', 'LC') as $etapa) {
         $stripHtml .= '</span></span>';
         $stripHtml .= '<span class="pl-badge ' . esc_attr($badgeClass) . '">' . esc_html($badge) . '</span>';
         $stripHtml .= '</a>';
+        /* EN EL MÓVIL LA TIRA ES UN SOLO ENLACE (plan 042, PL-6). Cada celda
+         * mide 14×7 px con 3 px de aire: doce enlaces que un dedo no
+         * distingue. Con puntero grueso las celdas son decoración y un enlace
+         * que cubre la tira entera lleva al historial del grupo, que pinta
+         * cada fecha en una fila de 44 px con su estado. Con ratón, las celdas
+         * siguen abriendo su lista. Es HERMANO de las celdas, no las envuelve:
+         * un enlace dentro de otro no es HTML válido. */
+        $cells .= '<a class="pl-strip-link" href="?internalpage=single_stic_pasar_lista_grupos&grupo='
+            . esc_attr($gid) . '&sesiones=1" aria-label="' . esc_attr(sprintf(
+                /* translators: %s: código del grupo */
+                __('Historial de listas de %s', 'sticpa'),
+                $g['code']
+            )) . '"></a>';
         $stripHtml .= '<div class="pl-strip">' . $cells
             . '<span class="pl-strip-note' . ($gaps > 0 ? ' pl-strip-note--gap' : '') . '">'
             . esc_html($gaps === 0

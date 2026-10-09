@@ -116,7 +116,12 @@ en un iPhone: la tab bar ocupa ~73 pt desde el borde de abajo y la píldora de
 atrás/adelante llega a ~168 pt. La hoja de estados de Pasar Lista quedaba
 debajo de las dos; ahora, solo en la app, reserva lo suyo:
 `body.sticpa-app-mode .pl-sheet { padding-bottom: 11.5rem; }`
-(`css/pasar-lista.css`). Un elemento fijo nuevo abajo tiene que hacer lo mismo. Para que `env(safe-area-inset-*)` no valga
+(`css/pasar-lista.css`). Un elemento fijo nuevo abajo tiene que hacer lo mismo.
+La **barra de guardar** de Pasar Lista (marcar y monitores), que es `sticky`,
+se quedaba igual debajo de las dos mientras se marcaba (09/10/2026, plan 042
+PL-3); ahora, solo en la app, se pega más arriba:
+`body.sticpa-app-mode .pl-savebar { bottom: 10.5rem; }` —con `bottom` y no con
+`padding`, para que no crezca—. Falta confirmarlo en un iPhone con 14 filas. Para que `env(safe-area-inset-*)` no valga
 siempre 0 hace falta que el `<head>` lleve:
 
 ```html

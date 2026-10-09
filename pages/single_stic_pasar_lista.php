@@ -153,12 +153,7 @@ if ($mainGroupId !== '') {
             $meta[] = $group['cursos'];
         }
         if ($done) {
-            $meta[] = sprintf(
-                /* translators: 1: cuántos vinieron, 2: cuántas ausencias */
-                __('%1$d vinieron, %2$d ausencias', 'sticpa'),
-                $lista['n_asistieron'],
-                $lista['n_faltaron']
-            );
+            $meta[] = sticpa_pl_vinieron_ausencias($lista['n_asistieron'], $lista['n_faltaron']);
         } else {
             // El artboard pone el RANGO, «16:30 – 18:00»: lo que se quiere
             // saber antes de entrar es cuánto dura, no solo cuándo empieza.
@@ -190,30 +185,63 @@ if ($mainGroupId !== '') {
 // Lo que falta por pasar
 // ---------------------------------------------------------------------------
 
-/* Solo de TUS grupos, y solo de la sesión que toca. Es a propósito: recorrer
- * todas las sesiones de todos los grupos es una consulta por par y no cabe en
- * una home. El panorama completo del curso es el resumen de coordinación
- * (fase 3), que ya recorre el curso entero y pinta la tira de listas. */
+/* De TUS grupos —también el del atajo— y de la sesión que toca Y de las
+ * anteriores que se quedaron sin pasar, como mucho de las últimas cuatro (un
+ * mes, la misma ventana que el aviso de reuniones).
+ *
+ * Antes solo miraba la sesión de hoy y solo en tus OTROS grupos, con un
+ * comentario que decía que recorrer las sesiones «es una consulta por par».
+ * Ya no lo es: `sticpa_pl_all_listas()` trae en la primera tanda TODAS las
+ * listas de la delegación y las sesiones de cada etapa están en la segunda,
+ * así que contar los huecos cuesta cero llamadas (plan 042, PL-4). Y era el
+ * caso que importa: si no pasaste la lista el sábado pasado, este sábado el
+ * atajo te ofrecía la de hoy y del hueco no decía nada —solo se veía en el
+ * Resumen, en una celda de 14×7 px—. */
 $pending = array();
 // Los demás grupos MÍOS que no son deuda. Existen porque se puede ser monitor
 // de varios grupos, y antes desaparecían de la portada en cuanto su lista
 // estaba pasada: el atajo enseña uno, la deuda enseña los que faltan, y el
 // segundo grupo al día no se podía alcanzar desde aquí. Ahora tiene su fila.
 $otherMine = array();
+$estadosLista = sticpa_pl_lista_estados();
 foreach ($myGroups as $gid) {
-    if (!isset($groups[$gid]) || $gid === $mainGroupId) {
+    if (!isset($groups[$gid])) {
         continue;
     }
+    $isMain = ($gid === $mainGroupId);
     $g = $groups[$gid];
     $etapa = sticpa_pl_group_etapa($g['level']);
     if (!isset($events[$etapa])) {
         // Sin evento de su etapa no hay sesión que ofrecer, pero el grupo es
         // tuyo: se enseña para poder entrar, aunque sea sin fecha.
-        $otherMine[] = array('group' => $g, 'id' => $gid, 'session' => null);
+        if (!$isMain) {
+            $otherMine[] = array('group' => $g, 'id' => $gid, 'session' => null);
+        }
         continue;
     }
     $sessions = sticpa_pl_event_sessions($objSCP, $events[$etapa]['id']);
-    $pick = sticpa_pl_pick_session($sessions);
+    $pick = $isMain ? $heroPick : sticpa_pl_pick_session($sessions);
+    $pickId = ($pick !== null) ? (string) $pick['session']['id'] : '';
+    $pickStart = ($pick !== null) ? (int) $pick['session']['start'] : PHP_INT_MAX;
+
+    // Las atrasadas: huecos de sesiones ya celebradas y ANTERIORES a la que
+    // toca (esa la cuenta el atajo, o la regla de abajo). Sin llamadas: las
+    // listas son las de la primera tanda.
+    foreach (sticpa_pl_listas_by_session($objSCP, $sessions, 4) as $sid => $cell) {
+        if ((string) $sid === $pickId || (int) $cell['session']['start'] >= $pickStart) {
+            continue;
+        }
+        $old = isset($cell['listas'][$gid]) ? $cell['listas'][$gid] : null;
+        $estado = ($old !== null) ? (string) $old['estado'] : '';
+        if (sticpa_pl_list_mark($estado, $cell['session']['start']) === 'gap') {
+            $pending[] = array('group' => $g, 'id' => $gid, 'session' => $cell['session']);
+        }
+    }
+
+    if ($isMain) {
+        // La de hoy del grupo del atajo la enseña el atajo.
+        continue;
+    }
     if ($pick === null || $pick['why'] === 'future') {
         $otherMine[] = array(
             'group' => $g,
@@ -230,6 +258,10 @@ foreach ($myGroups as $gid) {
     }
     $pending[] = array('group' => $g, 'id' => $gid, 'session' => $pick['session']);
 }
+// La más reciente arriba: es la que todavía se recuerda.
+usort($pending, function ($a, $b) {
+    return (int) $b['session']['start'] - (int) $a['session']['start'];
+});
 
 if (!empty($pending)) {
     // Esto no es una sección más del árbol: es una deuda. Va en ámbar, con el
@@ -245,7 +277,14 @@ if (!empty($pending)) {
             count($pending)
         )) . '</div>';
     $html .= '<div class="pl-pending">';
-    foreach ($pending as $row) {
+    // Tres filas y, si hay más, una que lleva al historial: una portada con
+    // ocho «Recuperar» no se lee, y el historial ya pinta cada fecha con su
+    // estado. Si las que no caben son de un solo grupo, a su historial; si
+    // no, al árbol.
+    $maxPending = 3;
+    $shown = (count($pending) > $maxPending + 1) ? array_slice($pending, 0, $maxPending) : $pending;
+    $rest = array_slice($pending, count($shown));
+    foreach ($shown as $row) {
         $html .= '<a class="pl-pending-row" href="?internalpage=single_stic_pasar_lista_marcar&grupo='
             . esc_attr($row['id']) . '&sesion=' . esc_attr($row['session']['id']) . '">';
         $html .= '<span class="pl-pending-body">';
@@ -257,6 +296,20 @@ if (!empty($pending)) {
             . ($row['group']['name'] !== '' ? ' · ' . esc_html($row['group']['name']) : '') . '</span>';
         $html .= '</span>';
         $html .= '<span class="pl-pending-cta">' . esc_html__('Recuperar', 'sticpa') . '</span>';
+        $html .= '</a>';
+    }
+    if (!empty($rest)) {
+        $restGroups = array_unique(array_column($rest, 'id'));
+        $restUrl = (count($restGroups) === 1)
+            ? '?internalpage=single_stic_pasar_lista_grupos&grupo=' . rawurlencode(reset($restGroups)) . '&sesiones=1'
+            : '?internalpage=single_stic_pasar_lista_grupos';
+        $html .= '<a class="pl-pending-row pl-pending-row--more" href="' . esc_attr($restUrl) . '">';
+        $html .= '<span class="pl-pending-body"><span class="pl-pending-when">' . esc_html(sprintf(
+            /* translators: %d: cuántas listas más faltan */
+            __('Y %d más', 'sticpa'),
+            count($rest)
+        )) . '</span></span>';
+        $html .= '<span class="pl-pending-cta">' . esc_html__('Ver todas', 'sticpa') . '</span>';
         $html .= '</a>';
     }
     $html .= '</div>';

@@ -72,6 +72,11 @@ if ($wantSessions && $groupId !== '' && isset($groups[$groupId])) {
     $html .= '</div>';
     $html .= '<div class="pl-subtitle">' . esc_html__('Historial de listas', 'sticpa') . '</div>';
     $html .= '</div>';
+    // Y la cabecera se CIERRA (plan 042, PL-8). Faltaba este `</div>`: la lista
+    // de sesiones se metía dentro de `.pl-head`, que es una fila flex, y salía
+    // a la derecha del título, estrujada en ~225 px y con cada fecha partida en
+    // tres líneas.
+    $html .= '</div>';
 
     // Solo las sesiones ya celebradas, de la más reciente a la más antigua: se
     // pasa lista de lo que ya ha pasado. Y se puede pasar de cualquier día
@@ -101,12 +106,7 @@ if ($wantSessions && $groupId !== '' && isset($groups[$groupId])) {
             $doneClass = 'pl-done--yes';
             $doneInner = sticpa_pl_glyph('check');
             $meta = ($lista !== null)
-                ? esc_html(sprintf(
-                    /* translators: 1: cuántos vinieron, 2: cuántas ausencias */
-                    __('%1$d vinieron · %2$d ausencias', 'sticpa'),
-                    $lista['n_asistieron'],
-                    $lista['n_faltaron']
-                ))
+                ? esc_html(sticpa_pl_vinieron_ausencias($lista['n_asistieron'], $lista['n_faltaron'], ' · '))
                 : esc_html__('Pasada', 'sticpa');
         } elseif ($mark === 'skip') {
             $doneClass = 'pl-done--skip';

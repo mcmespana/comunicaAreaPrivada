@@ -324,6 +324,9 @@
 
         var rows = Array.prototype.slice.call(root.querySelectorAll('.pl-row'));
         var saveBtn = root.querySelector('[data-pl-save]');
+        var skipBtn = root.querySelector('[data-pl-skip]');
+        var allBtn = root.querySelector('[data-pl-all-present]');
+        var allLabel = allBtn ? allBtn.querySelector('[data-pl-all-label]') : null;
         var form = root.querySelector('[data-pl-form]');
         var marksInput = root.querySelector('[data-pl-marks]');
         var notesInput = root.querySelector('[data-pl-notes]');
@@ -336,6 +339,14 @@
         };
 
         var dirty = false;
+
+        /* Lo que dijo el servidor del último guardado (plan 042, PL-5): el
+           aviso de la barra llega pintado («Lista guardada · …» o el fallo) y
+           se queda hasta el primer toque. Con el guardado confirmado el botón
+           arranca en secundario («Guardada ✓») y vuelve a principal con el
+           primer cambio. */
+        var serverSaid = !!(status && status.hasAttribute('data-pl-server') && !status.hidden);
+        var savedMode = root.hasAttribute('data-pl-saved-ok');
 
         /* ---- Estado en memoria ----------------------------------------- */
 
@@ -438,13 +449,46 @@
             if (counts.no) { counts.no.textContent = nNo; }
             if (counts.none) { counts.none.textContent = nNone; }
             if (counts.noneWrap) { counts.noneWrap.hidden = (nNone === 0); }
+            // La palabra acompaña al número: «1 vino», «2 vinieron» (plan 042,
+            // PL-10). Antes era fija y salía «1 vinieron · 1 ausencias».
+            var byKey = { yes: nYes, no: nNo };
+            Array.prototype.forEach.call(root.querySelectorAll('[data-pl-word]'), function (w) {
+                var n = byKey[w.getAttribute('data-pl-word')];
+                var word = w.getAttribute(n === 1 ? 'data-one' : 'data-many');
+                if (word) { w.textContent = word; }
+            });
 
             // Si queda gente sin marcar, el botón lo dice en vez de callárselo.
             if (saveBtn && !saveBtn.disabled) {
                 var tpl = nNone > 0
                     ? (saveBtn.getAttribute('data-label-partial') || 'Guardar ({n} sin marcar)')
                     : (saveBtn.getAttribute('data-label-full') || 'Guardar lista');
+                if (savedMode && saveBtn.getAttribute('data-label-saved')) {
+                    tpl = saveBtn.getAttribute('data-label-saved');
+                }
                 saveBtn.textContent = tpl.replace('{n}', nNone);
+                saveBtn.classList.toggle('is-saved', savedMode);
+            }
+
+            // «Han venido todos» habla de lo que va a hacer: sin ninguna
+            // marca, todos; con alguna, «el resto» y cuántos; sin nadie por
+            // marcar, nada que hacer (plan 042, PL-2).
+            if (allBtn && allLabel) {
+                var marked = rows.length - nNone;
+                var tplAll = (marked === 0)
+                    ? (allBtn.getAttribute('data-label-all') || '')
+                    : (allBtn.getAttribute('data-label-rest') || '');
+                if (tplAll) { allLabel.textContent = tplAll.replace('{n}', nNone); }
+                allBtn.disabled = (nNone === 0);
+            }
+
+            // «Sin registro» confirma SIEMPRE, y con marcas en pantalla avisa
+            // de lo que se pierde: con «sin registro» no se escribe ninguna
+            // asistencia (plan 042, PL-1).
+            if (skipBtn) {
+                var key = (nYes + nNo > 0) ? 'data-confirm-marks' : 'data-confirm-empty';
+                var msg = skipBtn.getAttribute(key);
+                if (msg) { skipBtn.setAttribute('data-pl-confirm', msg); }
             }
         }
 
@@ -482,9 +526,14 @@
 
             if (changed > 0) {
                 // Sin guardar, sí, pero el aviso que toca es el del borrador:
-                // dice lo mismo Y de dónde salen esas marcas.
+                // dice lo mismo Y de dónde salen esas marcas. Salvo si el
+                // servidor acaba de decir que el guardado ha fallado: ese aviso
+                // es la noticia, y ya dice que las marcas siguen aquí.
                 dirty = true;
-                say('draft', root.getAttribute('data-msg-draft') || '');
+                savedMode = false;
+                if (!serverSaid) {
+                    say('draft', root.getAttribute('data-msg-draft') || '');
+                }
             }
         }
 
@@ -517,6 +566,13 @@
          */
         function setDirty(value) {
             dirty = !!value;
+            if (dirty && (savedMode || serverSaid)) {
+                // El primer cambio después de guardar: el botón vuelve a ser
+                // la acción y el aviso del servidor deja paso al de ahora.
+                savedMode = false;
+                serverSaid = false;
+                refresh();
+            }
             if (!status) { return; }
             if (!dirty) {
                 if (status.getAttribute('data-kind') === 'dirty') { hush(); }
@@ -619,13 +675,18 @@
 
         /* ---- "Han venido todos" ---------------------------------------- */
 
-        var allBtn = root.querySelector('[data-pl-all-present]');
         if (allBtn) {
             allBtn.addEventListener('click', function () {
                 // Escalonado mínimo: las filas se marcan en cascada de arriba
                 // abajo. Cuesta 20 ms por fila y convierte un cambio de golpe
                 // (que se lee como un parpadeo) en algo que se entiende.
-                rows.forEach(function (row, i) {
+                // SOLO LO QUE ESTÁ SIN MARCAR (plan 042, PL-2). Antes ponía
+                // `yes` en todas las filas: quien marcaba primero las faltas y
+                // luego «el resto, todos» perdía las faltas, las justificadas
+                // con su motivo y las parciales, sin deshacer.
+                var empty = rows.filter(function (row) { return getState(row) === ''; });
+                if (!empty.length) { return; }
+                empty.forEach(function (row, i) {
                     if (REDUCED) {
                         setState(row, 'yes', i > 0);
                         return;
@@ -1014,7 +1075,7 @@
                             || 'No se ha podido enviar lo que quedó pendiente. Vuelve a marcar y guardar.');
                     }
                 });
-            } else {
+            } else if (!serverSaid) {
                 hush();
             }
         }

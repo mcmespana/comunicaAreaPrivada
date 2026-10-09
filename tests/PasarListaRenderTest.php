@@ -1335,6 +1335,28 @@ final class PasarListaRenderTest extends TestCase
 
     // ---- Home ------------------------------------------------------------
 
+    /**
+     * LA LISTA OLVIDADA DEL SÁBADO PASADO, en la portada (plan 042, PL-4).
+     * En el doble, la sesión de hoy (s3) de C1 está pasada y las dos
+     * anteriores (s1, s2) no tienen lista: el atajo dice «Revisar la lista» y,
+     * hasta ahora, del hueco no se decía nada. Y sin llamadas nuevas: las
+     * listas son las de la primera tanda.
+     */
+    public function test_home_avisa_de_las_listas_atrasadas_del_grupo_del_atajo()
+    {
+        $html = $this->render('single_stic_pasar_lista');
+
+        $this->assertStringContainsString('Revisar la lista', $html);
+        $this->assertStringContainsString('Te faltan 2 listas', $html);
+        $this->assertStringContainsString('grupo=g1&sesion=s2', $html);
+        $this->assertStringContainsString('grupo=g1&sesion=s1', $html);
+        // La más reciente primero.
+        $this->assertLessThan(strpos($html, 'grupo=g1&sesion=s1'), strpos($html, 'grupo=g1&sesion=s2'));
+        // La de hoy no se repite como deuda: ya la enseña el atajo.
+        $this->assertSame(1, substr_count($html, 'grupo=g1&sesion=s3'));
+        $this->assertCount(7, $this->scp->calls);
+    }
+
     public function test_home_pinta_el_atajo_de_tu_grupo()
     {
         $html = $this->render('single_stic_pasar_lista');
@@ -1451,6 +1473,28 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('Sin pasar', $html);
         // La sesión que aún no ha llegado (s4) no se ofrece.
         $this->assertStringNotContainsString('sesion=s4', $html);
+
+        // ESTRUCTURA, no solo cadenas (plan 042, PL-8): la cabecera se cierra
+        // antes de la lista. Faltaba un `</div>` y la lista salía metida en la
+        // fila de la cabecera, estrujada a la derecha del título.
+        $head = strpos($html, '<div class="pl-head">');
+        $list = strpos($html, '<div class="pl-list">');
+        $this->assertNotFalse($head);
+        $this->assertNotFalse($list);
+        $tramo = substr($html, $head, $list - $head);
+        $this->assertSame(substr_count($tramo, '<div'), substr_count($tramo, '</div>'));
+    }
+
+    /** El desplegable de fechas dice el estado de cada lista, y marcar
+     *  enlaza al historial (plan 042, PL-8). */
+    public function test_el_desplegable_de_fechas_dice_el_estado_de_cada_lista()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertMatchesRegularExpression('/<option[^>]*sesion=s3[^>]*>3 · [^<]* · pasada<\/option>/u', $html);
+        $this->assertMatchesRegularExpression('/<option[^>]*sesion=s2[^>]*>2 · [^<]* · falta<\/option>/u', $html);
+        $this->assertStringContainsString('single_stic_pasar_lista_grupos&grupo=g1&sesiones=1', $html);
     }
 
     // ---- Marcar ----------------------------------------------------------
@@ -1479,9 +1523,13 @@ final class PasarListaRenderTest extends TestCase
         $_REQUEST = array('grupo' => 'g1');
         $html = $this->render('single_stic_pasar_lista_marcar');
 
-        // Sin el chip, parcial y justificada son invisibles para el usuario.
+        // Sin el aviso del gesto, parcial y justificada son invisibles. Ya no
+        // es un chip con aspecto de botón (plan 042, PL-10): el anillo que
+        // late es el icono de la nota, y la explicación sale una sola vez.
         $this->assertStringContainsString('Mantén pulsado', $html);
         $this->assertStringContainsString('pl-hold-ring', $html);
+        $this->assertStringNotContainsString('pl-hold-hint', $html);
+        $this->assertSame(1, substr_count($html, 'Mantén pulsado'));
         // La hoja, con los cuatro estados del CRM.
         $this->assertStringContainsString('data-pl-sheet', $html);
         foreach (array('yes', 'partial', 'no_justified', 'no_unjustified') as $key) {
@@ -1699,7 +1747,9 @@ final class PasarListaRenderTest extends TestCase
      */
     public function test_el_formulario_manda_la_accion_en_un_campo_oculto()
     {
-        $_REQUEST = array('grupo' => 'g1');
+        // s2: una sesión SIN lista. En una ya pasada (s3) «Sin registro» no se
+        // pinta (plan 042, PL-1), y aquí hacen falta los dos botones.
+        $_REQUEST = array('grupo' => 'g1', 'sesion' => 's2');
         $html = $this->render('single_stic_pasar_lista_marcar');
 
         $this->assertStringContainsString(
@@ -1770,6 +1820,50 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame('ok', $log[0]['motivo']);
         $this->assertSame(1, $log[0]['saved']);
         $this->assertSame(0, $log[0]['failed']);
+    }
+
+    /**
+     * EL RESULTADO SE DICE EN LA BARRA, encima del botón, y no arriba en letra
+     * pequeña mientras abajo seguía «Guardar lista» (plan 042, PL-5). Con el
+     * guardado confirmado el botón pasa a «Guardada ✓», secundario.
+     */
+    public function test_el_resultado_del_guardado_sale_en_la_barra()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => json_encode(array('c1' => 'yes')),
+        );
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertMatchesRegularExpression(
+            '/<p class="pl-status" data-pl-status role="status" data-kind="ok" data-pl-server>.*Lista guardada · \d+ vin/sU',
+            $html
+        );
+        $this->assertStringNotContainsString('pl-notice--ok', $html);
+        $this->assertMatchesRegularExpression('/class="pl-save is-saved"/', $html);
+        // La barra va DESPUÉS de la lista: es lo último del formulario.
+        $this->assertGreaterThan(strpos($html, 'class="pl-list"'), strpos($html, 'Lista guardada'));
+    }
+
+    /** Y el fallo, arriba en su tarjeta y también en la barra. */
+    public function test_el_fallo_del_guardado_sale_en_tarjeta_y_en_la_barra()
+    {
+        $this->scp->failWrites = array('stic_Attendances');
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => json_encode(array('c1' => 'partial')),
+        );
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertStringContainsString('stic-alert stic-alert--danger', $html);
+        $this->assertStringContainsString('data-kind="error"', $html);
+        $this->assertStringNotContainsString('is-saved', $html);
+        // El recuento ya no se repite en el aviso: baja al detalle.
+        $this->assertStringContainsString('<code>recuento</code>', $html);
     }
 
     /**
@@ -2351,6 +2445,31 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame(array(), $this->scp->writes);
     }
 
+    /**
+     * «Sin registro» está a un roce de tirar las marcas: no escribe ninguna
+     * asistencia y el JS borra el borrador al ver el guardado confirmado.
+     * Por eso pide confirmación SIEMPRE (con un texto para cuando ya hay
+     * marcas), y en una lista ya pasada no se ofrece: la reescribía como
+     * «No hubo» con 0/0 (plan 042, PL-1).
+     */
+    public function test_sin_registro_pide_confirmacion_y_no_sale_en_una_lista_pasada()
+    {
+        $_REQUEST = array('grupo' => 'g1', 'sesion' => 's2');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+        $this->assertMatchesRegularExpression('/<button[^>]*value="skip"[^>]*data-pl-confirm="[^"]+"/', $html);
+        $this->assertMatchesRegularExpression('/<button[^>]*value="skip"[^>]*data-confirm-marks="[^"]+"/', $html);
+        // Arriba, antes de la lista: se decide antes de marcar, no al lado de
+        // «Guardar».
+        $this->assertLessThan(strpos($html, 'class="pl-list"'), strpos($html, 'value="skip"'));
+        $this->assertLessThan(strpos($html, 'data-pl-all-present'), strpos($html, 'value="skip"'));
+
+        // s3 es la lista PASADA de g1.
+        $_REQUEST = array('grupo' => 'g1', 'sesion' => 's3');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+        $this->assertStringContainsString('Esta lista ya está pasada', $html);
+        $this->assertStringNotContainsString('value="skip"', $html);
+    }
+
     /** "Sin registro" marca la lista como omitida y no toca las asistencias. */
     public function test_sin_registro_no_escribe_asistencias()
     {
@@ -2376,6 +2495,35 @@ final class PasarListaRenderTest extends TestCase
     // ---- La etapa del evento --------------------------------------------
 
     // ---- Ficha ----------------------------------------------------------
+
+    /**
+     * Volver de una ficha a la lista vuelve a LA MISMA FECHA, también después
+     * de pasar de ficha con el paginador (plan 042, PL-13). Antes la flecha
+     * iba sin sesión y marcar elegía la de hoy.
+     */
+    public function test_la_vuelta_de_la_ficha_conserva_la_sesion()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1', 'sesion' => 's1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+        $this->assertMatchesRegularExpression(
+            '/class="pl-back" href="\?internalpage=single_stic_pasar_lista_marcar&(amp;)?grupo=g1&(amp;)?sesion=s1"/',
+            $html
+        );
+        // El paginador NO arrastra la sesión (un aviso de la ficha siguiente
+        // no es de ese sábado), solo la vuelta.
+        $this->assertDoesNotMatchRegularExpression('/single_stic_pasar_lista_ficha[^"]*[&;]sesion=s1/', $html);
+        $this->assertMatchesRegularExpression('/single_stic_pasar_lista_ficha[^"]*vsesion=s1/', $html);
+
+        // Desde la ficha siguiente, la flecha sigue volviendo a s1.
+        $_REQUEST = array('participante' => 'c2', 'grupo' => 'g1', 'vsesion' => 's1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+        $this->assertMatchesRegularExpression(
+            '/class="pl-back" href="\?internalpage=single_stic_pasar_lista_marcar&(amp;)?grupo=g1&(amp;)?sesion=s1"/',
+            $html
+        );
+        // Y no se cuela como sesión de los avisos.
+        $this->assertStringNotContainsString('name="pl_aviso_sesion"', $html);
+    }
 
     public function test_ficha_pone_los_telefonos_primero()
     {
@@ -4758,9 +4906,11 @@ final class PasarListaRenderTest extends TestCase
         // g3 es el grupo sin nadie del doble.
         $_REQUEST = array('grupo' => 'g3');
         $html = $this->render('single_stic_pasar_lista_marcar');
-        $this->assertStringContainsString('no tiene participantes', $html);
+        // Sin mandar a un monitor al CRM, que no tiene (plan 042, PL-10).
+        $this->assertStringContainsString('no tiene a nadie apuntado', $html);
+        $this->assertStringNotContainsString('CRM', $html);
         $this->assertStringContainsString('refrescar=1', $html);
-        $this->assertStringContainsString('Ya lo he arreglado', $html);
+        $this->assertStringContainsString('Volver a mirar', $html);
     }
 
     /** Las rachas se calculan sobre las asistencias: caducan con ellas. */
@@ -5860,6 +6010,26 @@ final class PasarListaRenderTest extends TestCase
             $html,
             'Cada celda tiene que enlazar a la lista de ESA sesión.'
         );
+    }
+
+    /**
+     * En el móvil las celdas no se distinguen con el dedo: la tira lleva
+     * además UN enlace al historial del grupo, hermano de las celdas (plan
+     * 042, PL-6). Y la pastilla no dice «Al día» si hay huecos: en el doble
+     * C1 tiene la última pasada y dos sin pasar.
+     */
+    public function test_la_tira_del_resumen_lleva_al_historial_y_la_pastilla_no_miente()
+    {
+        $html = $this->render('single_stic_pasar_lista_resumen');
+
+        $this->assertStringContainsString(
+            '<a class="pl-strip-link" href="?internalpage=single_stic_pasar_lista_grupos&grupo=g1&sesiones=1"',
+            $html
+        );
+        $fila = substr($html, strpos($html, 'grupo=g1"'), 1500);
+        $this->assertStringContainsString('2 sin pasar', $fila);
+        $this->assertStringNotContainsString('Al día', $fila);
+        $this->assertStringContainsString('Pasada', $fila);
     }
 
     /**
