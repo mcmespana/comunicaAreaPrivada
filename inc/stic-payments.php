@@ -587,7 +587,12 @@ function sticpa_payment_detail_html($pay, $definition = array())
             /* translators: %s = fecha de la devolución */
             $texto .= ' ' . sprintf(__('Ocurrió el %s.', 'sticpa'), sticpa_record_date_line($rejTs));
         }
-        $texto .= ' ' . __('Ponte en contacto con tu delegación para volver a intentarlo.', 'sticpa');
+        // Si se puede pagar desde aquí, el aviso no puede mandar a la
+        // delegación con el botón de pagar justo debajo: dos instrucciones
+        // contrarias (FAM-a12). Mismo texto que la ficha de la inscripción.
+        $texto .= ' ' . ((!empty($pay['pagable']) && function_exists('sticpa_pay_url'))
+            ? __('Puedes pagarlo con tarjeta o hablar con tu delegación.', 'sticpa')
+            : __('Ponte en contacto con tu delegación para volver a intentarlo.', 'sticpa'));
         $notes[] = array('tone' => 'danger', 'text' => $texto);
     }
 

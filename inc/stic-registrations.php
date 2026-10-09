@@ -560,7 +560,13 @@ function sticpa_registration_detail_html($reg, $definition = array(), $extra = a
     if ($clase !== '') {
         $facts[] = array('icon' => 'users', 'label' => __('Clase', 'sticpa'), 'text' => $clase);
     }
-    $tipo = sticpa_record_enum_label($definition, 'participation_type', $val('participation_type'));
+    // «Tipo de participación» solo si NO es el de siempre (FAM-a12): el área
+    // guarda todas las inscripciones como 'attendant', así que era el mismo
+    // dato para todas las familias y sonaba a CRM. Si alguien lo cambia a mano
+    // en el CRM (p. ej. monitor), entonces sí dice algo.
+    $tipo = ($val('participation_type') !== 'attendant')
+        ? sticpa_record_enum_label($definition, 'participation_type', $val('participation_type'))
+        : '';
     if ($tipo !== '') {
         $facts[] = array('icon' => 'tag', 'label' => __('Tipo de participación', 'sticpa'), 'text' => $tipo);
     }
