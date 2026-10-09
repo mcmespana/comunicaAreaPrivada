@@ -235,8 +235,10 @@ class CosteLlamadasAreaTest extends TestCase
             // con ellas se suma la tanda del evento de cada una (ViajesFamiliasTest).
             'list_stic_events' => 2,
             'list_stic_registrations' => 4,
-            'list_stic_payments' => 3,
-            'list_stic_payment_commitments' => 3,
+            // 2, y eran 3: tus compromisos y tus pagos van en la misma tanda
+            // (VEL-4). La otra es la definición de campos de Pagos (6 h).
+            'list_stic_payments' => 2,
+            'list_stic_payment_commitments' => 2,
             'list_stic_documents' => 2,
         );
         foreach ($this->pantallas() as $page => $req) {
@@ -268,7 +270,9 @@ class CosteLlamadasAreaTest extends TestCase
         ksort($conTandas);
         $this->assertSame(
             array(
-                'list_stic_events' => 1,   // VEL-5: eventos + tus inscripciones
+                'list_stic_events' => 1,                // VEL-5: eventos + tus inscripciones
+                'list_stic_payment_commitments' => 1,   // VEL-4: es Pagos (plan 041)
+                'list_stic_payments' => 1,              // VEL-4: compromisos + pagos
             ),
             $conTandas
         );

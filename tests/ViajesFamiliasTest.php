@@ -146,7 +146,7 @@ class ViajesFamiliasFake
                     return array($self->fila(array('id' => $e, 'name' => 'Evento ' . substr($e, 1),
                         'start_date' => '2026-11-14 10:00:00', 'end_date' => '2026-11-14 18:00:00')));
                 case 'Contacts:stic_payment_commitments_contacts':
-                    return array($self->fila(array('id' => 'pc1', 'name' => 'Convivencia', 'amount' => '35',
+                    return array($self->fila(array('id' => 'pc1', 'name' => 'Convivencia', 'banking_concept' => 'Convivencia de otoño', 'amount' => '35',
                         'payment_method' => 'direct_debit', 'periodicity' => 'punctual', 'active' => '1')));
                 case 'Contacts:stic_payments_contacts':
                     return array(
@@ -154,13 +154,16 @@ class ViajesFamiliasFake
                         $self->fila(array('id' => 'p2', 'name' => 'Pago 2', 'status' => 'not_paid', 'amount' => '20', 'payment_date' => '2026-10-10', 'payment_method' => 'direct_debit')),
                     );
                 case 'stic_Payment_Commitments:stic_payments_stic_payment_commitments':
-                    return array($self->fila(array('id' => 'p9', 'name' => 'Pago', 'status' => 'not_paid', 'amount' => '35', 'payment_date' => '2026-10-20', 'payment_method' => 'direct_debit')));
+                    // El mismo pago que ya trae la persona: con persona puesta,
+                    // nada que arreglar (eso es otra escritura, no una lectura).
+                    return array($self->fila(array('id' => 'p2', 'name' => 'Pago 2', 'status' => 'not_paid', 'amount' => '20', 'payment_date' => '2026-10-10', 'payment_method' => 'direct_debit')));
             }
             return array();
         });
     }
 
     public function set_entry($m, $d) { $this->log[] = array('serie', 'set_entry:' . $m); return 'nuevo'; }
+    public function set_relationship($m, $id, $link, $ids) { $this->log[] = array('serie', 'set_relationship:' . $link); return true; }
 }
 
 /**
@@ -275,6 +278,22 @@ class ViajesFamiliasTest extends TestCase
         $this->render('single_stic_events', array('id' => 'e2'));
         $this->assertTrue(prefix_user_has_active_registration($this->scp, 'e2'));
         $this->assertFalse(prefix_user_has_active_registration($this->scp, 'e4'), 'r4 está cancelada');
+    }
+
+    /**
+     * VEL-4: tus compromisos y tus pagos, juntos; después los pagos de cada
+     * compromiso vivo, que sí dependen de lo primero. Eran 3 en cada visita
+     * (Pagos no tiene caché, a propósito).
+     */
+    public function test_pagos_son_dos_esperas(): void
+    {
+        // La definición de los desplegables de Pagos, caliente (6 h, de todo el sitio).
+        sticpa_cached_field_definition($this->scp, 'stic_Payments', array('status', 'payment_method', 'payment_type'));
+        $this->scp->log = array();
+        $html = $this->render('list_stic_payments');
+        list($n, $pasos) = $this->esperas();
+        $this->assertLessThanOrEqual(2, $n, "Pagos: {$n} esperas: {$pasos}");
+        $this->assertStringContainsString('stic-rec-card', $html);
     }
 
     /** VEL-5: los eventos de la ventana y tus inscripciones, juntos. Eran 3. */
