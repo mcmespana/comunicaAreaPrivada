@@ -1059,5 +1059,10 @@ function sticpa_event_detail_html($event, $statusLabel = '', $canSignUp = true, 
         'sections' => $sections,
         'actions'  => $actions,
         'cta_note' => $ctaNote,
+        // «Inscribirme», pegado abajo (FAM-a2): con el cartel y la información
+        // de la web quedaba a 2,7 pantallas, y quien llega desde WhatsApp a
+        // apuntar a su hijo no sabía que existía. Solo cuando hay una acción
+        // principal; «Ver mi inscripción» o «Ver otras» no merecen perseguirte.
+        'sticky_cta' => !empty(array_filter($actions, function ($a) { return !empty($a['primary']); })),
     ));
 }

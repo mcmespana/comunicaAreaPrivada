@@ -399,6 +399,10 @@ function sticpa_record_empty_html($icon, $title, $sub = '', $action = null)
  *   'actions'  => array de acciones; la primera 'primary' es LA de la pantalla,
  *   'cta_note' => string — se pinta en vez de las acciones cuando no hay nada
  *                 que hacer ("Ya está pagada"), o debajo de ellas si hay,
+ *   'sticky_cta' => bool — la fila de la acción se queda pegada abajo al hacer
+ *                 scroll (CSS §64.a). Para fichas largas cuya acción es a lo
+ *                 que se viene: la de un evento con la información de la web
+ *                 dejaba «Inscribirme» a 2,7 pantallas (plan 042, FAM-a2),
  * }
  */
 function sticpa_record_detail_html($spec)
@@ -408,7 +412,7 @@ function sticpa_record_detail_html($spec)
         return '';
     }
 
-    $html = "<div class='stic-rec-detail'>";
+    $html = "<div class='stic-rec-detail" . (!empty($spec['sticky_cta']) ? ' stic-rec-detail--cta-sticky' : '') . "'>";
 
     // --- Cabecera: quién es este registro ---
     $html .= "<header class='stic-rec-hero'>";

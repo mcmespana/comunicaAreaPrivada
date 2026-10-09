@@ -7175,3 +7175,34 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 }
 .stic-pay-cta .stic-rec-btn--ghost { min-height: 48px; }
 .stic-pay-submit.stic-rec-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ============================================================
+   64. FAMILIAS — pulido del plan 042 (lote L1, 09/10/2026)
+   ------------------------------------------------------------
+   Lo que cambió en las pantallas de familias tras la auditoría
+   de plans/042-pulido-integral/auditoria-familias.md. Cada
+   subsección dice de qué hallazgo sale.
+   ============================================================ */
+
+/* --- 64.a La acción de la ficha del evento, pegada abajo (FAM-a2) ---
+   Con el cartel y «Toda la información», «Inscribirme» quedaba a 2.183 px
+   en un móvil y a 1.411 en escritorio. Pegada al pie de su columna, se ve
+   desde la primera pantalla. Mismo patrón que la botonera de los
+   formularios (§28): fondo de la página y el safe-area de la app. */
+.stic-rec-detail--cta-sticky .stic-rec-cta-row {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    background: var(--surface-2);
+    padding: 0.6rem 0 calc(0.6rem + env(safe-area-inset-bottom, 0px));
+}
+/* La nota (p. ej. «la inscripción se hace en el formulario de la
+   actividad») va encima del botón y sin caja: pegada abajo, una caja más
+   sería ruido. */
+.stic-rec-detail--cta-sticky .stic-rec-cta-row .stic-rec-cta-note {
+    order: -1;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: 0.82rem;
+}
