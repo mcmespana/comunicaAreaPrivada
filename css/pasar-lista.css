@@ -649,7 +649,28 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     flex-direction: column;
     gap: 0.6rem;
     z-index: 5;
+    /* El indicador de inicio del iPhone en el navegador (plan 042, PL-3).
+       Vale 0 mientras el <head> no lleve `viewport-fit=cover` (auditoría de
+       la carcasa, CAR-2); cuando lo lleve, reserva sin tocar nada más. */
+    padding-bottom: calc(1.2rem + env(safe-area-inset-bottom, 0px));
 }
+/* EN MCM APP la barra quedaba DEBAJO de la tab bar flotante y de la píldora
+   de atrás/adelante mientras se marcaba (plan 042, PL-3): `sticky` se pega al
+   borde del viewport, y la app pinta la web a pantalla completa por detrás de
+   las dos (CONTRATO-APP-WEBVIEW.md §3). Medido a 390×844 con la lista de 14:
+   «Guardar» de 771 a 825, entero dentro de la tab bar (73 pt), y el aviso de
+   «Cambios sin guardar» dentro de la píldora (hasta ~168 pt). Es la misma
+   reserva que la hoja de estados, pero con `bottom` y no con `padding`: así
+   la barra no crece y la lista se sigue viendo pasar por detrás. Sin el
+   `env()`: el indicador de inicio ya cae dentro de la tab bar. */
+body.sticpa-app-mode .pl-savebar {
+    bottom: 10.5rem;
+    padding-bottom: 1.2rem;
+}
+/* Y el mismo hueco DEBAJO del formulario: sin él, al llegar al final del
+   scroll la barra seguiría subida 10,5 rem y taparía la última fila y la
+   leyenda, que ya no tendrían adónde subir. */
+body.sticpa-app-mode [data-pl-form] { padding-bottom: 10.5rem; }
 
 .pl-counts {
     display: flex;
