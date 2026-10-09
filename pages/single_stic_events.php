@@ -27,6 +27,26 @@ if ($eventId === '') {
     return;
 }
 
+// EN UNA TANDA (plan 042, VEL-5). A esta ficha se llega desde fuera (el
+// enlace de WhatsApp, un correo, la app) y muchas veces es la PRIMERA pantalla
+// del día, con el calendario frío. Pedía en fila el evento, tus inscripciones
+// (para saber si ya tienes plaza) y los documentos del evento, y las tres solo
+// necesitan el id del evento y el tuyo: 4 esperas → 2 (la segunda es la tanda
+// del evento de cada inscripción). Los cargadores son los mismos que se usan
+// abajo, así que cada uno encuentra su respuesta ya traída; con la caché
+// caliente no recolectan nada y esto no hace nada.
+if (function_exists('sticpa_pl_prime')) {
+    sticpa_pl_prime($objSCP, function () use ($objSCP, $eventId) {
+        $objSCP->getRecordDetail($eventId, 'stic_Events', sticpa_event_fields_to_request($objSCP, true));
+        if (function_exists('prefix_user_active_event_ids')) {
+            prefix_user_active_event_ids($objSCP);
+        }
+        if (function_exists('sticpa_event_documents')) {
+            sticpa_event_documents($objSCP, $eventId);
+        }
+    });
+}
+
 // Con los campos de la web (cuerpo, cartel, lema…): la ficha los pinta.
 $detail = $objSCP->getRecordDetail($eventId, 'stic_Events', sticpa_event_fields_to_request($objSCP, true));
 $nvl = $detail->entry_list[0]->name_value_list ?? null;
@@ -41,9 +61,12 @@ if (!$event) {
     return;
 }
 
-// Etiqueta traducida del estado (el valor crudo es un código del CRM).
+// Etiqueta traducida del estado (el valor crudo es un código del CRM). De la
+// definición COMPARTIDA de eventos, la que ya se ha traído para saber qué
+// campos pedir: `array('status')` era otra clave de caché y otra llamada para
+// un campo que esa ya trae (ver sticpa_event_field_definition()).
 $statusLabel = '';
-$statusDef = sticpa_cached_field_definition($objSCP, 'stic_Events', array('status'));
+$statusDef = sticpa_event_field_definition($objSCP);
 if (!empty($statusDef['status']['options'][$event['status']])) {
     $option = $statusDef['status']['options'][$event['status']];
     $statusLabel = is_array($option) ? ($option['value'] ?? '') : (string) $option;

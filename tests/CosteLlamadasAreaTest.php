@@ -67,6 +67,11 @@ class CosteLlamadasAreaTest extends TestCase
         $_POST = array();
         $_GET = array();
         $this->scp = new FakeSCP();
+        // El memo POR PETICIÓN de tus inscripciones: cada medida es una
+        // petición nueva. Sin vaciarlo, la segunda pantalla que las pide las
+        // encontraba ya sabidas y salía más barata de lo que es.
+        sticpa_registration_memo_reset();
+        SugarRestApiCall::forgetMemo();
 
         // EL DOBLE TAMBIÉN ES EL OBJETO GLOBAL, y no es un detalle del arnés:
         // no todo el código usa el `$objSCP` que recibe la pantalla. La home,
@@ -198,18 +203,60 @@ class CosteLlamadasAreaTest extends TestCase
     }
 
     /**
-     * LO QUE ESTA MEDIDA DEJA A LA VISTA: AQUÍ NO HAY TANDAS.
-     *
-     * Pasar Lista agrupa sus consultas en tandas paralelas (`sticpa_pl_prime`),
-     * así que diez llamadas son tres viajes. Estas pantallas NO: hacen sus dos
-     * o tres llamadas EN FILA, una esperando a la anterior. Con un CRM lento y
-     * datos móviles, tres llamadas en serie son tres esperas sumadas.
-     *
-     * Esto no falla, se APUNTA: agruparlas es un trabajo aparte y no se hace de
-     * rebote en el test que lo descubre. Cuando alguien lo haga, este número
-     * sube y esta prueba se convierte en el sitio donde se comprueba.
+     * ESPERAS, no llamadas: lo que de verdad se nota. Una llamada suelta es una
+     * espera; una tanda de hasta 4 es UNA espera (las lanza a la vez), y una de
+     * 5 a 8 son DOS, porque `callMany()` no tiene más de 4 en vuelo
+     * (`sticpa_crm_multi_concurrency`). Contarla como una era mentir a favor.
      */
-    public function testHoyNingunaDeEstasPantallasAgrupaSusLlamadas()
+    private function esperas($n, array $tandas)
+    {
+        $esperas = $n - array_sum($tandas);
+        foreach ($tandas as $t) {
+            $esperas += (int) ceil($t / 4);
+        }
+        return $esperas;
+    }
+
+    /**
+     * LAS ESPERAS DE CADA PANTALLA, con su tope. Aquí se falla.
+     *
+     * Hasta el 09/10/2026 ninguna de estas pantallas agrupaba sus consultas: el
+     * test que lo apuntaba («hoy ninguna agrupa») pedía que se actualizara el
+     * día que alguien lo hiciera. Ese día es el plan 042 (VEL-4 y VEL-5), y lo
+     * que se fija ahora es la ganancia: si alguien vuelve a poner en fila lo
+     * que va en tanda, esto sube y falla.
+     */
+    public function testEsperasDeCadaPantalla()
+    {
+        $topes = array(
+            'single_stic_home' => 4,
+            // 2, y eran 3: los eventos de la ventana y tus inscripciones van
+            // en la misma tanda (VEL-5). Con este doble no tienes inscripciones;
+            // con ellas se suma la tanda del evento de cada una (ViajesFamiliasTest).
+            'list_stic_events' => 2,
+            'list_stic_registrations' => 4,
+            'list_stic_payments' => 3,
+            'list_stic_payment_commitments' => 3,
+            'list_stic_documents' => 2,
+        );
+        foreach ($this->pantallas() as $page => $req) {
+            list($n, $tandas) = $this->medir($page, $req);
+            $esperas = $this->esperas($n, $tandas);
+            $this->assertLessThanOrEqual(
+                $topes[$page],
+                $esperas,
+                "{$page} hace {$esperas} esperas al CRM ({$n} llamadas, tandas: " . (implode('+', $tandas) ?: '-')
+                    . ") y el tope es {$topes[$page]}. ¿Ha vuelto a ir en fila algo que iba en tanda?"
+            );
+        }
+    }
+
+    /**
+     * QUÉ PANTALLAS AGRUPAN. Antes era «ninguna» (y el test pedía que se
+     * actualizara cuando alguien agrupara). Si una deja de agrupar, falla; si
+     * agrupa una nueva, también: apúntala aquí y baja su tope de esperas.
+     */
+    public function testLasPantallasQueAgrupanSusLlamadas()
     {
         $conTandas = array();
         foreach ($this->pantallas() as $page => $req) {
@@ -218,13 +265,12 @@ class CosteLlamadasAreaTest extends TestCase
                 $conTandas[$page] = count($tandas);
             }
         }
-        // Si algún día esto falla es una BUENA noticia: alguien ha agrupado.
-        // Quita la pantalla de aquí y celébralo.
+        ksort($conTandas);
         $this->assertSame(
-            array(),
-            $conTandas,
-            'Alguien ha agrupado llamadas en ' . implode(', ', array_keys($conTandas))
-                . ': actualiza este test, que estaba escrito para cuando no las agrupaba ninguna.'
+            array(
+                'list_stic_events' => 1,   // VEL-5: eventos + tus inscripciones
+            ),
+            $conTandas
         );
     }
 
