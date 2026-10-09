@@ -82,11 +82,20 @@ if (!$isCoord && !$isAcomp) {
 
 $groups = sticpa_pl_groups($objSCP);
 $reuEvent = $isCoord ? sticpa_pl_reuniones_event($objSCP) : null;
+$events = sticpa_pl_etapa_events($objSCP);   // de `events_raw`, ya en la tanda 1
 
-// TANDA 2: las sesiones de reuniones, para el aviso de «reunión sin pasar».
+// TANDA 2: las sesiones de reuniones, para el aviso de «reunión sin pasar», y
+// las de los eventos de etapa, para decir cómo va la última sesión (plan 042,
+// COO-2). Por id y sin repetir: MIC y COM pueden compartir evento.
+$eventIds = array_unique(array_column($events, 'id'));
 if (is_array($reuEvent) && !empty($reuEvent['id'])) {
-    sticpa_pl_prime($objSCP, function () use ($objSCP, $reuEvent) {
-        sticpa_pl_event_sessions($objSCP, $reuEvent['id']);
+    $eventIds[] = $reuEvent['id'];
+}
+if (!empty($eventIds)) {
+    sticpa_pl_prime($objSCP, function () use ($objSCP, $eventIds) {
+        foreach (array_unique($eventIds) as $evId) {
+            sticpa_pl_event_sessions($objSCP, $evId);
+        }
     });
 }
 
@@ -119,7 +128,113 @@ if ($asignarMsg !== '') {
 // Lo que falta, y las listas del equipo
 // ---------------------------------------------------------------------------
 
-$html .= sticpa_pl_deudas_html(sticpa_pl_reunion_pendiente($objSCP, $reuEvent));
+/* La reunión sin lista, con su cabecera como en la portada de Pasar lista:
+ * suelta bajo el título no se entendía de qué era el ámbar (plan 042, COO-2). */
+$deudas = sticpa_pl_reunion_pendiente($objSCP, $reuEvent);
+if (!empty($deudas)) {
+    $html .= '<div class="pl-etapa-title pl-etapa-title--warn">'
+        . sticpa_pl_icon('warn')
+        . esc_html(sprintf(
+            /* translators: %d: número de listas de reunión sin pasar */
+            _n('Falta %d lista', 'Faltan %d listas', count($deudas), 'sticpa'),
+            count($deudas)
+        )) . '</div>';
+    $html .= sticpa_pl_deudas_html($deudas);
+}
+
+/* CADA FILA DICE LO QUE HAY, NO LO QUE ES (plan 042, COO-2). La pregunta con
+ * la que se abre Coordinación un lunes —¿se pasó lista el sábado, y quién
+ * falta?— se contestaba un toque más abajo, en el Resumen. Ahora la contesta la
+ * propia fila, con la MISMA cuenta que el Resumen (sticpa_pl_ultima_sesion_
+ * estado) y con el alcance de quien mira. Sin ámbar: la lista de monitores
+ * del sábado no avisa, a propósito (§5 ter); aquí solo se dice cómo está. */
+$acotado = is_array($scope)
+    && ((isset($scope['etapa']) && $scope['etapa'] !== '') || (isset($scope['segmento']) && $scope['segmento'] !== ''));
+$ultima = sticpa_pl_ultima_sesion_estado(sticpa_pl_tiras_por_etapa(
+    $objSCP,
+    $acotado ? sticpa_pl_scoped_groups($objSCP, $scope) : $groups,
+    $events,
+    1   // solo hace falta la última sesión
+));
+$metaResumen = __('Qué listas faltan y datos por revisar', 'sticpa');
+if ($ultima['total'] > 0) {
+    $bits = array();
+    if (count($ultima['fechas']) === 1) {
+        $bits[] = date_i18n('D j M', (int) $ultima['fechas'][0]);
+    }
+    $bits[] = sprintf(
+        /* translators: 1: listas hechas, 2: listas que tocaban */
+        __('%1$d de %2$d listas', 'sticpa'),
+        $ultima['done'],
+        $ultima['total']
+    );
+    if (empty($ultima['faltan'])) {
+        $bits[] = __('todas pasadas', 'sticpa');
+    } else {
+        // Hasta cuatro nombres: más no caben en una línea, y el Resumen los
+        // dice todos.
+        $codes = array_column($ultima['faltan'], 'code');
+        $txt = implode(', ', array_slice($codes, 0, 4));
+        if (count($codes) > 4) {
+            $txt .= ' ' . sprintf(
+                /* translators: %d: grupos que faltan y no caben en la línea */
+                __('y %d más', 'sticpa'),
+                count($codes) - 4
+            );
+        }
+        $bits[] = sprintf(
+            /* translators: %s: códigos de los grupos que no han pasado lista */
+            _n('falta %s', 'faltan %s', count($codes), 'sticpa'),
+            $txt
+        );
+    }
+    $metaResumen = implode(' · ', $bits);
+}
+
+/* La lista de monitores de la última sesión celebrada: del evento de la etapa
+ * del alcance, o del primero que haya, como la propia pantalla de la lista. */
+$metaMonitores = __('Quién ha venido el sábado', 'sticpa');
+if ($isCoord) {
+    $evMon = null;
+    if ($scope['etapa'] !== '' && isset($events[$scope['etapa']])) {
+        $evMon = $events[$scope['etapa']];
+    } else {
+        foreach (array('COM', 'MIC', 'LC') as $e) {
+            if (isset($events[$e])) {
+                $evMon = $events[$e];
+                break;
+            }
+        }
+    }
+    $pasadas = $evMon ? sticpa_pl_elapsed_sessions(sticpa_pl_event_sessions($objSCP, $evMon['id'])) : array();
+    $ultimaMon = empty($pasadas) ? null : end($pasadas);
+    if ($ultimaMon !== null) {
+        $listasMon = sticpa_pl_all_listas_monitores($objSCP);
+        $listaMon = isset($listasMon[$ultimaMon['id']]) ? $listasMon[$ultimaMon['id']] : null;
+        $estadoMon = is_array($listaMon) ? (string) $listaMon['estado'] : '';
+        if ($estadoMon === 'pasada') {
+            $estadoTxt = sprintf(
+                /* translators: 1: «N vinieron», 2: «N faltas» */
+                __('pasada: %1$s, %2$s', 'sticpa'),
+                sprintf(
+                    /* translators: %d: monitores que vinieron */
+                    _n('%d vino', '%d vinieron', (int) $listaMon['n_asistieron'], 'sticpa'),
+                    (int) $listaMon['n_asistieron']
+                ),
+                sprintf(
+                    /* translators: %d: monitores que faltaron */
+                    _n('%d falta', '%d faltas', (int) $listaMon['n_faltaron'], 'sticpa'),
+                    (int) $listaMon['n_faltaron']
+                )
+            );
+        } elseif ($estadoMon === 'omitida') {
+            $estadoTxt = __('sin registro', 'sticpa');
+        } else {
+            $estadoTxt = __('sin pasar', 'sticpa');
+        }
+        $metaMonitores = date_i18n('D j M', (int) $ultimaMon['start']) . ' · ' . $estadoTxt;
+    }
+}
 
 // `desde=coordinacion` hace que la flecha de atrás de esas pantallas vuelva aquí
 // y no a Pasar lista, que es la otra puerta por la que se llega a ellas.
@@ -129,7 +244,7 @@ if ($isCoord) {
     $html .= sticpa_pl_nav_row_html(
         '?internalpage=single_stic_pasar_lista_monitores&desde=coordinacion',
         __('Lista de monitores', 'sticpa'),
-        __('Quién ha venido el sábado', 'sticpa')
+        $metaMonitores
     );
     $html .= sticpa_pl_nav_row_html(
         '?internalpage=single_stic_pasar_lista_reuniones&desde=coordinacion',
@@ -140,7 +255,7 @@ if ($isCoord) {
 $html .= sticpa_pl_nav_row_html(
     '?internalpage=single_stic_pasar_lista_resumen',
     __('Resumen de grupos', 'sticpa'),
-    __('Qué listas faltan y datos por revisar', 'sticpa')
+    $metaResumen
 );
 $html .= '</div>';
 

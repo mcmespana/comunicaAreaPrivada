@@ -193,8 +193,15 @@ class CosteLlamadasTest extends TestCase
              * por separado —el alcance, la gente de la delegación, el evento
              * de reuniones y sus listas— en dos tandas. El directorio de
              * monitores sale del mapa de relaciones: si esto sube con el
-             * número de grupos, alguien ha metido una consulta por grupo. */
-            'single_stic_coordinacion' => array(array('__coord' => 'COM'), 7),
+             * número de grupos, alguien ha metido una consulta por grupo.
+             *
+             * SUBE DE 7 A 9 (plan 042, COO-2), A PROPÓSITO: la portada dice
+             * ahora cómo va la última sesión («1 de 2 listas · falta C2») y si
+             * la lista de monitores está pasada, y para eso necesita las
+             * sesiones de los eventos de etapa (1-2 llamadas). Viajan en la
+             * tanda 2 que ya existía, con las de reuniones: los viajes no
+             * suben. Las listas ya venían en la tanda 1. */
+            'single_stic_coordinacion' => array(array('__coord' => 'COM'), 9),
         );
 
         // Viajes de ida y vuelta: ninguna pantalla puede pasar de esto.

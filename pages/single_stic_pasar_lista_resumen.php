@@ -336,6 +336,22 @@ if ($lastTotal > 0) {
             _n('%d grupo sin pasarla todavía', '%d grupos sin pasarla todavía', $missing, 'sticpa'),
             $missing
         )) . '</span>';
+    /* Y CUÁLES (plan 042, COO-2): «3 grupos sin pasarla» obligaba a recorrer
+     * las tiras de todas las etapas buscando la pastilla «Falta». Cada nombre
+     * abre su lista de esa sesión. */
+    if (!empty($ultima['faltan'])) {
+        $html .= '<span class="pl-lasthero-miss">';
+        foreach ($ultima['faltan'] as $f) {
+            $html .= '<a class="pl-lasthero-chip" href="?internalpage=single_stic_pasar_lista_marcar&grupo='
+                . esc_attr($f['gid']) . '&sesion=' . esc_attr($f['sid']) . '"'
+                . ' aria-label="' . esc_attr(sprintf(
+                    /* translators: %s: código del grupo */
+                    __('Pasar la lista de %s', 'sticpa'),
+                    $f['code']
+                )) . '">' . esc_html($f['code']) . '</a>';
+        }
+        $html .= '</span>';
+    }
     $html .= '</div>';
     $html .= '<span class="pl-lasthero-pct">' . esc_html($pct) . '%</span>';
     $html .= '</div>';

@@ -3621,3 +3621,30 @@ a.pl-group .pl-name { display: block; }
 .pl-cards--n2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .pl-fold--resto .pl-fold-body { padding: 0 0.9rem 0.9rem; border-top: 1px solid var(--gray-100); }
 .pl-fold--resto .pl-list { box-shadow: none; border: 1px solid var(--gray-100); }
+
+/* ---- COO-2: «Faltan: M1 · C2 · Ruah», en la tarjeta de la última sesión ---
+   Cada nombre es un enlace a su lista: pastilla clara sobre el degradado, como
+   el anillo del porcentaje, y de 44 px porque se toca con el dedo. */
+.pl-lasthero-miss { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.45rem; }
+.pl-lasthero-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 0.9rem;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.18);
+    color: inherit !important;   /* el enlace del tema no pinta sobre el degradado */
+    font-size: 0.85rem;
+    font-weight: 800;
+    text-decoration: none !important;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.12s var(--ease-out), background-color 0.12s var(--ease-out);
+}
+.pl-lasthero-chip:active { transform: scale(0.97); }
+@media (hover: hover) {
+    .pl-lasthero-chip:hover { background: rgba(255, 255, 255, 0.28); }
+}
+.pl-lasthero-chip:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+    .pl-lasthero-chip { transition: none; }
+}

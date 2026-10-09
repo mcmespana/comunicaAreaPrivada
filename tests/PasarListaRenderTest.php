@@ -3144,6 +3144,70 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('toda la delegación', $html);
     }
 
+    /**
+     * «3 GRUPOS SIN PASARLA» Y CUÁLES (plan 042, COO-2): la tarjeta nombra los
+     * que faltan, y cada nombre abre su lista de esa sesión.
+     */
+    public function test_el_resumen_nombra_los_grupos_que_faltan()
+    {
+        $html = $this->render('single_stic_pasar_lista_resumen');
+
+        $this->assertStringContainsString('pl-lasthero-miss', $html);
+        $this->assertStringContainsString(
+            'class="pl-lasthero-chip" href="?internalpage=single_stic_pasar_lista_marcar&grupo=g2&sesion=s3"',
+            $html
+        );
+        // C1 sí la pasó: no sale entre los que faltan.
+        $miss = substr($html, strpos($html, 'pl-lasthero-miss'));
+        $miss = substr($miss, 0, strpos($miss, '</span>'));
+        $this->assertStringNotContainsString('grupo=g1&', $miss);
+    }
+
+    /**
+     * LA PORTADA DE COORDINACIÓN DICE CÓMO VA (plan 042, COO-2): cada fila
+     * dice lo que hay, con el alcance de quien mira, y la reunión sin lista
+     * lleva su cabecera.
+     */
+    public function test_coordinacion_dice_como_va_la_ultima_sesion()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $html = $this->render('single_stic_coordinacion');
+
+        // C1 pasó la del sábado, C2 no; MIC y LC no son de su alcance.
+        $this->assertStringContainsString('1 de 2 listas · falta C2', $html);
+        $this->assertStringNotContainsString('Ruah', $html);
+        // La lista de monitores de la última sesión, sin pasar.
+        $this->assertMatchesRegularExpression('/Lista de monitores<\/span><span class="pl-group-meta">[^<]+· sin pasar</', $html);
+        // La reunión sin lista, con su cabecera.
+        $this->assertStringContainsString('pl-etapa-title--warn', $html);
+        $this->assertStringContainsString('Falta 1 lista', $html);
+    }
+
+    public function test_coordinacion_dice_cuantos_monitores_vinieron()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $id = $this->scp->set_entry('LIS_listas', array(
+            'estado' => 'pasada', 'ajmcm_tipo_c' => 'monitores',
+            'n_asistieron' => 11, 'n_faltaron' => 3,
+        ));
+        $this->scp->set_relationship('LIS_listas', $id, 'lis_listas_stic_sessions', array('s3'));
+        $this->scp->writes = array();
+        $this->scp->relationships = array();
+
+        $html = $this->render('single_stic_coordinacion');
+
+        $this->assertStringContainsString('pasada: 11 vinieron, 3 faltas', $html);
+    }
+
+    /** Toda la delegación: los cuatro grupos, y los que faltan con su nombre. */
+    public function test_coordinacion_de_toda_la_delegacion_cuenta_todos_los_grupos()
+    {
+        $this->scp->coordEtapa = '';
+        $html = $this->render('single_stic_coordinacion');
+
+        $this->assertStringContainsString('1 de 4 listas · faltan M1, C2, Ruah', $html);
+    }
+
     public function test_resumen_lista_los_participantes_sin_grupo()
     {
         $html = $this->render('single_stic_pasar_lista_resumen');
