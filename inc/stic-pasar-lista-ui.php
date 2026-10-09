@@ -714,8 +714,17 @@ function sticpa_pl_when_pill($pick, $done = false)
  * porque el número es como se habla de ellas ("la tercera") y la fecha es como
  * se comprueba que es la que toca. Las dos juntas caben de sobra.
  */
-function sticpa_pl_session_select_html($sessions, $currentId, $groupId = '', $page = 'single_stic_pasar_lista_marcar')
+function sticpa_pl_session_select_html($sessions, $currentId, $groupId = '', $page = 'single_stic_pasar_lista_marcar', $marks = array())
 {
+    // `$marks`: sesión => 'ok' | 'gap' | 'skip' (sticpa_pl_list_mark()). Con
+    // él, cada opción dice si esa lista está pasada, falta o es «sin registro»
+    // (plan 042, PL-8): sin eso, encontrar el sábado olvidado era ir abriendo
+    // fechas. No cuesta llamadas: sale de las listas que ya están cargadas.
+    $markWords = array(
+        'ok' => __('pasada', 'sticpa'),
+        'gap' => __('falta', 'sticpa'),
+        'skip' => __('sin registro', 'sticpa'),
+    );
     $groupId = (string) $groupId;
     $elapsed = sticpa_pl_elapsed_sessions($sessions);
     if (count($elapsed) < 2) {
@@ -766,7 +775,13 @@ function sticpa_pl_session_select_html($sessions, $currentId, $groupId = '', $pa
             . '&sesion=' . rawurlencode($s['id']);
         $selected = ($s['id'] === $currentId);
         if ($selected) {
+            // La pastilla se queda con el número y la fecha: el estado de la
+            // que está abierta ya lo dice la pantalla, y a 375 px no cabe.
             $currentLabel = $label;
+        }
+        $mark = isset($marks[$s['id']]) ? (string) $marks[$s['id']] : '';
+        if (isset($markWords[$mark])) {
+            $label .= ' · ' . $markWords[$mark];
         }
         $out .= '<option value="' . esc_url($url) . '"' . ($selected ? ' selected' : '') . '>'
             . esc_html($label) . '</option>';

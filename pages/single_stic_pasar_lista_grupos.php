@@ -72,6 +72,11 @@ if ($wantSessions && $groupId !== '' && isset($groups[$groupId])) {
     $html .= '</div>';
     $html .= '<div class="pl-subtitle">' . esc_html__('Historial de listas', 'sticpa') . '</div>';
     $html .= '</div>';
+    // Y la cabecera se CIERRA (plan 042, PL-8). Faltaba este `</div>`: la lista
+    // de sesiones se metía dentro de `.pl-head`, que es una fila flex, y salía
+    // a la derecha del título, estrujada en ~225 px y con cada fecha partida en
+    // tres líneas.
+    $html .= '</div>';
 
     // Solo las sesiones ya celebradas, de la más reciente a la más antigua: se
     // pasa lista de lo que ya ha pasado. Y se puede pasar de cualquier día

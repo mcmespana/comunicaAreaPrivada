@@ -324,9 +324,15 @@ $html .= '<div class="pl-subtitle">' . esc_html(implode(' · ', $sub)) . '</div>
 $html .= '</div>';
 // El selector de sesión es un desplegable NATIVO aquí mismo, no un viaje a otra
 // pantalla: en el móvil es una rueda a pulgar y ahorra tres toques por lista de
-// otro día. El historial con el estado de cada lista sigue en el árbol, que es
-// donde tiene sentido verlo entero.
-$html .= sticpa_pl_session_select_html($sessions, $session['id'], $groupId);
+// otro día. Cada opción dice si esa lista está pasada, falta o es «sin
+// registro» (plan 042, PL-8), con las listas que ya están cargadas: cero
+// llamadas. El historial entero sigue en su pantalla, enlazado bajo la leyenda.
+$selectMarks = array();
+foreach (sticpa_pl_listas_by_session($objSCP, $sessions, count($sessions)) as $sid => $cell) {
+    $l = isset($cell['listas'][$groupId]) ? $cell['listas'][$groupId] : null;
+    $selectMarks[$sid] = sticpa_pl_list_mark(($l !== null) ? (string) $l['estado'] : '', $cell['session']['start']);
+}
+$html .= sticpa_pl_session_select_html($sessions, $session['id'], $groupId, 'single_stic_pasar_lista_marcar', $selectMarks);
 $html .= '</div>';
 
 // Aviso de por qué esta sesión (solo si hay algo que decir).
@@ -431,6 +437,10 @@ foreach ($people['participants'] as $p) {
 $html .= '</div>';
 
 $html .= sticpa_pl_legend_html();
+// La entrada al historial del grupo, con el estado de cada fecha (plan 042,
+// PL-8): desde que la fecha se elige con el desplegable, nada llevaba allí.
+$html .= '<p class="pl-history-link"><a class="pl-ghost" href="?internalpage=single_stic_pasar_lista_grupos&grupo='
+    . rawurlencode($groupId) . '&sesiones=1">' . esc_html__('Ver todas las fechas', 'sticpa') . '</a></p>';
 
 // Barra de guardado: contadores vivos y un solo botón. El resultado del
 // guardado se dice AQUÍ, encima del botón, y no arriba (plan 042, PL-5).

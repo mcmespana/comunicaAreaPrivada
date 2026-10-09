@@ -3528,3 +3528,8 @@ a.pl-group .pl-name { display: block; }
    un patio. Se cambiaron EN SU SITIO a `--gray-500` (4,8:1 / 6,2:1), como
    pide design.md §5. `--gray-400` se queda solo en iconos, la flecha de la
    fila y los `::placeholder`. */
+
+/* ---- PL-8: «Ver todas las fechas», bajo la leyenda -----------------------
+   La entrada al historial del grupo. Un enlace discreto (`.pl-ghost`), a la
+   altura de la nota de la leyenda: no compite con «Guardar». */
+.pl-history-link { margin: 0.1rem 0 0; }

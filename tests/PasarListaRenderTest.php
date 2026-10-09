@@ -1473,6 +1473,28 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('Sin pasar', $html);
         // La sesión que aún no ha llegado (s4) no se ofrece.
         $this->assertStringNotContainsString('sesion=s4', $html);
+
+        // ESTRUCTURA, no solo cadenas (plan 042, PL-8): la cabecera se cierra
+        // antes de la lista. Faltaba un `</div>` y la lista salía metida en la
+        // fila de la cabecera, estrujada a la derecha del título.
+        $head = strpos($html, '<div class="pl-head">');
+        $list = strpos($html, '<div class="pl-list">');
+        $this->assertNotFalse($head);
+        $this->assertNotFalse($list);
+        $tramo = substr($html, $head, $list - $head);
+        $this->assertSame(substr_count($tramo, '<div'), substr_count($tramo, '</div>'));
+    }
+
+    /** El desplegable de fechas dice el estado de cada lista, y marcar
+     *  enlaza al historial (plan 042, PL-8). */
+    public function test_el_desplegable_de_fechas_dice_el_estado_de_cada_lista()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertMatchesRegularExpression('/<option[^>]*sesion=s3[^>]*>3 · [^<]* · pasada<\/option>/u', $html);
+        $this->assertMatchesRegularExpression('/<option[^>]*sesion=s2[^>]*>2 · [^<]* · falta<\/option>/u', $html);
+        $this->assertStringContainsString('single_stic_pasar_lista_grupos&grupo=g1&sesiones=1', $html);
     }
 
     // ---- Marcar ----------------------------------------------------------
