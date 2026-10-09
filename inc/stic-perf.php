@@ -44,6 +44,29 @@
  * El arreglo de raíz es que `comunicaFormularios` solo encole su capa en las
  * páginas de formularios; esto es el cinturón.
  *
+ * ---- VEL-7: las otras tres Inter (y Google Fonts) --------------------------
+ * El área solo usa Inter, autoalojada y precargada (design.md §5: «nunca se
+ * carga desde Google Fonts»). Pero en su página entraban además:
+ *   · `elementor-gf-local-inter`: 126 @font-face «locales» de Elementor que
+ *     apuntan TODOS al dominio provisional de Hostinger
+ *     (steelblue-mallard-178509.hostingersite.com). Se declaran después que la
+ *     del área y ganaban en los pesos 600 y 700: la negrita del área se bajaba
+ *     de ese dominio. Fuera SIEMPRE: el kit de Elementor pide la familia
+ *     'Inter' para sus títulos y la del área (100-900) la cubre entera.
+ *   · `astra-google-fonts`: Inter 400/600 y Plus Jakarta Sans 600 desde
+ *     fonts.googleapis.com, una hoja en otro origen que bloquea el pintado
+ *     (más su preconnect a fonts.gstatic.com). Fuera SIEMPRE: la Inter ya la
+ *     pone el área, y Plus Jakarta solo la usarían `.site-title` (la cabecera
+ *     es el logo, una imagen) y los h1-h6, que el kit de Elementor pasa a
+ *     'Inter'. Con ella se van su dns-prefetch y sus preconnect.
+ *   · `elementor-gf-local-lato`: Lato, del mismo dominio provisional. Es la
+ *     letra del kit de Elementor para el texto de la web, o sea, del PIE de
+ *     página. Solo en modo app (allí cabecera y pie no se ven); en el
+ *     navegador el pie sigue en Lato.
+ * El arreglo de raíz (y el de la web pública) es de quien administra
+ * WordPress: en Elementor, Herramientas → Regenerar archivos, para que sus
+ * fuentes locales apunten al dominio de verdad.
+ *
  * POR QUÉ TRES ENGANCHES: quien encola puede hacerlo tarde. `wp_enqueue_scripts`
  * con prioridad 100 llega después de casi todo; `wp_print_styles` (justo antes
  * de imprimir las hojas del <head>) recoge lo que se encola en `wp_head`, como
@@ -58,13 +81,24 @@ if (!defined('ABSPATH')) {
 /**
  * Hojas y scripts ajenos que se apartan de las páginas del área.
  *
+ * @param bool $appMode dentro de MCM App (sin cabecera ni pie del tema).
  * @return array{styles: string[], scripts: string[]}
  */
-function sticpa_area_foreign_assets()
+function sticpa_area_foreign_assets($appMode = false)
 {
-    return array(
+    $styles = array(
         // VEL-1: la capa de los formularios públicos.
-        'styles'  => array('crm-comunica-estilos'),
+        'crm-comunica-estilos',
+        // VEL-7: las Inter que no son la del área.
+        'elementor-gf-local-inter',
+        'astra-google-fonts',
+    );
+    if ($appMode) {
+        // VEL-7: Lato solo la usa el pie de la web, que en la app no se ve.
+        $styles[] = 'elementor-gf-local-lato';
+    }
+    return array(
+        'styles'  => $styles,
         'scripts' => array('crm-comunica-script'),
     );
 }
@@ -74,7 +108,7 @@ function sticpa_area_dequeue_foreign_assets()
     if (!function_exists('sticpa_queried_page_has_area_shortcode') || !sticpa_queried_page_has_area_shortcode()) {
         return;
     }
-    $assets = sticpa_area_foreign_assets();
+    $assets = sticpa_area_foreign_assets(function_exists('sticpa_is_app_mode') && sticpa_is_app_mode());
     foreach ($assets['styles'] as $handle) {
         wp_dequeue_style($handle);
     }
@@ -85,3 +119,32 @@ function sticpa_area_dequeue_foreign_assets()
 add_action('wp_enqueue_scripts', 'sticpa_area_dequeue_foreign_assets', 100);
 add_action('wp_print_styles', 'sticpa_area_dequeue_foreign_assets', 100);
 add_action('wp_print_footer_scripts', 'sticpa_area_dequeue_foreign_assets', 1);
+
+/**
+ * VEL-7: sin Google Fonts no hacen falta su dns-prefetch ni sus preconnect
+ * (los pone el tema por su cuenta, aunque la hoja ya no se cargue). Cada uno
+ * es una resolución DNS y un saludo TLS de más en la primera carga.
+ *
+ * @param array $urls entradas de `wp_resource_hints`: una URL o un array con 'href'.
+ */
+function sticpa_strip_google_font_hints($urls)
+{
+    $out = array();
+    foreach ((array) $urls as $url) {
+        $href = is_array($url) ? (string) ($url['href'] ?? '') : (string) $url;
+        if (preg_match('#(^|//|\.)fonts\.(googleapis|gstatic)\.com#i', $href)) {
+            continue;
+        }
+        $out[] = $url;
+    }
+    return $out;
+}
+
+function sticpa_area_resource_hints($urls, $relation = '')
+{
+    if (!function_exists('sticpa_queried_page_has_area_shortcode') || !sticpa_queried_page_has_area_shortcode()) {
+        return $urls;
+    }
+    return sticpa_strip_google_font_hints($urls);
+}
+add_filter('wp_resource_hints', 'sticpa_area_resource_hints', 100, 2);
