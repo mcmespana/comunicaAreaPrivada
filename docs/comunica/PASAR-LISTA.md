@@ -375,6 +375,12 @@ prisa. Luego asistencia, familia, salud y datos.
 Recuentos por etapa y segmento (MIC / COM I / COM II / COM III), estado de las
 listas y «datos por revisar».
 
+**El alcance manda (plan 042, COO-1).** Quien coordina una etapa o un segmento
+ve contado SOLO lo suyo —tarjetas, «última sesión» y tiras—, con el alcance en
+el subtítulo («2025-2026 · COM»); el resto de la delegación sale debajo, plegado
+en «El resto de la delegación». Sin alcance acotado (toda la delegación, o
+quien no coordina) se ve y se cuenta todo, como antes.
+
 **El historial de listas por grupo.** Esta era la duda de verdad: cómo se ve, de
 un vistazo, quién ha pasado la última lista y a quién le faltan listas de otros
 días. La respuesta es una **tira de marcas bajo cada grupo, una por sesión ya

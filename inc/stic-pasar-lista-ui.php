@@ -1392,6 +1392,112 @@ function sticpa_pl_deudas_html($deudas)
 }
 
 /**
+ * LAS TIRAS DEL RESUMEN, sin pintar: por etapa, las sesiones celebradas que
+ * entran en la tira y, por grupo, la marca de cada una.
+ *
+ * Sale del Resumen (plan 042, COO-1 y COO-2) porque ahora se calcula para dos
+ * cosas: los grupos del alcance y «el resto de la delegación», y la portada de
+ * Coordinación necesita la misma cuenta para decir cómo va la última sesión.
+ * Una sola regla en un solo sitio: si el Resumen y Coordinación contaran por
+ * separado, acabarían diciendo números distintos del mismo sábado.
+ *
+ * Cero consultas si las sesiones de los eventos y el índice de listas ya van
+ * en la tanda de quien llama (sticpa_pl_listas_by_session() lee el índice).
+ *
+ * @param array $groups grupos a contar (id => grupo), ya filtrados por alcance.
+ * @param array $events lo que devuelve sticpa_pl_etapa_events().
+ * @return array<string, array{grid: array, filas: array}> etapa => tira; cada
+ *               fila es array('group','marks' => [sid => marca],'gaps','last').
+ */
+function sticpa_pl_tiras_por_etapa($objSCP, $groups, $events, $limit)
+{
+    $out = array();
+    foreach (array('MIC', 'COM', 'LC') as $etapa) {
+        if (!isset($events[$etapa]['id'])) {
+            continue;
+        }
+        $deEtapa = array();
+        foreach ($groups as $gid => $g) {
+            if (sticpa_pl_group_etapa(isset($g['level']) ? $g['level'] : '') === $etapa) {
+                $deEtapa[$gid] = $g;
+            }
+        }
+        if (empty($deEtapa)) {
+            continue;
+        }
+        $grid = sticpa_pl_listas_by_session(
+            $objSCP,
+            sticpa_pl_event_sessions($objSCP, $events[$etapa]['id']),
+            $limit
+        );
+        if (empty($grid)) {
+            continue;
+        }
+        $filas = array();
+        foreach ($deEtapa as $gid => $g) {
+            $marks = array();
+            $gaps = 0;
+            $last = '';
+            foreach ($grid as $sid => $cell) {
+                $estado = isset($cell['listas'][$gid]['estado']) ? $cell['listas'][$gid]['estado'] : '';
+                $mark = sticpa_pl_list_mark($estado, $cell['session']['start']);
+                if ($mark === 'gap') {
+                    $gaps++;
+                }
+                $marks[$sid] = $mark;
+                $last = $mark;   // la sesión más reciente va la última
+            }
+            $filas[$gid] = array('group' => $g, 'marks' => $marks, 'gaps' => $gaps, 'last' => $last);
+        }
+        $out[$etapa] = array('grid' => $grid, 'filas' => $filas);
+    }
+    return $out;
+}
+
+/**
+ * «¿PASARON LISTA EL SÁBADO?», contestado con nombres.
+ *
+ * La cuenta de la última sesión celebrada de cada etapa: cuántas listas tocaban,
+ * cuántas están (pasada o «sin registro»: una lista cerrada a conciencia no es
+ * una que falte) y CUÁLES faltan, con su grupo y su sesión para poder enlazar a
+ * la lista. Las fechas van aparte porque cada etapa puede tener su última sesión
+ * en un día distinto, y entonces no hay «el sábado» que decir.
+ *
+ * @param array $tiras lo que devuelve sticpa_pl_tiras_por_etapa().
+ * @return array{done:int, total:int, fechas:int[], faltan: array<int, array{gid:string, code:string, sid:string, etapa:string}>}
+ */
+function sticpa_pl_ultima_sesion_estado($tiras)
+{
+    $out = array('done' => 0, 'total' => 0, 'fechas' => array(), 'faltan' => array());
+    foreach ($tiras as $etapa => $tira) {
+        $sids = array_keys($tira['grid']);
+        $lastSid = (string) end($sids);
+        foreach ($tira['filas'] as $gid => $fila) {
+            if ($fila['last'] === '') {
+                continue;
+            }
+            $out['total']++;
+            if ($fila['last'] === 'ok' || $fila['last'] === 'skip') {
+                $out['done']++;
+            } elseif ($fila['last'] === 'gap') {
+                $g = $fila['group'];
+                $out['faltan'][] = array(
+                    'gid' => (string) $gid,
+                    'code' => (trim($g['code']) !== '') ? $g['code'] : $g['name'],
+                    'sid' => $lastSid,
+                    'etapa' => $etapa,
+                );
+            }
+        }
+        $start = isset($tira['grid'][$lastSid]['session']['start']) ? (int) $tira['grid'][$lastSid]['session']['start'] : 0;
+        if ($start > 0 && !in_array($start, $out['fechas'], true)) {
+            $out['fechas'][] = $start;
+        }
+    }
+    return $out;
+}
+
+/**
  * Una fila de navegación de la casa: nombre, línea gris y flecha.
  *
  * Es el `pl-group` de siempre (árbol de grupos, bloque de coordinación). Se

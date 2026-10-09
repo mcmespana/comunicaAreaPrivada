@@ -3605,3 +3605,19 @@ a.pl-group .pl-name { display: block; }
     text-decoration: underline;
     text-underline-offset: 0.18em;
 }
+
+/* ==========================================================================
+   042 · COORDINACIÓN (plan 042, auditoría de coordinación)
+   --------------------------------------------------------------------------
+   Lo nuevo de esa pasada, por hallazgo. Lo que cambiaba una regla que ya
+   existía se ha cambiado en su sitio; aquí solo va lo que no tenía dónde.
+   ========================================================================== */
+
+/* ---- COO-1: el Resumen respeta el alcance --------------------------------
+   Con alcance acotado hay menos tarjetas de etapa: la rejilla se ajusta a las
+   que hay. Y el resto de la delegación va plegado, con sus tiras dentro: sin
+   la sombra de tarjeta de cada lista, que ya están dentro de la del plegable. */
+.pl-cards--n1 { grid-template-columns: minmax(0, 1fr); }
+.pl-cards--n2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.pl-fold--resto .pl-fold-body { padding: 0 0.9rem 0.9rem; border-top: 1px solid var(--gray-100); }
+.pl-fold--resto .pl-list { box-shadow: none; border: 1px solid var(--gray-100); }

@@ -3107,6 +3107,43 @@ final class PasarListaRenderTest extends TestCase
         $this->assertLessThan(strpos($html, 'pl-strip'), strpos($html, 'pl-lasthero'));
     }
 
+    /**
+     * EL RESUMEN RESPETA EL ALCANCE (plan 042, COO-1). A quien coordina el
+     * COM le contaba toda la delegación: «1 de 4 listas», cuando lo suyo (C1 y
+     * C2) era 1 de 2. Ahora cuenta lo suyo, lo dice en la cabecera, y el resto
+     * de la delegación se ve, pero plegado y aparte.
+     */
+    public function test_el_resumen_cuenta_solo_el_alcance_de_quien_coordina()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $html = $this->render('single_stic_pasar_lista_resumen');
+
+        $this->assertStringContainsString('1 de 2 listas', $html);
+        $this->assertStringContainsString('1 grupo sin pasarla todavía', $html);
+        $this->assertStringNotContainsString('1 de 4 listas', $html);
+        // El alcance, en la cabecera.
+        $this->assertMatchesRegularExpression('/pl-subtitle">[^<]*· COM</', $html);
+        // M1 (MIC) y Ruah (LC) siguen a la vista, pero DENTRO del plegable.
+        $fold = strpos($html, 'pl-fold--resto');
+        $this->assertNotFalse($fold);
+        $this->assertGreaterThan($fold, strpos($html, 'Los Micos'));
+        $this->assertGreaterThan($fold, strpos($html, '>Ruah<'));
+        $this->assertLessThan($fold, strpos($html, '>C2<'));
+        // Y solo hay tarjeta de la etapa propia.
+        $this->assertStringContainsString('pl-cards pl-cards--n1', $html);
+    }
+
+    /** Con toda la delegación de alcance, la pantalla es la de siempre. */
+    public function test_el_resumen_de_toda_la_delegacion_no_pliega_nada()
+    {
+        $this->scp->coordEtapa = '';
+        $html = $this->render('single_stic_pasar_lista_resumen');
+
+        $this->assertStringContainsString('1 de 4 listas', $html);
+        $this->assertStringNotContainsString('pl-fold--resto', $html);
+        $this->assertStringContainsString('toda la delegación', $html);
+    }
+
     public function test_resumen_lista_los_participantes_sin_grupo()
     {
         $html = $this->render('single_stic_pasar_lista_resumen');
