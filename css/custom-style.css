@@ -2099,7 +2099,7 @@ span.stic-field {
     width: auto;
     min-width: 148px;
 }
-@media (min-width: 601px) {
+@media (min-width: 640px) {
     .stic-form li.stic-send .stic-button {
         padding-left: 1.5rem !important;
         padding-right: 1.5rem !important;
