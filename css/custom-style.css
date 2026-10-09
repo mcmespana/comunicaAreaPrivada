@@ -7214,3 +7214,26 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     background: none;
     font-size: 0.82rem;
 }
+
+/* --- 64.b El selector de participante, con 44 px de dedo (FAM-a11) ---
+   Es EL control de una familia y medía 172×31. Subirlo a 44 de alto
+   agrandaba la barra de identidad 13 px en cada pantalla; en su lugar se
+   amplía el área táctil alrededor, sin cambiar lo que se ve (el mismo
+   patrón que .stic-info y .stic-appearance-btn, WCAG 2.5.8). */
+.stic-part-switch-btn { position: relative; }
+.stic-part-switch-btn::before {
+    content: '';
+    position: absolute;
+    inset: -7px -2px;
+}
+
+/* --- 64.c Tarjeta de persona sin etiqueta (FAM-a11) ---
+   Los hijos ya no llevan «Participante» (lo llevaban todos y no distinguía
+   nada). En móvil la tarjeta es una rejilla de dos filas, nombre y etiqueta:
+   sin etiqueta, el nombre ocupa las dos y queda centrado con el avatar. */
+@media (max-width: 640px) {
+    .stic-profile-card:not(:has(.stic-profile-tag)) .stic-profile-name { grid-row: 1 / 3; }
+}
+/* En la portada del familiar, las mismas tarjetas que en la selección: aire
+   antes del bloque siguiente, como el que tenía la lista a la que sustituyen. */
+.stic-section-label--mini + .stic-profiles-grid { margin-bottom: 1.5rem; }

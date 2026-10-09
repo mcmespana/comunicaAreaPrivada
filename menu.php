@@ -318,6 +318,33 @@ function sticpa_name_initial($name)
 }
 
 /**
+ * LA TARJETA DE UNA PERSONA a la que se puede pasar a ver (avatar con la
+ * inicial, nombre corto y flecha). La usan la pantalla de elegir participante
+ * y la portada del familiar: antes la misma acción se pintaba de dos formas,
+ * avatar con degradado en una e icono gris en la otra (plan 042, FAM-a11).
+ *
+ * El nombre, corto como en la barra («Lucía Messeguer», no «Messeguer
+ * Villarroya, Lucía»), con el completo en el title.
+ *
+ * @param string $url   Ya escapada (esc_url).
+ * @param string $name  Nombre tal y como viene del CRM.
+ * @param string $tag   Etiqueta pequeña bajo el nombre ('' = ninguna).
+ * @param string $go    Texto del CTA (en móvil solo se ve la flecha).
+ * @param string $extra Clases extra (is-active, stic-profile-card--self).
+ */
+function sticpa_profile_card_html($url, $name, $tag, $go, $extra = '')
+{
+    $goIcon = "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12h14'/><path d='m13 6 6 6-6 6'/></svg>";
+    return "<a class='stic-profile-card" . ($extra !== '' ? ' ' . esc_attr($extra) : '') . "' href='" . $url . "'"
+        . " data-part-switch-to='" . esc_attr__('Cambiando de participante…', 'sticpa') . "'>"
+        . "<span class='stic-profile-avatar' aria-hidden='true'>" . esc_html(sticpa_name_initial($name)) . "</span>"
+        . "<span class='stic-profile-name' title='" . esc_attr($name) . "'>" . esc_html(sticpa_short_name($name)) . "</span>"
+        . ($tag !== '' ? "<span class='stic-profile-tag'>" . esc_html($tag) . "</span>" : '')
+        . "<span class='stic-profile-go'><span class='stic-profile-go-text'>" . esc_html($go) . "</span>{$goIcon}</span>"
+        . "</a>";
+}
+
+/**
  * Return html menu from  $menuElements
  */
 function menu()

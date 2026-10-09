@@ -472,6 +472,26 @@ class FamilyContextTest extends TestCase
     }
 
     /**
+     * La tarjeta de persona (plan 042, FAM-a11): la misma en la selección y en
+     * la portada del familiar, con el nombre corto de la barra («Lucía
+     * Messeguer», no «Messeguer Villarroya, Lucía») y sin etiqueta que no
+     * distinga nada.
+     */
+    public function testLaTarjetaDePersonaUsaElNombreCortoYNoInventaEtiqueta()
+    {
+        require_once __DIR__ . '/../menu.php';
+        $html = sticpa_profile_card_html('/x', 'Messeguer Villarroya, Lucía', '', 'Elegir');
+        $this->assertStringContainsString('>Lucía Messeguer<', $html);
+        $this->assertStringContainsString("title='Messeguer Villarroya, Lucía'", $html);
+        $this->assertStringNotContainsString('stic-profile-tag', $html);
+        $this->assertStringContainsString('>L<', $html, 'La inicial es la del nombre de pila');
+
+        $html = sticpa_profile_card_html('/x', 'Villarroya Gil, Marta', 'Yo', 'Entrar', 'stic-profile-card--self is-active');
+        $this->assertStringContainsString("class='stic-profile-card stic-profile-card--self is-active'", $html);
+        $this->assertStringContainsString("<span class='stic-profile-tag'>Yo</span>", $html);
+    }
+
+    /**
      * El arranque es IDEMPOTENTE: se ejecuta en cada petición, así que no puede
      * deshacer la elección de participante que la persona acaba de hacer.
      */
