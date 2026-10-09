@@ -2201,23 +2201,27 @@ span.stic-field {
    24. PULIDO — chip destacado, dropzones, botón suave
    ============================================================ */
 
-/* Tarjeta de evento (cabecera de la pantalla de inscripción = "Ver" integrado) */
+/* Tarjeta de evento (cabecera de la pantalla de inscripción = "Ver" integrado).
+   UN RESUMEN NEUTRO, no un bloque de marca (plan 042, FAM-a5): era un
+   degradado dentro de la tarjeta blanca del formulario, y con la barra y el
+   botón principal salían tres degradados en una pantalla (design.md §3: uno,
+   dos como mucho). El degradado de esta pantalla es el botón «Apuntarme». */
 .stic-event-card {
     grid-column: 1 / -1 !important;
     list-style: none;
-    background: var(--grad-brand);
-    color: #fff;
+    background: var(--surface-2);
+    color: var(--gray-800);
+    border: 1px solid var(--gray-200);
     border-radius: var(--radius-lg);
-    padding: 1.25rem 1.4rem !important;
+    padding: 1.1rem 1.25rem !important;
     margin-bottom: 0.6rem;
-    box-shadow: var(--shadow-md);
 }
 .stic-event-card-kicker {
     font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    opacity: 0.85;
+    color: var(--gray-500);
 }
 .stic-event-card-title {
     font-size: clamp(1.2rem, 3vw, 1.45rem);
@@ -2225,17 +2229,20 @@ span.stic-field {
     letter-spacing: -0.01em;
     margin: 0.25rem 0 0.6rem;
     line-height: 1.2;
+    color: var(--gray-900);
 }
 .stic-event-card-meta {
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
     font-size: 0.9rem;
-    background: rgba(255, 255, 255, 0.18);
+    font-weight: 600;
+    background: var(--primary-50);
+    color: var(--primary-color);
     padding: 0.32rem 0.75rem;
     border-radius: var(--radius-full);
 }
-.stic-event-card-desc { margin: 0.75rem 0 0; font-size: 0.92rem; line-height: 1.5; opacity: 0.95; }
+.stic-event-card-desc { margin: 0.75rem 0 0; font-size: 0.92rem; line-height: 1.5; color: var(--gray-600); }
 
 /* Botón suave (descargar, acciones secundarias) */
 .stic-soft-btn {
@@ -6896,16 +6903,17 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     .stic-reg-cancel { flex: 1 1 100%; }
 }
 
-/* «Ver toda la información de la actividad», dentro de la tarjeta de marca del
-   formulario de inscripción: texto blanco subrayado, como un enlace, no un
-   segundo botón (el botón de la pantalla es «Inscribirme»). */
+/* «Ver toda la información de la actividad», dentro de la tarjeta del
+   formulario de inscripción: un enlace subrayado, no un segundo botón (el
+   botón de la pantalla es «Apuntarme»). En azul desde que la tarjeta es
+   neutra (FAM-a5). */
 .stic-event-card-link {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
     min-height: 44px;
     margin-top: 0.35rem;
-    color: var(--on-brand) !important;        /* el tema pinta los enlaces de su color */
+    color: var(--primary-color) !important;   /* el tema pinta los enlaces de su color */
     font-size: 0.9rem;
     font-weight: 700;
     text-decoration: underline !important;    /* ídem: el tema quita el subrayado */
