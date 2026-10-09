@@ -809,7 +809,8 @@ class EventAudienceTest extends TestCase
         $this->assertLessThan($apuntado, strpos($html, 'Pascua 2027'));
         // Lo tuyo lleva a TU inscripción y no ofrece apuntarse otra vez.
         $this->assertStringContainsString('single_stic_registrations&amp;action=detail&amp;id=reg-1', $html);
-        $this->assertStringContainsString('Inscrito', $html);
+        // El chip de lo tuyo: «Con plaza», sin género (FAM-a4; antes «Inscrito»).
+        $this->assertStringContainsString('Con plaza', $html);
         $this->assertSame(1, substr_count($html, 'Inscribirme'));
         // Lo ya celebrado, fuera: tuyo o no.
         $this->assertStringNotContainsString('Campamento 2026', $html);

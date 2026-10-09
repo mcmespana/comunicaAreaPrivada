@@ -222,7 +222,11 @@ switch ($_REQUEST['action']) {
         $formSettings['submitButtonActions']['back'] = array(
             'onclick' => "location.href='?internalpage=list_stic_registrations';",
         );
-        $formSettings['submitButton']['save'] = __('Apuntarme', 'sticpa');
+        // Con un hijo, a quién: «Apuntar a Lucía» (FAM-a4).
+        $formSettings['submitButton']['save'] = (sticpa_viendo_a_nombre() !== '')
+            /* translators: %s: nombre de pila del participante */
+            ? sprintf(__('Apuntar a %s', 'sticpa'), sticpa_viendo_a_nombre())
+            : __('Apuntarme', 'sticpa');
         $formSettings['submitButtonActions']['save'] = array(
             'onclick' => 'return verifyFormIsValid(this)',
         );
@@ -393,7 +397,13 @@ if ($eventId && $_REQUEST['action'] !== 'edit' && $_REQUEST['action'] !== 'detai
     $fieldList[] = array(
         'name' => 'evento_info',
         'type' => 'html',
-        'html' => sticpa_registration_event_card_html(__('Te inscribes a', 'sticpa'), $evName, $dateLine, $evDesc, $eventId, $calSvg),
+        'html' => sticpa_registration_event_card_html(
+            (sticpa_viendo_a_nombre() !== '')
+                /* translators: %s: nombre de pila del participante */
+                ? sprintf(__('Inscribes a %s en', 'sticpa'), sticpa_viendo_a_nombre())
+                : __('Te inscribes a', 'sticpa'),
+            $evName, $dateLine, $evDesc, $eventId, $calSvg
+        ),
     );
     $fieldList[] = array('name' => 'stic_registrations_stic_eventsstic_events_ida', 'type' => 'hidden', 'defaultValue' => $eventId);
 
@@ -444,8 +454,18 @@ $blockedTitle = '';
 $blockedText = '';
 $fwaDoor = '';
 if ($alreadyRegistered) {
-    $blockedTitle = __('Ya estás inscrito', 'sticpa');
-    $blockedText = __('Ya cuentas con una inscripción activa para este evento. No es necesario que te vuelvas a inscribir.', 'sticpa');
+    // Sin «inscrito» (design.md §1: reformula antes de resolver el género) y
+    // diciendo de quién es, si es de un hijo (FAM-a4).
+    $viendoA = sticpa_viendo_a_nombre();
+    if ($viendoA !== '') {
+        /* translators: %s: nombre de pila del participante */
+        $blockedTitle = sprintf(__('%s ya tiene su plaza', 'sticpa'), $viendoA);
+        /* translators: %s: nombre de pila del participante */
+        $blockedText = sprintf(__('%s ya tiene una inscripción activa para esta actividad. No hace falta repetirla.', 'sticpa'), $viendoA);
+    } else {
+        $blockedTitle = __('Ya tienes tu plaza', 'sticpa');
+        $blockedText = __('Ya tienes una inscripción activa para esta actividad. No hace falta repetirla.', 'sticpa');
+    }
 } elseif (!empty($signupBlock['bloqueado'])) {
     $blockedTitle = $signupBlock['titulo'];
     $blockedText = $signupBlock['texto'];

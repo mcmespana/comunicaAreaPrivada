@@ -306,10 +306,16 @@ function sticpa_registrations_list_html($rows, $definition = array(), $hiddenEve
     }
 
     if (empty($models)) {
+        $viendoA = sticpa_viendo_a_nombre();
         return sticpa_record_empty_html(
             'check',
-            __('Todavía no tienes ninguna inscripción', 'sticpa'),
-            __('Cuando te apuntes a una actividad aparecerá aquí, con su estado y lo que quede por hacer.', 'sticpa'),
+            ($viendoA !== '')
+                /* translators: %s: nombre de pila del participante */
+                ? sprintf(__('Todavía no hay inscripciones de %s', 'sticpa'), $viendoA)
+                : __('Todavía no tienes ninguna inscripción', 'sticpa'),
+            ($viendoA !== '')
+                ? __('Cuando haya una, aparecerá aquí con su estado y lo que quede por hacer.', 'sticpa')
+                : __('Cuando te apuntes a una actividad aparecerá aquí, con su estado y lo que quede por hacer.', 'sticpa'),
             array('label' => __('Ver actividades abiertas', 'sticpa'), 'url' => '?internalpage=list_stic_events', 'primary' => true)
         );
     }
@@ -697,7 +703,10 @@ function sticpa_registration_detail_html($reg, $definition = array(), $extra = a
     }
 
     return sticpa_record_detail_html(array(
-        'back'     => array('url' => '?internalpage=list_stic_registrations', 'label' => __('Mis inscripciones', 'sticpa')),
+        'back'     => array('url' => '?internalpage=list_stic_registrations', 'label' => (sticpa_viendo_a_nombre() !== '')
+            /* translators: %s: nombre de pila del participante */
+            ? sprintf(__('Inscripciones de %s', 'sticpa'), sticpa_viendo_a_nombre())
+            : __('Mis inscripciones', 'sticpa')),
         'title'    => $reg['title'],
         'meta'     => array($when ?: array('icon' => 'calendar', 'text' => '')),
         'chips'    => $chips,
@@ -1606,13 +1615,21 @@ function sticpa_registration_manage_html($regId, $rights)
  */
 function sticpa_registration_saved_note($msg)
 {
+    // Sin «inscrito» (en masculino) y, si es de un hijo, diciendo de cuál: con
+    // dos hijos, «ya estás inscrito» no decía a quién se había apuntado (FAM-a4).
+    $viendoA = sticpa_viendo_a_nombre();
     switch ((string) $msg) {
         case 'inscrita':
-            return array('tone' => 'ok', 'icon' => 'check', 'text' => __('Listo: ya estás inscrito.', 'sticpa'));
         case 'inscrita_pago':
-            return array('tone' => 'ok', 'icon' => 'check', 'text' => __('Listo: ya estás inscrito.', 'sticpa'));
+            return array('tone' => 'ok', 'icon' => 'check', 'text' => ($viendoA !== '')
+                /* translators: %s: nombre de pila del participante */
+                ? sprintf(__('Listo: %s ya tiene su plaza.', 'sticpa'), $viendoA)
+                : __('Listo: ya tienes tu plaza.', 'sticpa'));
         case 'pagado':
-            return array('tone' => 'ok', 'icon' => 'check', 'text' => __('Pago hecho. Ya estás inscrito.', 'sticpa'));
+            return array('tone' => 'ok', 'icon' => 'check', 'text' => ($viendoA !== '')
+                /* translators: %s: nombre de pila del participante */
+                ? sprintf(__('Pago hecho. %s ya tiene su plaza.', 'sticpa'), $viendoA)
+                : __('Pago hecho. Ya tienes tu plaza.', 'sticpa'));
         case 'true':
             return array('tone' => 'ok', 'icon' => 'check', 'text' => __('Cambios guardados.', 'sticpa'));
         case 'cancelada':
@@ -1620,7 +1637,10 @@ function sticpa_registration_saved_note($msg)
         case 'cerrada':
             return array('tone' => 'warn', 'text' => __('El plazo de inscripción ya ha terminado, así que no se ha cambiado nada. Si lo necesitas, habla con tu delegación.', 'sticpa'));
         case 'pago_error':
-            return array('tone' => 'warn', 'text' => __('Estás inscrito, pero no hemos podido dejar anotado el pago. Tu delegación lo revisará; no hace falta que te vuelvas a inscribir.', 'sticpa'));
+            return array('tone' => 'warn', 'text' => ($viendoA !== '')
+                /* translators: %s: nombre de pila del participante */
+                ? sprintf(__('%s tiene su plaza, pero no hemos podido dejar anotado el pago. Tu delegación lo revisará; no hace falta repetir la inscripción.', 'sticpa'), $viendoA)
+                : __('Tienes tu plaza, pero no hemos podido dejar anotado el pago. Tu delegación lo revisará; no hace falta repetir la inscripción.', 'sticpa'));
         case 'error':
             return array('tone' => 'danger', 'text' => __('No hemos podido guardar el cambio. Inténtalo otra vez en un rato.', 'sticpa'));
     }

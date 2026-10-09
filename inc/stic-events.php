@@ -889,7 +889,9 @@ function sticpa_events_cards($models, $statusMap = array())
 
         $chips = array();
         if ($regId !== '') {
-            $chips[] = array('label' => __('Inscrito', 'sticpa'), 'tone' => 'ok');
+            // «Con plaza» y no «Inscrito»: sin género, y vale igual para uno
+            // mismo que para un hijo (FAM-a4).
+            $chips[] = array('label' => __('Con plaza', 'sticpa'), 'tone' => 'ok');
         } elseif ($event['is_past']) {
             $chips[] = array('label' => __('Ya celebrado', 'sticpa'), 'tone' => 'past');
         } elseif ($regChip !== null) {
@@ -1018,8 +1020,13 @@ function sticpa_event_detail_html($event, $statusLabel = '', $canSignUp = true, 
     if ($event['is_past']) {
         $ctaNote = __('Esta actividad ya se ha celebrado.', 'sticpa');
     } elseif (!$canSignUp) {
-        $actions[] = array('label' => __('Ver mi inscripción', 'sticpa'), 'url' => '?internalpage=list_stic_registrations');
-        $ctaNote = __('Ya tienes una inscripción para esta actividad.', 'sticpa');
+        // De quién es la plaza, si es de un hijo (FAM-a4).
+        $viendoA = sticpa_viendo_a_nombre();
+        $actions[] = array('label' => ($viendoA !== '') ? __('Ver su inscripción', 'sticpa') : __('Ver mi inscripción', 'sticpa'), 'url' => '?internalpage=list_stic_registrations');
+        $ctaNote = ($viendoA !== '')
+            /* translators: %s: nombre de pila del participante */
+            ? sprintf(__('%s ya tiene una inscripción para esta actividad.', 'sticpa'), $viendoA)
+            : __('Ya tienes una inscripción para esta actividad.', 'sticpa');
     } elseif ($blockNote !== '') {
         // No es para ti, o no toca ahora: no se ofrece apuntarse, y se dice
         // por qué. El dato de la fecha ya está arriba, en los datos clave.

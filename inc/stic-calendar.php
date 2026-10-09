@@ -76,7 +76,8 @@ function sticpa_calendar_palette()
         ),
         'registered_event' => array(
             'color' => '#155a92', 'text' => '#ffffff',
-            'label' => __('Estás inscrito', 'sticpa'),
+            // Sin género, y vale igual viendo a un hijo (FAM-a4).
+            'label' => __('Con plaza', 'sticpa'),
         ),
     );
 }

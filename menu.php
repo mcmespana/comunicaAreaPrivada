@@ -95,12 +95,7 @@ function getSticMenuElements()
  */
 function sticpa_datos_de_label()
 {
-    $nombre = trim((string) ($_SESSION['scp_user_contact_name'] ?? ''));
-    if (strpos($nombre, ',') !== false) {
-        $partes = explode(',', $nombre, 2);
-        $nombre = trim($partes[1]) !== '' ? trim($partes[1]) : trim($partes[0]);
-    }
-    $nombre = ($nombre !== '') ? preg_split('/\s+/', $nombre)[0] : '';
+    $nombre = sticpa_nombre_de_pila($_SESSION['scp_user_contact_name'] ?? '');
     return ($nombre !== '')
         /* translators: %s: nombre de pila del participante */
         ? sprintf(__('Datos de %s', 'sticpa'), $nombre)

@@ -421,6 +421,36 @@ function sticpa_viewing_context()
 }
 
 /**
+ * El nombre de pila de «Apellidos, Nombre» (o de «Nombre Apellidos»): la
+ * primera palabra del nombre. '' si no hay nombre.
+ */
+function sticpa_nombre_de_pila($nombre)
+{
+    $nombre = trim((string) $nombre);
+    if (strpos($nombre, ',') !== false) {
+        $partes = explode(',', $nombre, 2);
+        $nombre = trim($partes[1]) !== '' ? trim($partes[1]) : trim($partes[0]);
+    }
+    return ($nombre !== '') ? preg_split('/\s+/', $nombre)[0] : '';
+}
+
+/**
+ * A QUIÉN SE ESTÁ VIENDO, para el copy (plan 042, FAM-a4): el nombre de pila
+ * del participante cuando un familiar está viendo a un hijo, y '' cuando cada
+ * uno se ve a sí mismo. Con él, las pantallas dicen «Inscripciones de Lucía»
+ * o «Listo: Lucía ya tiene su plaza» en vez de hablarle a la madre como si
+ * la inscrita fuera ella (y en masculino). Con dos hijos, es lo que dice a
+ * cuál se ha apuntado.
+ */
+function sticpa_viendo_a_nombre()
+{
+    if (sticpa_viewing_context()['audiencia'] !== 'participante') {
+        return '';
+    }
+    return sticpa_nombre_de_pila($_SESSION['scp_user_contact_name'] ?? '');
+}
+
+/**
  * Secciones que se le enseñan a quien está mirando ahora mismo.
  *
  * A un FAMILIAR QUE SOLO ES FAMILIAR, viéndose a sí mismo, no se le enseñan
