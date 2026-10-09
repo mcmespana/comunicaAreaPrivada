@@ -259,3 +259,6 @@ require_once __DIR__ . '/../inc/stic-pasar-lista-sw.php';
 // no existe aquí, y no hace falta: lo que se testea son las piezas (la firma, el
 // sello de tiempo y el calentado), no el enrutado de WordPress.
 require_once __DIR__ . '/../inc/stic-pasar-lista-warm.php';
+// Velocidad (plan 042): qué se aparta de las páginas del área y la cabecera
+// Server-Timing. Solo define funciones y registra enganches (stubeados).
+require_once __DIR__ . '/../inc/stic-perf.php';
