@@ -421,6 +421,36 @@ function sticpa_viewing_context()
 }
 
 /**
+ * El nombre de pila de «Apellidos, Nombre» (o de «Nombre Apellidos»): la
+ * primera palabra del nombre. '' si no hay nombre.
+ */
+function sticpa_nombre_de_pila($nombre)
+{
+    $nombre = trim((string) $nombre);
+    if (strpos($nombre, ',') !== false) {
+        $partes = explode(',', $nombre, 2);
+        $nombre = trim($partes[1]) !== '' ? trim($partes[1]) : trim($partes[0]);
+    }
+    return ($nombre !== '') ? preg_split('/\s+/', $nombre)[0] : '';
+}
+
+/**
+ * A QUIÉN SE ESTÁ VIENDO, para el copy (plan 042, FAM-a4): el nombre de pila
+ * del participante cuando un familiar está viendo a un hijo, y '' cuando cada
+ * uno se ve a sí mismo. Con él, las pantallas dicen «Inscripciones de Lucía»
+ * o «Listo: Lucía ya tiene su plaza» en vez de hablarle a la madre como si
+ * la inscrita fuera ella (y en masculino). Con dos hijos, es lo que dice a
+ * cuál se ha apuntado.
+ */
+function sticpa_viendo_a_nombre()
+{
+    if (sticpa_viewing_context()['audiencia'] !== 'participante') {
+        return '';
+    }
+    return sticpa_nombre_de_pila($_SESSION['scp_user_contact_name'] ?? '');
+}
+
+/**
  * Secciones que se le enseñan a quien está mirando ahora mismo.
  *
  * A un FAMILIAR QUE SOLO ES FAMILIAR, viéndose a sí mismo, no se le enseñan
@@ -557,6 +587,67 @@ function sticpa_bootstrap_family($objSCP = null)
         // Sin participantes localizados: su propia pantalla, que es lo único.
         $_SESSION['scp_tutor_is_user'] = true;
     }
+}
+
+/**
+ * ENLACE PROFUNDO DE UNA FAMILIA CON VARIOS HIJOS (plan 042, FAM-a1).
+ * ----------------------------------------------------------------------------
+ * Una madre que solo es familiar y tiene dos o más hijos abre el área por un
+ * enlace a un evento (WhatsApp, el correo con destino, la app). El arranque no
+ * elige por ella —hay varios—, así que `scp_user_id` sigue siendo ELLA, pero
+ * sticpa_viewing_context() la trata como «participante» (no se está viendo a
+ * sí misma de forma explícita): menú entero, «Datos de Marta» y, peor,
+ * «Inscribirme» la apuntaba A ELLA.
+ *
+ * Mientras no haya elegido (`scp_tutor_is_user` sin poner), la página pedida
+ * se cambia por la de elegir participante, y la elección lleva luego al
+ * destino (sticpa_family_deep_link_destination()). Es la misma condición del
+ * aterrizaje, pero con `isset`: una vez elegido —un hijo o ella misma— los
+ * enlaces pasan. Sin redirecciones: la pantalla se pinta en el sitio, así que
+ * no hay bucle posible.
+ *
+ * @param string $requestedPage La `internalpage` que pide la URL.
+ */
+function sticpa_family_must_choose_first($requestedPage)
+{
+    if ($requestedPage === 'single_stic_profile_selection') {
+        return false;
+    }
+    if (!sticpa_es_familiar() || sticpa_familiar_es_miembro()) {
+        return false;
+    }
+    if (isset($_SESSION['scp_tutor_is_user'])) {
+        return false;
+    }
+    return count(sticpa_available_profiles()) > 1;
+}
+
+/**
+ * El destino al que ir DESPUÉS de elegir participante, saneado con la misma
+ * lista blanca que el login (sticpa_login_destination_args(): una página de
+ * `pages/` y `action`/`id`/`from` con su forma). Acepta los parámetros de la
+ * petición (`$_GET`, cuando la selección se pinta en lugar de la página
+ * pedida) o la query del destino tal cual viaja en el enlace de la tarjeta.
+ * La propia pantalla de selección no es un destino: sería volver a empezar.
+ *
+ * @param array|string $source
+ * @return array Vacío si no hay destino o no vale.
+ */
+function sticpa_family_deep_link_destination($source)
+{
+    if (!function_exists('sticpa_login_destination_args')) {
+        return array();
+    }
+    if (is_string($source)) {
+        $params = array();
+        parse_str($source, $params);
+        $source = $params;
+    }
+    $args = sticpa_login_destination_args((array) $source);
+    if (empty($args) || $args['internalpage'] === 'single_stic_profile_selection') {
+        return array();
+    }
+    return $args;
 }
 
 /**

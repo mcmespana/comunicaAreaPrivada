@@ -27,7 +27,13 @@ switch (getDestinationModule()) {
         break;
 }
 
-$listTitle = __('Mis inscripciones', 'sticpa');
+// Viendo a un hijo, de quién son (FAM-a4): «Mis inscripciones» le hablaba a
+// la madre como si la inscrita fuera ella.
+$viendoA = sticpa_viendo_a_nombre();
+$listTitle = ($viendoA !== '')
+    /* translators: %s: nombre de pila del participante */
+    ? sprintf(__('Inscripciones de %s', 'sticpa'), $viendoA)
+    : __('Mis inscripciones', 'sticpa');
 
 $getRelatedElements = $objSCP->getRelatedElementsForLoggedUser(array(
     'module_name' => $parentModule,

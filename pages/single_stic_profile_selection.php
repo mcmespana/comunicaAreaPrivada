@@ -76,31 +76,42 @@ $_SESSION['scp_is_familia'] = count($availableContacts) > 0;
 $current_url = explode('?', $_SERVER['REQUEST_URI'], 2);
 $current_url = $current_url[0];
 
+// ¿Se ha llegado aquí por un ENLACE PROFUNDO (FAM-a1)? Entonces esta pantalla
+// se está pintando EN LUGAR de la página pedida, que sigue en la URL: tras
+// elegir se va a ella, no a la portada. Saneado con la lista blanca del login.
+$destino = (($_GET['internalpage'] ?? '') !== 'single_stic_profile_selection')
+    ? sticpa_family_deep_link_destination($_GET)
+    : array();
+$destinoEsEvento = !empty($destino) && in_array($destino['internalpage'], array('single_stic_events', 'single_stic_registrations'), true);
+
 /** URL que activa un perfil (handler admin-post single_stic_profile_selection).
- *  Sin 'default_page': el handler lleva SIEMPRE a la home tras elegir. */
-$selectUrl = function ($id, $name) use ($current_url, $familiarId, $familiarName) {
-    return esc_url(add_query_arg(array(
+ *  Sin 'default_page': el handler lleva a la home tras elegir, salvo que haya
+ *  un destino de enlace profundo (`dest`), que entonces lleva a él. */
+$selectUrl = function ($id, $name) use ($current_url, $familiarId, $familiarName, $destino) {
+    $args = array(
         'action' => 'single_stic_profile_selection',
         'profile_selected_id' => $id,
         'profile_selected_name' => rawurlencode($name),
         'scp_user_id' => $familiarId,
         'scp_user_contact_name' => rawurlencode($familiarName),
         'scp_current_url' => $current_url,
-    ), admin_url('admin-post.php')));
+    );
+    if (!empty($destino)) {
+        // add_query_arg() no codifica: la query del destino va en un solo
+        // parámetro (`action` ya lo usa admin-post).
+        $args['dest'] = rawurlencode(http_build_query($destino, '', '&', PHP_QUERY_RFC3986));
+    }
+    return esc_url(add_query_arg($args, admin_url('admin-post.php')));
 };
 
-$goIcon = "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12h14'/><path d='m13 6 6 6-6 6'/></svg>";
-
-/** Etiqueta del CTA de la tarjeta. En móvil solo se ve la flecha (§32), así que
- *  el texto va en su propio <span> para poder ocultarlo sin perder el icono. */
-$goLabel = function ($text) use ($goIcon) {
-    return "<span class='stic-profile-go'><span class='stic-profile-go-text'>" . esc_html($text) . "</span>{$goIcon}</span>";
-};
-$switchingText = esc_attr__('Cambiando de participante…', 'sticpa');
 
 $html .= "<div class='stic-profiles'>";
-$html .= "<div class='stic-entry-header'><h3>" . esc_html__('¿A quién quieres ver?', 'sticpa') . "</h3></div>";
-$html .= "<p class='stic-profiles-lead'>" . esc_html__('Elige un participante para ver su información (inscripciones, documentos, pagos…). Podrás cambiar en cualquier momento desde la barra superior, y siempre verás de quién es lo que estás mirando.', 'sticpa') . "</p>";
+$html .= "<div class='stic-entry-header'><h3>" . ($destinoEsEvento
+    ? esc_html__('¿A quién quieres apuntar?', 'sticpa')
+    : esc_html__('¿A quién quieres ver?', 'sticpa')) . "</h3></div>";
+$html .= "<p class='stic-profiles-lead'>" . ($destinoEsEvento
+    ? esc_html__('Elige a quién y te llevamos directo a la actividad.', 'sticpa')
+    : esc_html__('Elige a quién quieres ver. Puedes cambiar desde arriba cuando quieras.', 'sticpa')) . "</p>";
 
 if ($isDemo) {
     $html .= "<p class='stic-profiles-demo'>⚠️ " . esc_html__('Vista previa con datos de ejemplo (aún sin conexión con SinergiaCRM).', 'sticpa') . "</p>";
@@ -108,29 +119,29 @@ if ($isDemo) {
 
 $html .= "<div class='stic-profiles-grid'>";
 
-// Tarjetas de participantes a cargo.
+// Tarjetas de participantes a cargo. Sin la etiqueta «Participante», que la
+// llevaban todos y no distinguía nada (design.md §6.4): solo «Viéndolo ahora»
+// en la que toca (FAM-a11).
 foreach ($availableContacts as $contact) {
-    $isActive = ($contact['id'] === $activeId) ? ' is-active' : '';
-    $initial = function_exists('sticpa_name_initial') ? sticpa_name_initial($contact['name']) : '·';
-    $html .= "
-    <a class='stic-profile-card{$isActive}' href='" . $selectUrl($contact['id'], $contact['name']) . "' data-part-switch-to='{$switchingText}'>
-        <span class='stic-profile-avatar' aria-hidden='true'>" . esc_html($initial) . "</span>
-        <span class='stic-profile-name'>" . esc_html($contact['name']) . "</span>
-        <span class='stic-profile-tag'>" . ($isActive ? esc_html__('Viéndolo ahora', 'sticpa') : esc_html__('Participante', 'sticpa')) . "</span>
-        " . $goLabel($isActive ? __('Seguir aquí', 'sticpa') : __('Elegir', 'sticpa')) . "
-    </a>";
+    $isActive = ($contact['id'] === $activeId);
+    $html .= sticpa_profile_card_html(
+        $selectUrl($contact['id'], $contact['name']),
+        $contact['name'],
+        $isActive ? __('Viéndolo ahora', 'sticpa') : '',
+        $isActive ? __('Seguir aquí', 'sticpa') : __('Elegir', 'sticpa'),
+        $isActive ? 'is-active' : ''
+    );
 }
 
 // Tarjeta del propio familiar (sus datos, su medio de pago…).
-$selfActive = ($familiarId === $activeId && !empty($_SESSION['scp_tutor_is_user'])) ? ' is-active' : '';
-$selfInitial = function_exists('sticpa_name_initial') ? sticpa_name_initial($familiarName) : '·';
-$html .= "
-    <a class='stic-profile-card stic-profile-card--self{$selfActive}' href='" . $selectUrl($familiarId, $familiarName) . "' data-part-switch-to='{$switchingText}'>
-        <span class='stic-profile-avatar' aria-hidden='true'>" . esc_html($selfInitial) . "</span>
-        <span class='stic-profile-name'>" . esc_html($familiarName) . "</span>
-        <span class='stic-profile-tag'>" . esc_html__('Yo (familiar)', 'sticpa') . "</span>
-        " . $goLabel(__('Entrar', 'sticpa')) . "
-    </a>";
+$selfActive = ($familiarId === $activeId && !empty($_SESSION['scp_tutor_is_user']));
+$html .= sticpa_profile_card_html(
+    $selectUrl($familiarId, $familiarName),
+    $familiarName,
+    __('Yo', 'sticpa'),
+    __('Entrar', 'sticpa'),
+    'stic-profile-card--self' . ($selfActive ? ' is-active' : '')
+);
 
 $html .= "</div>"; // .stic-profiles-grid
 

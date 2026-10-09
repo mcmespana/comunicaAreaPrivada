@@ -17,7 +17,12 @@ $relationship = 'documents';
 // botón, "Abrir", llevaba a un formulario de editar metadatos desde el que —tres
 // toques más abajo— había otro botón de descarga. Se pinta con
 // sticpa_documents_list_html() (inc/stic-documents.php).
-$listTitle = __('Mis documentos', 'sticpa');
+// Viendo a un hijo, de quién son (FAM-a4).
+$viendoA = sticpa_viendo_a_nombre();
+$listTitle = ($viendoA !== '')
+    /* translators: %s: nombre de pila del participante */
+    ? sprintf(__('Documentos de %s', 'sticpa'), $viendoA)
+    : __('Mis documentos', 'sticpa');
 $fieldsToRetrieve = sticpa_document_list_fields();
 
 
