@@ -2148,6 +2148,9 @@ a.pl-group .pl-name { display: block; }
 .pl-status[data-kind="offline"] { background: var(--gray-100); color: var(--gray-700); }
 .pl-status[data-kind="sync"]    { background: var(--primary-50); color: var(--primary-color); }
 .pl-status[data-kind="ok"]      { background: var(--success-50); color: var(--success-dark); }
+/* El guardado que ha fallado, dicho en la barra (plan 042, PL-5). */
+.pl-status[data-kind="error"]   { background: var(--danger-soft); color: var(--danger-dark); box-shadow: inset 0 0 0 1px var(--danger-border); }
+.pl-status svg { width: 15px; height: 15px; flex-shrink: 0; }
 
 /* ---- «Cambios sin guardar» ---------------------------------------------
    TIENE QUE DISTINGUIRSE MUCHO DEL VERDE DE «guardado en el CRM»: uno es una
@@ -3468,3 +3471,31 @@ a.pl-group .pl-name { display: block; }
     opacity: 0.5 !important;
     cursor: default;
 }
+
+/* ---- PL-5: «Guardada ✓», el botón en reposo ------------------------------
+   Con el guardado confirmado y sin cambios, el botón de la barra deja de ser
+   de marca: fantasma (design.md §6.1, borde suave y texto de marca). El
+   degradado vuelve con el primer toque, que es cuando hay algo que guardar.
+   `!important` porque `.pl-save` declara su relleno así para ganar al tema. */
+.pl-save.is-saved {
+    background: transparent !important;
+    border: 1.5px solid var(--success-border) !important;
+    box-shadow: none !important;
+    color: var(--success-dark) !important;
+}
+
+/* ---- PL-5: el fallo de un guardado, en su tarjeta ------------------------
+   La tarjeta de aviso del área (custom-style §36) con un tono de peligro, que
+   allí no existe. Vive aquí porque hoy solo la usa Pasar Lista; si otra
+   pantalla la necesita, se sube a §36 junto a `--warning`. */
+.stic-alert--danger {
+    background: var(--danger-soft);
+    border-color: var(--danger-border);
+}
+.stic-alert--danger .stic-alert-ico {
+    background: var(--danger-100);
+    color: var(--danger-dark);
+}
+.stic-alert--danger .stic-alert-title { color: var(--danger-dark); }
+.stic-alert--danger .stic-alert-text { color: var(--gray-700); }
+.pl-save-alert { margin-bottom: 0.9rem; }

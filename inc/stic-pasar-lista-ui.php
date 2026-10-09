@@ -933,37 +933,54 @@ function sticpa_pl_save_result_html($saved, $problemas = array(), $objSCP = null
     $problemas = (array) $problemas;
     $errors = isset($saved['errors']) ? (array) $saved['errors'] : array();
 
+    // EL ÉXITO NO SE DICE AQUÍ ARRIBA (plan 042, PL-5): lo dice la barra de
+    // guardado, que es donde el monitor acaba de tocar y donde sigue mirando
+    // (sticpa_pl_savebar_status_html()). Arriba era una línea verde de 12 px
+    // mientras abajo la barra seguía invitando a «Guardar lista».
     if ($failed === 0 && empty($problemas)) {
-        return '<p class="pl-notice pl-notice--ok">' . sticpa_pl_icon('check')
-            . '<span>' . esc_html__('Lista guardada.', 'sticpa') . '</span></p>';
+        return '';
     }
 
-    $html = '<p class="pl-notice pl-notice--error">' . sticpa_pl_icon('warn') . '<span>';
+    // El fallo, en la tarjeta de aviso del área y en dos frases: qué ha
+    // pasado y qué hacer. El recuento y la relectura, que antes se repetían
+    // en el mismo párrafo («1 bien y 2 con fallo. 2 marcas no han quedado
+    // guardadas»), bajan al detalle.
+    $title = ($failed > 0)
+        ? __('No se ha guardado del todo', 'sticpa')
+        // Ni un fallo y aun así no está: es el caso traicionero.
+        : __('El CRM ha aceptado el guardado, pero al volver a leerlo no está', 'sticpa');
+    $html = '<div class="stic-alert stic-alert--danger pl-save-alert" role="alert">'
+        . '<div class="stic-alert-ico">' . sticpa_pl_icon('warn') . '</div>'
+        . '<div class="stic-alert-body">'
+        . '<p class="stic-alert-title">' . esc_html($title) . '</p>'
+        . '<p class="stic-alert-text">' . esc_html__('Tus marcas siguen en la pantalla: vuelve a guardar y, si falla otra vez, avisa a coordinación.', 'sticpa') . '</p>'
+        . '</div></div>';
+
+    // El detalle: el recuento, lo que vio la relectura y la respuesta del CRM.
+    $detalle = array();
     if ($failed > 0) {
-        $html .= esc_html(sprintf(
-            /* translators: 1: marcas guardadas, 2: fallos */
-            __('No se ha guardado del todo: %1$d bien y %2$d con fallo.', 'sticpa'),
+        $detalle[] = array('recuento', sprintf(
+            /* translators: 1: escrituras que salieron bien, 2: las que fallaron */
+            __('%1$d bien y %2$d con fallo', 'sticpa'),
             isset($saved['saved']) ? (int) $saved['saved'] : 0,
             $failed
-        ));
-    } else {
-        // Ni un fallo y aun así no está: es el caso traicionero.
-        $html .= esc_html__('El CRM ha aceptado el guardado, pero al volver a leerlo no está.', 'sticpa');
+        ), '');
     }
-    if (!empty($problemas)) {
-        $html .= ' ' . esc_html(implode('; ', array_map('strval', $problemas)) . '.');
+    foreach ($problemas as $p) {
+        $detalle[] = array('relectura', (string) $p, '');
     }
-    $html .= ' ' . esc_html__('Tus marcas siguen puestas en la pantalla: no se han perdido. Vuelve a intentarlo y, si sigue igual, avisa a coordinación.', 'sticpa');
-    $html .= '</span></p>';
-
-    // El detalle, solo para quien puede arreglarlo.
-    if (!empty($errors) && sticpa_pl_debug_allowed($objSCP)) {
+    foreach ($errors as $e) {
+        $detalle[] = array(
+            isset($e['paso']) ? (string) $e['paso'] : '?',
+            isset($e['error']) ? (string) $e['error'] : '',
+            isset($e['id']) ? (string) $e['id'] : '',
+        );
+    }
+    if (!empty($detalle) && sticpa_pl_debug_allowed($objSCP)) {
         $html .= '<details class="pl-hint"><summary>'
             . esc_html__('Detalle técnico del fallo', 'sticpa') . '</summary><ul>';
-        foreach ($errors as $e) {
-            $paso = isset($e['paso']) ? (string) $e['paso'] : '?';
-            $msg = isset($e['error']) ? (string) $e['error'] : '';
-            $id = isset($e['id']) ? (string) $e['id'] : '';
+        foreach ($detalle as $d) {
+            list($paso, $msg, $id) = $d;
             $html .= '<li><code>' . esc_html($paso) . '</code>'
                 . ($id !== '' ? ' <code>' . esc_html($id) . '</code>' : '')
                 . ($msg !== '' ? ' — ' . esc_html($msg) : '')
@@ -973,6 +990,58 @@ function sticpa_pl_save_result_html($saved, $problemas = array(), $objSCP = null
     }
 
     return $html;
+}
+
+/**
+ * El aviso de la barra de guardado, como sale del servidor (plan 042, PL-5).
+ *
+ * De los cuatro estados que importan, dos ya vivían en la barra (sin guardar,
+ * sin cobertura) y dos no: el resultado del guardado salía arriba, en letra
+ * pequeña, y abajo la barra seguía diciendo «Guardar lista» como si nada.
+ * Ahora el resultado va en EL MISMO sitio que los demás avisos —una línea, un
+ * motivo, encima del botón— y el JS lo deja estar hasta el primer toque, que
+ * lo cambia por «Cambios sin guardar».
+ *
+ * @param array|null $saved   lo que devolvió el guardado (null: no se guardó)
+ * @param bool       $savedOk guardado y confirmado al releer el CRM
+ * @param string     $okText  qué decir cuando ha ido bien
+ */
+function sticpa_pl_savebar_status_html($saved, $savedOk, $okText)
+{
+    $attrs = ' class="pl-status" data-pl-status role="status"';
+    if (!is_array($saved)) {
+        return '<p' . $attrs . ' hidden></p>';
+    }
+    if ($savedOk) {
+        return '<p' . $attrs . ' data-kind="ok" data-pl-server>'
+            . sticpa_pl_icon('check') . '<span>' . esc_html($okText) . '</span></p>';
+    }
+    return '<p' . $attrs . ' data-kind="error" data-pl-server>'
+        . sticpa_pl_icon('warn') . '<span>'
+        . esc_html__('No se ha guardado. Tus marcas siguen aquí: vuelve a guardar.', 'sticpa')
+        . '</span></p>';
+}
+
+/**
+ * «Lista guardada · 2 vinieron, 1 ausencia», con los plurales bien.
+ *
+ * @param array $counts array('yes' => int, 'no' => int) de sticpa_pl_save()
+ */
+function sticpa_pl_saved_summary($counts, $omitida = false)
+{
+    if ($omitida) {
+        return __('Guardada como «sin registro»', 'sticpa');
+    }
+    $yes = isset($counts['yes']) ? (int) $counts['yes'] : 0;
+    $no = isset($counts['no']) ? (int) $counts['no'] : 0;
+    return sprintf(
+        /* translators: 1: «2 vinieron», 2: «1 ausencia» */
+        __('Lista guardada · %1$s, %2$s', 'sticpa'),
+        /* translators: %d: cuántos vinieron */
+        sprintf(_n('%d vino', '%d vinieron', $yes, 'sticpa'), $yes),
+        /* translators: %d: cuántas ausencias */
+        sprintf(_n('%d ausencia', '%d ausencias', $no, 'sticpa'), $no)
+    );
 }
 
 // ---------------------------------------------------------------------------

@@ -332,7 +332,8 @@ $html .= '</div>';
 // Aviso de por qué esta sesión (solo si hay algo que decir).
 $html .= sticpa_pl_notice_html($pick);
 
-// Resultado del guardado, contrastado con lo que dice el CRM al releerlo.
+// El FALLO del guardado, contrastado con lo que dice el CRM al releerlo. El
+// éxito no se pinta aquí: lo dice la barra de guardado (plan 042, PL-5).
 $html .= sticpa_pl_save_result_html($saved, $saveProblems, $objSCP);
 if ($savedOk) {
     $html .= sticpa_pl_next_steps_html($groupId);
@@ -431,9 +432,14 @@ $html .= '</div>';
 
 $html .= sticpa_pl_legend_html();
 
-// Barra de guardado: contadores vivos y un solo botón.
+// Barra de guardado: contadores vivos y un solo botón. El resultado del
+// guardado se dice AQUÍ, encima del botón, y no arriba (plan 042, PL-5).
 $html .= '<div class="pl-savebar">';
-$html .= '<p class="pl-status" data-pl-status hidden></p>';
+$html .= sticpa_pl_savebar_status_html(
+    $saved,
+    $savedOk,
+    is_array($saved) ? sticpa_pl_saved_summary(isset($saved['counts']) ? $saved['counts'] : array(), $omitida) : ''
+);
 $html .= '<div class="pl-counts">';
 $html .= '<span class="pl-count"><span class="pl-count-dot pl-count-dot--yes"></span>'
     . '<span data-pl-count-yes>0</span>&nbsp;' . esc_html__('vinieron', 'sticpa') . '</span>';
@@ -443,11 +449,15 @@ $html .= '<span class="pl-count pl-count--none" data-pl-count-none-wrap hidden>'
     . '<span class="pl-count-dot pl-count-dot--none"></span>'
     . '<span data-pl-count-none>0</span>&nbsp;' . esc_html__('sin marcar', 'sticpa') . '</span>';
 $html .= '</div>';
-$html .= '<button type="submit" name="pl_action" value="save" class="pl-save" data-pl-save'
+// Con el guardado confirmado y sin cambios, el botón pasa a secundario
+// («Guardada ✓»): el degradado solo invita a guardar cuando hay algo que
+// guardar. El primer toque lo devuelve a principal (setDirty en el JS).
+$html .= '<button type="submit" name="pl_action" value="save" class="pl-save' . ($savedOk ? ' is-saved' : '') . '" data-pl-save'
     . ' data-label-full="' . esc_attr__('Guardar lista', 'sticpa') . '"'
     . ' data-label-partial="' . esc_attr__('Guardar ({n} sin marcar)', 'sticpa') . '"'
+    . ' data-label-saved="' . esc_attr__('Guardada ✓', 'sticpa') . '"'
     . ' data-label-saving="' . esc_attr__('Guardando…', 'sticpa') . '">'
-    . esc_html__('Guardar lista', 'sticpa') . '</button>';
+    . ($savedOk ? esc_html__('Guardada ✓', 'sticpa') : esc_html__('Guardar lista', 'sticpa')) . '</button>';
 $html .= '</div>';
 
 $html .= '</form>';

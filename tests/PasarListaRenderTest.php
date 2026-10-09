@@ -1775,6 +1775,50 @@ final class PasarListaRenderTest extends TestCase
     }
 
     /**
+     * EL RESULTADO SE DICE EN LA BARRA, encima del botón, y no arriba en letra
+     * pequeña mientras abajo seguía «Guardar lista» (plan 042, PL-5). Con el
+     * guardado confirmado el botón pasa a «Guardada ✓», secundario.
+     */
+    public function test_el_resultado_del_guardado_sale_en_la_barra()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => json_encode(array('c1' => 'yes')),
+        );
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertMatchesRegularExpression(
+            '/<p class="pl-status" data-pl-status role="status" data-kind="ok" data-pl-server>.*Lista guardada · \d+ vin/sU',
+            $html
+        );
+        $this->assertStringNotContainsString('pl-notice--ok', $html);
+        $this->assertMatchesRegularExpression('/class="pl-save is-saved"/', $html);
+        // La barra va DESPUÉS de la lista: es lo último del formulario.
+        $this->assertGreaterThan(strpos($html, 'class="pl-list"'), strpos($html, 'Lista guardada'));
+    }
+
+    /** Y el fallo, arriba en su tarjeta y también en la barra. */
+    public function test_el_fallo_del_guardado_sale_en_tarjeta_y_en_la_barra()
+    {
+        $this->scp->failWrites = array('stic_Attendances');
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => json_encode(array('c1' => 'partial')),
+        );
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertStringContainsString('stic-alert stic-alert--danger', $html);
+        $this->assertStringContainsString('data-kind="error"', $html);
+        $this->assertStringNotContainsString('is-saved', $html);
+        // El recuento ya no se repite en el aviso: baja al detalle.
+        $this->assertStringContainsString('<code>recuento</code>', $html);
+    }
+
+    /**
      * Si el CRM rechaza la LISTA, la pantalla no puede felicitar. Este era el
      * agujero: el fallo de la lista no se contaba en `failed`, así que decía
      * «Lista guardada» con el CRM sin lista.

@@ -340,6 +340,14 @@
 
         var dirty = false;
 
+        /* Lo que dijo el servidor del último guardado (plan 042, PL-5): el
+           aviso de la barra llega pintado («Lista guardada · …» o el fallo) y
+           se queda hasta el primer toque. Con el guardado confirmado el botón
+           arranca en secundario («Guardada ✓») y vuelve a principal con el
+           primer cambio. */
+        var serverSaid = !!(status && status.hasAttribute('data-pl-server') && !status.hidden);
+        var savedMode = root.hasAttribute('data-pl-saved-ok');
+
         /* ---- Estado en memoria ----------------------------------------- */
 
         function getState(row) {
@@ -447,7 +455,11 @@
                 var tpl = nNone > 0
                     ? (saveBtn.getAttribute('data-label-partial') || 'Guardar ({n} sin marcar)')
                     : (saveBtn.getAttribute('data-label-full') || 'Guardar lista');
+                if (savedMode && saveBtn.getAttribute('data-label-saved')) {
+                    tpl = saveBtn.getAttribute('data-label-saved');
+                }
                 saveBtn.textContent = tpl.replace('{n}', nNone);
+                saveBtn.classList.toggle('is-saved', savedMode);
             }
 
             // «Han venido todos» habla de lo que va a hacer: sin ninguna
@@ -506,9 +518,14 @@
 
             if (changed > 0) {
                 // Sin guardar, sí, pero el aviso que toca es el del borrador:
-                // dice lo mismo Y de dónde salen esas marcas.
+                // dice lo mismo Y de dónde salen esas marcas. Salvo si el
+                // servidor acaba de decir que el guardado ha fallado: ese aviso
+                // es la noticia, y ya dice que las marcas siguen aquí.
                 dirty = true;
-                say('draft', root.getAttribute('data-msg-draft') || '');
+                savedMode = false;
+                if (!serverSaid) {
+                    say('draft', root.getAttribute('data-msg-draft') || '');
+                }
             }
         }
 
@@ -541,6 +558,13 @@
          */
         function setDirty(value) {
             dirty = !!value;
+            if (dirty && (savedMode || serverSaid)) {
+                // El primer cambio después de guardar: el botón vuelve a ser
+                // la acción y el aviso del servidor deja paso al de ahora.
+                savedMode = false;
+                serverSaid = false;
+                refresh();
+            }
             if (!status) { return; }
             if (!dirty) {
                 if (status.getAttribute('data-kind') === 'dirty') { hush(); }
@@ -1043,7 +1067,7 @@
                             || 'No se ha podido enviar lo que quedó pendiente. Vuelve a marcar y guardar.');
                     }
                 });
-            } else {
+            } else if (!serverSaid) {
                 hush();
             }
         }
