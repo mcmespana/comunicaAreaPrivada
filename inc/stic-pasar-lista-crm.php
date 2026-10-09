@@ -2521,7 +2521,13 @@ function sticpa_pl_group_streaks($objSCP, $sessions, $currentSessionId, $regMap 
     foreach ($look as $s) {
         $att = isset($porSesion[$s['id']])
             ? $porSesion[$s['id']]
-            : (empty($porSesion) ? sticpa_pl_session_attendances($objSCP, $s['id'], $regMap) : array());
+            // El respaldo NO corre en la pasada de recolecta (la regla del plan
+            // 034 para todo cargador que entre en una tanda): ahí `$porSesion`
+            // sale vacío a propósito y se colaban en la tanda dos consultas
+            // inútiles (plan 042, VEL-2: tanda de 4 en vez de 2).
+            : ((empty($porSesion) && !sticpa_pl_collecting())
+                ? sticpa_pl_session_attendances($objSCP, $s['id'], $regMap)
+                : array());
         foreach ((array) $regMap as $contactId) {
             if (isset($closed[$contactId])) {
                 continue;

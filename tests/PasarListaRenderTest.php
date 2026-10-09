@@ -3915,17 +3915,46 @@ final class PasarListaRenderTest extends TestCase
      * consultas —que también importan— y este test cuenta TANDAS, que es lo que
      * nota un monitor el sábado.
      */
-    public function test_marcar_agrupa_sus_consultas_en_dos_tandas()
+    public function test_marcar_agrupa_sus_consultas_en_tres_tandas()
     {
         $_REQUEST = array('grupo' => 'g1');
         $this->render('single_stic_pasar_lista_marcar');
 
-        $this->assertCount(2, $this->scp->batches, 'dos tandas: lo independiente y lo que depende del evento');
+        // TRES desde el plan 042 (VEL-2): las asistencias de la sesión y las
+        // rachas iban en fila después de las dos primeras.
+        $this->assertCount(3, $this->scp->batches, 'tres tandas: lo independiente, lo que depende del evento y el estado');
         $this->assertSame(4, $this->scp->batches[0], 'grupos, relaciones, eventos y listas van juntos');
         $this->assertSame(2, $this->scp->batches[1], 'sesiones e inscripciones van juntas');
+        $this->assertSame(2, $this->scp->batches[2], 'asistencias de la sesión y rachas van juntas');
+        // Y nada suelto después: con los enlaces bien, todo va en tandas.
+        $this->assertSame(array_sum($this->scp->batches), count($this->scp->calls));
 
         // Y el total de consultas no ha subido por paralelizar.
         $this->assertLessThanOrEqual(10, count($this->scp->calls));
+    }
+
+    /**
+     * GUARDAR NO RELEE EN FILA (plan 042, VEL-2). Tras escribir se tira la
+     * caché de estado y la pantalla vuelve a leer asistencias, listas y rachas
+     * para comprobar el guardado (plan 033). Las tres van en UNA tanda: la
+     * comprobación sigue entera, solo se espera una vez.
+     */
+    public function test_guardar_relee_el_estado_en_una_sola_tanda()
+    {
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_REQUEST = array('grupo' => 'g1', 'sesion' => 's3');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => json_encode(array('c1' => 'yes', 'c2' => 'no_unjustified')),
+        );
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertStringContainsString('data-pl-saved-ok', $html);
+        $this->assertSame(array(4, 2, 3), $this->scp->batches, 'la relectura: asistencias, rachas y listas, juntas');
+        // Lo único suelto es la lectura de antes de escribir (qué asistencias
+        // existen ya), que es la que decide crear o actualizar.
+        $this->assertLessThanOrEqual(1, count($this->scp->calls) - array_sum($this->scp->batches));
     }
 
     /** Lo mismo en la pantalla de monitores, que era la más lenta. */

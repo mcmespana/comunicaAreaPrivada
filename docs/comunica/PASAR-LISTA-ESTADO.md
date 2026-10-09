@@ -730,7 +730,8 @@ llamada fallaba en silencio y caía a respaldos 1+N).
 | Portada (26/09/2026: «¿coordina?» ya va en la primera tanda) | 9 | **4** |
 | Portada de quien coordina (con el aviso de reuniones) | 11 | 5 |
 | Árbol de grupos | 7 | 3 |
-| Marcar | 10 | 6 |
+| Marcar (09/10/2026: el estado en una tanda, plan 042 VEL-2) | 10 | **5** |
+| **Guardar** una lista (relectura incluida) | 12 | 8 → **6** |
 | Resumen | 7 | 3 |
 | Ficha del participante | 13 | 7 |
 | Lista de monitores (sábado o reunión) | 10 | 4 |
@@ -781,7 +782,15 @@ Cargadores de colección (uno por colección, nunca uno por fila):
   rendimiento, mira esos números**: lo siguiente (paralelizar con `curl_multi`)
   es la parte cara y no se empieza a ciegas.
 
-### Medido y DESCARTADO: no envolver `session_attendances` en una tanda
+### ~~Medido y DESCARTADO~~: no envolver `session_attendances` en una tanda
+
+> **Ya no vale (09/10/2026, plan 042 VEL-2).** El argumento de abajo dejó de
+> ser cierto el 26/09 (`a9e6634`), cuando el respaldo de las asistencias pasó a
+> salir SOLO si el CRM falla o devuelve asistencias sin inscripción. Ahora
+> marcar pide en una tanda las asistencias de la sesión y las rachas (y las
+> listas, al guardar): abrir, de 6 a 5 esperas sin enlaces; guardar, de 8 a 6.
+> El respaldo de las rachas lleva ya su `!sticpa_pl_collecting()`. Lo de abajo
+> se queda como historia.
 
 Parece la jugada obvia —las dos lecturas de asistencias de la pantalla de marcar
 son independientes y son dos esperas en fila— pero **sube el coste**: de 10 a 12

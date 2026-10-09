@@ -244,4 +244,55 @@ class CosteLlamadasTest extends TestCase
             }
         }
     }
+
+    /**
+     * MARCAR: LAS LECTURAS DEL FINAL VAN EN UNA TANDA (plan 042, VEL-2).
+     *
+     * Las asistencias de la sesión y las rachas salían en fila, y al GUARDAR la
+     * pantalla releía en fila asistencias, listas y rachas con el monitor
+     * mirando la rueda. Estos son los topes de ESPERAS de las dos cosas, en los
+     * dos modos del doble (09/10/2026):
+     *
+     *   abrir   — enlaces OK 4 → 3, sin enlaces 6 → 5
+     *   guardar — enlaces OK 6 → 4, sin enlaces 8 → 6
+     *
+     * Si sube, algo ha vuelto a salir suelto después de las tandas.
+     */
+    public function testMarcarEsperaUnaVezLasLecturasDelFinal()
+    {
+        $topes = array(
+            // modo => array(abrir, guardar)
+            'enlaces OK' => array(false, 3, 4),
+            'sin enlaces' => array(true, 5, 6),
+        );
+        foreach ($topes as $modo => $spec) {
+            list($sinEnlaces, $topeAbrir, $topeGuardar) = $spec;
+            foreach (array('abrir' => $topeAbrir, 'guardar' => $topeGuardar) as $accion => $tope) {
+                $this->setUp();
+                $this->scp->sinEnlaces = $sinEnlaces;
+                $_REQUEST = array('grupo' => 'g1', 'sesion' => 's3');
+                if ($accion === 'guardar') {
+                    $_SERVER['REQUEST_METHOD'] = 'POST';
+                    $_POST = array(
+                        'pl_action' => 'save',
+                        'pl_nonce' => wp_create_nonce('pl_save_g1'),
+                        'pl_marks' => json_encode(array('c1' => 'yes', 'c2' => 'no_unjustified')),
+                    );
+                    $_REQUEST = array_merge($_REQUEST, $_POST);
+                }
+                try {
+                    $this->render('single_stic_pasar_lista_marcar');
+                } finally {
+                    unset($_SERVER['REQUEST_METHOD']);
+                }
+                $n = count($this->scp->calls);
+                $esperas = count($this->scp->batches) + ($n - array_sum($this->scp->batches));
+                $this->assertLessThanOrEqual(
+                    $tope,
+                    $esperas,
+                    'marcar (' . $accion . ', ' . $modo . ') espera ' . $esperas . ' veces al CRM (tope ' . $tope . ')'
+                );
+            }
+        }
+    }
 }
