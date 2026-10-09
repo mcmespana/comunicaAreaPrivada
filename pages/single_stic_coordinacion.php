@@ -253,7 +253,7 @@ if ($isCoord) {
     );
 }
 $html .= sticpa_pl_nav_row_html(
-    '?internalpage=single_stic_pasar_lista_resumen',
+    '?internalpage=single_stic_pasar_lista_resumen&desde=coordinacion',
     __('Resumen de grupos', 'sticpa'),
     $metaResumen
 );

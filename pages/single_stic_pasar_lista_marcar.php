@@ -321,9 +321,14 @@ $html .= '<div data-pl-marcar'
     . '>';
 
 // Cabecera: grupo, monitores y selector de sesión.
+// Abierta desde el Resumen, la flecha vuelve al Resumen, donde se estaban
+// repasando huecos, y no al árbol de grupos (plan 042, COO-3). El formulario se
+// envía a la misma URL, así que el origen sobrevive al guardado.
+$volverA = sticpa_pl_desde_url(isset($_REQUEST['desde']) && strpos((string) $_REQUEST['desde'], 'resumen') === 0 ? $_REQUEST['desde'] : '');
 $html .= '<div class="pl-head">';
-$html .= '<a class="pl-back" href="?internalpage=single_stic_pasar_lista_grupos"'
-    . ' aria-label="' . esc_attr__('Volver a los grupos', 'sticpa') . '">' . sticpa_pl_icon('back') . '</a>';
+$html .= '<a class="pl-back" href="' . ($volverA !== '' ? esc_attr($volverA) : '?internalpage=single_stic_pasar_lista_grupos') . '"'
+    . ' aria-label="' . esc_attr($volverA !== '' ? __('Volver al resumen de grupos', 'sticpa') : __('Volver a los grupos', 'sticpa')) . '">'
+    . sticpa_pl_icon('back') . '</a>';
 $html .= '<div class="pl-head-titles">';
 $html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html($group['code']) . '</span>';
 if ($group['name'] !== '') {

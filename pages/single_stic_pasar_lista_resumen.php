@@ -110,9 +110,17 @@ if (!empty($_POST['pl_assign_rel'])) {
 // Cabecera
 // ---------------------------------------------------------------------------
 
+/* SE VUELVE POR DONDE SE ENTRÓ (plan 042, COO-3): al Resumen se llega desde
+ * Pasar lista y desde Coordinación, y la flecha iba siempre a Pasar lista. La
+ * coordinadora que entraba desde Coordinación acababa en otra sección (y en la
+ * app, la cápsula de atrás y la flecha llevaban a sitios distintos). */
+$desdeCoord = (sticpa_pl_desde(isset($_REQUEST['desde']) ? $_REQUEST['desde'] : '') === 'coordinacion');
+// Lo que se abre desde aquí (una lista, una ficha) vuelve aquí, y con el origen.
+$desdeAqui = $desdeCoord ? 'resumen-coordinacion' : 'resumen';
 $html .= '<div class="pl-head">';
-$html .= '<a class="pl-back" href="?internalpage=single_stic_pasar_lista"'
-    . ' aria-label="' . esc_attr__('Volver', 'sticpa') . '">' . sticpa_pl_icon('back') . '</a>';
+$html .= '<a class="pl-back" href="' . ($desdeCoord ? '?internalpage=single_stic_coordinacion' : '?internalpage=single_stic_pasar_lista') . '"'
+    . ' aria-label="' . esc_attr($desdeCoord ? __('Volver a coordinación', 'sticpa') : __('Volver a Pasar lista', 'sticpa')) . '">'
+    . sticpa_pl_icon('back') . '</a>';
 $html .= '<div class="pl-head-titles">';
 $html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html__('Resumen de grupos', 'sticpa') . '</span></div>';
 // El alcance, de subtítulo como en las demás pantallas de coordinación
@@ -121,7 +129,8 @@ $html .= '<div class="pl-subtitle">' . esc_html(is_array($scope)
     ? $course['label'] . ' · ' . sticpa_pl_coord_scope_label($scope)
     : $course['label']) . '</div>';
 $html .= '</div>';
-$html .= '<a class="pl-session-pick" href="?internalpage=single_stic_pasar_lista_resumen&refrescar=1"'
+$html .= '<a class="pl-session-pick" href="?internalpage=single_stic_pasar_lista_resumen&refrescar=1'
+    . ($desdeCoord ? '&desde=coordinacion' : '') . '"'
     . ' aria-label="' . esc_attr__('Refrescar datos', 'sticpa') . '">' . sticpa_pl_icon('refresh') . '</a>';
 $html .= '</div>';
 
@@ -244,7 +253,7 @@ $html .= '</div>';
 $tirasMias = sticpa_pl_tiras_por_etapa($objSCP, $mios, $events, $stripLimit);
 
 /** Una tira por etapa: título y una fila por grupo. */
-$pintaTiras = function ($tiras, $fichas) use ($etapaColors, $monPorGrupo) {
+$pintaTiras = function ($tiras, $fichas) use ($etapaColors, $monPorGrupo, $desdeAqui, $desdeCoord) {
     $out = '';
     foreach ($tiras as $etapa => $tira) {
         $out .= '<div class="pl-etapa-title">'
@@ -269,7 +278,7 @@ $pintaTiras = function ($tiras, $fichas) use ($etapaColors, $monPorGrupo) {
                 $etiqueta = sticpa_pl_session_label($tira['grid'][$sid]['session'], false);
                 $cells .= '<a class="pl-cell pl-cell--' . esc_attr($mark) . '"'
                     . ' href="?internalpage=single_stic_pasar_lista_marcar&grupo=' . esc_attr($gid)
-                    . '&sesion=' . esc_attr($sid) . '"'
+                    . '&sesion=' . esc_attr($sid) . '&desde=' . esc_attr($desdeAqui) . '"'
                     . ' title="' . esc_attr($etiqueta) . '"'
                     . ' aria-label="' . esc_attr(sprintf(
                         /* translators: 1: código del grupo, 2: fecha de la sesión */
@@ -297,7 +306,7 @@ $pintaTiras = function ($tiras, $fichas) use ($etapaColors, $monPorGrupo) {
 
             $out .= '<div class="pl-grouprow">';
             $out .= '<a class="pl-grouprow-top" href="?internalpage=single_stic_pasar_lista_marcar&grupo='
-                . esc_attr($gid) . '">';
+                . esc_attr($gid) . '&desde=' . esc_attr($desdeAqui) . '">';
             $out .= '<span class="pl-group-body">';
             $out .= '<span class="pl-title"><span class="pl-title-code">' . esc_html($g['code']) . '</span>';
             if ($g['name'] !== '') {
@@ -312,7 +321,8 @@ $pintaTiras = function ($tiras, $fichas) use ($etapaColors, $monPorGrupo) {
                 foreach ($monPorGrupo[$gid] as $mid => $m) {
                     $quien[] = $fichas
                         ? '<a class="pl-who-link" href="?internalpage=single_stic_pasar_lista_monitor&monitor='
-                            . esc_attr(rawurlencode($mid)) . '&vengo=resumen">' . esc_html($m['name']) . '</a>'
+                            . esc_attr(rawurlencode($mid)) . '&vengo=resumen'
+                            . ($desdeCoord ? '&desde=coordinacion' : '') . '">' . esc_html($m['name']) . '</a>'
                         : '<span class="pl-who-name">' . esc_html($m['name']) . '</span>';
                 }
             } elseif (isset($g['monitores']) && trim((string) $g['monitores']) !== '') {
@@ -397,7 +407,7 @@ if ($lastTotal > 0) {
         $html .= '<span class="pl-lasthero-miss">';
         foreach ($ultima['faltan'] as $f) {
             $html .= '<a class="pl-lasthero-chip" href="?internalpage=single_stic_pasar_lista_marcar&grupo='
-                . esc_attr($f['gid']) . '&sesion=' . esc_attr($f['sid']) . '"'
+                . esc_attr($f['gid']) . '&sesion=' . esc_attr($f['sid']) . '&desde=' . esc_attr($desdeAqui) . '"'
                 . ' aria-label="' . esc_attr(sprintf(
                     /* translators: %s: código del grupo */
                     __('Pasar la lista de %s', 'sticpa'),

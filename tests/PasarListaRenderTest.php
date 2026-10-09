@@ -3154,7 +3154,7 @@ final class PasarListaRenderTest extends TestCase
 
         $this->assertStringContainsString('pl-lasthero-miss', $html);
         $this->assertStringContainsString(
-            'class="pl-lasthero-chip" href="?internalpage=single_stic_pasar_lista_marcar&grupo=g2&sesion=s3"',
+            'class="pl-lasthero-chip" href="?internalpage=single_stic_pasar_lista_marcar&grupo=g2&sesion=s3&desde=resumen"',
             $html
         );
         // C1 sí la pasó: no sale entre los que faltan.
@@ -3265,6 +3265,69 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('<span class="pl-card-unit">chavales</span>', $cards);
         $this->assertStringContainsString('1 monitor', $cards);
         $this->assertStringNotContainsString('mon.', $cards);
+    }
+
+    /**
+     * DÓNDE ESTOY Y CÓMO VUELVO (plan 042, COO-3). Al Resumen se llega desde
+     * Pasar lista y desde Coordinación, y se vuelve por donde se entró; lo
+     * que se abre desde el Resumen vuelve al Resumen.
+     */
+    public function test_el_resumen_abierto_desde_coordinacion_vuelve_a_coordinacion()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $html = $this->render('single_stic_coordinacion');
+        $this->assertStringContainsString('single_stic_pasar_lista_resumen&amp;desde=coordinacion', $html);
+
+        $_REQUEST = array('desde' => 'coordinacion');
+        $html = $this->render('single_stic_pasar_lista_resumen');
+        $this->assertStringContainsString('class="pl-back" href="?internalpage=single_stic_coordinacion"', $html);
+        $this->assertStringContainsString('Volver a coordinación', $html);
+        $this->assertStringContainsString('refrescar=1&desde=coordinacion', $html);
+        // Las listas que se abren desde aquí saben volver aquí, con el origen.
+        $this->assertStringContainsString('grupo=g2&sesion=s3&desde=resumen-coordinacion', $html);
+    }
+
+    public function test_el_resumen_sin_origen_vuelve_a_pasar_lista()
+    {
+        $_REQUEST = array('desde' => 'https://otro.sitio');   // fuera de la lista blanca
+        $html = $this->render('single_stic_pasar_lista_resumen');
+        $this->assertStringContainsString('class="pl-back" href="?internalpage=single_stic_pasar_lista"', $html);
+        $this->assertStringNotContainsString('otro.sitio', $html);
+        $this->assertStringContainsString('&desde=resumen"', $html);
+    }
+
+    public function test_una_lista_abierta_desde_el_resumen_vuelve_al_resumen()
+    {
+        $_REQUEST = array('grupo' => 'g1', 'desde' => 'resumen-coordinacion');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+        $this->assertStringContainsString(
+            'class="pl-back" href="?internalpage=single_stic_pasar_lista_resumen&amp;desde=coordinacion"',
+            $html
+        );
+        $this->assertStringContainsString('Volver al resumen de grupos', $html);
+
+        // `desde=coordinacion` no es un origen de marcar: vuelve al árbol.
+        $_REQUEST = array('grupo' => 'g1', 'desde' => 'coordinacion');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+        $this->assertStringContainsString('class="pl-back" href="?internalpage=single_stic_pasar_lista_grupos"', $html);
+    }
+
+    /** El menú resalta la sección de una subpantalla, por la puerta de entrada. */
+    public function test_el_menu_sabe_a_que_seccion_pertenece_una_subpantalla()
+    {
+        require_once __DIR__ . '/../menu.php';
+        $_REQUEST = array();
+        $this->assertSame('single_stic_pasar_lista', sticpa_menu_section_for('single_stic_pasar_lista_resumen'));
+        $this->assertSame('single_stic_coordinacion', sticpa_menu_section_for('single_stic_pasar_lista_monitor'));
+        $this->assertSame('single_stic_eventos', sticpa_menu_section_for('single_stic_eventos'));
+        $_REQUEST = array('desde' => 'coordinacion');
+        $this->assertSame('single_stic_coordinacion', sticpa_menu_section_for('single_stic_pasar_lista_resumen'));
+        $this->assertSame('single_stic_coordinacion', sticpa_menu_section_for('single_stic_pasar_lista_reuniones'));
+        $_REQUEST = array('desde' => 'resumen-coordinacion');
+        $this->assertSame('single_stic_coordinacion', sticpa_menu_section_for('single_stic_pasar_lista_marcar'));
+        $_REQUEST = array('vengo' => 'grupos');
+        $this->assertSame('single_stic_mis_grupos', sticpa_menu_section_for('single_stic_pasar_lista_monitor'));
+        $_REQUEST = array();
     }
 
     public function test_resumen_lista_los_participantes_sin_grupo()
@@ -6241,7 +6304,8 @@ final class PasarListaRenderTest extends TestCase
         $html = $this->render('single_stic_pasar_lista_resumen');
 
         $this->assertMatchesRegularExpression(
-            '/<a class="pl-cell[^"]*" href="\?internalpage=single_stic_pasar_lista_marcar&grupo=g1&sesion=s\d+"/',
+            // (Con `&desde=` detrás desde COO-3: la lista sabe volver al Resumen.)
+            '/<a class="pl-cell[^"]*" href="\?internalpage=single_stic_pasar_lista_marcar&grupo=g1&sesion=s\d+(&desde=resumen)?"/',
             $html,
             'Cada celda tiene que enlazar a la lista de ESA sesión.'
         );
@@ -6261,7 +6325,8 @@ final class PasarListaRenderTest extends TestCase
             '<a class="pl-strip-link" href="?internalpage=single_stic_pasar_lista_grupos&grupo=g1&sesiones=1"',
             $html
         );
-        $fila = substr($html, strpos($html, 'grupo=g1"'), 1500);
+        // La fila de C1: su enlace lleva `&desde=resumen` desde COO-3.
+        $fila = substr($html, strpos($html, 'grupo=g1&desde=resumen"'), 1500);
         $this->assertStringContainsString('2 sin pasar', $fila);
         $this->assertStringNotContainsString('Al día', $fila);
         $this->assertStringContainsString('Pasada', $fila);
@@ -6275,7 +6340,7 @@ final class PasarListaRenderTest extends TestCase
     {
         $html = $this->render('single_stic_pasar_lista_resumen');
 
-        $fila = substr($html, strpos($html, 'pl-grouprow'), 1400);
+        $fila = substr($html, strpos($html, '<div class="pl-grouprow">'), 1400);
         $this->assertStringContainsString('<div class="pl-grouprow">', $fila);
         $this->assertStringContainsString('<a class="pl-grouprow-top"', $fila);
         // Entre la apertura de la cabecera y la tira tiene que haber un cierre.

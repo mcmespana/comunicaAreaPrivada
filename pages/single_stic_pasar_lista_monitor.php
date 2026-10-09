@@ -246,6 +246,10 @@ $vengoGrupos = in_array(sticpa_pl_vengo_modo(isset($_REQUEST['vengo']) ? $_REQUE
 $volverTexto = $vengoGrupos ? __('Volver a Grupos y fichas', 'sticpa') : __('Volver a coordinación', 'sticpa');
 if (sticpa_pl_vengo_modo(isset($_REQUEST['vengo']) ? $_REQUEST['vengo'] : '') === 'resumen') {
     $volverTexto = __('Volver al resumen de grupos', 'sticpa');
+    // Y si al Resumen se llegó desde Coordinación, que lo siga sabiendo.
+    if (sticpa_pl_desde(isset($_REQUEST['desde']) ? $_REQUEST['desde'] : '') === 'coordinacion') {
+        $volver = sticpa_pl_desde_url('resumen-coordinacion');
+    }
 }
 if ($volver === '') {
     $volver = '?internalpage=single_stic_coordinacion';

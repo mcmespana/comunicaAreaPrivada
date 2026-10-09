@@ -376,7 +376,13 @@ Decisiones:
 
 - **La Lista de monitores y las Reuniones tienen dos puertas** (Pasar lista y
   Coordinación). Es la misma pantalla, no dos: se vuelve por la que se entró
-  (`&desde=coordinacion`, lista blanca de un valor).
+  (`&desde=coordinacion`, lista blanca de un valor). Desde el plan 042 (COO-3)
+  el **Resumen de grupos** también: entra con `desde=coordinacion` y vuelve a
+  Coordinación; y una lista o una ficha de monitor abierta desde el Resumen
+  vuelve al Resumen (`desde=resumen` / `resumen-coordinacion`, `vengo=resumen`).
+  La lista blanca de `desde` está en `sticpa_pl_desde()`. El menú resalta la
+  sección de la subpantalla (`sticpa_menu_section_for()`, `menu.php`), por la
+  puerta de entrada: lo abierto desde Coordinación es de Coordinación.
 - **La ficha del monitor vuelve a Coordinación** (antes a la lista del sábado,
   que no es de donde se viene a leer una ficha). Desde Mis grupos sigue
   volviendo a Mis grupos.

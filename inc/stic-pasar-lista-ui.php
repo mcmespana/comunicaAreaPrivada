@@ -290,6 +290,38 @@ function sticpa_pl_vengo_url($vengo, $vgrupo = '')
 }
 
 /**
+ * DE DÓNDE SE VIENE, para la flecha de volver (plan 042, COO-3).
+ *
+ * Al Resumen se llega desde Pasar lista y desde Coordinación, y a una lista
+ * desde el árbol de grupos y desde el Resumen: la flecha tiene que volver por
+ * donde se entró, no a un sitio fijo. `desde` viaja en la URL y, como `vengo`,
+ * solo acepta valores CONOCIDOS: lo que llegue nunca se convierte en un enlace
+ * tal cual. Esta es la lista blanca, en un solo sitio.
+ *
+ * `resumen-coordinacion` es el Resumen al que se llegó desde Coordinación: así
+ * la vuelta de una lista lleva al Resumen y la del Resumen, a Coordinación.
+ */
+function sticpa_pl_desde($raw)
+{
+    $raw = (string) $raw;
+    return in_array($raw, array('coordinacion', 'resumen', 'resumen-coordinacion'), true) ? $raw : '';
+}
+
+/** El enlace de vuelta de un `desde` de la lista blanca, o '' si no lo es. */
+function sticpa_pl_desde_url($desde)
+{
+    switch (sticpa_pl_desde($desde)) {
+        case 'coordinacion':
+            return '?internalpage=single_stic_coordinacion';
+        case 'resumen':
+            return '?internalpage=single_stic_pasar_lista_resumen';
+        case 'resumen-coordinacion':
+            return '?internalpage=single_stic_pasar_lista_resumen&desde=coordinacion';
+    }
+    return '';
+}
+
+/**
  * Los vecinos de alguien en una lista: quién va antes, quién después y en qué
  * posición está.
  *
