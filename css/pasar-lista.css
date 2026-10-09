@@ -3561,3 +3561,23 @@ a.pl-group .pl-name { display: block; }
 /* ---- PL-10: el anillo del gesto largo, como icono de la nota ------------- */
 .pl-hint--hold { align-items: center; }
 .pl-hint--hold .pl-hold-ring { margin-top: 0; }
+
+/* ---- PL-12: el atajo entero es pulsable ----------------------------------
+   La tarjeta del sábado es lo más grande de la portada, pero solo el botón
+   blanco de dentro era enlace: 54 px en el tercio de arriba, adonde peor
+   llega el pulgar. Enlace estirado sin tocar el marcado: el `::after` del
+   botón cubre la tarjeta (no hay otros pulsables dentro, así que no pisa
+   nada) y el pulsado encoge la tarjeta entera. */
+.pl-hero { position: relative; transition: transform 120ms var(--ease-out); }
+.pl-hero-cta { -webkit-tap-highlight-color: transparent; }
+.pl-hero-cta::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius-xl);
+}
+.pl-hero:has(.pl-hero-cta:active) { transform: scale(0.97); }
+@media (prefers-reduced-motion: reduce) {
+    .pl-hero { transition: none; }
+    .pl-hero:has(.pl-hero-cta:active) { transform: none; }
+}
