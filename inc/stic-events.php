@@ -900,7 +900,11 @@ function sticpa_events_cards($models, $statusMap = array())
             $chips[] = array('label' => sticpa_event_status_label($event['status'], $statusMap[$event['status']]), 'tone' => '');
         }
 
-        $actions = array(array('label' => __('Ver detalle', 'sticpa'), 'url' => $detailUrl));
+        // Sin «Ver detalle»: la tarjeta entera ya enlaza a la ficha, y un
+        // botón que lleva al mismo sitio es ruido (design.md §6.1, plan 042
+        // FAM-a7). La barra solo lleva lo que va a OTRO sitio; sin eso, no
+        // hay barra.
+        $actions = array();
         if ($regId !== '') {
             // Lo tuyo: a TU inscripción (estado, pago, cambiar o cancelar).
             $actions[] = array('label' => __('Mi inscripción', 'sticpa'), 'primary' => true,
