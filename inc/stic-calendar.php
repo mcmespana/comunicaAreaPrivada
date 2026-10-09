@@ -717,7 +717,10 @@ function sticpa_home_agenda_items($data, $limit = 5)
             'has_time' => false,
             'type' => 'available_event',
             'title' => $ev['name'],
-            'subtitle' => $palette['available_event']['label'],
+            // Sin subtítulo: «Abierto a inscripción» y al lado la píldora
+            // «Inscríbete» decían lo mismo dos veces (FAM-a13). La píldora
+            // basta, y el título respira.
+            'subtitle' => '',
             'bucket' => 'available_event',
             'href' => '?internalpage=single_stic_events&action=detail&id=' . rawurlencode($ev['id']),
         );

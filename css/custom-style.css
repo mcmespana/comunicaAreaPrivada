@@ -4790,17 +4790,21 @@ span.stic-field {
     padding: 0.22rem 0.55rem;
 }
 
-/* CTA "Ver calendario" */
+/* CTA "Ver calendario". SECUNDARIO, como .stic-rec-btn--ghost (plan 042,
+   FAM-a13): era el único botón de marca de la portada y lleva al calendario,
+   que no es a lo que viene nadie. 44 px de alto (medía 42). */
 .stic-agenda-cta {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.45rem;
+    min-height: 44px;
     margin-top: 0.1rem;
     padding: 0.6rem 1rem;
     border-radius: var(--radius-md);
-    background: var(--grad-brand);
-    color: #fff !important;
+    background: var(--surface);
+    border: 1px solid var(--gray-200);
+    color: var(--gray-700) !important;
     font-weight: 700;
     font-size: 0.9rem;
     text-decoration: none !important;

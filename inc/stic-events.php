@@ -339,7 +339,10 @@ function sticpa_event_fields_to_request($objSCP, $conWeb = false)
     // al CRM, como mucho una vez cada 15 minutos (si el campo no existe de
     // verdad, eso es lo único que cuesta).
     $cuerpo = function_exists('mcm_cuerpo_campo') ? mcm_cuerpo_campo() : '';
-    if ($conWeb && $cuerpo !== '' && !in_array($cuerpo, $existing, true)
+    // Nunca en la RECOLECTA de una tanda: ahí la definición sale vacía porque
+    // el CRM no contesta, y se gastaría el «una vez cada 15 minutos» en nada.
+    $recolecta = function_exists('sticpa_pl_collecting') && sticpa_pl_collecting();
+    if ($conWeb && $cuerpo !== '' && !$recolecta && !in_array($cuerpo, $existing, true)
         && function_exists('get_transient') && get_transient('sticpa_evdef_recheck') === false) {
         set_transient('sticpa_evdef_recheck', 1, 15 * MINUTE_IN_SECONDS);
         $definition = sticpa_event_field_definition($objSCP, true);

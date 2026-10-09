@@ -91,6 +91,9 @@ include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-ui.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-sw.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-warm.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-diag.php';
+// Velocidad: lo que el área no pide (hojas y scripts ajenos que se apartan de
+// sus páginas) y la medida de cada petición. Plan 042.
+include plugin_dir_path(__FILE__) . 'inc/stic-perf.php';
 
 add_action('admin_menu', 'sugar_crm_portal_create_menu');
 
