@@ -583,26 +583,49 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
 
 /* ---- Sin registro ------------------------------------------------------- */
 
+/* Un enlace secundario bajo la cabecera, y no un botón al final de la lista
+   (plan 042, PL-1): ahí quedaba a 30 px de «Guardar» y un roce del pulgar
+   tiraba las marcas. Es una decisión de ANTES de marcar —«no hubo sesión»—,
+   así que va arriba, pequeño, alineado a la izquierda y detrás de una
+   confirmación. La pregunta en gris y la acción en el azul de los enlaces
+   discretos (`.pl-ghost`): se lee como lo que es, una salida, no una acción. */
 .pl-skip {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    width: 100%;
+    flex-wrap: wrap;
+    gap: 0 0.35rem;
     min-height: 44px;
-    margin-top: 0.9rem;
-    border-radius: var(--radius-lg);
+    margin: -0.4rem 0 0.3rem;
+    padding: 0 0.15rem !important;
+    border-radius: var(--radius-md);
     background: transparent !important;
-    border: 1px dashed var(--gray-300) !important;
+    border: 0 !important;
     color: var(--gray-500) !important;
-    font-size: 0.84rem !important;
+    font-size: 0.8rem !important;
     font-weight: 600 !important;
     font-family: inherit !important;
     cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 120ms var(--ease-out);
+}
+.pl-skip-a {
+    color: var(--primary-color);
+    font-weight: 700;
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--primary-color) 45%, transparent);
+    text-underline-offset: 0.18em;
+}
+.pl-skip:active { transform: scale(0.97); }
+@media (hover: hover) {
+    .pl-skip:hover .pl-skip-a { text-decoration-color: currentColor; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .pl-skip { transition: none; }
+    .pl-skip:active { transform: none; }
 }
 /* Sin esto el SVG se estira a lo que le pide el viewBox y se come el botón: los
    iconos de sticpa_pl_icon() no traen tamaño, lo pone quien los usa. */
-.pl-skip svg { width: 16px; height: 16px; flex-shrink: 0; }
+.pl-skip svg { width: 15px; height: 15px; flex-shrink: 0; }
 
 /* ---- Barra de guardado -------------------------------------------------- */
 

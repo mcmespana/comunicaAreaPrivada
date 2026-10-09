@@ -1699,7 +1699,9 @@ final class PasarListaRenderTest extends TestCase
      */
     public function test_el_formulario_manda_la_accion_en_un_campo_oculto()
     {
-        $_REQUEST = array('grupo' => 'g1');
+        // s2: una sesión SIN lista. En una ya pasada (s3) «Sin registro» no se
+        // pinta (plan 042, PL-1), y aquí hacen falta los dos botones.
+        $_REQUEST = array('grupo' => 'g1', 'sesion' => 's2');
         $html = $this->render('single_stic_pasar_lista_marcar');
 
         $this->assertStringContainsString(
@@ -2349,6 +2351,31 @@ final class PasarListaRenderTest extends TestCase
 
         $this->assertStringContainsString('caducado', $html);
         $this->assertSame(array(), $this->scp->writes);
+    }
+
+    /**
+     * «Sin registro» está a un roce de tirar las marcas: no escribe ninguna
+     * asistencia y el JS borra el borrador al ver el guardado confirmado.
+     * Por eso pide confirmación SIEMPRE (con un texto para cuando ya hay
+     * marcas), y en una lista ya pasada no se ofrece: la reescribía como
+     * «No hubo» con 0/0 (plan 042, PL-1).
+     */
+    public function test_sin_registro_pide_confirmacion_y_no_sale_en_una_lista_pasada()
+    {
+        $_REQUEST = array('grupo' => 'g1', 'sesion' => 's2');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+        $this->assertMatchesRegularExpression('/<button[^>]*value="skip"[^>]*data-pl-confirm="[^"]+"/', $html);
+        $this->assertMatchesRegularExpression('/<button[^>]*value="skip"[^>]*data-confirm-marks="[^"]+"/', $html);
+        // Arriba, antes de la lista: se decide antes de marcar, no al lado de
+        // «Guardar».
+        $this->assertLessThan(strpos($html, 'class="pl-list"'), strpos($html, 'value="skip"'));
+        $this->assertLessThan(strpos($html, 'data-pl-all-present'), strpos($html, 'value="skip"'));
+
+        // s3 es la lista PASADA de g1.
+        $_REQUEST = array('grupo' => 'g1', 'sesion' => 's3');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+        $this->assertStringContainsString('Esta lista ya está pasada', $html);
+        $this->assertStringNotContainsString('value="skip"', $html);
     }
 
     /** "Sin registro" marca la lista como omitida y no toca las asistencias. */

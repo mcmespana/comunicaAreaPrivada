@@ -379,6 +379,29 @@ $html .= '<input type="hidden" name="pl_action" value="save" data-pl-action>';
 $html .= '<input type="hidden" name="pl_marks" value="" data-pl-marks>';
 $html .= '<input type="hidden" name="pl_notes" value="" data-pl-notes>';
 
+// "Sin registro": cubre "no hubo reunión" y "se me olvidó y ya no me acuerdo".
+// Un monitor honesto necesita poder cerrar el aviso sin inventarse datos.
+//
+// ARRIBA, PEQUEÑO Y CON CONFIRMACIÓN (plan 042, PL-1). Vivía al final de la
+// lista, a 30 px de «Guardar», sin confirmar: un roce del pulgar tiraba las
+// marcas recién puestas (con «sin registro» no se escribe ninguna asistencia),
+// el JS borraba el borrador porque el guardado «había ido bien» y, si la lista
+// ya estaba pasada, la reescribía como «No hubo» con 0/0. Se decide ANTES de
+// marcar, así que va bajo la cabecera; y en una lista ya pasada (o ya «sin
+// registro») no se pinta: pasar de pasada a omitida no es un caso real, y si
+// alguna vez lo es se hace desde el CRM. El texto de la confirmación lo cambia
+// el JS en cuanto hay alguna marca en pantalla (`data-confirm-marks`).
+if ($lista === null || $lista['estado'] === '') {
+    $html .= '<button type="submit" name="pl_action" value="skip" class="pl-skip"'
+        . ' data-pl-skip'
+        . ' data-pl-confirm="' . esc_attr__('¿No hubo sesión con este grupo ese día? La lista se queda como «sin registro» y se deja de avisar.', 'sticpa') . '"'
+        . ' data-confirm-empty="' . esc_attr__('¿No hubo sesión con este grupo ese día? La lista se queda como «sin registro» y se deja de avisar.', 'sticpa') . '"'
+        . ' data-confirm-marks="' . esc_attr__('Se quedará como «sin registro» y no se guardará ninguna de las marcas que has puesto. ¿Seguro?', 'sticpa') . '">'
+        . sticpa_pl_icon('skip')
+        . '<span class="pl-skip-q">' . esc_html__('¿No hubo sesión?', 'sticpa') . '</span>'
+        . '<span class="pl-skip-a">' . esc_html__('Sin registro', 'sticpa') . '</span></button>';
+}
+
 // "Han venido todos": desmarcar dos ausentes es más rápido que marcar diez.
 $html .= '<button type="button" class="pl-all-present" data-pl-all-present>'
     . sticpa_pl_glyph('check') . esc_html__('Han venido todos', 'sticpa') . '</button>';
@@ -400,11 +423,6 @@ foreach ($people['participants'] as $p) {
 $html .= '</div>';
 
 $html .= sticpa_pl_legend_html();
-
-// "Sin registro": cubre "no hubo reunión" y "se me olvidó y ya no me acuerdo".
-// Un monitor honesto necesita poder cerrar el aviso sin inventarse datos.
-$html .= '<button type="submit" name="pl_action" value="skip" class="pl-skip">'
-    . sticpa_pl_icon('skip') . esc_html__('Sin registro — no me avises más', 'sticpa') . '</button>';
 
 // Barra de guardado: contadores vivos y un solo botón.
 $html .= '<div class="pl-savebar">';

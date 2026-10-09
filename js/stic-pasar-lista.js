@@ -324,6 +324,7 @@
 
         var rows = Array.prototype.slice.call(root.querySelectorAll('.pl-row'));
         var saveBtn = root.querySelector('[data-pl-save]');
+        var skipBtn = root.querySelector('[data-pl-skip]');
         var form = root.querySelector('[data-pl-form]');
         var marksInput = root.querySelector('[data-pl-marks]');
         var notesInput = root.querySelector('[data-pl-notes]');
@@ -445,6 +446,15 @@
                     ? (saveBtn.getAttribute('data-label-partial') || 'Guardar ({n} sin marcar)')
                     : (saveBtn.getAttribute('data-label-full') || 'Guardar lista');
                 saveBtn.textContent = tpl.replace('{n}', nNone);
+            }
+
+            // «Sin registro» confirma SIEMPRE, y con marcas en pantalla avisa
+            // de lo que se pierde: con «sin registro» no se escribe ninguna
+            // asistencia (plan 042, PL-1).
+            if (skipBtn) {
+                var key = (nYes + nNo > 0) ? 'data-confirm-marks' : 'data-confirm-empty';
+                var msg = skipBtn.getAttribute(key);
+                if (msg) { skipBtn.setAttribute('data-pl-confirm', msg); }
             }
         }
 
