@@ -125,7 +125,10 @@ if (!empty($_POST['pl_action'])) {
             'grupo' => $groupId, 'sesion' => $session['id'],
             'marcas_post' => strlen($marksRaw),
         ));
-        $html .= '<p class="pl-notice">' . sticpa_pl_icon('clock') . '<span>'
+        // `data-pl-nonce-expired`: la señal con la que el reenvío de la cola
+        // sabe que puede reintentar con el nonce nuevo de esta misma pantalla
+        // (plan 042, PL-9).
+        $html .= '<p class="pl-notice" data-pl-nonce-expired>' . sticpa_pl_icon('clock') . '<span>'
             . esc_html__('La sesión ha caducado. Vuelve a cargar la pantalla.', 'sticpa') . '</span></p>';
     } else {
         if (!empty($_POST['pl_marks'])) {
@@ -305,6 +308,9 @@ $html .= '<div data-pl-marcar'
     . ($savedOk ? ' data-pl-saved-ok' : '')
     . ' data-session="' . esc_attr($session['id']) . '"'
     . ' data-group="' . esc_attr($groupId) . '"'
+    // Qué lista es, para decirlo fuera de esta pantalla si se queda en la cola
+    // del móvil («C1 · 15 nov»), plan 042 PL-9.
+    . ' data-queue-label="' . esc_attr($group['code'] . ' · ' . sticpa_pl_session_short($session, true)) . '"'
     . ' data-msg-dirty="' . esc_attr__('Cambios sin guardar · los datos están solo en tu móvil', 'sticpa') . '"'
     . ' data-msg-draft="' . esc_attr__('Tienes marcas sin guardar de antes.', 'sticpa') . '"'
     . ' data-msg-offline="' . esc_attr__('Sin cobertura. Puedes marcar: se guardará en el móvil.', 'sticpa') . '"'

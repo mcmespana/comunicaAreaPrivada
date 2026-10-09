@@ -139,7 +139,7 @@ if (!empty($_POST['pl_action'])) {
             'pantalla' => 'monitores', 'motivo' => 'nonce',
             'sesion' => $session['id'], 'marcas_post' => strlen($marksRaw),
         ));
-        $html .= '<p class="pl-notice">' . sticpa_pl_icon('clock') . '<span>'
+        $html .= '<p class="pl-notice" data-pl-nonce-expired>' . sticpa_pl_icon('clock') . '<span>'
             . esc_html__('La sesión ha caducado. Vuelve a cargar la pantalla.', 'sticpa') . '</span></p>';
     } else {
         $marks = array();
@@ -302,6 +302,8 @@ $html .= '<div data-pl-marcar data-pl-monitores'
     . ($savedOk ? ' data-pl-saved-ok' : '')
     . ' data-session="' . esc_attr($session['id']) . '"'
     . ' data-group="monitores"'
+    . ' data-queue-label="' . esc_attr(($isReunion ? __('Reunión', 'sticpa') : __('Monitores', 'sticpa'))
+        . ' · ' . sticpa_pl_session_short($session, true)) . '"'
     . ' data-msg-dirty="' . esc_attr__('Cambios sin guardar · los datos están solo en tu móvil', 'sticpa') . '"'
     . ' data-msg-draft="' . esc_attr__('Tienes marcas sin guardar de antes.', 'sticpa') . '"'
     . ' data-msg-offline="' . esc_attr__('Sin cobertura. Puedes marcar: se guardará en el móvil.', 'sticpa') . '"'

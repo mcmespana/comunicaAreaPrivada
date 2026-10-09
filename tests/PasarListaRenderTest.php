@@ -2243,6 +2243,34 @@ final class PasarListaRenderTest extends TestCase
 
     // ---- El diario de intentos -------------------------------------------
 
+    /**
+     * LA COLA DEL MÓVIL TIENE DE QUÉ AGARRARSE (plan 042, PL-9): la respuesta
+     * a un nonce caducado lleva la señal y un nonce NUEVO de esta sesión (con
+     * eso el JS reintenta una vez), la pantalla dice qué lista es para el aviso
+     * de fuera, y la portada y el árbol tienen el hueco de ese aviso.
+     */
+    public function test_la_cola_del_movil_puede_reintentar_y_avisar()
+    {
+        $_REQUEST = array('grupo' => 'g1', 'sesion' => 's2');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => 'caducado',
+            'pl_marks' => json_encode(array('c1' => 'yes')),
+        );
+        $html = $this->render('single_stic_pasar_lista_marcar');
+        $this->assertStringContainsString('data-pl-nonce-expired', $html);
+        $this->assertMatchesRegularExpression('/name="pl_nonce" value="[^"]+"/', $html);
+        $this->assertMatchesRegularExpression('/data-queue-label="C1 · [^"]+"/u', $html);
+        $this->assertSame(array(), $this->scp->writes);
+
+        $_POST = array();
+        $_REQUEST = array();
+        foreach (array('single_stic_pasar_lista', 'single_stic_pasar_lista_grupos') as $page) {
+            $html = $this->render($page);
+            $this->assertMatchesRegularExpression('/<div class="pl-status pl-queue-notice" data-pl-queue-notice role="status" hidden/', $html, $page);
+        }
+    }
+
     /** Un nonce caducado no escribe nada, y eso también se apunta. */
     public function test_el_diario_apunta_el_nonce_caducado()
     {

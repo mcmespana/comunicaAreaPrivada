@@ -236,17 +236,16 @@
         var pending = q.length;
         var sent = 0;
 
-        q.forEach(function (entry) {
+        function post(entry, nonce) {
             var body = new URLSearchParams();
             body.set('pl_action', entry.action || 'save');
-            body.set('pl_nonce', entry.nonce || '');
+            body.set('pl_nonce', nonce || '');
             body.set('pl_marks', entry.marks || '{}');
             // Los motivos van igual que en el envío normal. Una entrada de la
             // cola de antes de que esto existiera no los trae, y entonces se
             // manda vacío: se guardan los estados y no se pierde la lista.
             body.set('pl_notes', entry.notes || '{}');
-
-            fetch(entry.url, {
+            return fetch(entry.url, {
                 method: 'POST',
                 body: body,
                 credentials: 'same-origin',
@@ -257,12 +256,38 @@
                 // enviada — la lista del monitor se perdía en silencio. La
                 // prueba es el atributo que el servidor pinta SOLO cuando ha
                 // releído el CRM y lo ha comprobado.
-                if (!res.ok) { return null; }
-                return res.text();
+                return res.ok ? res.text() : null;
+            });
+        }
+
+        /* EL NONCE, FRESCO (plan 042, PL-9). Cada entrada lleva el del
+           formulario del momento, que caduca a las 12-24 h: quien guardaba sin
+           cobertura un sábado y volvía a abrir el lunes no enviaba nada, y a
+           los cinco intentos la lista quedaba «atascada». La respuesta de un
+           nonce caducado es la propia pantalla, con su formulario y un nonce
+           NUEVO de esta misma sesión: se reintenta UNA vez con él. Mismo
+           origen y misma sesión, así que no afloja la protección. */
+        function freshNonce(html) {
+            if (!html || html.indexOf('data-pl-nonce-expired') === -1) { return ''; }
+            var m = html.match(/name="pl_nonce" value="([^"]+)"/);
+            return m ? m[1] : '';
+        }
+
+        q.forEach(function (entry) {
+            post(entry, entry.nonce).then(function (html) {
+                var nonce = freshNonce(html);
+                return nonce ? post(entry, nonce) : html;
             }).then(function (html) {
                 if (html === null) { return; }
                 if (html.indexOf('data-pl-saved-ok') !== -1) {
                     queueRemove(entry);
+                    // El borrador de ESA lista, no el de la pantalla abierta:
+                    // antes, enviar una entrada de otro grupo se llevaba el
+                    // borrador de lo que se estaba marcando (plan 042, PL-9). Y
+                    // solo si no se ha tocado después de encolarla.
+                    var dk = STORE_DRAFT + entry.session + '_' + entry.group;
+                    var d = readJson(dk, null);
+                    if (d && (d.ts || 0) <= (entry.ts || 0)) { lsDel(dk); }
                     sent++;
                 } else {
                     queueBumpTries(entry);
@@ -276,6 +301,38 @@
         });
     }
 
+    /* El aviso de «lo que quedó en el móvil», fuera de la pantalla de marcar
+       (plan 042, PL-9). En la portada y en el árbol el reenvío era mudo,
+       acertara o fallara: quien cerró la app sin cobertura no sabía que tenía
+       una lista sin enviar. Se pinta con nodos y `textContent`: las etiquetas
+       vienen del almacenamiento del móvil y no se tratan como HTML. */
+    function queueNotice(box) {
+        if (!box) { return; }
+        var q = queueRead();
+        while (box.firstChild) { box.removeChild(box.firstChild); }
+        if (!q.length) {
+            box.hidden = true;
+            return;
+        }
+        var stuck = q.some(function (e) { return (e.tries || 0) >= QUEUE_MAX_TRIES; });
+        box.setAttribute('data-kind', stuck ? 'error' : 'draft');
+        var title = document.createElement('p');
+        title.className = 'pl-queue-title';
+        title.textContent = (q.length === 1
+            ? box.getAttribute('data-msg-one')
+            : (box.getAttribute('data-msg-many') || '').replace('{n}', q.length)) || '';
+        box.appendChild(title);
+        q.forEach(function (e) {
+            var a = document.createElement('a');
+            a.className = 'pl-queue-item';
+            a.href = e.url;
+            a.textContent = (e.label || box.getAttribute('data-msg-nolabel') || '')
+                + (((e.tries || 0) >= QUEUE_MAX_TRIES) ? ' · ' + (box.getAttribute('data-msg-stuck') || '') : '');
+            box.appendChild(a);
+        });
+        box.hidden = false;
+    }
+
     /* =====================================================================
      * Pantalla de marcado
      * ===================================================================== */
@@ -286,9 +343,15 @@
         initMarcar(root);
     } else {
         // Fuera de la pantalla de marcado, la cola sigue siendo asunto nuestro:
-        // si el monitor vuelve a entrar con cobertura, se envía lo pendiente.
-        if (navigator.onLine) { queueFlush(); }
-        window.addEventListener('online', function () { queueFlush(); });
+        // si el monitor vuelve a entrar con cobertura, se envía lo pendiente,
+        // y lo que no se pueda enviar se DICE (plan 042, PL-9).
+        var queueBox = document.querySelector('[data-pl-queue-notice]');
+        var flushAndTell = function () {
+            queueNotice(queueBox);
+            queueFlush(function () { queueNotice(queueBox); });
+        };
+        if (navigator.onLine) { flushAndTell(); } else { queueNotice(queueBox); }
+        window.addEventListener('online', flushAndTell);
     }
 
     function initMarcar(root) {
@@ -1008,17 +1071,22 @@
                     // dice. El monitor se va a casa con la lista puesta.
                     ev.preventDefault();
                     var nonceEl = form.querySelector('input[name="pl_nonce"]');
+                    // El borrador ANTES que la entrada: al enviarla se tira el
+                    // borrador solo si no es más nuevo que ella.
+                    saveDraft();
                     queuePush({
                         url: window.location.href,
                         session: sessionId,
                         group: groupId,
+                        // Qué lista es, para decirlo fuera de esta pantalla
+                        // («C1 · sáb 15 nov»), plan 042 PL-9.
+                        label: root.getAttribute('data-queue-label') || '',
                         action: action,
                         nonce: nonceEl ? nonceEl.value : '',
                         marks: marks,
                         notes: notes,
                         ts: Date.now()
                     });
-                    saveDraft();
                     // Ya está guardado (en el móvil), así que el aviso de salir
                     // sin guardar sería mentira: un aviso que miente enseña a
                     // ignorar todos los avisos.
@@ -1073,15 +1141,24 @@
             if (pending > 0) {
                 say('sync', root.getAttribute('data-msg-sync') || '');
                 queueFlush(function (sent) {
-                    if (sent > 0) {
+                    // El borrador lo tira el envío, y solo el de la lista
+                    // enviada (plan 042, PL-9): aquí antes se borraba el de la
+                    // pantalla abierta aunque lo enviado fuera de otro grupo.
+                    if (queueStuck()) {
+                        // Ni con cobertura entra. Callarlo dejaría al monitor
+                        // creyendo que su lista se envió sola; y con QUÉ lista
+                        // es, que «lo pendiente» no dice nada.
+                        var labels = queueRead().filter(function (e) {
+                            return (e.tries || 0) >= QUEUE_MAX_TRIES;
+                        }).map(function (e) { return e.label; }).filter(Boolean);
+                        say('error', (root.getAttribute('data-msg-stuck')
+                            || 'No se ha podido enviar lo que quedó pendiente. Vuelve a marcar y guardar.')
+                            + (labels.length ? ' (' + labels.join(', ') + ')' : ''));
+                    } else if (sent > 0) {
+                        // Si lo enviado era ESTA lista, su borrador ya no está
+                        // y lo de la pantalla ya está en el CRM.
+                        if (!lsGet(draftKey)) { setDirty(false); }
                         say('ok', root.getAttribute('data-msg-sent') || '');
-                        lsDel(draftKey);
-                    } else if (queueStuck()) {
-                        // Ni con cobertura entra: casi siempre el nonce caducado
-                        // de una pantalla vieja. Callarlo dejaría al monitor
-                        // creyendo que su lista se envió sola.
-                        say('offline', root.getAttribute('data-msg-stuck')
-                            || 'No se ha podido enviar lo que quedó pendiente. Vuelve a marcar y guardar.');
                     }
                 });
             } else if (!serverSaid) {

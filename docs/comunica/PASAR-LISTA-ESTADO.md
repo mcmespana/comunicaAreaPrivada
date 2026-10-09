@@ -492,8 +492,15 @@ no es la noticia, y dos avisos discutiendo en la misma línea no los lee nadie.
 - El orden de los grupos: por etapa y, dentro, por código en orden natural.
 - El botón de refrescar invalida de verdad, y en las cuatro pantallas.
 - Los recuentos nocturnos del Guardián se leen en la ficha del grupo.
-- El modo sin conexión está construido (apagado por defecto con el filtro
-  `sticpa_pl_offline_enabled`).
+- El modo sin conexión está construido y **encendido por defecto**: el filtro
+  `sticpa_pl_offline_enabled` devuelve `true` (este documento decía lo
+  contrario hasta el 09/10/2026). La cola de «guardar sin cobertura» vive en
+  `localStorage` y se vacía en cualquier pantalla de Pasar Lista; desde el plan
+  042 (PL-9) reintenta UNA vez con el nonce nuevo que trae la respuesta de un
+  nonce caducado, dice en la portada y en el árbol qué listas se han quedado
+  en el móvil («C1 · 15 nov», en rojo si no se han podido enviar) y, al
+  enviar una, solo tira el borrador de ESA lista. Lo que falta: vaciarla
+  también desde `js/stic-ui.js` (fuera de Pasar Lista no se envía nada).
 - La ficha de un monitor enseña su seguimiento del curso, sus datos agrupados,
   sus grupos y por dónde ha pasado, sin abrir el CRM.
 - Los porcentajes de asistencia cuentan sobre lo marcado, no sobre lo celebrado.

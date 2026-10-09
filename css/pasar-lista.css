@@ -3581,3 +3581,27 @@ a.pl-group .pl-name { display: block; }
     .pl-hero { transition: none; }
     .pl-hero:has(.pl-hero-cta:active) { transform: none; }
 }
+
+/* ---- PL-9: «Tienes una lista guardada solo en el móvil» ------------------
+   El aviso de la cola, en la portada y en el árbol. Es el mismo `.pl-status`
+   de la barra (ámbar si está pendiente, rojo si no se ha podido enviar), en
+   bloque y con una línea por lista, cada una un enlace a su pantalla. */
+.pl-queue-notice {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.15rem;
+    margin: 0 0 1rem;
+    padding: 0.6rem 0.8rem;
+    box-shadow: inset 0 0 0 1px currentColor;
+}
+.pl-queue-title { margin: 0 0 0.15rem; font-weight: 700; }
+.pl-queue-item {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    color: inherit;
+    font-weight: 800;
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+}

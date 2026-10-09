@@ -1060,6 +1060,23 @@ function sticpa_pl_savebar_status_html($saved, $savedOk, $okText)
 }
 
 /**
+ * El hueco donde el JS dice qué listas se han quedado SOLO en el móvil (plan
+ * 042, PL-9). Va en la portada y en el árbol, que es donde se vuelve a entrar:
+ * hasta ahora el reenvío de la cola ahí era mudo, acertara o fallara. Sale
+ * vacío y escondido; lo rellena `queueNotice()` con lo que haya en la cola.
+ */
+function sticpa_pl_queue_notice_html()
+{
+    return '<div class="pl-status pl-queue-notice" data-pl-queue-notice role="status" hidden'
+        . ' data-msg-one="' . esc_attr__('Tienes una lista guardada solo en el móvil. Se envía sola con cobertura; si no, ábrela y guárdala:', 'sticpa') . '"'
+        /* translators: {n}: cuántas listas */
+        . ' data-msg-many="' . esc_attr__('Tienes {n} listas guardadas solo en el móvil. Se envían solas con cobertura; si no, ábrelas y guárdalas:', 'sticpa') . '"'
+        . ' data-msg-stuck="' . esc_attr__('no se ha podido enviar', 'sticpa') . '"'
+        . ' data-msg-nolabel="' . esc_attr__('Abrir la lista', 'sticpa') . '"'
+        . '></div>';
+}
+
+/**
  * «Lista guardada · 2 vinieron, 1 ausencia», con los plurales bien.
  *
  * @param array $counts array('yes' => int, 'no' => int) de sticpa_pl_save()
