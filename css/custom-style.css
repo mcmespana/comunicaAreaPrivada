@@ -4631,7 +4631,11 @@ span.stic-field {
    ============================================================ */
 .stic-home-layout {
     display: grid;
-    grid-template-columns: 1fr;
+    /* minmax(0, 1fr) y no 1fr: con 1fr el mínimo de la columna es el de su
+       contenido, y el subtítulo de la agenda (nowrap, para cortarse con «…»)
+       la ensanchaba a 404 px con un nombre de evento real. Toda la portada
+       se iba por la derecha en móvil (plan 042, FAM-a3). */
+    grid-template-columns: minmax(0, 1fr);
     gap: clamp(1.1rem, 2.5vw, 1.8rem);
     align-items: start;
 }
@@ -4644,7 +4648,8 @@ span.stic-field {
         top: 1rem;
     }
 }
-.stic-home-main { min-width: 0; }
+.stic-home-main,
+.stic-home-aside { min-width: 0; }
 
 /* --- Panel de la agenda --- */
 .stic-agenda {
