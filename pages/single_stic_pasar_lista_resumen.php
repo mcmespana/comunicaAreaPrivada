@@ -29,6 +29,7 @@ sticpa_pl_prime($objSCP, function () use ($objSCP) {
     // El alcance viaja con lo demás: antes se pedía suelto, después de las
     // tandas, solo para saber si se podía asignar (plan 042, COO-1).
     sticpa_pl_coord_scope($objSCP);
+    sticpa_pl_is_acompanante($objSCP);   // misma consulta que el alcance
     sticpa_pl_groups($objSCP);
     sticpa_pl_my_groups($objSCP);
     sticpa_pl_all_relationships($objSCP);
@@ -66,6 +67,20 @@ $acotado = is_array($scope)
     && ((isset($scope['etapa']) && $scope['etapa'] !== '') || (isset($scope['segmento']) && $scope['segmento'] !== ''));
 $mios = $acotado ? sticpa_pl_scoped_groups($objSCP, $scope) : $groups;
 $resto = $acotado ? array_diff_key($groups, $mios) : array();
+
+/* QUIÉN LLEVA CADA GRUPO (plan 042, COO-7). La pregunta no acaba en «falta el
+ * C2»: sigue con «¿a quién le escribo?», y antes eran cinco toques y dos
+ * pantallas por hueco. Sale del mapa de relaciones de la tanda 1: cero
+ * consultas. Quien coordina (en los grupos de su alcance) y acompañamiento
+ * tienen el nombre como enlace a la ficha, que lleva WhatsApp y Llamar arriba;
+ * un monitor raso ve el nombre sin enlace, porque la ficha no es para él. */
+$isAcomp = sticpa_pl_is_acompanante($objSCP);
+$monPorGrupo = array();
+foreach (sticpa_pl_all_relationships($objSCP) as $rel) {
+    if ($rel['role'] === 'monitor' && $rel['group_id'] !== '' && $rel['person']['id'] !== '') {
+        $monPorGrupo[$rel['group_id']][$rel['person']['id']] = $rel['person'];
+    }
+}
 
 // Cuántas sesiones entran en la tira. Cada una es una consulta, así que se
 // limita y se DICE, en vez de recortar en silencio.
@@ -207,7 +222,7 @@ $html .= '</div>';
 $tirasMias = sticpa_pl_tiras_por_etapa($objSCP, $mios, $events, $stripLimit);
 
 /** Una tira por etapa: título y una fila por grupo. */
-$pintaTiras = function ($tiras) use ($etapaColors) {
+$pintaTiras = function ($tiras, $fichas) use ($etapaColors, $monPorGrupo) {
     $out = '';
     foreach ($tiras as $etapa => $tira) {
         $out .= '<div class="pl-etapa-title">'
@@ -269,6 +284,23 @@ $pintaTiras = function ($tiras) use ($etapaColors) {
             $out .= '</span></span>';
             $out .= '<span class="pl-badge ' . esc_attr($badgeClass) . '">' . esc_html($badge) . '</span>';
             $out .= '</a>';
+            // Quién lo lleva: hermano del enlace de la fila, no dentro.
+            $quien = array();
+            if (!empty($monPorGrupo[$gid])) {
+                foreach ($monPorGrupo[$gid] as $mid => $m) {
+                    $quien[] = $fichas
+                        ? '<a class="pl-who-link" href="?internalpage=single_stic_pasar_lista_monitor&monitor='
+                            . esc_attr(rawurlencode($mid)) . '&vengo=resumen">' . esc_html($m['name']) . '</a>'
+                        : '<span class="pl-who-name">' . esc_html($m['name']) . '</span>';
+                }
+            } elseif (isset($g['monitores']) && trim((string) $g['monitores']) !== '') {
+                // Sin relaciones, el texto del grupo en el CRM, que es lo que
+                // ya enseña el árbol de grupos.
+                $quien[] = '<span class="pl-who-name">' . esc_html(trim((string) $g['monitores'])) . '</span>';
+            }
+            if (!empty($quien)) {
+                $out .= '<div class="pl-grouprow-who">' . implode('<span class="pl-who-sep" aria-hidden="true">·</span>', $quien) . '</div>';
+            }
             /* EN EL MÓVIL LA TIRA ES UN SOLO ENLACE (plan 042, PL-6). Cada celda
              * mide 14×7 px con 3 px de aire: doce enlaces que un dedo no
              * distingue. Con puntero grueso las celdas son decoración y un
@@ -357,7 +389,7 @@ if ($lastTotal > 0) {
     $html .= '</div>';
 }
 
-$html .= $pintaTiras($tirasMias);
+$html .= $pintaTiras($tirasMias, $isCoord || $isAcomp);
 
 /* EL RESTO DE LA DELEGACIÓN, plegado: se puede mirar, pero no se cuenta arriba
  * ni se mezcla con lo propio. Con `<details>`, que es nativo y no pide JS. */
@@ -375,7 +407,7 @@ if (!empty($resto)) {
                 _n('%d grupo', '%d grupos', $nResto, 'sticpa'),
                 $nResto
             )) . '</span></summary>';
-        $html .= '<div class="pl-fold-body">' . $pintaTiras($tirasResto) . '</div>';
+        $html .= '<div class="pl-fold-body">' . $pintaTiras($tirasResto, $isAcomp) . '</div>';
         $html .= '</details>';
     }
 }

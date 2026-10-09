@@ -3208,6 +3208,41 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('1 de 4 listas · faltan M1, C2, Ruah', $html);
     }
 
+    /**
+     * QUIÉN LLEVA CADA GRUPO (plan 042, COO-7): del hueco al WhatsApp en dos
+     * toques. Coordinación tiene el nombre como enlace a la ficha; un monitor
+     * raso lo lee sin enlace, porque la ficha no es para él.
+     */
+    public function test_el_resumen_dice_quien_lleva_cada_grupo()
+    {
+        $this->scp->coordEtapa = '';
+        $html = $this->render('single_stic_pasar_lista_resumen');
+        $this->assertStringContainsString(
+            '<a class="pl-who-link" href="?internalpage=single_stic_pasar_lista_monitor&monitor=m1&vengo=resumen">David Soler</a>',
+            $html
+        );
+        // Sin relaciones de monitor, el texto del grupo en el CRM.
+        $this->assertStringContainsString('<span class="pl-who-name">Mercedes</span>', $html);
+    }
+
+    public function test_un_monitor_raso_lee_quien_lleva_el_grupo_sin_enlace()
+    {
+        $this->scp->coordEtapa = null;
+        $html = $this->render('single_stic_pasar_lista_resumen');
+        $this->assertStringContainsString('<span class="pl-who-name">David Soler</span>', $html);
+        $this->assertStringNotContainsString('class="pl-who-link"', $html);
+    }
+
+    /** Y de la ficha se vuelve al Resumen, a seguir repasando huecos. */
+    public function test_la_ficha_del_monitor_abierta_desde_el_resumen_vuelve_al_resumen()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_REQUEST = array('monitor' => 'm1', 'vengo' => 'resumen');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+        $this->assertStringContainsString('class="pl-back" href="?internalpage=single_stic_pasar_lista_resumen"', $html);
+        $this->assertStringContainsString('Volver al resumen de grupos', $html);
+    }
+
     public function test_resumen_lista_los_participantes_sin_grupo()
     {
         $html = $this->render('single_stic_pasar_lista_resumen');

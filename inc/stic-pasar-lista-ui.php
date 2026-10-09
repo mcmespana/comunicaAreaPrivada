@@ -257,7 +257,7 @@ function sticpa_pl_person_link_html($person, $href, $sub = '', $extra = '', $con
 function sticpa_pl_vengo_modo($vengo)
 {
     $vengo = (string) $vengo;
-    $conocidos = array('grupo', 'grupos', 'cursos', 'az', 'monitores');
+    $conocidos = array('grupo', 'grupos', 'cursos', 'az', 'monitores', 'resumen');
     return in_array($vengo, $conocidos, true) ? $vengo : '';
 }
 
@@ -280,6 +280,11 @@ function sticpa_pl_vengo_url($vengo, $vgrupo = '')
     if ($vengo === 'monitores') {
         // El directorio de monitores vive en Coordinación desde el 28/09/2026.
         return '?internalpage=single_stic_coordinacion';
+    }
+    if ($vengo === 'resumen') {
+        // Del nombre de quien lleva un grupo en el Resumen (plan 042, COO-7):
+        // se vuelve a seguir repasando huecos.
+        return '?internalpage=single_stic_pasar_lista_resumen';
     }
     return '';
 }

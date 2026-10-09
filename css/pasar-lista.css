@@ -3648,3 +3648,32 @@ a.pl-group .pl-name { display: block; }
 @media (prefers-reduced-motion: reduce) {
     .pl-lasthero-chip { transition: none; }
 }
+
+/* ---- COO-7: quién lleva cada grupo, en el Resumen ------------------------
+   Una línea bajo el código. Cada nombre es un enlace a la ficha del monitor
+   (WhatsApp y Llamar arriba del todo) para quien puede abrirla; el alto de
+   44 px se come el hueco de la fila con margen negativo para que la línea no
+   aparte la tira más de lo que se ve. */
+.pl-grouprow-who {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 0.4rem;
+    margin: -0.55rem 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--gray-500);
+}
+.pl-who-link,
+.pl-who-name { display: inline-flex; align-items: center; min-height: 44px; }
+.pl-who-name { min-height: 1.6rem; }
+.pl-who-link {
+    color: var(--primary-color) !important;   /* el tema subraya y repinta los enlaces de .entry-content */
+    text-decoration: none !important;
+    -webkit-tap-highlight-color: transparent;
+}
+.pl-who-link:active { transform: scale(0.97); }
+@media (hover: hover) {
+    .pl-who-link:hover { text-decoration: underline !important; text-underline-offset: 0.18em; }
+}
+.pl-who-sep { color: var(--gray-400); }
