@@ -153,12 +153,7 @@ if ($mainGroupId !== '') {
             $meta[] = $group['cursos'];
         }
         if ($done) {
-            $meta[] = sprintf(
-                /* translators: 1: cuántos vinieron, 2: cuántas ausencias */
-                __('%1$d vinieron, %2$d ausencias', 'sticpa'),
-                $lista['n_asistieron'],
-                $lista['n_faltaron']
-            );
+            $meta[] = sticpa_pl_vinieron_ausencias($lista['n_asistieron'], $lista['n_faltaron']);
         } else {
             // El artboard pone el RANGO, «16:30 – 18:00»: lo que se quiere
             // saber antes de entrar es cuánto dura, no solo cuándo empieza.

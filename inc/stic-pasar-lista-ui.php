@@ -526,12 +526,17 @@ function sticpa_pl_legend_html($monitores = false)
             . '<span class="pl-legend-label">' . esc_html($states[$key]['label']) . '</span>'
             . '</span>';
     }
-    $html .= '<span class="pl-hold-hint"><span class="pl-hold-ring" aria-hidden="true"></span>'
-        . esc_html__('Mantén pulsado', 'sticpa') . '</span>';
     $html .= '</div>';
 
+    /* UNA SOLA EXPLICACIÓN DEL GESTO (plan 042, PL-10). Había un chip
+     * «Mantén pulsado» con borde, fondo y letra de marca —parecía un botón
+     * secundario y no hacía nada— y justo debajo la nota lo repetía. Se queda
+     * la nota, y el anillo que late (lo que hace que el gesto se descubra)
+     * pasa a ser su icono. */
+    $ring = '<span class="pl-hold-ring" aria-hidden="true"></span>';
+
     if ($monitores) {
-        $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
+        $html .= '<p class="pl-hint pl-hint--hold">' . $ring . '<span>'
             . sprintf(
                 /* translators: %s: "marcar una falta" en negrita */
                 esc_html__('Toca la fila para %s. Mantén pulsado para justificarla y escribir el motivo.', 'sticpa'),
@@ -541,7 +546,7 @@ function sticpa_pl_legend_html($monitores = false)
         return $html;
     }
 
-    $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
+    $html .= '<p class="pl-hint pl-hint--hold">' . $ring . '<span>'
         . sprintf(
             /* translators: %s: "vino / no vino" en negrita */
             esc_html__('Toca la fila para %s. Mantén pulsado para parcial o justificar.', 'sticpa'),
@@ -1047,15 +1052,32 @@ function sticpa_pl_saved_summary($counts, $omitida = false)
     if ($omitida) {
         return __('Guardada como «sin registro»', 'sticpa');
     }
-    $yes = isset($counts['yes']) ? (int) $counts['yes'] : 0;
-    $no = isset($counts['no']) ? (int) $counts['no'] : 0;
     return sprintf(
-        /* translators: 1: «2 vinieron», 2: «1 ausencia» */
-        __('Lista guardada · %1$s, %2$s', 'sticpa'),
+        /* translators: %s: «2 vinieron, 1 ausencia» */
+        __('Lista guardada · %s', 'sticpa'),
+        sticpa_pl_vinieron_ausencias(
+            isset($counts['yes']) ? $counts['yes'] : 0,
+            isset($counts['no']) ? $counts['no'] : 0
+        )
+    );
+}
+
+/**
+ * «2 vinieron, 1 ausencia», con el plural de cada número (plan 042, PL-10).
+ * Era un número y una palabra fija: «1 vinieron, 1 ausencias».
+ */
+function sticpa_pl_vinieron_ausencias($yes, $no, $sep = ', ')
+{
+    $yes = (int) $yes;
+    $no = (int) $no;
+    return sprintf(
         /* translators: %d: cuántos vinieron */
-        sprintf(_n('%d vino', '%d vinieron', $yes, 'sticpa'), $yes),
+        _n('%d vino', '%d vinieron', $yes, 'sticpa'),
+        $yes
+    ) . $sep . sprintf(
         /* translators: %d: cuántas ausencias */
-        sprintf(_n('%d ausencia', '%d ausencias', $no, 'sticpa'), $no)
+        _n('%d ausencia', '%d ausencias', $no, 'sticpa'),
+        $no
     );
 }
 

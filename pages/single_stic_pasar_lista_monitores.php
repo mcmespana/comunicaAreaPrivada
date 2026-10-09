@@ -525,9 +525,13 @@ $html .= sticpa_pl_savebar_status_html(
 );
 $html .= '<div class="pl-counts">';
 $html .= '<span class="pl-count"><span class="pl-count-dot pl-count-dot--yes"></span>'
-    . '<span data-pl-count-yes>0</span>&nbsp;' . esc_html__('vinieron', 'sticpa') . '</span>';
+    . '<span data-pl-count-yes>0</span>&nbsp;<span data-pl-word="yes"'
+    . ' data-one="' . esc_attr__('vino', 'sticpa') . '" data-many="' . esc_attr__('vinieron', 'sticpa') . '">'
+    . esc_html__('vinieron', 'sticpa') . '</span></span>';
 $html .= '<span class="pl-count"><span class="pl-count-dot pl-count-dot--no"></span>'
-    . '<span data-pl-count-no>0</span>&nbsp;' . esc_html__('faltas', 'sticpa') . '</span>';
+    . '<span data-pl-count-no>0</span>&nbsp;<span data-pl-word="no"'
+    . ' data-one="' . esc_attr__('falta', 'sticpa') . '" data-many="' . esc_attr__('faltas', 'sticpa') . '">'
+    . esc_html__('faltas', 'sticpa') . '</span></span>';
 $html .= '</div>';
 $html .= '<button type="submit" name="pl_action" value="save" class="pl-save' . ($savedOk ? ' is-saved' : '') . '" data-pl-save'
     . ' data-label-full="' . esc_attr__('Guardar', 'sticpa') . '"'

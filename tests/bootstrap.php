@@ -188,6 +188,10 @@ if (!function_exists('_n')) {
     function _n($single, $plural, $number, $domain = null) { return ($number == 1) ? $single : $plural; }
 }
 if (!function_exists('esc_sql')) { function esc_sql($v) { return $v; } }
+// Como WordPress en es_ES: coma decimal y punto de miles.
+if (!function_exists('number_format_i18n')) {
+    function number_format_i18n($n, $d = 0) { return number_format((float) $n, (int) $d, ',', '.'); }
+}
 if (!function_exists('esc_js')) { function esc_js($v) { return addslashes((string) $v); } }
 if (!function_exists('home_url')) { function home_url($path = '') { return 'https://example.test' . $path; } }
 if (!function_exists('status_header')) { function status_header($code) { return $code; } }

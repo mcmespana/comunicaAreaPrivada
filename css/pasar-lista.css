@@ -522,20 +522,10 @@ html.pl-holding body * {
 .pl-legend-dot--just    { background: var(--warning-color); }
 .pl-legend-dot--no      { background: var(--danger-color); }
 
-/* El chip que anuncia el gesto largo. Sin esto, "parcial" y "justificada" son
-   invisibles: nadie descubre solo que hay que mantener pulsado. */
-.pl-hold-hint {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    padding: 0.3rem 0.7rem 0.3rem 0.5rem;
-    border-radius: var(--radius-full);
-    background: var(--surface);
-    border: 1px dashed var(--gray-300);
-    font-size: 0.74rem;
-    font-weight: 700;
-    color: var(--primary-color);
-}
+/* El anillo que anuncia el gesto largo. Sin esto, "parcial" y "justificada"
+   son invisibles: nadie descubre solo que hay que mantener pulsado. Era un
+   chip con borde y letra de marca que parecía un botón; desde el plan 042
+   (PL-10) es el icono de la nota de la leyenda, que ya lo explicaba. */
 .pl-hold-ring {
     position: relative;
     display: flex;
@@ -1342,7 +1332,6 @@ body.sticpa-app-mode .pl-sheet { padding-bottom: 11.5rem; }
     .pl-card { border: 1px solid var(--gray-400); }
     .pl-mark { border-style: solid; border-color: var(--gray-500); }
     .pl-savebar { background: var(--surface); backdrop-filter: none; border-top: 2px solid var(--gray-400); }
-    .pl-hold-hint { border-style: solid; }
 }
 
 /* ---- Home: el atajo ----------------------------------------------------- */
@@ -3558,3 +3547,17 @@ a.pl-group .pl-name { display: block; }
     }
     .pl-strip-link:active { background: color-mix(in srgb, var(--gray-500) 10%, transparent); }
 }
+
+/* ---- PL-10: «Llamar a Marta (madre)» -------------------------------------
+   Los botones grandes de la ficha dicen a quién llaman. Si a 375 no cabe, el
+   texto pasa a dos líneas DENTRO del botón, centrado, en vez de cortarse. */
+.pl-contact-btn span {
+    min-width: 0;
+    text-align: center;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
+/* ---- PL-10: el anillo del gesto largo, como icono de la nota ------------- */
+.pl-hint--hold { align-items: center; }
+.pl-hint--hold .pl-hold-ring { margin-top: 0; }

@@ -1523,9 +1523,13 @@ final class PasarListaRenderTest extends TestCase
         $_REQUEST = array('grupo' => 'g1');
         $html = $this->render('single_stic_pasar_lista_marcar');
 
-        // Sin el chip, parcial y justificada son invisibles para el usuario.
+        // Sin el aviso del gesto, parcial y justificada son invisibles. Ya no
+        // es un chip con aspecto de botón (plan 042, PL-10): el anillo que
+        // late es el icono de la nota, y la explicación sale una sola vez.
         $this->assertStringContainsString('Mantén pulsado', $html);
         $this->assertStringContainsString('pl-hold-ring', $html);
+        $this->assertStringNotContainsString('pl-hold-hint', $html);
+        $this->assertSame(1, substr_count($html, 'Mantén pulsado'));
         // La hoja, con los cuatro estados del CRM.
         $this->assertStringContainsString('data-pl-sheet', $html);
         foreach (array('yes', 'partial', 'no_justified', 'no_unjustified') as $key) {
@@ -4902,9 +4906,11 @@ final class PasarListaRenderTest extends TestCase
         // g3 es el grupo sin nadie del doble.
         $_REQUEST = array('grupo' => 'g3');
         $html = $this->render('single_stic_pasar_lista_marcar');
-        $this->assertStringContainsString('no tiene participantes', $html);
+        // Sin mandar a un monitor al CRM, que no tiene (plan 042, PL-10).
+        $this->assertStringContainsString('no tiene a nadie apuntado', $html);
+        $this->assertStringNotContainsString('CRM', $html);
         $this->assertStringContainsString('refrescar=1', $html);
-        $this->assertStringContainsString('Ya lo he arreglado', $html);
+        $this->assertStringContainsString('Volver a mirar', $html);
     }
 
     /** Las rachas se calculan sobre las asistencias: caducan con ellas. */

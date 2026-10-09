@@ -106,12 +106,7 @@ if ($wantSessions && $groupId !== '' && isset($groups[$groupId])) {
             $doneClass = 'pl-done--yes';
             $doneInner = sticpa_pl_glyph('check');
             $meta = ($lista !== null)
-                ? esc_html(sprintf(
-                    /* translators: 1: cuántos vinieron, 2: cuántas ausencias */
-                    __('%1$d vinieron · %2$d ausencias', 'sticpa'),
-                    $lista['n_asistieron'],
-                    $lista['n_faltaron']
-                ))
+                ? esc_html(sticpa_pl_vinieron_ausencias($lista['n_asistieron'], $lista['n_faltaron'], ' · '))
                 : esc_html__('Pasada', 'sticpa');
         } elseif ($mark === 'skip') {
             $doneClass = 'pl-done--skip';

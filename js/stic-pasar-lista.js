@@ -449,6 +449,14 @@
             if (counts.no) { counts.no.textContent = nNo; }
             if (counts.none) { counts.none.textContent = nNone; }
             if (counts.noneWrap) { counts.noneWrap.hidden = (nNone === 0); }
+            // La palabra acompaña al número: «1 vino», «2 vinieron» (plan 042,
+            // PL-10). Antes era fija y salía «1 vinieron · 1 ausencias».
+            var byKey = { yes: nYes, no: nNo };
+            Array.prototype.forEach.call(root.querySelectorAll('[data-pl-word]'), function (w) {
+                var n = byKey[w.getAttribute('data-pl-word')];
+                var word = w.getAttribute(n === 1 ? 'data-one' : 'data-many');
+                if (word) { w.textContent = word; }
+            });
 
             // Si queda gente sin marcar, el botón lo dice en vez de callárselo.
             if (saveBtn && !saveBtn.disabled) {

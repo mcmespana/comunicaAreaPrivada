@@ -355,17 +355,21 @@ if ($lista !== null && $lista['estado'] !== '') {
 }
 
 if (empty($people['participants'])) {
+    // Sin hablar de CRM (plan 042, PL-10): quien lee esto es un monitor, que
+    // no tiene CRM, y el caso de siempre es el 1 de septiembre, cuando las
+    // relaciones del curso se cierran. Lo mismo que ya dice Mis grupos.
     $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
-        . esc_html__('Este grupo no tiene participantes con relación vigente. Revisa las relaciones en el CRM.', 'sticpa')
+        . esc_html__('Este grupo no tiene a nadie apuntado este curso todavía. Suele pasar al empezar el curso: avisa a coordinación.', 'sticpa')
         . '</span></p>';
-    // Y una salida: el caso normal es que se acabe de arreglar la relación en el
-    // CRM y haga falta volver a preguntar. Sin este enlace hay que salir a la
-    // portada, refrescar allí y volver a entrar — o esperar 12 horas a que
-    // caduque la caché, que es lo que pasaba.
+    // Y una salida: el caso normal es que coordinación acabe de arreglar la
+    // relación y haga falta volver a preguntar. Sin este enlace hay que salir a
+    // la portada, refrescar allí y volver a entrar — o esperar a que caduque la
+    // caché. El texto es neutro: «Ya lo he arreglado» solo lo podía decir
+    // coordinación.
     $html .= '<p><a class="pl-session-pick" href="?internalpage=single_stic_pasar_lista_marcar&grupo='
         . rawurlencode($groupId) . '&sesion=' . rawurlencode($session['id']) . '&refrescar=1">'
         . sticpa_pl_icon('refresh') . '<span>'
-        . esc_html__('Ya lo he arreglado, vuelve a mirar', 'sticpa') . '</span></a></p>';
+        . esc_html__('Volver a mirar', 'sticpa') . '</span></a></p>';
     $html .= '</div>';
     return;
 }
@@ -452,9 +456,13 @@ $html .= sticpa_pl_savebar_status_html(
 );
 $html .= '<div class="pl-counts">';
 $html .= '<span class="pl-count"><span class="pl-count-dot pl-count-dot--yes"></span>'
-    . '<span data-pl-count-yes>0</span>&nbsp;' . esc_html__('vinieron', 'sticpa') . '</span>';
+    . '<span data-pl-count-yes>0</span>&nbsp;<span data-pl-word="yes"'
+    . ' data-one="' . esc_attr__('vino', 'sticpa') . '" data-many="' . esc_attr__('vinieron', 'sticpa') . '">'
+    . esc_html__('vinieron', 'sticpa') . '</span></span>';
 $html .= '<span class="pl-count"><span class="pl-count-dot pl-count-dot--no"></span>'
-    . '<span data-pl-count-no>0</span>&nbsp;' . esc_html__('ausencias', 'sticpa') . '</span>';
+    . '<span data-pl-count-no>0</span>&nbsp;<span data-pl-word="no"'
+    . ' data-one="' . esc_attr__('ausencia', 'sticpa') . '" data-many="' . esc_attr__('ausencias', 'sticpa') . '">'
+    . esc_html__('ausencias', 'sticpa') . '</span></span>';
 $html .= '<span class="pl-count pl-count--none" data-pl-count-none-wrap hidden>'
     . '<span class="pl-count-dot pl-count-dot--none"></span>'
     . '<span data-pl-count-none>0</span>&nbsp;' . esc_html__('sin marcar', 'sticpa') . '</span>';

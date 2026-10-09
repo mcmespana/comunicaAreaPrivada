@@ -4318,6 +4318,9 @@ function sticpa_pl_family($objSCP, $contactId)
         $people[] = array(
             'id' => $id,
             'name' => $full,
+            // El nombre de pila, para decir a quién llaman los botones grandes
+            // de la ficha («Llamar a Marta»), plan 042 PL-10.
+            'first' => $first,
             'initials' => sticpa_pl_initials($first, $last, $full),
             'mobile' => isset($datos['mobile']) ? $datos['mobile'] : '',
             'email' => isset($datos['email']) ? $datos['email'] : '',
