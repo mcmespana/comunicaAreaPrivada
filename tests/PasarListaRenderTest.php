@@ -1335,6 +1335,28 @@ final class PasarListaRenderTest extends TestCase
 
     // ---- Home ------------------------------------------------------------
 
+    /**
+     * LA LISTA OLVIDADA DEL SÁBADO PASADO, en la portada (plan 042, PL-4).
+     * En el doble, la sesión de hoy (s3) de C1 está pasada y las dos
+     * anteriores (s1, s2) no tienen lista: el atajo dice «Revisar la lista» y,
+     * hasta ahora, del hueco no se decía nada. Y sin llamadas nuevas: las
+     * listas son las de la primera tanda.
+     */
+    public function test_home_avisa_de_las_listas_atrasadas_del_grupo_del_atajo()
+    {
+        $html = $this->render('single_stic_pasar_lista');
+
+        $this->assertStringContainsString('Revisar la lista', $html);
+        $this->assertStringContainsString('Te faltan 2 listas', $html);
+        $this->assertStringContainsString('grupo=g1&sesion=s2', $html);
+        $this->assertStringContainsString('grupo=g1&sesion=s1', $html);
+        // La más reciente primero.
+        $this->assertLessThan(strpos($html, 'grupo=g1&sesion=s1'), strpos($html, 'grupo=g1&sesion=s2'));
+        // La de hoy no se repite como deuda: ya la enseña el atajo.
+        $this->assertSame(1, substr_count($html, 'grupo=g1&sesion=s3'));
+        $this->assertCount(7, $this->scp->calls);
+    }
+
     public function test_home_pinta_el_atajo_de_tu_grupo()
     {
         $html = $this->render('single_stic_pasar_lista');

@@ -233,6 +233,13 @@ Debajo, el bloque de **listas que faltan** (solo si las hay) — esto es lo que 
 no existe y hace que se pierdan semanas. Después, el acceso a **otro grupo** por
 etapa, y al final el resumen.
 
+**Qué entra en «listas que faltan»** (09/10/2026, plan 042 PL-4): de todos tus
+grupos —también el del atajo—, la sesión que toca si está sin pasar y las
+**anteriores sin lista de las últimas cuatro sesiones celebradas** (un mes). La
+más reciente arriba; con más de cuatro, tres y una fila «Y N más» que lleva al
+historial del grupo. No cuesta llamadas: sale de `sticpa_pl_all_listas()` y de
+las sesiones que la portada ya trae en sus dos tandas.
+
 Si el monitor lleva varios grupos, salen varias tarjetas. Si no lleva ninguno
 (coordinación), se entra directo al árbol.
 
