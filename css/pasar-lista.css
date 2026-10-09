@@ -3533,3 +3533,28 @@ a.pl-group .pl-name { display: block; }
    La entrada al historial del grupo. Un enlace discreto (`.pl-ghost`), a la
    altura de la nota de la leyenda: no compite con «Guardar». */
 .pl-history-link { margin: 0.1rem 0 0; }
+
+/* ---- PL-6: la tira del resumen, a dedo ----------------------------------
+   Con puntero grueso las celdas (14×7 px) son decoración y `.pl-strip-link`,
+   hermano de las celdas, cubre la tira entera y lleva al historial del grupo.
+   Se estira hacia el hueco de encima y el relleno de debajo de la fila para
+   llegar a ~48 px sin hacer la fila mucho más alta. Con ratón no existe y las
+   celdas siguen siendo enlaces. La cabecera de la fila, también a 44 px. */
+.pl-grouprow-top { min-height: 44px; }
+.pl-strip { position: relative; }
+.pl-strip-link { display: none; }
+@media (pointer: coarse) {
+    .pl-strip { min-height: 28px; }
+    .pl-strip .pl-cell { pointer-events: none; }
+    .pl-strip-link {
+        display: block;
+        position: absolute;
+        top: -0.5rem;
+        bottom: -0.75rem;
+        left: 0;
+        right: 0;
+        border-radius: var(--radius-md);
+        -webkit-tap-highlight-color: transparent;
+    }
+    .pl-strip-link:active { background: color-mix(in srgb, var(--gray-500) 10%, transparent); }
+}

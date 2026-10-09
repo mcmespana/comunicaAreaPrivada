@@ -6007,6 +6007,26 @@ final class PasarListaRenderTest extends TestCase
     }
 
     /**
+     * En el móvil las celdas no se distinguen con el dedo: la tira lleva
+     * además UN enlace al historial del grupo, hermano de las celdas (plan
+     * 042, PL-6). Y la pastilla no dice «Al día» si hay huecos: en el doble
+     * C1 tiene la última pasada y dos sin pasar.
+     */
+    public function test_la_tira_del_resumen_lleva_al_historial_y_la_pastilla_no_miente()
+    {
+        $html = $this->render('single_stic_pasar_lista_resumen');
+
+        $this->assertStringContainsString(
+            '<a class="pl-strip-link" href="?internalpage=single_stic_pasar_lista_grupos&grupo=g1&sesiones=1"',
+            $html
+        );
+        $fila = substr($html, strpos($html, 'grupo=g1"'), 1500);
+        $this->assertStringContainsString('2 sin pasar', $fila);
+        $this->assertStringNotContainsString('Al día', $fila);
+        $this->assertStringContainsString('Pasada', $fila);
+    }
+
+    /**
      * Y NO anidados: un `<a>` dentro de otro no es HTML válido y deja el de
      * fuera inalcanzable con el teclado. La cabecera y la tira son hermanas.
      */
