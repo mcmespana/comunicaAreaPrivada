@@ -680,7 +680,10 @@ declarar lo suyo también con `!important`.
 Lista que sea un `<button>`, un `<label>` o lleve un `<input>` dentro pasa por
 §0.b/§0.c/§0.d antes de darse por bueno.** Y ojo con el efecto secundario: una
 regla de `display` con `!important` se come los `display: none` que la esconden,
-así que esos también tienen que llevarlo (le pasó al motivo).
+así que esos también tienen que llevarlo (le pasó al motivo). Los dos que se
+habían escapado, `.pl-copy` (copiar el correo en la ficha del monitor) y
+`.pl-review-btn` («Vincular» en Coordinación y en Mis grupos → Sin grupo), entraron
+en §0.b el 09/10/2026 (plan 042, COO-6).
 
 ### 3.6-bis El texto original sobre los `<button>`
 
