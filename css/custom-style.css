@@ -2073,22 +2073,47 @@ span.stic-field {
 .stic-form li.stic-send {
     width: 100% !important;
 }
-.stic-send {
+/* OJO, ESPECIFICIDAD (plan 042, FAM-a6). Esto iba con `.stic-send` a secas
+   (0,1,0) y NUNCA se aplicó dentro de un formulario: perdía contra
+   `.stic-form li {display:block}` y, desde 640 px, contra
+   `.stic-form-two-col li {display:inline-block}` (stic-base.css, y todo
+   formulario del motor lleva stic-form-two-col). Resultado: dos botones a
+   1200 px apilados en escritorio y una barra pegajosa de 154 px en móvil.
+   Con `.stic-form li.stic-send` (0,2,1) gana a los dos sin !important. */
+.stic-send,
+.stic-form li.stic-send {
     display: flex;
     flex-wrap: wrap;
     gap: 0.7rem;
     align-items: center;
     justify-content: flex-end;   /* acciones agrupadas a la derecha en escritorio */
+    grid-column: 1 / -1;         /* en las tarjetas de 2 columnas, la fila entera */
+    margin-right: 0;             /* el de .stic-form-two-col li */
+    padding-bottom: 0;           /* el de .stic-form li: la barra ya lleva el suyo */
+    margin-bottom: 0;
 }
-/* En escritorio los botones se ajustan al contenido (no estirados a lo ancho). */
-.stic-send .stic-button {
+/* En escritorio los botones se ajustan al contenido (no estirados a lo ancho).
+   `width:auto` para ganar al `width:100%` de los botones en stic-base.css. */
+.stic-form li.stic-send .stic-button {
     flex: 0 0 auto;
+    width: auto;
     min-width: 148px;
-    padding-left: 1.5rem !important;
-    padding-right: 1.5rem !important;
 }
-/* "Atrás" queda a la izquierda, separado del grupo Guardar / Eliminar. */
-.stic-send .stic-back-button { margin-right: auto; }
+@media (min-width: 601px) {
+    .stic-form li.stic-send .stic-button {
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
+    }
+}
+/* "Atrás" queda a la izquierda, separado del grupo Guardar / Eliminar. Es el
+   .stic-back-button o, en los formularios que no le ponen la clase, el
+   `type="button"` (que ya se pinta como secundario, abajo). Solo el primero:
+   si hay dos secundarios, el segundo va con el grupo. */
+.stic-form li.stic-send :is(.stic-back-button, input.stic-button[type="button"]) { margin-right: auto; }
+.stic-form li.stic-send :is(.stic-back-button, input.stic-button[type="button"]) ~ :is(.stic-back-button, input.stic-button[type="button"]) { margin-right: 0; }
+/* El aviso «Subiendo archivo…» (lo mete el JS de subir documento) va en su
+   propia línea, no apretado entre los botones. */
+.stic-form li.stic-send > div { flex: 1 0 100%; order: 5; }
 
 /* "Atrás" y secundarios: aspecto sutil, no gradiente. */
 .stic-send input.stic-button[type="button"],
@@ -2121,11 +2146,16 @@ span.stic-field {
 }
 .stic-danger-button::after { display: none !important; }
 
-/* Móvil: botones a ancho completo y apilados, "Atrás" al final. */
+/* Móvil: UNA fila. «Volver» compacto a la izquierda y el principal ocupando
+   el resto; antes iban apilados (con «Atrás» encima, porque esto no se
+   aplicaba) y la barra pegajosa se comía 154 px de pantalla. Si no caben en
+   una fila (tres botones largos), bajan solos. */
 @media (max-width: 600px) {
-    .stic-send { justify-content: stretch; }
-    .stic-send .stic-button { flex: 1 1 100%; min-width: 0; }
-    .stic-send .stic-back-button { margin-right: 0; order: 3; }
+    .stic-form li.stic-send { justify-content: stretch; }
+    .stic-form li.stic-send .stic-button { flex: 1 1 auto; min-width: 0; }
+    .stic-form li.stic-send :is(.stic-back-button, input.stic-button[type="button"]) { flex: 0 0 auto; }
+    .stic-form li.stic-send > span.desc { flex: 1 1 auto; }
+    .stic-form li.stic-send > span.desc input[type="submit"] { width: 100%; }
 }
 
 /* --- 23.b Botón suelto (crear / certificado) sobre su propia línea --- */
