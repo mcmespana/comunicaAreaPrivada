@@ -159,38 +159,48 @@ foreach (array('MIC', 'COM', 'LC') as $etapa) {
         continue;
     }
     /* El artboard `Resumen` pone el número de PARTICIPANTES como número grande
-     * y «8 grupos · 12 mon.» debajo. El número grande era el de grupos, que ya
-     * está en la línea de abajo: dos veces el mismo dato y ninguno el que se
-     * busca al abrir el resumen. Los participantes y los monitores salen del
-     * recuento nocturno, así que no cuestan una consulta.
+     * y los grupos y monitores debajo. Salen del recuento nocturno, así que no
+     * cuestan una consulta.
      *
-     * Si no hay recuentos frescos en esa etapa, el número grande vuelve a ser
-     * el de grupos y la línea de abajo NO lo repite: un número inventado no, y
-     * el mismo dato dos veces tampoco. */
+     * LA SUMA, ENTERA O NADA (plan 042, COO-4). Antes se sumaban solo los
+     * grupos con recuento fresco y la línea de abajo contaba todos: «COM 11 ·
+     * 2 grupos» eran los 11 del C1, y el C2 (recuento de septiembre) no
+     * entraba sin que nada lo dijera. RECUENTOS §6: si el dato es viejo, la
+     * pantalla se calla. Ahora, si a un grupo de la etapa le falta el recuento
+     * al día, el número grande es el de GRUPOS y la línea de abajo dice que no
+     * hay recuento. Y el número lleva SIEMPRE su unidad pegada: el mismo hueco
+     * decía chavales en una tarjeta y grupos en la de al lado. */
     $nGrupos = count($byEtapa[$etapa]);
     $nPart = 0;
     $nMon = 0;
-    $fresco = false;
+    $nFrescos = 0;
     foreach ($byEtapa[$etapa] as $g) {
-        if (!sticpa_pl_recuento_fresco(isset($g['recuento_al']) ? $g['recuento_al'] : '')) {
+        if (!sticpa_pl_recuento_fresco(isset($g['recuento_al']) ? $g['recuento_al'] : '')
+            || !isset($g['n_participantes']) || (int) $g['n_participantes'] < 0) {
             continue;
         }
-        if (isset($g['n_participantes']) && (int) $g['n_participantes'] >= 0) {
-            $nPart += (int) $g['n_participantes'];
-            $fresco = true;
-        }
+        $nFrescos++;
+        $nPart += (int) $g['n_participantes'];
         if (isset($g['n_monitores']) && (int) $g['n_monitores'] >= 0) {
             $nMon += (int) $g['n_monitores'];
         }
     }
+    $completo = ($nFrescos === $nGrupos);
 
     $html .= '<div class="pl-card">';
     $html .= '<div class="pl-card-head"><span class="pl-etapa-dot" style="background:'
         . esc_attr($etapaColors[$etapa]) . '"></span>' . esc_html($etapa) . '</div>';
-    $html .= '<div class="pl-card-num">' . esc_html($fresco ? (string) $nPart : (string) $nGrupos) . '</div>';
+    $num = $completo ? $nPart : $nGrupos;
+    $unidad = $completo
+        /* translators: unidad del número grande de la tarjeta de etapa. El
+         * término lo decide el propietario (plan 042, PL-10 punto 5). */
+        ? _n('chaval', 'chavales', $nPart, 'sticpa')
+        : _n('grupo', 'grupos', $nGrupos, 'sticpa');
+    $html .= '<div class="pl-card-num">' . esc_html((string) $num)
+        . '<span class="pl-card-unit">' . esc_html($unidad) . '</span></div>';
 
     $meta = array();
-    if ($fresco) {
+    if ($completo) {
         $meta[] = sprintf(
             /* translators: %d: número de grupos de la etapa */
             _n('%d grupo', '%d grupos', $nGrupos, 'sticpa'),
@@ -198,15 +208,27 @@ foreach (array('MIC', 'COM', 'LC') as $etapa) {
         );
         if ($nMon > 0) {
             $meta[] = sprintf(
-                /* translators: %d: número de monitores. Abreviado: cabe poco. */
-                __('%d mon.', 'sticpa'),
+                /* translators: %d: número de monitores de la etapa */
+                _n('%d monitor', '%d monitores', $nMon, 'sticpa'),
                 $nMon
             );
         }
+    } elseif ($nFrescos === 0) {
+        $meta[] = __('sin recuento', 'sticpa');
     } else {
-        $meta[] = _n('grupo', 'grupos', $nGrupos, 'sticpa');
+        // Corto a propósito: la tarjeta mide 110 px a 375.
+        $meta[] = sprintf(
+            /* translators: %d: grupos de la etapa sin recuento al día */
+            _n('%d sin recuento', '%d sin recuento', $nGrupos - $nFrescos, 'sticpa'),
+            $nGrupos - $nFrescos
+        );
     }
-    $html .= '<div class="pl-card-meta">' . esc_html(implode(' · ', $meta)) . '</div>';
+    // Una línea por dato: «1 grupo · 1 / mon.» se partía por la mitad a 375.
+    $html .= '<div class="pl-card-meta">';
+    foreach ($meta as $m) {
+        $html .= '<span>' . esc_html($m) . '</span>';
+    }
+    $html .= '</div>';
     $html .= '</div>';
 }
 $html .= '</div>';

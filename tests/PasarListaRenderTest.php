@@ -3243,6 +3243,30 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('Volver al resumen de grupos', $html);
     }
 
+    /**
+     * LAS TARJETAS DE ETAPA: LA SUMA, ENTERA O NADA, Y CON UNIDAD (plan 042,
+     * COO-4). En el doble, C1 tiene 11 chavales con recuento del 15/11 y C2
+     * un recuento viejo: la tarjeta COM decía «11» como si fuera el total.
+     */
+    public function test_la_tarjeta_de_etapa_no_da_una_suma_parcial_por_total()
+    {
+        $html = $this->render('single_stic_pasar_lista_resumen');
+
+        $cards = substr($html, strpos($html, 'pl-cards'));
+        $cards = substr($cards, 0, strpos($cards, 'pl-lasthero'));
+        $com = substr($cards, strpos($cards, '>COM<'));
+        $com = substr($com, 0, strpos($com, 'pl-card-head') ?: strlen($com));
+        // El número grande es el de grupos, con su unidad, y se dice por qué.
+        $this->assertStringContainsString('2<span class="pl-card-unit">grupos</span>', $com);
+        $this->assertStringContainsString('1 sin recuento', $com);
+        $this->assertStringNotContainsString('>11<', $com);
+        // Donde todos tienen recuento, el número lleva su unidad pegada y la
+        // línea de abajo no abrevia.
+        $this->assertStringContainsString('<span class="pl-card-unit">chavales</span>', $cards);
+        $this->assertStringContainsString('1 monitor', $cards);
+        $this->assertStringNotContainsString('mon.', $cards);
+    }
+
     public function test_resumen_lista_los_participantes_sin_grupo()
     {
         $html = $this->render('single_stic_pasar_lista_resumen');

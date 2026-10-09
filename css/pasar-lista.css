@@ -1989,8 +1989,20 @@ a.pl-group .pl-name { display: block; }
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
-.pl-card-num { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
-.pl-card-meta { font-size: 0.72rem; font-weight: 500; color: var(--gray-500); }
+/* El número y su unidad, en la misma línea (plan 042, COO-4): «9 chavales», no
+   un «9» suelto. Si la unidad no cabe, baja entera, no partida. */
+.pl-card-num {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 0.3rem;
+    font-size: 1.7rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+}
+/* Un dato por línea: «1 grupo · 1 / mon.» se partía por la mitad a 375. */
+.pl-card-meta { display: flex; flex-direction: column; gap: 0.1rem; font-size: 0.72rem; font-weight: 500; color: var(--gray-500); }
 
 /* La pregunta con la que coordinación abre esta pantalla: "¿pasaron lista el
    sábado?". Va arriba, con el degradado de marca, y con el numerador Y el
@@ -3677,3 +3689,7 @@ a.pl-group .pl-name { display: block; }
     .pl-who-link:hover { text-decoration: underline !important; text-underline-offset: 0.18em; }
 }
 .pl-who-sep { color: var(--gray-400); }
+
+/* ---- COO-4: la unidad del número grande de cada etapa ---------------------
+   Del tamaño de la línea de abajo, para que el número siga mandando. */
+.pl-card-unit { font-size: 0.78rem; font-weight: 700; letter-spacing: 0; color: var(--gray-500); }
