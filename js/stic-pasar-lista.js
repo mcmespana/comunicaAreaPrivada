@@ -325,6 +325,8 @@
         var rows = Array.prototype.slice.call(root.querySelectorAll('.pl-row'));
         var saveBtn = root.querySelector('[data-pl-save]');
         var skipBtn = root.querySelector('[data-pl-skip]');
+        var allBtn = root.querySelector('[data-pl-all-present]');
+        var allLabel = allBtn ? allBtn.querySelector('[data-pl-all-label]') : null;
         var form = root.querySelector('[data-pl-form]');
         var marksInput = root.querySelector('[data-pl-marks]');
         var notesInput = root.querySelector('[data-pl-notes]');
@@ -446,6 +448,18 @@
                     ? (saveBtn.getAttribute('data-label-partial') || 'Guardar ({n} sin marcar)')
                     : (saveBtn.getAttribute('data-label-full') || 'Guardar lista');
                 saveBtn.textContent = tpl.replace('{n}', nNone);
+            }
+
+            // «Han venido todos» habla de lo que va a hacer: sin ninguna
+            // marca, todos; con alguna, «el resto» y cuántos; sin nadie por
+            // marcar, nada que hacer (plan 042, PL-2).
+            if (allBtn && allLabel) {
+                var marked = rows.length - nNone;
+                var tplAll = (marked === 0)
+                    ? (allBtn.getAttribute('data-label-all') || '')
+                    : (allBtn.getAttribute('data-label-rest') || '');
+                if (tplAll) { allLabel.textContent = tplAll.replace('{n}', nNone); }
+                allBtn.disabled = (nNone === 0);
             }
 
             // «Sin registro» confirma SIEMPRE, y con marcas en pantalla avisa
@@ -629,13 +643,18 @@
 
         /* ---- "Han venido todos" ---------------------------------------- */
 
-        var allBtn = root.querySelector('[data-pl-all-present]');
         if (allBtn) {
             allBtn.addEventListener('click', function () {
                 // Escalonado mínimo: las filas se marcan en cascada de arriba
                 // abajo. Cuesta 20 ms por fila y convierte un cambio de golpe
                 // (que se lee como un parpadeo) en algo que se entiende.
-                rows.forEach(function (row, i) {
+                // SOLO LO QUE ESTÁ SIN MARCAR (plan 042, PL-2). Antes ponía
+                // `yes` en todas las filas: quien marcaba primero las faltas y
+                // luego «el resto, todos» perdía las faltas, las justificadas
+                // con su motivo y las parciales, sin deshacer.
+                var empty = rows.filter(function (row) { return getState(row) === ''; });
+                if (!empty.length) { return; }
+                empty.forEach(function (row, i) {
                     if (REDUCED) {
                         setState(row, 'yes', i > 0);
                         return;

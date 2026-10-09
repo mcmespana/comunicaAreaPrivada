@@ -3452,3 +3452,19 @@ a.pl-group .pl-name { display: block; }
 ) {
     border: 1px solid var(--gray-200);
 }
+
+/* ==========================================================================
+   042 · PULIDO DEL LADO DEL MONITOR (plan 042, auditoría de Pasar Lista)
+   --------------------------------------------------------------------------
+   Lo nuevo de esa pasada, por hallazgo. Lo que cambiaba una regla que ya
+   existía se ha cambiado en su sitio; aquí solo va lo que no tenía dónde.
+   ========================================================================== */
+
+/* ---- PL-2: «El resto ha venido (0)» -------------------------------------
+   Sin nadie por marcar el botón no tiene nada que hacer y se apaga. Con
+   `!important` porque §0.b neutraliza al tema con `!important` y el botón
+   declara su relleno igual. */
+.pl-all-present[disabled] {
+    opacity: 0.5 !important;
+    cursor: default;
+}

@@ -268,7 +268,12 @@ pantalla y no una falta.
   vinieron— frente a los 10 de ir uno por uno. El AppSheet arrancaba en «no»
   porque no tenía ese botón; aquí no hace falta.
 - **«Han venido todos»** está arriba del todo: desmarcar dos ausentes es más
-  rápido que marcar diez.
+  rápido que marcar diez. **Solo rellena lo que está sin marcar** (09/10/2026,
+  plan 042 PL-2): sirven los dos órdenes —«todos y luego los que faltan» y
+  «los que faltan y luego el resto»— y ninguno borra una falta, una
+  justificada o una parcial ya puestas. Con alguna marca, el botón dice «El
+  resto ha venido (N)»; sin nadie por marcar, se apaga. Para poner en verde a
+  alguien que ya tenía otra marca está el toque en su fila.
 - **Tocar la fila entera** alterna sin marcar → vino → falta. El target es la
   fila completa.
 - **La flecha del final abre la ficha**, con 44 px de área táctil. Marcar es lo

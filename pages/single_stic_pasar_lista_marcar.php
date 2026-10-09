@@ -403,8 +403,15 @@ if ($lista === null || $lista['estado'] === '') {
 }
 
 // "Han venido todos": desmarcar dos ausentes es más rápido que marcar diez.
-$html .= '<button type="button" class="pl-all-present" data-pl-all-present>'
-    . sticpa_pl_glyph('check') . esc_html__('Han venido todos', 'sticpa') . '</button>';
+// Solo rellena lo que está SIN MARCAR (plan 042, PL-2): mucha gente marca
+// primero a los que faltan y luego «el resto, todos», y ese orden borraba en
+// silencio las faltas y las justificadas. Con alguna marca puesta el JS
+// cambia el texto a «El resto ha venido (N)» y lo apaga cuando N = 0.
+$html .= '<button type="button" class="pl-all-present" data-pl-all-present'
+    . ' data-label-all="' . esc_attr__('Han venido todos', 'sticpa') . '"'
+    /* translators: {n}: cuántas personas quedan sin marcar */
+    . ' data-label-rest="' . esc_attr__('El resto ha venido ({n})', 'sticpa') . '">'
+    . sticpa_pl_glyph('check') . '<span data-pl-all-label>' . esc_html__('Han venido todos', 'sticpa') . '</span></button>';
 
 $html .= '<div class="pl-list">';
 foreach ($people['participants'] as $p) {
