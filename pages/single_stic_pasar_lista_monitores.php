@@ -139,7 +139,7 @@ if (!empty($_POST['pl_action'])) {
             'pantalla' => 'monitores', 'motivo' => 'nonce',
             'sesion' => $session['id'], 'marcas_post' => strlen($marksRaw),
         ));
-        $html .= '<p class="pl-notice">' . sticpa_pl_icon('clock') . '<span>'
+        $html .= '<p class="pl-notice" data-pl-nonce-expired>' . sticpa_pl_icon('clock') . '<span>'
             . esc_html__('La sesión ha caducado. Vuelve a cargar la pantalla.', 'sticpa') . '</span></p>';
     } else {
         $marks = array();
@@ -302,6 +302,8 @@ $html .= '<div data-pl-marcar data-pl-monitores'
     . ($savedOk ? ' data-pl-saved-ok' : '')
     . ' data-session="' . esc_attr($session['id']) . '"'
     . ' data-group="monitores"'
+    . ' data-queue-label="' . esc_attr(($isReunion ? __('Reunión', 'sticpa') : __('Monitores', 'sticpa'))
+        . ' · ' . sticpa_pl_session_short($session, true)) . '"'
     . ' data-msg-dirty="' . esc_attr__('Cambios sin guardar · los datos están solo en tu móvil', 'sticpa') . '"'
     . ' data-msg-draft="' . esc_attr__('Tienes marcas sin guardar de antes.', 'sticpa') . '"'
     . ' data-msg-offline="' . esc_attr__('Sin cobertura. Puedes marcar: se guardará en el móvil.', 'sticpa') . '"'
@@ -327,7 +329,9 @@ if ($isReunion) {
     $html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html($titulo) . '</span></div>';
     $subtitulo = sticpa_pl_session_label($session) . ' · ' . $scopeLabel;
 } else {
-    $html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html__('Monitores', 'sticpa') . '</span>'
+    // El mismo nombre que la fila que la abre (plan 042, COO-9): «Monitores»
+    // a secas era justo el nombre que confundía (§5 quater).
+    $html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html__('Lista de monitores', 'sticpa') . '</span>'
         . '<span class="pl-title-name">' . esc_html($scopeLabel) . '</span></div>';
     // El día ya lo dice el selector de al lado: el subtítulo cuenta a cuántos
     // hay que repasar, que es lo que no se ve sin bajar.
@@ -523,7 +527,9 @@ $html .= sticpa_pl_savebar_status_html(
         sprintf(_n('%d falta', '%d faltas', (int) $saved['counts']['no'], 'sticpa'), (int) $saved['counts']['no'])
     ) : ''
 );
-$html .= '<div class="pl-counts">';
+// Los contadores se anuncian al cambiar (plan 042, PL-11): con lector de
+// pantalla, tocar una fila no decía nada.
+$html .= '<div class="pl-counts" aria-live="polite">';
 $html .= '<span class="pl-count"><span class="pl-count-dot pl-count-dot--yes"></span>'
     . '<span data-pl-count-yes>0</span>&nbsp;<span data-pl-word="yes"'
     . ' data-one="' . esc_attr__('vino', 'sticpa') . '" data-many="' . esc_attr__('vinieron', 'sticpa') . '">'

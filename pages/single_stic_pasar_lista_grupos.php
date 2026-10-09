@@ -182,6 +182,9 @@ $html .= '<a class="pl-session-pick" href="?internalpage=single_stic_pasar_lista
     . ' aria-label="' . esc_attr__('Refrescar datos', 'sticpa') . '">' . sticpa_pl_icon('refresh') . '</a>';
 $html .= '</div>';
 
+// Lo que se quedó en el móvil sin enviar (plan 042, PL-9). Lo rellena el JS.
+$html .= sticpa_pl_queue_notice_html();
+
 if (empty($groups)) {
     $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
         . esc_html__('No hay grupos de tu delegación en este curso. Si crees que es un error, avisa a coordinación.', 'sticpa')

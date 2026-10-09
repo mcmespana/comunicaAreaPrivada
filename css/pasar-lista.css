@@ -1989,8 +1989,20 @@ a.pl-group .pl-name { display: block; }
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
-.pl-card-num { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
-.pl-card-meta { font-size: 0.72rem; font-weight: 500; color: var(--gray-500); }
+/* El número y su unidad, en la misma línea (plan 042, COO-4): «9 chavales», no
+   un «9» suelto. Si la unidad no cabe, baja entera, no partida. */
+.pl-card-num {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 0.3rem;
+    font-size: 1.7rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+}
+/* Un dato por línea: «1 grupo · 1 / mon.» se partía por la mitad a 375. */
+.pl-card-meta { display: flex; flex-direction: column; gap: 0.1rem; font-size: 0.72rem; font-weight: 500; color: var(--gray-500); }
 
 /* La pregunta con la que coordinación abre esta pantalla: "¿pasaron lista el
    sábado?". Va arriba, con el degradado de marca, y con el numerador Y el
@@ -3581,3 +3593,103 @@ a.pl-group .pl-name { display: block; }
     .pl-hero { transition: none; }
     .pl-hero:has(.pl-hero-cta:active) { transform: none; }
 }
+
+/* ---- PL-9: «Tienes una lista guardada solo en el móvil» ------------------
+   El aviso de la cola, en la portada y en el árbol. Es el mismo `.pl-status`
+   de la barra (ámbar si está pendiente, rojo si no se ha podido enviar), en
+   bloque y con una línea por lista, cada una un enlace a su pantalla. */
+.pl-queue-notice {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.15rem;
+    margin: 0 0 1rem;
+    padding: 0.6rem 0.8rem;
+    box-shadow: inset 0 0 0 1px currentColor;
+}
+.pl-queue-title { margin: 0 0 0.15rem; font-weight: 700; }
+.pl-queue-item {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    color: inherit;
+    font-weight: 800;
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+}
+
+/* ==========================================================================
+   042 · COORDINACIÓN (plan 042, auditoría de coordinación)
+   --------------------------------------------------------------------------
+   Lo nuevo de esa pasada, por hallazgo. Lo que cambiaba una regla que ya
+   existía se ha cambiado en su sitio; aquí solo va lo que no tenía dónde.
+   ========================================================================== */
+
+/* ---- COO-1: el Resumen respeta el alcance --------------------------------
+   Con alcance acotado hay menos tarjetas de etapa: la rejilla se ajusta a las
+   que hay. Y el resto de la delegación va plegado, con sus tiras dentro: sin
+   la sombra de tarjeta de cada lista, que ya están dentro de la del plegable. */
+.pl-cards--n1 { grid-template-columns: minmax(0, 1fr); }
+.pl-cards--n2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.pl-fold--resto .pl-fold-body { padding: 0 0.9rem 0.9rem; border-top: 1px solid var(--gray-100); }
+.pl-fold--resto .pl-list { box-shadow: none; border: 1px solid var(--gray-100); }
+
+/* ---- COO-2: «Faltan: M1 · C2 · Ruah», en la tarjeta de la última sesión ---
+   Cada nombre es un enlace a su lista: pastilla clara sobre el degradado, como
+   el anillo del porcentaje, y de 44 px porque se toca con el dedo. */
+.pl-lasthero-miss { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.45rem; }
+.pl-lasthero-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 0.9rem;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.18);
+    color: inherit !important;   /* el enlace del tema no pinta sobre el degradado */
+    font-size: 0.85rem;
+    font-weight: 800;
+    text-decoration: none !important;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.12s var(--ease-out), background-color 0.12s var(--ease-out);
+}
+.pl-lasthero-chip:active { transform: scale(0.97); }
+@media (hover: hover) {
+    .pl-lasthero-chip:hover { background: rgba(255, 255, 255, 0.28); }
+}
+.pl-lasthero-chip:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+    .pl-lasthero-chip { transition: none; }
+}
+
+/* ---- COO-7: quién lleva cada grupo, en el Resumen ------------------------
+   Una línea bajo el código. Cada nombre es un enlace a la ficha del monitor
+   (WhatsApp y Llamar arriba del todo) para quien puede abrirla; el alto de
+   44 px se come el hueco de la fila con margen negativo para que la línea no
+   aparte la tira más de lo que se ve. */
+.pl-grouprow-who {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 0.4rem;
+    margin: -0.55rem 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--gray-500);
+}
+.pl-who-link,
+.pl-who-name { display: inline-flex; align-items: center; min-height: 44px; }
+.pl-who-name { min-height: 1.6rem; }
+.pl-who-link {
+    color: var(--primary-color) !important;   /* el tema subraya y repinta los enlaces de .entry-content */
+    text-decoration: none !important;
+    -webkit-tap-highlight-color: transparent;
+}
+.pl-who-link:active { transform: scale(0.97); }
+@media (hover: hover) {
+    .pl-who-link:hover { text-decoration: underline !important; text-underline-offset: 0.18em; }
+}
+.pl-who-sep { color: var(--gray-400); }
+
+/* ---- COO-4: la unidad del número grande de cada etapa ---------------------
+   Del tamaño de la línea de abajo, para que el número siga mandando. */
+.pl-card-unit { font-size: 0.78rem; font-weight: 700; letter-spacing: 0; color: var(--gray-500); }

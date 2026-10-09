@@ -244,6 +244,13 @@ $volver = sticpa_pl_vengo_url(
 // Coordinación, que es donde está la lista del equipo desde el 28/09/2026.
 $vengoGrupos = in_array(sticpa_pl_vengo_modo(isset($_REQUEST['vengo']) ? $_REQUEST['vengo'] : ''), array('grupo', 'grupos', 'cursos', 'az'), true);
 $volverTexto = $vengoGrupos ? __('Volver a Grupos y fichas', 'sticpa') : __('Volver a coordinación', 'sticpa');
+if (sticpa_pl_vengo_modo(isset($_REQUEST['vengo']) ? $_REQUEST['vengo'] : '') === 'resumen') {
+    $volverTexto = __('Volver al resumen de grupos', 'sticpa');
+    // Y si al Resumen se llegó desde Coordinación, que lo siga sabiendo.
+    if (sticpa_pl_desde(isset($_REQUEST['desde']) ? $_REQUEST['desde'] : '') === 'coordinacion') {
+        $volver = sticpa_pl_desde_url('resumen-coordinacion');
+    }
+}
 if ($volver === '') {
     $volver = '?internalpage=single_stic_coordinacion';
 }
@@ -586,9 +593,10 @@ if ($hayPistas) {
              * cero. */
             $pie = '';
             if ($t['suyas'] > 0 && $t['otras'] > 0) {
+                // Sin género: «un compañero» daba por hecho quién cubrió.
                 $pie = sprintf(
                     /* translators: 1: cuántas pasó esta persona, 2: cuántas pasó otra */
-                    __('%1$d las pasó, %2$d un compañero', 'sticpa'),
+                    __('%1$d suyas, %2$d de otra persona', 'sticpa'),
                     $t['suyas'],
                     $t['otras']
                 );
@@ -597,7 +605,23 @@ if ($hayPistas) {
                     ? __('La pasó otra persona', 'sticpa')
                     : __('Las pasó otra persona', 'sticpa');
             } elseif ($t['suyas'] > 0) {
-                $pie = __('Las ha pasado siempre', 'sticpa');
+                /* «1 de 3 · Las ha pasado siempre» se leía como que no había
+                 * faltado ninguna, con dos casillas de «sin lista» al lado
+                 * (plan 042, COO-9). «Siempre» solo cuando no falta ninguna;
+                 * si faltan, se dice cuántas y que las que hay son suyas. */
+                $faltanL = max(0, (int) $t['esperadas'] - (int) $t['con_lista']);
+                $pie = ($faltanL === 0)
+                    ? __('Las ha pasado siempre', 'sticpa')
+                    : sprintf(
+                        /* translators: 1: «Falta 1» / «Faltan 2»; 2: «la que hay es suya» / «las que hay son suyas» */
+                        __('%1$s · %2$s', 'sticpa'),
+                        sprintf(
+                            /* translators: %d: listas del grupo que no se han pasado */
+                            _n('Falta %d', 'Faltan %d', $faltanL, 'sticpa'),
+                            $faltanL
+                        ),
+                        _n('la que hay es suya', 'las que hay son suyas', (int) $t['con_lista'], 'sticpa')
+                    );
             }
             if ($t['omitidas'] > 0) {
                 $pie .= ($pie !== '' ? ' · ' : '') . sprintf(

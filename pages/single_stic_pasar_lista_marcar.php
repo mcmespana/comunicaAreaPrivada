@@ -125,7 +125,10 @@ if (!empty($_POST['pl_action'])) {
             'grupo' => $groupId, 'sesion' => $session['id'],
             'marcas_post' => strlen($marksRaw),
         ));
-        $html .= '<p class="pl-notice">' . sticpa_pl_icon('clock') . '<span>'
+        // `data-pl-nonce-expired`: la señal con la que el reenvío de la cola
+        // sabe que puede reintentar con el nonce nuevo de esta misma pantalla
+        // (plan 042, PL-9).
+        $html .= '<p class="pl-notice" data-pl-nonce-expired>' . sticpa_pl_icon('clock') . '<span>'
             . esc_html__('La sesión ha caducado. Vuelve a cargar la pantalla.', 'sticpa') . '</span></p>';
     } else {
         if (!empty($_POST['pl_marks'])) {
@@ -228,17 +231,30 @@ if (!empty($_POST['pl_action'])) {
 // Estado actual
 // ---------------------------------------------------------------------------
 
-/* MEDIDO Y DESCARTADO: meter estas dos lecturas en una tanda SUBE el coste.
+/* TANDA 3: las lecturas del estado, juntas (plan 042, VEL-2, 09/10/2026).
  *
- * Parece la jugada obvia —son independientes y eran dos esperas en fila— pero
- * `sticpa_pl_session_attendances()` tiene un respaldo que NO corre en modo
- * recolecta (`!sticpa_pl_collecting()`), así que la tanda trae la consulta
- * principal, vuelve vacía en esta instancia, y el respaldo sale igual después:
- * se paga la tanda Y el respaldo. Medido con `CosteLlamadasTest`: de 10 a 12
- * llamadas en la primera carga y de 4 a 6 al cambiar de fecha.
+ * Las asistencias de la sesión y las rachas son independientes —las dos solo
+ * necesitan `$sessions` y `$regMap`— y salían en fila. Después de GUARDAR era
+ * peor: se tira la caché de estado y la misma pantalla releía en fila
+ * asistencias, listas y rachas, con el monitor mirando la rueda. Ahora van en
+ * una tanda, y las listas solo cuando se acaba de guardar (sin guardar ya
+ * vienen en la tanda 1). Medido con el doble de los tests: abrir marcar con el
+ * estado caducado, de 3 a 2 esperas; guardar, de 6 a 4 (y de 8 a 6 sin los
+ * enlaces anidados).
  *
- * Queda escrito para que nadie lo intente otra vez. Para ganar aquí hay que
- * arreglar antes el respaldo, no envolverlo en una tanda. */
+ * Hasta el 09/10 aquí ponía «MEDIDO Y DESCARTADO»: el respaldo de las
+ * asistencias salía igual después de la tanda y se pagaban las dos cosas. Eso
+ * dejó de ser cierto el 26/09 (`a9e6634`), cuando el respaldo pasó a salir SOLO
+ * si el CRM falla o devuelve asistencias sin inscripción. La verificación del
+ * plan 033 (releer el CRM tras guardar) se mantiene entera: solo cambia que las
+ * tres lecturas se esperan una vez. */
+sticpa_pl_prime($objSCP, function () use ($objSCP, $session, $sessions, $regMap, $groupId, $saved) {
+    sticpa_pl_session_attendances($objSCP, $session['id'], $regMap);
+    sticpa_pl_group_streaks($objSCP, $sessions, $session['id'], $regMap);
+    if (is_array($saved)) {
+        sticpa_pl_all_listas($objSCP);
+    }
+});
 $attendances = sticpa_pl_session_attendances($objSCP, $session['id'], $regMap);
 $lista = sticpa_pl_lista($objSCP, $session['id'], $groupId);
 
@@ -292,6 +308,9 @@ $html .= '<div data-pl-marcar'
     . ($savedOk ? ' data-pl-saved-ok' : '')
     . ' data-session="' . esc_attr($session['id']) . '"'
     . ' data-group="' . esc_attr($groupId) . '"'
+    // Qué lista es, para decirlo fuera de esta pantalla si se queda en la cola
+    // del móvil («C1 · 15 nov»), plan 042 PL-9.
+    . ' data-queue-label="' . esc_attr($group['code'] . ' · ' . sticpa_pl_session_short($session, true)) . '"'
     . ' data-msg-dirty="' . esc_attr__('Cambios sin guardar · los datos están solo en tu móvil', 'sticpa') . '"'
     . ' data-msg-draft="' . esc_attr__('Tienes marcas sin guardar de antes.', 'sticpa') . '"'
     . ' data-msg-offline="' . esc_attr__('Sin cobertura. Puedes marcar: se guardará en el móvil.', 'sticpa') . '"'
@@ -302,9 +321,14 @@ $html .= '<div data-pl-marcar'
     . '>';
 
 // Cabecera: grupo, monitores y selector de sesión.
+// Abierta desde el Resumen, la flecha vuelve al Resumen, donde se estaban
+// repasando huecos, y no al árbol de grupos (plan 042, COO-3). El formulario se
+// envía a la misma URL, así que el origen sobrevive al guardado.
+$volverA = sticpa_pl_desde_url(isset($_REQUEST['desde']) && strpos((string) $_REQUEST['desde'], 'resumen') === 0 ? $_REQUEST['desde'] : '');
 $html .= '<div class="pl-head">';
-$html .= '<a class="pl-back" href="?internalpage=single_stic_pasar_lista_grupos"'
-    . ' aria-label="' . esc_attr__('Volver a los grupos', 'sticpa') . '">' . sticpa_pl_icon('back') . '</a>';
+$html .= '<a class="pl-back" href="' . ($volverA !== '' ? esc_attr($volverA) : '?internalpage=single_stic_pasar_lista_grupos') . '"'
+    . ' aria-label="' . esc_attr($volverA !== '' ? __('Volver al resumen de grupos', 'sticpa') : __('Volver a los grupos', 'sticpa')) . '">'
+    . sticpa_pl_icon('back') . '</a>';
 $html .= '<div class="pl-head-titles">';
 $html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html($group['code']) . '</span>';
 if ($group['name'] !== '') {
@@ -454,7 +478,9 @@ $html .= sticpa_pl_savebar_status_html(
     $savedOk,
     is_array($saved) ? sticpa_pl_saved_summary(isset($saved['counts']) ? $saved['counts'] : array(), $omitida) : ''
 );
-$html .= '<div class="pl-counts">';
+// Los contadores se anuncian al cambiar (plan 042, PL-11): con lector de
+// pantalla, tocar una fila no decía nada.
+$html .= '<div class="pl-counts" aria-live="polite">';
 $html .= '<span class="pl-count"><span class="pl-count-dot pl-count-dot--yes"></span>'
     . '<span data-pl-count-yes>0</span>&nbsp;<span data-pl-word="yes"'
     . ' data-one="' . esc_attr__('vino', 'sticpa') . '" data-many="' . esc_attr__('vinieron', 'sticpa') . '">'

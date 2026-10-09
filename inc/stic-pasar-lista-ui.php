@@ -257,7 +257,7 @@ function sticpa_pl_person_link_html($person, $href, $sub = '', $extra = '', $con
 function sticpa_pl_vengo_modo($vengo)
 {
     $vengo = (string) $vengo;
-    $conocidos = array('grupo', 'grupos', 'cursos', 'az', 'monitores');
+    $conocidos = array('grupo', 'grupos', 'cursos', 'az', 'monitores', 'resumen');
     return in_array($vengo, $conocidos, true) ? $vengo : '';
 }
 
@@ -280,6 +280,43 @@ function sticpa_pl_vengo_url($vengo, $vgrupo = '')
     if ($vengo === 'monitores') {
         // El directorio de monitores vive en Coordinación desde el 28/09/2026.
         return '?internalpage=single_stic_coordinacion';
+    }
+    if ($vengo === 'resumen') {
+        // Del nombre de quien lleva un grupo en el Resumen (plan 042, COO-7):
+        // se vuelve a seguir repasando huecos.
+        return '?internalpage=single_stic_pasar_lista_resumen';
+    }
+    return '';
+}
+
+/**
+ * DE DÓNDE SE VIENE, para la flecha de volver (plan 042, COO-3).
+ *
+ * Al Resumen se llega desde Pasar lista y desde Coordinación, y a una lista
+ * desde el árbol de grupos y desde el Resumen: la flecha tiene que volver por
+ * donde se entró, no a un sitio fijo. `desde` viaja en la URL y, como `vengo`,
+ * solo acepta valores CONOCIDOS: lo que llegue nunca se convierte en un enlace
+ * tal cual. Esta es la lista blanca, en un solo sitio.
+ *
+ * `resumen-coordinacion` es el Resumen al que se llegó desde Coordinación: así
+ * la vuelta de una lista lleva al Resumen y la del Resumen, a Coordinación.
+ */
+function sticpa_pl_desde($raw)
+{
+    $raw = (string) $raw;
+    return in_array($raw, array('coordinacion', 'resumen', 'resumen-coordinacion'), true) ? $raw : '';
+}
+
+/** El enlace de vuelta de un `desde` de la lista blanca, o '' si no lo es. */
+function sticpa_pl_desde_url($desde)
+{
+    switch (sticpa_pl_desde($desde)) {
+        case 'coordinacion':
+            return '?internalpage=single_stic_coordinacion';
+        case 'resumen':
+            return '?internalpage=single_stic_pasar_lista_resumen';
+        case 'resumen-coordinacion':
+            return '?internalpage=single_stic_pasar_lista_resumen&desde=coordinacion';
     }
     return '';
 }
@@ -428,11 +465,28 @@ function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub =
         . ' data-initials="' . esc_attr($person['initials']) . '"'
         . ' data-label-partial="' . esc_attr($states['partial']['label']) . '"'
         . ' data-label-no_justified="' . esc_attr($states['no_justified']['label']) . '"'
-        . ' aria-label="' . esc_attr($person['name']) . '">';
+        // Para el lector de pantalla (plan 042, PL-11): los estados que NO se
+        // dicen ya con palabras en la nota de debajo del nombre.
+        . ' data-label-yes="' . esc_attr($states['yes']['label']) . '"'
+        . ' data-label-no_unjustified="' . esc_attr($states['no_unjustified']['label']) . '"'
+        . ' data-label-none="' . esc_attr__('Sin marcar', 'sticpa') . '">';
 
-    $html .= '<span class="pl-avatar">' . esc_html($person['initials']) . '</span>';
+    /* SIN `aria-label` EN LA FILA (plan 042, PL-11). Sustituía a todo el
+     * contenido: VoiceOver decía «Lucía Ferrer Albiol, botón» estuviera
+     * marcada o no, y la nota («Parcial», «3 ausencias seguidas») no se
+     * anunciaba nunca. Ahora el nombre del botón es su texto: el nombre, la
+     * nota y el estado, que el JS rellena en `setState()`. Las iniciales del
+     * avatar se callan: leídas son ruido («L F»). */
+    $srState = '';
+    if ($state === '') {
+        $srState = __('Sin marcar', 'sticpa');
+    } elseif ($state === 'yes' || $state === 'no_unjustified') {
+        $srState = $states[$state]['label'];
+    }
+    $html .= '<span class="pl-avatar" aria-hidden="true">' . esc_html($person['initials']) . '</span>';
     $html .= '<span class="pl-row-body">';
     $html .= '<span class="pl-name">' . esc_html($person['name']) . '</span>';
+    $html .= '<span class="sr-only" data-pl-sr-state>' . ($srState !== '' ? esc_html(', ' . $srState) : '') . '</span>';
     // Línea fija: los grupos de un monitor. Es lo que distingue a dos personas
     // con el mismo nombre de pila y lo que explica por qué están en esta lista.
     if ($sub !== '' || $track !== null) {
@@ -1043,6 +1097,23 @@ function sticpa_pl_savebar_status_html($saved, $savedOk, $okText)
 }
 
 /**
+ * El hueco donde el JS dice qué listas se han quedado SOLO en el móvil (plan
+ * 042, PL-9). Va en la portada y en el árbol, que es donde se vuelve a entrar:
+ * hasta ahora el reenvío de la cola ahí era mudo, acertara o fallara. Sale
+ * vacío y escondido; lo rellena `queueNotice()` con lo que haya en la cola.
+ */
+function sticpa_pl_queue_notice_html()
+{
+    return '<div class="pl-status pl-queue-notice" data-pl-queue-notice role="status" hidden'
+        . ' data-msg-one="' . esc_attr__('Tienes una lista guardada solo en el móvil. Se envía sola con cobertura; si no, ábrela y guárdala:', 'sticpa') . '"'
+        /* translators: {n}: cuántas listas */
+        . ' data-msg-many="' . esc_attr__('Tienes {n} listas guardadas solo en el móvil. Se envían solas con cobertura; si no, ábrelas y guárdalas:', 'sticpa') . '"'
+        . ' data-msg-stuck="' . esc_attr__('no se ha podido enviar', 'sticpa') . '"'
+        . ' data-msg-nolabel="' . esc_attr__('Abrir la lista', 'sticpa') . '"'
+        . '></div>';
+}
+
+/**
  * «Lista guardada · 2 vinieron, 1 ausencia», con los plurales bien.
  *
  * @param array $counts array('yes' => int, 'no' => int) de sticpa_pl_save()
@@ -1355,6 +1426,112 @@ function sticpa_pl_deudas_html($deudas)
     }
     $html .= '</div>';
     return $html;
+}
+
+/**
+ * LAS TIRAS DEL RESUMEN, sin pintar: por etapa, las sesiones celebradas que
+ * entran en la tira y, por grupo, la marca de cada una.
+ *
+ * Sale del Resumen (plan 042, COO-1 y COO-2) porque ahora se calcula para dos
+ * cosas: los grupos del alcance y «el resto de la delegación», y la portada de
+ * Coordinación necesita la misma cuenta para decir cómo va la última sesión.
+ * Una sola regla en un solo sitio: si el Resumen y Coordinación contaran por
+ * separado, acabarían diciendo números distintos del mismo sábado.
+ *
+ * Cero consultas si las sesiones de los eventos y el índice de listas ya van
+ * en la tanda de quien llama (sticpa_pl_listas_by_session() lee el índice).
+ *
+ * @param array $groups grupos a contar (id => grupo), ya filtrados por alcance.
+ * @param array $events lo que devuelve sticpa_pl_etapa_events().
+ * @return array<string, array{grid: array, filas: array}> etapa => tira; cada
+ *               fila es array('group','marks' => [sid => marca],'gaps','last').
+ */
+function sticpa_pl_tiras_por_etapa($objSCP, $groups, $events, $limit)
+{
+    $out = array();
+    foreach (array('MIC', 'COM', 'LC') as $etapa) {
+        if (!isset($events[$etapa]['id'])) {
+            continue;
+        }
+        $deEtapa = array();
+        foreach ($groups as $gid => $g) {
+            if (sticpa_pl_group_etapa(isset($g['level']) ? $g['level'] : '') === $etapa) {
+                $deEtapa[$gid] = $g;
+            }
+        }
+        if (empty($deEtapa)) {
+            continue;
+        }
+        $grid = sticpa_pl_listas_by_session(
+            $objSCP,
+            sticpa_pl_event_sessions($objSCP, $events[$etapa]['id']),
+            $limit
+        );
+        if (empty($grid)) {
+            continue;
+        }
+        $filas = array();
+        foreach ($deEtapa as $gid => $g) {
+            $marks = array();
+            $gaps = 0;
+            $last = '';
+            foreach ($grid as $sid => $cell) {
+                $estado = isset($cell['listas'][$gid]['estado']) ? $cell['listas'][$gid]['estado'] : '';
+                $mark = sticpa_pl_list_mark($estado, $cell['session']['start']);
+                if ($mark === 'gap') {
+                    $gaps++;
+                }
+                $marks[$sid] = $mark;
+                $last = $mark;   // la sesión más reciente va la última
+            }
+            $filas[$gid] = array('group' => $g, 'marks' => $marks, 'gaps' => $gaps, 'last' => $last);
+        }
+        $out[$etapa] = array('grid' => $grid, 'filas' => $filas);
+    }
+    return $out;
+}
+
+/**
+ * «¿PASARON LISTA EL SÁBADO?», contestado con nombres.
+ *
+ * La cuenta de la última sesión celebrada de cada etapa: cuántas listas tocaban,
+ * cuántas están (pasada o «sin registro»: una lista cerrada a conciencia no es
+ * una que falte) y CUÁLES faltan, con su grupo y su sesión para poder enlazar a
+ * la lista. Las fechas van aparte porque cada etapa puede tener su última sesión
+ * en un día distinto, y entonces no hay «el sábado» que decir.
+ *
+ * @param array $tiras lo que devuelve sticpa_pl_tiras_por_etapa().
+ * @return array{done:int, total:int, fechas:int[], faltan: array<int, array{gid:string, code:string, sid:string, etapa:string}>}
+ */
+function sticpa_pl_ultima_sesion_estado($tiras)
+{
+    $out = array('done' => 0, 'total' => 0, 'fechas' => array(), 'faltan' => array());
+    foreach ($tiras as $etapa => $tira) {
+        $sids = array_keys($tira['grid']);
+        $lastSid = (string) end($sids);
+        foreach ($tira['filas'] as $gid => $fila) {
+            if ($fila['last'] === '') {
+                continue;
+            }
+            $out['total']++;
+            if ($fila['last'] === 'ok' || $fila['last'] === 'skip') {
+                $out['done']++;
+            } elseif ($fila['last'] === 'gap') {
+                $g = $fila['group'];
+                $out['faltan'][] = array(
+                    'gid' => (string) $gid,
+                    'code' => (trim($g['code']) !== '') ? $g['code'] : $g['name'],
+                    'sid' => $lastSid,
+                    'etapa' => $etapa,
+                );
+            }
+        }
+        $start = isset($tira['grid'][$lastSid]['session']['start']) ? (int) $tira['grid'][$lastSid]['session']['start'] : 0;
+        if ($start > 0 && !in_array($start, $out['fechas'], true)) {
+            $out['fechas'][] = $start;
+        }
+    }
+    return $out;
 }
 
 /**
