@@ -23,6 +23,16 @@ $groupId = isset($_REQUEST['grupo']) ? sticpa_pl_safe_id($_REQUEST['grupo']) : '
 // Sirve para una sola cosa: que un aviso puesto hoy quede atado al sábado de
 // hoy. Es opcional — a la ficha se puede llegar sin sesión.
 $sessionId = isset($_REQUEST['sesion']) ? sticpa_pl_safe_id($_REQUEST['sesion']) : '';
+// La sesión a la que VUELVE la flecha (plan 042, PL-13). Sin ella, marcar
+// elegía la de hoy: quien estaba recuperando el sábado pasado miraba una ficha
+// y, al volver, aterrizaba en otra fecha con sus marcas «borradas» (seguían en
+// el borrador de la otra sesión). El paginador no arrastra `sesion` a
+// propósito —si se está leyendo, no se está marcando, y un aviso de la ficha
+// siguiente no debe colgarse de ese sábado—, así que la vuelta viaja aparte,
+// en `vsesion`, que solo usa la flecha.
+$vueltaSesion = ($sessionId !== '')
+    ? $sessionId
+    : (isset($_REQUEST['vsesion']) ? sticpa_pl_safe_id($_REQUEST['vsesion']) : '');
 
 if ($contactId === '') {
     $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
@@ -142,7 +152,8 @@ if ($volver === '') {
     // construir el enlace: si no, el pie de «siguiente» lo seguía arrastrando de
     // ficha en ficha. Nunca se propaga lo que no se ha reconocido.
     $vengo = '';
-    $volver = '?internalpage=single_stic_pasar_lista_marcar&grupo=' . rawurlencode($groupId);
+    $volver = '?internalpage=single_stic_pasar_lista_marcar&grupo=' . rawurlencode($groupId)
+        . ($vueltaSesion !== '' ? '&sesion=' . rawurlencode($vueltaSesion) : '');
 }
 
 /* La cabecera es solo la vuelta atrás y la palabra "Ficha": el nombre no va
@@ -855,10 +866,12 @@ if (!empty($dataRows)) {
  * del que saliste, no a la lista de marcar. */
 $html .= sticpa_pl_pager_html(
     sticpa_pl_vecinos($people['participants'], $contactId),
-    function ($p) use ($groupId, $vengo) {
+    function ($p) use ($groupId, $vengo, $vueltaSesion) {
         return '?internalpage=single_stic_pasar_lista_ficha'
             . '&participante=' . rawurlencode($p['id'])
             . '&grupo=' . rawurlencode($groupId)
-            . ($vengo !== '' ? '&vengo=' . rawurlencode($vengo) : '');
+            . ($vengo !== '' ? '&vengo=' . rawurlencode($vengo) : '')
+            // La fecha de la lista de la que se viene, solo para la vuelta.
+            . ($vengo === '' && $vueltaSesion !== '' ? '&vsesion=' . rawurlencode($vueltaSesion) : '');
     }
 );

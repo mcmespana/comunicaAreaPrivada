@@ -2448,6 +2448,35 @@ final class PasarListaRenderTest extends TestCase
 
     // ---- Ficha ----------------------------------------------------------
 
+    /**
+     * Volver de una ficha a la lista vuelve a LA MISMA FECHA, también después
+     * de pasar de ficha con el paginador (plan 042, PL-13). Antes la flecha
+     * iba sin sesión y marcar elegía la de hoy.
+     */
+    public function test_la_vuelta_de_la_ficha_conserva_la_sesion()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1', 'sesion' => 's1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+        $this->assertMatchesRegularExpression(
+            '/class="pl-back" href="\?internalpage=single_stic_pasar_lista_marcar&(amp;)?grupo=g1&(amp;)?sesion=s1"/',
+            $html
+        );
+        // El paginador NO arrastra la sesión (un aviso de la ficha siguiente
+        // no es de ese sábado), solo la vuelta.
+        $this->assertDoesNotMatchRegularExpression('/single_stic_pasar_lista_ficha[^"]*[&;]sesion=s1/', $html);
+        $this->assertMatchesRegularExpression('/single_stic_pasar_lista_ficha[^"]*vsesion=s1/', $html);
+
+        // Desde la ficha siguiente, la flecha sigue volviendo a s1.
+        $_REQUEST = array('participante' => 'c2', 'grupo' => 'g1', 'vsesion' => 's1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+        $this->assertMatchesRegularExpression(
+            '/class="pl-back" href="\?internalpage=single_stic_pasar_lista_marcar&(amp;)?grupo=g1&(amp;)?sesion=s1"/',
+            $html
+        );
+        // Y no se cuela como sesión de los avisos.
+        $this->assertStringNotContainsString('name="pl_aviso_sesion"', $html);
+    }
+
     public function test_ficha_pone_los_telefonos_primero()
     {
         $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
