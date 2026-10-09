@@ -428,11 +428,28 @@ function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub =
         . ' data-initials="' . esc_attr($person['initials']) . '"'
         . ' data-label-partial="' . esc_attr($states['partial']['label']) . '"'
         . ' data-label-no_justified="' . esc_attr($states['no_justified']['label']) . '"'
-        . ' aria-label="' . esc_attr($person['name']) . '">';
+        // Para el lector de pantalla (plan 042, PL-11): los estados que NO se
+        // dicen ya con palabras en la nota de debajo del nombre.
+        . ' data-label-yes="' . esc_attr($states['yes']['label']) . '"'
+        . ' data-label-no_unjustified="' . esc_attr($states['no_unjustified']['label']) . '"'
+        . ' data-label-none="' . esc_attr__('Sin marcar', 'sticpa') . '">';
 
-    $html .= '<span class="pl-avatar">' . esc_html($person['initials']) . '</span>';
+    /* SIN `aria-label` EN LA FILA (plan 042, PL-11). Sustituía a todo el
+     * contenido: VoiceOver decía «Lucía Ferrer Albiol, botón» estuviera
+     * marcada o no, y la nota («Parcial», «3 ausencias seguidas») no se
+     * anunciaba nunca. Ahora el nombre del botón es su texto: el nombre, la
+     * nota y el estado, que el JS rellena en `setState()`. Las iniciales del
+     * avatar se callan: leídas son ruido («L F»). */
+    $srState = '';
+    if ($state === '') {
+        $srState = __('Sin marcar', 'sticpa');
+    } elseif ($state === 'yes' || $state === 'no_unjustified') {
+        $srState = $states[$state]['label'];
+    }
+    $html .= '<span class="pl-avatar" aria-hidden="true">' . esc_html($person['initials']) . '</span>';
     $html .= '<span class="pl-row-body">';
     $html .= '<span class="pl-name">' . esc_html($person['name']) . '</span>';
+    $html .= '<span class="sr-only" data-pl-sr-state>' . ($srState !== '' ? esc_html(', ' . $srState) : '') . '</span>';
     // Línea fija: los grupos de un monitor. Es lo que distingue a dos personas
     // con el mismo nombre de pila y lo que explica por qué están en esta lista.
     if ($sub !== '' || $track !== null) {

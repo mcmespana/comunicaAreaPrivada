@@ -523,7 +523,9 @@ $html .= sticpa_pl_savebar_status_html(
         sprintf(_n('%d falta', '%d faltas', (int) $saved['counts']['no'], 'sticpa'), (int) $saved['counts']['no'])
     ) : ''
 );
-$html .= '<div class="pl-counts">';
+// Los contadores se anuncian al cambiar (plan 042, PL-11): con lector de
+// pantalla, tocar una fila no decía nada.
+$html .= '<div class="pl-counts" aria-live="polite">';
 $html .= '<span class="pl-count"><span class="pl-count-dot pl-count-dot--yes"></span>'
     . '<span data-pl-count-yes>0</span>&nbsp;<span data-pl-word="yes"'
     . ' data-one="' . esc_attr__('vino', 'sticpa') . '" data-many="' . esc_attr__('vinieron', 'sticpa') . '">'

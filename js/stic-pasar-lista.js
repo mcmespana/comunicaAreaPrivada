@@ -400,6 +400,15 @@
             var text = [label, warn, why].filter(Boolean).join(' · ');
             note.textContent = text;
             note.hidden = (text === '');
+
+            // El estado, para el lector de pantalla (plan 042, PL-11): los que
+            // la nota no dice ya con palabras. Mismo criterio que
+            // sticpa_pl_row_html() en PHP.
+            var sr = row.querySelector('[data-pl-sr-state]');
+            if (sr) {
+                var srLabel = label ? '' : (row.getAttribute('data-label-' + (value === '' ? 'none' : value)) || '');
+                sr.textContent = srLabel ? ', ' + srLabel : '';
+            }
         }
 
         function setState(row, value, quiet) {

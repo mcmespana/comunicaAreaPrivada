@@ -1518,6 +1518,24 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringNotContainsString('data-contact="c9"', $html);
     }
 
+    /**
+     * Con lector de pantalla cada fila dice su estado, y los contadores y el
+     * aviso de la barra se anuncian (plan 042, PL-11). El `aria-label` de la
+     * fila sustituía a todo su contenido: «Lucía, botón», marcada o no.
+     */
+    public function test_marcar_dice_el_estado_al_lector_de_pantalla()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertDoesNotMatchRegularExpression('/<button type="button" class="pl-row"[^>]*aria-label=/', $html);
+        // c1 viene «vino» del CRM y c2 sin marcar.
+        $this->assertMatchesRegularExpression('/data-contact="c1".*?<span class="sr-only" data-pl-sr-state>, Vino<\/span>/s', $html);
+        $this->assertMatchesRegularExpression('/data-contact="c2".*?<span class="sr-only" data-pl-sr-state>, Sin marcar<\/span>/s', $html);
+        $this->assertStringContainsString('<div class="pl-counts" aria-live="polite">', $html);
+        $this->assertStringContainsString('class="pl-status" data-pl-status role="status"', $html);
+    }
+
     public function test_marcar_incluye_leyenda_gesto_largo_y_hoja()
     {
         $_REQUEST = array('grupo' => 'g1');
