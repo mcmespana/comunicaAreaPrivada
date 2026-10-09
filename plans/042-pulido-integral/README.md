@@ -28,54 +28,93 @@ tomada va a «Decisiones del propietario».
 
 | Fase | Qué | Estado |
 |---|---|---|
-| 1. Auditoría | Un auditor por área, read-only, con capturas del render offline | **A MEDIAS** — ver tabla de abajo |
-| 2. Implementación | Lotes por grupos de ficheros, en paralelo, cada uno verificado con tests y capturas | PENDIENTE |
+| 1. Auditoría | Un auditor por área, read-only, con capturas del render offline | **HECHA** salvo dos cerradas a medias (carcasa y accesibilidad: se cortaron por el límite de uso; lo escrito está verificado, pero puede faltar algo) |
+| 2. Implementación | Lotes en dos carriles que no se pisan, un commit por hallazgo, tests y capturas | **EN CURSO** — ver «Lotes» |
 | 3. Revisión | Revisión adversarial del diff entero, `composer lint`, PHPUnit, comprobaciones de design.md §9 | PENDIENTE |
+| 4. Propuestas | Funcionalidades nuevas con casilla GO / NO GO | EN CURSO → `docs/comunica/PROPUESTAS-FUNCIONALIDADES-2026-10.md` |
 
 ### Auditoría, por área
 
-| Área | Fichero | Estado |
+| Área | Fichero | Hallazgos |
 |---|---|---|
-| Familias y participantes | [`auditoria-familias.md`](auditoria-familias.md) | **HECHA** (14 hallazgos) |
-| Velocidad | `auditoria-velocidad.md` | PENDIENTE (el primer intento se cortó por el límite de sesión) |
-| Pasar Lista (monitor) | `auditoria-pasar-lista.md` | PENDIENTE (ídem) |
-| Coordinación | `auditoria-coordinacion.md` | PENDIENTE (ídem) |
-| Carcasa, escritorio, móvil y app | `auditoria-carcasa.md` | PENDIENTE (ídem) |
-| Accesibilidad y ley de diseño | `auditoria-a11y.md` | PENDIENTE (ídem) |
-| Funcionalidades nuevas | `docs/comunica/PROPUESTAS-FUNCIONALIDADES-2026-10.md` | PENDIENTE (ídem) |
+| Familias y participantes | [`auditoria-familias.md`](auditoria-familias.md) | FAM-a1…a14 |
+| Velocidad | [`auditoria-velocidad.md`](auditoria-velocidad.md) | VEL-1…10, con mapa de viajes por pantalla |
+| Pasar Lista (monitor) | [`auditoria-pasar-lista.md`](auditoria-pasar-lista.md) | PL-1…13 |
+| Coordinación | [`auditoria-coordinacion.md`](auditoria-coordinacion.md) | COO-1…9 |
+| Carcasa, escritorio, móvil y app | [`auditoria-carcasa.md`](auditoria-carcasa.md) | CAR-1…7 (a medias) |
+| Accesibilidad y ley de diseño | [`auditoria-a11y.md`](auditoria-a11y.md) | A11Y-1…6 (a medias) |
 
-### Lotes de implementación
+### Lotes
 
-| Lote | Hallazgos | Estado |
-|---|---|---|
-| L1 · Familias | FAM-a1, a2, a3, a4, a5, a6, a7, a9, a11, a12 y la parte sin decisión de a13 | PENDIENTE |
+La máquina de la sesión solo corre dos agentes a la vez, así que los lotes van en
+**dos carriles**: cada carril es una rama y sus lotes van uno detrás de otro, de
+modo que nunca dos agentes tocan el mismo fichero a la vez. Al terminar, las dos
+ramas se fusionan en la rama de trabajo.
 
-(La tabla crece a medida que se cierran las auditorías de las otras áreas.)
+| Carril (rama local) | Lote | Hallazgos | Estado |
+|---|---|---|---|
+| A · `lote-A-pasar-lista-coordinacion` | **L2 · Pasar Lista** | PL-1, 2, 5, 3, 13, 4, 7, 8, 6, 10 (sin el punto 5), 12, 11, (9 si cabe) + VEL-2 | EN CURSO |
+| A | **L3 · Coordinación** | COO-1, 2, 7, 4, 3, 9, 6, (5 si cabe) | DETRÁS DE L2 |
+| B · `lote-B-familias-velocidad` | **L1 · Familias** | FAM-a1, a3, a6, a2, a7, a5, a4, a9, a12, a11 y la parte sin decisión de a13 | EN CURSO |
+| B | **L4 · Velocidad** | VEL-1, 5, 4, 7, 6 (sin subir la concurrencia), 10 mínima (cabecera `Server-Timing`), (9 y 3 si caben) | DETRÁS DE L1 |
+| — | **L5 · Carcasa y accesibilidad** | CAR-2 (`viewport-fit=cover`), CAR-3, CAR-4, CAR-5 (puntos 1 y 3), CAR-7, A11Y-2, A11Y-3, A11Y-6; y **al final de todo**, con lo demás ya fusionado, A11Y-4 (borrar ~600 líneas de CSS muerto) y A11Y-5 | PENDIENTE (siguiente ventana) |
+
+Si una sesión se corta: las ramas de los carriles viven en el contenedor
+(`git branch`), con un commit por hallazgo, y los worktrees en el scratchpad de la
+sesión. Para seguir, mira `git log claudito/gallant-babbage-n74kag..lote-…` y
+continúa por el siguiente hallazgo de la lista.
 
 ---
 
 ## Decisiones del propietario
 
 Cada una con la recomendación de quien la ha visto. Hasta que se decida, no se toca.
+El detalle está en el fichero de cada auditoría.
 
+**Familias**
 - **FAM-a8 — Cambiar de hijo sin volver a la portada.** Hoy el selector manda
-  SIEMPRE a la portada, por decisión anterior. Propuesta: volver a la misma
-  página solo si no es personal (Eventos, ficha de un evento, Calendario).
-  Apuntar a dos hermanos a la misma convivencia pasaría de 7 toques a 5.
-  *Recomendación: GO.*
-- **FAM-a10 — Eventos e Inscripciones se solapan.** Opción A (S): renombrar
-  «Eventos» → «Apuntarse» e «Inscripciones» → «Mis inscripciones» y quitar la
-  caja azul del 08/10. Opción B (M): una sola sección «Actividades» con «Para
-  apuntarte», «Te has apuntado» y «Ya pasadas». *Recomendación: A ahora, B si la
+  SIEMPRE a la portada (decisión anterior). Propuesta: volver a la misma página si
+  no es personal (Eventos, ficha de un evento, Calendario). Apuntar a dos hermanos a
+  la misma convivencia pasa de 7 toques a 5. *Recomendación: GO.*
+- **FAM-a10 — Eventos e Inscripciones se solapan.** A (S): renombrar «Eventos» →
+  «Apuntarse» e «Inscripciones» → «Mis inscripciones» y quitar la caja azul del
+  08/10. B (M): una sola sección «Actividades». *Recomendación: A ahora, B si la
   gente se sigue liando.*
-- **FAM-a13 (la parte de los iconos) — La portada tiene 11 elementos con
-  degradado.** design.md §3 pide uno por pantalla, dos como mucho. Propuesta:
-  los iconos de acceso en tinta suave (fondo `--primary-50`, trazo
-  `--primary-color`). Cambia la cara de la portada, por eso se pregunta.
-  *Recomendación: GO.* (Lo que no cambia la cara —«Ver calendario» como botón
-  secundario y no repetir «abierto» en la agenda— va en el lote L1.)
-- **FAM-a14 — «¿A quién apuntas?» en la ficha del evento**, con el estado de
-  cada hijo. Es funcionalidad nueva: va a la lista de propuestas.
+- **FAM-a13 (iconos) — 11 elementos con degradado en la portada.** Iconos de acceso
+  en tinta suave (fondo `--primary-50`, trazo `--primary-color`). Cambia la cara de
+  la portada. *Recomendación: GO.*
+
+**Velocidad**
+- **VEL-6 (punto 3) — Subir la concurrencia de las tandas de 4 a 6.** Ahorra una
+  espera (~350 ms) en cada tanda de 5-6, p. ej. la portada en frío. El plan 034 dejó
+  4 por prudencia con el CRM. Se vuelve atrás con un filtro. *Recomendación: GO
+  hablándolo con el proveedor y mirando el `error_log` la semana siguiente.*
+- **VEL-8 — Precargar solo con ratón.** En el móvil la precarga al apoyar el dedo
+  apenas gana y, si el dedo empieza un scroll, el toque bueno espera ~0,9 s.
+  *Recomendación: GO* (en escritorio no cambia nada).
+
+**Pasar Lista y coordinación**
+- **PL-10 (punto 5) — Un solo término: «chavales» o «participantes»** en las
+  pastillas de Pasar Lista y Mis grupos. *Recomendación: «chavales».*
+- **COO-8 — El aviso de «a quién hay que mirar» también en Coordinación**, con una
+  línea «2 monitores con faltas seguidas» que filtra el directorio. Cuesta una espera
+  más al abrir Coordinación. *Recomendación: GO.*
+
+**Carcasa y diseño**
+- **CAR-1 — Para el equipo, sus herramientas primero** en el menú, la barra de
+  escritorio y la portada (hoy «Pasar lista» queda bajo el pliegue en el móvil y
+  «Coordinación» dentro de «Más»). Deshace el orden decidido el 28/09.
+  *Recomendación: GO* (las familias no cambian).
+- **CAR-5 (punto 2) — «Salir» dentro del menú en el móvil**, no a 6 px del botón
+  «Menú». *Recomendación: GO.*
+- **CAR-6 — Cabecera de las fichas en superficie neutra**, sin el segundo bloque de
+  degradado pegado a la barra. Cambia la cara de todas las fichas.
+  *Recomendación: GO.*
+- **A11Y-1 — Anillo de foco visible** (`--focus-ring`, ≥3:1 en los dos temas);
+  cambia el «Foco» que fija design.md §4. *Recomendación: GO.*
+
+**Funcionalidades nuevas** (FAM-a14 incluida): en
+`docs/comunica/PROPUESTAS-FUNCIONALIDADES-2026-10.md`, con su casilla.
 
 ---
 
