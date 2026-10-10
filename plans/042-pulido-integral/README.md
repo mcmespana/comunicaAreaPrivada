@@ -30,7 +30,8 @@ tomada va a «Decisiones del propietario».
 |---|---|---|
 | 1. Auditoría | Un auditor por área, read-only, con capturas del render offline | **HECHA** salvo dos cerradas a medias (carcasa y accesibilidad: se cortaron por el límite de uso; lo escrito está verificado, pero puede faltar algo) |
 | 2. Implementación | Lotes en dos carriles que no se pisan, un commit por hallazgo, tests y capturas | **HECHA** — ver «Lotes» |
-| 3. Revisión | Revisión adversarial del diff entero (4 lentes + verificación por refutación), `composer lint`, PHPUnit | EN CURSO el 10/10 |
+| 3. Revisión | Revisión adversarial del diff entero (4 lentes + verificación por refutación), `composer lint`, PHPUnit | **HECHA** (10/10) — 8 defectos confirmados y arreglados, ver «La revisión final» |
+| 5. Extra | **Pasar lista en un evento** (el autobús), pedido el 10/10 | **HECHA** → [`docs/comunica/PASAR-LISTA-EVENTOS.md`](../../docs/comunica/PASAR-LISTA-EVENTOS.md) |
 | 4. Propuestas | Funcionalidades nuevas con casilla GO / NO GO | **HECHA** → [`docs/comunica/PROPUESTAS-FUNCIONALIDADES-2026-10.md`](../../docs/comunica/PROPUESTAS-FUNCIONALIDADES-2026-10.md) (12 propuestas) |
 
 ### Auditoría, por área
@@ -64,6 +65,28 @@ Si una sesión se corta: las ramas de los carriles viven en el contenedor
 sesión. Para seguir, mira `git log claudito/gallant-babbage-n74kag..lote-…` y
 continúa por el siguiente hallazgo de la lista.
 
+### La revisión final (10/10/2026)
+
+Cuatro revisores (seguridad, datos del CRM, JS de Pasar Lista, visual), cada
+uno con un verificador que intentaba refutar sus hallazgos. Sobrevivieron 8, y
+los 8 están arreglados (commits «(revisión 042)»):
+
+- **La cola sin cobertura** (alta, dos revisores): el reintento con nonce nuevo
+  de PL-9 dejaba que una entrada vieja o atascada se escribiera en el CRM y
+  pisara una lista guardada después. Ahora solo reintenta lo reciente (menos de
+  72 h y no atascado), y un guardado confirmado saca su lista de la cola.
+- El aviso del guardado vuelve tras un corte de cobertura; los recuentos se
+  anuncian una vez tras «Han venido todos»; «Inscribirme» pegado se ve de verdad
+  en la primera pantalla del móvil (con cartel) y su franja se funde en oscuro;
+  la ficha del evento ya no repide el evento cuando la definición de campos está
+  fría; el plegable «Formación» de la ficha del monitor en escritorio.
+
+⚖️ **Decisión: el límite de 72 h de la cola.** Cubre «guardar el sábado sin
+cobertura y enviar el lunes». Una lista de un campamento de más de tres días
+sin cobertura ya no se enviaría sola: quedaría en rojo para volver a guardarla.
+Sin límite se vuelve al riesgo de pisar datos con una entrada vieja. Se cambia
+en `QUEUE_FRESH_MS` (`js/stic-pasar-lista.js`).
+
 ### Para comprobar en producción después de desplegar
 
 Nada de esto se puede probar sin WordPress ni el CRM de verdad; está apuntado
@@ -80,6 +103,9 @@ por quien hizo el cambio.
 - **Marcar con `?pl_diag=1`** (VEL-2): si sale
   `ajmcm_GRUPOS:ajmcm_grupos_stic_contacts_relationships`, cachearlo quita dos
   esperas más.
+- **Pasar lista en un evento** (el autobús): una salida con sesiones y otra
+  sin ellas; marcar, guardar y mirar las asistencias (y la sesión nueva) en el
+  CRM; y una vez en modo avión. Ver `docs/comunica/PASAR-LISTA-EVENTOS.md` §6.
 - **Una familia con dos o más hijos que entra por el enlace de un evento**
   (FAM-a1): debe ver «¿A quién quieres apuntar?» y, al elegir, llegar a la ficha
   del evento.
@@ -161,6 +187,13 @@ El detalle está en el fichero de cada auditoría.
   *Recomendación: GO.*
 - **A11Y-1 — Anillo de foco visible** (`--focus-ring`, ≥3:1 en los dos temas);
   cambia el «Foco» que fija design.md §4. *Recomendación: GO.*
+
+**Pasar lista en un evento**
+- **Eventos nacionales**: hoy solo salen los de tu delegación. ¿Se quieren
+  los nacionales, filtrados a la gente de tu delegación? Hay que decidir de
+  quién son esas asistencias.
+- **Crear la sesión del día** cuando el evento no tiene ninguna en el CRM
+  (es lo que hace hoy). La alternativa es avisar para que coordinación la cree.
 
 **Funcionalidades nuevas** (FAM-a14 incluida): en
 `docs/comunica/PROPUESTAS-FUNCIONALIDADES-2026-10.md`, con su casilla.
