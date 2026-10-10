@@ -29,8 +29,8 @@ tomada va a «Decisiones del propietario».
 | Fase | Qué | Estado |
 |---|---|---|
 | 1. Auditoría | Un auditor por área, read-only, con capturas del render offline | **HECHA** salvo dos cerradas a medias (carcasa y accesibilidad: se cortaron por el límite de uso; lo escrito está verificado, pero puede faltar algo) |
-| 2. Implementación | Lotes en dos carriles que no se pisan, un commit por hallazgo, tests y capturas | **CASI HECHA** — ver «Lotes» |
-| 3. Revisión | Revisión adversarial del diff entero, `composer lint`, PHPUnit, comprobaciones de design.md §9 | PENDIENTE |
+| 2. Implementación | Lotes en dos carriles que no se pisan, un commit por hallazgo, tests y capturas | **HECHA** — ver «Lotes» |
+| 3. Revisión | Revisión adversarial del diff entero (4 lentes + verificación por refutación), `composer lint`, PHPUnit | EN CURSO el 10/10 |
 | 4. Propuestas | Funcionalidades nuevas con casilla GO / NO GO | **HECHA** → [`docs/comunica/PROPUESTAS-FUNCIONALIDADES-2026-10.md`](../../docs/comunica/PROPUESTAS-FUNCIONALIDADES-2026-10.md) (12 propuestas) |
 
 ### Auditoría, por área
@@ -54,10 +54,10 @@ ramas se fusionan en la rama de trabajo.
 | Carril (rama local) | Lote | Hallazgos | Estado |
 |---|---|---|---|
 | A · `lote-A-pasar-lista-coordinacion` | **L2 · Pasar Lista** | PL-1, 2, 5, 3, 13, 4, 7, 8, 6, 10 (sin el punto 5), 12, 11, 9 (sin su punto 3) + VEL-2 | **HECHO** (09/10) — los 14, un commit cada uno |
-| A | **L3 · Coordinación** | COO-1, 2, 7, 4, 3, 9, 6, 5 | **HECHO** salvo COO-5 (escritorio), EN CURSO el 10/10 |
+| A | **L3 · Coordinación** | COO-1, 2, 7, 4, 3, 9, 6, 5 | **HECHO** (09-10/10) — todos |
 | B · `lote-B-familias-velocidad` | **L1 · Familias** | FAM-a1, a3, a6, a2, a7, a5, a4, a9, a12, a11 y la parte sin decisión de a13 | **HECHO** (09/10) — todos, ninguno saltado |
-| B | **L4 · Velocidad** | VEL-1, 5, 4, 7, 6 (sin subir la concurrencia), 10 mínima (cabecera `Server-Timing`), (9 y 3 si caben) | VEL-1, 4, 5, 7 **HECHOS**; VEL-6, 10 (y 9/3 si son seguros) EN CURSO el 10/10 |
-| A (tras L3) | **L5 · Carcasa y accesibilidad** | CAR-2 (`viewport-fit=cover`), CAR-3, CAR-4, CAR-5 (puntos 1 y 3), CAR-7, A11Y-6, A11Y-2, A11Y-3; y al final A11Y-4 (CSS muerto, solo lo demostrado) y A11Y-5 si es seguro | EN CURSO el 10/10 |
+| B | **L4 · Velocidad** | VEL-1, 5, 4, 7, 6 (sin subir la concurrencia), 10 mínima (cabecera `Server-Timing`), 9 y 3 | **HECHO** (10/10) — VEL-1, 4, 5, 6, 7, 10; VEL-9 punto 1 y VEL-3 punto 2. Lo demás de 9 y 3, anotado en su auditoría (necesita prueba en el CRM o una decisión) |
+| A (tras L3) | **L5 · Carcasa y accesibilidad** | CAR-2 (`viewport-fit=cover`), CAR-3, CAR-4, CAR-5 (puntos 1 y 3), CAR-7, A11Y-6, A11Y-2, A11Y-3, A11Y-4 | **HECHO** (10/10). A11Y-5 (componentes duplicados) no se hizo: queda para otra pasada |
 
 Si una sesión se corta: las ramas de los carriles viven en el contenedor
 (`git branch`), con un commit por hallazgo, y los worktrees en el scratchpad de la
@@ -83,6 +83,12 @@ por quien hizo el cambio.
 - **Una familia con dos o más hijos que entra por el enlace de un evento**
   (FAM-a1): debe ver «¿A quién quieres apuntar?» y, al elegir, llegar a la ficha
   del evento.
+- **La zona segura y el «volver»** (CAR-2, CAR-3) en un iPhone con MCM App y en un
+  Android: un formulario largo (Mis datos de monitor), la ficha de un evento y la
+  cápsula «atrás» de la app después de usar la flecha de la pantalla.
+- **La cabecera `Server-Timing`** (VEL-10): en las herramientas de desarrollo,
+  Network → la página → Timing. Es la forma de saber, por fin, cuánto del «va
+  lento» es el CRM.
 
 ### Pequeñas decisiones que salieron al implementar
 
@@ -91,6 +97,18 @@ por quien hizo el cambio.
 - **FAM-a11**: el selector de participante de la barra se ve de 31 px, aunque su
   zona táctil ya es de 45 px. Hacerlo de 44 px de verdad hace la barra 13 px más
   alta en todas las pantallas.
+- **El contrato con la app** (`docs/comunica/CONTRATO-APP-WEBVIEW.md` §3, §4 y §6)
+  cambió con CAR-2 y CAR-3: hay que llevar esos cambios a la copia del repo de la
+  app (`mcmespana/mcmapp`).
+- **VEL-9 punto 2** (las relaciones del compromiso de pago en una tanda): son
+  escrituras en paralelo; necesita antes una prueba en el CRM con domiciliación y
+  con tarjeta.
+- **VEL-3 puntos 1 y 3** (no pedir lo de las inscripciones viejas): cambian lo que
+  enseña el calendario, y `registration_date` lo lee el código pero no está en
+  `CAMPOS.md` (contradicción que hay que resolver).
+- **Un fallo que ya existía** (no lo introdujo esta pasada): en Coordinación, la
+  lista «Sin grupo» desaparece al escribir en el buscador del equipo y no vuelve al
+  borrarlo.
 - **«Atrás» frente a «Volver»**: el formulario de inscripción ya dice «Volver»;
   documentos, perfil y pagos siguen con «Atrás». Unificarlo es una línea por
   formulario.
