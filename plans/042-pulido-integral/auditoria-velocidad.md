@@ -428,6 +428,16 @@ y depende de lo desiguales que sean las consultas.
 
 **Ficheros:** `inc/stic-class-6.php`, `tests/CosteLlamadasTest.php`, `tests/CosteLlamadasAreaTest.php`, `docs/comunica/PASAR-LISTA-ESTADO.md`
 
+> **Estado (10/10/2026, lote L4).** **Puntos 1 y 2 HECHOS.** Las esperas se cuentan
+> `Σ ceil(tanda/4) + sueltas` en los tres tests de coste, y la tabla de §4 está al
+> día. `callMany()` es ventana deslizante, probada contra un servidor de verdad
+> (`tests/manual/check-crm-multi.php`, con `mock-crm-fork.php`: `php -S` atiende a
+> veces dos conexiones en fila y falsea los tiempos): 800/200×5 ms, ~1.010 → ~805 ms;
+> nunca más de 4 en vuelo; cuelgue, cuerpo roto, vacío y cortado sin colgar la tanda.
+> La prueba destapó un fallo de antes: una respuesta cortada cuyo trozo era JSON se
+> memorizaba como buena; ya no. **Punto 3 (concurrencia 4 → 6): sigue siendo del
+> propietario.**
+
 ## VEL-7 — Tres juegos de Inter y uno sale de un dominio provisional: la negrita del área se descarga de `steelblue-mallard-178509.hostingersite.com`, y Google Fonts sigue bloqueando el primer pintado
 
 **Tipo:** rendimiento · **Para:** todos · **Tamaño:** S · **Riesgo:** bajo · **Impacto:** 3/5
@@ -649,3 +659,13 @@ existen y se rellenan (`SugarRestApiCall::$callCount`, `$callMs`, `$callLog`,
 **Ahorro estimado:** ninguno por sí mismo; es lo que permite saber qué ha servido.
 
 **Ficheros:** `inc/stic-pasar-lista-diag.php` (o uno nuevo `inc/stic-perf.php`), `sinergiacrm-private-area.php`, `inc/stic-class-6.php` (el comentario)
+
+> **Estado (10/10/2026, lote L4).** **Versión mínima HECHA**, y no la del `error_log`
+> sino la cabecera: `Server-Timing: crm;dur=…;desc="CRM (N llamadas)",
+> total;dur=…;desc="Servidor (total)"` en cada página del área con sesión
+> (`inc/stic-perf.php`). Se manda pese a lo del tema porque la página se retiene en
+> un búfer abierto en `template_redirect` y la cabecera se pone al vaciarlo;
+> comprobado con `php -S`, `output_buffering=4096` y un `<head>` de 10 KB, y Chromium
+> la lee en `serverTiming`. Cómo mirarla: `PASAR-LISTA-ESTADO.md` §4. **Queda**: el
+> `sendBeacon` con lo del navegador, el anillo de visitas y la tabla de medianas
+> (puntos 1-2), y rellenar la tabla del 034 (punto 3).
