@@ -117,7 +117,7 @@ editan `--primary-*` y `--secondary-*`.**
 | Nota de alerta ámbar | `.stic-form-note.stic-note-warning` | §29 CSS |
 | Hint bajo el campo | `.stic-field-hint` | §29 CSS · clave `'hint'` |
 | Nota de sección | `.stic-form-note` (+ `.stic-note-soft`) | §29 CSS · tipo `'note'` |
-| Consentimiento legal (enlace + Sí/No) | `.stic-legal-row`, `.stic-legal-link` | §30 CSS · ver `single_stic_comunica_perfil.php` |
+| Enlace a un texto legal o a un trámite (píldora) | `.stic-legal-link` | §30 CSS · ver `single_stic_comunica_monitor.php` |
 | Tarjetas de opción (radio) | `.stic-option-grid`, `.stic-option-card` | §31 CSS · ver `single_stic_comunica_monitor.php` |
 | Selección de participante | `.stic-profiles-grid`, `.stic-profile-card` | §32 CSS · `pages/single_stic_profile_selection.php` |
 | **Ficha de registro (LA unidad de registro)** | `.stic-rec-*` — tarjeta, rejilla, cápsula, chip con tono, importe, acción rápida, ficha con cabecera, barra de progreso y avisos | §49 + §56 CSS · **`inc/stic-record-view.php`** |
@@ -131,7 +131,7 @@ editan `--primary-*` y `--secondary-*`.**
 | Auth / login | `.stic-auth-shell`, `.stic-auth-tabs`, `.stic-auth-view`, `.stic-field` | §3-4, 24, 34 CSS |
 | Control de apariencia (Auto/Claro/Oscuro) | `.stic-appearance*` | §44.j CSS · `sticpa_appearance_switch_html()` |
 | Aviso ámbar en línea del motor | `.stic-warning-card` | §47 CSS |
-| Campo bloqueado (viene del CRM) | `.stic-locked-field` | §47 CSS |
+| Campo bloqueado (viene del CRM) | `.stic-locked-field` — hoy no lo pinta ninguna pantalla; es el que pide design.md §6.5 | §47 CSS |
 
 ### 4.1 La ficha de registro (`stic-rec-*`) — empieza SIEMPRE por aquí
 

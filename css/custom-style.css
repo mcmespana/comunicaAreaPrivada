@@ -308,8 +308,7 @@ body.sticpa-app-mode {
 /* ============================================================
    4. TARJETA DE LOGIN / RECUPERAR — glassmorphism premium
    ============================================================ */
-.stic-login-form,
-.stic-forgotpas-form {
+.stic-login-form {
     position: relative;
     width: 100%;
     max-width: 400px;
@@ -329,8 +328,7 @@ body.sticpa-app-mode {
    con filter: blur(64px): difuminar un elemento grande en cada composición es
    de lo más caro en GPU móvil. Un radial-gradient ya "nace" difuminado y no
    cuesta filtro — mismo efecto, coste de pintura mucho menor. */
-.stic-login-form::before,
-.stic-forgotpas-form::before {
+.stic-login-form::before {
     content: '';
     position: absolute;
     inset: -45% -30% auto -30%;
@@ -375,16 +373,7 @@ body.sticpa-app-mode {
     50%      { transform: translateY(-6px); }
 }
 
-.stic-auth-kicker {
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--secondary-color);
-}
-
-.stic-login-form h3,
-.stic-forgotpas-form h3 {
+.stic-login-form h3 {
     margin: 0;
     font-size: clamp(1.35rem, 3.5vw, 1.6rem);
     font-weight: 800;
@@ -404,8 +393,7 @@ body.sticpa-app-mode {
 }
 
 /* Lista de campos del formulario de login */
-.stic-login-form form ul,
-.stic-forgotpas-form form ul {
+.stic-login-form form ul {
     list-style: none;
     margin: 0;
     padding: 0;
@@ -414,16 +402,14 @@ body.sticpa-app-mode {
     gap: 0.7rem;
 }
 
-.stic-login-form .input_login,
-.stic-forgotpas-form .field_signup {
+.stic-login-form .input_login {
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
     text-align: left;
 }
 
-.stic-login-form .input_login > label,
-.stic-forgotpas-form .field_signup > label {
+.stic-login-form .input_login > label {
     font-size: 0.82rem;
     font-weight: 600;
     color: var(--gray-700);
@@ -432,14 +418,12 @@ body.sticpa-app-mode {
 
 /* Campo con icono incrustado (posicionamiento robusto, sin depender de flex) */
 .stic-login-form .stic-field,
-.stic-forgotpas-form .stic-field,
 span.stic-field {
     position: relative !important;
     display: block !important;
     width: 100%;
 }
 .stic-login-form .stic-field-icon,
-.stic-forgotpas-form .stic-field-icon,
 .stic-field .stic-field-icon {
     position: absolute;
     left: 0.95rem;
@@ -458,7 +442,6 @@ span.stic-field {
 
 .stic-login-form .input_login input.input-text,
 .stic-login-form .input_login span > input,
-.stic-forgotpas-form input.input-text,
 .stic-field input,
 /* Fuera de `.input_login` (el DNI del rescate, el correo de la pantalla del
    código) ganaba `.stic-form input[type="text"]` (§ «Inputs / selects») con
@@ -486,8 +469,7 @@ span.stic-field {
    `.entry-content button` (especificidad mayor) y, si no, el botón hereda
    padding/fondo del tema y se convierte en una caja enorme. */
 .stic-pass-toggle,
-.stic-login-form .stic-pass-toggle,
-.stic-forgotpas-form .stic-pass-toggle {
+.stic-login-form .stic-pass-toggle {
     position: absolute !important;
     right: 0.4rem !important;
     top: 50% !important;
@@ -517,14 +499,11 @@ span.stic-field {
 .stic-pass-toggle svg { width: 20px !important; height: 20px !important; }
 
 /* Botón principal de submit */
-.stic-login-form .actions_login,
-.stic-forgotpas-form .stic-send {
+.stic-login-form .actions_login {
     list-style: none;
     margin-top: 0.4rem;
 }
-.stic-login-form .actions_login input[type="submit"],
-.stic-forgotpas-form .stic-send input[type="submit"],
-.stic-btn-primary {
+.stic-login-form .actions_login input[type="submit"] {
     width: 100%;
     padding: 1rem 1.25rem;
     font-size: 1.02rem;
@@ -534,26 +513,6 @@ span.stic-field {
     border: 0;
     border-radius: var(--radius-md);
     cursor: pointer;
-}
-
-/* Separador "o" entre login clásico y acceso por enlace */
-.stic-auth-divider {
-    display: flex;
-    align-items: center;
-    gap: 0.85rem;
-    margin: 1.3rem 0 1.1rem;
-    color: var(--gray-500); /* gray-400 daba ~2.5:1 sobre blanco: ilegible */
-    font-size: 0.78rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-}
-.stic-auth-divider::before,
-.stic-auth-divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--gray-200), transparent);
 }
 
 /* Enlaces secundarios (registro, acceso por enlace) */
@@ -583,27 +542,6 @@ span.stic-field {
 }
 .stic-auth[data-mode="magic"] .stic-auth-login { display: none; }
 .stic-auth[data-mode="password"] .stic-auth-magic { display: none; }
-
-.stic-auth-switch {
-    margin: 1.2rem 0 0;
-    text-align: center;
-}
-.stic-auth-switch a {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: var(--primary-color);
-    text-decoration: none;
-    padding: 0.55rem 0.9rem;
-    border-radius: var(--radius-full);
-    transition: color 0.18s ease, background 0.18s ease;
-}
-@media (hover: hover) {
-    .stic-auth-switch a:hover { color: var(--secondary-color); background: var(--secondary-50); }
-}
-.stic-inline-icon { width: 16px; height: 16px; flex-shrink: 0; }
 
 /* Los <select> dentro de un campo no llevan icono: padding normal a la izquierda. */
 .stic-field select { padding-left: 1rem !important; }
@@ -637,43 +575,9 @@ span.stic-field {
     100% { transform: translate(0, 0) rotate(0); }
 }
 
-/* ---- Destello junto al texto de ayuda del enlace mágico ---- */
-.stic-sparkle { display: inline-grid; place-items: center; vertical-align: -4px; color: var(--secondary-color); margin-right: 0.15rem; }
-.stic-sparkle svg { width: 18px; height: 18px; animation: stic-twinkle 2.4s ease-in-out infinite; }
-@keyframes stic-twinkle {
-    0%, 100% { opacity: 0.55; transform: scale(0.9) rotate(0); }
-    50%      { opacity: 1; transform: scale(1.12) rotate(12deg); }
-}
-
 /* ---- Iconos de los desplegables de ayuda del acceso (.stic-code-reveal) ---- */
 .stic-hint-icon { width: 15px; height: 15px; flex-shrink: 0; }
 .stic-hint-chevron { width: 14px; height: 14px; flex-shrink: 0; transition: transform 0.25s var(--ease-spring); }
-
-/* CTA destacada de acceso por enlace mágico */
-.stic-magic-cta {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.6rem;
-    width: 100%;
-    padding: 0.9rem 1.2rem;
-    font-size: 0.96rem;
-    font-weight: 700;
-    color: var(--secondary-color) !important;
-    background: var(--secondary-50);
-    border: 1.5px solid rgba(157, 30, 116, 0.22);
-    border-radius: var(--radius-md);
-    text-decoration: none;
-    transition: transform 0.18s var(--ease-spring), box-shadow 0.2s ease, background 0.2s ease;
-}
-.stic-magic-cta svg { width: 20px; height: 20px; }
-@media (hover: hover) {
-    .stic-magic-cta:hover {
-        transform: translateY(-2px);
-        background: var(--field-bg-focus);
-        box-shadow: var(--shadow-glow-pink);
-    }
-}
 
 .stic-auth-help {
     margin: 0.2rem 0 1rem;
@@ -816,17 +720,6 @@ span.stic-field {
 @media (hover: hover) {
     .stic-account-participant:hover { text-decoration: underline; }
 }
-.stic-switch {
-    flex-shrink: 0;
-    display: inline-grid; place-items: center;
-    width: 30px; height: 30px; border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2); color: #fff;
-    transition: background 0.2s ease, transform 0.4s var(--ease-spring);
-}
-.stic-switch svg { width: 16px; height: 16px; }
-@media (hover: hover) {
-    .stic-switch:hover { background: rgba(255, 255, 255, 0.34); transform: rotate(180deg); }
-}
 
 /* ---- Acciones derechas (salir + hamburguesa) ---- */
 .stic-nav-actions { display: flex; align-items: center; gap: 0.4rem; margin-left: auto; flex-shrink: 0; }
@@ -875,11 +768,6 @@ span.stic-field {
 .stic-nav.is-open .stic-nav-toggle-bars i:nth-child(1) { transform: translateY(5.75px) rotate(45deg); }
 .stic-nav.is-open .stic-nav-toggle-bars i:nth-child(2) { opacity: 0; }
 .stic-nav.is-open .stic-nav-toggle-bars i:nth-child(3) { transform: translateY(-5.75px) rotate(-45deg); }
-.stic-nav-toggle-current {
-    max-width: 9rem;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    font-size: 0.9rem; opacity: 0.95;
-}
 
 /* ---- Lista de items (una sola línea en escritorio) ---- */
 .stic-nav-list {
@@ -1215,13 +1103,6 @@ span.stic-field {
 }
 .stic-welcome-hero > * { position: relative; z-index: 1; }
 
-.stic-welcome-kicker {
-    font-size: 0.78rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    opacity: 0.9;
-}
 .stic-container .stic-welcome-title,
 .stic-welcome-title {
     margin: 0.35rem 0 0.5rem;
@@ -1417,7 +1298,7 @@ span.stic-field {
    <button> genérico (rompería el menú del tema y FullCalendar).
    ============================================================ */
 :is(.stic-container, .stic-auth-shell) :is(input[type="submit"], .stic-button),
-.stic-btn-primary, .stic-btn-magic {
+.stic-btn-magic {
     position: relative;
     background: var(--grad-brand) !important;
     background-size: 160% 160% !important;
@@ -1431,7 +1312,7 @@ span.stic-field {
 }
 
 :is(.stic-container, .stic-auth-shell) :is(input[type="submit"], .stic-button)::after,
-.stic-btn-primary::after, .stic-btn-magic::after {
+.stic-btn-magic::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -1443,22 +1324,22 @@ span.stic-field {
 
 @media (hover: hover) {
     :is(.stic-container, .stic-auth-shell) :is(input[type="submit"], .stic-button):hover,
-    .stic-btn-primary:hover, .stic-btn-magic:hover {
+    .stic-btn-magic:hover {
         background-position: 100% 50% !important;
         transform: translateY(-2px);
         box-shadow: var(--shadow-lg) !important;
     }
 
     :is(.stic-container, .stic-auth-shell) :is(input[type="submit"], .stic-button):hover::after,
-    .stic-btn-primary:hover::after, .stic-btn-magic:hover::after { transform: translateX(120%); }
+    .stic-btn-magic:hover::after { transform: translateX(120%); }
 }
 
 :is(.stic-container, .stic-auth-shell) :is(input[type="submit"], .stic-button):active,
-.stic-btn-primary:active, .stic-btn-magic:active { transform: translateY(0) scale(0.99); }
+.stic-btn-magic:active { transform: translateY(0) scale(0.99); }
 
 /* el toggle de contraseña y enlaces no deben heredar el gradiente */
-.stic-pass-toggle, .stic-magic-cta, a.stic-button-ghost { background: transparent !important; }
-.stic-pass-toggle::after, .stic-magic-cta::after { display: none; }
+.stic-pass-toggle { background: transparent !important; }
+.stic-pass-toggle::after { display: none; }
 
 /* ============================================================
    12. TABLAS Y DATATABLES (acotadas al área privada)
@@ -1496,9 +1377,7 @@ span.stic-field {
     font-weight: 500;
 }
 .stic-login-form .error,
-.stic-login-form .success,
-.stic-forgotpas-form .error,
-.stic-forgotpas-form .success {
+.stic-login-form .success {
     display: block;
     margin-top: 1rem;
     padding: 0.85rem 1rem;
@@ -1506,10 +1385,8 @@ span.stic-field {
     font-weight: 600;
     text-align: center;
 }
-.stic-login-form .error,
-.stic-forgotpas-form .error { background: var(--danger-100); color: var(--danger-dark); }
-.stic-login-form .success,
-.stic-forgotpas-form .success { background: var(--success-50); color: var(--success-dark); }
+.stic-login-form .error { background: var(--danger-100); color: var(--danger-dark); }
+.stic-login-form .success { background: var(--success-50); color: var(--success-dark); }
 
 /* ============================================================
    14. TARJETAS GENÉRICAS + foto de perfil
@@ -1556,7 +1433,7 @@ span.stic-field {
    ============================================================ */
 @media (max-width: 560px) {
     .stic-auth-shell { min-height: 100vh; min-height: 100dvh; padding: 1rem 0.75rem; }
-    .stic-login-form, .stic-forgotpas-form { padding: 1.75rem 1.4rem; }
+    .stic-login-form { padding: 1.75rem 1.4rem; }
     /* (La rejilla del dashboard en móvil se define en §48: 2 columnas
        compactas, no una sola columna de tarjetas altas.) */
 
@@ -1573,13 +1450,13 @@ span.stic-field {
    radio de blur sin perder legibilidad, y el blur es la operación cara. */
 @media (max-width: 600px) {
     :root { --glass-blur: 8px; }
-    .stic-login-form, .stic-forgotpas-form { background: color-mix(in srgb, var(--surface) 88%, transparent); }
+    .stic-login-form { background: color-mix(in srgb, var(--surface) 88%, transparent); }
 }
 
 /* (Plan 020) Fallback sin backdrop-filter: sin soporte, el fondo translúcido
    dejaba el texto sobre casi nada. Fondo sólido salvo que el blur exista. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    .stic-login-form, .stic-forgotpas-form { background: color-mix(in srgb, var(--surface) 92%, transparent); }
+    .stic-login-form { background: color-mix(in srgb, var(--surface) 92%, transparent); }
 }
 
 /* ============================================================
@@ -1600,7 +1477,6 @@ span.stic-field {
     .stic-nav,
     .stic-auth-shell::before,
     .stic-login-form::before,
-    .stic-forgotpas-form::before,
     .stic-auth-logo { animation: none !important; }
     /* El `*` que cortaba animaciones y transiciones vive en stic-base.css
        («ACCESSIBILITY»), acotado al área: aquí lo repetía sin acotar y
@@ -2489,8 +2365,7 @@ span.stic-field {
     }
     
     /* Eliminar el fondo, borde y sombra de la tarjeta interior para evitar el doble recuadro */
-    .stic-login-form,
-    .stic-forgotpas-form {
+    .stic-login-form {
         background: transparent !important;
         box-shadow: none !important;
         border: none !important;
@@ -2503,8 +2378,7 @@ span.stic-field {
     }
 
     /* Quitar el halo de color morado de la tarjeta pequeña (evita el rectángulo cortado en PC) */
-    .stic-login-form::before,
-    .stic-forgotpas-form::before {
+    .stic-login-form::before {
         display: none !important;
     }
 }
@@ -3286,23 +3160,12 @@ span.stic-field {
 }
 
 /* ============================================================
-   30. CONSENTIMIENTOS LEGALES — enlace "ver condiciones" + select
+   30. CONSENTIMIENTOS LEGALES — enlace "ver condiciones"
    ------------------------------------------------------------
-   Cada consentimiento = fila con botón-enlace al texto legal y su
-   desplegable Sí/No. Lo monta sticpa_legal_consent_fields() (pages).
+   La píldora que abre un texto legal o un trámite (la ficha del
+   monitor). La fila con su desplegable Sí/No (`.stic-legal-row`) ya no
+   la pinta nadie y se quitó (plan 042, A11Y-4).
    ============================================================ */
-.stic-form li.stic-legal-row {
-    grid-column: 1 / -1 !important;
-    display: flex !important;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.8rem 1.2rem;
-    padding: 1rem 1.1rem !important;
-    background: var(--surface-2);
-    border: 1px solid var(--gray-200);
-    border-radius: var(--radius-md);
-    margin-bottom: 0.55rem !important;
-}
 .stic-legal-link {
     display: inline-flex;
     align-items: center;
@@ -3328,29 +3191,7 @@ span.stic-field {
     .stic-legal-link:hover { background: var(--brand-blue-fixed); color: var(--on-brand) !important; }
 }
 .stic-legal-link svg { width: 14px; height: 14px; flex-shrink: 0; }
-.stic-legal-row .stic-legal-q {
-    flex: 1 1 260px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.9rem;
-}
-.stic-legal-row .stic-legal-q label {
-    margin: 0 !important;
-    font-size: 0.9rem !important;
-    font-weight: 600 !important;
-    color: var(--gray-700) !important;
-    line-height: 1.4;
-}
-.stic-legal-row .stic-legal-q select {
-    flex: 0 0 auto;
-    width: auto !important;
-    min-width: 96px;
-    min-height: 44px !important;
-    padding: 0.5rem 2.4rem 0.5rem 0.9rem !important;
-}
 @media (max-width: 600px) {
-    .stic-form li.stic-legal-row { align-items: stretch; flex-direction: column; }
     .stic-legal-link { align-self: flex-start; }
 }
 
@@ -5419,7 +5260,6 @@ span.stic-field {
     letter-spacing: -0.01em;
     color: var(--gray-900);
 }
-.stic-rec-when,
 .stic-rec-where {
     display: flex;
     align-items: center;
@@ -5428,7 +5268,6 @@ span.stic-field {
     color: var(--gray-600);
     min-width: 0;
 }
-.stic-rec-when svg,
 .stic-rec-where svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--primary-color); }
 .stic-rec-where span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .stic-rec-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.15rem; }
@@ -6064,13 +5903,6 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     0%, 100% { transform: translateX(0); }
     25% { transform: translateX(-6px); }
     75% { transform: translateX(6px); }
-}
-
-.stic-code-hint {
-    margin: 0;
-    text-align: center;
-    font-size: var(--font-size-xs);
-    color: var(--gray-500);
 }
 
 /* ---- La pantalla del código: el campo manda (02/10/2026) ----
@@ -6767,11 +6599,6 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     font-weight: 500;
     line-height: 1.45;
     overflow-wrap: anywhere;
-}
-
-.stic-dni-form .stic-code-hint {
-    text-align: left;
-    margin-bottom: var(--space-3);
 }
 
 /* ============================================================
