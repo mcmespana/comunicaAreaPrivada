@@ -131,4 +131,20 @@ class CarcasaTest extends TestCase
             $css
         );
     }
+
+    /**
+     * FAM-a2, revisión 042. La franja de «Inscribirme» pegado era un bloque
+     * macizo de --surface-2: en oscuro, una losa gris sobre la página. Lleva
+     * el fondo de la botonera de §28, que se funde por arriba.
+     */
+    public function test_la_franja_de_inscribirme_se_funde_como_la_de_los_formularios()
+    {
+        $css = $this->css('custom-style.css');
+        $fila = $this->rule($css, '.stic-rec-detail--cta-sticky .stic-rec-cta-row');
+        $botonera = $this->rule($css, '.stic-form > form > ul.stic-ctabs-list');
+        $this->assertMatchesRegularExpression('/background: linear-gradient\([^;]+;/', $botonera);
+        preg_match('/background: linear-gradient\([^;]+;/', $botonera, $m);
+        $this->assertStringContainsString($m[0], $fila);
+        $this->assertStringContainsString('backdrop-filter: blur(4px);', $fila);
+    }
 }

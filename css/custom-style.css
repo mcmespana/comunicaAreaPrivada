@@ -7205,13 +7205,20 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
    Con el cartel y «Toda la información», «Inscribirme» quedaba a 2.183 px
    en un móvil y a 1.411 en escritorio. Pegada al pie de su columna, se ve
    desde la primera pantalla. Mismo patrón que la botonera de los
-   formularios (§28): fondo de la página y la zona segura de §1 (CAR-2). */
+   formularios (§28): su fondo en degradado, que se funde por arriba (un
+   bloque macizo de --surface-2 era una losa gris en oscuro, revisión 042),
+   y la zona segura de §1 (CAR-2). */
 .stic-rec-detail--cta-sticky .stic-rec-cta-row {
     position: sticky;
     bottom: var(--stic-app-bottom);
     z-index: 5;
-    background: var(--surface-2);
+    background: linear-gradient(to top, var(--surface-2) 70%, color-mix(in srgb, var(--surface-2) 40%, transparent));
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     padding: 0.6rem 0 calc(0.6rem + var(--stic-safe-bottom));
+}
+@media (prefers-reduced-motion: reduce) {
+    .stic-rec-detail--cta-sticky .stic-rec-cta-row { backdrop-filter: none; }
 }
 /* Con cartel, en móvil la fila va dentro de .stic-rec-split-main, que
    empieza DEBAJO del cartel, y un sticky no sube por encima de su
