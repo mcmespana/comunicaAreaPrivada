@@ -90,7 +90,9 @@
 .pl-avi-submit,
 .pl-seg-add,
 .pl-panuelo-edit,
-.pl-panuelo-opt {
+.pl-panuelo-opt,
+.pl-copy,
+.pl-review-btn {
     -webkit-appearance: none !important;
     appearance: none !important;
     font: inherit !important;
@@ -125,7 +127,11 @@
 .pl-panuelo-edit::after,
 .pl-panuelo-edit::before,
 .pl-panuelo-opt::after,
-.pl-panuelo-opt::before {
+.pl-panuelo-opt::before,
+.pl-copy::after,
+.pl-copy::before,
+.pl-review-btn::after,
+.pl-review-btn::before {
     content: none !important;
     display: none !important;
 }
@@ -3693,3 +3699,42 @@ a.pl-group .pl-name { display: block; }
 /* ---- COO-4: la unidad del número grande de cada etapa ---------------------
    Del tamaño de la línea de abajo, para que el número siga mandando. */
 .pl-card-unit { font-size: 0.78rem; font-weight: 700; letter-spacing: 0; color: var(--gray-500); }
+
+/* ---- COO-6: «Copiar el correo» y «Vincular», contra el tema --------------
+   Faltaban en la lista de §0.b y `.entry-content button` del tema (0,1,1) les
+   ganaba: el círculo claro de copiar salía como un rectángulo de 140 px con el
+   relleno del tema, y «Vincular» perdía su ámbar. §0.b los neutraliza con
+   `!important`; aquí vuelven a declarar lo suyo igual, como `.pl-seg-add` o
+   `.pl-save` (ESTADO §3.6). */
+.pl-copy {
+    width: 44px !important;
+    height: 44px !important;
+    padding: 0 !important;
+    border-radius: var(--radius-full) !important;
+    background: var(--primary-50) !important;
+    color: var(--primary-color) !important;
+}
+.pl-copy.is-done {
+    background: var(--success-light, var(--primary-50)) !important;
+    color: var(--success-dark) !important;
+}
+.pl-review-btn {
+    /* La misma altura que el desplegable de al lado: 44 y 50 no casaban. */
+    height: 48px !important;
+    padding: 0 0.9rem !important;
+    border-radius: var(--radius-md) !important;
+    background: var(--warning-dark) !important;
+    color: var(--white) !important;
+    font-size: 0.83rem !important;
+    font-weight: 700 !important;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.12s var(--ease-out);
+}
+.pl-review-btn:active { transform: scale(0.97); }
+/* (0,2,1) y no una clase sola: la regla general de campos de custom-style
+   (`:is(.stic-tab-content) :is(input[type=…], select)`, también 0,2,1, y va
+   antes) le pone el relleno de un campo de formulario, y medía 50 px. */
+.stic-container select.pl-review-select { height: 48px; padding: 0 0.6rem; }
+@media (prefers-reduced-motion: reduce) {
+    .pl-review-btn { transition: none; }
+}
