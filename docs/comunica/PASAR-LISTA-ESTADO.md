@@ -723,23 +723,38 @@ llamada fallaba en silencio y caía a respaldos 1+N).
 > es lo que se nota. Diez llamadas en dos tandas paralelas son dos esperas; diez
 > en fila son diez.
 
-**Coste real hoy** (sin enlaces anidados, que es como responde esta instancia):
+**Coste real hoy** (sin enlaces anidados, que es como responde esta instancia;
+estructura fría, que es como arranca el test):
+
+> **10/10/2026 (plan 042, VEL-6): las esperas se cuentan de verdad.** Hasta ese
+> día cada tanda contaba como UNA espera, pero `callMany()` no tiene más de 4
+> peticiones en vuelo (`sticpa_crm_multi_concurrency`): una tanda de 5 a 8 son
+> DOS. Por eso la portada, la ficha y la lista de monitores suben una: no cuestan
+> más que antes, es que antes se contaban mal. Con la estructura caliente (la
+> deja el calentado nocturno) esas tandas bajan de 4 y vuelven a ser una.
+>
+> El mismo día `callMany()` pasó de olas de 4 a **ventana deslizante**: siguen
+> sin ir más de 4 a la vez, pero en cuanto acaba una entra la siguiente, y la
+> quinta ya no espera a la más lenta de las cuatro primeras (800/200/200/200/
+> 200/200 ms: de ~1.010 a ~805 ms, medido con `tests/manual/check-crm-multi.php`).
+> Con latencias parecidas una tanda de 5 sigue costando dos esperas; subir la
+> concurrencia a 6 sí la dejaría en una, y eso lo decide el propietario.
 
 | Pantalla | Llamadas | Esperas |
 |---|---|---|
-| Portada (26/09/2026: «¿coordina?» ya va en la primera tanda) | 9 | **4** |
-| Portada de quien coordina (con el aviso de reuniones) | 11 | 5 |
+| Portada (26/09/2026: «¿coordina?» ya va en la primera tanda) | 9 | **5** (tandas 5+2) |
+| Portada de quien coordina (con el aviso de reuniones) | 11 | 6 (5+3) |
 | Árbol de grupos | 7 | 3 |
 | Marcar | 10 | 6 |
 | Resumen | 7 | 3 |
-| Ficha del participante | 13 | 7 |
-| Lista de monitores (sábado o reunión) | 10 | 4 |
+| Ficha del participante | 13 | 8 (2+5+2) |
+| Lista de monitores (sábado o reunión) | 10 | 5 (5+2+2) |
 | Reuniones (26/09/2026: antes sin tanda) | 5 | 3 |
+| Coordinación | 7 | 4 (5) |
 | **Guardar la lista de monitores**, 14 sin inscribir (26/09/2026) | ~75 | ~75 → **~22** (tandas de 4) |
-| **Mis grupos** (índice, y sus tres vistas) | **3** | **2** |
-| Mis grupos → un grupo | 3 (5 si el mapa falla) | 2 |
-| Mis grupos → monitores | 4 | 3 |
-| Mis grupos → sin grupo | 3 | 2 |
+| **Mis grupos** (índice, y sus tres vistas) | **3** | **1** (una tanda de 3) |
+| Mis grupos → un grupo | 3 (5 si el mapa falla) | 1 (3 si el mapa falla) |
+| Mis grupos → sin grupo | 3 | 1 |
 | **Cambiar de fecha** (caché caliente) | **4** | 4 |
 
 Lo que bajó esos números el 28/08: matar el 1+N que resolvía a la gente de un

@@ -533,6 +533,16 @@ class SugarRestApiCall
      * tres tandas. Con 400 ms de latencia por llamada, una pantalla fría pasa
      * de ~3,5 s a ~1 s.
      *
+     * VENTANA DESLIZANTE (plan 042, VEL-6): nunca hay más de
+     * `sticpa_crm_multi_concurrency` peticiones en vuelo (4), pero en cuanto
+     * acaba una entra la siguiente. Antes se partía en olas de 4 y la quinta
+     * esperaba a que acabara LA MÁS LENTA de las cuatro primeras: una consulta
+     * de 800 ms y cinco de 200 eran ~1.010 ms; ahora, ~805 (medido contra un
+     * servidor de verdad: `tests/manual/check-crm-multi.php`, que prueba
+     * también cuelgues, cuerpos rotos y la sesión caducada). La carga máxima
+     * que ve el CRM es la misma. Subir la concurrencia es otra cosa y la
+     * decide el propietario (el filtro de siempre).
+     *
      * Nunca es obligatorio que funcione: si el hosting no tiene curl_multi, si
      * una respuesta viene mal o si algo falla, el memo se queda sin esa entrada
      * y el cargador la pedirá en serie como siempre.
@@ -552,84 +562,115 @@ class SugarRestApiCall
         }
 
         $listas = 0;
+        $lanzadas = 0;
         $caducadas = array();
+        $cola = $requests;
+        $enVuelo = array();   // clave del handle => array('ch', 'req')
+        $multi = curl_multi_init();
+        $startedAt = microtime(true);
 
-        foreach (array_chunk($requests, $lote) as $tanda) {
-            $multi = curl_multi_init();
-            $handles = array();
-
-            foreach ($tanda as $i => $req) {
+        // POR QUÉ ESTE BUCLE TERMINA SIEMPRE. Cada vuelta, o acaba alguna
+        // petición (y son finitas), o espera en curl_multi_select (como mucho
+        // 1 s; cada handle lleva su CURLOPT_TIMEOUT, así que cURL acaba dando
+        // por terminada la que no conteste), o sale: por un error de
+        // curl_multi, o porque cURL ya no tiene nada activo y aun así quedan
+        // handles sin su mensaje de fin, que ya no llegará.
+        do {
+            // Rellenar la ventana: hasta $lote en vuelo.
+            while (count($enVuelo) < $lote && !empty($cola)) {
+                $req = array_shift($cola);
                 $parametros = $req['parameters'];
                 if (is_array($parametros) && array_key_exists('session', $parametros)) {
                     $parametros['session'] = $this->session_id;
                 }
                 $ch = $this->newHandleFor($req['method'], $parametros);
                 curl_multi_add_handle($multi, $ch);
-                $handles[$i] = array('ch' => $ch, 'req' => $req);
+                $enVuelo[self::handleKey($ch)] = array('ch' => $ch, 'req' => $req);
+                $lanzadas++;
             }
 
-            $startedAt = microtime(true);
-            do {
-                $estado = curl_multi_exec($multi, $activas);
-                if ($activas) {
-                    // Sin esto el bucle quema CPU mientras espera la red. Y con
-                    // -1 (cURL no tiene descriptores que vigilar todavía) hay
-                    // que dormir a mano, o el select vuelve al instante y el
-                    // bucle gira igual de caliente.
-                    if (curl_multi_select($multi, 1.0) === -1) {
-                        usleep(1000);
-                    }
-                }
-            } while ($activas && $estado === CURLM_OK);
+            $estado = curl_multi_exec($multi, $activas);
 
-            foreach ($handles as $h) {
-                $cuerpo = curl_multi_getcontent($h['ch']);
+            // Las que han acabado dejan sitio a las de la cola.
+            $acabadas = 0;
+            while (($info = curl_multi_info_read($multi)) !== false) {
+                if (!isset($info['msg']) || $info['msg'] !== CURLMSG_DONE) {
+                    continue;
+                }
+                $clave = self::handleKey($info['handle']);
+                if (!isset($enVuelo[$clave])) {
+                    continue;
+                }
+                $h = $enVuelo[$clave];
+                unset($enVuelo[$clave]);
+                $acabadas++;
+                // Una transferencia fallida (timeout, conexión cortada a
+                // medias) NO se memoriza aunque su trozo de cuerpo parezca
+                // JSON: es lo mismo que hace `call()`, donde curl_exec da
+                // false. Comprobado contra un servidor que corta la respuesta.
+                $fallo = isset($info['result']) && $info['result'] !== CURLE_OK;
+                $cuerpo = $fallo ? '' : curl_multi_getcontent($h['ch']);
                 curl_multi_remove_handle($multi, $h['ch']);
                 if (PHP_VERSION_ID < 80000) {
                     curl_close($h['ch']); // ver closeCurlHandle()
                 }
-
-                $firma = self::signature($h['req']['method'], $h['req']['parameters']);
-                if (!is_string($cuerpo) || $cuerpo === '') {
-                    continue;   // sin respuesta: que la pida el cargador
+                if ($fallo) {
+                    error_log('[sticpa] Llamada al CRM fallida (' . $h['req']['method']
+                        . ', en tanda paralela): ' . curl_strerror($info['result']));
+                    continue;   // que la pida el cargador
                 }
-                $respuesta = json_decode($cuerpo);
-                if ($respuesta === null) {
-                    continue;
+                if ($this->absorbResponse($h['req'], $cuerpo, $caducadas)) {
+                    $listas++;
                 }
-                // Sesión caducada: se reintenta al final, una sola vez y en
-                // serie. Son raras y no merecen complicar la tanda.
-                if (isset($respuesta->number) && (int) $respuesta->number === 11) {
-                    $caducadas[] = $h['req'];
-                    continue;
-                }
-                $error = self::errorFrom($respuesta);
-                if ($error !== '') {
-                    // Un error SÍ se memoriza: el cargador tiene que verlo y
-                    // decidir (sus respaldos viven ahí). Repetirlo en serie
-                    // solo costaría otra llamada para el mismo error.
-                    error_log('[sticpa] El CRM ha rechazado ' . $h['req']['method']
-                        . ' (en tanda paralela): ' . $error);
-                }
-                self::$memo[$firma] = $respuesta;
-                $listas++;
             }
 
-            curl_multi_close($multi);
-
-            // Se apunta como UNA llamada por petición, pero el tiempo es el de
-            // la tanda: es lo que hay que ver para saber si paralelizar sirve.
-            $ms = (microtime(true) - $startedAt) * 1000;
-            self::$callCount += count($tanda);
-            self::$callMs += $ms;
-            if (count(self::$callLog) < 60) {
-                self::$callLog[] = array(
-                    'method' => 'tanda(' . count($tanda) . ')',
-                    'module' => '',
-                    'ms' => round($ms, 1),
-                    'error' => '',
-                );
+            if ($estado === CURLM_CALL_MULTI_PERFORM) {
+                continue;   // cURL antiguo (< 7.20): «vuelve a llamarme ya»
             }
+            if ($estado !== CURLM_OK) {
+                error_log('[sticpa] Tanda paralela interrumpida: curl_multi_exec devolvió ' . $estado);
+                break;
+            }
+            if ($activas && $acabadas === 0) {
+                // Sin esto el bucle quema CPU mientras espera la red. Y con
+                // -1 (cURL no tiene descriptores que vigilar todavía) hay
+                // que dormir a mano, o el select vuelve al instante y el
+                // bucle gira igual de caliente.
+                if (curl_multi_select($multi, 1.0) === -1) {
+                    usleep(1000);
+                }
+            } elseif (!$activas && !empty($enVuelo) && $acabadas === 0) {
+                // cURL dice que no queda nada activo pero hay handles sin
+                // mensaje de fin: no van a acabar. Que los pida el cargador.
+                break;
+            }
+        } while (!empty($enVuelo) || !empty($cola));
+
+        // Lo que se quedó a medias (un fallo de curl_multi): fuera, sin
+        // respuesta. El cargador lo pedirá en serie, igual que lo que no
+        // llegó a salir de la cola.
+        foreach ($enVuelo as $h) {
+            curl_multi_remove_handle($multi, $h['ch']);
+            if (PHP_VERSION_ID < 80000) {
+                curl_close($h['ch']);
+            }
+        }
+        curl_multi_close($multi);
+
+        // Se apunta como UNA llamada por petición que ha salido (las que se
+        // quedaron en la cola las contará el cargador al pedirlas), pero el
+        // tiempo es el de la tanda entera, de la primera a la última: es lo
+        // que hay que ver para saber si paralelizar sirve.
+        $ms = (microtime(true) - $startedAt) * 1000;
+        self::$callCount += $lanzadas;
+        self::$callMs += $ms;
+        if (count(self::$callLog) < 60) {
+            self::$callLog[] = array(
+                'method' => 'tanda(' . $lanzadas . ')',
+                'module' => '',
+                'ms' => round($ms, 1),
+                'error' => '',
+            );
         }
 
         if (!empty($caducadas)) {
@@ -648,6 +689,46 @@ class SugarRestApiCall
         }
 
         return $listas;
+    }
+
+    /** Clave estable de un handle de cURL: objeto en PHP 8, recurso en PHP 7. */
+    private static function handleKey($ch)
+    {
+        return is_object($ch) ? spl_object_id($ch) : (int) $ch;
+    }
+
+    /**
+     * Lo que se hace con la respuesta de UNA petición de la tanda: al memo,
+     * a la lista de caducadas (sesión del CRM vencida) o a ninguna parte.
+     *
+     * @return bool si ha quedado lista en el memo.
+     */
+    private function absorbResponse(array $req, $cuerpo, array &$caducadas)
+    {
+        $firma = self::signature($req['method'], $req['parameters']);
+        if (!is_string($cuerpo) || $cuerpo === '') {
+            return false;   // sin respuesta: que la pida el cargador
+        }
+        $respuesta = json_decode($cuerpo);
+        if ($respuesta === null) {
+            return false;
+        }
+        // Sesión caducada: se reintenta al final, una sola vez y en
+        // serie. Son raras y no merecen complicar la tanda.
+        if (isset($respuesta->number) && (int) $respuesta->number === 11) {
+            $caducadas[] = $req;
+            return false;
+        }
+        $error = self::errorFrom($respuesta);
+        if ($error !== '') {
+            // Un error SÍ se memoriza: el cargador tiene que verlo y
+            // decidir (sus respaldos viven ahí). Repetirlo en serie
+            // solo costaría otra llamada para el mismo error.
+            error_log('[sticpa] El CRM ha rechazado ' . $req['method']
+                . ' (en tanda paralela): ' . $error);
+        }
+        self::$memo[$firma] = $respuesta;
+        return true;
     }
 
     /**

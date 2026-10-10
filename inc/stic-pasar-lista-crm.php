@@ -2130,9 +2130,9 @@ function sticpa_pl_att_create_payload($objSCP, $sessionId, $regId, $key, $sessio
  * setenta viajes: un minuto largo mirando la rueda, y la webview o el servidor
  * cortaban antes. Ahora cada paso sale en UNA tanda para todos —las
  * inscripciones que faltan, las asistencias nuevas, sus enlaces— y las
- * actualizaciones, que son lo normal, siguen yendo en la suya. Una tanda va de
- * cuatro en cuatro (`sticpa_crm_multi_concurrency`, plan 034): catorce altas
- * son cuatro esperas, no una, pero tampoco catorce.
+ * actualizaciones, que son lo normal, siguen yendo en la suya. Una tanda no
+ * lleva más de cuatro en vuelo (`sticpa_crm_multi_concurrency`, plan 034):
+ * catorce altas son cuatro esperas, no una, pero tampoco catorce.
  *
  * `$regMap` se completa POR REFERENCIA con las inscripciones que se crean: la
  * pantalla relee después con él, y sin ellas daría por no guardado lo que sí.

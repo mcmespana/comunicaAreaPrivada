@@ -97,12 +97,14 @@ class CosteLlamadasTest extends TestCase
                 // paralelas son tres viajes de ida y vuelta, no diez. Es el
                 // numero que hay que mirar cuando alguien dice «va lento».
                 $lineas[] = sprintf(
-                    '%-34s %3d llamadas en %d tandas (%s) + %d sueltas',
+                    '%-34s %3d llamadas en %d tandas (%s) + %d sueltas = %d esperas%s',
                     str_replace('single_stic_pasar_lista', 'PL', $page),
                     $n,
                     count($this->scp->batches),
                     implode('+', $this->scp->batches) ?: '-',
-                    $n - array_sum($this->scp->batches)
+                    $n - array_sum($this->scp->batches),
+                    self::esperas($n, $this->scp->batches),
+                    $sinEnlaces ? ' (sin enlaces)' : ''
                 );
                 $cuenta = array_count_values($this->scp->calls);
                 arsort($cuenta);
@@ -232,8 +234,7 @@ class CosteLlamadasTest extends TestCase
                 // fila son diez. La ficha del participante hacia TRECE en fila
                 // y por eso «va lentisimo» — la del monitor agrupaba, y por eso
                 // «la velocidad de monitores va bien».
-                $viajes = count($this->scp->batches)
-                    + ($n - array_sum($this->scp->batches));
+                $viajes = self::esperas($n, $this->scp->batches);
                 $this->assertLessThanOrEqual(
                     $topeViajes,
                     $viajes,
@@ -243,5 +244,21 @@ class CosteLlamadasTest extends TestCase
                 );
             }
         }
+    }
+
+    /**
+     * ESPERAS de verdad (plan 042, VEL-6). Una llamada suelta es una espera;
+     * una tanda NO siempre es una: `callMany()` no tiene más de 4 peticiones en
+     * vuelo (`sticpa_crm_multi_concurrency`), así que una de 5 a 8 son dos.
+     * Hasta el 10/10/2026 se contaba cada tanda como una: la portada de Pasar
+     * Lista «de 4 esperas» eran 5, y la ficha del participante «de 7», 8.
+     */
+    public static function esperas($n, array $batches, $enVuelo = 4)
+    {
+        $esperas = $n - array_sum($batches);
+        foreach ($batches as $b) {
+            $esperas += (int) ceil($b / $enVuelo);
+        }
+        return $esperas;
     }
 }
