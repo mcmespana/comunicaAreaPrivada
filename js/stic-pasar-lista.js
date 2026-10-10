@@ -421,6 +421,11 @@
            arranca en secundario («Guardada ✓») y vuelve a principal con el
            primer cambio. */
         var serverSaid = !!(status && status.hasAttribute('data-pl-server') && !status.hidden);
+        // Y cómo lo dijo, para volver a pintarlo si un corte de cobertura lo
+        // tapa (revisión 042): sin esto, al volver la red se quedaba «Sin
+        // cobertura» para siempre. El HTML tal cual, que lleva su icono.
+        var serverKind = serverSaid ? status.getAttribute('data-kind') : '';
+        var serverHtml = serverSaid ? status.innerHTML : '';
         var savedMode = root.hasAttribute('data-pl-saved-ok');
 
         /* ---- Estado en memoria ----------------------------------------- */
@@ -1261,7 +1266,11 @@
                         say('ok', root.getAttribute('data-msg-sent') || '');
                     }
                 });
-            } else if (!serverSaid) {
+            } else if (serverSaid) {
+                status.innerHTML = serverHtml;
+                status.setAttribute('data-kind', serverKind);
+                status.hidden = false;
+            } else {
                 hush();
             }
         }

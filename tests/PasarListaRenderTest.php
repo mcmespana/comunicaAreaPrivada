@@ -2364,6 +2364,25 @@ final class PasarListaRenderTest extends TestCase
         );
     }
 
+    /**
+     * El aviso del servidor («Lista guardada · …» o el fallo) vuelve cuando
+     * vuelve la cobertura (revisión 042): un corte de un segundo lo cambiaba
+     * por «Sin cobertura» y ahí se quedaba, con red. Se repinta tal cual llegó,
+     * con su icono, y solo mientras no se haya tocado nada.
+     */
+    public function test_el_aviso_del_servidor_vuelve_tras_un_corte()
+    {
+        $js = file_get_contents(dirname(__DIR__) . '/js/stic-pasar-lista.js');
+        $this->assertStringContainsString("var serverHtml = serverSaid ? status.innerHTML : '';", $js);
+        $ini = strpos($js, 'function showConnectivity()');
+        $this->assertNotFalse($ini);
+        $show = substr($js, $ini, strpos($js, "window.addEventListener('online', showConnectivity);") - $ini);
+        $this->assertMatchesRegularExpression(
+            '/\} else if \(serverSaid\) \{\s*status\.innerHTML = serverHtml;\s*status\.setAttribute\(\'data-kind\', serverKind\);\s*status\.hidden = false;\s*\} else \{\s*hush\(\);\s*\}/',
+            $show
+        );
+    }
+
     /** Un nonce caducado no escribe nada, y eso también se apunta. */
     public function test_el_diario_apunta_el_nonce_caducado()
     {
