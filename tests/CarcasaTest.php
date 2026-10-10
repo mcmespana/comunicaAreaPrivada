@@ -115,4 +115,20 @@ class CarcasaTest extends TestCase
             $this->assertMatchesRegularExpression('/\.' . preg_quote($clase, '/') . ':active\b/', $css, $clase);
         }
     }
+
+    /**
+     * FAM-a2, revisión 042. Con cartel, en móvil «Inscribirme» va dentro de
+     * .stic-rec-split-main, que empieza debajo del cartel, y un sticky no sube
+     * por encima de su contenedor: no salía en la primera pantalla. Por debajo
+     * de 768 las dos cajas se quitan (display: contents) y el contenedor del
+     * sticky es la ficha entera.
+     */
+    public function test_inscribirme_pegado_no_queda_atado_a_la_columna_del_cartel()
+    {
+        $css = preg_replace('#/\*.*?\*/#s', '', $this->css('custom-style.css'));
+        $this->assertMatchesRegularExpression(
+            '/@media \(max-width: 767px\) \{\s*\.stic-rec-detail--cta-sticky :is\(\.stic-rec-split, \.stic-rec-split-main\) \{ display: contents; \}\s*\}/',
+            $css
+        );
+    }
 }

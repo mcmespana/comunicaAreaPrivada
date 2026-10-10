@@ -7213,6 +7213,15 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     background: var(--surface-2);
     padding: 0.6rem 0 calc(0.6rem + var(--stic-safe-bottom));
 }
+/* Con cartel, en móvil la fila va dentro de .stic-rec-split-main, que
+   empieza DEBAJO del cartel, y un sticky no sube por encima de su
+   contenedor: el botón no salía en la primera pantalla, justo el caso de
+   esto (revisión 042). Por debajo de 768 las dos cajas no tienen estilo
+   propio (la rejilla es de §59), así que quitarlas no mueve nada y el
+   contenedor pasa a ser la ficha entera, que empieza en la cabecera. */
+@media (max-width: 767px) {
+    .stic-rec-detail--cta-sticky :is(.stic-rec-split, .stic-rec-split-main) { display: contents; }
+}
 /* La nota (p. ej. «la inscripción se hace en el formulario de la
    actividad») va encima del botón y sin caja: pegada abajo, una caja más
    sería ruido. */
