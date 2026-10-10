@@ -2270,38 +2270,6 @@ a.pl-group .pl-name { display: block; }
    aparece nunca; el punteado sobraría y confundiría. */
 [data-pl-monitores] .pl-mark { border-style: solid; }
 
-/* Certificado de delitos sexuales: se lee de un vistazo porque es lo que se
-   reclama. Verde entregado, rojo falta — sin ámbar intermedio, porque aquí no
-   hay medias tintas legales. */
-.pl-ds {
-    display: flex;
-    align-items: center;
-    gap: 0.8rem;
-    padding: 0.9rem 1rem;
-    border-radius: var(--radius-lg);
-    background: var(--surface);
-    box-shadow: var(--shadow-xs);
-}
-.pl-ds-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 34px;
-    height: 34px;
-    border-radius: var(--radius-full);
-    flex-shrink: 0;
-}
-.pl-ds-icon svg { width: 17px; height: 17px; stroke: var(--pl-on-brand); fill: none; }
-.pl-ds-body { display: flex; flex-direction: column; gap: 0.1rem; }
-.pl-ds-label { font-size: 0.98rem; font-weight: 800; }
-.pl-ds-sub { font-size: 0.78rem; color: var(--gray-500); }
-
-.pl-ds--ok .pl-ds-icon { background: var(--success-color); }
-.pl-ds--ok .pl-ds-label { color: var(--success-dark); }
-.pl-ds--missing { background: var(--danger-soft); box-shadow: inset 0 0 0 1px var(--danger-border); }
-.pl-ds--missing .pl-ds-icon { background: var(--danger-color); }
-.pl-ds--missing .pl-ds-label { color: var(--danger-dark); }
-
 .pl-flag--warn { background: var(--warning-100); color: var(--warning-dark); }
 
 /* ---- Nueva reunión: tres campos y un botón ----------------------------- */
@@ -2560,10 +2528,6 @@ a.pl-group .pl-name { display: block; }
     box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--gray-400);
 }
 
-/* Compatibilidad: el respiro mudo de la versión anterior. Ya no se pinta, pero
-   la regla se queda por si alguna caché sirve HTML viejo. */
-.pl-sq-gap { width: 7px; flex-shrink: 0; }
-
 .pl-sq--yes             { background: var(--success-color); }
 .pl-sq--partial         { background: var(--pl-partial); }
 .pl-sq--no_justified    { background: var(--warning-color); }
@@ -2808,22 +2772,7 @@ a.pl-group .pl-name { display: block; }
 .pl-hist-g { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.25rem; }
 .pl-hist-code { font-size: 0.92rem; font-weight: 700; }
 .pl-hist-name { font-size: 0.8rem; color: var(--gray-500); }
-.pl-hist-rol {
-    display: inline-flex;
-    padding: 0.06rem 0.4rem;
-    border-radius: var(--radius-full);
-    background: var(--secondary-50);
-    color: var(--secondary-color);
-    font-size: 0.6rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
 .pl-hist-with { font-size: 0.76rem; color: var(--gray-500); line-height: 1.4; }
-
-/* Una fila de contacto que ES un enlace (el correo): sin los dos botones, pero
-   con la misma altura y el mismo sitio que las de teléfono. */
-.pl-phone--link { color: inherit; text-decoration: none; }
 
 /* «Sin datos» ocupa el sitio del número grande, pero no grita como él: es la
    ausencia de un dato, no un dato malo. */
@@ -2837,17 +2786,15 @@ a.pl-group .pl-name { display: block; }
    la app, el overlay de «Cargando…» tarda un instante en aparecer; ese instante
    es justo el que decide si el usuario cree que ha pasado algo. */
 .pl-grp--link,
-.pl-phone--link,
 .pl-fold-sum {
     touch-action: manipulation;
 }
 .pl-fold-sum { -webkit-user-select: none; user-select: none; }
 .pl-grp--link:active,
-.pl-phone--link:active,
 .pl-fold-sum:active { background: var(--gray-50); }
 
 /* 44 px de alto mínimo en lo que se toca, que es la medida de un dedo. */
-.pl-grp--link, .pl-phone--link { min-height: 54px; }
+.pl-grp--link { min-height: 54px; }
 
 /* NADA se sale a lo ancho. Un correo largo, el nombre de un grupo o una
    población compuesta partían la línea fuera de la pantalla y aparecía la barra
@@ -2864,7 +2811,6 @@ a.pl-group .pl-name { display: block; }
 /* El foco visible del teclado en los bloques nuevos: mismo anillo que el resto
    de la aplicación, y solo cuando se navega con teclado. */
 .pl-grp--link:focus-visible,
-.pl-phone--link:focus-visible,
 .pl-fold-sum:focus-visible {
     outline: 2px solid var(--primary-color);
     outline-offset: -2px;
@@ -3221,11 +3167,6 @@ a.pl-group .pl-name { display: block; }
     color: #fff !important;
     box-shadow: 0 3px 10px color-mix(in srgb, var(--primary-color) 28%, transparent);
 }
-/* La segunda barra (chavales / monitores) es la misma pieza, un poco más
-   baja: son botones igual que los de arriba, y se leen como tales. */
-.pl-tabs--quien { margin-top: -0.25rem; }
-.pl-tabs--quien .pl-tab { padding: 0.4rem 0.85rem; font-size: 0.82rem; }
-
 /* En oscuro la tira baja un tono para que las pestañas se lean encima. */
 :root[data-stic-scheme="dark"] .pl-tabs,
 .stic-container[data-stic-scheme="dark"] .pl-tabs { background: var(--gray-50); }
@@ -3483,7 +3424,7 @@ a.pl-group .pl-name { display: block; }
    ficha parecía una sola hoja. Gris claro, el mismo token que las tarjetas y
    los campos del resto del área. En oscuro ya se separan por el tono. */
 :root:not([data-stic-scheme="dark"]) :is(
-    .pl-list, .pl-buckets, .pl-att, .pl-card, .pl-ds,
+    .pl-list, .pl-buckets, .pl-att, .pl-card,
     .pl-newmeet, .pl-tracks, .pl-fold
 ) {
     border: 1px solid var(--gray-200);
