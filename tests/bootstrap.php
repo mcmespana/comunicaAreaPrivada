@@ -188,6 +188,10 @@ if (!function_exists('_n')) {
     function _n($single, $plural, $number, $domain = null) { return ($number == 1) ? $single : $plural; }
 }
 if (!function_exists('esc_sql')) { function esc_sql($v) { return $v; } }
+// Como WordPress en es_ES: coma decimal y punto de miles.
+if (!function_exists('number_format_i18n')) {
+    function number_format_i18n($n, $d = 0) { return number_format((float) $n, (int) $d, ',', '.'); }
+}
 if (!function_exists('esc_js')) { function esc_js($v) { return addslashes((string) $v); } }
 if (!function_exists('home_url')) { function home_url($path = '') { return 'https://example.test' . $path; } }
 if (!function_exists('status_header')) { function status_header($code) { return $code; } }
@@ -259,3 +263,6 @@ require_once __DIR__ . '/../inc/stic-pasar-lista-sw.php';
 // no existe aquí, y no hace falta: lo que se testea son las piezas (la firma, el
 // sello de tiempo y el calentado), no el enrutado de WordPress.
 require_once __DIR__ . '/../inc/stic-pasar-lista-warm.php';
+// Velocidad (plan 042): qué se aparta de las páginas del área y la cabecera
+// Server-Timing. Solo define funciones y registra enganches (stubeados).
+require_once __DIR__ . '/../inc/stic-perf.php';

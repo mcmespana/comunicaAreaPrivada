@@ -339,7 +339,10 @@ function sticpa_event_fields_to_request($objSCP, $conWeb = false)
     // al CRM, como mucho una vez cada 15 minutos (si el campo no existe de
     // verdad, eso es lo único que cuesta).
     $cuerpo = function_exists('mcm_cuerpo_campo') ? mcm_cuerpo_campo() : '';
-    if ($conWeb && $cuerpo !== '' && !in_array($cuerpo, $existing, true)
+    // Nunca en la RECOLECTA de una tanda: ahí la definición sale vacía porque
+    // el CRM no contesta, y se gastaría el «una vez cada 15 minutos» en nada.
+    $recolecta = function_exists('sticpa_pl_collecting') && sticpa_pl_collecting();
+    if ($conWeb && $cuerpo !== '' && !$recolecta && !in_array($cuerpo, $existing, true)
         && function_exists('get_transient') && get_transient('sticpa_evdef_recheck') === false) {
         set_transient('sticpa_evdef_recheck', 1, 15 * MINUTE_IN_SECONDS);
         $definition = sticpa_event_field_definition($objSCP, true);
@@ -889,7 +892,9 @@ function sticpa_events_cards($models, $statusMap = array())
 
         $chips = array();
         if ($regId !== '') {
-            $chips[] = array('label' => __('Inscrito', 'sticpa'), 'tone' => 'ok');
+            // «Con plaza» y no «Inscrito»: sin género, y vale igual para uno
+            // mismo que para un hijo (FAM-a4).
+            $chips[] = array('label' => __('Con plaza', 'sticpa'), 'tone' => 'ok');
         } elseif ($event['is_past']) {
             $chips[] = array('label' => __('Ya celebrado', 'sticpa'), 'tone' => 'past');
         } elseif ($regChip !== null) {
@@ -900,7 +905,11 @@ function sticpa_events_cards($models, $statusMap = array())
             $chips[] = array('label' => sticpa_event_status_label($event['status'], $statusMap[$event['status']]), 'tone' => '');
         }
 
-        $actions = array(array('label' => __('Ver detalle', 'sticpa'), 'url' => $detailUrl));
+        // Sin «Ver detalle»: la tarjeta entera ya enlaza a la ficha, y un
+        // botón que lleva al mismo sitio es ruido (design.md §6.1, plan 042
+        // FAM-a7). La barra solo lleva lo que va a OTRO sitio; sin eso, no
+        // hay barra.
+        $actions = array();
         if ($regId !== '') {
             // Lo tuyo: a TU inscripción (estado, pago, cambiar o cancelar).
             $actions[] = array('label' => __('Mi inscripción', 'sticpa'), 'primary' => true,
@@ -1014,8 +1023,13 @@ function sticpa_event_detail_html($event, $statusLabel = '', $canSignUp = true, 
     if ($event['is_past']) {
         $ctaNote = __('Esta actividad ya se ha celebrado.', 'sticpa');
     } elseif (!$canSignUp) {
-        $actions[] = array('label' => __('Ver mi inscripción', 'sticpa'), 'url' => '?internalpage=list_stic_registrations');
-        $ctaNote = __('Ya tienes una inscripción para esta actividad.', 'sticpa');
+        // De quién es la plaza, si es de un hijo (FAM-a4).
+        $viendoA = sticpa_viendo_a_nombre();
+        $actions[] = array('label' => ($viendoA !== '') ? __('Ver su inscripción', 'sticpa') : __('Ver mi inscripción', 'sticpa'), 'url' => '?internalpage=list_stic_registrations');
+        $ctaNote = ($viendoA !== '')
+            /* translators: %s: nombre de pila del participante */
+            ? sprintf(__('%s ya tiene una inscripción para esta actividad.', 'sticpa'), $viendoA)
+            : __('Ya tienes una inscripción para esta actividad.', 'sticpa');
     } elseif ($blockNote !== '') {
         // No es para ti, o no toca ahora: no se ofrece apuntarse, y se dice
         // por qué. El dato de la fecha ya está arriba, en los datos clave.
@@ -1059,5 +1073,10 @@ function sticpa_event_detail_html($event, $statusLabel = '', $canSignUp = true, 
         'sections' => $sections,
         'actions'  => $actions,
         'cta_note' => $ctaNote,
+        // «Inscribirme», pegado abajo (FAM-a2): con el cartel y la información
+        // de la web quedaba a 2,7 pantallas, y quien llega desde WhatsApp a
+        // apuntar a su hijo no sabía que existía. Solo cuando hay una acción
+        // principal; «Ver mi inscripción» o «Ver otras» no merecen perseguirte.
+        'sticky_cta' => !empty(array_filter($actions, function ($a) { return !empty($a['primary']); })),
     ));
 }

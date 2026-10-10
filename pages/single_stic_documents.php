@@ -20,7 +20,11 @@ switch (getDestinationModule()) {
 }
 
 $formSettings['action'] = $_REQUEST['action'];
-$formSettings['title'] = __('Document', 'sticpa'); // form title
+// Título en castellano y diciendo lo que se hace (FAM-a9): el msgid 'Document'
+// salía «Documento» también en la pantalla de subir uno.
+$formSettings['title'] = (($_REQUEST['action'] ?? '') === 'create')
+    ? __('Subir un documento', 'sticpa')
+    : __('Documento', 'sticpa');
 $formSettings['moduleName'] = 'Documents'; // module name, case sensitive
 $formSettings['msg'][] = array('value' => 'true', 'type' => 'success', 'msg' => __('The record has been successfully saved.', 'sticpa')); //messages that will be shown on the screen after processing the data
 
@@ -121,7 +125,7 @@ if (isset($_REQUEST['action']) && ($_REQUEST['action'] == 'create'  || $_REQUEST
         'type' => 'html', 
         'html' => '
             <li>
-                <label>'.__('Choose a file', 'sticpa').'</label>
+                <label>'.esc_html__('El archivo', 'sticpa').'</label>
                 <span><input type="file" name="filename" id="filename"></span>
             </li>'
     );
@@ -152,15 +156,23 @@ if (isset($_REQUEST['action']) && $_REQUEST['action'] == 'edit' && !empty($_REQU
             </li>',
     );
 }
-$fieldList[] = array(
-    'name' => 'status_id',
-);
-$fieldList[] = array(
-    'name' => 'stic_shared_document_link_c',
-    'type' => 'text',
-    'attributes' => array('placeholder' => 'https://...'),
-);
-$fieldList[] = array('name' => 'category_id');
+// Estado, enlace compartido y categoría son campos del CRM, no de una familia
+// que sube la autorización firmada (FAM-a9): al subir o editar no se enseñan.
+// Además, al subir status_id iba DOS veces —el oculto 'Active' de arriba y este
+// select con el mismo name—, mandaba el select y un documento podía quedarse
+// en «Borrador». En la ficha (solo lectura) se siguen viendo.
+$esFormularioDeSubir = isset($_REQUEST['action']) && ($_REQUEST['action'] == 'create' || $_REQUEST['action'] == 'edit');
+if (!$esFormularioDeSubir) {
+    $fieldList[] = array(
+        'name' => 'status_id',
+    );
+    $fieldList[] = array(
+        'name' => 'stic_shared_document_link_c',
+        'type' => 'text',
+        'attributes' => array('placeholder' => 'https://...'),
+    );
+    $fieldList[] = array('name' => 'category_id');
+}
 
 $fieldList[] = array('name' => 'description', 'type' => 'textarea');
 

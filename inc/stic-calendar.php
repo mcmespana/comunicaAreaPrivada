@@ -76,7 +76,8 @@ function sticpa_calendar_palette()
         ),
         'registered_event' => array(
             'color' => '#155a92', 'text' => '#ffffff',
-            'label' => __('Estás inscrito', 'sticpa'),
+            // Sin género, y vale igual viendo a un hijo (FAM-a4).
+            'label' => __('Con plaza', 'sticpa'),
         ),
     );
 }
@@ -716,7 +717,10 @@ function sticpa_home_agenda_items($data, $limit = 5)
             'has_time' => false,
             'type' => 'available_event',
             'title' => $ev['name'],
-            'subtitle' => $palette['available_event']['label'],
+            // Sin subtítulo: «Abierto a inscripción» y al lado la píldora
+            // «Inscríbete» decían lo mismo dos veces (FAM-a13). La píldora
+            // basta, y el título respira.
+            'subtitle' => '',
             'bucket' => 'available_event',
             'href' => '?internalpage=single_stic_events&action=detail&id=' . rawurlencode($ev['id']),
         );

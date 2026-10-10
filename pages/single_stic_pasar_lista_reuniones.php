@@ -80,7 +80,8 @@ $html .= '<a class="pl-back" href="' . ($desdeCoord ? '?internalpage=single_stic
 $html .= '<div class="pl-head-titles">';
 // El ALCANCE en la cabecera, como en Monitores (design.md §6.4): la lista que
 // se pasa en cada reunión es la de los monitores de ese alcance.
-$html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html__('Reuniones', 'sticpa') . '</span>'
+// El mismo nombre que la fila que la abre (plan 042, COO-9).
+$html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html__('Reuniones de programación', 'sticpa') . '</span>'
     . '<span class="pl-title-name">' . esc_html(sticpa_pl_coord_scope_label($scope)) . '</span></div>';
 $html .= '<div class="pl-subtitle">' . esc_html($course['label']) . '</div>';
 $html .= '</div>';
@@ -214,13 +215,25 @@ $html .= '<input type="date" name="pl_reunion_date" required value="'
 $html .= '</label>';
 
 $html .= '<label class="pl-field pl-field--sm">';
-$html .= '<span class="pl-field-label">' . esc_html__('Hora', 'sticpa') . '</span>';
+// «Hora» y al lado «Horas» (que era la duración) se confundían (plan 042,
+// COO-9). Y la duración, de un desplegable con lo que dura una reunión de
+// verdad: el campo numérico enseñaba «1.5» con punto.
+$html .= '<span class="pl-field-label">' . esc_html__('Empieza', 'sticpa') . '</span>';
 $html .= '<input type="time" name="pl_reunion_time" value="19:00">';
 $html .= '</label>';
 
 $html .= '<label class="pl-field pl-field--sm">';
-$html .= '<span class="pl-field-label">' . esc_html__('Horas', 'sticpa') . '</span>';
-$html .= '<input type="number" name="pl_reunion_hours" value="1.5" min="0.5" max="12" step="0.5" inputmode="decimal">';
+$html .= '<span class="pl-field-label">' . esc_html__('Dura', 'sticpa') . '</span>';
+$html .= '<select name="pl_reunion_hours">';
+foreach (array('1', '1.5', '2', '3', '4') as $h) {
+    $html .= '<option value="' . esc_attr($h) . '"' . ($h === '1.5' ? ' selected' : '') . '>'
+        . esc_html(sprintf(
+            /* translators: %s: horas que dura la reunión, p. ej. «1,5» */
+            __('%s h', 'sticpa'),
+            number_format_i18n((float) $h, ((float) $h === floor((float) $h)) ? 0 : 1)
+        )) . '</option>';
+}
+$html .= '</select>';
 $html .= '</label>';
 $html .= '</div>';
 

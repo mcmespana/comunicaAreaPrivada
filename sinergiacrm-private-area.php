@@ -91,6 +91,9 @@ include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-ui.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-sw.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-warm.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-diag.php';
+// Velocidad: lo que el área no pide (hojas y scripts ajenos que se apartan de
+// sus páginas) y la medida de cada petición. Plan 042.
+include plugin_dir_path(__FILE__) . 'inc/stic-perf.php';
 
 add_action('admin_menu', 'sugar_crm_portal_create_menu');
 
@@ -1064,6 +1067,15 @@ function sugar_crm_portal_index($html = "")
             : 'single_stic_home';
     } else {
         $currentPage = $_REQUEST['internalpage'];
+        // ENLACE PROFUNDO DE UNA FAMILIA CON VARIOS HIJOS (FAM-a1): mientras no
+        // haya elegido a quién ve, la página pedida se cambia por la de elegir.
+        // La URL sigue siendo la del destino, y la pantalla de selección lo
+        // recoge de `$_GET` para llevar a él tras elegir. Se pinta en el sitio
+        // (nada de redirigir), así que no hay bucle.
+        if (function_exists('sticpa_family_must_choose_first')
+            && sticpa_family_must_choose_first((string) $currentPage)) {
+            $currentPage = 'single_stic_profile_selection';
+        }
     }
 
     $html .= menu();

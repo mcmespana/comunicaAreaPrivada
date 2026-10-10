@@ -23,6 +23,16 @@ $groupId = isset($_REQUEST['grupo']) ? sticpa_pl_safe_id($_REQUEST['grupo']) : '
 // Sirve para una sola cosa: que un aviso puesto hoy quede atado al sábado de
 // hoy. Es opcional — a la ficha se puede llegar sin sesión.
 $sessionId = isset($_REQUEST['sesion']) ? sticpa_pl_safe_id($_REQUEST['sesion']) : '';
+// La sesión a la que VUELVE la flecha (plan 042, PL-13). Sin ella, marcar
+// elegía la de hoy: quien estaba recuperando el sábado pasado miraba una ficha
+// y, al volver, aterrizaba en otra fecha con sus marcas «borradas» (seguían en
+// el borrador de la otra sesión). El paginador no arrastra `sesion` a
+// propósito —si se está leyendo, no se está marcando, y un aviso de la ficha
+// siguiente no debe colgarse de ese sábado—, así que la vuelta viaja aparte,
+// en `vsesion`, que solo usa la flecha.
+$vueltaSesion = ($sessionId !== '')
+    ? $sessionId
+    : (isset($_REQUEST['vsesion']) ? sticpa_pl_safe_id($_REQUEST['vsesion']) : '');
 
 if ($contactId === '') {
     $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
@@ -142,7 +152,8 @@ if ($volver === '') {
     // construir el enlace: si no, el pie de «siguiente» lo seguía arrastrando de
     // ficha en ficha. Nunca se propaga lo que no se ha reconocido.
     $vengo = '';
-    $volver = '?internalpage=single_stic_pasar_lista_marcar&grupo=' . rawurlencode($groupId);
+    $volver = '?internalpage=single_stic_pasar_lista_marcar&grupo=' . rawurlencode($groupId)
+        . ($vueltaSesion !== '' ? '&sesion=' . rawurlencode($vueltaSesion) : '');
 }
 
 /* La cabecera es solo la vuelta atrás y la palabra "Ficha": el nombre no va
@@ -286,13 +297,34 @@ foreach ($family as $rel) {
     if ($p === null) {
         continue;
     }
+    $cand = array('phone' => $p, 'who' => $rel['name'], 'rel' => $rel);
     if ($rel['reference']) {
-        $quick = array('phone' => $p, 'who' => $rel['name']);
+        $quick = $cand;
         break;
     }
     if ($quick === null) {
-        $quick = array('phone' => $p, 'who' => $rel['name']);
+        $quick = $cand;
     }
+}
+
+if ($quick !== null) {
+    /* A QUIÉN, escrito en el botón (plan 042, PL-10). Los dos botones van al
+     * familiar de referencia, pero junto al nombre del chaval «Llamar» se leía
+     * como «llamar al chaval»; el destinatario solo estaba en el `aria-label`.
+     * Nombre de pila y parentesco: «Llamar a Marta (madre)». */
+    $quickFirst = isset($quick['rel']['first']) ? trim((string) $quick['rel']['first']) : '';
+    if ($quickFirst === '') {
+        $quickFirst = (string) strtok($quick['who'], ' ');
+    }
+    $quickRel = sticpa_pl_parentesco_label(isset($quick['rel']['relationship']) ? $quick['rel']['relationship'] : '');
+    $quickRel = function_exists('mb_strtolower') ? mb_strtolower($quickRel) : strtolower($quickRel);
+    $quickCall = ($quickRel !== '')
+        /* translators: 1: nombre de pila, 2: parentesco («madre») */
+        ? sprintf(__('Llamar a %1$s (%2$s)', 'sticpa'), $quickFirst, $quickRel)
+        /* translators: %s: nombre de pila */
+        : sprintf(__('Llamar a %s', 'sticpa'), $quickFirst);
+    /* translators: %s: nombre de pila */
+    $quickWa = sprintf(__('WhatsApp a %s', 'sticpa'), $quickFirst);
 }
 
 if ($quick !== null) {
@@ -306,7 +338,7 @@ if ($quick !== null) {
         )) . '">'
         . '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
         . '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
-        . '<span>' . esc_html__('WhatsApp', 'sticpa') . '</span></a>';
+        . '<span>' . esc_html($quickWa) . '</span></a>';
     $html .= '<a class="pl-contact-btn pl-contact-btn--call" href="tel:'
         . esc_attr($quick['phone']['tel']) . '"'
         . ' aria-label="' . esc_attr(sprintf(
@@ -316,7 +348,7 @@ if ($quick !== null) {
         )) . '">'
         . '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
         . '<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2 4.2 2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.4 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.2a2 2 0 0 1 2.1-.5c.9.4 1.8.6 2.8.8a2 2 0 0 1 1.7 2Z"/></svg>'
-        . '<span>' . esc_html__('Llamar', 'sticpa') . '</span></a>';
+        . '<span>' . esc_html($quickCall) . '</span></a>';
     $html .= '</div>';
 }
 
@@ -511,11 +543,16 @@ if ($track !== null) {
     $html .= $sinDatos
         ? '<span class="pl-att-pct pl-att-pct--none">' . esc_html__('Sin datos', 'sticpa') . '</span>'
         : '<span class="pl-att-pct">' . esc_html((string) $pct) . '<span>%</span></span>';
+    // Las horas con la coma del idioma y sin «,0» (plan 042, PL-10): el float
+    // iba tal cual a `%s` y salía «3 h de 4.5 h», con punto inglés.
+    $fmtH = function ($h) {
+        return preg_replace('/[.,]0$/', '', number_format_i18n((float) $h, 1));
+    };
     $html .= '<span class="pl-att-meta">' . esc_html(sprintf(
         /* translators: 1: horas asistidas, 2: horas celebradas */
         __('%1$s h de %2$s h', 'sticpa'),
-        $track['hours'],
-        $track['hours_total']
+        $fmtH($track['hours']),
+        $fmtH($track['hours_total'])
     )) . '</span>';
     $html .= '</div>';
     $html .= '<div class="pl-att-bar" role="img" aria-label="' . esc_attr(sprintf(
@@ -855,10 +892,12 @@ if (!empty($dataRows)) {
  * del que saliste, no a la lista de marcar. */
 $html .= sticpa_pl_pager_html(
     sticpa_pl_vecinos($people['participants'], $contactId),
-    function ($p) use ($groupId, $vengo) {
+    function ($p) use ($groupId, $vengo, $vueltaSesion) {
         return '?internalpage=single_stic_pasar_lista_ficha'
             . '&participante=' . rawurlencode($p['id'])
             . '&grupo=' . rawurlencode($groupId)
-            . ($vengo !== '' ? '&vengo=' . rawurlencode($vengo) : '');
+            . ($vengo !== '' ? '&vengo=' . rawurlencode($vengo) : '')
+            // La fecha de la lista de la que se viene, solo para la vuelta.
+            . ($vengo === '' && $vueltaSesion !== '' ? '&vsesion=' . rawurlencode($vueltaSesion) : '');
     }
 );

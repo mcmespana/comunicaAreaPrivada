@@ -2073,22 +2073,47 @@ span.stic-field {
 .stic-form li.stic-send {
     width: 100% !important;
 }
-.stic-send {
+/* OJO, ESPECIFICIDAD (plan 042, FAM-a6). Esto iba con `.stic-send` a secas
+   (0,1,0) y NUNCA se aplicó dentro de un formulario: perdía contra
+   `.stic-form li {display:block}` y, desde 640 px, contra
+   `.stic-form-two-col li {display:inline-block}` (stic-base.css, y todo
+   formulario del motor lleva stic-form-two-col). Resultado: dos botones a
+   1200 px apilados en escritorio y una barra pegajosa de 154 px en móvil.
+   Con `.stic-form li.stic-send` (0,2,1) gana a los dos sin !important. */
+.stic-send,
+.stic-form li.stic-send {
     display: flex;
     flex-wrap: wrap;
     gap: 0.7rem;
     align-items: center;
     justify-content: flex-end;   /* acciones agrupadas a la derecha en escritorio */
+    grid-column: 1 / -1;         /* en las tarjetas de 2 columnas, la fila entera */
+    margin-right: 0;             /* el de .stic-form-two-col li */
+    padding-bottom: 0;           /* el de .stic-form li: la barra ya lleva el suyo */
+    margin-bottom: 0;
 }
-/* En escritorio los botones se ajustan al contenido (no estirados a lo ancho). */
-.stic-send .stic-button {
+/* En escritorio los botones se ajustan al contenido (no estirados a lo ancho).
+   `width:auto` para ganar al `width:100%` de los botones en stic-base.css. */
+.stic-form li.stic-send .stic-button {
     flex: 0 0 auto;
+    width: auto;
     min-width: 148px;
-    padding-left: 1.5rem !important;
-    padding-right: 1.5rem !important;
 }
-/* "Atrás" queda a la izquierda, separado del grupo Guardar / Eliminar. */
-.stic-send .stic-back-button { margin-right: auto; }
+@media (min-width: 640px) {
+    .stic-form li.stic-send .stic-button {
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
+    }
+}
+/* "Atrás" queda a la izquierda, separado del grupo Guardar / Eliminar. Es el
+   .stic-back-button o, en los formularios que no le ponen la clase, el
+   `type="button"` (que ya se pinta como secundario, abajo). Solo el primero:
+   si hay dos secundarios, el segundo va con el grupo. */
+.stic-form li.stic-send :is(.stic-back-button, input.stic-button[type="button"]) { margin-right: auto; }
+.stic-form li.stic-send :is(.stic-back-button, input.stic-button[type="button"]) ~ :is(.stic-back-button, input.stic-button[type="button"]) { margin-right: 0; }
+/* El aviso «Subiendo archivo…» (lo mete el JS de subir documento) va en su
+   propia línea, no apretado entre los botones. */
+.stic-form li.stic-send > div { flex: 1 0 100%; order: 5; }
 
 /* "Atrás" y secundarios: aspecto sutil, no gradiente. */
 .stic-send input.stic-button[type="button"],
@@ -2121,11 +2146,16 @@ span.stic-field {
 }
 .stic-danger-button::after { display: none !important; }
 
-/* Móvil: botones a ancho completo y apilados, "Atrás" al final. */
+/* Móvil: UNA fila. «Volver» compacto a la izquierda y el principal ocupando
+   el resto; antes iban apilados (con «Atrás» encima, porque esto no se
+   aplicaba) y la barra pegajosa se comía 154 px de pantalla. Si no caben en
+   una fila (tres botones largos), bajan solos. */
 @media (max-width: 600px) {
-    .stic-send { justify-content: stretch; }
-    .stic-send .stic-button { flex: 1 1 100%; min-width: 0; }
-    .stic-send .stic-back-button { margin-right: 0; order: 3; }
+    .stic-form li.stic-send { justify-content: stretch; }
+    .stic-form li.stic-send .stic-button { flex: 1 1 auto; min-width: 0; }
+    .stic-form li.stic-send :is(.stic-back-button, input.stic-button[type="button"]) { flex: 0 0 auto; }
+    .stic-form li.stic-send > span.desc { flex: 1 1 auto; }
+    .stic-form li.stic-send > span.desc input[type="submit"] { width: 100%; }
 }
 
 /* --- 23.b Botón suelto (crear / certificado) sobre su propia línea --- */
@@ -2171,23 +2201,27 @@ span.stic-field {
    24. PULIDO — chip destacado, dropzones, botón suave
    ============================================================ */
 
-/* Tarjeta de evento (cabecera de la pantalla de inscripción = "Ver" integrado) */
+/* Tarjeta de evento (cabecera de la pantalla de inscripción = "Ver" integrado).
+   UN RESUMEN NEUTRO, no un bloque de marca (plan 042, FAM-a5): era un
+   degradado dentro de la tarjeta blanca del formulario, y con la barra y el
+   botón principal salían tres degradados en una pantalla (design.md §3: uno,
+   dos como mucho). El degradado de esta pantalla es el botón «Apuntarme». */
 .stic-event-card {
     grid-column: 1 / -1 !important;
     list-style: none;
-    background: var(--grad-brand);
-    color: #fff;
+    background: var(--surface-2);
+    color: var(--gray-800);
+    border: 1px solid var(--gray-200);
     border-radius: var(--radius-lg);
-    padding: 1.25rem 1.4rem !important;
+    padding: 1.1rem 1.25rem !important;
     margin-bottom: 0.6rem;
-    box-shadow: var(--shadow-md);
 }
 .stic-event-card-kicker {
     font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    opacity: 0.85;
+    color: var(--gray-500);
 }
 .stic-event-card-title {
     font-size: clamp(1.2rem, 3vw, 1.45rem);
@@ -2195,17 +2229,20 @@ span.stic-field {
     letter-spacing: -0.01em;
     margin: 0.25rem 0 0.6rem;
     line-height: 1.2;
+    color: var(--gray-900);
 }
 .stic-event-card-meta {
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
     font-size: 0.9rem;
-    background: rgba(255, 255, 255, 0.18);
+    font-weight: 600;
+    background: var(--primary-50);
+    color: var(--primary-color);
     padding: 0.32rem 0.75rem;
     border-radius: var(--radius-full);
 }
-.stic-event-card-desc { margin: 0.75rem 0 0; font-size: 0.92rem; line-height: 1.5; opacity: 0.95; }
+.stic-event-card-desc { margin: 0.75rem 0 0; font-size: 0.92rem; line-height: 1.5; color: var(--gray-600); }
 
 /* Botón suave (descargar, acciones secundarias) */
 .stic-soft-btn {
@@ -4631,7 +4668,11 @@ span.stic-field {
    ============================================================ */
 .stic-home-layout {
     display: grid;
-    grid-template-columns: 1fr;
+    /* minmax(0, 1fr) y no 1fr: con 1fr el mínimo de la columna es el de su
+       contenido, y el subtítulo de la agenda (nowrap, para cortarse con «…»)
+       la ensanchaba a 404 px con un nombre de evento real. Toda la portada
+       se iba por la derecha en móvil (plan 042, FAM-a3). */
+    grid-template-columns: minmax(0, 1fr);
     gap: clamp(1.1rem, 2.5vw, 1.8rem);
     align-items: start;
 }
@@ -4644,7 +4685,8 @@ span.stic-field {
         top: 1rem;
     }
 }
-.stic-home-main { min-width: 0; }
+.stic-home-main,
+.stic-home-aside { min-width: 0; }
 
 /* --- Panel de la agenda --- */
 .stic-agenda {
@@ -4748,17 +4790,21 @@ span.stic-field {
     padding: 0.22rem 0.55rem;
 }
 
-/* CTA "Ver calendario" */
+/* CTA "Ver calendario". SECUNDARIO, como .stic-rec-btn--ghost (plan 042,
+   FAM-a13): era el único botón de marca de la portada y lleva al calendario,
+   que no es a lo que viene nadie. 44 px de alto (medía 42). */
 .stic-agenda-cta {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.45rem;
+    min-height: 44px;
     margin-top: 0.1rem;
     padding: 0.6rem 1rem;
     border-radius: var(--radius-md);
-    background: var(--grad-brand);
-    color: #fff !important;
+    background: var(--surface);
+    border: 1px solid var(--gray-200);
+    color: var(--gray-700) !important;
     font-weight: 700;
     font-size: 0.9rem;
     text-decoration: none !important;
@@ -6861,16 +6907,17 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     .stic-reg-cancel { flex: 1 1 100%; }
 }
 
-/* «Ver toda la información de la actividad», dentro de la tarjeta de marca del
-   formulario de inscripción: texto blanco subrayado, como un enlace, no un
-   segundo botón (el botón de la pantalla es «Inscribirme»). */
+/* «Ver toda la información de la actividad», dentro de la tarjeta del
+   formulario de inscripción: un enlace subrayado, no un segundo botón (el
+   botón de la pantalla es «Apuntarme»). En azul desde que la tarjeta es
+   neutra (FAM-a5). */
 .stic-event-card-link {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
     min-height: 44px;
     margin-top: 0.35rem;
-    color: var(--on-brand) !important;        /* el tema pinta los enlaces de su color */
+    color: var(--primary-color) !important;   /* el tema pinta los enlaces de su color */
     font-size: 0.9rem;
     font-weight: 700;
     text-decoration: underline !important;    /* ídem: el tema quita el subrayado */
@@ -7140,3 +7187,57 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 }
 .stic-pay-cta .stic-rec-btn--ghost { min-height: 48px; }
 .stic-pay-submit.stic-rec-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ============================================================
+   64. FAMILIAS — pulido del plan 042 (lote L1, 09/10/2026)
+   ------------------------------------------------------------
+   Lo que cambió en las pantallas de familias tras la auditoría
+   de plans/042-pulido-integral/auditoria-familias.md. Cada
+   subsección dice de qué hallazgo sale.
+   ============================================================ */
+
+/* --- 64.a La acción de la ficha del evento, pegada abajo (FAM-a2) ---
+   Con el cartel y «Toda la información», «Inscribirme» quedaba a 2.183 px
+   en un móvil y a 1.411 en escritorio. Pegada al pie de su columna, se ve
+   desde la primera pantalla. Mismo patrón que la botonera de los
+   formularios (§28): fondo de la página y el safe-area de la app. */
+.stic-rec-detail--cta-sticky .stic-rec-cta-row {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    background: var(--surface-2);
+    padding: 0.6rem 0 calc(0.6rem + env(safe-area-inset-bottom, 0px));
+}
+/* La nota (p. ej. «la inscripción se hace en el formulario de la
+   actividad») va encima del botón y sin caja: pegada abajo, una caja más
+   sería ruido. */
+.stic-rec-detail--cta-sticky .stic-rec-cta-row .stic-rec-cta-note {
+    order: -1;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: 0.82rem;
+}
+
+/* --- 64.b El selector de participante, con 44 px de dedo (FAM-a11) ---
+   Es EL control de una familia y medía 172×31. Subirlo a 44 de alto
+   agrandaba la barra de identidad 13 px en cada pantalla; en su lugar se
+   amplía el área táctil alrededor, sin cambiar lo que se ve (el mismo
+   patrón que .stic-info y .stic-appearance-btn, WCAG 2.5.8). */
+.stic-part-switch-btn { position: relative; }
+.stic-part-switch-btn::before {
+    content: '';
+    position: absolute;
+    inset: -7px -2px;
+}
+
+/* --- 64.c Tarjeta de persona sin etiqueta (FAM-a11) ---
+   Los hijos ya no llevan «Participante» (lo llevaban todos y no distinguía
+   nada). En móvil la tarjeta es una rejilla de dos filas, nombre y etiqueta:
+   sin etiqueta, el nombre ocupa las dos y queda centrado con el avatar. */
+@media (max-width: 640px) {
+    .stic-profile-card:not(:has(.stic-profile-tag)) .stic-profile-name { grid-row: 1 / 3; }
+}
+/* En la portada del familiar, las mismas tarjetas que en la selección: aire
+   antes del bloque siguiente, como el que tenía la lista a la que sustituyen. */
+.stic-section-label--mini + .stic-profiles-grid { margin-bottom: 1.5rem; }

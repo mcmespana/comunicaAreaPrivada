@@ -337,4 +337,30 @@ class RegistrationsViewTest extends TestCase
         $this->assertSame('', sticpa_registration_aula_label(array(), 'ajmcm_curso_escolar_c', 'na'));
         $this->assertSame('otros', sticpa_registration_aula_label(array(), 'ajmcm_curso_escolar_c', 'otros'));
     }
+
+    /**
+     * «Tipo de participación» solo cuando dice algo (plan 042, FAM-a12): el
+     * área guarda todas como 'attendant', y enseñarlo era el mismo dato de
+     * CRM en todas las fichas.
+     */
+    public function testElTipoDeParticipacionDeSiempreNoSeEnsena()
+    {
+        $def = $this->definition() + array('participation_type' => array('options' => array(
+            'attendant' => array('name' => 'attendant', 'value' => 'Participante/Asistente'),
+            'monitor' => array('name' => 'monitor', 'value' => 'Monitor/a'),
+        )));
+        $reg = sticpa_registration_view_model($this->nvl(array(
+            'id' => 'r1', 'name' => 'INS-1', 'status' => 'confirmed', 'participation_type' => 'attendant',
+            'stic_registrations_stic_events_name' => 'Convivencia',
+        )), array());
+        $this->assertStringNotContainsString('Tipo de participación', sticpa_registration_detail_html($reg, $def));
+
+        $reg = sticpa_registration_view_model($this->nvl(array(
+            'id' => 'r2', 'name' => 'INS-2', 'status' => 'confirmed', 'participation_type' => 'monitor',
+            'stic_registrations_stic_events_name' => 'Convivencia',
+        )), array());
+        $html = sticpa_registration_detail_html($reg, $def);
+        $this->assertStringContainsString('Tipo de participación', $html);
+        $this->assertStringContainsString('Monitor/a', $html);
+    }
 }

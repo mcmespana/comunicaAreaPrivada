@@ -90,7 +90,9 @@
 .pl-avi-submit,
 .pl-seg-add,
 .pl-panuelo-edit,
-.pl-panuelo-opt {
+.pl-panuelo-opt,
+.pl-copy,
+.pl-review-btn {
     -webkit-appearance: none !important;
     appearance: none !important;
     font: inherit !important;
@@ -125,7 +127,11 @@
 .pl-panuelo-edit::after,
 .pl-panuelo-edit::before,
 .pl-panuelo-opt::after,
-.pl-panuelo-opt::before {
+.pl-panuelo-opt::before,
+.pl-copy::after,
+.pl-copy::before,
+.pl-review-btn::after,
+.pl-review-btn::before {
     content: none !important;
     display: none !important;
 }
@@ -522,20 +528,10 @@ html.pl-holding body * {
 .pl-legend-dot--just    { background: var(--warning-color); }
 .pl-legend-dot--no      { background: var(--danger-color); }
 
-/* El chip que anuncia el gesto largo. Sin esto, "parcial" y "justificada" son
-   invisibles: nadie descubre solo que hay que mantener pulsado. */
-.pl-hold-hint {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    padding: 0.3rem 0.7rem 0.3rem 0.5rem;
-    border-radius: var(--radius-full);
-    background: var(--surface);
-    border: 1px dashed var(--gray-300);
-    font-size: 0.74rem;
-    font-weight: 700;
-    color: var(--primary-color);
-}
+/* El anillo que anuncia el gesto largo. Sin esto, "parcial" y "justificada"
+   son invisibles: nadie descubre solo que hay que mantener pulsado. Era un
+   chip con borde y letra de marca que parecía un botón; desde el plan 042
+   (PL-10) es el icono de la nota de la leyenda, que ya lo explicaba. */
 .pl-hold-ring {
     position: relative;
     display: flex;
@@ -583,26 +579,49 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
 
 /* ---- Sin registro ------------------------------------------------------- */
 
+/* Un enlace secundario bajo la cabecera, y no un botón al final de la lista
+   (plan 042, PL-1): ahí quedaba a 30 px de «Guardar» y un roce del pulgar
+   tiraba las marcas. Es una decisión de ANTES de marcar —«no hubo sesión»—,
+   así que va arriba, pequeño, alineado a la izquierda y detrás de una
+   confirmación. La pregunta en gris y la acción en el azul de los enlaces
+   discretos (`.pl-ghost`): se lee como lo que es, una salida, no una acción. */
 .pl-skip {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    width: 100%;
+    flex-wrap: wrap;
+    gap: 0 0.35rem;
     min-height: 44px;
-    margin-top: 0.9rem;
-    border-radius: var(--radius-lg);
+    margin: -0.4rem 0 0.3rem;
+    padding: 0 0.15rem !important;
+    border-radius: var(--radius-md);
     background: transparent !important;
-    border: 1px dashed var(--gray-300) !important;
+    border: 0 !important;
     color: var(--gray-500) !important;
-    font-size: 0.84rem !important;
+    font-size: 0.8rem !important;
     font-weight: 600 !important;
     font-family: inherit !important;
     cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 120ms var(--ease-out);
+}
+.pl-skip-a {
+    color: var(--primary-color);
+    font-weight: 700;
+    text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--primary-color) 45%, transparent);
+    text-underline-offset: 0.18em;
+}
+.pl-skip:active { transform: scale(0.97); }
+@media (hover: hover) {
+    .pl-skip:hover .pl-skip-a { text-decoration-color: currentColor; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .pl-skip { transition: none; }
+    .pl-skip:active { transform: none; }
 }
 /* Sin esto el SVG se estira a lo que le pide el viewBox y se come el botón: los
    iconos de sticpa_pl_icon() no traen tamaño, lo pone quien los usa. */
-.pl-skip svg { width: 16px; height: 16px; flex-shrink: 0; }
+.pl-skip svg { width: 15px; height: 15px; flex-shrink: 0; }
 
 /* ---- Barra de guardado -------------------------------------------------- */
 
@@ -626,7 +645,28 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     flex-direction: column;
     gap: 0.6rem;
     z-index: 5;
+    /* El indicador de inicio del iPhone en el navegador (plan 042, PL-3).
+       Vale 0 mientras el <head> no lleve `viewport-fit=cover` (auditoría de
+       la carcasa, CAR-2); cuando lo lleve, reserva sin tocar nada más. */
+    padding-bottom: calc(1.2rem + env(safe-area-inset-bottom, 0px));
 }
+/* EN MCM APP la barra quedaba DEBAJO de la tab bar flotante y de la píldora
+   de atrás/adelante mientras se marcaba (plan 042, PL-3): `sticky` se pega al
+   borde del viewport, y la app pinta la web a pantalla completa por detrás de
+   las dos (CONTRATO-APP-WEBVIEW.md §3). Medido a 390×844 con la lista de 14:
+   «Guardar» de 771 a 825, entero dentro de la tab bar (73 pt), y el aviso de
+   «Cambios sin guardar» dentro de la píldora (hasta ~168 pt). Es la misma
+   reserva que la hoja de estados, pero con `bottom` y no con `padding`: así
+   la barra no crece y la lista se sigue viendo pasar por detrás. Sin el
+   `env()`: el indicador de inicio ya cae dentro de la tab bar. */
+body.sticpa-app-mode .pl-savebar {
+    bottom: 10.5rem;
+    padding-bottom: 1.2rem;
+}
+/* Y el mismo hueco DEBAJO del formulario: sin él, al llegar al final del
+   scroll la barra seguiría subida 10,5 rem y taparía la última fila y la
+   leyenda, que ya no tendrían adónde subir. */
+body.sticpa-app-mode [data-pl-form] { padding-bottom: 10.5rem; }
 
 .pl-counts {
     display: flex;
@@ -769,7 +809,7 @@ body.sticpa-app-mode .pl-sheet { padding-bottom: 11.5rem; }
 
 .pl-opt-body { display: flex; flex-direction: column; gap: 0.05rem; flex-grow: 1; }
 .pl-opt-label { font-size: 0.98rem !important; font-weight: 700 !important; }
-.pl-opt-desc  { font-size: 0.73rem !important; color: var(--gray-400) !important; }
+.pl-opt-desc  { font-size: 0.73rem !important; color: var(--gray-500) !important; }
 .pl-opt-check { width: 19px; height: 19px; flex-shrink: 0; display: none; }
 .pl-opt[aria-checked="true"] .pl-opt-check { display: block; }
 
@@ -812,7 +852,7 @@ body.sticpa-app-mode .pl-sheet { padding-bottom: 11.5rem; }
     margin: 1.1rem 0 0.3rem;
     font-size: 0.72rem;
     line-height: 1.45;
-    color: var(--gray-400);
+    color: var(--gray-500);
     text-align: center;
 }
 
@@ -901,7 +941,7 @@ body.sticpa-app-mode .pl-sheet { padding-bottom: 11.5rem; }
     margin-left: auto;
     font-size: 0.72rem;
     font-weight: 600;
-    color: var(--gray-400);
+    color: var(--gray-500);
     letter-spacing: 0;
     text-transform: none;
 }
@@ -1298,7 +1338,6 @@ body.sticpa-app-mode .pl-sheet { padding-bottom: 11.5rem; }
     .pl-card { border: 1px solid var(--gray-400); }
     .pl-mark { border-style: solid; border-color: var(--gray-500); }
     .pl-savebar { background: var(--surface); backdrop-filter: none; border-top: 2px solid var(--gray-400); }
-    .pl-hold-hint { border-style: solid; }
 }
 
 /* ---- Home: el atajo ----------------------------------------------------- */
@@ -1452,7 +1491,7 @@ body.sticpa-app-mode .pl-sheet { padding-bottom: 11.5rem; }
 /* El «Resumen de grupos» va CENTRADO y sin flecha, como en el artboard: no es
    navegar más adentro del árbol, es cambiar de pantalla. */
 .pl-all-groups--center { justify-content: center; gap: 0.55rem; }
-.pl-all-groups-meta { margin-left: auto; font-size: 0.8rem; font-weight: 600; color: var(--gray-400); }
+.pl-all-groups-meta { margin-left: auto; font-size: 0.8rem; font-weight: 600; color: var(--gray-500); }
 .pl-all-groups svg { width: 18px; height: 18px; color: var(--gray-600); flex-shrink: 0; }
 
 /* Los enlaces que hacen de fila comparten el reset de los botones. Van juntos
@@ -1610,7 +1649,7 @@ a.pl-group .pl-name { display: block; }
 .pl-data-label {
     font-size: 0.73rem;
     font-weight: 800;
-    color: var(--gray-400);
+    color: var(--gray-500);
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
@@ -1715,7 +1754,7 @@ a.pl-group .pl-name { display: block; }
    recorta con puntos suspensivos. */
 .pl-avi-text { font-size: 0.89rem; line-height: 1.4; }
 .pl-avi-meta { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-.pl-avi-when { font-size: 0.73rem; color: var(--gray-400); }
+.pl-avi-when { font-size: 0.73rem; color: var(--gray-500); }
 
 /* El chip de la familia: es el dato que se pregunta siempre, así que va en cada
    aviso y no en un resumen arriba. */
@@ -1956,8 +1995,20 @@ a.pl-group .pl-name { display: block; }
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
-.pl-card-num { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
-.pl-card-meta { font-size: 0.72rem; font-weight: 500; color: var(--gray-400); }
+/* El número y su unidad, en la misma línea (plan 042, COO-4): «9 chavales», no
+   un «9» suelto. Si la unidad no cabe, baja entera, no partida. */
+.pl-card-num {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 0.3rem;
+    font-size: 1.7rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1;
+}
+/* Un dato por línea: «1 grupo · 1 / mon.» se partía por la mitad a 375. */
+.pl-card-meta { display: flex; flex-direction: column; gap: 0.1rem; font-size: 0.72rem; font-weight: 500; color: var(--gray-500); }
 
 /* La pregunta con la que coordinación abre esta pantalla: "¿pasaron lista el
    sábado?". Va arriba, con el degradado de marca, y con el numerador Y el
@@ -2027,7 +2078,7 @@ a.pl-group .pl-name { display: block; }
 .pl-cell--skip { background: var(--gray-200); }
 .pl-cell--future { background: transparent; box-shadow: inset 0 0 0 1px var(--gray-200); }
 
-.pl-strip-note { font-size: 0.7rem; font-weight: 700; color: var(--gray-400); padding-left: 0.45rem; }
+.pl-strip-note { font-size: 0.7rem; font-weight: 700; color: var(--gray-500); padding-left: 0.45rem; }
 .pl-strip-note--gap { color: var(--warning-dark); }
 
 .pl-badge {
@@ -2125,6 +2176,9 @@ a.pl-group .pl-name { display: block; }
 .pl-status[data-kind="offline"] { background: var(--gray-100); color: var(--gray-700); }
 .pl-status[data-kind="sync"]    { background: var(--primary-50); color: var(--primary-color); }
 .pl-status[data-kind="ok"]      { background: var(--success-50); color: var(--success-dark); }
+/* El guardado que ha fallado, dicho en la barra (plan 042, PL-5). */
+.pl-status[data-kind="error"]   { background: var(--danger-soft); color: var(--danger-dark); box-shadow: inset 0 0 0 1px var(--danger-border); }
+.pl-status svg { width: 15px; height: 15px; flex-shrink: 0; }
 
 /* ---- «Cambios sin guardar» ---------------------------------------------
    TIENE QUE DISTINGUIRSE MUCHO DEL VERDE DE «guardado en el CRM»: uno es una
@@ -2196,7 +2250,7 @@ a.pl-group .pl-name { display: block; }
 /* ---- Monitores ---------------------------------------------------------- */
 
 /* La línea de los grupos de un monitor. Gris y pequeña: informa, no compite. */
-.pl-rowsub { font-size: 0.75rem; color: var(--gray-400); }
+.pl-rowsub { font-size: 0.75rem; color: var(--gray-500); }
 
 /* La regla de esta pantalla, dicha antes de guardar y no después: aquí el
    defecto es verde, que es lo contrario de la lista de participantes. */
@@ -2337,7 +2391,7 @@ a.pl-group .pl-name { display: block; }
     letter-spacing: 0.04em;
 }
 .pl-seg-when { font-size: 0.76rem; font-weight: 700; color: var(--gray-600); }
-.pl-seg-who { font-size: 0.76rem; color: var(--gray-400); }
+.pl-seg-who { font-size: 0.76rem; color: var(--gray-500); }
 .pl-seg-text { font-size: 0.92rem; line-height: 1.5; }
 
 /* El aviso de privacidad va pegado al formulario de acompañamiento, no en un
@@ -2451,7 +2505,7 @@ a.pl-group .pl-name { display: block; }
 /* «2 de 4» no es un porcentaje y no se pinta como si lo fuera: con tres o
    cuatro reuniones al año, un 75 % suena a nota y es una falta. */
 .pl-track-frac { font-size: 1.02rem; font-weight: 800; letter-spacing: -0.01em; }
-.pl-track-score--none { font-size: 0.78rem; font-weight: 700; color: var(--gray-400); }
+.pl-track-score--none { font-size: 0.78rem; font-weight: 700; color: var(--gray-500); }
 
 /* LA PISTA, POR MESES. Cada mes es un bloquecito con sus cuadrados y su nombre
    debajo. La versión de antes era una fila corrida con un hueco mudo al cambiar
@@ -2465,7 +2519,7 @@ a.pl-group .pl-name { display: block; }
     font-size: 0.6rem;
     font-weight: 700;
     line-height: 1;
-    color: var(--gray-400);
+    color: var(--gray-500);
     text-transform: lowercase;
     letter-spacing: 0.02em;
 }
@@ -2627,7 +2681,7 @@ a.pl-group .pl-name { display: block; }
 .pl-chips-label {
     font-size: 0.73rem;
     font-weight: 800;
-    color: var(--gray-400);
+    color: var(--gray-500);
     text-transform: uppercase;
     letter-spacing: 0.05em;
 }
@@ -2771,7 +2825,7 @@ a.pl-group .pl-name { display: block; }
 
 /* «Sin datos» ocupa el sitio del número grande, pero no grita como él: es la
    ausencia de un dato, no un dato malo. */
-.pl-att-pct--none { font-size: 1rem; font-weight: 700; color: var(--gray-400); }
+.pl-att-pct--none { font-size: 1rem; font-weight: 700; color: var(--gray-500); }
 
 /* ---- Los remates de móvil de los bloques nuevos ------------------------- */
 
@@ -2915,7 +2969,7 @@ a.pl-group .pl-name { display: block; }
    porque nadie sabía que ella existía. Sale en gris y sin botones: es una fila
    informativa, no un contacto al que se pueda llamar. */
 .pl-phone--sinnum { opacity: 0.72; }
-.pl-phone-num--none { font-style: italic; color: var(--gray-400); }
+.pl-phone-num--none { font-style: italic; color: var(--gray-500); }
 
 /* EL PORCENTAJE DE LA FILA. Va al final de la línea de los grupos, pequeño y
    gris: coordinación quiere el número, pero treinta porcentajes en fila no se
@@ -2927,7 +2981,7 @@ a.pl-group .pl-name { display: block; }
     padding-left: 0.45rem;
     border-left: 1px solid var(--gray-200);
     font-variant-numeric: tabular-nums;   /* dos filas seguidas se comparan */
-    color: var(--gray-400);
+    color: var(--gray-500);
 }
 /* Por debajo del umbral toma el color del aviso: es el MISMO mensaje que la
    nota roja de debajo, y dos idiomas para lo mismo en la misma fila se leen
@@ -2989,7 +3043,7 @@ a.pl-group .pl-name { display: block; }
     white-space: nowrap;
 }
 .pl-contactrow-main--empty {
-    color: var(--gray-400);
+    color: var(--gray-500);
     font-style: italic;
     font-size: 0.86rem;
 }
@@ -3039,7 +3093,7 @@ a.pl-group .pl-name { display: block; }
     padding: 1rem;
     border-radius: var(--radius-lg);
     border: 1px dashed var(--gray-200);
-    color: var(--gray-400);
+    color: var(--gray-500);
     text-align: center;
 }
 .pl-empty-mark { display: inline-flex; }
@@ -3094,7 +3148,7 @@ a.pl-group .pl-name { display: block; }
     margin-right: 0.6rem;
     font-size: 0.72rem;
     font-weight: 600;
-    color: var(--gray-400);
+    color: var(--gray-500);
     letter-spacing: 0;
     text-transform: none;
 }
@@ -3279,7 +3333,7 @@ a.pl-group .pl-name { display: block; }
 .pl-pager-label {
     font-size: 0.68rem;
     font-weight: 800;
-    color: var(--gray-400);
+    color: var(--gray-500);
     text-transform: uppercase;
     letter-spacing: 0.06em;
 }
@@ -3303,7 +3357,7 @@ a.pl-group .pl-name { display: block; }
     padding: 0 0.2rem;
     font-size: 0.72rem;
     font-weight: 700;
-    color: var(--gray-400);
+    color: var(--gray-500);
     white-space: nowrap;
 }
 
@@ -3428,4 +3482,259 @@ a.pl-group .pl-name { display: block; }
     .pl-newmeet, .pl-tracks, .pl-fold
 ) {
     border: 1px solid var(--gray-200);
+}
+
+/* ==========================================================================
+   042 · PULIDO DEL LADO DEL MONITOR (plan 042, auditoría de Pasar Lista)
+   --------------------------------------------------------------------------
+   Lo nuevo de esa pasada, por hallazgo. Lo que cambiaba una regla que ya
+   existía se ha cambiado en su sitio; aquí solo va lo que no tenía dónde.
+   ========================================================================== */
+
+/* ---- PL-2: «El resto ha venido (0)» -------------------------------------
+   Sin nadie por marcar el botón no tiene nada que hacer y se apaga. Con
+   `!important` porque §0.b neutraliza al tema con `!important` y el botón
+   declara su relleno igual. */
+.pl-all-present[disabled] {
+    opacity: 0.5 !important;
+    cursor: default;
+}
+
+/* ---- PL-5: «Guardada ✓», el botón en reposo ------------------------------
+   Con el guardado confirmado y sin cambios, el botón de la barra deja de ser
+   de marca: fantasma (design.md §6.1, borde suave y texto de marca). El
+   degradado vuelve con el primer toque, que es cuando hay algo que guardar.
+   `!important` porque `.pl-save` declara su relleno así para ganar al tema. */
+.pl-save.is-saved {
+    background: transparent !important;
+    border: 1.5px solid var(--success-border) !important;
+    box-shadow: none !important;
+    color: var(--success-dark) !important;
+}
+
+/* ---- PL-5: el fallo de un guardado, en su tarjeta ------------------------
+   La tarjeta de aviso del área (custom-style §36) con un tono de peligro, que
+   allí no existe. Vive aquí porque hoy solo la usa Pasar Lista; si otra
+   pantalla la necesita, se sube a §36 junto a `--warning`. */
+.stic-alert--danger {
+    background: var(--danger-soft);
+    border-color: var(--danger-border);
+}
+.stic-alert--danger .stic-alert-ico {
+    background: var(--danger-100);
+    color: var(--danger-dark);
+}
+.stic-alert--danger .stic-alert-title { color: var(--danger-dark); }
+.stic-alert--danger .stic-alert-text { color: var(--gray-700); }
+.pl-save-alert { margin-bottom: 0.9rem; }
+
+/* ---- PL-7: el texto pequeño, en `--gray-500` -----------------------------
+   Veintiuna reglas de texto de estas pantallas iban en `--gray-400` (2,5:1 en
+   claro, 3,4:1 en oscuro): «ALERGIAS», la fecha de un aviso, las
+   explicaciones de la hoja, «3 de 3»… de 9,6 a 12,8 px, para leer de pie en
+   un patio. Se cambiaron EN SU SITIO a `--gray-500` (4,8:1 / 6,2:1), como
+   pide design.md §5. `--gray-400` se queda solo en iconos, la flecha de la
+   fila y los `::placeholder`. */
+
+/* ---- PL-8: «Ver todas las fechas», bajo la leyenda -----------------------
+   La entrada al historial del grupo. Un enlace discreto (`.pl-ghost`), a la
+   altura de la nota de la leyenda: no compite con «Guardar». */
+.pl-history-link { margin: 0.1rem 0 0; }
+
+/* ---- PL-6: la tira del resumen, a dedo ----------------------------------
+   Con puntero grueso las celdas (14×7 px) son decoración y `.pl-strip-link`,
+   hermano de las celdas, cubre la tira entera y lleva al historial del grupo.
+   Se estira hacia el hueco de encima y el relleno de debajo de la fila para
+   llegar a ~48 px sin hacer la fila mucho más alta. Con ratón no existe y las
+   celdas siguen siendo enlaces. La cabecera de la fila, también a 44 px. */
+.pl-grouprow-top { min-height: 44px; }
+.pl-strip { position: relative; }
+.pl-strip-link { display: none; }
+@media (pointer: coarse) {
+    .pl-strip { min-height: 28px; }
+    .pl-strip .pl-cell { pointer-events: none; }
+    .pl-strip-link {
+        display: block;
+        position: absolute;
+        top: -0.5rem;
+        bottom: -0.75rem;
+        left: 0;
+        right: 0;
+        border-radius: var(--radius-md);
+        -webkit-tap-highlight-color: transparent;
+    }
+    .pl-strip-link:active { background: color-mix(in srgb, var(--gray-500) 10%, transparent); }
+}
+
+/* ---- PL-10: «Llamar a Marta (madre)» -------------------------------------
+   Los botones grandes de la ficha dicen a quién llaman. Si a 375 no cabe, el
+   texto pasa a dos líneas DENTRO del botón, centrado, en vez de cortarse. */
+.pl-contact-btn span {
+    min-width: 0;
+    text-align: center;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+}
+
+/* ---- PL-10: el anillo del gesto largo, como icono de la nota ------------- */
+.pl-hint--hold { align-items: center; }
+.pl-hint--hold .pl-hold-ring { margin-top: 0; }
+
+/* ---- PL-12: el atajo entero es pulsable ----------------------------------
+   La tarjeta del sábado es lo más grande de la portada, pero solo el botón
+   blanco de dentro era enlace: 54 px en el tercio de arriba, adonde peor
+   llega el pulgar. Enlace estirado sin tocar el marcado: el `::after` del
+   botón cubre la tarjeta (no hay otros pulsables dentro, así que no pisa
+   nada) y el pulsado encoge la tarjeta entera. */
+.pl-hero { position: relative; transition: transform 120ms var(--ease-out); }
+.pl-hero-cta { -webkit-tap-highlight-color: transparent; }
+.pl-hero-cta::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius-xl);
+}
+.pl-hero:has(.pl-hero-cta:active) { transform: scale(0.97); }
+@media (prefers-reduced-motion: reduce) {
+    .pl-hero { transition: none; }
+    .pl-hero:has(.pl-hero-cta:active) { transform: none; }
+}
+
+/* ---- PL-9: «Tienes una lista guardada solo en el móvil» ------------------
+   El aviso de la cola, en la portada y en el árbol. Es el mismo `.pl-status`
+   de la barra (ámbar si está pendiente, rojo si no se ha podido enviar), en
+   bloque y con una línea por lista, cada una un enlace a su pantalla. */
+.pl-queue-notice {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.15rem;
+    margin: 0 0 1rem;
+    padding: 0.6rem 0.8rem;
+    box-shadow: inset 0 0 0 1px currentColor;
+}
+.pl-queue-title { margin: 0 0 0.15rem; font-weight: 700; }
+.pl-queue-item {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    color: inherit;
+    font-weight: 800;
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+}
+
+/* ==========================================================================
+   042 · COORDINACIÓN (plan 042, auditoría de coordinación)
+   --------------------------------------------------------------------------
+   Lo nuevo de esa pasada, por hallazgo. Lo que cambiaba una regla que ya
+   existía se ha cambiado en su sitio; aquí solo va lo que no tenía dónde.
+   ========================================================================== */
+
+/* ---- COO-1: el Resumen respeta el alcance --------------------------------
+   Con alcance acotado hay menos tarjetas de etapa: la rejilla se ajusta a las
+   que hay. Y el resto de la delegación va plegado, con sus tiras dentro: sin
+   la sombra de tarjeta de cada lista, que ya están dentro de la del plegable. */
+.pl-cards--n1 { grid-template-columns: minmax(0, 1fr); }
+.pl-cards--n2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.pl-fold--resto .pl-fold-body { padding: 0 0.9rem 0.9rem; border-top: 1px solid var(--gray-100); }
+.pl-fold--resto .pl-list { box-shadow: none; border: 1px solid var(--gray-100); }
+
+/* ---- COO-2: «Faltan: M1 · C2 · Ruah», en la tarjeta de la última sesión ---
+   Cada nombre es un enlace a su lista: pastilla clara sobre el degradado, como
+   el anillo del porcentaje, y de 44 px porque se toca con el dedo. */
+.pl-lasthero-miss { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.45rem; }
+.pl-lasthero-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 0.9rem;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.18);
+    color: inherit !important;   /* el enlace del tema no pinta sobre el degradado */
+    font-size: 0.85rem;
+    font-weight: 800;
+    text-decoration: none !important;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.12s var(--ease-out), background-color 0.12s var(--ease-out);
+}
+.pl-lasthero-chip:active { transform: scale(0.97); }
+@media (hover: hover) {
+    .pl-lasthero-chip:hover { background: rgba(255, 255, 255, 0.28); }
+}
+.pl-lasthero-chip:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+    .pl-lasthero-chip { transition: none; }
+}
+
+/* ---- COO-7: quién lleva cada grupo, en el Resumen ------------------------
+   Una línea bajo el código. Cada nombre es un enlace a la ficha del monitor
+   (WhatsApp y Llamar arriba del todo) para quien puede abrirla; el alto de
+   44 px se come el hueco de la fila con margen negativo para que la línea no
+   aparte la tira más de lo que se ve. */
+.pl-grouprow-who {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 0.4rem;
+    margin: -0.55rem 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--gray-500);
+}
+.pl-who-link,
+.pl-who-name { display: inline-flex; align-items: center; min-height: 44px; }
+.pl-who-name { min-height: 1.6rem; }
+.pl-who-link {
+    color: var(--primary-color) !important;   /* el tema subraya y repinta los enlaces de .entry-content */
+    text-decoration: none !important;
+    -webkit-tap-highlight-color: transparent;
+}
+.pl-who-link:active { transform: scale(0.97); }
+@media (hover: hover) {
+    .pl-who-link:hover { text-decoration: underline !important; text-underline-offset: 0.18em; }
+}
+.pl-who-sep { color: var(--gray-400); }
+
+/* ---- COO-4: la unidad del número grande de cada etapa ---------------------
+   Del tamaño de la línea de abajo, para que el número siga mandando. */
+.pl-card-unit { font-size: 0.78rem; font-weight: 700; letter-spacing: 0; color: var(--gray-500); }
+
+/* ---- COO-6: «Copiar el correo» y «Vincular», contra el tema --------------
+   Faltaban en la lista de §0.b y `.entry-content button` del tema (0,1,1) les
+   ganaba: el círculo claro de copiar salía como un rectángulo de 140 px con el
+   relleno del tema, y «Vincular» perdía su ámbar. §0.b los neutraliza con
+   `!important`; aquí vuelven a declarar lo suyo igual, como `.pl-seg-add` o
+   `.pl-save` (ESTADO §3.6). */
+.pl-copy {
+    width: 44px !important;
+    height: 44px !important;
+    padding: 0 !important;
+    border-radius: var(--radius-full) !important;
+    background: var(--primary-50) !important;
+    color: var(--primary-color) !important;
+}
+.pl-copy.is-done {
+    background: var(--success-light, var(--primary-50)) !important;
+    color: var(--success-dark) !important;
+}
+.pl-review-btn {
+    /* La misma altura que el desplegable de al lado: 44 y 50 no casaban. */
+    height: 48px !important;
+    padding: 0 0.9rem !important;
+    border-radius: var(--radius-md) !important;
+    background: var(--warning-dark) !important;
+    color: var(--white) !important;
+    font-size: 0.83rem !important;
+    font-weight: 700 !important;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.12s var(--ease-out);
+}
+.pl-review-btn:active { transform: scale(0.97); }
+/* (0,2,1) y no una clase sola: la regla general de campos de custom-style
+   (`:is(.stic-tab-content) :is(input[type=…], select)`, también 0,2,1, y va
+   antes) le pone el relleno de un campo de formulario, y medía 50 px. */
+.stic-container select.pl-review-select { height: 48px; padding: 0 0.6rem; }
+@media (prefers-reduced-motion: reduce) {
+    .pl-review-btn { transition: none; }
 }

@@ -358,4 +358,28 @@ class PaymentsViewTest extends TestCase
 
         unset($GLOBALS['__stic_filters']['sticpa_profile_audience']);
     }
+
+    /**
+     * UN RECIBO DEVUELTO no da dos instrucciones contrarias (plan 042,
+     * FAM-a12): si se puede pagar desde la ficha, el aviso no manda a la
+     * delegación con el botón de pagar justo debajo.
+     */
+    public function testUnReciboDevueltoNoDaDosInstruccionesContrarias()
+    {
+        require_once __DIR__ . '/../inc/stic-pay-card.php';
+        $pay = sticpa_payment_view_model($this->nvl(array(
+            'id' => 'p1', 'name' => 'Convivencia', 'amount' => '120.00',
+            'payment_date' => '2026-10-01', 'status' => 'rejected', 'payment_method' => 'direct_debit',
+        )));
+
+        $pay['pagable'] = true;
+        $html = sticpa_payment_detail_html($pay, $this->defPagos());
+        $this->assertStringContainsString('Puedes pagarlo con tarjeta o hablar con tu delegación.', $html);
+        $this->assertStringNotContainsString('Ponte en contacto con tu delegación', $html);
+
+        // Sin forma de pagar desde aquí, lo único que queda es la delegación.
+        $pay['pagable'] = false;
+        $html = sticpa_payment_detail_html($pay, $this->defPagos());
+        $this->assertStringContainsString('Ponte en contacto con tu delegación para volver a intentarlo.', $html);
+    }
 }

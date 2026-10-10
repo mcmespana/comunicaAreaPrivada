@@ -214,12 +214,19 @@ switch ($_REQUEST['action']) {
         break;
     case 'create':
     case 'edit':
-        $formSettings['submitButton']['back'] = __('Back', 'sticpa'); // submit button title. If not defined, it will be a read-only view
+        // «Volver» como en el resto del área (el msgid 'Back' salía «Atrás») y
+        // «Apuntarme» en vez de «Inscribirse» (plan 042, FAM-a5). A dónde
+        // vuelve se decide abajo, cuando ya se sabe el evento.
+        $formSettings['submitButton']['back'] = __('Volver', 'sticpa');
         $formSettings['submitButtonType']['back'] = 'button';
         $formSettings['submitButtonActions']['back'] = array(
             'onclick' => "location.href='?internalpage=list_stic_registrations';",
         );
-        $formSettings['submitButton']['save'] = __('Register', 'sticpa'); // submit button title. If not defined, it will be a read-only view
+        // Con un hijo, a quién: «Apuntar a Lucía» (FAM-a4).
+        $formSettings['submitButton']['save'] = (sticpa_viendo_a_nombre() !== '')
+            /* translators: %s: nombre de pila del participante */
+            ? sprintf(__('Apuntar a %s', 'sticpa'), sticpa_viendo_a_nombre())
+            : __('Apuntarme', 'sticpa');
         $formSettings['submitButtonActions']['save'] = array(
             'onclick' => 'return verifyFormIsValid(this)',
         );
@@ -305,6 +312,15 @@ if (isset($_REQUEST['from']) && $_REQUEST['from'] == 'stic_events') {
     $eventId = $_REQUEST['eventId'] ?? null;
 }
 
+// «Volver» vuelve a la ficha del evento de la que se viene, no a Mis
+// inscripciones (FAM-a5): quien se lo está pensando quiere volver a leerla.
+// El id llega por la URL: rawurlencode lo deja sin comillas para el onclick.
+$backUrl = '?internalpage=list_stic_registrations';
+if ($fromEvent && !empty($eventId) && ($_REQUEST['action'] ?? '') === 'create') {
+    $backUrl = '?internalpage=single_stic_events&action=detail&id=' . rawurlencode((string) $eventId);
+    $formSettings['submitButtonActions']['back']['onclick'] = "location.href='" . esc_js($backUrl) . "';";
+}
+
 $data = null;
 if (!empty($_REQUEST['id']) && $_REQUEST['action'] !== 'create') {
     $data = $objSCP->getRecordDetail($_REQUEST['id'], $formSettings['moduleName'])->entry_list[0]->name_value_list;
@@ -368,10 +384,12 @@ if ($eventId && $_REQUEST['action'] !== 'edit' && $_REQUEST['action'] !== 'detai
     // igual al final del bloque, para no perder la relación al guardar.
     $event = $eventNvl ?: new stdClass();
     $evName  = $event->name->value ?? '';
-    $evStart = !empty($event->start_date->value) ? formatValue($event->start_date->value, 'date') : '';
-    $evEnd   = !empty($event->end_date->value) ? formatValue($event->end_date->value, 'date') : '';
     $evDesc  = $event->description->value ?? '';
-    $dateLine = $evStart ? ($evStart . ($evEnd && $evEnd !== $evStart ? ' – ' . $evEnd : '')) : '';
+    // La fecha en palabras, como en la ficha y en el formulario de cambiar
+    // (FAM-a5): «31-10-2026 – 02-11-2026» es el formato que design.md §6.1
+    // prohíbe.
+    $evModel = ($eventNvl && function_exists('sticpa_event_view_model')) ? sticpa_event_view_model($eventNvl) : array();
+    $dateLine = !empty($evModel['start_ts']) ? sticpa_record_date_line($evModel['start_ts'], $evModel['end_ts'] ?? null) : '';
     $calSvg = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
     // Tarjeta con la info del evento (sustituye a la pantalla "Ver"), con el
     // enlace a su ficha: el cartel, el cuerpo de la web y los documentos están
@@ -379,7 +397,13 @@ if ($eventId && $_REQUEST['action'] !== 'edit' && $_REQUEST['action'] !== 'detai
     $fieldList[] = array(
         'name' => 'evento_info',
         'type' => 'html',
-        'html' => sticpa_registration_event_card_html(__('Te inscribes a', 'sticpa'), $evName, $dateLine, $evDesc, $eventId, $calSvg),
+        'html' => sticpa_registration_event_card_html(
+            (sticpa_viendo_a_nombre() !== '')
+                /* translators: %s: nombre de pila del participante */
+                ? sprintf(__('Inscribes a %s en', 'sticpa'), sticpa_viendo_a_nombre())
+                : __('Te inscribes a', 'sticpa'),
+            $evName, $dateLine, $evDesc, $eventId, $calSvg
+        ),
     );
     $fieldList[] = array('name' => 'stic_registrations_stic_eventsstic_events_ida', 'type' => 'hidden', 'defaultValue' => $eventId);
 
@@ -430,8 +454,18 @@ $blockedTitle = '';
 $blockedText = '';
 $fwaDoor = '';
 if ($alreadyRegistered) {
-    $blockedTitle = __('Ya estás inscrito', 'sticpa');
-    $blockedText = __('Ya cuentas con una inscripción activa para este evento. No es necesario que te vuelvas a inscribir.', 'sticpa');
+    // Sin «inscrito» (design.md §1: reformula antes de resolver el género) y
+    // diciendo de quién es, si es de un hijo (FAM-a4).
+    $viendoA = sticpa_viendo_a_nombre();
+    if ($viendoA !== '') {
+        /* translators: %s: nombre de pila del participante */
+        $blockedTitle = sprintf(__('%s ya tiene su plaza', 'sticpa'), $viendoA);
+        /* translators: %s: nombre de pila del participante */
+        $blockedText = sprintf(__('%s ya tiene una inscripción activa para esta actividad. No hace falta repetirla.', 'sticpa'), $viendoA);
+    } else {
+        $blockedTitle = __('Ya tienes tu plaza', 'sticpa');
+        $blockedText = __('Ya tienes una inscripción activa para esta actividad. No hace falta repetirla.', 'sticpa');
+    }
 } elseif (!empty($signupBlock['bloqueado'])) {
     $blockedTitle = $signupBlock['titulo'];
     $blockedText = $signupBlock['texto'];
@@ -451,7 +485,7 @@ if ($blockedText !== '') {
     $formSettings['submitButtonType'] = array('back' => 'button');
     $formSettings['submitButtonActions'] = array(
         'back' => array(
-            'onclick' => "location.href='?internalpage=list_stic_registrations';",
+            'onclick' => "location.href='" . esc_js($backUrl) . "';",
         ),
     );
     if ($fwaDoor !== '') {

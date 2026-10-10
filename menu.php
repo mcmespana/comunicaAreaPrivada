@@ -95,12 +95,7 @@ function getSticMenuElements()
  */
 function sticpa_datos_de_label()
 {
-    $nombre = trim((string) ($_SESSION['scp_user_contact_name'] ?? ''));
-    if (strpos($nombre, ',') !== false) {
-        $partes = explode(',', $nombre, 2);
-        $nombre = trim($partes[1]) !== '' ? trim($partes[1]) : trim($partes[0]);
-    }
-    $nombre = ($nombre !== '') ? preg_split('/\s+/', $nombre)[0] : '';
+    $nombre = sticpa_nombre_de_pila($_SESSION['scp_user_contact_name'] ?? '');
     return ($nombre !== '')
         /* translators: %s: nombre de pila del participante */
         ? sprintf(__('Datos de %s', 'sticpa'), $nombre)
@@ -323,8 +318,67 @@ function sticpa_name_initial($name)
 }
 
 /**
+ * LA TARJETA DE UNA PERSONA a la que se puede pasar a ver (avatar con la
+ * inicial, nombre corto y flecha). La usan la pantalla de elegir participante
+ * y la portada del familiar: antes la misma acción se pintaba de dos formas,
+ * avatar con degradado en una e icono gris en la otra (plan 042, FAM-a11).
+ *
+ * El nombre, corto como en la barra («Lucía Messeguer», no «Messeguer
+ * Villarroya, Lucía»), con el completo en el title.
+ *
+ * @param string $url   Ya escapada (esc_url).
+ * @param string $name  Nombre tal y como viene del CRM.
+ * @param string $tag   Etiqueta pequeña bajo el nombre ('' = ninguna).
+ * @param string $go    Texto del CTA (en móvil solo se ve la flecha).
+ * @param string $extra Clases extra (is-active, stic-profile-card--self).
+ */
+function sticpa_profile_card_html($url, $name, $tag, $go, $extra = '')
+{
+    $goIcon = "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12h14'/><path d='m13 6 6 6-6 6'/></svg>";
+    return "<a class='stic-profile-card" . ($extra !== '' ? ' ' . esc_attr($extra) : '') . "' href='" . $url . "'"
+        . " data-part-switch-to='" . esc_attr__('Cambiando de participante…', 'sticpa') . "'>"
+        . "<span class='stic-profile-avatar' aria-hidden='true'>" . esc_html(sticpa_name_initial($name)) . "</span>"
+        . "<span class='stic-profile-name' title='" . esc_attr($name) . "'>" . esc_html(sticpa_short_name($name)) . "</span>"
+        . ($tag !== '' ? "<span class='stic-profile-tag'>" . esc_html($tag) . "</span>" : '')
+        . "<span class='stic-profile-go'><span class='stic-profile-go-text'>" . esc_html($go) . "</span>{$goIcon}</span>"
+        . "</a>";
+}
+
+/**
  * Return html menu from  $menuElements
  */
+/**
+ * LA SECCIÓN DEL MENÚ A LA QUE PERTENECE UNA PANTALLA (plan 042, COO-3).
+ *
+ * El resaltado comparaba la clave exacta de la página: en el Resumen de
+ * grupos, la Lista de monitores, las Reuniones o la ficha de un monitor no se
+ * marcaba ninguna sección, y no había forma de saber dónde estabas. Las
+ * subpantallas van a su sección, y por la puerta por la que se entró: lo
+ * abierto desde Coordinación es de Coordinación aunque también se llegue desde
+ * Pasar lista. Se lee `desde` y `vengo` con la misma lista blanca que la flecha
+ * de volver; un valor desconocido no cambia nada.
+ *
+ * Mínima a propósito: solo Pasar Lista y Coordinación. Las fichas de detalle
+ * de otras secciones (Eventos, Pagos…) pueden añadirse aquí con la misma regla.
+ */
+function sticpa_menu_section_for($page)
+{
+    $page = (string) $page;
+    if (strpos($page, 'single_stic_pasar_lista_') !== 0) {
+        return $page;
+    }
+    $desde = isset($_REQUEST['desde']) ? (string) $_REQUEST['desde'] : '';
+    $vengo = isset($_REQUEST['vengo']) ? (string) $_REQUEST['vengo'] : '';
+    if (in_array($vengo, array('grupo', 'grupos', 'cursos', 'az'), true)) {
+        return 'single_stic_mis_grupos';
+    }
+    if ($page === 'single_stic_pasar_lista_monitor'
+        || in_array($desde, array('coordinacion', 'resumen-coordinacion'), true)) {
+        return 'single_stic_coordinacion';
+    }
+    return 'single_stic_pasar_lista';
+}
+
 function menu()
 {
     global $defaultMenuElement;
@@ -342,6 +396,9 @@ function menu()
 
     // Página actual (para resaltar el item activo). Sin internalpage => Inicio.
     $page = empty($_REQUEST['internalpage']) ? 'single_stic_home' : $_REQUEST['internalpage'];
+    // Una subpantalla resalta la sección a la que pertenece (COO-3).
+    $rawPage = $page;
+    $page = sticpa_menu_section_for($page);
 
     // ¿Mostramos los items de navegación? (usuario adulto o familiar con perfil elegido).
     $showItems = (isset($_SESSION['scp_tutor_user_contact_name']) || (isset($_SESSION['scp_user_adult']) && $_SESSION['scp_user_adult']));
@@ -449,7 +506,8 @@ function menu()
         foreach ($items as $key => $label) {
             $isActive = ($page == $key) ? 'current-menu-item stic-current-menu-item' : '';
             // aria-current: señal programática de "estás aquí" (la clase es solo visual).
-            $ariaCurrent = ($page == $key) ? " aria-current='page'" : '';
+            // En una subpantalla la sección es «dónde estás», no «esta página».
+            $ariaCurrent = ($page == $key) ? ($rawPage == $key ? " aria-current='page'" : " aria-current='true'") : '';
             $icon = function_exists('sticpa_section_icon') ? sticpa_section_icon($key) : '';
             $wide = !empty($layout['items'][$key]['wide']) ? ' stic-nav-item--wide' : '';
             $order = (int) ($layout['items'][$key]['order'] ?? 999);

@@ -139,7 +139,7 @@ if (!empty($_POST['pl_action'])) {
             'pantalla' => 'monitores', 'motivo' => 'nonce',
             'sesion' => $session['id'], 'marcas_post' => strlen($marksRaw),
         ));
-        $html .= '<p class="pl-notice">' . sticpa_pl_icon('clock') . '<span>'
+        $html .= '<p class="pl-notice" data-pl-nonce-expired>' . sticpa_pl_icon('clock') . '<span>'
             . esc_html__('La sesión ha caducado. Vuelve a cargar la pantalla.', 'sticpa') . '</span></p>';
     } else {
         $marks = array();
@@ -302,6 +302,8 @@ $html .= '<div data-pl-marcar data-pl-monitores'
     . ($savedOk ? ' data-pl-saved-ok' : '')
     . ' data-session="' . esc_attr($session['id']) . '"'
     . ' data-group="monitores"'
+    . ' data-queue-label="' . esc_attr(($isReunion ? __('Reunión', 'sticpa') : __('Monitores', 'sticpa'))
+        . ' · ' . sticpa_pl_session_short($session, true)) . '"'
     . ' data-msg-dirty="' . esc_attr__('Cambios sin guardar · los datos están solo en tu móvil', 'sticpa') . '"'
     . ' data-msg-draft="' . esc_attr__('Tienes marcas sin guardar de antes.', 'sticpa') . '"'
     . ' data-msg-offline="' . esc_attr__('Sin cobertura. Puedes marcar: se guardará en el móvil.', 'sticpa') . '"'
@@ -327,7 +329,9 @@ if ($isReunion) {
     $html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html($titulo) . '</span></div>';
     $subtitulo = sticpa_pl_session_label($session) . ' · ' . $scopeLabel;
 } else {
-    $html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html__('Monitores', 'sticpa') . '</span>'
+    // El mismo nombre que la fila que la abre (plan 042, COO-9): «Monitores»
+    // a secas era justo el nombre que confundía (§5 quater).
+    $html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html__('Lista de monitores', 'sticpa') . '</span>'
         . '<span class="pl-title-name">' . esc_html($scopeLabel) . '</span></div>';
     // El día ya lo dice el selector de al lado: el subtítulo cuenta a cuántos
     // hay que repasar, que es lo que no se ve sin bajar.
@@ -359,19 +363,9 @@ if ($saved === null && $listaMon !== null && $listaMon['estado'] !== '') {
     )) . '</span></p>';
 }
 
-if (is_array($saved)) {
-    if ($savedOk) {
-        $html .= '<p class="pl-notice pl-notice--ok">' . sticpa_pl_icon('check')
-            . '<span>' . esc_html(sprintf(
-                /* translators: 1: cuántos vinieron, 2: cuántas faltas */
-                __('Guardado · %1$d vinieron, %2$d faltas', 'sticpa'),
-                $saved['counts']['yes'],
-                $saved['counts']['no']
-            )) . '</span></p>';
-    } else {
-        $html .= sticpa_pl_save_result_html($saved, $saveProblems, $objSCP);
-    }
-}
+// El fallo, arriba y en su tarjeta; el éxito lo dice la barra de guardado,
+// encima del botón (plan 042, PL-5).
+$html .= sticpa_pl_save_result_html($saved, $saveProblems, $objSCP);
 
 if (empty($monitors)) {
     $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
@@ -521,18 +515,36 @@ foreach ($conFilas as $etapa) {
 $html .= sticpa_pl_legend_html(true);
 
 $html .= '<div class="pl-savebar">';
-$html .= '<p class="pl-status" data-pl-status hidden></p>';
-$html .= '<div class="pl-counts">';
+$html .= sticpa_pl_savebar_status_html(
+    $saved,
+    $savedOk,
+    ($savedOk && isset($saved['counts'])) ? sprintf(
+        /* translators: 1: «12 vinieron», 2: «1 falta» */
+        __('Guardado · %1$s, %2$s', 'sticpa'),
+        /* translators: %d: cuántos vinieron */
+        sprintf(_n('%d vino', '%d vinieron', (int) $saved['counts']['yes'], 'sticpa'), (int) $saved['counts']['yes']),
+        /* translators: %d: cuántas faltas */
+        sprintf(_n('%d falta', '%d faltas', (int) $saved['counts']['no'], 'sticpa'), (int) $saved['counts']['no'])
+    ) : ''
+);
+// Los contadores se anuncian al cambiar (plan 042, PL-11): con lector de
+// pantalla, tocar una fila no decía nada.
+$html .= '<div class="pl-counts" aria-live="polite">';
 $html .= '<span class="pl-count"><span class="pl-count-dot pl-count-dot--yes"></span>'
-    . '<span data-pl-count-yes>0</span>&nbsp;' . esc_html__('vinieron', 'sticpa') . '</span>';
+    . '<span data-pl-count-yes>0</span>&nbsp;<span data-pl-word="yes"'
+    . ' data-one="' . esc_attr__('vino', 'sticpa') . '" data-many="' . esc_attr__('vinieron', 'sticpa') . '">'
+    . esc_html__('vinieron', 'sticpa') . '</span></span>';
 $html .= '<span class="pl-count"><span class="pl-count-dot pl-count-dot--no"></span>'
-    . '<span data-pl-count-no>0</span>&nbsp;' . esc_html__('faltas', 'sticpa') . '</span>';
+    . '<span data-pl-count-no>0</span>&nbsp;<span data-pl-word="no"'
+    . ' data-one="' . esc_attr__('falta', 'sticpa') . '" data-many="' . esc_attr__('faltas', 'sticpa') . '">'
+    . esc_html__('faltas', 'sticpa') . '</span></span>';
 $html .= '</div>';
-$html .= '<button type="submit" name="pl_action" value="save" class="pl-save" data-pl-save'
+$html .= '<button type="submit" name="pl_action" value="save" class="pl-save' . ($savedOk ? ' is-saved' : '') . '" data-pl-save'
     . ' data-label-full="' . esc_attr__('Guardar', 'sticpa') . '"'
     . ' data-label-partial="' . esc_attr__('Guardar', 'sticpa') . '"'
+    . ' data-label-saved="' . esc_attr__('Guardada ✓', 'sticpa') . '"'
     . ' data-label-saving="' . esc_attr__('Guardando…', 'sticpa') . '">'
-    . esc_html__('Guardar', 'sticpa') . '</button>';
+    . ($savedOk ? esc_html__('Guardada ✓', 'sticpa') : esc_html__('Guardar', 'sticpa')) . '</button>';
 $html .= '</div>';
 
 $html .= '</form>';
