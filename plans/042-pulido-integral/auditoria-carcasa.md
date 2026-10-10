@@ -13,7 +13,9 @@
 
 ## Resumen
 
-(Se completa al cerrar la auditoría.)
+Siete hallazgos de la carcasa (barra, menú, zona segura, «volver», toque), todos verificados con el render y la barra reales. Lo más serio era CAR-2: sin `viewport-fit=cover` el `env()` valía 0, y desde VEL-1 la botonera de los formularios e «Inscribirme» quedaban dentro de la tab bar de la app. Le siguen CAR-3 (el «volver» metía entradas en el historial y la cápsula de la app devolvía a la ficha de la que se salía) y CAR-1 (el equipo encuentra sus herramientas las últimas).
+**Hecho el 10/10/2026 (lote L5, carcasa):** CAR-2 (meta propio con `cover` y dos tokens, `--stic-safe-bottom` y `--stic-app-bottom`, para todo lo pegado abajo: nada se sube dos veces en la app ni en el iPhone), CAR-3 (`history.back()` cuando se viene de ahí, nunca a una página que pintó un envío, y cada ficha marca su sección del menú), CAR-4 (el «Más» mide 91 px y no se sale), CAR-5 puntos 1 y 3 («Salir» y «Menú» a 44 px y a 12 px uno del otro) y CAR-7 (una sola regla quita el destello y 17 piezas ganan su `:active`).
+**Para el propietario:** CAR-1, CAR-5 punto 2 y CAR-6. **Sin hacer y anotado:** CAR-3 punto 3 (etiqueta visible en la flecha de Pasar Lista) y CAR-4 punto 2 (acotar el `min-width: 140px` global de stic-base, mejor con A11Y-4). **Falta probarlo en un iPhone con la app:** CAR-2 y CAR-3.
 
 ## CAR-1 — Para el equipo, sus herramientas van las últimas: en el móvil «Pasar lista» queda bajo el pliegue y en escritorio «Coordinación» vive dentro de «Más»
 
