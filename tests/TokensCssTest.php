@@ -476,4 +476,59 @@ class TokensCssTest extends TestCase
             }
         }
     }
+
+    /**
+     * Plan 042, A11Y-2 (design.md §8): todo `:hover` va dentro de
+     * `@media (hover: hover)`. En táctil el navegador lo simula al tocar y se
+     * queda pegado: el «?» de ayuda relleno y ampliado después de cerrarlo,
+     * «Descargar» azul y levantado, las pestañas de Pasar Lista oscurecidas.
+     * Se admite también dentro de `@media (hover: none)`: ahí no es un efecto
+     * de pasar el ratón sino lo contrario, devolver el reposo en táctil (el
+     * color de los enlaces, que el tema pinta en `a:hover, a:focus`).
+     */
+    public function test_ningun_hover_fuera_de_su_media_query()
+    {
+        $sueltos = array();
+        foreach ($this->stylesheets() as $file) {
+            $css = preg_replace_callback('#/\*.*?\*/#s', function ($m) {
+                return preg_replace('/[^\n]/', ' ', $m[0]);
+            }, file_get_contents($file));
+            $pila = array();
+            $desde = 0;
+            $n = strlen($css);
+            for ($i = 0; $i < $n; $i++) {
+                $c = $css[$i];
+                if ($c === '{') {
+                    $pila[] = trim(substr($css, $desde, $i - $desde));
+                    $desde = $i + 1;
+                } elseif ($c === '}') {
+                    array_pop($pila);
+                    $desde = $i + 1;
+                } elseif ($c === ';') {
+                    $desde = $i + 1;
+                } else {
+                    continue;
+                }
+                if ($c !== '{') {
+                    continue;
+                }
+                $selector = end($pila);
+                if (strpos($selector, ':hover') === false || $selector[0] === '@') {
+                    continue;
+                }
+                $dentro = false;
+                foreach (array_slice($pila, 0, -1) as $at) {
+                    if (preg_match('/@media[^{]*\(\s*hover\s*:\s*(hover|none)\s*\)/', $at)) {
+                        $dentro = true;
+                    }
+                }
+                if (!$dentro) {
+                    $linea = substr_count(substr($css, 0, $i), "\n") + 1;
+                    $sueltos[] = basename($file) . ":{$linea} " . preg_replace('/\s+/', ' ', $selector);
+                }
+            }
+        }
+        $this->assertSame(array(), $sueltos,
+            "Un :hover sin @media (hover: hover) se queda pegado al tocar en el móvil:\n" . implode("\n", $sueltos));
+    }
 }

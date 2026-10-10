@@ -875,7 +875,9 @@ body.sticpa-app-mode .pl-sheet { padding-bottom: calc(var(--stic-app-bottom) + 1
     text-decoration: none;
 }
 .pl-next-btn svg { width: 17px; height: 17px; flex-shrink: 0; color: var(--primary-color); }
-.pl-next-btn:hover { background: var(--gray-50); color: var(--gray-800); }
+@media (hover: hover) {
+    .pl-next-btn:hover { background: var(--gray-50); color: var(--gray-800); }
+}
 
 /* La salida a la ficha desde la hoja de estados. Mismo peso visual que un
    enlace de lista: no compite con los cuatro estados, que son la acción
@@ -896,7 +898,9 @@ body.sticpa-app-mode .pl-sheet { padding-bottom: calc(var(--stic-app-bottom) + 1
 }
 .pl-sheet-ficha svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--gray-500); }
 .pl-sheet-ficha span { flex-grow: 1; }
-.pl-sheet-ficha:hover { background: var(--gray-100); color: var(--gray-800); }
+@media (hover: hover) {
+    .pl-sheet-ficha:hover { background: var(--gray-100); color: var(--gray-800); }
+}
 .pl-sheet-ficha[hidden] { display: none; }
 
 .pl-sheet-clear {
@@ -1136,7 +1140,9 @@ body.sticpa-app-mode .pl-sheet { padding-bottom: calc(var(--stic-app-bottom) + 1
     height: 1px;
     background: var(--gray-100);
 }
-.pl-bucket:hover { background: var(--gray-50); }
+@media (hover: hover) {
+    .pl-bucket:hover { background: var(--gray-50); }
+}
 
 /* El nombre de la sección va en COLOR DE TEXTO, no de enlace: la fila entera
    es un enlace, así que heredaba el azul y las cinco secciones salían en azul
@@ -1201,7 +1207,9 @@ body.sticpa-app-mode .pl-sheet { padding-bottom: calc(var(--stic-app-bottom) + 1
     text-decoration: none;
     color: inherit;
 }
-.pl-orphans:hover { background: var(--warning-soft); }
+@media (hover: hover) {
+    .pl-orphans:hover { background: var(--warning-soft); }
+}
 .pl-orphans-icon { flex: 0 0 auto; display: inline-flex; }
 .pl-orphans-icon svg {
     width: 18px;
@@ -3192,13 +3200,17 @@ a.pl-group .pl-name { display: block; }
     white-space: nowrap;
     transition: background 160ms var(--ease-out), color 160ms var(--ease-out);
 }
-.pl-tab:hover { color: var(--gray-700); }
+@media (hover: hover) {
+    .pl-tab:hover { color: var(--gray-700); }
+}
 /* El color va con `.stic-container` y !important porque el tema de WordPress
    pinta los enlaces de azul y ganaba: las pestañas no elegidas salían como
    enlaces sueltos. */
 .stic-container .pl-tab,
 .stic-container .pl-tab:visited { color: var(--gray-600) !important; }
-.stic-container .pl-tab:hover { color: var(--gray-800) !important; }
+@media (hover: hover) {
+    .stic-container .pl-tab:hover { color: var(--gray-800) !important; }
+}
 /* LA ELEGIDA SE TIENE QUE ENTENDER A LA PRIMERA: el degradado de la marca y
    texto blanco, en claro y en oscuro. Antes era una pastilla apenas más clara
    que la tira (y en oscuro, en «Chavales / Monitores», texto oscuro sobre
@@ -3234,7 +3246,9 @@ a.pl-group .pl-name { display: block; }
     text-decoration: none !important;
     color: inherit;
 }
-.pl-rowlink:hover { background: var(--gray-50); }
+@media (hover: hover) {
+    .pl-rowlink:hover { background: var(--gray-50); }
+}
 .pl-rowlink:active { background: var(--gray-100); }
 .pl-rowlink .pl-name { color: var(--gray-800); }
 
@@ -3828,4 +3842,25 @@ a.pl-group .pl-name { display: block; }
     .pl-back:active,
     .pl-session-pick:active,
     .pl-orphans:active { transform: none; opacity: 0.72; }
+}
+
+/* ==========================================================================
+   042 · A11Y — el color de los enlaces, en táctil (plan 042, A11Y-2)
+   ==========================================================================
+   Los :hover de esta hoja van ya dentro de @media (hover: hover). Pero el
+   tema (Astra) pinta `a:hover, a:focus { color: … }` sin ese @media, y en
+   táctil el enlace que se toca tiene los dos: se quedaba en violeta. Le gana
+   a un color escrito con una clase suelta, así que cada pieza que lo tiene
+   lo devuelve aquí, solo en táctil y con 0,2,0. Si cambias el color de una
+   de estas, cámbialo también aquí. */
+@media (hover: none) {
+    :is(.pl-grouprow-top, .pl-grp, .pl-orphans, .pl-rowlink):is(:hover, :focus) { color: inherit; }
+    :is(.pl-all-groups, .pl-back, .pl-contact-btn, .pl-session-pick):is(:hover, :focus) { color: var(--gray-700); }
+    :is(.pl-contactrow-main, .pl-next-btn, .pl-sheet-ficha):is(:hover, :focus) { color: var(--gray-800); }
+    .pl-detail:is(:hover, :focus) { color: var(--gray-400); }
+    .pl-footnote-link:is(:hover, :focus) { color: var(--gray-500); }
+    :is(.pl-ghost, .pl-phone-btn--call):is(:hover, :focus) { color: var(--primary-color); }
+    .pl-hero-cta:is(:hover, :focus) { color: var(--pl-brand-fixed); }
+    .pl-phone-btn--wa:is(:hover, :focus) { color: var(--success-dark); }
+    .pl-review-link:is(:hover, :focus) { color: var(--warning-darker); }
 }

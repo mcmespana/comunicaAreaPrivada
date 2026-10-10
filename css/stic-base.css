@@ -133,9 +133,11 @@
     width: 100%;
 }
 
-.stic-form input[type="file"]:hover {
-    border-color: var(--secondary-color, #34aadf);
-    background-color: var(--white, #ffffff);
+@media (hover: hover) {
+    .stic-form input[type="file"]:hover {
+        border-color: var(--secondary-color, #34aadf);
+        background-color: var(--white, #ffffff);
+    }
 }
 
 .stic-form textarea.input-text {
@@ -296,9 +298,11 @@
     transition: color var(--transition-fast, 150ms);
 }
 
-.main-col a:hover {
-    color: var(--secondary-color, #34aadf) !important;
-    text-decoration: none;
+@media (hover: hover) {
+    .main-col a:hover {
+        color: var(--secondary-color, #34aadf) !important;
+        text-decoration: none;
+    }
 }
 
 /* ============================================================
@@ -391,10 +395,12 @@
     font-size: var(--font-size-base, 1rem);
 }
 
-.download-link:hover {
-    text-decoration: none;
-    background: var(--gray-100, #f3f4f6);
-    color: var(--secondary-color, #34aadf) !important;
+@media (hover: hover) {
+    .download-link:hover {
+        text-decoration: none;
+        background: var(--gray-100, #f3f4f6);
+        color: var(--secondary-color, #34aadf) !important;
+    }
 }
 
 /* ============================================================
@@ -492,8 +498,10 @@ form[flex].col3 ul li {
     width: auto;
 }
 
-.stic-ctabs .stic-ctabs-list li:hover {
-    background-color: var(--gray-200, #e5e7eb);
+@media (hover: hover) {
+    .stic-ctabs .stic-ctabs-list li:hover {
+        background-color: var(--gray-200, #e5e7eb);
+    }
 }
 
 .stic-ctabs .stic-ctabs-list li a {
@@ -805,8 +813,10 @@ select[disabled=disabled] {
     transition: color var(--transition-fast);
 }
 
-.stic-user-name a:hover {
-    color: var(--secondary-color);
+@media (hover: hover) {
+    .stic-user-name a:hover {
+        color: var(--secondary-color);
+    }
 }
 
 .stic-logout {
@@ -823,10 +833,12 @@ select[disabled=disabled] {
     transition: var(--transition-fast); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
 }
 
-.stic-logout:hover {
-    background-color: var(--danger-color);
-    color: var(--white);
-    transform: translateY(-1px);
+@media (hover: hover) {
+    .stic-logout:hover {
+        background-color: var(--danger-color);
+        color: var(--white);
+        transform: translateY(-1px);
+    }
 }
 
 /* ============================================================
@@ -872,10 +884,12 @@ ul.stic-primary-menu li:last-child a {
     border-bottom: none;
 }
 
-.stic-primary-menu-item a:hover,
-ul.stic-primary-menu li a:hover {
-    background-color: rgba(255, 255, 255, 0.15) !important;
-    color: var(--white) !important;
+@media (hover: hover) {
+    .stic-primary-menu-item a:hover,
+    ul.stic-primary-menu li a:hover {
+        background-color: rgba(255, 255, 255, 0.15) !important;
+        color: var(--white) !important;
+    }
 }
 
 .stic-primary-menu-item a:focus,
@@ -974,11 +988,13 @@ ul.stic-primary-menu li.current-menu-item a {
     appearance: none;
 }
 
-:is(.stic-tab-content, .stic-auth-shell) :is(
-    input[type="text"], input[type="email"], input[type="password"],
-    input[type="number"], input[type="date"], input[type="tel"],
-    input[type="url"], input[type="search"], textarea, select):hover {
-    border-color: var(--gray-300);
+@media (hover: hover) {
+    :is(.stic-tab-content, .stic-auth-shell) :is(
+        input[type="text"], input[type="email"], input[type="password"],
+        input[type="number"], input[type="date"], input[type="tel"],
+        input[type="url"], input[type="search"], textarea, select):hover {
+        border-color: var(--gray-300);
+    }
 }
 
 :is(.stic-tab-content, .stic-auth-shell) :is(
@@ -1061,11 +1077,13 @@ ul.stic-primary-menu li.current-menu-item a {
     box-shadow: var(--shadow-sm);
 }
 
-:is(.stic-tab-content, .stic-auth-shell) :is(input[type="submit"], input[type="button"], a.button, .btn, .stic-button):hover {
-    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-color) 100%);
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
-    color: var(--white);
+@media (hover: hover) {
+    :is(.stic-tab-content, .stic-auth-shell) :is(input[type="submit"], input[type="button"], a.button, .btn, .stic-button):hover {
+        background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-color) 100%);
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+        color: var(--white);
+    }
 }
 
 :is(.stic-tab-content, .stic-auth-shell) :is(input[type="submit"], .btn, .stic-button):active {
@@ -1090,25 +1108,31 @@ ul.stic-primary-menu li.current-menu-item a {
     color: var(--gray-700);
 }
 
-.btn-secondary:hover {
-    background: var(--gray-200);
-    color: var(--gray-800);
+@media (hover: hover) {
+    .btn-secondary:hover {
+        background: var(--gray-200);
+        color: var(--gray-800);
+    }
 }
 
 .btn-success {
     background: linear-gradient(135deg, var(--success-color) 0%, #059669 100%);
 }
 
-.btn-success:hover {
-    background: linear-gradient(135deg, #059669 0%, var(--success-color) 100%);
+@media (hover: hover) {
+    .btn-success:hover {
+        background: linear-gradient(135deg, #059669 0%, var(--success-color) 100%);
+    }
 }
 
 .btn-danger {
     background: linear-gradient(135deg, var(--danger-color) 0%, #dc2626 100%);
 }
 
-.btn-danger:hover {
-    background: linear-gradient(135deg, #dc2626 0%, var(--danger-color) 100%);
+@media (hover: hover) {
+    .btn-danger:hover {
+        background: linear-gradient(135deg, #dc2626 0%, var(--danger-color) 100%);
+    }
 }
 
 /* Botones outline */
@@ -1118,9 +1142,11 @@ ul.stic-primary-menu li.current-menu-item a {
     color: var(--primary-color);
 }
 
-.btn-outline:hover {
-    background: var(--primary-color);
-    color: var(--white);
+@media (hover: hover) {
+    .btn-outline:hover {
+        background: var(--primary-color);
+        color: var(--white);
+    }
 }
 
 /* ============================================================
@@ -1173,8 +1199,10 @@ ul.stic-primary-menu li.current-menu-item a {
     transition: background-color var(--transition-fast);
 }
 
-.stic-tab-content tbody tr:hover {
-    background-color: var(--gray-50);
+@media (hover: hover) {
+    .stic-tab-content tbody tr:hover {
+        background-color: var(--gray-50);
+    }
 }
 
 .stic-tab-content tbody tr:last-child {
@@ -1198,9 +1226,11 @@ ul.stic-primary-menu li.current-menu-item a {
     white-space: nowrap;
 }
 
-.stic-tab-content td a:hover {
-    color: var(--secondary-color);
-    background-color: var(--gray-100);
+@media (hover: hover) {
+    .stic-tab-content td a:hover {
+        color: var(--secondary-color);
+        background-color: var(--gray-100);
+    }
 }
 
 /* ============================================================
@@ -1295,10 +1325,12 @@ ul.stic-primary-menu li.current-menu-item a {
 
 /* Relleno de marca con letra blanca: el azul FIJO, que en oscuro no se aclara
    (custom-style.css §1, plan 042 A11Y-6). */
-.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-    background-color: var(--brand-blue-fixed) !important;
-    border-color: var(--brand-blue-fixed) !important;
-    color: var(--on-brand) !important;
+@media (hover: hover) {
+    .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+        background-color: var(--brand-blue-fixed) !important;
+        border-color: var(--brand-blue-fixed) !important;
+        color: var(--on-brand) !important;
+    }
 }
 
 .dataTables_wrapper .dataTables_paginate .paginate_button.current {
@@ -1412,10 +1444,12 @@ table.dataTable thead .sorting_desc {
     transition: var(--transition-base); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
 }
 
-.card:hover,
-.stic-card:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
+@media (hover: hover) {
+    .card:hover,
+    .stic-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+    }
 }
 
 .card-header {
@@ -1484,9 +1518,11 @@ table.dataTable thead .sorting_desc {
     margin-bottom: -2px;
 }
 
-.stic-tab li a:hover {
-    color: var(--primary-color);
-    background-color: var(--gray-50);
+@media (hover: hover) {
+    .stic-tab li a:hover {
+        color: var(--primary-color);
+        background-color: var(--gray-50);
+    }
 }
 
 .stic-tab li.active a {
@@ -1539,8 +1575,10 @@ table.dataTable thead .sorting_desc {
     transition: var(--transition-fast) !important; transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter !important;
 }
 
-.fc .fc-button:hover {
-    background: var(--primary-dark) !important;
+@media (hover: hover) {
+    .fc .fc-button:hover {
+        background: var(--primary-dark) !important;
+    }
 }
 
 .fc .fc-button-active {
@@ -1654,8 +1692,24 @@ a {
     transition: color var(--transition-fast);
 }
 
-a:hover {
-    color: var(--secondary-color);
+@media (hover: hover) {
+    a:hover {
+        color: var(--secondary-color);
+    }
+}
+
+/* En táctil, el enlace que se toca se queda con :hover y :focus puestos. El
+   tema de WordPress (Astra) pinta `a:hover, a:focus { color: … }` sin
+   @media (hover: hover) y gana a cualquier color de enlace escrito con una
+   clase suelta: tras tocarlo, el enlace se quedaba en su violeta (o en el
+   magenta de la regla de arriba, cuando no estaba envuelta). Aquí vuelve a
+   su color de reposo; los componentes con un color propio que el tema pisa
+   lo devuelven en custom-style.css §67 y pasar-lista.css «042 · A11Y».
+   (plan 042, A11Y-2) */
+@media (hover: none) {
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay) a:is(:hover, :focus) {
+        color: var(--primary-color);
+    }
 }
 
 .download-link {
@@ -1666,9 +1720,11 @@ a:hover {
     font-weight: 500;
 }
 
-.download-link:hover {
-    color: var(--secondary-color);
-    text-decoration: underline;
+@media (hover: hover) {
+    .download-link:hover {
+        color: var(--secondary-color);
+        text-decoration: underline;
+    }
 }
 
 /* ============================================================
@@ -1755,9 +1811,11 @@ a:hover {
         border-bottom: 3px solid transparent;
     }
     
-    .stic-primary-menu-item a:hover,
-    ul.stic-primary-menu li a:hover {
-        border-bottom-color: var(--secondary-color);
+    @media (hover: hover) {
+        .stic-primary-menu-item a:hover,
+        ul.stic-primary-menu li a:hover {
+            border-bottom-color: var(--secondary-color);
+        }
     }
     
     .current-menu-item a,

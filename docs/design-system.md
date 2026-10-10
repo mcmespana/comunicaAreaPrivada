@@ -683,9 +683,15 @@ lo que **sí** aporta pero cansa a diario.
 ### 11.5 Táctil, no hover
 
 - Los efectos de `:hover` (elevación, giro de iconos) van dentro de
-  `@media (hover: hover)`, o se anulan en `@media (hover: none)`. Sin esto el
-  navegador los simula al tocar y **se quedan pegados** hasta que tocas en otro
-  sitio.
+  `@media (hover: hover)`. Sin esto el navegador los simula al tocar y **se
+  quedan pegados** hasta que tocas en otro sitio. No se «anulan» en
+  `@media (hover: none)`: el parche nunca vuelve exacto al reposo. Lo comprueba
+  `TokensCssTest` en las tres hojas (plan 042, A11Y-2).
+- La excepción es el tema: Astra pinta `a:hover, a:focus { color: … }` sin
+  `@media`, y un enlace con su color en una clase suelta pierde (0,1,0 contra
+  0,1,1). En táctil lo devuelven al reposo `@media (hover: none)` de
+  `stic-base.css` (los enlaces azules), custom-style §67 y el final de
+  `pasar-lista.css`. Si cambias el color de uno de esos enlaces, cámbialo allí.
 - El feedback real en táctil es `:active` (`transform: scale(0.97-0.98)`).
 - `-webkit-tap-highlight-color: transparent` en todo lo pulsable (el recuadro
   gris del navegador se come el diseño).

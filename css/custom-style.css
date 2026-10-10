@@ -510,7 +510,9 @@ span.stic-field {
 }
 .stic-pass-toggle::after,
 .stic-pass-toggle::before { display: none !important; content: none !important; }
-.stic-pass-toggle:hover { color: var(--primary-color) !important; background: rgba(28, 111, 179, 0.08) !important; transform: translateY(-50%) !important; }
+@media (hover: hover) {
+    .stic-pass-toggle:hover { color: var(--primary-color) !important; background: rgba(28, 111, 179, 0.08) !important; transform: translateY(-50%) !important; }
+}
 .stic-pass-toggle:active { transform: translateY(-50%) scale(0.9) !important; }
 .stic-pass-toggle svg { width: 20px !important; height: 20px !important; }
 
@@ -570,8 +572,10 @@ span.stic-field {
     text-decoration: none;
     transition: color 0.18s ease;
 }
-.stic-login-form .actions_login .left a:hover,
-.stic-auth-links a:hover { color: var(--secondary-color); }
+@media (hover: hover) {
+    .stic-login-form .actions_login .left a:hover,
+    .stic-auth-links a:hover { color: var(--secondary-color); }
+}
 
 /* ---- Conmutador entre vista de enlace mágico y vista de contraseña ---- */
 .stic-auth-view {
@@ -596,7 +600,9 @@ span.stic-field {
     border-radius: var(--radius-full);
     transition: color 0.18s ease, background 0.18s ease;
 }
-.stic-auth-switch a:hover { color: var(--secondary-color); background: var(--secondary-50); }
+@media (hover: hover) {
+    .stic-auth-switch a:hover { color: var(--secondary-color); background: var(--secondary-50); }
+}
 .stic-inline-icon { width: 16px; height: 16px; flex-shrink: 0; }
 
 /* Los <select> dentro de un campo no llevan icono: padding normal a la izquierda. */
@@ -621,7 +627,9 @@ span.stic-field {
 .stic-btn-magic-icon { display: inline-grid; place-items: center; }
 .stic-btn-magic-icon svg { width: 20px; height: 20px; animation: stic-bob 2.6s ease-in-out infinite; }
 @keyframes stic-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
-.stic-btn-magic:hover .stic-btn-magic-icon { animation: stic-fly 0.75s var(--ease-spring); }
+@media (hover: hover) {
+    .stic-btn-magic:hover .stic-btn-magic-icon { animation: stic-fly 0.75s var(--ease-spring); }
+}
 @keyframes stic-fly {
     0%   { transform: translate(0, 0) rotate(0); }
     35%  { transform: translate(4px, -4px) rotate(10deg); }
@@ -659,10 +667,12 @@ span.stic-field {
     transition: transform 0.18s var(--ease-spring), box-shadow 0.2s ease, background 0.2s ease;
 }
 .stic-magic-cta svg { width: 20px; height: 20px; }
-.stic-magic-cta:hover {
-    transform: translateY(-2px);
-    background: var(--field-bg-focus);
-    box-shadow: var(--shadow-glow-pink);
+@media (hover: hover) {
+    .stic-magic-cta:hover {
+        transform: translateY(-2px);
+        background: var(--field-bg-focus);
+        box-shadow: var(--shadow-glow-pink);
+    }
 }
 
 .stic-auth-help {
@@ -760,14 +770,13 @@ span.stic-field {
     border-radius: 50%;
     transition: transform 0.2s var(--ease-spring);
 }
-.stic-avatar-link:hover { transform: scale(1.06); }
+@media (hover: hover) {
+    .stic-avatar-link:hover { transform: scale(1.06); }
+}
 .stic-avatar-link:active { transform: scale(0.94); }
 .stic-avatar-link:focus-visible {
     outline: none;
     box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.7);
-}
-@media (hover: none) {
-    .stic-avatar-link:hover { transform: none; }
 }
 .stic-avatar {
     flex-shrink: 0;
@@ -786,7 +795,9 @@ span.stic-field {
 }
 .stic-account-name a,
 .stic-account-name a:visited { color: #fff !important; text-decoration: none; }
-.stic-account-name a:hover { text-decoration: underline; }
+@media (hover: hover) {
+    .stic-account-name a:hover { text-decoration: underline; }
+}
 .stic-account-sub {
     display: flex; align-items: center; gap: 0.4rem; min-width: 0;
     font-size: 0.84rem; color: rgba(255, 255, 255, 0.88);
@@ -802,7 +813,9 @@ span.stic-field {
     color: #fff; font-weight: 600; text-decoration: none;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.stic-account-participant:hover { text-decoration: underline; }
+@media (hover: hover) {
+    .stic-account-participant:hover { text-decoration: underline; }
+}
 .stic-switch {
     flex-shrink: 0;
     display: inline-grid; place-items: center;
@@ -811,7 +824,9 @@ span.stic-field {
     transition: background 0.2s ease, transform 0.4s var(--ease-spring);
 }
 .stic-switch svg { width: 16px; height: 16px; }
-.stic-switch:hover { background: rgba(255, 255, 255, 0.34); transform: rotate(180deg); }
+@media (hover: hover) {
+    .stic-switch:hover { background: rgba(255, 255, 255, 0.34); transform: rotate(180deg); }
+}
 
 /* ---- Acciones derechas (salir + hamburguesa) ---- */
 .stic-nav-actions { display: flex; align-items: center; gap: 0.4rem; margin-left: auto; flex-shrink: 0; }
@@ -829,8 +844,10 @@ span.stic-field {
 .stic-iconbtn,
 .stic-iconbtn:visited { color: #fff !important; }
 .stic-iconbtn svg { width: 18px; height: 18px; flex-shrink: 0; stroke: #fff !important; }
-.stic-iconbtn:hover { transform: translateY(-1px); }
-.stic-logout:hover { background: rgba(239, 68, 68, 0.9) !important; }
+@media (hover: hover) {
+    .stic-iconbtn:hover { transform: translateY(-1px); }
+    .stic-logout:hover { background: rgba(239, 68, 68, 0.9) !important; }
+}
 
 /* Botón hamburguesa (oculto en escritorio) */
 .stic-nav-toggle {
@@ -843,7 +860,9 @@ span.stic-field {
     font: inherit; font-weight: 600;
 }
 .stic-nav-toggle::after { display: none !important; }
-.stic-nav-toggle:hover { transform: none !important; box-shadow: none !important; background: rgba(255, 255, 255, 0.24) !important; }
+@media (hover: hover) {
+    .stic-nav-toggle:hover { transform: none !important; box-shadow: none !important; background: rgba(255, 255, 255, 0.24) !important; }
+}
 .stic-nav-toggle-bars { position: relative; width: 20px; height: 14px; flex-shrink: 0; }
 .stic-nav-toggle-bars i {
     position: absolute; left: 0; right: 0; height: 2.5px; border-radius: 2px; background: #fff;
@@ -874,11 +893,10 @@ span.stic-field {
 }
 /* Las cabeceras de grupo son solo del menú del móvil (ver §7 móvil). */
 .stic-nav-group { display: none; }
-/* El tema mete subrayado en los enlaces; lo quitamos en toda la barra. */
+/* El tema mete subrayado en los enlaces; lo quitamos en toda la barra. Sin
+   `:hover` en la lista: con !important, la regla vale en cualquier estado. */
 .stic-nav-link,
-.stic-nav-link:hover,
 .stic-account-name a,
-.stic-account-name a:hover,
 .stic-account-participant,
 .stic-iconbtn { text-decoration: none !important; }
 .stic-nav-item { margin: 0; }
@@ -899,7 +917,6 @@ span.stic-field {
 }
 .stic-nav-ico { display: inline-grid; place-items: center; width: 20px; height: 20px; flex-shrink: 0; opacity: 0.95; }
 .stic-nav-ico svg { width: 20px; height: 20px; }
-.stic-nav-link:hover,
 .stic-nav-link:focus,
 .stic-nav-link:active {
     background: rgba(255, 255, 255, 0.16) !important;
@@ -907,6 +924,15 @@ span.stic-field {
     color: #fff !important;
     outline: none !important;
     box-shadow: none !important;
+}
+@media (hover: hover) {
+    .stic-nav-link:hover {
+        background: rgba(255, 255, 255, 0.16) !important;
+        transform: translateY(-1px) !important;
+        color: #fff !important;
+        outline: none !important;
+        box-shadow: none !important;
+    }
 }
 /* Foco de teclado: anillo visible propio (WCAG 2.4.7); el hover no basta como indicador. */
 .stic-nav-link:focus-visible {
@@ -938,7 +964,9 @@ span.stic-field {
 
 /* "Salir": último item, empujado a la derecha en escritorio. */
 .stic-nav-logout .stic-nav-ico { opacity: 1; }
-.stic-nav-logout:hover { background: rgba(239, 68, 68, 0.9) !important; }
+@media (hover: hover) {
+    .stic-nav-logout:hover { background: rgba(239, 68, 68, 0.9) !important; }
+}
 
 /* ---- Botón "Más" (overflow) + su menú desplegable ---- */
 .stic-nav-more-wrap { position: relative; flex-shrink: 0; }
@@ -954,7 +982,9 @@ span.stic-field {
     font: inherit;
 }
 .stic-nav-more::after { display: none !important; }
-.stic-nav-more:hover { background: rgba(255, 255, 255, 0.26) !important; }
+@media (hover: hover) {
+    .stic-nav-more:hover { background: rgba(255, 255, 255, 0.26) !important; }
+}
 .stic-nav-more-wrap.is-open .stic-nav-more { background: rgba(255, 255, 255, 0.3) !important; }
 .stic-nav-more .stic-nav-ico svg { stroke-width: 2.6; }
 
@@ -1005,7 +1035,9 @@ span.stic-field {
     outline: none !important;
 }
 .stic-nav-more-menu .stic-nav-ico { color: var(--primary-color) !important; opacity: 1 !important; }
-.stic-nav-more-menu .stic-nav-link:hover { background: var(--primary-50) !important; color: var(--primary-color) !important; transform: none !important; }
+@media (hover: hover) {
+    .stic-nav-more-menu .stic-nav-link:hover { background: var(--primary-50) !important; color: var(--primary-color) !important; transform: none !important; }
+}
 /* Foco visible dentro del panel claro (el outline:none de arriba lo borraba). */
 .stic-nav-more-menu .stic-nav-link:focus-visible {
     outline: none !important;
@@ -1134,7 +1166,9 @@ span.stic-field {
     /* Item activo (página actual): texto siempre blanco legible. */
     .stic-nav.is-open .stic-nav-item.current-menu-item .stic-nav-link,
     .stic-nav.is-open .stic-nav-link { color: #fff !important; }
-    .stic-nav-link:hover { transform: none; }
+    @media (hover: hover) {
+        .stic-nav-link:hover { transform: none; }
+    }
     .stic-nav-link:active { transform: scale(0.97) !important; }
     /* EL ACTIVO SE VE: mosaico blanco con el texto e icono de la marca. */
     .stic-nav.is-open .stic-nav-item.current-menu-item .stic-nav-link {
@@ -1261,12 +1295,14 @@ span.stic-field {
     background: var(--grad-brand-soft);
     transition: opacity 0.3s ease;
 }
-.stic-dash-card:hover {
-    transform: translateY(-6px);
-    box-shadow: var(--shadow-lg);
-    border-color: transparent;
+@media (hover: hover) {
+    .stic-dash-card:hover {
+        transform: translateY(-6px);
+        box-shadow: var(--shadow-lg);
+        border-color: transparent;
+    }
+    .stic-dash-card:hover::before { opacity: 1; }
 }
-.stic-dash-card:hover::before { opacity: 1; }
 
 /* escalonado de aparición */
 .stic-dash-card:nth-child(1) { animation-delay: 0.04s; }
@@ -1290,7 +1326,9 @@ span.stic-field {
     transition: transform 0.28s var(--ease-spring);
 }
 .stic-dash-card:nth-child(even) .stic-dash-icon { background: var(--grad-brand-rev); }
-.stic-dash-card:hover .stic-dash-icon { transform: scale(1.08) rotate(-4deg); }
+@media (hover: hover) {
+    .stic-dash-card:hover .stic-dash-icon { transform: scale(1.08) rotate(-4deg); }
+}
 .stic-dash-icon svg { width: 28px; height: 28px; }
 
 .stic-dash-title {
@@ -1318,7 +1356,9 @@ span.stic-field {
 }
 .stic-dash-card:nth-child(even) .stic-dash-go { color: var(--secondary-color); }
 .stic-dash-go svg { width: 16px; height: 16px; transition: transform 0.25s var(--ease-spring); }
-.stic-dash-card:hover .stic-dash-go svg { transform: translateX(4px); }
+@media (hover: hover) {
+    .stic-dash-card:hover .stic-dash-go svg { transform: translateX(4px); }
+}
 
 /* ============================================================
    9. FORMULARIOS — superficie con tarjeta y respiración
@@ -1401,15 +1441,17 @@ span.stic-field {
     pointer-events: none;
 }
 
-:is(.stic-container, .stic-auth-shell) :is(input[type="submit"], .stic-button):hover,
-.stic-btn-primary:hover, .stic-btn-magic:hover {
-    background-position: 100% 50% !important;
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg) !important;
-}
+@media (hover: hover) {
+    :is(.stic-container, .stic-auth-shell) :is(input[type="submit"], .stic-button):hover,
+    .stic-btn-primary:hover, .stic-btn-magic:hover {
+        background-position: 100% 50% !important;
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg) !important;
+    }
 
-:is(.stic-container, .stic-auth-shell) :is(input[type="submit"], .stic-button):hover::after,
-.stic-btn-primary:hover::after, .stic-btn-magic:hover::after { transform: translateX(120%); }
+    :is(.stic-container, .stic-auth-shell) :is(input[type="submit"], .stic-button):hover::after,
+    .stic-btn-primary:hover::after, .stic-btn-magic:hover::after { transform: translateX(120%); }
+}
 
 :is(.stic-container, .stic-auth-shell) :is(input[type="submit"], .stic-button):active,
 .stic-btn-primary:active, .stic-btn-magic:active { transform: translateY(0) scale(0.99); }
@@ -1431,7 +1473,9 @@ span.stic-field {
 .stic-container thead th { color: #fff !important; }
 
 .stic-container tbody tr { transition: background-color 0.18s ease; }
-.stic-container tbody tr:hover { background-color: var(--primary-50) !important; }
+@media (hover: hover) {
+    .stic-container tbody tr:hover { background-color: var(--primary-50) !important; }
+}
 
 .dataTables_wrapper .dataTables_filter input:focus {
     border-color: var(--primary-color) !important;
@@ -1475,10 +1519,12 @@ span.stic-field {
     border-radius: var(--radius-lg);
     transition: transform 0.25s var(--ease-spring), box-shadow 0.25s ease;
 }
-.stic-container :is(.card, .stic-card):hover,
-.stic-auth-shell :is(.card, .stic-card):hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
+@media (hover: hover) {
+    .stic-container :is(.card, .stic-card):hover,
+    .stic-auth-shell :is(.card, .stic-card):hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+    }
 }
 
 .stic-profile-picture {
@@ -1501,7 +1547,9 @@ span.stic-field {
 .stic-container ::-webkit-scrollbar { height: 10px; width: 10px; }
 .stic-container ::-webkit-scrollbar-track { background: transparent; }
 .stic-container ::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: var(--radius-full); }
-.stic-container ::-webkit-scrollbar-thumb:hover { background: var(--primary-light); }
+@media (hover: hover) {
+    .stic-container ::-webkit-scrollbar-thumb:hover { background: var(--primary-light); }
+}
 
 /* ============================================================
    16. RESPONSIVE
@@ -1573,8 +1621,10 @@ span.stic-field {
    <a>. Y en modo oscuro el degradado claro del hover dejaba el
    texto ilegible. Aquí lo normalizamos (carga la última, gana).
    ============================================================ */
+/* Sin `:hover` en la lista: el subrayado ya lo quita `.stic-dash-card` con
+   !important en cualquier estado, y su `box-shadow: none` dejaba la tarjeta
+   sin sombra al tocarla en el móvil (plan 042, A11Y-2). */
 .stic-dash-card,
-.stic-dash-card:hover,
 .stic-dash-card:focus,
 .stic-dash-card:visited,
 .stic-dash-card .stic-dash-title,
@@ -1584,11 +1634,15 @@ span.stic-field {
     box-shadow: none;
 }
 .stic-dash-card { box-shadow: var(--shadow-sm); }
-.stic-dash-card:hover { box-shadow: var(--shadow-lg); }
+@media (hover: hover) {
+    .stic-dash-card:hover { box-shadow: var(--shadow-lg); }
+}
 
 .stic-dash-card .stic-dash-title { color: var(--gray-800); }
 .stic-dash-card .stic-dash-desc  { color: var(--gray-500); }
-.stic-dash-card:hover .stic-dash-title { color: var(--gray-900); }
+@media (hover: hover) {
+    .stic-dash-card:hover .stic-dash-title { color: var(--gray-900); }
+}
 
 /* Más aire entre tarjeta e icono, y dentro de la tarjeta. */
 .stic-dash-card { padding: 1.6rem 1.5rem; gap: 0.7rem; }
@@ -1663,9 +1717,11 @@ span.stic-field {
     background-size: 18px 18px;
     transition: background-color 0.15s ease;
 }
-.stic-form input[type="date"]::-webkit-calendar-picker-indicator:hover,
-.stic-form input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
-    background-color: var(--secondary-50);
+@media (hover: hover) {
+    .stic-form input[type="date"]::-webkit-calendar-picker-indicator:hover,
+    .stic-form input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+        background-color: var(--secondary-50);
+    }
 }
 /* Texto editable de la fecha (dd/mm/aaaa) con la tipografía del formulario. */
 .stic-form input[type="date"]::-webkit-datetime-edit,
@@ -1829,9 +1885,11 @@ span.stic-field {
     }
     :root:not([data-stic-scheme="dark"]) .stic-form select option { color: var(--gray-800); background: var(--surface); }
     :root:not([data-stic-scheme="dark"]) .stic-dash-card::before { background: var(--grad-brand-soft); }
-    :root:not([data-stic-scheme="dark"]) .stic-dash-card:hover .stic-dash-title { color: var(--gray-900); }
-    :root:not([data-stic-scheme="dark"]) .stic-dash-card:hover .stic-dash-desc { color: var(--gray-500); }
-    :root:not([data-stic-scheme="dark"]) .stic-container tbody tr:hover { background-color: var(--gray-100) !important; }
+    @media (hover: hover) {
+        :root:not([data-stic-scheme="dark"]) .stic-dash-card:hover .stic-dash-title { color: var(--gray-900); }
+        :root:not([data-stic-scheme="dark"]) .stic-dash-card:hover .stic-dash-desc { color: var(--gray-500); }
+        :root:not([data-stic-scheme="dark"]) .stic-container tbody tr:hover { background-color: var(--gray-100) !important; }
+    }
 }
 
 /* ============================================================
@@ -1978,10 +2036,12 @@ span.stic-field {
 }
 .stic-cell-badge-day { font-size: 1.25rem; font-weight: 800; }
 .stic-cell-badge-mon { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.92; }
-.stic-table-responsive table.display tbody tr:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
-    background: var(--surface) !important;
+@media (hover: hover) {
+    .stic-table-responsive table.display tbody tr:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+        background: var(--surface) !important;
+    }
 }
 .stic-table-responsive table.display td {
     display: flex !important;
@@ -2045,17 +2105,20 @@ span.stic-field {
     color: #fff !important;
     box-shadow: var(--shadow-sm);
 }
-.stic-rowbtn--primary:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+@media (hover: hover) {
+    .stic-rowbtn--primary:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+}
 .stic-rowbtn--ghost,
 .stic-table-responsive td.stic-cell-actions a.stic-rowbtn--ghost {
     background: var(--surface);
     border: 1px solid var(--gray-200);
     color: var(--gray-700) !important;
 }
-.stic-rowbtn--ghost:hover { background: var(--gray-50); color: var(--gray-900) !important; }
+@media (hover: hover) {
+    .stic-rowbtn--ghost:hover { background: var(--gray-50); color: var(--gray-900) !important; }
+}
 .stic-rowbtn:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
 @media (hover: none) {
-    .stic-rowbtn--primary:hover { transform: none; box-shadow: var(--shadow-sm); }
     .stic-rowbtn:active { transform: scale(0.98); }
 }
 
@@ -2157,10 +2220,12 @@ span.stic-field {
     border: 1.5px solid var(--gray-200) !important;
     box-shadow: none !important;
 }
-.stic-send input.stic-button[type="button"]:hover,
-.stic-back-button:hover {
-    background: var(--primary-50) !important;
-    border-color: var(--primary-color) !important;
+@media (hover: hover) {
+    .stic-send input.stic-button[type="button"]:hover,
+    .stic-back-button:hover {
+        background: var(--primary-50) !important;
+        border-color: var(--primary-color) !important;
+    }
 }
 .stic-back-button::after { display: none !important; }
 
@@ -2172,11 +2237,13 @@ span.stic-field {
     border: 1.5px solid var(--danger-border) !important;
     box-shadow: none !important;
 }
-.stic-send input.stic-button.stic-danger-button:hover,
-.stic-danger-button:hover {
-    background: var(--danger-soft) !important;
-    border-color: var(--danger-color) !important;
-    color: var(--danger-dark) !important;
+@media (hover: hover) {
+    .stic-send input.stic-button.stic-danger-button:hover,
+    .stic-danger-button:hover {
+        background: var(--danger-soft) !important;
+        border-color: var(--danger-color) !important;
+        color: var(--danger-dark) !important;
+    }
 }
 .stic-danger-button::after { display: none !important; }
 
@@ -2216,11 +2283,13 @@ span.stic-field {
     transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease !important;
 }
 .fc .fc-button::after { display: none !important; }
-.fc .fc-button:hover {
-    background: var(--primary-50) !important;
-    color: var(--primary-color) !important;
-    border-color: var(--primary-color) !important;
-    transform: none !important;
+@media (hover: hover) {
+    .fc .fc-button:hover {
+        background: var(--primary-50) !important;
+        color: var(--primary-color) !important;
+        border-color: var(--primary-color) !important;
+        transform: none !important;
+    }
 }
 .fc .fc-button-primary:not(:disabled).fc-button-active,
 .fc .fc-button-primary:not(:disabled):active {
@@ -2292,7 +2361,9 @@ span.stic-field {
     border: 1.5px solid color-mix(in srgb, var(--primary-color) 22%, transparent);
     transition: background 0.18s ease, color 0.18s ease, transform 0.12s var(--ease-spring);
 }
-.stic-soft-btn:hover { background: var(--brand-blue-fixed); color: var(--on-brand) !important; transform: translateY(-1px); }
+@media (hover: hover) {
+    .stic-soft-btn:hover { background: var(--brand-blue-fixed); color: var(--on-brand) !important; transform: translateY(-1px); }
+}
 .stic-soft-btn svg { width: 18px; height: 18px; }
 
 /* Chip "Perfil detectado" — pastilla blanca, marca dentro (más destacado) */
@@ -2319,7 +2390,9 @@ span.stic-field {
     cursor: pointer;
     transition: border-color 0.18s ease, background 0.18s ease;
 }
-.stic-form input[type="file"]:hover { border-color: var(--primary-color); background: var(--primary-50); }
+@media (hover: hover) {
+    .stic-form input[type="file"]:hover { border-color: var(--primary-color); background: var(--primary-50); }
+}
 .stic-form input[type="file"]::file-selector-button {
     margin-right: 0.85rem;
     padding: 0.5rem 0.95rem;
@@ -2382,11 +2455,15 @@ span.stic-field {
 .fc-theme-standard th,
 .fc-theme-standard .fc-scrollgrid { border-color: var(--gray-200) !important; }
 .fc .fc-daygrid-day.fc-day-today { background: var(--primary-50) !important; }
-.fc .fc-daygrid-day:hover { background: var(--surface-2); }
+@media (hover: hover) {
+    .fc .fc-daygrid-day:hover { background: var(--surface-2); }
+}
 /* El calendario es una <table>: el hover de fila de los listados (capa base,
    `.stic-tab-content tbody tr:hover`) pintaba una banda azul en toda la semana. */
-.fc tbody tr:hover,
-.stic-tab-content .fc tbody tr:hover { background: transparent !important; }
+@media (hover: hover) {
+    .fc tbody tr:hover,
+    .stic-tab-content .fc tbody tr:hover { background: transparent !important; }
+}
 .fc a { text-decoration: none !important; }
 .fc .fc-toolbar.fc-header-toolbar { margin-bottom: 1rem !important; flex-wrap: wrap; gap: 0.5rem; }
 
@@ -2493,9 +2570,11 @@ span.stic-field {
     outline: none !important;
 }
 
-.stic-form input[type="checkbox"]:hover {
-    border-color: var(--primary-color) !important;
-    background-color: var(--primary-50) !important;
+@media (hover: hover) {
+    .stic-form input[type="checkbox"]:hover {
+        border-color: var(--primary-color) !important;
+        background-color: var(--primary-50) !important;
+    }
 }
 
 .stic-form input[type="checkbox"]:focus-visible {
@@ -2575,9 +2654,11 @@ span.stic-field {
     transition: color 0.15s ease !important;
 }
 
-.selectize-input > .item .remove:hover {
-    background: transparent !important;
-    color: var(--secondary-dark) !important;
+@media (hover: hover) {
+    .selectize-input > .item .remove:hover {
+        background: transparent !important;
+        color: var(--secondary-dark) !important;
+    }
 }
 
 /* Selectize dropdown menu */
@@ -2628,9 +2709,11 @@ span.stic-field {
     box-shadow: var(--shadow-sm) !important;
     transition: 0.25s var(--ease-out) !important; transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter !important;
 }
-.stic-form > form > ul > li:has(input[type="file"]):hover,
-.stic-form > form > ul > li:has(.stic-profile-picture):hover {
-    box-shadow: var(--shadow-md) !important;
+@media (hover: hover) {
+    .stic-form > form > ul > li:has(input[type="file"]):hover,
+    .stic-form > form > ul > li:has(.stic-profile-picture):hover {
+        box-shadow: var(--shadow-md) !important;
+    }
 }
 
 /* --- 26.b El input[type="file"] como dropzone completo --- */
@@ -2652,10 +2735,12 @@ span.stic-field {
     position: relative !important;
     text-align: center !important;
 }
-.stic-form input[type="file"]:hover {
-    border-color: var(--primary-color) !important;
-    background-color: var(--primary-50) !important;
-    box-shadow: 0 0 0 3px rgba(28, 111, 179, 0.08) !important;
+@media (hover: hover) {
+    .stic-form input[type="file"]:hover {
+        border-color: var(--primary-color) !important;
+        background-color: var(--primary-50) !important;
+        box-shadow: 0 0 0 3px rgba(28, 111, 179, 0.08) !important;
+    }
 }
 .stic-form input[type="file"]:focus {
     outline: none !important;
@@ -2682,10 +2767,12 @@ span.stic-field {
     transition: filter 0.18s ease, transform 0.18s ease !important;
     box-shadow: 0 2px 8px rgba(28, 111, 179, 0.22) !important;
 }
-.stic-form input[type="file"]::file-selector-button:hover {
-    filter: brightness(1.1) !important;
-    transform: translateY(-1px) !important;
-    box-shadow: 0 4px 14px rgba(28, 111, 179, 0.3) !important;
+@media (hover: hover) {
+    .stic-form input[type="file"]::file-selector-button:hover {
+        filter: brightness(1.1) !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 14px rgba(28, 111, 179, 0.3) !important;
+    }
 }
 .stic-form input[type="file"]::file-selector-button:active {
     transform: translateY(0) !important;
@@ -2722,8 +2809,10 @@ span.stic-field {
     background-color: var(--success-soft) !important;
     border-color: var(--success-light) !important;
 }
-.stic-form > form > ul > li:has(.stic-file-uploaded-badge):hover {
-    border-color: var(--success-color) !important;
+@media (hover: hover) {
+    .stic-form > form > ul > li:has(.stic-file-uploaded-badge):hover {
+        border-color: var(--success-color) !important;
+    }
 }
 
 /* ============================================================
@@ -2802,13 +2891,15 @@ span.stic-field {
     transition: 0.2s ease !important; transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter !important;
     cursor: pointer !important;
 }
-.stic-soft-btn:hover {
-    background: var(--brand-blue-fixed) !important;
-    color: var(--on-brand) !important;
-    box-shadow: 0 4px 14px color-mix(in srgb, var(--brand-blue-fixed) 25%, transparent) !important;
-    transform: translateY(-1px) !important;
+@media (hover: hover) {
+    .stic-soft-btn:hover {
+        background: var(--brand-blue-fixed) !important;
+        color: var(--on-brand) !important;
+        box-shadow: 0 4px 14px color-mix(in srgb, var(--brand-blue-fixed) 25%, transparent) !important;
+        transform: translateY(-1px) !important;
+    }
+    .stic-soft-btn:hover svg { stroke: var(--on-brand) !important; }
 }
-.stic-soft-btn:hover svg { stroke: var(--on-brand) !important; }
 .stic-soft-btn:active { transform: translateY(0) !important; }
 
 /* --- 26.f Mensaje de "Subiendo archivo..." (inyectado por JS) --- */
@@ -2942,9 +3033,11 @@ span.stic-field {
     color: var(--gray-600, #4b5563);
     border: 1.5px solid var(--gray-200, #e5e7eb);
 }
-.stic-modal-btn--cancel:hover {
-    background: var(--gray-100, #f3f4f6);
-    border-color: var(--gray-300, #d1d5db);
+@media (hover: hover) {
+    .stic-modal-btn--cancel:hover {
+        background: var(--gray-100, #f3f4f6);
+        border-color: var(--gray-300, #d1d5db);
+    }
 }
 
 /* Eliminar = rojo degradado */
@@ -2953,10 +3046,12 @@ span.stic-field {
     color: #fff;
     box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
 }
-.stic-modal-btn--delete:hover {
-    filter: brightness(1.08);
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.45);
+@media (hover: hover) {
+    .stic-modal-btn--delete:hover {
+        filter: brightness(1.08);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(239, 68, 68, 0.45);
+    }
 }
 .stic-modal-btn--delete:active {
     transform: translateY(0);
@@ -3077,13 +3172,22 @@ span.stic-field {
     user-select: none;
     transition: background 0.18s ease, color 0.18s ease, transform 0.18s var(--ease-spring);
 }
-.stic-info:hover,
 .stic-info:focus-visible,
 .stic-info.is-open {
     background: var(--brand-blue-fixed);
     color: var(--on-brand);
     transform: scale(1.08);
     outline: none;
+}
+/* El hover, solo con ratón: en táctil se quedaba relleno y ampliado después
+   de cerrarlo, como si siguiera abierto (plan 042, A11Y-2). */
+@media (hover: hover) {
+    .stic-info:hover {
+        background: var(--brand-blue-fixed);
+        color: var(--on-brand);
+        transform: scale(1.08);
+        outline: none;
+    }
 }
 /* Área táctil ampliada a ~44px sin agrandar el icono (WCAG 2.5.8): el glifo
    sigue siendo de 18px, pero el dedo tiene margen alrededor. */
@@ -3221,7 +3325,9 @@ span.stic-field {
     transition: background 0.18s ease, color 0.18s ease;
 }
 .stic-legal-link svg { flex-shrink: 0; }
-.stic-legal-link:hover { background: var(--brand-blue-fixed); color: var(--on-brand) !important; }
+@media (hover: hover) {
+    .stic-legal-link:hover { background: var(--brand-blue-fixed); color: var(--on-brand) !important; }
+}
 .stic-legal-link svg { width: 14px; height: 14px; flex-shrink: 0; }
 .stic-legal-row .stic-legal-q {
     flex: 1 1 260px;
@@ -3271,7 +3377,9 @@ span.stic-field {
     cursor: pointer;
     transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.15s var(--ease-spring);
 }
-.stic-option-card:hover { border-color: var(--primary-light); transform: translateY(-2px); }
+@media (hover: hover) {
+    .stic-option-card:hover { border-color: var(--primary-light); transform: translateY(-2px); }
+}
 .stic-option-card input[type="radio"] {
     position: absolute;
     opacity: 0;
@@ -3355,10 +3463,12 @@ span.stic-field {
 .stic-profile-card:nth-child(3) { animation-delay: 0.10s; }
 .stic-profile-card:nth-child(4) { animation-delay: 0.15s; }
 .stic-profile-card:nth-child(5) { animation-delay: 0.20s; }
-.stic-profile-card:hover {
-    transform: translateY(-5px);
-    border-color: var(--primary-color);
-    box-shadow: var(--shadow-lg);
+@media (hover: hover) {
+    .stic-profile-card:hover {
+        transform: translateY(-5px);
+        border-color: var(--primary-color);
+        box-shadow: var(--shadow-lg);
+    }
 }
 .stic-profile-avatar {
     display: grid;
@@ -3374,7 +3484,9 @@ span.stic-field {
     transition: transform 0.25s var(--ease-spring);
 }
 .stic-profile-card:nth-child(even) .stic-profile-avatar { background: var(--grad-brand-rev); }
-.stic-profile-card:hover .stic-profile-avatar { transform: scale(1.07); }
+@media (hover: hover) {
+    .stic-profile-card:hover .stic-profile-avatar { transform: scale(1.07); }
+}
 .stic-profile-name {
     font-size: 1.08rem;
     font-weight: 800;
@@ -3400,7 +3512,9 @@ span.stic-field {
     white-space: nowrap;   /* el CTA es corto: en 2 líneas descolocaba la flecha */
 }
 .stic-profile-go svg { width: 15px; height: 15px; transition: transform 0.22s var(--ease-spring); }
-.stic-profile-card:hover .stic-profile-go svg { transform: translateX(4px); }
+@media (hover: hover) {
+    .stic-profile-card:hover .stic-profile-go svg { transform: translateX(4px); }
+}
 /* Tarjeta del propio familiar ("mis datos"): diferenciada en magenta suave. */
 .stic-profile-card--self { border-style: dashed; }
 .stic-profile-card--self .stic-profile-avatar { background: var(--grad-brand-rev); }
@@ -3489,7 +3603,9 @@ span.stic-field {
     transition: background 0.18s ease;
 }
 .stic-part-switch-btn::after { display: none !important; }
-.stic-part-switch-btn:hover { background: rgba(255, 255, 255, 0.28) !important; }
+@media (hover: hover) {
+    .stic-part-switch-btn:hover { background: rgba(255, 255, 255, 0.28) !important; }
+}
 .stic-part-switch-btn .stic-part-avatar {
     display: grid;
     place-items: center;
@@ -3549,7 +3665,9 @@ span.stic-field {
     text-decoration: none !important;
     transition: background 0.15s ease, color 0.15s ease;
 }
-.stic-part-option:hover { background: var(--primary-50); color: var(--primary-color) !important; }
+@media (hover: hover) {
+    .stic-part-option:hover { background: var(--primary-50); color: var(--primary-color) !important; }
+}
 .stic-part-option:focus-visible {
     outline: none;
     box-shadow: var(--shadow-glow);
@@ -3717,7 +3835,9 @@ span.stic-field {
     white-space: nowrap;
     transition: transform 0.15s var(--ease-spring), box-shadow 0.2s ease;
 }
-.stic-alert-cta:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+@media (hover: hover) {
+    .stic-alert-cta:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+}
 .stic-alert-cta svg { width: 15px; height: 15px; }
 
 .stic-alert--warning {
@@ -3783,9 +3903,11 @@ span.stic-field {
     transition: transform 0.25s var(--ease-spring), background 0.18s ease, color 0.18s ease;
 }
 .stic-form h5.stic-sec-toggle .stic-sec-chevron svg { width: 15px; height: 15px; }
-.stic-form h5.stic-sec-toggle:hover .stic-sec-chevron {
-    background: var(--primary-50);
-    color: var(--primary-color);
+@media (hover: hover) {
+    .stic-form h5.stic-sec-toggle:hover .stic-sec-chevron {
+        background: var(--primary-50);
+        color: var(--primary-color);
+    }
 }
 .stic-form h5.stic-sec-toggle.is-collapsed .stic-sec-chevron {
     transform: translateY(-65%) rotate(-90deg);
@@ -3849,7 +3971,9 @@ span.stic-field {
     color: var(--primary-color) !important;
     text-decoration: none !important;
 }
-.stic-consent .stic-consent-link:hover { text-decoration: underline !important; }
+@media (hover: hover) {
+    .stic-consent .stic-consent-link:hover { text-decoration: underline !important; }
+}
 .stic-consent .stic-consent-link svg { width: 12px; height: 12px; flex-shrink: 0; }
 
 /* Enlace pequeñito junto al badge "Ya subido" → revisar en Documentos. */
@@ -3864,7 +3988,9 @@ span.stic-field {
     text-decoration: none !important;
     vertical-align: middle;
 }
-.stic-mini-link:hover { text-decoration: underline !important; }
+@media (hover: hover) {
+    .stic-mini-link:hover { text-decoration: underline !important; }
+}
 
 /* ============================================================
    39. CROPPER DE FOTOS — recorte pensado para móvil
@@ -3940,7 +4066,9 @@ span.stic-field {
     color: #fff;
     box-shadow: 0 4px 14px rgba(28, 111, 179, 0.35);
 }
-.stic-crop-btn-apply:hover { filter: brightness(1.08); transform: translateY(-1px); }
+@media (hover: hover) {
+    .stic-crop-btn-apply:hover { filter: brightness(1.08); transform: translateY(-1px); }
+}
 @media (max-width: 480px) {
     .stic-crop-card { padding: 1.1rem 0.9rem 1rem; }
 }
@@ -4179,10 +4307,12 @@ span.stic-field {
     font-weight: 600;
     transition: background 0.18s ease, color 0.18s ease;
 }
-.stic-container .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-    background: var(--brand-blue-fixed);
-    border-color: transparent;
-    color: var(--on-brand) !important;      /* ídem: gana al hover !important del vendorizado */
+@media (hover: hover) {
+    .stic-container .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+        background: var(--brand-blue-fixed);
+        border-color: transparent;
+        color: var(--on-brand) !important;      /* ídem: gana al hover !important del vendorizado */
+    }
 }
 /* El .current (fondo de marca) ya lo aporta §12, pero su letra blanca la pisa
    el `color … !important` de arriba (misma especificidad y va después): la
@@ -4201,9 +4331,11 @@ span.stic-field {
     box-shadow: none;
     background: var(--surface) !important;          /* gana al hover de fila de §12 */
 }
-.stic-container .stic-table-responsive table.display tbody tr:has(> td.dataTables_empty):hover {
-    transform: none;
-    box-shadow: none;
+@media (hover: hover) {
+    .stic-container .stic-table-responsive table.display tbody tr:has(> td.dataTables_empty):hover {
+        transform: none;
+        box-shadow: none;
+    }
 }
 .stic-container .stic-table-responsive table.display td.dataTables_empty {
     display: block !important;                      /* gana al display:flex de celda de §22.b */
@@ -4578,7 +4710,9 @@ span.stic-field {
     inset: -7px -2px;
 }
 .stic-appearance-btn svg { width: 14px; height: 14px; flex: none; }
-.stic-appearance-btn:hover { color: var(--gray-700) !important; background: var(--gray-100) !important; }
+@media (hover: hover) {
+    .stic-appearance-btn:hover { color: var(--gray-700) !important; background: var(--gray-100) !important; }
+}
 .stic-appearance-btn:focus-visible { outline: none; box-shadow: var(--shadow-glow) !important; }
 .stic-appearance-btn[aria-pressed="true"] {
     background: var(--surface) !important;
@@ -4624,7 +4758,9 @@ span.stic-field {
     padding: 1px 2px !important;
     transition: filter 0.14s var(--ease-out), background 0.14s var(--ease-out);
 }
-.fc .fc-daygrid-event:hover { background: var(--surface-2) !important; }
+@media (hover: hover) {
+    .fc .fc-daygrid-event:hover { background: var(--surface-2) !important; }
+}
 .fc .fc-daygrid-event:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
 .fc .fc-daygrid-event .fc-daygrid-event-dot { display: none !important; } /* usamos nuestro chip */
 .stic-fc-registered { opacity: 0.9; }
@@ -4682,7 +4818,9 @@ span.stic-field {
 .stic-cal-day-chev svg { width: 16px; height: 16px; display: block; }
 
 /* Vista Agenda (listMonth): filas con el punto de color del estado. */
-.fc .fc-list-event:hover td { background: var(--surface-2); }
+@media (hover: hover) {
+    .fc .fc-list-event:hover td { background: var(--surface-2); }
+}
 .fc .fc-list-event-dot { border-width: 6px; }
 .fc .fc-list-day-cushion { background: var(--surface-2) !important; }
 .fc .fc-list-empty { color: var(--gray-500); }
@@ -4771,7 +4909,9 @@ span.stic-field {
     color: inherit;
     transition: background 0.15s var(--ease-out), transform 0.15s var(--ease-out);
 }
-.stic-agenda-link:hover { background: var(--surface-2); transform: translateX(2px); }
+@media (hover: hover) {
+    .stic-agenda-link:hover { background: var(--surface-2); transform: translateX(2px); }
+}
 .stic-agenda-link:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
 
 /* Chip de fecha (día de la semana + número + mes) */
@@ -4850,7 +4990,9 @@ span.stic-field {
     transition: transform 0.15s var(--ease-out), box-shadow 0.15s var(--ease-out);
 }
 .stic-agenda-cta svg { width: 17px; height: 17px; }
-.stic-agenda-cta:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+@media (hover: hover) {
+    .stic-agenda-cta:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+}
 .stic-agenda-cta:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
 
 /* ============================================================
@@ -5030,19 +5172,9 @@ span.stic-field {
 
 @media (hover: none) {
     /* Sin puntero fino no hay hover real: el navegador lo simula al tocar y
-       la tarjeta se quedaba elevada hasta tocar en otro sitio. */
-    .stic-dash-card:hover {
-        transform: none;
-        box-shadow: var(--shadow-sm);
-        border-color: var(--gray-200);
-    }
-    .stic-dash-card:hover::before { opacity: 0; }
-    .stic-dash-card:hover .stic-dash-icon { transform: none; }
-    .stic-dash-card:hover .stic-dash-go svg { transform: none; }
-    .stic-agenda-link:hover { transform: none; background: transparent; }
-    .stic-agenda-cta:hover { transform: none; box-shadow: var(--shadow-sm); }
-
-    /* El feedback pasa a la pulsación, que sí es real. */
+       la tarjeta se quedaba elevada hasta tocar en otro sitio. Los :hover ya
+       van todos en @media (hover: hover) (§67), así que en táctil no hay nada
+       que deshacer: el feedback pasa a la pulsación, que sí es real. */
     .stic-dash-card:active { transform: scale(0.97); }
     .stic-dash-card:active::before { opacity: 1; }
     .stic-agenda-link:active { background: var(--surface-2); }
@@ -5161,7 +5293,9 @@ span.stic-field {
 .stic-dashboard-grid--mini .stic-dash-title { font-size: 0.92rem; }
 .stic-dashboard-grid--mini .stic-dash-desc,
 .stic-dashboard-grid--mini .stic-dash-go { display: none; }
-.stic-dashboard-grid--mini .stic-dash-card:hover { transform: translateY(-2px); }
+@media (hover: hover) {
+    .stic-dashboard-grid--mini .stic-dash-card:hover { transform: translateY(-2px); }
+}
 
 @media (max-width: 640px) {
     .stic-section-label--mini { margin-top: 1.15rem; }
@@ -5237,8 +5371,9 @@ span.stic-field {
     transition: box-shadow 0.2s ease, transform 0.15s var(--ease-spring), border-color 0.2s ease;
     animation: stic-fade-up 0.45s var(--ease-out) backwards;
 }
-.stic-rec-card:hover { box-shadow: var(--shadow-md); border-color: color-mix(in srgb, var(--primary-color) 35%, transparent); }
-@media (hover: none) { .stic-rec-card:hover { box-shadow: var(--shadow-xs); transform: none; } }
+@media (hover: hover) {
+    .stic-rec-card:hover { box-shadow: var(--shadow-md); border-color: color-mix(in srgb, var(--primary-color) 35%, transparent); }
+}
 /* Ya celebrado: presente pero apagado (sigue siendo consultable). */
 .stic-rec-card.is-past { opacity: 0.78; }
 
@@ -5348,16 +5483,19 @@ span.stic-field {
     border: 1px solid var(--gray-200);
     color: var(--gray-700) !important;
 }
-.stic-rec-btn--ghost:hover { background: var(--gray-50); color: var(--gray-900) !important; }
+@media (hover: hover) {
+    .stic-rec-btn--ghost:hover { background: var(--gray-50); color: var(--gray-900) !important; }
+}
 .stic-rec-btn--primary {
     background: var(--grad-brand);
     color: #fff !important;
     box-shadow: var(--shadow-sm);
 }
-.stic-rec-btn--primary:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+@media (hover: hover) {
+    .stic-rec-btn--primary:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+}
 .stic-rec-btn:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
 @media (hover: none) {
-    .stic-rec-btn--primary:hover { transform: none; box-shadow: var(--shadow-sm); }
     .stic-rec-btn:active { transform: scale(0.98); }
 }
 
@@ -5401,7 +5539,9 @@ span.stic-field {
 }
 .stic-rec-back::after { display: none !important; }
 .stic-rec-back svg { width: 15px; height: 15px; }
-.stic-rec-back:hover { background: rgba(255, 255, 255, 0.3); }
+@media (hover: hover) {
+    .stic-rec-back:hover { background: rgba(255, 255, 255, 0.3); }
+}
 .stic-container .stic-rec-hero-title,
 .stic-rec-hero-title {
     margin: 0 0 0.5rem;
@@ -5812,10 +5952,11 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 .stic-hero-close::after,
 .stic-hero-close::before { display: none !important; content: none !important; }
 .stic-hero-close svg { width: 16px !important; height: 16px !important; }
-.stic-hero-close:hover { background: rgba(255, 255, 255, 0.32) !important; transform: rotate(90deg); }
+@media (hover: hover) {
+    .stic-hero-close:hover { background: rgba(255, 255, 255, 0.32) !important; transform: rotate(90deg); }
+}
 .stic-hero-close:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.7) !important; }
 @media (hover: none) {
-    .stic-hero-close:hover { transform: none; background: rgba(255, 255, 255, 0.18) !important; }
     .stic-hero-close:active { transform: scale(0.9); }
 }
 
@@ -5980,7 +6121,9 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 
 .stic-code-reveal > summary::-webkit-details-marker { display: none; }
 
-.stic-code-reveal > summary:hover { color: var(--primary-color); }
+@media (hover: hover) {
+    .stic-code-reveal > summary:hover { color: var(--primary-color); }
+}
 
 .stic-code-reveal > summary:focus-visible {
     outline: 2px solid var(--primary-color);
@@ -6039,7 +6182,9 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 .stic-code-resend button::before,
 .stic-code-resend button::after { content: none !important; display: none !important; }
 
-.stic-code-resend button:hover { color: var(--primary-dark) !important; background: none !important; }
+@media (hover: hover) {
+    .stic-code-resend button:hover { color: var(--primary-dark) !important; background: none !important; }
+}
 
 .stic-code-resend button:focus-visible {
     outline: 2px solid var(--primary-color) !important;
@@ -7360,15 +7505,37 @@ html[data-stic-theme] {
     .stic-rec-back:active,
     .stic-auth-tab:active,
     .stic-appearance-btn:active { transform: scale(0.97); }
-    /* La hamburguesa lleva `transform: none !important` en su regla de
-       pasar el ratón (§7), que en táctil también está puesta mientras se
-       pulsa: sin el suyo, el encogido no se vería. */
-    .stic-nav-toggle:active { transform: scale(0.97) !important; /* gana al `none !important` de arriba */ }
+    /* La hamburguesa anula el transform en su regla de pasar el ratón (§7),
+       pero esa regla va ya dentro de @media (hover: hover) (§67): en táctil
+       no está puesta y el encogido no tiene que ganarle a nada. */
+    .stic-nav-toggle:active { transform: scale(0.97); }
 }
 @media (hover: none) and (prefers-reduced-motion: reduce) {
     .stic-iconbtn:active,
     .stic-rec-back:active,
     .stic-auth-tab:active,
     .stic-appearance-btn:active { transform: none; opacity: 0.72; }
-    .stic-nav-toggle:active { transform: none !important; /* gana al encogido de arriba */ opacity: 0.72; }
+    .stic-nav-toggle:active { transform: none; opacity: 0.72; }
+}
+
+
+/* ============================================================
+   67. ACCESIBILIDAD — el :hover, solo con ratón (plan 042, A11Y-2)
+   ------------------------------------------------------------
+   Todos los :hover de esta hoja van dentro de @media (hover: hover): en
+   táctil el navegador lo simula al tocar y se quedaba pegado (el «?» de
+   ayuda relleno y ampliado, «Descargar» azul y levantado…).
+
+   Queda el tema: Astra pinta `a:hover, a:focus { color: … }` sin ese
+   @media, y en táctil el enlace tocado tiene los dos. Gana a un color de
+   reposo escrito con una clase suelta (0,1,0 contra 0,1,1), así que estas
+   piezas lo devuelven, solo en táctil y con 0,2,0. La regla general (los
+   enlaces azules) está en stic-base.css, junto a `a:hover`.
+   ============================================================ */
+@media (hover: none) {
+    :is(.stic-dash-card, .stic-agenda-link, .stic-rec-fact-a):is(:hover, :focus) { color: inherit; }
+    .stic-account-participant:is(:hover, :focus) { color: var(--on-brand); }
+    /* §19 le quita la sombra a la tarjeta con foco, y en Android el dedo
+       también enfoca: que se quede la de reposo (antes lo hacía §48.a). */
+    .stic-dash-card:focus { box-shadow: var(--shadow-sm); }
 }
