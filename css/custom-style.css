@@ -938,6 +938,10 @@ span.stic-field {
 .stic-nav-more-wrap { position: relative; flex-shrink: 0; }
 .stic-nav-more {
     position: relative;
+    /* stic-base §(≥640px) da `min-width: 140px` a TODO <button> sin acotar:
+       «Más» medía 140 px con 32 de texto y, a 1024, se salía de la barra y
+       perdía las esquinas (plan 042, CAR-4). Una clase gana a `button`. */
+    min-width: 0;
     background: rgba(255, 255, 255, 0.14) !important;
     border: 0;
     cursor: pointer;

@@ -354,7 +354,12 @@
             //    y ancho del botón "Más" (visible solo para medirlo).
             if (list.scrollWidth <= list.clientWidth + 1) { return; }
             wrap.hidden = false;
-            var available = list.clientWidth;
+            // `clientWidth` incluye el relleno de la lista (1,1 rem por lado a
+            // partir de 768): contaba con sitio para un elemento más de los que
+            // caben y empujaba «Más» fuera de la caja (plan 042, CAR-4).
+            var listCs = getComputedStyle(list);
+            var available = list.clientWidth
+                - (parseFloat(listCs.paddingLeft) || 0) - (parseFloat(listCs.paddingRight) || 0);
             var moreWidth = wrap.offsetWidth;
             var items = [];
             var child = list.firstElementChild;
