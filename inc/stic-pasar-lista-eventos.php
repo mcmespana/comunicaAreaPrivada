@@ -131,6 +131,12 @@ function sticpa_pl_ev_estados_fuera()
     ));
 }
 
+/** Cuántos días puede durar, como mucho, un evento para pasar lista en él. */
+function sticpa_pl_ev_max_dias()
+{
+    return (int) apply_filters('sticpa_pl_ev_max_dias', 50);
+}
+
 /**
  * Los eventos que se ofrecen, ya clasificados y en el orden de la pantalla.
  *
@@ -168,6 +174,13 @@ function sticpa_pl_ev_clasificar($rows, $excluir = array(), $nowTs = null)
         }
         if ($end < $course['start'] || $start > $course['end']) {
             continue;   // de otro curso
+        }
+        // MÁS DE 50 DÍAS no es una salida: es un evento de todo el curso (las
+        // sesiones semanales de una etapa, una actividad anual), y eso se pasa
+        // por Pasar Lista de grupos, que está hecho de otra manera. Decidido
+        // por el propietario el 10/10/2026.
+        if (($end - $start) > sticpa_pl_ev_max_dias() * DAY_IN_SECONDS) {
+            continue;
         }
 
         $startDay = date('Y-m-d', $start);

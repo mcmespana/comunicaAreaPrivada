@@ -6708,10 +6708,14 @@ final class PasarListaRenderTest extends TestCase
             array('id' => 'viejo', 'name' => 'Curso pasado', 'start_date' => '2025-07-01 10:00:00', 'end_date' => '2025-07-10 10:00:00'),
             array('id' => 'sinfecha', 'name' => 'Sin fecha', 'start_date' => '', 'end_date' => ''),
             array('id' => 'semanal', 'name' => 'MIC | Sesiones', 'start_date' => '2025-09-15 10:00:00', 'end_date' => '2026-06-15 10:00:00'),
+            // Más de 50 días: es de todo el curso, no una salida (aunque no
+            // esté en la lista de excluidos). 50 justos sí entra.
+            array('id' => 'anual', 'name' => 'Catequesis anual', 'start_date' => '2025-10-01 10:00:00', 'end_date' => '2026-05-30 10:00:00'),
+            array('id' => 'cincuenta', 'name' => 'Cincuenta días', 'start_date' => '2025-12-01 10:00:00', 'end_date' => '2026-01-20 10:00:00'),
         );
         $out = sticpa_pl_ev_clasificar($rows, array('semanal'), $now);
 
-        $this->assertSame(array('ida', 'vuelta', 'enmarcha', 'cerca', 'lejos', 'oct', 'sep'), array_column($out, 'id'));
+        $this->assertSame(array('ida', 'vuelta', 'enmarcha', 'cerca', 'cincuenta', 'lejos', 'oct', 'sep'), array_column($out, 'id'));
         $porId = array_column($out, null, 'id');
         $this->assertSame('start', $porId['ida']['dia']);
         $this->assertSame('end', $porId['vuelta']['dia']);

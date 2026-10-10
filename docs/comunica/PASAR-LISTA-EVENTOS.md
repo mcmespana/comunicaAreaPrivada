@@ -44,8 +44,10 @@ gente que está inscrita.
 - Los de **tu delegación** (`stic_Events.assigned_user_id` = la delegación),
   del **curso escolar en marcha** (1 de septiembre – 31 de agosto) y con fecha
   de inicio.
-- Fuera: el evento de **sesiones semanales** de cada etapa (eso es Pasar Lista
-  de grupos) y el de **reuniones de programación**.
+- Fuera: los que duran **más de 50 días** (son de todo el curso —las sesiones
+  semanales de una etapa, una actividad anual— y eso es Pasar Lista de grupos;
+  decidido el 10/10/2026, filtro `sticpa_pl_ev_max_dias`), el evento de
+  **sesiones semanales** de cada etapa y el de **reuniones de programación**.
 - Orden: **hoy** (empieza hoy, acaba hoy, o está en marcha), luego los
   **próximos** (el más cercano arriba) y los **pasados del curso** (el más
   reciente arriba). Con más de 8, buscador.
