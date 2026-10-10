@@ -158,8 +158,24 @@ monitor) y en un Android.
 
 La app pone su propia cápsula flotante **atrás/adelante** (abajo a la izquierda)
 sobre el historial de la WebView, y en Android el botón atrás del sistema navega
-primero por el historial de la web. El área **no** añade botones de volver
-propios.
+primero por el historial de la web.
+
+El área **sí** tiene «volver» propio en sus pantallas de detalle: la píldora
+«← Eventos / Pagos / Mis inscripciones» de las fichas (`.stic-rec-back`) y la
+flecha de Pasar Lista y Coordinación (`.pl-back`). Son enlaces a una URL fija,
+y hasta el 10/10/2026 cada toque metía una entrada nueva en el historial: tras
+usar la flecha, la cápsula «atrás» devolvía a la ficha de la que se acababa de
+salir. **Ahora vuelven por el historial cuando se viene de ahí** (plan 042,
+CAR-3, `bindBackLinks()` en `js/stic-ui.js`): si la página anterior es la URL
+del enlace (con más parámetros o sin ellos: la fecha de la lista, la página, el
+origen), es `history.back()`, y el historial de la WebView queda como lo
+espera la cápsula. Si no —se entró por un enlace del correo o de WhatsApp, o
+desde otra sección—, el enlace navega como siempre. Y nunca vuelve por el
+historial a una página que pintó un envío (Pasar Lista guarda sin redirigir):
+el navegador preguntaría si se reenvía el formulario. El servidor marca esas
+páginas con `sticpa-posted` en el `<body>`, y desde ellas el enlace navega como
+siempre. El overlay de carga y `sticpa:nav` `start` salen igual en los dos
+casos.
 
 ### 4.a El área avisa de sus navegaciones (`sticpa:nav`) — web → app
 

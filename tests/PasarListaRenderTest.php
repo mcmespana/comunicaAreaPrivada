@@ -3341,6 +3341,28 @@ final class PasarListaRenderTest extends TestCase
         $_REQUEST = array();
     }
 
+    /**
+     * Y LAS FICHAS DE LAS DEMÁS SECCIONES (plan 042, CAR-3): la ficha de un
+     * evento, de una inscripción o de un pago marca la sección de su listado;
+     * lo que no es una ficha conocida se queda como está.
+     */
+    public function test_el_menu_marca_la_seccion_de_cada_ficha()
+    {
+        require_once __DIR__ . '/../menu.php';
+        $_REQUEST = array();
+        $this->assertSame('list_stic_events', sticpa_menu_section_for('single_stic_events'));
+        $this->assertSame('list_stic_registrations', sticpa_menu_section_for('single_stic_registrations'));
+        foreach (array('single_stic_payments', 'single_stic_payment_form', 'single_stic_payment_error', 'single_stic_payment_commitments', 'list_stic_payment_commitments') as $pago) {
+            $this->assertSame('list_stic_payments', sticpa_menu_section_for($pago), $pago);
+        }
+        $this->assertSame('list_stic_documents', sticpa_menu_section_for('single_stic_documents'));
+        $this->assertSame('single_stic_activities_calendar', sticpa_menu_section_for('single_stic_sessions'));
+        // Las secciones mismas y lo desconocido no se tocan.
+        $this->assertSame('list_stic_events', sticpa_menu_section_for('list_stic_events'));
+        $this->assertSame('single_stic_mis_grupos', sticpa_menu_section_for('single_stic_mis_grupos'));
+        $this->assertSame('single_stic_comunica_perfil', sticpa_menu_section_for('single_stic_comunica_perfil'));
+    }
+
     /** «Hora» y «Horas» se confundían; la duración, de un desplegable (COO-9). */
     public function test_nueva_reunion_dice_empieza_y_dura()
     {

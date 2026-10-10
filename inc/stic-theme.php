@@ -267,12 +267,22 @@ function sticpa_appearance_switch_html()
 }
 
 // Clase en el body + CSS que esconde el "chrome" del tema alrededor del área.
-add_filter('body_class', function ($classes) {
+add_filter('body_class', 'sticpa_body_classes');
+function sticpa_body_classes($classes)
+{
     if (sticpa_is_app_mode()) {
         $classes[] = 'sticpa-app-mode';
     }
+    /* LA PÁGINA QUE PINTA UN ENVÍO (plan 042, CAR-3). Pasar Lista guarda en la
+     * misma URL y sin redirigir, así que esa entrada del historial es un POST:
+     * volver a ella con «atrás» hace que el navegador pregunte si se reenvía.
+     * js/stic-ui.js la apunta y su «volver» no la usa: navega como siempre. */
+    if (sticpa_has_area_shortcode() && isset($_SERVER['REQUEST_METHOD'])
+        && strtoupper((string) $_SERVER['REQUEST_METHOD']) === 'POST') {
+        $classes[] = 'sticpa-posted';
+    }
     return $classes;
-});
+}
 
 function sticpa_app_mode_css()
 {

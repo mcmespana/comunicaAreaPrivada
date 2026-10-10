@@ -358,12 +358,28 @@ function sticpa_profile_card_html($url, $name, $tag, $go, $extra = '')
  * Pasar lista. Se lee `desde` y `vengo` con la misma lista blanca que la flecha
  * de volver; un valor desconocido no cambia nada.
  *
- * Mínima a propósito: solo Pasar Lista y Coordinación. Las fichas de detalle
- * de otras secciones (Eventos, Pagos…) pueden añadirse aquí con la misma regla.
+ * Y LAS FICHAS DE LAS DEMÁS SECCIONES (plan 042, CAR-3, punto 5): la ficha
+ * de un evento es `single_stic_events` y no `list_stic_events`, así que en
+ * escritorio la barra no marcaba nada y en el móvil el desplegable no
+ * resaltaba ningún mosaico. Cada ficha va a la sección de su listado.
  */
 function sticpa_menu_section_for($page)
 {
     $page = (string) $page;
+    $fichas = array(
+        'single_stic_events'               => 'list_stic_events',
+        'single_stic_registrations'        => 'list_stic_registrations',
+        'single_stic_payments'             => 'list_stic_payments',
+        'single_stic_payment_form'         => 'list_stic_payments',
+        'single_stic_payment_error'        => 'list_stic_payments',
+        'single_stic_payment_commitments'  => 'list_stic_payments',
+        'list_stic_payment_commitments'    => 'list_stic_payments',
+        'single_stic_documents'            => 'list_stic_documents',
+        'single_stic_sessions'             => 'single_stic_activities_calendar',
+    );
+    if (isset($fichas[$page])) {
+        return $fichas[$page];
+    }
     if (strpos($page, 'single_stic_pasar_lista_') !== 0) {
         return $page;
     }
