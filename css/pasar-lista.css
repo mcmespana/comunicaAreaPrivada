@@ -3090,10 +3090,16 @@ a.pl-group .pl-name { display: block; }
 .pl-seg-add[aria-expanded="true"] { display: none !important; }
 
 /* El plegable del histórico lleva su cuenta de cursos a la derecha, antes de
-   la flecha: dice cuánto hay dentro sin tener que abrirlo. */
+   la flecha: dice cuánto hay dentro sin tener que abrirlo. Con hueco mínimo
+   y alineada a la derecha si parte línea (revisión 042): en la columna de
+   340 px de la ficha del monitor, «Formación» y su lista iban pegados y la
+   segunda línea, a la izquierda. Relleno y no `gap` en el summary, que se
+   sumaría a la distancia hasta la flecha. */
 .pl-fold-count {
     margin-left: auto;
     margin-right: 0.6rem;
+    padding-left: 0.75rem;
+    text-align: right;
     font-size: 0.72rem;
     font-weight: 600;
     color: var(--gray-500);

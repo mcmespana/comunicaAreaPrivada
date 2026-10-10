@@ -2406,6 +2406,18 @@ final class PasarListaRenderTest extends TestCase
         );
     }
 
+    /**
+     * COO-5, revisión 042. En la columna de 340 px de la ficha del monitor,
+     * el resumen de un plegable («Premonitores I · …») iba pegado al rótulo,
+     * porque `margin-left: auto` vale 0 cuando no cabe, y su segunda línea
+     * salía a la izquierda. Hueco mínimo y alineado a la derecha.
+     */
+    public function test_la_cuenta_del_plegable_no_va_pegada_al_rotulo()
+    {
+        $css = preg_replace('#/\*.*?\*/#s', '', file_get_contents(dirname(__DIR__) . '/css/pasar-lista.css'));
+        $this->assertMatchesRegularExpression('/(^|\})\s*\.pl-fold-count \{[^}]*padding-left: 0\.75rem;[^}]*text-align: right;[^}]*\}/', $css);
+    }
+
     /** Un nonce caducado no escribe nada, y eso también se apunta. */
     public function test_el_diario_apunta_el_nonce_caducado()
     {
