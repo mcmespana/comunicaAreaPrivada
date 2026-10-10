@@ -417,6 +417,15 @@
             return row.getAttribute('data-state') || '';
         }
 
+        /* Lo que se VE. En la lista de un evento se puede filtrar por curso o
+           buscar por nombre, y «Están todos» solo tiene que tocar lo que el
+           monitor tiene delante. Las escondidas siguen en `collect()`: sus
+           marcas se guardan igual. En la lista de los sábados no se esconde
+           nada, así que ahí es siempre «todas». */
+        function isVisible(row) {
+            return !row.hidden && !(row.closest && row.closest('[hidden]'));
+        }
+
         function collect() {
             var marks = {};
             rows.forEach(function (row) {
@@ -512,10 +521,14 @@
         }
 
         function refresh() {
-            var nYes = 0, nNo = 0, nNone = 0;
+            var nYes = 0, nNo = 0, nNone = 0, nNoneVisible = 0, nVisible = 0;
             rows.forEach(function (row) {
                 var s = getState(row);
                 if (s === '') { nNone++; } else if (COUNTS[s]) { nYes++; } else { nNo++; }
+                if (isVisible(row)) {
+                    nVisible++;
+                    if (s === '') { nNoneVisible++; }
+                }
             });
             if (counts.yes) { counts.yes.textContent = nYes; }
             if (counts.no) { counts.no.textContent = nNo; }
@@ -545,13 +558,14 @@
             // «Han venido todos» habla de lo que va a hacer: sin ninguna
             // marca, todos; con alguna, «el resto» y cuántos; sin nadie por
             // marcar, nada que hacer (plan 042, PL-2).
+            // Con un filtro puesto (lista de un evento) habla de lo que se ve.
             if (allBtn && allLabel) {
-                var marked = rows.length - nNone;
+                var marked = nVisible - nNoneVisible;
                 var tplAll = (marked === 0)
                     ? (allBtn.getAttribute('data-label-all') || '')
                     : (allBtn.getAttribute('data-label-rest') || '');
-                if (tplAll) { allLabel.textContent = tplAll.replace('{n}', nNone); }
-                allBtn.disabled = (nNone === 0);
+                if (tplAll) { allLabel.textContent = tplAll.replace('{n}', nNoneVisible); }
+                allBtn.disabled = (nNoneVisible === 0);
             }
 
             // «Sin registro» confirma SIEMPRE, y con marcas en pantalla avisa
@@ -745,6 +759,76 @@
             });
         });
 
+        /* ---- Lista de un evento: buscar y filtrar por curso ------------
+           En la puerta del autobús: «¿y Lucía?» o «a ver los de 1.º de ESO».
+           Todo en el navegador, sobre lo ya pintado. Se esconde con `hidden`
+           (no se quita): lo marcado sigue contando y se guarda igual. */
+        if (root.hasAttribute('data-pl-evento')) {
+            var evBuscar = root.querySelector('[data-pl-ev-buscar]');
+            var evVacio = root.querySelector('[data-pl-ev-vacio]');
+            var evChips = Array.prototype.slice.call(root.querySelectorAll('[data-pl-ev-curso].pl-evchip'));
+            var evItems = Array.prototype.slice.call(root.querySelectorAll('[data-pl-ev-list] > [data-pl-ev-curso]'));
+            var evCurso = '';
+            var evNorm = function (str) {
+                str = String(str || '').toLowerCase();
+                if (str.normalize) {
+                    str = str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                }
+                return str.replace(/\s+/g, ' ').trim();
+            };
+            var evHay = evItems.map(function (el) {
+                return evNorm(el.getAttribute('data-pl-ev-hay') || el.textContent);
+            });
+
+            var evApply = function () {
+                var q = evBuscar ? evNorm(evBuscar.value) : '';
+                var shown = 0;
+                evItems.forEach(function (el, i) {
+                    var ok = (evCurso === '' || el.getAttribute('data-pl-ev-curso') === evCurso)
+                        && (q === '' || evHay[i].indexOf(q) !== -1);
+                    el.hidden = !ok;
+                    if (ok) { shown++; }
+                });
+                // Las secciones (MIC, COM…) sin nadie a la vista, fuera; y su
+                // número dice cuántos se ven.
+                Array.prototype.forEach.call(root.querySelectorAll('[data-pl-ev-list]'), function (list) {
+                    var n = list.querySelectorAll('[data-pl-ev-curso]:not([hidden])').length;
+                    list.hidden = (n === 0);
+                    var title = list.previousElementSibling;
+                    if (title && title.hasAttribute('data-pl-ev-sec')) {
+                        title.hidden = (n === 0);
+                        var c = title.querySelector('.pl-etapa-count');
+                        if (c) { c.textContent = n; }
+                    }
+                });
+                if (evVacio) { evVacio.hidden = (shown > 0); }
+                refresh();
+            };
+
+            evChips.forEach(function (chip) {
+                chip.addEventListener('click', function () {
+                    var k = chip.getAttribute('data-pl-ev-curso') || '';
+                    evCurso = (k === evCurso) ? '' : k;
+                    evChips.forEach(function (c) {
+                        c.setAttribute('aria-pressed', ((c.getAttribute('data-pl-ev-curso') || '') === evCurso) ? 'true' : 'false');
+                    });
+                    evApply();
+                    haptic(8);
+                });
+            });
+            if (evBuscar) {
+                evBuscar.addEventListener('input', evApply);
+                // El buscador vive DENTRO del formulario de la lista: un Enter
+                // lo enviaría y guardaría a medias. Enter solo cierra el teclado.
+                evBuscar.addEventListener('keydown', function (ev) {
+                    if (ev.key === 'Enter') {
+                        ev.preventDefault();
+                        evBuscar.blur();
+                    }
+                });
+            }
+        }
+
         /* ---- "Han venido todos" ---------------------------------------- */
 
         if (allBtn) {
@@ -756,7 +840,7 @@
                 // `yes` en todas las filas: quien marcaba primero las faltas y
                 // luego «el resto, todos» perdía las faltas, las justificadas
                 // con su motivo y las parciales, sin deshacer.
-                var empty = rows.filter(function (row) { return getState(row) === ''; });
+                var empty = rows.filter(function (row) { return getState(row) === '' && isVisible(row); });
                 if (!empty.length) { return; }
                 empty.forEach(function (row, i) {
                     if (REDUCED) {
@@ -1075,7 +1159,11 @@
                     // borrador solo si no es más nuevo que ella.
                     saveDraft();
                     queuePush({
-                        url: window.location.href,
+                        // La URL del formulario, si la lleva: la lista de un
+                        // evento sin días en el CRM guarda ahí el día que se
+                        // marcó, para que un envío tardío cree la sesión de
+                        // ESE día. Sin `action`, la de la página, como antes.
+                        url: form.getAttribute('action') ? form.action : window.location.href,
                         session: sessionId,
                         group: groupId,
                         // Qué lista es, para decirlo fuera de esta pantalla

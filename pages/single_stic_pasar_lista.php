@@ -108,6 +108,17 @@ $html .= '</div>';
 // Lo que se quedó en el móvil sin enviar (plan 042, PL-9). Lo rellena el JS.
 $html .= sticpa_pl_queue_notice_html();
 
+// EL EVENTO DE HOY —una convivencia que empieza o acaba hoy, el autobús de ida
+// o de vuelta— va arriba de todo: ese día es a lo que se viene. Sale de los
+// eventos que la primera tanda ya ha leído (cero llamadas). Ver
+// inc/stic-pasar-lista-eventos.php.
+$eventosCurso = sticpa_pl_ev_eventos($objSCP);
+foreach ($eventosCurso as $evHoy) {
+    if ($evHoy['cuando'] === 'hoy' && in_array($evHoy['dia'], array('start', 'end'), true)) {
+        $html .= sticpa_pl_ev_hoy_card_html($evHoy);
+    }
+}
+
 if (empty($groups)) {
     $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
         . esc_html__('No hay grupos de tu delegación en este curso. Si crees que es un error, avisa a coordinación.', 'sticpa')
@@ -409,6 +420,21 @@ $html .= '<span class="pl-all-groups-meta">' . esc_html(sprintf(
 )) . '</span>';
 $html .= sticpa_pl_icon('next');
 $html .= '</a>';
+
+// Pasar lista en un EVENTO (una salida, el autobús). Los de hoy ya van arriba;
+// esto es la puerta a todos los del curso.
+if (!empty($eventosCurso)) {
+    $html .= '<a class="pl-all-groups" href="' . esc_url(sticpa_pl_ev_url()) . '">';
+    $html .= sticpa_pl_icon('calendar');
+    $html .= '<span>' . esc_html__('Pasar lista en un evento', 'sticpa') . '</span>';
+    $html .= '<span class="pl-all-groups-meta">' . esc_html(sprintf(
+        /* translators: %d: número de eventos de la delegación este curso */
+        _n('%d este curso', '%d este curso', count($eventosCurso), 'sticpa'),
+        count($eventosCurso)
+    )) . '</span>';
+    $html .= sticpa_pl_icon('next');
+    $html .= '</a>';
+}
 
 // El resumen de coordinación: lo ve cualquier monitor (ver es útil para todos),
 // pero solo coordinación puede editar los datos por revisar.

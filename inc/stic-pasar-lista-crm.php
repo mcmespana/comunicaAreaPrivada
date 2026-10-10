@@ -211,7 +211,10 @@ function sticpa_pl_cache_family($what)
     // `sticpa_pl_flush($objSCP, 'state')` de después de guardar no las tiraba.
     // Se salvaba por el TTL de cinco minutos, o sea que la lista que acababas
     // de pasar tardaba hasta cinco minutos en aparecer.
-    $state = array('state', 'streaks', 'listas', 'attrange', 'marks', 'avisos');
+    // 'evins': las inscripciones de un evento para pasar lista en él
+    // (inc/stic-pasar-lista-eventos.php). El día de la salida cambian, y el
+    // guardado tiene que ver al momento a quien se acaba de apuntar.
+    $state = array('state', 'streaks', 'listas', 'attrange', 'marks', 'avisos', 'evins');
     return in_array((string) $what, $state, true) ? 'state' : 'struct';
 }
 
