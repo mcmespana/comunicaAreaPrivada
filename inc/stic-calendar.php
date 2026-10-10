@@ -282,15 +282,36 @@ function sticpa_gather_calendar_data($objSCP)
     $sessionIdByName = array();    // nombre normalizado → sessionId (para el fallback de asistencias)
     $attendanceBySession = array();// sessionId => statusKey
 
-    // 1) Inscripciones del usuario (se ignoran las canceladas).
-    $regs = $objSCP->getRelatedElementsForLoggedUser(array(
+    $prime = function ($fn) use ($objSCP) {
+        if (function_exists('sticpa_pl_prime')) {
+            sticpa_pl_prime($objSCP, $fn);
+        }
+    };
+
+    // Los eventos de la ventana (paso 2, abajo) NO dependen de tus
+    // inscripciones: solo se usan al final, para apartar los ya inscritos. Iban
+    // solos, en fila, después de todo; ahora salen en la PRIMERA tanda, con la
+    // lista de inscripciones (plan 042, VEL-3): una espera menos en la portada
+    // y el calendario fríos, siempre. Los campos se calculan ANTES y fuera de
+    // la recolecta: si la definición de eventos estuviera fría (6 h, de todo
+    // el sitio), dentro saldría otra lista de campos, la consulta de la tanda
+    // no casaría con la de abajo y se pediría dos veces.
+    $eventsWindow = sticpa_calendar_events_window_query($objSCP);
+    $regsParams = array(
         'module_name' => $module,
         'module_id' => $userId,
         'link_field_name' => $regRel,
         'related_fields' => array('id', 'status'),
         'related_module_link_name_to_fields_array' => array(),
         'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
-    ));
+    );
+    $prime(function () use ($objSCP, $regsParams, $eventsWindow) {
+        $objSCP->getRelatedElementsForLoggedUser($regsParams);
+        $objSCP->getRecordsModule('stic_Events', $eventsWindow['filter'], $eventsWindow['fields']);
+    });
+
+    // 1) Inscripciones del usuario (se ignoran las canceladas).
+    $regs = $objSCP->getRelatedElementsForLoggedUser($regsParams);
 
     // LAS CONSULTAS DE CADA NIVEL, EN PARALELO (plan 011). Antes eran
     // `2 + 2N + N×M` llamadas en fila: por cada inscripción sus eventos y sus
@@ -337,12 +358,6 @@ function sticpa_gather_calendar_data($objSCP)
             'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
         );
     };
-    $prime = function ($fn) use ($objSCP) {
-        if (function_exists('sticpa_pl_prime')) {
-            sticpa_pl_prime($objSCP, $fn);
-        }
-    };
-
     // Las inscripciones que cuentan (las canceladas no), en su orden.
     $activeRegIds = array();
     foreach ((is_array($regs) ? $regs : array()) as $reg) {
@@ -459,31 +474,10 @@ function sticpa_gather_calendar_data($objSCP)
         }
     }
 
-    // 2) Todos los eventos en la ventana (-3 meses … +12 meses). Los ya inscritos
-    //    se apartan; el resto son "abiertos a inscripción".
-    // Misma ventana que el listado de Eventos (fuente única en inc/stic-events.php):
-    // -14 … +12 meses. En el calendario los eventos pasados no molestan (caen en
-    // su fecha, y para verlos hay que navegar hasta su mes), y así se puede mirar
-    // atrás el curso anterior completo.
-    $filter = function_exists('sticpa_events_window_filter')
-        ? sticpa_events_window_filter()
-        : "(stic_events.start_date BETWEEN DATE_ADD(curdate(), INTERVAL -14 MONTH) AND DATE_ADD(curdate(), INTERVAL 12 MONTH))";
-    // LA AUDIENCIA SE FILTRA AQUÍ TAMBIÉN, y no es opcional. El listado de
-    // Eventos ya lo hacía (pages/list_stic_events.php), pero esta consulta
-    // alimenta DOS pantallas más —el calendario y el widget "Próximas
-    // actividades" de la home— y se traía todos los eventos de la ventana, de
-    // cualquier delegación: una persona de Castellón veía en su agenda las
-    // convivencias de Vila-real, con su botón «Inscríbete». El guardado sí las
-    // rechazaba (inc/stic-action.php, vía sticpa_event_signup_block), así que
-    // nadie llegó a apuntarse donde no debía; pero el nombre, la fecha y el
-    // lugar de lo de otra delegación se veían, y la invitación era falsa.
-    // Recordatorio de por qué no lo arregla el CRM: el área se conecta con un
-    // usuario técnico, así que los grupos de seguridad no filtran nada de lo
-    // que se lee aquí (ver inc/stic-event-audience.php).
-    $eventFields = function_exists('sticpa_event_audience_fields_to_request')
-        ? sticpa_event_audience_fields_to_request($objSCP, array('id', 'name', 'type', 'start_date', 'end_date'))
-        : array('id', 'name', 'type', 'start_date', 'end_date');
-    $allEvents = $objSCP->getRecordsModule('stic_Events', $filter, $eventFields);
+    // 2) Todos los eventos en la ventana. Los ya inscritos se apartan; el resto
+    //    son "abiertos a inscripción". La consulta salió en la primera tanda:
+    //    aquí se recoge (ver sticpa_calendar_events_window_query()).
+    $allEvents = $objSCP->getRecordsModule('stic_Events', $eventsWindow['filter'], $eventsWindow['fields']);
     if (is_array($allEvents) && function_exists('sticpa_filter_events_for_viewer')) {
         // Solo los NO inscritos pasan por el filtro: a un evento al que ya
         // estás apuntado se va igualmente (te apuntó tu delegación, o te
@@ -519,6 +513,43 @@ function sticpa_gather_calendar_data($objSCP)
         set_transient($cacheKey, $data, $ttl);
     }
     return $data;
+}
+
+/**
+ * La consulta de los eventos de la ventana que alimenta el calendario y la
+ * home: su filtro y sus campos. En una función para que la primera tanda de
+ * sticpa_gather_calendar_data() y la recogida de después pidan EXACTAMENTE lo
+ * mismo (si no, la respuesta de la tanda no se aprovecha).
+ *
+ * Misma ventana que el listado de Eventos (fuente única en inc/stic-events.php):
+ * -14 … +12 meses. En el calendario los eventos pasados no molestan (caen en su
+ * fecha, y para verlos hay que navegar hasta su mes), y así se puede mirar
+ * atrás el curso anterior completo.
+ *
+ * LA AUDIENCIA SE FILTRA AQUÍ TAMBIÉN, y no es opcional: por eso los campos de
+ * audiencia. El listado de Eventos ya lo hacía (pages/list_stic_events.php),
+ * pero esta consulta alimenta DOS pantallas más —el calendario y el widget
+ * "Próximas actividades" de la home— y se traía todos los eventos de la
+ * ventana, de cualquier delegación: una persona de Castellón veía en su agenda
+ * las convivencias de Vila-real, con su botón «Inscríbete». El guardado sí las
+ * rechazaba (inc/stic-action.php, vía sticpa_event_signup_block), así que nadie
+ * llegó a apuntarse donde no debía; pero el nombre, la fecha y el lugar de lo
+ * de otra delegación se veían, y la invitación era falsa. Recordatorio de por
+ * qué no lo arregla el CRM: el área se conecta con un usuario técnico, así que
+ * los grupos de seguridad no filtran nada de lo que se lee aquí (ver
+ * inc/stic-event-audience.php).
+ *
+ * @return array{filter: string, fields: string[]}
+ */
+function sticpa_calendar_events_window_query($objSCP)
+{
+    $filter = function_exists('sticpa_events_window_filter')
+        ? sticpa_events_window_filter()
+        : "(stic_events.start_date BETWEEN DATE_ADD(curdate(), INTERVAL -14 MONTH) AND DATE_ADD(curdate(), INTERVAL 12 MONTH))";
+    $fields = function_exists('sticpa_event_audience_fields_to_request')
+        ? sticpa_event_audience_fields_to_request($objSCP, array('id', 'name', 'type', 'start_date', 'end_date'))
+        : array('id', 'name', 'type', 'start_date', 'end_date');
+    return array('filter' => $filter, 'fields' => $fields);
 }
 
 /**

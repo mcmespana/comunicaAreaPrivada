@@ -733,24 +733,39 @@ llamada fallaba en silencio y caía a respaldos 1+N).
 > es lo que se nota. Diez llamadas en dos tandas paralelas son dos esperas; diez
 > en fila son diez.
 
-**Coste real hoy** (sin enlaces anidados, que es como responde esta instancia):
+**Coste real hoy** (sin enlaces anidados, que es como responde esta instancia;
+estructura fría, que es como arranca el test):
+
+> **10/10/2026 (plan 042, VEL-6): las esperas se cuentan de verdad.** Hasta ese
+> día cada tanda contaba como UNA espera, pero `callMany()` no tiene más de 4
+> peticiones en vuelo (`sticpa_crm_multi_concurrency`): una tanda de 5 a 8 son
+> DOS. Por eso la portada, la ficha y la lista de monitores suben una: no cuestan
+> más que antes, es que antes se contaban mal. Con la estructura caliente (la
+> deja el calentado nocturno) esas tandas bajan de 4 y vuelven a ser una.
+>
+> El mismo día `callMany()` pasó de olas de 4 a **ventana deslizante**: siguen
+> sin ir más de 4 a la vez, pero en cuanto acaba una entra la siguiente, y la
+> quinta ya no espera a la más lenta de las cuatro primeras (800/200/200/200/
+> 200/200 ms: de ~1.010 a ~805 ms, medido con `tests/manual/check-crm-multi.php`).
+> Con latencias parecidas una tanda de 5 sigue costando dos esperas; subir la
+> concurrencia a 6 sí la dejaría en una, y eso lo decide el propietario.
 
 | Pantalla | Llamadas | Esperas |
 |---|---|---|
-| Portada (26/09/2026: «¿coordina?» ya va en la primera tanda) | 9 | **4** |
-| Portada de quien coordina (con el aviso de reuniones) | 11 | 5 |
+| Portada (26/09/2026: «¿coordina?» ya va en la primera tanda) | 9 | **5** (tandas 5+2) |
+| Portada de quien coordina (con el aviso de reuniones) | 11 | 6 (5+3) |
 | Árbol de grupos | 7 | 3 |
 | Marcar (09/10/2026: el estado en una tanda, plan 042 VEL-2) | 10 | **5** |
 | **Guardar** una lista (relectura incluida) | 12 | 8 → **6** |
 | Resumen | 7 | 3 |
-| Ficha del participante | 13 | 7 |
-| Lista de monitores (sábado o reunión) | 10 | 4 |
+| Ficha del participante | 13 | 8 (2+5+2) |
+| Lista de monitores (sábado o reunión) | 10 | 5 (5+2+2) |
 | Reuniones (26/09/2026: antes sin tanda) | 5 | 3 |
+| Coordinación | 7 | 4 (5) |
 | **Guardar la lista de monitores**, 14 sin inscribir (26/09/2026) | ~75 | ~75 → **~22** (tandas de 4) |
-| **Mis grupos** (índice, y sus tres vistas) | **3** | **2** |
-| Mis grupos → un grupo | 3 (5 si el mapa falla) | 2 |
-| Mis grupos → monitores | 4 | 3 |
-| Mis grupos → sin grupo | 3 | 2 |
+| **Mis grupos** (índice, y sus tres vistas) | **3** | **1** (una tanda de 3) |
+| Mis grupos → un grupo | 3 (5 si el mapa falla) | 1 (3 si el mapa falla) |
+| Mis grupos → sin grupo | 3 | 1 |
 | **Cambiar de fecha** (caché caliente) | **4** | 4 |
 
 Lo que bajó esos números el 28/08: matar el 1+N que resolvía a la gente de un
@@ -791,6 +806,14 @@ Cargadores de colección (uno por colección, nunca uno por fila):
   desglose, y `?pl_diag=1` lo enseña por pantalla. **Antes de tocar nada más de
   rendimiento, mira esos números**: lo siguiente (paralelizar con `curl_multi`)
   es la parte cara y no se empieza a ciegas.
+- **Y desde cualquier móvil o navegador (10/10/2026, plan 042 VEL-10):** cada
+  página del área lleva la cabecera `Server-Timing` con el tiempo del CRM, sus
+  llamadas y el total del servidor. Se mira en las herramientas de desarrollo →
+  Network → la petición de la página (la de `?internalpage=…`) → **Timing**,
+  abajo, «Server Timing»: si `crm` se come casi todo el `total`, es el CRM; si
+  no, es WordPress; y lo que va de `total` a lo que se ha esperado es red y
+  navegador. Por consola: `performance.getEntriesByType('navigation')[0].serverTiming`.
+  Detalles en `inc/stic-perf.php`.
 
 ### ~~Medido y DESCARTADO~~: no envolver `session_attendances` en una tanda
 

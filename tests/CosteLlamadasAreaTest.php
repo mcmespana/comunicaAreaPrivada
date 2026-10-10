@@ -229,7 +229,11 @@ class CosteLlamadasAreaTest extends TestCase
     public function testEsperasDeCadaPantalla()
     {
         $topes = array(
-            'single_stic_home' => 4,
+            // 3, y eran 4: tus inscripciones y los eventos de la agenda van en
+            // la misma tanda (VEL-3). Las otras dos: la ficha del contacto y
+            // la definición de eventos (6 h, de todo el sitio: casi siempre
+            // caliente). Con inscripciones se suman sus tandas (CalendarParallelTest).
+            'single_stic_home' => 3,
             // 2, y eran 3: los eventos de la ventana y tus inscripciones van
             // en la misma tanda (VEL-5). Con este doble no tienes inscripciones;
             // con ellas se suma la tanda del evento de cada una (ViajesFamiliasTest).
@@ -273,6 +277,7 @@ class CosteLlamadasAreaTest extends TestCase
                 'list_stic_events' => 1,                // VEL-5: eventos + tus inscripciones
                 'list_stic_payment_commitments' => 1,   // VEL-4: es Pagos (plan 041)
                 'list_stic_payments' => 1,              // VEL-4: compromisos + pagos
+                'single_stic_home' => 1,                // VEL-3: tus inscripciones + los eventos de la agenda
             ),
             $conTandas
         );

@@ -274,6 +274,29 @@ o 6 más con 12 (1-2 s), en la primera pantalla del día.
 
 **Ficheros:** `inc/stic-calendar.php`, `inc/stic-action.php`, `pages/list_stic_events.php`, `tests/CalendarParallelTest.php`, `tests/CosteLlamadasAreaTest.php`
 
+> **Estado (10/10/2026, lote L4).** **Punto 2 HECHO:** los eventos de la ventana salen
+> en la primera tanda, con tus inscripciones (−1 espera en la portada y el calendario
+> fríos, siempre; la home del doble: 4 esperas → 3). Sus campos se calculan ANTES y
+> fuera de la recolecta (`sticpa_calendar_events_window_query()`): calculados dentro,
+> con la definición de eventos fría la consulta de la tanda no casaba con la de
+> después y se pedía DOS veces la ventana entera (comprobado rompiéndolo:
+> `CosteLlamadasAreaTest` lo caza, 5 llamadas y la misma consulta repetida). La parte
+> de Eventos del punto 3 ya la hizo VEL-5.
+> **Puntos 1 y 3 (el filtro por fecha) NO hechos, pendientes del propietario:**
+> - Cambian lo que se ve: el calendario deja de enseñar lo de hace más de dos años.
+>   Cuánta historia guarda el calendario es una decisión de producto.
+> - `registration_date` NO está en `CAMPOS.md` (el código ya lo lee en
+>   `inc/stic-registrations.php`, pero el documento manda y no lo recoge): hay que
+>   confirmarlo y apuntarlo antes de filtrar por él.
+> - La fecha de la inscripción es un indicador indirecto de lo viejo que es el evento.
+>   Una inscripción de hace más de 24 meses a un evento largo que sigue vivo (un grupo
+>   de varios cursos, si los hay) sacaría de la agenda sesiones de hoy, y el evento
+>   saldría como «abierto» en la home y el calendario en vez de como tuyo. Más seguro,
+>   aunque gana menos: filtrar por las fechas del EVENTO, partiendo la tanda 1 (primero
+>   el evento de cada inscripción; luego sesiones y asistencias solo de los que caen
+>   en la ventana). Con 12 inscripciones, 11 esperas → ~6, frente a las 4 de la
+>   propuesta.
+
 ## VEL-4 — Pagos hace tres viajes en fila en cada visita, y los dos primeros no dependen uno del otro
 
 **Tipo:** rendimiento · **Para:** familias · **Tamaño:** S · **Riesgo:** bajo · **Impacto:** 3/5
@@ -404,6 +427,16 @@ la portada fría de quien tiene 3 inscripciones, siempre. La ventana deslizante 
 y depende de lo desiguales que sean las consultas.
 
 **Ficheros:** `inc/stic-class-6.php`, `tests/CosteLlamadasTest.php`, `tests/CosteLlamadasAreaTest.php`, `docs/comunica/PASAR-LISTA-ESTADO.md`
+
+> **Estado (10/10/2026, lote L4).** **Puntos 1 y 2 HECHOS.** Las esperas se cuentan
+> `Σ ceil(tanda/4) + sueltas` en los tres tests de coste, y la tabla de §4 está al
+> día. `callMany()` es ventana deslizante, probada contra un servidor de verdad
+> (`tests/manual/check-crm-multi.php`, con `mock-crm-fork.php`: `php -S` atiende a
+> veces dos conexiones en fila y falsea los tiempos): 800/200×5 ms, ~1.010 → ~805 ms;
+> nunca más de 4 en vuelo; cuelgue, cuerpo roto, vacío y cortado sin colgar la tanda.
+> La prueba destapó un fallo de antes: una respuesta cortada cuyo trozo era JSON se
+> memorizaba como buena; ya no. **Punto 3 (concurrencia 4 → 6): sigue siendo del
+> propietario.**
 
 ## VEL-7 — Tres juegos de Inter y uno sale de un dominio provisional: la negrita del área se descarga de `steelblue-mallard-178509.hostingersite.com`, y Google Fonts sigue bloqueando el primer pintado
 
@@ -569,6 +602,23 @@ escritura: ahí no hay nada que ganar.
 
 **Ficheros:** `inc/stic-action.php`, `inc/stic-registrations.php`, `tests/RegistrationManageTest.php`
 
+> **Estado (10/10/2026, lote L4).** **Punto 1 HECHO:** el evento y tus inscripciones
+> salen en una `sticpa_pl_prime` justo antes del guard (−1 espera en toda inscripción,
+> con precio o sin él); `ViajesFamiliasTest` fija que lo primero es esa tanda y que el
+> guard sigue parando la inscripción doble (e2) y dejando volver a una cancelada (e4).
+> **Punto 2 NO hecho, a propósito:** son ESCRITURAS sobre el compromiso de pago, en
+> paralelo, y lo que puede salir mal no lo ve ningún doble: si un *logic hook* del CRM
+> en `stic_Payment_Commitments` (al añadir relación o al guardar) no aguanta cuatro
+> peticiones a la vez sobre el mismo compromiso, o si el pago generado depende de que
+> las relaciones ya estén puestas. Además, si una escritura de la tanda se pierde
+> (timeout), la pasada normal la repite en serie: `set_relationship` debería ser
+> idempotente, pero eso también hay que verlo en esta instancia. Para hacerlo: la
+> prueba del punto 3 en el CRM (domiciliación y tarjeta; tres relaciones, pago con
+> persona y en Pagos, sin compromisos dobles), y el test que pide de
+> `RegistrationManageTest` con un doble que modele recolecta y tanda (el suyo de hoy no
+> tiene `collectRequests`/`callMany`, así que con él todo sale en serie). Ganancia que
+> queda: 3 esperas (~1 s) solo en las inscripciones con pago.
+
 ## VEL-10 — No hay números de producción: la cabecera `Server-Timing` que cita el código no existe y la tabla de mediciones del plan 034 sigue vacía
 
 **Tipo:** medición · **Para:** el propietario y quien implemente · **Tamaño:** M · **Riesgo:** bajo · **Impacto:** 3/5
@@ -609,3 +659,13 @@ existen y se rellenan (`SugarRestApiCall::$callCount`, `$callMs`, `$callLog`,
 **Ahorro estimado:** ninguno por sí mismo; es lo que permite saber qué ha servido.
 
 **Ficheros:** `inc/stic-pasar-lista-diag.php` (o uno nuevo `inc/stic-perf.php`), `sinergiacrm-private-area.php`, `inc/stic-class-6.php` (el comentario)
+
+> **Estado (10/10/2026, lote L4).** **Versión mínima HECHA**, y no la del `error_log`
+> sino la cabecera: `Server-Timing: crm;dur=…;desc="CRM (N llamadas)",
+> total;dur=…;desc="Servidor (total)"` en cada página del área con sesión
+> (`inc/stic-perf.php`). Se manda pese a lo del tema porque la página se retiene en
+> un búfer abierto en `template_redirect` y la cabecera se pone al vaciarlo;
+> comprobado con `php -S`, `output_buffering=4096` y un `<head>` de 10 KB, y Chromium
+> la lee en `serverTiming`. Cómo mirarla: `PASAR-LISTA-ESTADO.md` §4. **Queda**: el
+> `sendBeacon` con lo del navegador, el anillo de visitas y la tabla de medianas
+> (puntos 1-2), y rellenar la tabla del 034 (punto 3).

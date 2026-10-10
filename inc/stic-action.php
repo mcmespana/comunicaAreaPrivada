@@ -658,6 +658,18 @@ function prefix_admin_single_stic_registrations()
         $eventId = (string) ($moduleData['stic_registrations_stic_eventsstic_events_ida'] ?? '');
         $formUrl = sticpa_return_path()
             . "?internalpage=single_stic_registrations&action=create&from=stic_events&id=" . urlencode($eventId);
+        // EN UNA TANDA (plan 042, VEL-9): el evento y tus inscripciones (el
+        // guard de abajo, que pregunta al CRM sin caché) no dependen uno de
+        // otro e iban en fila. Son los mismos cargadores de abajo, que
+        // encuentran su respuesta ya traída: una espera menos antes de
+        // guardar. El guard sigue preguntando al CRM en esta petición, no a una
+        // caché: la tanda sale justo aquí.
+        if ($eventId !== '' && function_exists('sticpa_pl_prime')) {
+            sticpa_pl_prime($objSCP, function () use ($objSCP, $eventId) {
+                $objSCP->getRecordDetail($eventId, 'stic_Events', sticpa_event_fields_to_request($objSCP));
+                prefix_user_active_event_ids($objSCP, true);
+            });
+        }
         if ($eventId !== '') {
             // El evento se lee UNA vez: lo usan la audiencia, el plazo, las
             // preguntas y el precio.
