@@ -1274,8 +1274,14 @@
         if (lsGet(STORE_HINT)) { document.body.classList.add('pl-hold-seen'); }
         // El servidor ha confirmado, releyendo el CRM, que esto está guardado:
         // ahora sí se puede tirar el borrador. Va ANTES de restoreDraft() para
-        // que no reviva las marcas que ya están en el CRM.
-        if (root.hasAttribute('data-pl-saved-ok')) { lsDel(draftKey); }
+        // que no reviva las marcas que ya están en el CRM. Y con él, lo que
+        // quedara en la cola de ESTA lista (revisión 042): es más viejo que lo
+        // que se acaba de guardar, y enviarlo después lo pisaría. Va antes de
+        // showConnectivity(), que es quien vacía la cola.
+        if (root.hasAttribute('data-pl-saved-ok')) {
+            lsDel(draftKey);
+            queueRemove({ session: sessionId, group: groupId });
+        }
         restoreDraft();
         showConnectivity();
         refresh();

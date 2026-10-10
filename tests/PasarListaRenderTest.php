@@ -2349,6 +2349,21 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringNotContainsString('misma sesión, así que no afloja', $flush);
     }
 
+    /**
+     * Un guardado confirmado se lleva de la cola la entrada de ESA lista
+     * (revisión 042): antes solo tiraba el borrador, y la entrada vieja de la
+     * misma sesión y grupo se enviaba después y pisaba lo recién guardado. Y
+     * lo hace antes de showConnectivity(), que es quien vacía la cola.
+     */
+    public function test_el_guardado_confirmado_saca_su_lista_de_la_cola()
+    {
+        $js = file_get_contents(dirname(__DIR__) . '/js/stic-pasar-lista.js');
+        $this->assertMatchesRegularExpression(
+            "/if \\(root\\.hasAttribute\\('data-pl-saved-ok'\\)\\) \\{\\s*lsDel\\(draftKey\\);\\s*queueRemove\\(\\{ session: sessionId, group: groupId \\}\\);\\s*\\}\\s*restoreDraft\\(\\);\\s*showConnectivity\\(\\);/",
+            $js
+        );
+    }
+
     /** Un nonce caducado no escribe nada, y eso también se apunta. */
     public function test_el_diario_apunta_el_nonce_caducado()
     {
