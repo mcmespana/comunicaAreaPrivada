@@ -484,11 +484,12 @@ function menu()
                    </a>";
 
     // ---- Acciones de la barra superior ----
-    // Con menú: solo la hamburguesa (en móvil). El "Salir" va como último item.
-    // Sin menú (p. ej. selección de perfil): dejamos "Salir" accesible aquí.
-    // "Salir" SIEMPRE arriba a la derecha (icono + texto en escritorio, solo icono en móvil).
-    // (El conmutador de tema claro/oscuro se retiró: el modo oscuro queda
-    // aparcado hasta rediseñarlo. De momento todo claro.)
+    // "Salir" SIEMPRE arriba a la derecha (icono + texto en escritorio, solo
+    // icono en móvil) y, con menú, la hamburguesa a su lado en el móvil: los
+    // dos a 44 px y separados (custom-style §66.a, plan 042 CAR-5).
+    // `$logoutItem` no se pinta hoy: queda para llevar "Salir" al final del
+    // menú del móvil si se decide (CAR-5, punto 2). El tema claro/oscuro se
+    // elige en el pie (sticpa_appearance_switch_html), no aquí.
     $actions = "<div class='stic-nav-actions'>";
     $actions .= "<a class='stic-iconbtn stic-logout' href='?logout=true' title='" . esc_attr__('Cerrar sesión', 'sticpa') . "' aria-label='" . esc_attr__('Cerrar sesión', 'sticpa') . "'>"
         . ($iconFn ? sticpa_icon('logout') : '') . "<span class='stic-logout-text'>" . __('Salir', 'sticpa') . "</span></a>";

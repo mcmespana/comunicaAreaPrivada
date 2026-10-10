@@ -7307,3 +7307,28 @@ html[data-stic-theme] {
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
 }
+
+
+/* ============================================================
+   66. CARCASA — la barra y el toque (plan 042, 10/10/2026)
+   ------------------------------------------------------------
+   Lo de la auditoría de la carcasa
+   (plans/042-pulido-integral/auditoria-carcasa.md) que no
+   cambiaba una regla existente. Cada subsección, su hallazgo.
+   ============================================================ */
+
+/* --- 66.a «Salir» y «Menú», a 44 px y separados (CAR-5) ---
+   En el móvil iban dos cuadrados translúcidos pegados arriba a la
+   derecha: «Salir» de 36×36 y la hamburguesa de 38×32, a 6 px uno
+   del otro. La hamburguesa es lo que más se toca del móvil y no
+   llegaba a los 44 px (design.md §2), y un toque que se desviaba
+   7 px cerraba la sesión. Entre 640 y 767 la hamburguesa medía
+   además 140 px de ancho, por la regla global de stic-base. */
+@media (max-width: 767px) {
+    .stic-nav-actions { gap: 0.75rem; }
+    .stic-nav-actions :is(.stic-iconbtn, .stic-nav-toggle) {
+        justify-content: center;
+        min-width: 44px;
+        min-height: 44px;
+    }
+}

@@ -55,4 +55,30 @@ class CarcasaTest extends TestCase
         $this->assertStringContainsString('paddingRight', $layout);
         $this->assertDoesNotMatchRegularExpression('/var available = list\.clientWidth;/', $layout);
     }
+
+    /**
+     * CAR-5. En el móvil, «Salir» y la hamburguesa a 44 px y separados: iban
+     * de 36×36 y 38×32 a 6 px uno del otro, y un toque desviado cerraba la
+     * sesión. Va dentro del breakpoint de la navegación colapsada.
+     */
+    public function test_salir_y_menu_miden_44_y_no_van_pegados()
+    {
+        $css = preg_replace('#/\*.*?\*/#s', '', $this->css('custom-style.css'));
+        $ini = strpos($css, '.stic-nav-actions { gap: 0.75rem; }');
+        $this->assertNotFalse($ini, 'Falta el hueco de 0,75 rem entre «Salir» y «Menú».');
+        $media = substr($css, strrpos(substr($css, 0, $ini), '@media'), 400);
+        $this->assertStringStartsWith('@media (max-width: 767px)', $media);
+        $this->assertMatchesRegularExpression(
+            '/\.stic-nav-actions :is\(\.stic-iconbtn, \.stic-nav-toggle\) \{[^}]*min-width: 44px;[^}]*min-height: 44px;/',
+            $media
+        );
+    }
+
+    /** CAR-5, punto 3: el comentario de «de momento todo claro» era falso. */
+    public function test_el_menu_no_dice_que_el_modo_oscuro_esta_aparcado()
+    {
+        $menu = file_get_contents(dirname(__DIR__) . '/menu.php');
+        $this->assertStringNotContainsString('De momento todo claro', $menu);
+        $this->assertStringNotContainsString('El "Salir" va como último item', $menu);
+    }
 }
