@@ -1587,8 +1587,31 @@ final class PasarListaRenderTest extends TestCase
         // c1 viene «vino» del CRM y c2 sin marcar.
         $this->assertMatchesRegularExpression('/data-contact="c1".*?<span class="sr-only" data-pl-sr-state>, Vino<\/span>/s', $html);
         $this->assertMatchesRegularExpression('/data-contact="c2".*?<span class="sr-only" data-pl-sr-state>, Sin marcar<\/span>/s', $html);
-        $this->assertStringContainsString('<div class="pl-counts" aria-live="polite">', $html);
+        $this->assertStringContainsString('<div class="pl-counts" aria-live="polite" aria-atomic="true">', $html);
         $this->assertStringContainsString('class="pl-status" data-pl-status role="status"', $html);
+    }
+
+    /**
+     * «Han venido todos» marca en cascada, y cada fila tocaba la región viva
+     * de los recuentos: el lector encolaba un recuento por chaval (revisión
+     * 042). La región se lee entera (aria-atomic) y va ocupada mientras dura
+     * la cascada, en las tres pantallas que la tienen.
+     */
+    public function test_los_recuentos_se_leen_una_vez_tras_la_cascada()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $html = $this->render('single_stic_pasar_lista_monitores');
+        $this->assertStringContainsString('<div class="pl-counts" aria-live="polite" aria-atomic="true">', $html);
+        $evento = file_get_contents(dirname(__DIR__) . '/pages/single_stic_pasar_lista_evento.php');
+        $this->assertStringContainsString('<div class="pl-counts" aria-live="polite" aria-atomic="true">', $evento);
+
+        $js = file_get_contents(dirname(__DIR__) . '/js/stic-pasar-lista.js');
+        $ini = strpos($js, 'allBtn.addEventListener(');
+        $this->assertNotFalse($ini);
+        $all = substr($js, $ini, strpos($js, 'haptic(10);', $ini) - $ini);
+        $this->assertStringContainsString("live.setAttribute('aria-busy', 'true');", $all);
+        $this->assertStringContainsString("if (i === empty.length - 1 && live) { live.removeAttribute('aria-busy'); }", $all);
+        $this->assertStringContainsString("if (REDUCED && live) { live.removeAttribute('aria-busy'); }", $all);
     }
 
     public function test_marcar_incluye_leyenda_gesto_largo_y_hoja()

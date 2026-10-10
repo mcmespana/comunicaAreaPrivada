@@ -859,13 +859,22 @@
                 // con su motivo y las parciales, sin deshacer.
                 var empty = rows.filter(function (row) { return getState(row) === '' && isVisible(row); });
                 if (!empty.length) { return; }
+                // Los recuentos son región viva: sin esto, la cascada le
+                // encolaba al lector de pantalla un recuento por fila. Ocupada
+                // mientras dura, se lee una vez, el final (revisión 042).
+                var live = root.querySelector('.pl-counts');
+                if (live) { live.setAttribute('aria-busy', 'true'); }
                 empty.forEach(function (row, i) {
                     if (REDUCED) {
                         setState(row, 'yes', i > 0);
                         return;
                     }
-                    setTimeout(function () { setState(row, 'yes', i > 0); }, i * 20);
+                    setTimeout(function () {
+                        setState(row, 'yes', i > 0);
+                        if (i === empty.length - 1 && live) { live.removeAttribute('aria-busy'); }
+                    }, i * 20);
                 });
+                if (REDUCED && live) { live.removeAttribute('aria-busy'); }
                 haptic(10);
             });
         }
