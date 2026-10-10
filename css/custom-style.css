@@ -1602,10 +1602,9 @@ span.stic-field {
     .stic-login-form::before,
     .stic-forgotpas-form::before,
     .stic-auth-logo { animation: none !important; }
-    *, *::before, *::after {
-        animation-duration: 0.01ms !important;
-        transition-duration: 0.01ms !important;
-    }
+    /* El `*` que cortaba animaciones y transiciones vive en stic-base.css
+       («ACCESSIBILITY»), acotado al área: aquí lo repetía sin acotar y
+       alcanzaba al tema de WordPress (plan 042, A11Y-3). */
     /* El spinner de carga es información (algo está en marcha), no decoración:
        congelado parecía que la página se había colgado. Gira más lento. */
     .stic-spinner {

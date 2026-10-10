@@ -531,4 +531,65 @@ class TokensCssTest extends TestCase
         $this->assertSame(array(), $sueltos,
             "Un :hover sin @media (hover: hover) se queda pegado al tocar en el móvil:\n" . implode("\n", $sueltos));
     }
+
+    /**
+     * Plan 042, A11Y-3 (design.md §8): ningún selector de elemento sin acotar.
+     * Las hojas del área se cargan en la misma página que la cabecera y el pie
+     * del tema de WordPress: un `a {…}` suelto los pintaba en azul Comunica,
+     * un `button {min-width: 140px}` estiraba sus botones de icono, un `td`
+     * cambiaba sus tablas. Todo va colgado del área (`.stic-container`,
+     * `.stic-auth-shell`…); en stic-base.css con `:where()`, que no suma
+     * especificidad. Se mira cada selector de la lista: si no lleva ni una
+     * clase ni un id, alcanza a toda la página.
+     */
+    public function test_ningun_selector_alcanza_a_toda_la_pagina()
+    {
+        $globales = array();
+        foreach ($this->stylesheets() as $file) {
+            $css = preg_replace_callback('#/\*.*?\*/#s', function ($m) {
+                return preg_replace('/[^\n]/', ' ', $m[0]);
+            }, file_get_contents($file));
+            $pila = array();
+            $desde = 0;
+            $n = strlen($css);
+            for ($i = 0; $i < $n; $i++) {
+                $c = $css[$i];
+                if ($c === '}') {
+                    array_pop($pila);
+                    $desde = $i + 1;
+                    continue;
+                }
+                if ($c === ';') {
+                    $desde = $i + 1;
+                    continue;
+                }
+                if ($c !== '{') {
+                    continue;
+                }
+                $prelude = trim(substr($css, $desde, $i - $desde));
+                $pila[] = $prelude;
+                $desde = $i + 1;
+                if ($prelude === '' || $prelude[0] === '@') {
+                    continue;
+                }
+                foreach ($pila as $at) {
+                    if (strpos($at, '@keyframes') === 0 || strpos($at, '@font-face') === 0) {
+                        continue 2;
+                    }
+                }
+                // Partes de la lista de selectores, sin romper los paréntesis.
+                foreach (preg_split('/,(?![^()]*\))/', $prelude) as $parte) {
+                    $parte = trim($parte);
+                    if (preg_match('/[.#]/', $parte) || preg_match('/^(:root|html|body)\b/', $parte)) {
+                        continue;
+                    }
+                    $linea = substr_count(substr($css, 0, $i), "\n") + 1;
+                    $globales[] = basename($file) . ":{$linea} " . preg_replace('/\s+/', ' ', $parte);
+                }
+            }
+        }
+        $this->assertSame(array(), $globales,
+            "Un selector sin clase ni id alcanza también al tema de WordPress. Cuélgalo del área:\n"
+            . implode("\n", $globales));
+    }
 }

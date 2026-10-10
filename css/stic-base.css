@@ -423,7 +423,9 @@ li.required label::after {
 /* ============================================================
    FLEX FORMS
    ============================================================ */
-form[flex] ul {
+/* `form[flex]` es nuestro (inc/stic-formController.php), pero sin acotar es
+   un selector de elemento: va colgado del área como todo (ver «LINKS»). */
+:where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) form[flex] ul {
     display: flex;
     flex-direction: column;
     flex-wrap: wrap;
@@ -435,7 +437,7 @@ form[flex] ul {
     max-width: 100%;
 }
 
-form[flex] ul li {
+:where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) form[flex] ul li {
     max-width: 100%;
 }
 
@@ -614,9 +616,12 @@ ul.stic-button-list {
 /* ============================================================
    DISABLED INPUTS (Transparent Background)
    ============================================================ */
-input[disabled=disabled],
-textarea[disabled=disabled],
-select[disabled=disabled] {
+/* Acotado al área: un selector suelto alcanzaba los campos del tema de
+   WordPress. `:where()` no suma especificidad, así que dentro del área la
+   regla pesa lo mismo que antes (plan 042, A11Y-3; ver «LINKS»). */
+:where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) input[disabled=disabled],
+:where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) textarea[disabled=disabled],
+:where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) select[disabled=disabled] {
     background-color: var(--gray-50, #f9fafb);
     color: var(--gray-700, #374151) !important;
 }
@@ -654,11 +659,11 @@ select[disabled=disabled] {
         margin-right: 0;
     }
     
-    form[flex] ul {
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) form[flex] ul {
         flex-direction: row;
     }
     
-    form[flex] ul li {
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) form[flex] ul li {
         max-width: calc(50% - var(--space-2, 0.5rem));
     }
     
@@ -1686,14 +1691,24 @@ table.dataTable thead .sorting_desc {
 /* ============================================================
    LINKS
    ============================================================ */
-a {
+/* Los selectores de elemento (`a`, `button`, `td`, `:focus-visible`, el `*`
+   del movimiento reducido…) van colgados del área: esta hoja se carga en la
+   misma página que la cabecera y el pie del tema, y un `a {…}` suelto los
+   pintaba en azul Comunica, sin subrayado y con el foco magenta; un
+   `button {min-width: 140px}` estiraba sus botones de icono (design.md §8).
+   El área es lo que cuelga de estos cinco: el contenedor, el acceso, los
+   modales y la capa de carga (que JS cuelga de <body>) y la ayuda de los
+   campos (que stic-ui.js saca a <body>). Con `:where()` el prefijo no suma
+   especificidad: dentro del área todo pesa y gana igual que antes.
+   (plan 042, A11Y-3) */
+:where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) a {
     color: var(--primary-color);
     text-decoration: none;
     transition: color var(--transition-fast);
 }
 
 @media (hover: hover) {
-    a:hover {
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) a:hover {
         color: var(--secondary-color);
     }
 }
@@ -1707,7 +1722,7 @@ a {
    lo devuelven en custom-style.css §67 y pasar-lista.css «042 · A11Y».
    (plan 042, A11Y-2) */
 @media (hover: none) {
-    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay) a:is(:hover, :focus) {
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) a:is(:hover, :focus) {
         color: var(--primary-color);
     }
 }
@@ -1827,12 +1842,12 @@ a {
         display: none;
     }
     
-    /* Botones en línea */
-    button,
-    input[type="submit"],
-    input[type="button"],
-    a.button,
-    .btn,
+    /* Botones en línea (acotados al área: ver «LINKS») */
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) button,
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) input[type="submit"],
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) input[type="button"],
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) a.button,
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) .btn,
     .stic-button {
         width: auto;
         min-width: 140px;
@@ -1910,12 +1925,12 @@ a {
         padding: var(--space-4) var(--space-6) !important;
     }
     
-    /* Tables más amplias */
-    thead th {
+    /* Tables más amplias (acotadas al área: ver «LINKS») */
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) thead th {
         padding: var(--space-4) var(--space-5);
     }
     
-    td {
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) td {
         padding: var(--space-4) var(--space-5);
     }
     
@@ -1955,9 +1970,9 @@ a {
 @media print {
     .stic-primary-menu,
     .stic-userinfo,
-    button,
-    input[type="submit"],
-    .btn,
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) button,
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) input[type="submit"],
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) .btn,
     .no-print,
     .dataTables_filter,
     .dataTables_paginate {
@@ -1975,7 +1990,7 @@ a {
         padding: 0;
     }
     
-    table {
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) table {
         box-shadow: none;
     }
 }
@@ -1983,18 +1998,24 @@ a {
 /* ============================================================
    ACCESSIBILITY
    ============================================================ */
+/* El área entera, con sus contenedores y sus pseudoelementos. Es la ÚNICA
+   regla `*` del movimiento reducido: custom-style.css repetía la misma sin
+   acotar (plan 042, A11Y-3). */
 @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip),
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) *,
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip)::before,
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip)::after,
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) *::before,
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) *::after {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
     }
 }
 
-/* Focus visible para accesibilidad */
-:focus-visible {
+/* Focus visible para accesibilidad (acotado al área: ver «LINKS») */
+:where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) :focus-visible {
     outline: 2px solid var(--secondary-color);
     outline-offset: 2px;
 }
