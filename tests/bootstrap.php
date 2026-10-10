@@ -130,9 +130,13 @@ if (!function_exists('getDestinationModule')) {
         return get_option('sticpa_scp_module');
     }
 }
-if (!function_exists('is_singular')) { function is_singular($t = '') { return false; } }
-if (!function_exists('get_post'))    { function get_post($p = null) { return null; } }
-if (!function_exists('has_shortcode')) { function has_shortcode($c, $tag) { return false; } }
+// Fuera de una página del área, como siempre. Un test que necesita estar
+// DENTRO (lo que imprime `wp_head` en el área, p. ej.) pone
+// `$GLOBALS['__stic_area_page'] = true` y lo quita al acabar.
+if (!class_exists('WP_Post')) { class WP_Post { public $post_content = '[sinergiacrm-private-area]'; } }
+if (!function_exists('is_singular')) { function is_singular($t = '') { return !empty($GLOBALS['__stic_area_page']); } }
+if (!function_exists('get_post'))    { function get_post($p = null) { return !empty($GLOBALS['__stic_area_page']) ? new WP_Post() : null; } }
+if (!function_exists('has_shortcode')) { function has_shortcode($c, $tag) { return strpos((string) $c, '[' . $tag) !== false; } }
 if (!function_exists('wp_json_encode')) { function wp_json_encode($d, $f = 0, $depth = 512) { return json_encode($d, $f, $depth); } }
 if (!function_exists('get_locale')) { function get_locale() { return 'es_ES'; } }
 if (!function_exists('stripslashes_deep')) {

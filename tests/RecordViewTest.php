@@ -252,15 +252,26 @@ class RecordViewTest extends TestCase
     /**
      * Ningún `:hover` suelto. En táctil el navegador lo simula al tocar y se
      * queda PEGADO: el feedback real es `:active`.
+     *
+     * Desde el plan 042 (A11Y-2) vale también dentro de `@media (hover: none)`:
+     * ahí el :hover no es un efecto, es lo contrario —devolver el reposo en
+     * táctil a lo que el tema pinta en `a:hover`—. Los comentarios no cuentan.
+     * TokensCssTest::test_ningun_hover_fuera_de_su_media_query lo mira en las
+     * tres hojas enteras.
      */
     public function testNingunHoverSinSuMediaQuery()
     {
-        $css = $this->css();
-        $seccion56 = substr($css, strpos($css, '56. FICHA DE REGISTRO'));
+        $crudo = $this->css();
+        // Los comentarios, en blanco pero con la misma longitud: las
+        // posiciones del crudo siguen valiendo.
+        $css = preg_replace_callback('#/\*.*?\*/#s', function ($m) {
+            return preg_replace('/[^\n]/', ' ', $m[0]);
+        }, $crudo);
+        $seccion56 = substr($css, strpos($crudo, '56. FICHA DE REGISTRO'));
         $sueltos = 0;
         // Se cuentan los `:hover` que NO estén dentro de un bloque
-        // `@media (hover: hover)`.
-        foreach (preg_split('/@media \(hover: hover\) \{/', $seccion56) as $i => $trozo) {
+        // `@media (hover: hover)` o `@media (hover: none)`.
+        foreach (preg_split('/@media \(hover: (?:hover|none)\) \{/', $seccion56) as $i => $trozo) {
             if ($i > 0) {
                 // Dentro del media query: se salta hasta su llave de cierre.
                 $trozo = substr($trozo, strpos($trozo, "\n}") !== false ? strpos($trozo, "\n}") : 0);

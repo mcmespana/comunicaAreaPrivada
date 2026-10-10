@@ -3341,6 +3341,28 @@ final class PasarListaRenderTest extends TestCase
         $_REQUEST = array();
     }
 
+    /**
+     * Y LAS FICHAS DE LAS DEMÁS SECCIONES (plan 042, CAR-3): la ficha de un
+     * evento, de una inscripción o de un pago marca la sección de su listado;
+     * lo que no es una ficha conocida se queda como está.
+     */
+    public function test_el_menu_marca_la_seccion_de_cada_ficha()
+    {
+        require_once __DIR__ . '/../menu.php';
+        $_REQUEST = array();
+        $this->assertSame('list_stic_events', sticpa_menu_section_for('single_stic_events'));
+        $this->assertSame('list_stic_registrations', sticpa_menu_section_for('single_stic_registrations'));
+        foreach (array('single_stic_payments', 'single_stic_payment_form', 'single_stic_payment_error', 'single_stic_payment_commitments', 'list_stic_payment_commitments') as $pago) {
+            $this->assertSame('list_stic_payments', sticpa_menu_section_for($pago), $pago);
+        }
+        $this->assertSame('list_stic_documents', sticpa_menu_section_for('single_stic_documents'));
+        $this->assertSame('single_stic_activities_calendar', sticpa_menu_section_for('single_stic_sessions'));
+        // Las secciones mismas y lo desconocido no se tocan.
+        $this->assertSame('list_stic_events', sticpa_menu_section_for('list_stic_events'));
+        $this->assertSame('single_stic_mis_grupos', sticpa_menu_section_for('single_stic_mis_grupos'));
+        $this->assertSame('single_stic_comunica_perfil', sticpa_menu_section_for('single_stic_comunica_perfil'));
+    }
+
     /** «Hora» y «Horas» se confundían; la duración, de un desplegable (COO-9). */
     public function test_nueva_reunion_dice_empieza_y_dura()
     {
@@ -6442,5 +6464,79 @@ final class PasarListaRenderTest extends TestCase
         $html = $this->render('single_stic_mis_grupos');
 
         $this->assertStringNotContainsString('pl-hint--warn', $html);
+    }
+
+    // ---- COO-5: el escritorio de coordinación ------------------------------
+
+    /**
+     * EL RESUMEN, UNA COLUMNA POR ETAPA EN ESCRITORIO (plan 042, COO-5). La
+     * rejilla la pone el CSS a partir de 1024 px; lo que fija el HTML es que
+     * cada etapa vaya en su envoltorio con su título JUSTO antes de su lista
+     * (el buscador esconde los dos juntos) y en el orden MIC, COM, LC.
+     */
+    public function test_el_resumen_envuelve_cada_etapa_en_su_columna()
+    {
+        $this->scp->coordEtapa = '';
+        $html = $this->render('single_stic_pasar_lista_resumen');
+
+        $this->assertSame(1, substr_count($html, '<div class="pl-etapas">'));
+        preg_match_all(
+            '#<section class="pl-etapa-col"><div class="pl-etapa-title"><span class="pl-etapa-dot"[^>]*></span>([A-Z]+)</div><div class="pl-list">#',
+            $html,
+            $m
+        );
+        $this->assertSame(array('MIC', 'COM', 'LC'), $m[1]);
+        // Todas las filas de grupo siguen dentro de una columna.
+        $this->assertSame(substr_count($html, '<div class="pl-grouprow">'), substr_count(
+            substr($html, strpos($html, '<div class="pl-etapas">')),
+            '<div class="pl-grouprow">'
+        ));
+    }
+
+    /**
+     * «TU EQUIPO», IGUAL: una columna por etapa. Y las tres puertas de arriba
+     * no se marcan como solas; para quien solo acompaña, que tiene una, sí.
+     */
+    public function test_coordinacion_reparte_el_equipo_y_las_puertas()
+    {
+        $this->scp->coordEtapa = '';
+        $html = $this->render('single_stic_coordinacion');
+
+        $this->assertStringContainsString('<div class="pl-list pl-list--nav">', $html);
+        $this->assertStringNotContainsString('pl-list--nav-solo', $html);
+        $dir = substr($html, strpos($html, '<div class="pl-etapas">'));
+        $this->assertGreaterThanOrEqual(2, substr_count($dir, '<section class="pl-etapa-col">'));
+        $this->assertSame(substr_count($html, 'class="pl-rowwrap pl-rowlink"'), substr_count($dir, 'class="pl-rowwrap pl-rowlink"'));
+
+        $this->setUp();
+        $this->scp->isAcomp = true;
+        $html = $this->render('single_stic_coordinacion');
+        $this->assertStringContainsString('<div class="pl-list pl-list--nav pl-list--nav-solo">', $html);
+    }
+
+    /**
+     * LA FICHA DEL MONITOR, DOS COLUMNAS: el papeleo a la derecha en
+     * escritorio, pero DESPUÉS en el HTML, que es el orden del móvil y del
+     * lector de pantalla (PASAR-LISTA-COORDINACION.md §4).
+     */
+    public function test_la_ficha_del_monitor_deja_el_papeleo_en_su_columna()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $layout = strpos($html, '<div class="pl-mon-layout"><div class="pl-mon-main">');
+        $aside = strpos($html, '<div class="pl-mon-aside">');
+        $this->assertNotFalse($layout);
+        $this->assertNotFalse($aside);
+        $main = substr($html, $layout, $aside - $layout);
+        $papeleo = substr($html, $aside);
+        foreach (array('pl-ident-name', 'Cómo va este curso', 'Sus grupos') as $aqui) {
+            $this->assertStringContainsString($aqui, $main);
+        }
+        foreach (array('En regla', 'Datos MCM', 'Formación') as $alli) {
+            $this->assertStringContainsString($alli, $papeleo);
+            $this->assertStringNotContainsString('>' . $alli . '<', $main);
+        }
     }
 }

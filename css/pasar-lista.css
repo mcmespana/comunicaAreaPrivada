@@ -353,7 +353,6 @@
     cursor: pointer;
     /* El navegador no se queda el gesto largo ni hace zoom al doble toque. */
     touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
@@ -601,7 +600,6 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     font-weight: 600 !important;
     font-family: inherit !important;
     cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
     transition: transform 120ms var(--ease-out);
 }
 .pl-skip-a {
@@ -632,7 +630,7 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
    único uso barato del desenfoque. */
 .pl-savebar {
     position: sticky;
-    bottom: 0;
+    bottom: var(--stic-app-bottom);
     margin: 1.1rem -1rem 0;
     padding: 1.4rem 1rem 1.2rem;
     background: linear-gradient(
@@ -645,28 +643,23 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     flex-direction: column;
     gap: 0.6rem;
     z-index: 5;
-    /* El indicador de inicio del iPhone en el navegador (plan 042, PL-3).
-       Vale 0 mientras el <head> no lleve `viewport-fit=cover` (auditoría de
-       la carcasa, CAR-2); cuando lo lleve, reserva sin tocar nada más. */
-    padding-bottom: calc(1.2rem + env(safe-area-inset-bottom, 0px));
-}
-/* EN MCM APP la barra quedaba DEBAJO de la tab bar flotante y de la píldora
-   de atrás/adelante mientras se marcaba (plan 042, PL-3): `sticky` se pega al
-   borde del viewport, y la app pinta la web a pantalla completa por detrás de
-   las dos (CONTRATO-APP-WEBVIEW.md §3). Medido a 390×844 con la lista de 14:
-   «Guardar» de 771 a 825, entero dentro de la tab bar (73 pt), y el aviso de
-   «Cambios sin guardar» dentro de la píldora (hasta ~168 pt). Es la misma
-   reserva que la hoja de estados, pero con `bottom` y no con `padding`: así
-   la barra no crece y la lista se sigue viendo pasar por detrás. Sin el
-   `env()`: el indicador de inicio ya cae dentro de la tab bar. */
-body.sticpa-app-mode .pl-savebar {
-    bottom: 10.5rem;
-    padding-bottom: 1.2rem;
+    /* LA ZONA SEGURA, con los dos tokens de custom-style §1 (plan 042, PL-3
+       y CAR-2). En el navegador la barra crece lo que mide el indicador de
+       inicio del iPhone. EN MCM APP quedaba DEBAJO de la tab bar flotante y
+       de la píldora de atrás/adelante mientras se marcaba: `sticky` se pega
+       al borde del viewport y la app pinta la web a pantalla completa por
+       detrás de las dos (CONTRATO-APP-WEBVIEW.md §3). Medido a 390×844 con
+       la lista de 14: «Guardar» de 771 a 825, entero dentro de la tab bar
+       (73 pt), y «Cambios sin guardar» dentro de la píldora (~168 pt). Allí
+       se sube con `bottom` y no con `padding`: así no crece y la lista se
+       sigue viendo pasar por detrás. Y sin el `env()`, que el token ya vale
+       0 en la app: el indicador de inicio cae dentro de la tab bar. */
+    padding-bottom: calc(1.2rem + var(--stic-safe-bottom));
 }
 /* Y el mismo hueco DEBAJO del formulario: sin él, al llegar al final del
    scroll la barra seguiría subida 10,5 rem y taparía la última fila y la
    leyenda, que ya no tendrían adónde subir. */
-body.sticpa-app-mode [data-pl-form] { padding-bottom: 10.5rem; }
+body.sticpa-app-mode [data-pl-form] { padding-bottom: var(--stic-app-bottom); }
 
 .pl-counts {
     display: flex;
@@ -730,7 +723,7 @@ body.sticpa-app-mode [data-pl-form] { padding-bottom: 10.5rem; }
     border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
     background: var(--surface);
     box-shadow: 0 -20px 44px rgba(21, 36, 71, 0.18);
-    padding: 0.75rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom));
+    padding: 0.75rem 1.25rem calc(1.5rem + var(--stic-safe-bottom));
     transform: translate3d(0, 101%, 0);
     z-index: 61;
     max-height: 88vh;
@@ -748,8 +741,9 @@ body.sticpa-app-mode [data-pl-form] { padding-bottom: 10.5rem; }
    «Quitar la marca» (27/09/2026). Medido en un iPhone: la píldora empieza a
    ~168 pt del borde de abajo, así que se reserva eso y un poco; la hoja hace
    scroll si no cabe. Solo en la app: en el navegador no hay nada que esquivar.
-   Es la misma hoja en chavales y monitores. */
-body.sticpa-app-mode .pl-sheet { padding-bottom: 11.5rem; }
+   Es la misma hoja en chavales y monitores. Con el token de custom-style §1
+   (CAR-2), que en la app vale esos 10,5 rem: 11,5 en total, como siempre. */
+body.sticpa-app-mode .pl-sheet { padding-bottom: calc(var(--stic-app-bottom) + 1rem); }
 /* Mientras el dedo la lleva, se promociona a capa propia: el movimiento va en
    el compositor y no toca el hilo principal. Fuera del arrastre se quita, que
    dejar capas promocionadas de más es peor que no promocionar. */
@@ -881,7 +875,9 @@ body.sticpa-app-mode .pl-sheet { padding-bottom: 11.5rem; }
     text-decoration: none;
 }
 .pl-next-btn svg { width: 17px; height: 17px; flex-shrink: 0; color: var(--primary-color); }
-.pl-next-btn:hover { background: var(--gray-50); color: var(--gray-800); }
+@media (hover: hover) {
+    .pl-next-btn:hover { background: var(--gray-50); color: var(--gray-800); }
+}
 
 /* La salida a la ficha desde la hoja de estados. Mismo peso visual que un
    enlace de lista: no compite con los cuatro estados, que son la acción
@@ -902,7 +898,9 @@ body.sticpa-app-mode .pl-sheet { padding-bottom: 11.5rem; }
 }
 .pl-sheet-ficha svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--gray-500); }
 .pl-sheet-ficha span { flex-grow: 1; }
-.pl-sheet-ficha:hover { background: var(--gray-100); color: var(--gray-800); }
+@media (hover: hover) {
+    .pl-sheet-ficha:hover { background: var(--gray-100); color: var(--gray-800); }
+}
 .pl-sheet-ficha[hidden] { display: none; }
 
 .pl-sheet-clear {
@@ -1142,7 +1140,9 @@ body.sticpa-app-mode .pl-sheet { padding-bottom: 11.5rem; }
     height: 1px;
     background: var(--gray-100);
 }
-.pl-bucket:hover { background: var(--gray-50); }
+@media (hover: hover) {
+    .pl-bucket:hover { background: var(--gray-50); }
+}
 
 /* El nombre de la sección va en COLOR DE TEXTO, no de enlace: la fila entera
    es un enlace, así que heredaba el azul y las cinco secciones salían en azul
@@ -1207,7 +1207,9 @@ body.sticpa-app-mode .pl-sheet { padding-bottom: 11.5rem; }
     text-decoration: none;
     color: inherit;
 }
-.pl-orphans:hover { background: var(--warning-soft); }
+@media (hover: hover) {
+    .pl-orphans:hover { background: var(--warning-soft); }
+}
 .pl-orphans-icon { flex: 0 0 auto; display: inline-flex; }
 .pl-orphans-icon svg {
     width: 18px;
@@ -2268,38 +2270,6 @@ a.pl-group .pl-name { display: block; }
    aparece nunca; el punteado sobraría y confundiría. */
 [data-pl-monitores] .pl-mark { border-style: solid; }
 
-/* Certificado de delitos sexuales: se lee de un vistazo porque es lo que se
-   reclama. Verde entregado, rojo falta — sin ámbar intermedio, porque aquí no
-   hay medias tintas legales. */
-.pl-ds {
-    display: flex;
-    align-items: center;
-    gap: 0.8rem;
-    padding: 0.9rem 1rem;
-    border-radius: var(--radius-lg);
-    background: var(--surface);
-    box-shadow: var(--shadow-xs);
-}
-.pl-ds-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 34px;
-    height: 34px;
-    border-radius: var(--radius-full);
-    flex-shrink: 0;
-}
-.pl-ds-icon svg { width: 17px; height: 17px; stroke: var(--pl-on-brand); fill: none; }
-.pl-ds-body { display: flex; flex-direction: column; gap: 0.1rem; }
-.pl-ds-label { font-size: 0.98rem; font-weight: 800; }
-.pl-ds-sub { font-size: 0.78rem; color: var(--gray-500); }
-
-.pl-ds--ok .pl-ds-icon { background: var(--success-color); }
-.pl-ds--ok .pl-ds-label { color: var(--success-dark); }
-.pl-ds--missing { background: var(--danger-soft); box-shadow: inset 0 0 0 1px var(--danger-border); }
-.pl-ds--missing .pl-ds-icon { background: var(--danger-color); }
-.pl-ds--missing .pl-ds-label { color: var(--danger-dark); }
-
 .pl-flag--warn { background: var(--warning-100); color: var(--warning-dark); }
 
 /* ---- Nueva reunión: tres campos y un botón ----------------------------- */
@@ -2558,10 +2528,6 @@ a.pl-group .pl-name { display: block; }
     box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--gray-400);
 }
 
-/* Compatibilidad: el respiro mudo de la versión anterior. Ya no se pinta, pero
-   la regla se queda por si alguna caché sirve HTML viejo. */
-.pl-sq-gap { width: 7px; flex-shrink: 0; }
-
 .pl-sq--yes             { background: var(--success-color); }
 .pl-sq--partial         { background: var(--pl-partial); }
 .pl-sq--no_justified    { background: var(--warning-color); }
@@ -2806,22 +2772,7 @@ a.pl-group .pl-name { display: block; }
 .pl-hist-g { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.25rem; }
 .pl-hist-code { font-size: 0.92rem; font-weight: 700; }
 .pl-hist-name { font-size: 0.8rem; color: var(--gray-500); }
-.pl-hist-rol {
-    display: inline-flex;
-    padding: 0.06rem 0.4rem;
-    border-radius: var(--radius-full);
-    background: var(--secondary-50);
-    color: var(--secondary-color);
-    font-size: 0.6rem;
-    font-weight: 800;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-}
 .pl-hist-with { font-size: 0.76rem; color: var(--gray-500); line-height: 1.4; }
-
-/* Una fila de contacto que ES un enlace (el correo): sin los dos botones, pero
-   con la misma altura y el mismo sitio que las de teléfono. */
-.pl-phone--link { color: inherit; text-decoration: none; }
 
 /* «Sin datos» ocupa el sitio del número grande, pero no grita como él: es la
    ausencia de un dato, no un dato malo. */
@@ -2829,23 +2780,21 @@ a.pl-group .pl-name { display: block; }
 
 /* ---- Los remates de móvil de los bloques nuevos ------------------------- */
 
-/* Todo lo que se toca: sin el destello azul de la WebView, sin selección de
+/* Todo lo que se toca: sin el destello de la WebView (lo quita para toda el
+   área custom-style §66.b, plan 042 CAR-7), sin selección de
    texto al mantener el dedo, y con una respuesta INMEDIATA al pulsar. Dentro de
    la app, el overlay de «Cargando…» tarda un instante en aparecer; ese instante
    es justo el que decide si el usuario cree que ha pasado algo. */
 .pl-grp--link,
-.pl-phone--link,
 .pl-fold-sum {
-    -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
 }
 .pl-fold-sum { -webkit-user-select: none; user-select: none; }
 .pl-grp--link:active,
-.pl-phone--link:active,
 .pl-fold-sum:active { background: var(--gray-50); }
 
 /* 44 px de alto mínimo en lo que se toca, que es la medida de un dedo. */
-.pl-grp--link, .pl-phone--link { min-height: 54px; }
+.pl-grp--link { min-height: 54px; }
 
 /* NADA se sale a lo ancho. Un correo largo, el nombre de un grupo o una
    población compuesta partían la línea fuera de la pantalla y aparecía la barra
@@ -2862,7 +2811,6 @@ a.pl-group .pl-name { display: block; }
 /* El foco visible del teclado en los bloques nuevos: mismo anillo que el resto
    de la aplicación, y solo cuando se navega con teclado. */
 .pl-grp--link:focus-visible,
-.pl-phone--link:focus-visible,
 .pl-fold-sum:focus-visible {
     outline: 2px solid var(--primary-color);
     outline-offset: -2px;
@@ -3020,7 +2968,6 @@ a.pl-group .pl-name { display: block; }
     padding: 0.55rem 0.35rem 0.55rem 0.9rem;
     color: var(--gray-800);
     text-decoration: none;
-    -webkit-tap-highlight-color: transparent;
 }
 .pl-contactrow-main > svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--gray-400); }
 .pl-contactrow-body { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
@@ -3065,7 +3012,6 @@ a.pl-group .pl-name { display: block; }
     background: var(--primary-50);
     color: var(--primary-color);
     cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
     transition: background-color 140ms ease, color 140ms ease;
 }
 .pl-copy svg { width: 18px; height: 18px; }
@@ -3111,7 +3057,6 @@ a.pl-group .pl-name { display: block; }
     font-size: 0.82rem;
     font-weight: 700;
     text-decoration: none;
-    -webkit-tap-highlight-color: transparent;
 }
 .pl-ghost:active { opacity: 0.72; }
 
@@ -3201,13 +3146,17 @@ a.pl-group .pl-name { display: block; }
     white-space: nowrap;
     transition: background 160ms var(--ease-out), color 160ms var(--ease-out);
 }
-.pl-tab:hover { color: var(--gray-700); }
+@media (hover: hover) {
+    .pl-tab:hover { color: var(--gray-700); }
+}
 /* El color va con `.stic-container` y !important porque el tema de WordPress
    pinta los enlaces de azul y ganaba: las pestañas no elegidas salían como
    enlaces sueltos. */
 .stic-container .pl-tab,
 .stic-container .pl-tab:visited { color: var(--gray-600) !important; }
-.stic-container .pl-tab:hover { color: var(--gray-800) !important; }
+@media (hover: hover) {
+    .stic-container .pl-tab:hover { color: var(--gray-800) !important; }
+}
 /* LA ELEGIDA SE TIENE QUE ENTENDER A LA PRIMERA: el degradado de la marca y
    texto blanco, en claro y en oscuro. Antes era una pastilla apenas más clara
    que la tira (y en oscuro, en «Chavales / Monitores», texto oscuro sobre
@@ -3218,11 +3167,6 @@ a.pl-group .pl-name { display: block; }
     color: #fff !important;
     box-shadow: 0 3px 10px color-mix(in srgb, var(--primary-color) 28%, transparent);
 }
-/* La segunda barra (chavales / monitores) es la misma pieza, un poco más
-   baja: son botones igual que los de arriba, y se leen como tales. */
-.pl-tabs--quien { margin-top: -0.25rem; }
-.pl-tabs--quien .pl-tab { padding: 0.4rem 0.85rem; font-size: 0.82rem; }
-
 /* En oscuro la tira baja un tono para que las pestañas se lean encima. */
 :root[data-stic-scheme="dark"] .pl-tabs,
 .stic-container[data-stic-scheme="dark"] .pl-tabs { background: var(--gray-50); }
@@ -3243,7 +3187,9 @@ a.pl-group .pl-name { display: block; }
     text-decoration: none !important;
     color: inherit;
 }
-.pl-rowlink:hover { background: var(--gray-50); }
+@media (hover: hover) {
+    .pl-rowlink:hover { background: var(--gray-50); }
+}
 .pl-rowlink:active { background: var(--gray-100); }
 .pl-rowlink .pl-name { color: var(--gray-800); }
 
@@ -3478,7 +3424,7 @@ a.pl-group .pl-name { display: block; }
    ficha parecía una sola hoja. Gris claro, el mismo token que las tarjetas y
    los campos del resto del área. En oscuro ya se separan por el tono. */
 :root:not([data-stic-scheme="dark"]) :is(
-    .pl-list, .pl-buckets, .pl-att, .pl-card, .pl-ds,
+    .pl-list, .pl-buckets, .pl-att, .pl-card,
     .pl-newmeet, .pl-tracks, .pl-fold
 ) {
     border: 1px solid var(--gray-200);
@@ -3561,7 +3507,6 @@ a.pl-group .pl-name { display: block; }
         left: 0;
         right: 0;
         border-radius: var(--radius-md);
-        -webkit-tap-highlight-color: transparent;
     }
     .pl-strip-link:active { background: color-mix(in srgb, var(--gray-500) 10%, transparent); }
 }
@@ -3587,7 +3532,6 @@ a.pl-group .pl-name { display: block; }
    botón cubre la tarjeta (no hay otros pulsables dentro, así que no pisa
    nada) y el pulsado encoge la tarjeta entera. */
 .pl-hero { position: relative; transition: transform 120ms var(--ease-out); }
-.pl-hero-cta { -webkit-tap-highlight-color: transparent; }
 .pl-hero-cta::after {
     content: '';
     position: absolute;
@@ -3655,7 +3599,6 @@ a.pl-group .pl-name { display: block; }
     font-size: 0.85rem;
     font-weight: 800;
     text-decoration: none !important;
-    -webkit-tap-highlight-color: transparent;
     transition: transform 0.12s var(--ease-out), background-color 0.12s var(--ease-out);
 }
 .pl-lasthero-chip:active { transform: scale(0.97); }
@@ -3688,7 +3631,6 @@ a.pl-group .pl-name { display: block; }
 .pl-who-link {
     color: var(--primary-color) !important;   /* el tema subraya y repinta los enlaces de .entry-content */
     text-decoration: none !important;
-    -webkit-tap-highlight-color: transparent;
 }
 .pl-who-link:active { transform: scale(0.97); }
 @media (hover: hover) {
@@ -3727,7 +3669,6 @@ a.pl-group .pl-name { display: block; }
     color: var(--white) !important;
     font-size: 0.83rem !important;
     font-weight: 700 !important;
-    -webkit-tap-highlight-color: transparent;
     transition: transform 0.12s var(--ease-out);
 }
 .pl-review-btn:active { transform: scale(0.97); }
@@ -3737,4 +3678,130 @@ a.pl-group .pl-name { display: block; }
 .stic-container select.pl-review-select { height: 48px; padding: 0 0.6rem; }
 @media (prefers-reduced-motion: reduce) {
     .pl-review-btn { transition: none; }
+}
+
+/* ---- COO-5: el escritorio de coordinación ---------------------------------
+   Coordinación es quien más trabaja en escritorio, y estas pantallas eran una
+   columna de lado a lado: en el Resumen la pastilla «Falta» quedaba a 1.150 px
+   de la tira de su grupo, y las flechas de Coordinación a 1.223 px de su texto.
+   A partir de 1024 px (design.md §5: «layouts con columna lateral») se reparte
+   el ancho; por debajo no cambia nada, y el orden del HTML tampoco. */
+.pl-etapa-col,
+.pl-mon-main,
+.pl-mon-aside { min-width: 0; }
+
+@media (min-width: 1024px) {
+    /* EL RESUMEN Y «TU EQUIPO»: una columna por etapa, MIC · COM · LC, justo
+       debajo de sus tres tarjetas. `auto-fit`: con dos etapas, dos columnas. */
+    .pl-etapas {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+        column-gap: 1rem;
+        align-items: start;
+    }
+    /* UNA ETAPA SOLA —quien coordina una etapa, que es lo corriente— no tiene
+       con quién repartir el ancho: son sus FILAS las que se reparten, cada una
+       en su tarjeta (design.md §6.1), con el mismo hueco que las tarjetas de
+       etapa de arriba. La lista deja de ser tarjeta para no meter una dentro de
+       otra. Va con `border: 0` porque el borde de las tarjetas en claro (§ de
+       arriba) también la alcanza. */
+    .pl-etapa-col:only-child > .pl-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+        gap: 0.6rem;
+        border: 0;
+        border-radius: 0;
+        background: none;
+        box-shadow: none;
+        overflow: visible;
+    }
+    .pl-etapa-col:only-child > .pl-list > :is(.pl-grouprow, .pl-rowwrap) {
+        border-top: 0;
+        border-radius: var(--radius-lg);
+        background: var(--surface);
+        box-shadow: var(--shadow-xs);
+    }
+    :root:not([data-stic-scheme="dark"]) .pl-etapa-col:only-child > .pl-list > :is(.pl-grouprow, .pl-rowwrap) {
+        border: 1px solid var(--gray-200);
+    }
+
+    /* COORDINACIÓN: las tres puertas en una fila de tres, dentro de la misma
+       tarjeta y separadas por un filete vertical en vez del horizontal. Quien
+       solo acompaña tiene una: media barra, para que su resumen («Sat 15 Nov ·
+       1 de 4 listas · faltan M1, C2, Ruah») quepa en una línea sin que la
+       flecha se vaya al otro lado. */
+    .pl-list--nav {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .pl-list--nav > .pl-group { border-top: 0; }
+    .pl-list--nav > .pl-group + .pl-group { border-left: 1px solid var(--gray-100); }
+    .pl-list--nav-solo {
+        display: block;
+        width: calc((100% - 1rem) / 2);
+    }
+
+    /* LA FICHA DEL MONITOR, en dos columnas como la portada: a la izquierda
+       quién es, cómo va, sus grupos y sus seguimientos; a la derecha el
+       papeleo. Sin `sticky`: el papeleo mide más que una pantalla y se
+       quedaría cortado por abajo. */
+    .pl-mon-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 340px;
+        gap: clamp(1.1rem, 2.5vw, 1.8rem);
+        align-items: start;
+    }
+    /* El papeleo arranca a la altura de la identidad, no 1,85 rem más abajo. */
+    .pl-mon-aside > .pl-sec-row:first-child { padding-top: 0.9rem; }
+}
+
+/* ==========================================================================
+   042 · CARCASA (plan 042, auditoría de la carcasa)
+   ========================================================================== */
+
+/* ---- CAR-7: lo que no respondía al dedo ----------------------------------
+   El destello gris de WebKit lo quita ya una sola regla en custom-style §66.b
+   (la propiedad se hereda del contenedor del área). Sin él, estas piezas se
+   quedaban sin ninguna respuesta al pulsarlas, y algunas son justo lo que un
+   monitor toca cada sábado: las filas del árbol de grupos, el atajo de tu
+   grupo, el selector de sesión y la flecha de volver. Las filas se aclaran
+   como `.pl-row:active`; los botones encogen; los enlaces de texto se apagan
+   como `.pl-ghost:active`. */
+@media (hover: none) {
+    .pl-group:active,
+    .pl-mine-inner:active,
+    .pl-pending-row:active,
+    .pl-bucket:active,
+    .pl-all-groups:active { background: var(--gray-50); }
+    .pl-back:active,
+    .pl-session-pick:active,
+    .pl-orphans:active { transform: scale(0.97); }
+    .pl-grouprow-top:active,
+    .pl-review-link:active { opacity: 0.72; }
+}
+@media (hover: none) and (prefers-reduced-motion: reduce) {
+    .pl-back:active,
+    .pl-session-pick:active,
+    .pl-orphans:active { transform: none; opacity: 0.72; }
+}
+
+/* ==========================================================================
+   042 · A11Y — el color de los enlaces, en táctil (plan 042, A11Y-2)
+   ==========================================================================
+   Los :hover de esta hoja van ya dentro de @media (hover: hover). Pero el
+   tema (Astra) pinta `a:hover, a:focus { color: … }` sin ese @media, y en
+   táctil el enlace que se toca tiene los dos: se quedaba en violeta. Le gana
+   a un color escrito con una clase suelta, así que cada pieza que lo tiene
+   lo devuelve aquí, solo en táctil y con 0,2,0. Si cambias el color de una
+   de estas, cámbialo también aquí. */
+@media (hover: none) {
+    :is(.pl-grouprow-top, .pl-grp, .pl-orphans, .pl-rowlink):is(:hover, :focus) { color: inherit; }
+    :is(.pl-all-groups, .pl-back, .pl-contact-btn, .pl-session-pick):is(:hover, :focus) { color: var(--gray-700); }
+    :is(.pl-contactrow-main, .pl-next-btn, .pl-sheet-ficha):is(:hover, :focus) { color: var(--gray-800); }
+    .pl-detail:is(:hover, :focus) { color: var(--gray-400); }
+    .pl-footnote-link:is(:hover, :focus) { color: var(--gray-500); }
+    :is(.pl-ghost, .pl-phone-btn--call):is(:hover, :focus) { color: var(--primary-color); }
+    .pl-hero-cta:is(:hover, :focus) { color: var(--pl-brand-fixed); }
+    .pl-phone-btn--wa:is(:hover, :focus) { color: var(--success-dark); }
+    .pl-review-link:is(:hover, :focus) { color: var(--warning-darker); }
 }

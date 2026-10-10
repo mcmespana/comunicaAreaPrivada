@@ -161,4 +161,82 @@ final class ThemeTest extends TestCase
         $html = sticpa_appearance_switch_html();
         $this->assertStringContainsString("data-stic-theme-set='auto' aria-pressed='true'", $html);
     }
+
+    // ---- Zona segura (plan 042, CAR-2) -----------------------------------
+
+    /**
+     * El `<head>` del área lleva `viewport-fit=cover`: sin él WebKit deja
+     * `env(safe-area-inset-*)` a 0 y nada de lo pegado abajo reserva el
+     * indicador de inicio. Lo imprime el plugin, porque el de Astra no lo
+     * lleva, y SOLO en las páginas del área.
+     */
+    public function test_el_area_imprime_su_viewport_con_cover(): void
+    {
+        ob_start();
+        sticpa_viewport_meta();
+        $this->assertSame('', ob_get_clean(), 'Fuera del área no se toca el viewport del sitio.');
+
+        $GLOBALS['__stic_area_page'] = true;
+        try {
+            ob_start();
+            sticpa_viewport_meta();
+            $meta = ob_get_clean();
+        } finally {
+            unset($GLOBALS['__stic_area_page']);
+        }
+        $this->assertSame(
+            '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">' . "\n",
+            $meta
+        );
+    }
+
+    /**
+     * Y va DENTRO de `wp_head`, que es después de la línea fija del tema: con
+     * dos `meta viewport` manda el último.
+     */
+    public function test_el_viewport_del_area_va_en_wp_head(): void
+    {
+        $src = file_get_contents(__DIR__ . '/../inc/stic-theme.php');
+        $this->assertStringContainsString("add_action('wp_head', 'sticpa_viewport_meta', 0);", $src);
+    }
+
+    // ---- «Volver» que vuelve (plan 042, CAR-3) ---------------------------
+
+    /**
+     * La página que pinta un envío lleva `sticpa-posted` en el <body>: el
+     * «volver» de la pantalla siguiente no vuelve a ella por el historial (el
+     * navegador preguntaría si se reenvía el formulario). Solo en el área, y
+     * solo con POST.
+     */
+    public function test_la_pagina_de_un_envio_se_marca_en_el_body(): void
+    {
+        $antes = $_SERVER['REQUEST_METHOD'] ?? null;
+        try {
+            $_SERVER['REQUEST_METHOD'] = 'POST';
+            $this->assertNotContains('sticpa-posted', sticpa_body_classes(array()), 'Fuera del área, nada.');
+
+            $GLOBALS['__stic_area_page'] = true;
+            $this->assertContains('sticpa-posted', sticpa_body_classes(array('home')));
+            $this->assertContains('home', sticpa_body_classes(array('home')));
+
+            $_SERVER['REQUEST_METHOD'] = 'GET';
+            $this->assertNotContains('sticpa-posted', sticpa_body_classes(array()));
+        } finally {
+            unset($GLOBALS['__stic_area_page']);
+            if ($antes === null) {
+                unset($_SERVER['REQUEST_METHOD']);
+            } else {
+                $_SERVER['REQUEST_METHOD'] = $antes;
+            }
+        }
+    }
+
+    /** Y la app sigue llevando su clase, como antes. */
+    public function test_la_app_sigue_marcandose_en_el_body(): void
+    {
+        $_COOKIE['sticpa_app'] = '1';
+        $this->assertContains('sticpa-app-mode', sticpa_body_classes(array()));
+        $_COOKIE = array();
+        $this->assertNotContains('sticpa-app-mode', sticpa_body_classes(array()));
+    }
 }

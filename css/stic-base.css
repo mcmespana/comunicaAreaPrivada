@@ -111,11 +111,6 @@
     width: auto;
 }
 
-.stic-form li.stic-send .forgot-pass {
-    display: inline-block;
-    margin-left: var(--space-3, 0.75rem);
-}
-
 .stic-form li.last {
     padding-bottom: 0;
 }
@@ -133,9 +128,11 @@
     width: 100%;
 }
 
-.stic-form input[type="file"]:hover {
-    border-color: var(--secondary-color, #34aadf);
-    background-color: var(--white, #ffffff);
+@media (hover: hover) {
+    .stic-form input[type="file"]:hover {
+        border-color: var(--secondary-color, #34aadf);
+        background-color: var(--white, #ffffff);
+    }
 }
 
 .stic-form textarea.input-text {
@@ -148,54 +145,6 @@
 .stic-form-one-col li {
     width: 100%;
     margin-right: 0;
-}
-
-/* ============================================================
-   FORM LIST VIEW (Detail View)
-   ============================================================ */
-.stic-form-list-view {
-    background: var(--white, #ffffff);
-    border: 1px solid var(--gray-200, #e5e7eb);
-    border-radius: var(--radius-lg, 0.75rem);
-    display: block;
-    margin-bottom: var(--space-6, 1.5rem);
-    padding: var(--space-4, 1rem);
-    width: 100%;
-}
-
-.stic-form-list-view ul {
-    width: 100%;
-    display: block;
-    margin: 0;
-    padding: 0;
-}
-
-.stic-form-list-view li {
-    border-top: 1px solid var(--gray-100, #f3f4f6);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1, 0.25rem);
-    font-size: var(--font-size-sm, 0.875rem);
-    padding: var(--space-3, 0.75rem) 0;
-    vertical-align: top;
-    width: 100%;
-}
-
-.stic-form-list-view li:first-child {
-    border-top: none;
-}
-
-.stic-form-list-view li label {
-    font-weight: 600;
-    color: var(--gray-700, #374151);
-    font-size: var(--font-size-sm, 0.875rem);
-    width: 100%;
-    margin-bottom: 0;
-}
-
-.stic-form-list-view li span {
-    color: var(--gray-600, #4b5563);
-    width: 100%;
 }
 
 /* ============================================================
@@ -296,9 +245,11 @@
     transition: color var(--transition-fast, 150ms);
 }
 
-.main-col a:hover {
-    color: var(--secondary-color, #34aadf) !important;
-    text-decoration: none;
+@media (hover: hover) {
+    .main-col a:hover {
+        color: var(--secondary-color, #34aadf) !important;
+        text-decoration: none;
+    }
 }
 
 /* ============================================================
@@ -306,57 +257,6 @@
    ============================================================ */
 #accounts_fields {
     display: none;
-}
-
-/* ============================================================
-   NOTES SECTION
-   ============================================================ */
-.all-notes ul {
-    width: auto;
-    margin-left: 0 !important;
-    padding: 0 !important;
-    list-style: none;
-}
-
-.all-notes ul li {
-    margin-top: var(--space-3, 0.75rem) !important;
-    padding-bottom: var(--space-4, 1rem) !important;
-    border-bottom: 1px solid var(--gray-100, #f3f4f6);
-}
-
-.all-notes li .name {
-    font-size: var(--font-size-base, 1rem) !important;
-    font-weight: 600;
-    margin-bottom: var(--space-2, 0.5rem);
-    color: var(--gray-900, #111827);
-}
-
-.all-notes li .description {
-    width: 100%;
-    padding-left: 0 !important;
-    margin-bottom: var(--space-2, 0.5rem);
-    color: var(--gray-600, #4b5563);
-}
-
-.all-notes li .name_autor {
-    font-size: var(--font-size-xs, 0.75rem);
-    font-style: italic;
-    margin-bottom: var(--space-2, 0.5rem);
-    color: var(--gray-500, #6b7280);
-}
-
-.all-notes li .asttachment {
-    width: 100%;
-    padding-left: 0 !important;
-    margin-bottom: var(--space-2, 0.5rem);
-}
-
-.all-notes li .asttachment span {
-    margin-top: 1px;
-}
-
-.attachmentli {
-    margin-bottom: var(--space-4, 1rem);
 }
 
 /* ============================================================
@@ -368,33 +268,6 @@
 
 .actions_login {
     margin-top: var(--space-4, 1rem);
-}
-
-/* ============================================================
-   DOWNLOAD LINKS
-   ============================================================ */
-.download-link {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2, 0.5rem);
-    color: var(--primary-color, #253782) !important;
-    font-weight: 500;
-    padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
-    border-radius: var(--radius-md, 0.5rem);
-    transition: var(--transition-fast, 150ms); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
-    border: none !important;
-    background: var(--gray-50, #f9fafb);
-}
-
-.download-link::before {
-    content: "📥";
-    font-size: var(--font-size-base, 1rem);
-}
-
-.download-link:hover {
-    text-decoration: none;
-    background: var(--gray-100, #f3f4f6);
-    color: var(--secondary-color, #34aadf) !important;
 }
 
 /* ============================================================
@@ -417,7 +290,9 @@ li.required label::after {
 /* ============================================================
    FLEX FORMS
    ============================================================ */
-form[flex] ul {
+/* `form[flex]` es nuestro (inc/stic-formController.php), pero sin acotar es
+   un selector de elemento: va colgado del área como todo (ver «LINKS»). */
+:where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) form[flex] ul {
     display: flex;
     flex-direction: column;
     flex-wrap: wrap;
@@ -429,11 +304,7 @@ form[flex] ul {
     max-width: 100%;
 }
 
-form[flex] ul li {
-    max-width: 100%;
-}
-
-form[flex].col3 ul li {
+:where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) form[flex] ul li {
     max-width: 100%;
 }
 
@@ -447,111 +318,10 @@ form[flex].col3 ul li {
 }
 
 /* ============================================================
-   CSME CUSTOM CLASSES
-   ============================================================ */
-.stic-titulo-csme {
-    color: var(--success-dark);
-    font-size: var(--font-size-lg, 1.125rem);
-    font-weight: 600;
-}
-
-/* ============================================================
    INTERNAL TABS WITH CONTENT
    ============================================================ */
-.stic-ctabs {
-    width: 100%;
-    height: auto;
-    margin: 0 auto;
-}
-
-.stic-ctabs .stic-ctabs-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2, 0.5rem);
-}
-
-.stic-ctabs .stic-ctabs-list li {
-    flex: 1;
-    min-width: 80px;
-    padding: var(--space-3, 0.75rem) var(--space-2, 0.5rem);
-    text-align: center;
-    background-color: var(--gray-100, #f3f4f6);
-    border-radius: var(--radius-md, 0.5rem);
-    cursor: pointer;
-    transition: var(--transition-fast, 150ms); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
-}
-
-.stic-ctabs-list li.stic-ctabs-button {
-    background-color: var(--white, #ffffff);
-}
-
 .stic-ctabs-list li button {
     width: auto;
-}
-
-.stic-ctabs .stic-ctabs-list li:hover {
-    background-color: var(--gray-200, #e5e7eb);
-}
-
-.stic-ctabs .stic-ctabs-list li a {
-    text-decoration: none;
-    color: var(--gray-700, #374151);
-    font-weight: 500;
-    box-shadow: none;
-}
-
-.stic-ctabs .stic-ctab {
-    display: none;
-    width: 100%;
-    min-height: 200px;
-    height: auto;
-    border-radius: var(--radius-lg, 0.75rem);
-    padding: var(--space-4, 1rem);
-    background-color: var(--white, #ffffff);
-    color: var(--gray-700, #374151);
-    clear: both;
-    margin-top: var(--space-4, 1rem);
-}
-
-.stic-ctabs .stic-ctab h3 {
-    border-bottom: 2px solid var(--gray-200, #e5e7eb);
-    letter-spacing: 0.025em;
-    font-weight: 600;
-    padding: var(--space-2, 0.5rem);
-    margin-bottom: var(--space-4, 1rem);
-}
-
-.stic-ctabs .stic-ctab p {
-    line-height: var(--line-height-relaxed, 1.75);
-}
-
-/* Active tab states */
-.stic-cactive {
-    display: block !important;
-}
-
-.stic-tab-active {
-    display: block !important;
-}
-
-.stic-ctabs .stic-ctabs-list li.stic-cactive {
-    background-color: var(--primary-color, #253782) !important;
-}
-
-.stic-ctabs .stic-ctabs-list li.stic-cactive a {
-    color: var(--white, #ffffff) !important;
-}
-
-.stic-cactive a {
-    color: var(--white, #ffffff) !important;
-}
-
-.stic-ctab b {
-    font-weight: 700;
-    color: var(--gray-900, #111827);
 }
 
 /* ============================================================
@@ -584,15 +354,6 @@ ul.stic-button-list {
 }
 
 /* ============================================================
-   MENU TEXT STYLES
-   ============================================================ */
-.stic-link-menu-text {
-    font-weight: 500;
-    font-family: var(--font-family);
-    font-size: var(--font-size-base, 1rem);
-}
-
-/* ============================================================
    FULLCALENDAR EVENT CURSORS
    ============================================================ */
 .fc-daygrid-event {
@@ -606,9 +367,12 @@ ul.stic-button-list {
 /* ============================================================
    DISABLED INPUTS (Transparent Background)
    ============================================================ */
-input[disabled=disabled],
-textarea[disabled=disabled],
-select[disabled=disabled] {
+/* Acotado al área: un selector suelto alcanzaba los campos del tema de
+   WordPress. `:where()` no suma especificidad, así que dentro del área la
+   regla pesa lo mismo que antes (plan 042, A11Y-3; ver «LINKS»). */
+:where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) input[disabled=disabled],
+:where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) textarea[disabled=disabled],
+:where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) select[disabled=disabled] {
     background-color: var(--gray-50, #f9fafb);
     color: var(--gray-700, #374151) !important;
 }
@@ -619,20 +383,6 @@ select[disabled=disabled] {
 @media (min-width: 640px) {
     .stic-tab-content {
         padding: var(--space-6, 1.5rem);
-    }
-    
-    .stic-form-list-view li {
-        flex-direction: row;
-        width: 100%;
-    }
-    
-    .stic-form-list-view li label {
-        width: 35%;
-        flex-shrink: 0;
-    }
-    
-    .stic-form-list-view li span {
-        width: 65%;
     }
     
     .stic-form-two-col li {
@@ -646,11 +396,11 @@ select[disabled=disabled] {
         margin-right: 0;
     }
     
-    form[flex] ul {
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) form[flex] ul {
         flex-direction: row;
     }
     
-    form[flex] ul li {
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) form[flex] ul li {
         max-width: calc(50% - var(--space-2, 0.5rem));
     }
     
@@ -674,28 +424,6 @@ select[disabled=disabled] {
         font-size: var(--font-size-sm, 0.875rem);
     }
     
-    form[flex].col3 ul li {
-        max-width: calc(33.333% - var(--space-4, 1rem));
-    }
-    
-    .stic-ctabs .stic-ctabs-list li {
-        flex: 0 0 auto;
-        min-width: 100px;
-        padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
-    }
-    
-    .stic-ctabs .stic-ctab {
-        padding: var(--space-6, 1.5rem);
-    }
-}
-
-/* ============================================================
-   RESPONSIVE - SMALL SCREENS (max-width: 480px)
-   ============================================================ */
-@media (max-width: 480px) {
-    .stic-ctabs .stic-ctabs-list li {
-        flex: 1 1 calc(50% - var(--space-2, 0.5rem));
-    }
 }
 
 /* ============================================================
@@ -770,44 +498,9 @@ select[disabled=disabled] {
     margin: 0 auto;
 }
 
-.stic-container-inner {
-    background-color: var(--white);
-    border-radius: var(--radius-lg);
-    padding: var(--space-4);
-    box-shadow: var(--shadow-sm);
-}
-
 /* ============================================================
    USER INFO SECTION (Mobile First)
    ============================================================ */
-.stic-userinfo {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-3) var(--space-4);
-    margin-bottom: var(--space-4);
-    background: linear-gradient(135deg, var(--gray-50) 0%, var(--white) 100%);
-    border-radius: var(--radius-lg);
-    border: 1px solid var(--gray-200);
-    font-size: var(--font-size-sm);
-    text-align: center;
-}
-
-.stic-user-name {
-    display: block;
-}
-
-.stic-user-name a {
-    color: var(--primary-color);
-    font-weight: 600;
-    text-decoration: none;
-    transition: color var(--transition-fast);
-}
-
-.stic-user-name a:hover {
-    color: var(--secondary-color);
-}
 
 .stic-logout {
     display: inline-flex;
@@ -823,69 +516,19 @@ select[disabled=disabled] {
     transition: var(--transition-fast); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
 }
 
-.stic-logout:hover {
-    background-color: var(--danger-color);
-    color: var(--white);
-    transform: translateY(-1px);
+@media (hover: hover) {
+    .stic-logout:hover {
+        background-color: var(--danger-color);
+        color: var(--white);
+        transform: translateY(-1px);
+    }
 }
 
 /* ============================================================
    PRIMARY NAVIGATION MENU (Mobile First)
    ============================================================ */
-.stic-primary-menu {
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    margin: 0 0 var(--space-6) 0 !important;
-    padding: 0 !important;
-    background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-lg);
-    overflow: hidden;
-}
 
-.stic-primary-menu-item,
-ul.stic-primary-menu li {
-    list-style: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-.stic-primary-menu-item a,
-ul.stic-primary-menu li a {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: var(--space-4) var(--space-5) !important;
-    color: var(--white) !important;
-    font-size: var(--font-size-sm);
-    font-weight: 500;
-    text-decoration: none !important;
-    text-align: center;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    transition: var(--transition-fast); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
-    position: relative;
-}
-
-.stic-primary-menu-item:last-child a,
-ul.stic-primary-menu li:last-child a {
-    border-bottom: none;
-}
-
-.stic-primary-menu-item a:hover,
-ul.stic-primary-menu li a:hover {
-    background-color: rgba(255, 255, 255, 0.15) !important;
-    color: var(--white) !important;
-}
-
-.stic-primary-menu-item a:focus,
-ul.stic-primary-menu li a:focus {
-    outline: 2px solid var(--secondary-color);
-    outline-offset: -2px;
-}
-
-.current-menu-item a,
-ul.stic-primary-menu li.current-menu-item a {
+.current-menu-item a {
     background-color: rgba(52, 170, 223, 0.3) !important;
     color: var(--white) !important;
     font-weight: 600 !important;
@@ -974,11 +617,13 @@ ul.stic-primary-menu li.current-menu-item a {
     appearance: none;
 }
 
-:is(.stic-tab-content, .stic-auth-shell) :is(
-    input[type="text"], input[type="email"], input[type="password"],
-    input[type="number"], input[type="date"], input[type="tel"],
-    input[type="url"], input[type="search"], textarea, select):hover {
-    border-color: var(--gray-300);
+@media (hover: hover) {
+    :is(.stic-tab-content, .stic-auth-shell) :is(
+        input[type="text"], input[type="email"], input[type="password"],
+        input[type="number"], input[type="date"], input[type="tel"],
+        input[type="url"], input[type="search"], textarea, select):hover {
+        border-color: var(--gray-300);
+    }
 }
 
 :is(.stic-tab-content, .stic-auth-shell) :is(
@@ -1061,11 +706,13 @@ ul.stic-primary-menu li.current-menu-item a {
     box-shadow: var(--shadow-sm);
 }
 
-:is(.stic-tab-content, .stic-auth-shell) :is(input[type="submit"], input[type="button"], a.button, .btn, .stic-button):hover {
-    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-color) 100%);
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
-    color: var(--white);
+@media (hover: hover) {
+    :is(.stic-tab-content, .stic-auth-shell) :is(input[type="submit"], input[type="button"], a.button, .btn, .stic-button):hover {
+        background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-color) 100%);
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+        color: var(--white);
+    }
 }
 
 :is(.stic-tab-content, .stic-auth-shell) :is(input[type="submit"], .btn, .stic-button):active {
@@ -1090,25 +737,31 @@ ul.stic-primary-menu li.current-menu-item a {
     color: var(--gray-700);
 }
 
-.btn-secondary:hover {
-    background: var(--gray-200);
-    color: var(--gray-800);
+@media (hover: hover) {
+    .btn-secondary:hover {
+        background: var(--gray-200);
+        color: var(--gray-800);
+    }
 }
 
 .btn-success {
     background: linear-gradient(135deg, var(--success-color) 0%, #059669 100%);
 }
 
-.btn-success:hover {
-    background: linear-gradient(135deg, #059669 0%, var(--success-color) 100%);
+@media (hover: hover) {
+    .btn-success:hover {
+        background: linear-gradient(135deg, #059669 0%, var(--success-color) 100%);
+    }
 }
 
 .btn-danger {
     background: linear-gradient(135deg, var(--danger-color) 0%, #dc2626 100%);
 }
 
-.btn-danger:hover {
-    background: linear-gradient(135deg, #dc2626 0%, var(--danger-color) 100%);
+@media (hover: hover) {
+    .btn-danger:hover {
+        background: linear-gradient(135deg, #dc2626 0%, var(--danger-color) 100%);
+    }
 }
 
 /* Botones outline */
@@ -1118,9 +771,11 @@ ul.stic-primary-menu li.current-menu-item a {
     color: var(--primary-color);
 }
 
-.btn-outline:hover {
-    background: var(--primary-color);
-    color: var(--white);
+@media (hover: hover) {
+    .btn-outline:hover {
+        background: var(--primary-color);
+        color: var(--white);
+    }
 }
 
 /* ============================================================
@@ -1173,8 +828,10 @@ ul.stic-primary-menu li.current-menu-item a {
     transition: background-color var(--transition-fast);
 }
 
-.stic-tab-content tbody tr:hover {
-    background-color: var(--gray-50);
+@media (hover: hover) {
+    .stic-tab-content tbody tr:hover {
+        background-color: var(--gray-50);
+    }
 }
 
 .stic-tab-content tbody tr:last-child {
@@ -1198,9 +855,11 @@ ul.stic-primary-menu li.current-menu-item a {
     white-space: nowrap;
 }
 
-.stic-tab-content td a:hover {
-    color: var(--secondary-color);
-    background-color: var(--gray-100);
+@media (hover: hover) {
+    .stic-tab-content td a:hover {
+        color: var(--secondary-color);
+        background-color: var(--gray-100);
+    }
 }
 
 /* ============================================================
@@ -1293,10 +952,14 @@ ul.stic-primary-menu li.current-menu-item a {
     transition: var(--transition-fast); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
 }
 
-.dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-    background-color: var(--primary-color) !important;
-    border-color: var(--primary-color) !important;
-    color: var(--white) !important;
+/* Relleno de marca con letra blanca: el azul FIJO, que en oscuro no se aclara
+   (custom-style.css §1, plan 042 A11Y-6). */
+@media (hover: hover) {
+    .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+        background-color: var(--brand-blue-fixed) !important;
+        border-color: var(--brand-blue-fixed) !important;
+        color: var(--on-brand) !important;
+    }
 }
 
 .dataTables_wrapper .dataTables_paginate .paginate_button.current {
@@ -1410,10 +1073,12 @@ table.dataTable thead .sorting_desc {
     transition: var(--transition-base); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
 }
 
-.card:hover,
-.stic-card:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
+@media (hover: hover) {
+    .card:hover,
+    .stic-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+    }
 }
 
 .card-header {
@@ -1455,44 +1120,6 @@ table.dataTable thead .sorting_desc {
 /* ============================================================
    TABS
    ============================================================ */
-.stic-tab {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-    list-style: none;
-    margin: 0 0 var(--space-4) 0;
-    padding: 0;
-    border-bottom: 2px solid var(--gray-200);
-}
-
-.stic-tab li {
-    margin: 0;
-}
-
-.stic-tab li a {
-    display: block;
-    padding: var(--space-3) var(--space-4);
-    color: var(--gray-600);
-    font-weight: 500;
-    text-decoration: none;
-    border-radius: var(--radius-md) var(--radius-md) 0 0;
-    transition: var(--transition-fast); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
-    border: 2px solid transparent;
-    border-bottom: none;
-    margin-bottom: -2px;
-}
-
-.stic-tab li a:hover {
-    color: var(--primary-color);
-    background-color: var(--gray-50);
-}
-
-.stic-tab li.active a {
-    color: var(--primary-color);
-    background-color: var(--white);
-    border-color: var(--gray-200);
-    border-bottom-color: var(--white);
-}
 
 .stic-tab-content {
     padding: var(--space-4);
@@ -1537,8 +1164,10 @@ table.dataTable thead .sorting_desc {
     transition: var(--transition-fast) !important; transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter !important;
 }
 
-.fc .fc-button:hover {
-    background: var(--primary-dark) !important;
+@media (hover: hover) {
+    .fc .fc-button:hover {
+        background: var(--primary-dark) !important;
+    }
 }
 
 .fc .fc-button-active {
@@ -1565,47 +1194,6 @@ table.dataTable thead .sorting_desc {
     text-transform: uppercase;
     font-size: var(--font-size-xs);
     letter-spacing: 0.05em;
-}
-
-/* ============================================================
-   FORM LIST VIEW
-   ============================================================ */
-.stic-form-list-view {
-    background: var(--white);
-    border: 1px solid var(--gray-200);
-    border-radius: var(--radius-lg);
-    padding: var(--space-4);
-    margin-bottom: var(--space-6);
-}
-
-.stic-form-list-view ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-}
-
-.stic-form-list-view li {
-    padding: var(--space-3) 0;
-    border-bottom: 1px solid var(--gray-100);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-}
-
-.stic-form-list-view li:last-child {
-    border-bottom: none;
-}
-
-.stic-form-list-view li label {
-    font-weight: 600;
-    color: var(--gray-700);
-    font-size: var(--font-size-sm);
-    margin-bottom: 0;
-}
-
-.stic-form-list-view li span {
-    color: var(--gray-600);
-    font-size: var(--font-size-base);
 }
 
 /* ============================================================
@@ -1646,27 +1234,40 @@ table.dataTable thead .sorting_desc {
 /* ============================================================
    LINKS
    ============================================================ */
-a {
+/* Los selectores de elemento (`a`, `button`, `td`, `:focus-visible`, el `*`
+   del movimiento reducido…) van colgados del área: esta hoja se carga en la
+   misma página que la cabecera y el pie del tema, y un `a {…}` suelto los
+   pintaba en azul Comunica, sin subrayado y con el foco magenta; un
+   `button {min-width: 140px}` estiraba sus botones de icono (design.md §8).
+   El área es lo que cuelga de estos cinco: el contenedor, el acceso, los
+   modales y la capa de carga (que JS cuelga de <body>) y la ayuda de los
+   campos (que stic-ui.js saca a <body>). Con `:where()` el prefijo no suma
+   especificidad: dentro del área todo pesa y gana igual que antes.
+   (plan 042, A11Y-3) */
+:where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) a {
     color: var(--primary-color);
     text-decoration: none;
     transition: color var(--transition-fast);
 }
 
-a:hover {
-    color: var(--secondary-color);
+@media (hover: hover) {
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) a:hover {
+        color: var(--secondary-color);
+    }
 }
 
-.download-link {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
-    color: var(--primary-color);
-    font-weight: 500;
-}
-
-.download-link:hover {
-    color: var(--secondary-color);
-    text-decoration: underline;
+/* En táctil, el enlace que se toca se queda con :hover y :focus puestos. El
+   tema de WordPress (Astra) pinta `a:hover, a:focus { color: … }` sin
+   @media (hover: hover) y gana a cualquier color de enlace escrito con una
+   clase suelta: tras tocarlo, el enlace se quedaba en su violeta (o en el
+   magenta de la regla de arriba, cuando no estaba envuelta). Aquí vuelve a
+   su color de reposo; los componentes con un color propio que el tema pisa
+   lo devuelven en custom-style.css §67 y pasar-lista.css «042 · A11Y».
+   (plan 042, A11Y-2) */
+@media (hover: none) {
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) a:is(:hover, :focus) {
+        color: var(--primary-color);
+    }
 }
 
 /* ============================================================
@@ -1725,41 +1326,7 @@ a:hover {
         padding: var(--space-6);
     }
     
-    .stic-container-inner {
-        padding: var(--space-6);
-    }
-    
-    .stic-userinfo {
-        flex-direction: row;
-        justify-content: flex-end;
-        text-align: right;
-    }
-    
-    .stic-primary-menu {
-        flex-direction: row;
-        flex-wrap: wrap;
-        justify-content: center;
-    }
-    
-    .stic-primary-menu-item a,
-    ul.stic-primary-menu li a {
-        border-bottom: none;
-        border-bottom: 3px solid transparent;
-        padding: var(--space-4) var(--space-5) !important;
-    }
-    
-    .stic-primary-menu-item:last-child a,
-    ul.stic-primary-menu li:last-child a {
-        border-bottom: 3px solid transparent;
-    }
-    
-    .stic-primary-menu-item a:hover,
-    ul.stic-primary-menu li a:hover {
-        border-bottom-color: var(--secondary-color);
-    }
-    
-    .current-menu-item a,
-    ul.stic-primary-menu li.current-menu-item a {
+    .current-menu-item a {
         border-bottom-color: var(--secondary-color) !important;
     }
     
@@ -1767,12 +1334,12 @@ a:hover {
         display: none;
     }
     
-    /* Botones en línea */
-    button,
-    input[type="submit"],
-    input[type="button"],
-    a.button,
-    .btn,
+    /* Botones en línea (acotados al área: ver «LINKS») */
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) button,
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) input[type="submit"],
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) input[type="button"],
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) a.button,
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) .btn,
     .stic-button {
         width: auto;
         min-width: 140px;
@@ -1809,21 +1376,6 @@ a:hover {
         margin-left: var(--space-2) !important;
     }
     
-    /* List view en dos columnas */
-    .stic-form-list-view li {
-        flex-direction: row;
-        align-items: flex-start;
-    }
-    
-    .stic-form-list-view li label {
-        width: 35%;
-        flex-shrink: 0;
-    }
-    
-    .stic-form-list-view li span {
-        width: 65%;
-    }
-    
     /* Entry header */
     .stic-entry-header h3,
     .stic-entry-header h4 {
@@ -1840,22 +1392,12 @@ a:hover {
         padding: var(--space-8);
     }
     
-    .stic-container-inner {
-        padding: var(--space-8);
-    }
-    
-    .stic-primary-menu-item a,
-    ul.stic-primary-menu li a {
-        font-size: var(--font-size-base);
-        padding: var(--space-4) var(--space-6) !important;
-    }
-    
-    /* Tables más amplias */
-    thead th {
+    /* Tables más amplias (acotadas al área: ver «LINKS») */
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) thead th {
         padding: var(--space-4) var(--space-5);
     }
     
-    td {
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) td {
         padding: var(--space-4) var(--space-5);
     }
     
@@ -1864,24 +1406,12 @@ a:hover {
         font-size: var(--font-size-xl) !important;
     }
     
-    /* Form columns 3 */
-    form[flex].col3 ul li {
-        max-width: calc(33.333% - var(--space-4));
-    }
 }
 
 /* ============================================================
    RESPONSIVE - LARGE DESKTOP (min-width: 1024px)
    ============================================================ */
 @media (min-width: 1024px) {
-    .stic-primary-menu {
-        gap: var(--space-1);
-    }
-    
-    .stic-primary-menu-item a,
-    ul.stic-primary-menu li a {
-        padding: var(--space-4) var(--space-8) !important;
-    }
     
     /* DataTables filter más ancho */
     .dataTables_wrapper .dataTables_filter input {
@@ -1893,11 +1423,9 @@ a:hover {
    PRINT STYLES
    ============================================================ */
 @media print {
-    .stic-primary-menu,
-    .stic-userinfo,
-    button,
-    input[type="submit"],
-    .btn,
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) button,
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) input[type="submit"],
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) .btn,
     .no-print,
     .dataTables_filter,
     .dataTables_paginate {
@@ -1910,12 +1438,7 @@ a:hover {
         max-width: 100%;
     }
     
-    .stic-container-inner {
-        box-shadow: none;
-        padding: 0;
-    }
-    
-    table {
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) table {
         box-shadow: none;
     }
 }
@@ -1923,18 +1446,24 @@ a:hover {
 /* ============================================================
    ACCESSIBILITY
    ============================================================ */
+/* El área entera, con sus contenedores y sus pseudoelementos. Es la ÚNICA
+   regla `*` del movimiento reducido: custom-style.css repetía la misma sin
+   acotar (plan 042, A11Y-3). */
 @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip),
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) *,
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip)::before,
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip)::after,
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) *::before,
+    :where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) *::after {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
     }
 }
 
-/* Focus visible para accesibilidad */
-:focus-visible {
+/* Focus visible para accesibilidad (acotado al área: ver «LINKS») */
+:where(.stic-container, .stic-auth-shell, .stic-modal-overlay, .stic-loading-overlay, .stic-info-tip) :focus-visible {
     outline: 2px solid var(--secondary-color);
     outline-offset: 2px;
 }

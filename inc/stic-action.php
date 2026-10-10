@@ -967,6 +967,11 @@ function sticpa_magic_email_html($name, $link, $portalName, $code = '')
         $minutos
     );
 
+    // La letra gris (la «o», la letra pequeña y el pie) es #6b7280, 4,8:1 sobre
+    // blanco. Era #9ca3af, 2,5:1, justo en la frase que importa («Caduca en…
+    // Si no lo has pedido tú…»). El correo no lee los tokens del área: los
+    // colores van a pelo, y este es el --gray-500 de allí (plan 042, A11Y-6).
+    //
     // El código y el botón, uno debajo del otro y con una «o» en medio.
     // Tablas y px porque es lo único que respetan Outlook y Gmail. El espacio
     // de «123 456» es literal (letter-spacing solo, sin el espacio, se pierde
@@ -980,7 +985,7 @@ function sticpa_magic_email_html($name, $link, $portalName, $code = '')
                 . esc_html(sticpa_otp_format_code($code)) . '</div>
             </td></tr>
           </table>
-          <div style="text-align:center;color:#9ca3af;font-size:14px;margin:14px 0;">' . esc_html__('o', 'sticpa') . '</div>';
+          <div style="text-align:center;color:#6b7280;font-size:14px;margin:14px 0;">' . esc_html__('o', 'sticpa') . '</div>';
     }
 
     $btnBlock = '
@@ -1015,11 +1020,11 @@ function sticpa_magic_email_html($name, $link, $portalName, $code = '')
           <p style="margin:0 0 6px;">' . $saludo . '</p>
           <p style="margin:0 0 18px;color:#4b5563;">' . esc_html($intro) . '</p>
           ' . $codeBlock . $btnBlock . '
-          <p style="margin:24px 0 22px;color:#9ca3af;font-size:13px;line-height:1.5;text-align:center;">' . esc_html($letraPequena) . '</p>
+          <p style="margin:24px 0 22px;color:#6b7280;font-size:13px;line-height:1.5;text-align:center;">' . esc_html($letraPequena) . '</p>
         </td></tr>
         <tr><td align="center" style="padding:4px 28px 26px;">'
           . $footerBadge . '
-          <div style="color:#9ca3af;font-size:12px;">comunica@movimientoconsolacion.com</div>
+          <div style="color:#6b7280;font-size:12px;">comunica@movimientoconsolacion.com</div>
         </td></tr>
       </table>
     </td></tr>

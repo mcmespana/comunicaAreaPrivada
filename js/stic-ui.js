@@ -147,6 +147,72 @@
         });
     }
 
+    /* -------- «Volver» que vuelve (plan 042, CAR-3) --------
+       La píldora «← Eventos» de las fichas (`.stic-rec-back`) y la flecha de
+       Pasar Lista (`.pl-back`) son enlaces a una URL fija, y cada toque metía
+       una entrada NUEVA en el historial. En MCM App la cápsula atrás/adelante y
+       el botón atrás de Android van por ese historial (CONTRATO §4): después de
+       usar la flecha, «atrás» devolvía a la ficha de la que se acababa de salir.
+
+       Si se ha llegado DESDE la pantalla a la que lleva el enlace —la anterior
+       es esa URL, quizá con más estado: la fecha de la lista, la página, el
+       origen—, se vuelve por el historial: el historial queda limpio y la
+       pantalla vuelve como se dejó. Si no (se entró por un enlace del correo o
+       de WhatsApp, desde otra sección), el enlace navega como siempre: la URL
+       fija sigue siendo la red, y sin JS todo funciona como antes.
+
+       Y NUNCA a una página que pintó un envío: Pasar Lista guarda en la misma
+       URL y sin redirigir, y volver por el historial a esa entrada hace que el
+       navegador pregunte si se reenvía el formulario. El servidor marca esas
+       páginas con `sticpa-posted` en el <body> y aquí se apuntan. */
+    var POSTED_KEY = 'sticpa_posted_urls';
+
+    function sinAncla(href) { return String(href).split('#')[0]; }
+
+    function rememberPosted() {
+        try {
+            var aqui = sinAncla(window.location.href);
+            var list = JSON.parse(sessionStorage.getItem(POSTED_KEY) || '[]').filter(function (u) { return u !== aqui; });
+            if (document.body && document.body.classList.contains('sticpa-posted')) { list.push(aqui); }
+            sessionStorage.setItem(POSTED_KEY, JSON.stringify(list.slice(-20)));
+        } catch (err) { /* sin sessionStorage, backIsSafe() dice que no */ }
+    }
+
+    function backIsSafe(link) {
+        if (!document.referrer || window.history.length < 2) { return false; }
+        var to, from, posted;
+        try {
+            to = new URL(link.href, window.location.href);
+            from = new URL(document.referrer);
+            // Sin la lista no se sabe si la anterior fue un envío: mejor navegar.
+            posted = sessionStorage.getItem(POSTED_KEY);
+        } catch (err) { return false; }
+        if (posted === null) { return false; }
+        if (from.origin !== window.location.origin || to.origin !== window.location.origin
+            || from.pathname !== to.pathname) { return false; }
+        // Todo lo que pide el enlace está en la anterior, con el mismo valor.
+        var same = true;
+        to.searchParams.forEach(function (v, k) { if (from.searchParams.get(k) !== v) { same = false; } });
+        if (!same) { return false; }
+        try { return JSON.parse(posted).indexOf(sinAncla(from.href)) === -1; } catch (err) { return false; }
+    }
+
+    function bindBackLinks() {
+        rememberPosted();
+        // En CAPTURA, antes que bindLoadingLinks(): si se vuelve por el
+        // historial, el overlay y el aviso a la app se lanzan aquí, una vez.
+        document.addEventListener('click', function (e) {
+            if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) { return; }
+            var link = (e.target && e.target.closest) ? e.target.closest('a.stic-rec-back[href], a.pl-back[href]') : null;
+            if (!link || !backIsSafe(link)) { return; }
+            e.preventDefault();
+            showOverlay(link.getAttribute('data-loading-text') || 'Cargando…', '');
+            notifyApp('start', link.href);
+            setTimeout(hideOverlay, 12000);
+            window.history.back();
+        }, true);
+    }
+
     /* -------- Mostrar / ocultar contraseña -------- */
     var EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>';
     var EYE_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.9 4.24A10.6 10.6 0 0 1 12 4c6.5 0 10 7 10 7a16.6 16.6 0 0 1-3 3.7M6.2 6.2A16.4 16.4 0 0 0 2 11s3.5 7 10 7a10.5 10.5 0 0 0 4.3-.9"/><path d="M3 3l18 18"/></svg>';
@@ -288,7 +354,12 @@
             //    y ancho del botón "Más" (visible solo para medirlo).
             if (list.scrollWidth <= list.clientWidth + 1) { return; }
             wrap.hidden = false;
-            var available = list.clientWidth;
+            // `clientWidth` incluye el relleno de la lista (1,1 rem por lado a
+            // partir de 768): contaba con sitio para un elemento más de los que
+            // caben y empujaba «Más» fuera de la caja (plan 042, CAR-4).
+            var listCs = getComputedStyle(list);
+            var available = list.clientWidth
+                - (parseFloat(listCs.paddingLeft) || 0) - (parseFloat(listCs.paddingRight) || 0);
             var moreWidth = wrap.offsetWidth;
             var items = [];
             var child = list.firstElementChild;
@@ -789,6 +860,7 @@
         bindAppearanceSwitch();
         bindCodeInput();
         bindLoadingForms();
+        bindBackLinks();
         bindLoadingLinks();
         bindPasswordToggles();
         measureScrollbar();

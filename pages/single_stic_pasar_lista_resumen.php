@@ -252,10 +252,19 @@ $html .= '</div>';
  * sale de estos mismos datos. */
 $tirasMias = sticpa_pl_tiras_por_etapa($objSCP, $mios, $events, $stripLimit);
 
-/** Una tira por etapa: título y una fila por grupo. */
+/** Una tira por etapa: título y una fila por grupo.
+ *
+ * Cada etapa va en su `<section class="pl-etapa-col">`, y todas juntas en
+ * `.pl-etapas` (plan 042, COO-5): en el móvil no cambia nada, y en escritorio
+ * las etapas se ponen en columnas, debajo de sus tarjetas. El título va justo
+ * antes de su lista, como antes: el buscador lo esconde con ella. */
 $pintaTiras = function ($tiras, $fichas) use ($etapaColors, $monPorGrupo, $desdeAqui, $desdeCoord) {
-    $out = '';
+    if (empty($tiras)) {
+        return '';
+    }
+    $out = '<div class="pl-etapas">';
     foreach ($tiras as $etapa => $tira) {
+        $out .= '<section class="pl-etapa-col">';
         $out .= '<div class="pl-etapa-title">'
             . '<span class="pl-etapa-dot" style="background:' . esc_attr($etapaColors[$etapa]) . '"></span>'
             . esc_html($etapa) . '</div>';
@@ -359,8 +368,9 @@ $pintaTiras = function ($tiras, $fichas) use ($etapaColors, $monPorGrupo, $desde
             $out .= '</div>';
         }
         $out .= '</div>';
+        $out .= '</section>';
     }
-    return $out;
+    return $out . '</div>';
 };
 
 /* La pregunta con la que se abre esta pantalla: "¿pasaron lista el sábado?".
