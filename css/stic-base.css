@@ -1293,10 +1293,12 @@ ul.stic-primary-menu li.current-menu-item a {
     transition: var(--transition-fast); transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter;
 }
 
+/* Relleno de marca con letra blanca: el azul FIJO, que en oscuro no se aclara
+   (custom-style.css §1, plan 042 A11Y-6). */
 .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-    background-color: var(--primary-color) !important;
-    border-color: var(--primary-color) !important;
-    color: var(--white) !important;
+    background-color: var(--brand-blue-fixed) !important;
+    border-color: var(--brand-blue-fixed) !important;
+    color: var(--on-brand) !important;
 }
 
 .dataTables_wrapper .dataTables_paginate .paginate_button.current {

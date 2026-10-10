@@ -79,12 +79,19 @@
        porque en oscuro se aclara a #3f95d6 para leerse sobre oscuro, y ahí va
        sobre blanco: 3,2:1, por debajo del AA.
 
+       Y al revés: cuando la marca es el FONDO de un texto blanco (una pastilla,
+       un botón elegido, un hover que se rellena), el fondo es el fijo. En oscuro
+       `--primary-color` (#3f95d6) y `--accent-color` (#9a7ed6) dejan el blanco
+       en 3,2-3,3:1, y la letra de esas pastillas es pequeña (plan 042, A11Y-6).
+       `--accent-fixed` es la pareja violeta: 6,7:1 con blanco en los dos temas.
+
        Nacieron en pasar-lista.css (como `--pl-on-brand` / `--pl-brand-fixed`),
        pero el problema es general: ~40 reglas de esta hoja ya lo resolvían a
        mano con un #fff literal. Al escribir una regla nueva que pinte sobre
        marca, usa estos. */
     --on-brand: #fff;
     --brand-blue-fixed: #1c6fb3;
+    --accent-fixed: #6c4b9e;
 
     /* ---- Radios generosos ---- */
     --radius-sm: 0.55rem;
@@ -2217,9 +2224,9 @@ span.stic-field {
 }
 .fc .fc-button-primary:not(:disabled).fc-button-active,
 .fc .fc-button-primary:not(:disabled):active {
-    background: var(--primary-color) !important;
-    color: #fff !important;
-    border-color: var(--primary-color) !important;
+    background: var(--brand-blue-fixed) !important;
+    color: var(--on-brand) !important;
+    border-color: var(--brand-blue-fixed) !important;
 }
 .fc .fc-button-primary:disabled { opacity: 0.45 !important; }
 .fc .fc-button .fc-icon { color: inherit; }
@@ -2285,7 +2292,7 @@ span.stic-field {
     border: 1.5px solid color-mix(in srgb, var(--primary-color) 22%, transparent);
     transition: background 0.18s ease, color 0.18s ease, transform 0.12s var(--ease-spring);
 }
-.stic-soft-btn:hover { background: var(--primary-color); color: #fff !important; transform: translateY(-1px); }
+.stic-soft-btn:hover { background: var(--brand-blue-fixed); color: var(--on-brand) !important; transform: translateY(-1px); }
 .stic-soft-btn svg { width: 18px; height: 18px; }
 
 /* Chip "Perfil detectado" — pastilla blanca, marca dentro (más destacado) */
@@ -2796,12 +2803,12 @@ span.stic-field {
     cursor: pointer !important;
 }
 .stic-soft-btn:hover {
-    background: var(--primary-color) !important;
-    color: #fff !important;
-    box-shadow: 0 4px 14px rgba(28, 111, 179, 0.25) !important;
+    background: var(--brand-blue-fixed) !important;
+    color: var(--on-brand) !important;
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--brand-blue-fixed) 25%, transparent) !important;
     transform: translateY(-1px) !important;
 }
-.stic-soft-btn:hover svg { stroke: #fff !important; }
+.stic-soft-btn:hover svg { stroke: var(--on-brand) !important; }
 .stic-soft-btn:active { transform: translateY(0) !important; }
 
 /* --- 26.f Mensaje de "Subiendo archivo..." (inyectado por JS) --- */
@@ -3073,8 +3080,8 @@ span.stic-field {
 .stic-info:hover,
 .stic-info:focus-visible,
 .stic-info.is-open {
-    background: var(--primary-color);
-    color: #fff;
+    background: var(--brand-blue-fixed);
+    color: var(--on-brand);
     transform: scale(1.08);
     outline: none;
 }
@@ -3214,7 +3221,7 @@ span.stic-field {
     transition: background 0.18s ease, color 0.18s ease;
 }
 .stic-legal-link svg { flex-shrink: 0; }
-.stic-legal-link:hover { background: var(--primary-color); color: #fff !important; }
+.stic-legal-link:hover { background: var(--brand-blue-fixed); color: var(--on-brand) !important; }
 .stic-legal-link svg { width: 14px; height: 14px; flex-shrink: 0; }
 .stic-legal-row .stic-legal-q {
     flex: 1 1 260px;
@@ -4173,11 +4180,16 @@ span.stic-field {
     transition: background 0.18s ease, color 0.18s ease;
 }
 .stic-container .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-    background: var(--primary-color);
+    background: var(--brand-blue-fixed);
     border-color: transparent;
-    color: #fff !important;      /* ídem: gana al hover !important del vendorizado */
+    color: var(--on-brand) !important;      /* ídem: gana al hover !important del vendorizado */
 }
-/* El .current (fondo de marca) ya lo aporta §12. */
+/* El .current (fondo de marca) ya lo aporta §12, pero su letra blanca la pisa
+   el `color … !important` de arriba (misma especificidad y va después): la
+   página elegida salía en azul sobre el degradado. */
+.stic-container .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+    color: var(--on-brand) !important; /* ídem: gana al de arriba y al del vendorizado */
+}
 
 /* --- 43.d "Sin resultados" de búsqueda como estado vacío compacto ---
    DataTables pinta zeroRecords como una fila <tr><td class="dataTables_empty">;
@@ -4278,8 +4290,10 @@ span.stic-field {
          · los TOKENS de color se aclaran → texto legible (≥4.5:1),
          · los DEGRADADOS se fijan con los hex de marca ORIGINALES → la barra de
            navegación y los botones siguen siendo exactamente los de la marca.
-       Sobre los rellenos de marca el texto blanco queda en 3.2–3.7:1, que es AA
-       para el texto grande/negrita que llevan encima (pastillas de hover). */
+       Sobre estos tokens aclarados el texto blanco se queda en 3,2-3,3:1 (y la
+       letra de las pastillas no es «grande» para WCAG), así que un relleno con
+       texto blanco encima usa `--brand-blue-fixed` / `--accent-fixed`, que no se
+       tocan aquí (§1, plan 042 A11Y-6). */
     --primary-color:  #3f95d6;
     --primary-light:  #74b6e8;
     --primary-dark:   #2a8cd1;
@@ -4808,8 +4822,8 @@ span.stic-field {
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.03em;
-    color: #fff;
-    background: var(--accent-color);
+    color: var(--on-brand);
+    background: var(--accent-fixed);
     border-radius: var(--radius-full);
     padding: 0.22rem 0.55rem;
 }
