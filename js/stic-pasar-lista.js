@@ -215,6 +215,11 @@
 
     var QUEUE_MAX_TRIES = 5;
 
+    /* Hasta cuándo una entrada puede reintentarse con un nonce nuevo (revisión
+       042): tres días cubren el fin de semana sin cobertura para el que existe
+       ese reintento. Más vieja, la manda su propio nonce o no la manda nadie. */
+    var QUEUE_FRESH_MS = 72 * 3600 * 1000;
+
     /** ¿Hay algo en la cola que ya no hay forma de enviar solo? */
     function queueStuck() {
         return queueRead().some(function (e) { return (e.tries || 0) >= QUEUE_MAX_TRIES; });
@@ -265,8 +270,13 @@
            cobertura un sábado y volvía a abrir el lunes no enviaba nada, y a
            los cinco intentos la lista quedaba «atascada». La respuesta de un
            nonce caducado es la propia pantalla, con su formulario y un nonce
-           NUEVO de esta misma sesión: se reintenta UNA vez con él. Mismo
-           origen y misma sesión, así que no afloja la protección. */
+           NUEVO: se reintenta UNA vez con él.
+           Ese nonce NO es «de esta sesión»: quien entra en el área no es
+           usuario de WordPress, y el nonce es el mismo para todos. Lo único
+           que ataba una entrada vieja era su nonce caducado, así que el
+           reintento tiene límite (revisión 042): solo la entrada reciente
+           (QUEUE_FRESH_MS) y no atascada. Sin él, una lista de hace semanas
+           pisaba en el CRM la que se había vuelto a guardar después. */
         function freshNonce(html) {
             if (!html || html.indexOf('data-pl-nonce-expired') === -1) { return ''; }
             var m = html.match(/name="pl_nonce" value="([^"]+)"/);
@@ -276,7 +286,9 @@
         q.forEach(function (entry) {
             post(entry, entry.nonce).then(function (html) {
                 var nonce = freshNonce(html);
-                return nonce ? post(entry, nonce) : html;
+                var retry = nonce && (entry.tries || 0) < QUEUE_MAX_TRIES
+                    && entry.ts && (Date.now() - entry.ts) < QUEUE_FRESH_MS;
+                return retry ? post(entry, nonce) : html;
             }).then(function (html) {
                 if (html === null) { return; }
                 if (html.indexOf('data-pl-saved-ok') !== -1) {

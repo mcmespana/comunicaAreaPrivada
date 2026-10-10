@@ -2326,6 +2326,29 @@ final class PasarListaRenderTest extends TestCase
         }
     }
 
+    /**
+     * EL REINTENTO CON NONCE NUEVO TIENE LÍMITE (revisión 042). El nonce es el
+     * mismo para todo el que entra en el área, así que el caducado era lo único
+     * que paraba una entrada vieja de la cola: sin límite, una lista atascada
+     * de hace semanas pisaba en el CRM la que se había vuelto a guardar. Solo
+     * se reintenta la entrada reciente y no atascada.
+     */
+    public function test_la_cola_solo_reintenta_con_nonce_nuevo_lo_reciente()
+    {
+        $js = file_get_contents(dirname(__DIR__) . '/js/stic-pasar-lista.js');
+        $ini = strpos($js, 'function queueFlush(');
+        $this->assertNotFalse($ini);
+        $flush = substr($js, $ini, strpos($js, 'function queueNotice(') - $ini);
+
+        $this->assertMatchesRegularExpression('/var QUEUE_FRESH_MS = 72 \* 3600 \* 1000;/', $js);
+        $this->assertMatchesRegularExpression(
+            '/var retry = nonce && \(entry\.tries \|\| 0\) < QUEUE_MAX_TRIES\s*&& entry\.ts && \(Date\.now\(\) - entry\.ts\) < QUEUE_FRESH_MS;\s*return retry \? post\(entry, nonce\) : html;/',
+            $flush
+        );
+        $this->assertStringNotContainsString('return nonce ? post(entry, nonce) : html;', $flush);
+        $this->assertStringNotContainsString('misma sesión, así que no afloja', $flush);
+    }
+
     /** Un nonce caducado no escribe nada, y eso también se apunta. */
     public function test_el_diario_apunta_el_nonce_caducado()
     {
