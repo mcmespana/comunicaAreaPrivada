@@ -834,7 +834,6 @@ span.stic-field {
     background: rgba(255, 255, 255, 0.14) !important;
     border: 0; color: #fff; cursor: pointer;
     font: inherit; font-weight: 600;
-    -webkit-tap-highlight-color: transparent;
 }
 .stic-nav-toggle::after { display: none !important; }
 .stic-nav-toggle:hover { transform: none !important; box-shadow: none !important; background: rgba(255, 255, 255, 0.24) !important; }
@@ -3069,7 +3068,6 @@ span.stic-field {
     line-height: 1;
     cursor: help;
     user-select: none;
-    -webkit-tap-highlight-color: transparent;
     transition: background 0.18s ease, color 0.18s ease, transform 0.18s var(--ease-spring);
 }
 .stic-info:hover,
@@ -3481,7 +3479,6 @@ span.stic-field {
     font-size: 0.84rem;
     font-weight: 700;
     cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
     transition: background 0.18s ease;
 }
 .stic-part-switch-btn::after { display: none !important; }
@@ -3612,7 +3609,6 @@ span.stic-field {
     font-weight: 700;
     box-shadow: none !important;
     cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
     transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 .stic-auth-tab::after, .stic-auth-tab::before { display: none !important; }
@@ -3743,7 +3739,6 @@ span.stic-field {
 .stic-form h5.stic-sec-toggle {
     cursor: pointer;
     user-select: none;
-    -webkit-tap-highlight-color: transparent;
     padding-right: 2.2rem !important;   /* hueco para el chevron */
     position: relative;
 }
@@ -3763,7 +3758,6 @@ span.stic-field {
     color: inherit !important;
     text-align: left !important;
     cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
 }
 .stic-form h5.stic-sec-toggle .stic-sec-btn::after,
 .stic-form h5.stic-sec-toggle .stic-sec-btn::before { display: none !important; }
@@ -5018,9 +5012,7 @@ span.stic-field {
    ============================================================ */
 
 /* --- 48.a Interacción táctil honesta --- */
-.stic-dash-card,
-.stic-agenda-link,
-.stic-agenda-cta { -webkit-tap-highlight-color: transparent; }
+/* (El destello de WebKit lo quita §66.b para toda el área.) */
 
 @media (hover: none) {
     /* Sin puntero fino no hay hover real: el navegador lo simula al tocar y
@@ -5248,7 +5240,6 @@ span.stic-field {
     padding: 0.9rem 1rem;
     text-decoration: none !important;
     color: inherit !important;
-    -webkit-tap-highlight-color: transparent;
 }
 .stic-rec-main:active { background: var(--surface-2); }
 
@@ -5802,7 +5793,6 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     letter-spacing: normal !important;
     text-transform: none !important;
     cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
     transition: background 0.18s ease, transform 0.18s var(--ease-spring);
 }
 .stic-hero-close::after,
@@ -7331,4 +7321,40 @@ html[data-stic-theme] {
         min-width: 44px;
         min-height: 44px;
     }
+}
+
+/* --- 66.b La regla del toque (CAR-7) ---
+   design.md §8: «`-webkit-tap-highlight-color: transparent` en todo lo
+   pulsable». Se ponía a mano, componente a componente (veinte
+   declaraciones sueltas entre las dos hojas), y lo que se quedaba fuera
+   daba el destello gris de WebKit —el que delata «página web» dentro de la
+   app—: los mosaicos del menú, «Salir», el avatar, los dos «volver»,
+   «Inscribirme», las filas del árbol de grupos… La propiedad se HEREDA, así
+   que una sola regla en los contenedores del área la quita de todo lo de
+   dentro, y se van las sueltas. `.stic-modal-overlay` cuelga de <body>. */
+:is(.stic-container, .stic-auth-shell, .stic-modal-overlay) {
+    -webkit-tap-highlight-color: transparent;
+}
+/* Y lo que no tenía ninguna respuesta al dedo, que sin el destello se
+   quedaría mudo: medido con :active forzado en la portada, la ficha de un
+   evento y el acceso. Las filas se aclaran, los botones encogen; con
+   movimiento reducido, en vez de encoger se apagan un poco. */
+@media (hover: none) {
+    .stic-rec-fact-a:active,
+    .stic-evweb-doc:active { background: var(--gray-50); }
+    .stic-iconbtn:active,
+    .stic-rec-back:active,
+    .stic-auth-tab:active,
+    .stic-appearance-btn:active { transform: scale(0.97); }
+    /* La hamburguesa lleva `transform: none !important` en su regla de
+       pasar el ratón (§7), que en táctil también está puesta mientras se
+       pulsa: sin el suyo, el encogido no se vería. */
+    .stic-nav-toggle:active { transform: scale(0.97) !important; /* gana al `none !important` de arriba */ }
+}
+@media (hover: none) and (prefers-reduced-motion: reduce) {
+    .stic-iconbtn:active,
+    .stic-rec-back:active,
+    .stic-auth-tab:active,
+    .stic-appearance-btn:active { transform: none; opacity: 0.72; }
+    .stic-nav-toggle:active { transform: none !important; /* gana al encogido de arriba */ opacity: 0.72; }
 }

@@ -81,4 +81,38 @@ class CarcasaTest extends TestCase
         $this->assertStringNotContainsString('De momento todo claro', $menu);
         $this->assertStringNotContainsString('El "Salir" va como último item', $menu);
     }
+
+    /**
+     * CAR-7. El destello gris de WebKit se quita en UN sitio: la propiedad se
+     * hereda, así que basta con los contenedores del área. Veinte
+     * declaraciones sueltas dejaban fuera justo lo que más se toca.
+     */
+    public function test_el_destello_se_quita_en_un_solo_sitio()
+    {
+        $custom = preg_replace('#/\*.*?\*/#s', '', $this->css('custom-style.css'));
+        $pl = preg_replace('#/\*.*?\*/#s', '', $this->css('pasar-lista.css'));
+        $this->assertSame(1, substr_count($custom, '-webkit-tap-highlight-color'));
+        $this->assertSame(0, substr_count($pl, '-webkit-tap-highlight-color'));
+        $this->assertMatchesRegularExpression(
+            '/:is\(\.stic-container, \.stic-auth-shell, \.stic-modal-overlay\) \{\s*-webkit-tap-highlight-color: transparent;\s*\}/',
+            $custom
+        );
+    }
+
+    /**
+     * CAR-7. Y sin destello, lo que no tenía `:active` se quedaba mudo al
+     * dedo. Estas piezas lo tienen (medido con :active forzado en Chromium).
+     */
+    public function test_lo_que_se_toca_responde_al_dedo()
+    {
+        $css = $this->css('custom-style.css') . $this->css('pasar-lista.css');
+        foreach (array(
+            'stic-iconbtn', 'stic-nav-toggle', 'stic-rec-back', 'stic-rec-fact-a', 'stic-evweb-doc',
+            'stic-auth-tab', 'stic-appearance-btn', 'pl-back', 'pl-group', 'pl-mine-inner',
+            'pl-session-pick', 'pl-orphans', 'pl-pending-row', 'pl-bucket', 'pl-all-groups',
+            'pl-grouprow-top', 'pl-review-link',
+        ) as $clase) {
+            $this->assertMatchesRegularExpression('/\.' . preg_quote($clase, '/') . ':active\b/', $css, $clase);
+        }
+    }
 }

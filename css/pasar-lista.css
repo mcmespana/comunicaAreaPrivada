@@ -353,7 +353,6 @@
     cursor: pointer;
     /* El navegador no se queda el gesto largo ni hace zoom al doble toque. */
     touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
@@ -601,7 +600,6 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     font-weight: 600 !important;
     font-family: inherit !important;
     cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
     transition: transform 120ms var(--ease-out);
 }
 .pl-skip-a {
@@ -2825,14 +2823,14 @@ a.pl-group .pl-name { display: block; }
 
 /* ---- Los remates de móvil de los bloques nuevos ------------------------- */
 
-/* Todo lo que se toca: sin el destello azul de la WebView, sin selección de
+/* Todo lo que se toca: sin el destello de la WebView (lo quita para toda el
+   área custom-style §66.b, plan 042 CAR-7), sin selección de
    texto al mantener el dedo, y con una respuesta INMEDIATA al pulsar. Dentro de
    la app, el overlay de «Cargando…» tarda un instante en aparecer; ese instante
    es justo el que decide si el usuario cree que ha pasado algo. */
 .pl-grp--link,
 .pl-phone--link,
 .pl-fold-sum {
-    -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
 }
 .pl-fold-sum { -webkit-user-select: none; user-select: none; }
@@ -3016,7 +3014,6 @@ a.pl-group .pl-name { display: block; }
     padding: 0.55rem 0.35rem 0.55rem 0.9rem;
     color: var(--gray-800);
     text-decoration: none;
-    -webkit-tap-highlight-color: transparent;
 }
 .pl-contactrow-main > svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--gray-400); }
 .pl-contactrow-body { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
@@ -3061,7 +3058,6 @@ a.pl-group .pl-name { display: block; }
     background: var(--primary-50);
     color: var(--primary-color);
     cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
     transition: background-color 140ms ease, color 140ms ease;
 }
 .pl-copy svg { width: 18px; height: 18px; }
@@ -3107,7 +3103,6 @@ a.pl-group .pl-name { display: block; }
     font-size: 0.82rem;
     font-weight: 700;
     text-decoration: none;
-    -webkit-tap-highlight-color: transparent;
 }
 .pl-ghost:active { opacity: 0.72; }
 
@@ -3557,7 +3552,6 @@ a.pl-group .pl-name { display: block; }
         left: 0;
         right: 0;
         border-radius: var(--radius-md);
-        -webkit-tap-highlight-color: transparent;
     }
     .pl-strip-link:active { background: color-mix(in srgb, var(--gray-500) 10%, transparent); }
 }
@@ -3583,7 +3577,6 @@ a.pl-group .pl-name { display: block; }
    botón cubre la tarjeta (no hay otros pulsables dentro, así que no pisa
    nada) y el pulsado encoge la tarjeta entera. */
 .pl-hero { position: relative; transition: transform 120ms var(--ease-out); }
-.pl-hero-cta { -webkit-tap-highlight-color: transparent; }
 .pl-hero-cta::after {
     content: '';
     position: absolute;
@@ -3651,7 +3644,6 @@ a.pl-group .pl-name { display: block; }
     font-size: 0.85rem;
     font-weight: 800;
     text-decoration: none !important;
-    -webkit-tap-highlight-color: transparent;
     transition: transform 0.12s var(--ease-out), background-color 0.12s var(--ease-out);
 }
 .pl-lasthero-chip:active { transform: scale(0.97); }
@@ -3684,7 +3676,6 @@ a.pl-group .pl-name { display: block; }
 .pl-who-link {
     color: var(--primary-color) !important;   /* el tema subraya y repinta los enlaces de .entry-content */
     text-decoration: none !important;
-    -webkit-tap-highlight-color: transparent;
 }
 .pl-who-link:active { transform: scale(0.97); }
 @media (hover: hover) {
@@ -3723,7 +3714,6 @@ a.pl-group .pl-name { display: block; }
     color: var(--white) !important;
     font-size: 0.83rem !important;
     font-weight: 700 !important;
-    -webkit-tap-highlight-color: transparent;
     transition: transform 0.12s var(--ease-out);
 }
 .pl-review-btn:active { transform: scale(0.97); }
@@ -3808,4 +3798,34 @@ a.pl-group .pl-name { display: block; }
     }
     /* El papeleo arranca a la altura de la identidad, no 1,85 rem más abajo. */
     .pl-mon-aside > .pl-sec-row:first-child { padding-top: 0.9rem; }
+}
+
+/* ==========================================================================
+   042 · CARCASA (plan 042, auditoría de la carcasa)
+   ========================================================================== */
+
+/* ---- CAR-7: lo que no respondía al dedo ----------------------------------
+   El destello gris de WebKit lo quita ya una sola regla en custom-style §66.b
+   (la propiedad se hereda del contenedor del área). Sin él, estas piezas se
+   quedaban sin ninguna respuesta al pulsarlas, y algunas son justo lo que un
+   monitor toca cada sábado: las filas del árbol de grupos, el atajo de tu
+   grupo, el selector de sesión y la flecha de volver. Las filas se aclaran
+   como `.pl-row:active`; los botones encogen; los enlaces de texto se apagan
+   como `.pl-ghost:active`. */
+@media (hover: none) {
+    .pl-group:active,
+    .pl-mine-inner:active,
+    .pl-pending-row:active,
+    .pl-bucket:active,
+    .pl-all-groups:active { background: var(--gray-50); }
+    .pl-back:active,
+    .pl-session-pick:active,
+    .pl-orphans:active { transform: scale(0.97); }
+    .pl-grouprow-top:active,
+    .pl-review-link:active { opacity: 0.72; }
+}
+@media (hover: none) and (prefers-reduced-motion: reduce) {
+    .pl-back:active,
+    .pl-session-pick:active,
+    .pl-orphans:active { transform: none; opacity: 0.72; }
 }

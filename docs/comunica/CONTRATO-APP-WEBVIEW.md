@@ -283,4 +283,7 @@ Detalle completo y pasos pendientes en el README §8.6.
 - [ ] ¿Se pega abajo (`fixed` o `sticky; bottom`)? Reserva con los dos tokens de
       §3 (`--stic-app-bottom` y `--stic-safe-bottom`), nunca con un `env()` suelto,
       y deja el mismo hueco debajo en la app.
+- [ ] ¿Lo nuevo pulsable responde al dedo con `:active`? El destello gris de
+      WebKit ya lo quita la regla común (`custom-style.css` §66.b): sin
+      `:active`, el toque no tiene ninguna respuesta (plan 042, CAR-7).
 - [ ] Pruébalo con `?app=1` además de en navegador.
