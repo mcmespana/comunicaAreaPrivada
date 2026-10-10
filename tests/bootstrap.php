@@ -257,6 +257,8 @@ require_once __DIR__ . '/../inc/stic-pasar-lista.php';
 // WordPress que las pantallas se pintan enteras y sin avisos.
 require_once __DIR__ . '/../inc/stic-pasar-lista-crm.php';
 require_once __DIR__ . '/../inc/stic-pasar-lista-ui.php';
+// Pasar lista en un evento (el autobús): lógica pura y lecturas del CRM.
+require_once __DIR__ . '/../inc/stic-pasar-lista-eventos.php';
 // El service worker: el archivo solo define funciones y un add_action (ya
 // stubeado). El modo sin conexión está apagado por defecto, así que en los
 // tests sticpa_pl_sw_register_html() devuelve cadena vacía, que es justo el

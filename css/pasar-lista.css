@@ -92,7 +92,8 @@
 .pl-panuelo-edit,
 .pl-panuelo-opt,
 .pl-copy,
-.pl-review-btn {
+.pl-review-btn,
+.pl-evchip {
     -webkit-appearance: none !important;
     appearance: none !important;
     font: inherit !important;
@@ -131,7 +132,9 @@
 .pl-copy::after,
 .pl-copy::before,
 .pl-review-btn::after,
-.pl-review-btn::before {
+.pl-review-btn::before,
+.pl-evchip::after,
+.pl-evchip::before {
     content: none !important;
     display: none !important;
 }
@@ -3804,4 +3807,146 @@ a.pl-group .pl-name { display: block; }
     .pl-hero-cta:is(:hover, :focus) { color: var(--pl-brand-fixed); }
     .pl-phone-btn--wa:is(:hover, :focus) { color: var(--success-dark); }
     .pl-review-link:is(:hover, :focus) { color: var(--warning-darker); }
+}
+
+/* ==========================================================================
+   042 · Pasar lista en un EVENTO (el autobús)
+   ==========================================================================
+   inc/stic-pasar-lista-eventos.php y pages/single_stic_pasar_lista_evento.php.
+   La lista ES la de marcar —mismas filas, misma barra, misma hoja—; aquí solo
+   va lo nuevo: la tarjeta del evento de hoy, los chips de curso y las filas
+   de quien no va. Docs: docs/comunica/PASAR-LISTA-EVENTOS.md */
+
+/* La tarjeta del evento de HOY. Superficie con un filete de marca a la
+   izquierda y NO otro degradado: en la portada de Pasar Lista convive con la
+   tarjeta del sábado, y dos bloques de marca seguidos es lo que design.md §3
+   no quiere. La cápsula de fecha es la de siempre. Toda ella es el enlace. */
+.pl-evhoy-list { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.1rem; }
+.pl-evhoy {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    min-height: 88px;
+    margin-bottom: 1.1rem;
+    padding: 1rem 1rem 1rem 1.2rem;
+    border-radius: var(--radius-xl);
+    background: var(--surface);
+    border: 1px solid var(--gray-200);
+    box-shadow: var(--shadow-sm);
+    color: inherit;
+    text-decoration: none;
+    overflow: hidden;
+    transition: transform 160ms var(--ease-out);
+}
+.pl-evhoy-list .pl-evhoy { margin-bottom: 0; }
+.pl-evhoy::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: var(--grad-brand);
+}
+.pl-evhoy .stic-cell-badge.pl-evhoy-date { width: 56px; flex-shrink: 0; }
+.pl-evhoy-body { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; flex: 1; }
+.pl-evhoy-when {
+    font-size: 0.7rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--primary-color);
+}
+.pl-evhoy-name {
+    font-size: 1.1rem;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    color: var(--gray-900);
+    overflow-wrap: anywhere;
+}
+.pl-evhoy-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-top: 0.2rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--primary-color);
+}
+.pl-evhoy-cta svg { width: 16px; height: 16px; }
+.pl-evhoy:active { transform: scale(0.97); }
+@media (hover: hover) {
+    .pl-evhoy:hover { border-color: var(--gray-300); box-shadow: var(--shadow-md); }
+}
+
+/* Los chips del filtro por curso: una fila que se desliza en horizontal en el
+   móvil (doce cursos no caben a 375 px y partirlos en tres líneas empuja la
+   lista fuera de la pantalla). 44 px, como todo lo que se toca. El elegido va
+   en el azul FIJO de la marca con texto blanco fijo: con el azul de los
+   tokens, en oscuro, el blanco se queda en 3,2:1 (plan 042, A11Y-6). */
+.pl-evchips {
+    display: flex;
+    gap: 0.45rem;
+    overflow-x: auto;
+    margin: 0.1rem 0 0.35rem;
+    padding: 0.15rem 0.1rem 0.5rem;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+.pl-evchips::-webkit-scrollbar { display: none; }
+.pl-evchip {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 0.4rem;
+    flex-shrink: 0;
+    min-height: 44px;
+    padding: 0 0.95rem !important;
+    border-radius: var(--radius-full) !important;
+    background: var(--surface) !important;
+    border: 1px solid var(--gray-200) !important;
+    color: var(--gray-700) !important;
+    font-size: 0.88rem !important;
+    font-weight: 700 !important;
+    white-space: nowrap;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: transform 160ms var(--ease-out);
+}
+.pl-evchip-n { font-size: 0.75rem; font-weight: 800; color: var(--gray-500); }
+.pl-evchip[aria-pressed="true"] {
+    background: var(--brand-blue-fixed) !important;
+    border-color: var(--brand-blue-fixed) !important;
+    color: var(--on-brand) !important;
+}
+.pl-evchip[aria-pressed="true"] .pl-evchip-n { color: var(--on-brand); }
+.pl-evchip:active { transform: scale(0.97); }
+.pl-evchip:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+@media (hover: hover) {
+    .pl-evchip[aria-pressed="false"]:hover { border-color: var(--gray-300) !important; }
+}
+
+/* Quien NO va (inscripción cancelada o parecida): al final, sin botón —no se
+   marca— y con su chip. El nombre en gris de texto secundario, no apagado con
+   opacidad: tiene que poder leerse igual. */
+.pl-evout {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 56px;
+    padding: 0.6rem 0.75rem 0.6rem 0.85rem;
+    border-top: 1px solid var(--gray-100);
+}
+.pl-evout:first-child { border-top: 0; }
+.pl-evout-body { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; flex: 1; }
+.pl-evout-name { font-weight: 600; color: var(--gray-600); }
+.pl-evout-sub { font-size: 0.78rem; color: var(--gray-500); }
+.pl-evout .stic-rec-chip { flex-shrink: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+    .pl-evhoy,
+    .pl-evchip { transition: none; }
+    .pl-evhoy:active,
+    .pl-evchip:active { transform: none; opacity: 0.8; }
 }

@@ -61,6 +61,8 @@ function sticpa_pl_icon($which)
         'search' => '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
         // Las barras del botón de «Resumen de grupos» (artboard `Main`).
         'chart' => '<path d="M4 20V10"/><path d="M10 20V4"/><path d="M16 20v-6"/><path d="M22 20H2"/>',
+        // El calendario de la entrada a los eventos (pasar lista en una salida).
+        'calendar' => '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
         // La persona con anillo de la tarjeta de «participantes sin grupo».
         'person' => '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="2.6"/><path d="M7.5 18a4.8 4.8 0 0 1 9 0"/>',
         // El triángulo de aviso: lo que reclama algo, no lo que informa. Se usa
