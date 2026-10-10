@@ -274,6 +274,29 @@ o 6 más con 12 (1-2 s), en la primera pantalla del día.
 
 **Ficheros:** `inc/stic-calendar.php`, `inc/stic-action.php`, `pages/list_stic_events.php`, `tests/CalendarParallelTest.php`, `tests/CosteLlamadasAreaTest.php`
 
+> **Estado (10/10/2026, lote L4).** **Punto 2 HECHO:** los eventos de la ventana salen
+> en la primera tanda, con tus inscripciones (−1 espera en la portada y el calendario
+> fríos, siempre; la home del doble: 4 esperas → 3). Sus campos se calculan ANTES y
+> fuera de la recolecta (`sticpa_calendar_events_window_query()`): calculados dentro,
+> con la definición de eventos fría la consulta de la tanda no casaba con la de
+> después y se pedía DOS veces la ventana entera (comprobado rompiéndolo:
+> `CosteLlamadasAreaTest` lo caza, 5 llamadas y la misma consulta repetida). La parte
+> de Eventos del punto 3 ya la hizo VEL-5.
+> **Puntos 1 y 3 (el filtro por fecha) NO hechos, pendientes del propietario:**
+> - Cambian lo que se ve: el calendario deja de enseñar lo de hace más de dos años.
+>   Cuánta historia guarda el calendario es una decisión de producto.
+> - `registration_date` NO está en `CAMPOS.md` (el código ya lo lee en
+>   `inc/stic-registrations.php`, pero el documento manda y no lo recoge): hay que
+>   confirmarlo y apuntarlo antes de filtrar por él.
+> - La fecha de la inscripción es un indicador indirecto de lo viejo que es el evento.
+>   Una inscripción de hace más de 24 meses a un evento largo que sigue vivo (un grupo
+>   de varios cursos, si los hay) sacaría de la agenda sesiones de hoy, y el evento
+>   saldría como «abierto» en la home y el calendario en vez de como tuyo. Más seguro,
+>   aunque gana menos: filtrar por las fechas del EVENTO, partiendo la tanda 1 (primero
+>   el evento de cada inscripción; luego sesiones y asistencias solo de los que caen
+>   en la ventana). Con 12 inscripciones, 11 esperas → ~6, frente a las 4 de la
+>   propuesta.
+
 ## VEL-4 — Pagos hace tres viajes en fila en cada visita, y los dos primeros no dependen uno del otro
 
 **Tipo:** rendimiento · **Para:** familias · **Tamaño:** S · **Riesgo:** bajo · **Impacto:** 3/5
