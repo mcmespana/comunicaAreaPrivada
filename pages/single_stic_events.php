@@ -35,9 +35,14 @@ if ($eventId === '') {
 // del evento de cada inscripción). Los cargadores son los mismos que se usan
 // abajo, así que cada uno encuentra su respuesta ya traída; con la caché
 // caliente no recolectan nada y esto no hace nada.
+// Los campos se calculan FUERA de la recolecta (revisión 042, como VEL-3 en el
+// calendario): con la definición de stic_Events fría, dentro salen solo los
+// base, la tanda pide otra lista que la llamada de abajo y el evento se pide
+// dos veces.
+$camposEvento = sticpa_event_fields_to_request($objSCP, true);
 if (function_exists('sticpa_pl_prime')) {
-    sticpa_pl_prime($objSCP, function () use ($objSCP, $eventId) {
-        $objSCP->getRecordDetail($eventId, 'stic_Events', sticpa_event_fields_to_request($objSCP, true));
+    sticpa_pl_prime($objSCP, function () use ($objSCP, $eventId, $camposEvento) {
+        $objSCP->getRecordDetail($eventId, 'stic_Events', $camposEvento);
         if (function_exists('prefix_user_active_event_ids')) {
             prefix_user_active_event_ids($objSCP);
         }
@@ -48,7 +53,7 @@ if (function_exists('sticpa_pl_prime')) {
 }
 
 // Con los campos de la web (cuerpo, cartel, lema…): la ficha los pinta.
-$detail = $objSCP->getRecordDetail($eventId, 'stic_Events', sticpa_event_fields_to_request($objSCP, true));
+$detail = $objSCP->getRecordDetail($eventId, 'stic_Events', $camposEvento);
 $nvl = $detail->entry_list[0]->name_value_list ?? null;
 $event = $nvl ? sticpa_event_view_model($nvl) : null;
 

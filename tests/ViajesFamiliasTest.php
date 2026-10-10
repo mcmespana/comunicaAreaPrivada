@@ -391,4 +391,50 @@ class ViajesFamiliasTest extends TestCase
         // r4 está cancelada: a e4 sí te puedes volver a apuntar.
         $this->assertStringContainsString('msg=inscrita', $this->inscribirse('e4'));
     }
+
+    /** Cuántas veces se pide el evento, en serie o en una tanda. */
+    private function vecesQueSePideElEvento()
+    {
+        $n = 0;
+        foreach ($this->scp->log as $e) {
+            if ($e[0] === 'serie' && $e[1] === 'getRecordDetail:stic_Events') {
+                $n++;
+            }
+            if ($e[0] === 'tanda') {
+                $n += count(array_keys($e[2], 'getRecordDetail:stic_Events', true));
+            }
+        }
+        return $n;
+    }
+
+    /**
+     * Revisión 042: con la definición de eventos FRÍA (una vez cada 6 h, la
+     * primera ficha del sitio), los campos se calculaban dentro de la
+     * recolecta y salían solo los base: la tanda pedía una lista y la ficha
+     * otra, y el evento se pedía dos veces. Las esperas siguen siendo 3 en
+     * frío (la definición va antes, en serie); lo que no puede haber es el
+     * get_entry repetido.
+     */
+    public function test_con_la_definicion_fria_la_ficha_pide_el_evento_una_vez(): void
+    {
+        $GLOBALS['__stic_transients'] = array();
+        $html = $this->render('single_stic_events', array('id' => 'e5'));
+        list(, $pasos) = $this->esperas();
+        $this->assertSame(1, $this->vecesQueSePideElEvento(), "Ficha del evento en frío: {$pasos}");
+        $this->assertStringContainsString('Convivencia e5', $html);
+    }
+
+    /** Lo mismo al pulsar «Inscribirme» con la definición de eventos fría. */
+    public function test_con_la_definicion_fria_inscribirse_pide_el_evento_una_vez(): void
+    {
+        foreach (array_keys($GLOBALS['__stic_transients']) as $k) {
+            if (strpos($k, 'sticpa_fdef_') === 0) {
+                unset($GLOBALS['__stic_transients'][$k]);
+            }
+        }
+        $url = $this->inscribirse('e5');
+        $this->assertStringContainsString('msg=inscrita', $url);
+        list(, $pasos) = $this->esperas();
+        $this->assertSame(1, $this->vecesQueSePideElEvento(), "Inscribirse en frío: {$pasos}");
+    }
 }

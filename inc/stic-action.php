@@ -663,17 +663,20 @@ function prefix_admin_single_stic_registrations()
         // otro e iban en fila. Son los mismos cargadores de abajo, que
         // encuentran su respuesta ya traída: una espera menos antes de
         // guardar. El guard sigue preguntando al CRM en esta petición, no a una
-        // caché: la tanda sale justo aquí.
+        // caché: la tanda sale justo aquí. Los campos, FUERA de la recolecta
+        // (revisión 042): con la definición fría, dentro salen solo los base y
+        // el evento se pide dos veces.
+        $camposEvento = $eventId !== '' ? sticpa_event_fields_to_request($objSCP) : array();
         if ($eventId !== '' && function_exists('sticpa_pl_prime')) {
-            sticpa_pl_prime($objSCP, function () use ($objSCP, $eventId) {
-                $objSCP->getRecordDetail($eventId, 'stic_Events', sticpa_event_fields_to_request($objSCP));
+            sticpa_pl_prime($objSCP, function () use ($objSCP, $eventId, $camposEvento) {
+                $objSCP->getRecordDetail($eventId, 'stic_Events', $camposEvento);
                 prefix_user_active_event_ids($objSCP, true);
             });
         }
         if ($eventId !== '') {
             // El evento se lee UNA vez: lo usan la audiencia, el plazo, las
             // preguntas y el precio.
-            $ev = $objSCP->getRecordDetail($eventId, 'stic_Events', sticpa_event_fields_to_request($objSCP));
+            $ev = $objSCP->getRecordDetail($eventId, 'stic_Events', $camposEvento);
             $eventNvl = $ev->entry_list[0]->name_value_list ?? null;
         }
         // $fresh = true a propósito: este guard decide si se CREA un registro,
