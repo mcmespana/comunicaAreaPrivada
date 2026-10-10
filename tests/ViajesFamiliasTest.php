@@ -8,6 +8,25 @@ if (!function_exists('plugins_url')) {
     function plugins_url($p = '', $f = '') { return '/wp-content/plugins/sinergiacrm-private-area/' . $p; }
 }
 
+if (!class_exists('StiRedirect')) {
+    /** El handler «redirige»: se corta aquí, antes del `exit`, y se mira a dónde. */
+    class StiRedirect extends Exception
+    {
+        public $url;
+        public function __construct($url)
+        {
+            parent::__construct('redirect: ' . $url);
+            $this->url = (string) $url;
+        }
+    }
+}
+if (!function_exists('wp_safe_redirect')) {
+    function wp_safe_redirect($url, $status = 302)
+    {
+        throw new StiRedirect($url);
+    }
+}
+
 /**
  * Un doble del CRM con los datos de una FAMILIA DE VERDAD: tres inscripciones
  * activas y una cancelada, sus eventos, pagos y compromisos.
@@ -303,5 +322,73 @@ class ViajesFamiliasTest extends TestCase
         list($n, $pasos) = $this->esperas();
         $this->assertLessThanOrEqual(2, $n, "Eventos: {$n} esperas: {$pasos}");
         $this->assertStringContainsString('Evento 6', $html);
+    }
+
+    /**
+     * VEL-9: al apuntarse, el evento y tus inscripciones (el guard contra la
+     * inscripción doble, que pregunta al CRM sin caché) no dependen uno de
+     * otro: van en la misma tanda. Después, la del evento de cada inscripción.
+     */
+    /** Envía «Inscribirme» al evento $eventId y devuelve a dónde redirige. */
+    private function inscribirse($eventId)
+    {
+        // La definición de inscripciones, caliente (6 h, de todo el sitio).
+        sticpa_registration_definition($this->scp);
+        $this->scp->log = array();
+        $campos = array(
+            'stic-action' => 'create',
+            'id' => '',
+            'stic_registrations_stic_eventsstic_events_ida' => $eventId,
+            'status' => 'confirmed',
+            'special_needs' => '0',
+        );
+        $_REQUEST = $campos;
+        $_REQUEST['stic_form_fields'] = sticpa_form_token('single_stic_registrations',
+            array_values(array_diff(array_keys($campos), array('stic-action', 'action', 'scp_current_url'))));
+        $_REQUEST['scp_current_url'] = '/ap/?internalpage=single_stic_registrations';
+        try {
+            prefix_admin_single_stic_registrations();
+        } catch (StiRedirect $r) {
+            return $r->url;
+        }
+        $this->fail('el handler no redirigió');
+    }
+
+    public function test_inscribirse_pide_el_evento_y_tus_inscripciones_juntos(): void
+    {
+        $url = $this->inscribirse('e5');
+        $this->assertStringContainsString('msg=inscrita', $url, 'se apunta');
+
+        // Hasta guardar: esas son las esperas que se ahorran.
+        $antes = array();
+        foreach ($this->scp->log as $e) {
+            if ($e[0] === 'serie' && $e[1] === 'set_entry:stic_Registrations') {
+                break;
+            }
+            $antes[] = $e;
+        }
+        $this->scp->log = $antes;
+        list($n, $pasos) = $this->esperas();
+        $this->assertSame('tanda', $antes[0][0] ?? '', "Lo primero, una tanda: {$pasos}");
+        $this->assertContains('getRecordDetail:stic_Events', $antes[0][2]);
+        $this->assertContains('Contacts:stic_registrations_contacts', $antes[0][2]);
+        $this->assertLessThanOrEqual(2, $n, "Inscribirse, hasta guardar: {$n} esperas: {$pasos}");
+    }
+
+    /**
+     * Y lo que importa de verdad: con la tanda, el guard contra la inscripción
+     * doble sigue viendo tus plazas. La recolecta no puede dejar memorizado
+     * «no tienes ninguna» y crear otra (e2 la tiene, por r2).
+     */
+    public function test_con_la_tanda_no_se_crea_una_inscripcion_doble(): void
+    {
+        $url = $this->inscribirse('e2');
+        $this->assertStringContainsString('action=create', $url, 'vuelve a la pantalla de inscripción');
+        $this->assertStringNotContainsString('msg=inscrita', $url);
+        foreach ($this->scp->log as $e) {
+            $this->assertNotSame(array('serie', 'set_entry:stic_Registrations'), $e, 'no se crea nada');
+        }
+        // r4 está cancelada: a e4 sí te puedes volver a apuntar.
+        $this->assertStringContainsString('msg=inscrita', $this->inscribirse('e4'));
     }
 }

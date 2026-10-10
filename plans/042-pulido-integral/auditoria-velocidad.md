@@ -569,6 +569,23 @@ escritura: ahí no hay nada que ganar.
 
 **Ficheros:** `inc/stic-action.php`, `inc/stic-registrations.php`, `tests/RegistrationManageTest.php`
 
+> **Estado (10/10/2026, lote L4).** **Punto 1 HECHO:** el evento y tus inscripciones
+> salen en una `sticpa_pl_prime` justo antes del guard (−1 espera en toda inscripción,
+> con precio o sin él); `ViajesFamiliasTest` fija que lo primero es esa tanda y que el
+> guard sigue parando la inscripción doble (e2) y dejando volver a una cancelada (e4).
+> **Punto 2 NO hecho, a propósito:** son ESCRITURAS sobre el compromiso de pago, en
+> paralelo, y lo que puede salir mal no lo ve ningún doble: si un *logic hook* del CRM
+> en `stic_Payment_Commitments` (al añadir relación o al guardar) no aguanta cuatro
+> peticiones a la vez sobre el mismo compromiso, o si el pago generado depende de que
+> las relaciones ya estén puestas. Además, si una escritura de la tanda se pierde
+> (timeout), la pasada normal la repite en serie: `set_relationship` debería ser
+> idempotente, pero eso también hay que verlo en esta instancia. Para hacerlo: la
+> prueba del punto 3 en el CRM (domiciliación y tarjeta; tres relaciones, pago con
+> persona y en Pagos, sin compromisos dobles), y el test que pide de
+> `RegistrationManageTest` con un doble que modele recolecta y tanda (el suyo de hoy no
+> tiene `collectRequests`/`callMany`, así que con él todo sale en serie). Ganancia que
+> queda: 3 esperas (~1 s) solo en las inscripciones con pago.
+
 ## VEL-10 — No hay números de producción: la cabecera `Server-Timing` que cita el código no existe y la tabla de mediciones del plan 034 sigue vacía
 
 **Tipo:** medición · **Para:** el propietario y quien implemente · **Tamaño:** M · **Riesgo:** bajo · **Impacto:** 3/5
