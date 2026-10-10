@@ -29,9 +29,9 @@ tomada va a «Decisiones del propietario».
 | Fase | Qué | Estado |
 |---|---|---|
 | 1. Auditoría | Un auditor por área, read-only, con capturas del render offline | **HECHA** salvo dos cerradas a medias (carcasa y accesibilidad: se cortaron por el límite de uso; lo escrito está verificado, pero puede faltar algo) |
-| 2. Implementación | Lotes en dos carriles que no se pisan, un commit por hallazgo, tests y capturas | **EN CURSO** — ver «Lotes» |
+| 2. Implementación | Lotes en dos carriles que no se pisan, un commit por hallazgo, tests y capturas | **CASI HECHA** — ver «Lotes» |
 | 3. Revisión | Revisión adversarial del diff entero, `composer lint`, PHPUnit, comprobaciones de design.md §9 | PENDIENTE |
-| 4. Propuestas | Funcionalidades nuevas con casilla GO / NO GO | EN CURSO → `docs/comunica/PROPUESTAS-FUNCIONALIDADES-2026-10.md` |
+| 4. Propuestas | Funcionalidades nuevas con casilla GO / NO GO | **HECHA** → [`docs/comunica/PROPUESTAS-FUNCIONALIDADES-2026-10.md`](../../docs/comunica/PROPUESTAS-FUNCIONALIDADES-2026-10.md) (12 propuestas) |
 
 ### Auditoría, por área
 
@@ -53,16 +53,47 @@ ramas se fusionan en la rama de trabajo.
 
 | Carril (rama local) | Lote | Hallazgos | Estado |
 |---|---|---|---|
-| A · `lote-A-pasar-lista-coordinacion` | **L2 · Pasar Lista** | PL-1, 2, 5, 3, 13, 4, 7, 8, 6, 10 (sin el punto 5), 12, 11, (9 si cabe) + VEL-2 | EN CURSO |
-| A | **L3 · Coordinación** | COO-1, 2, 7, 4, 3, 9, 6, (5 si cabe) | DETRÁS DE L2 |
-| B · `lote-B-familias-velocidad` | **L1 · Familias** | FAM-a1, a3, a6, a2, a7, a5, a4, a9, a12, a11 y la parte sin decisión de a13 | EN CURSO |
-| B | **L4 · Velocidad** | VEL-1, 5, 4, 7, 6 (sin subir la concurrencia), 10 mínima (cabecera `Server-Timing`), (9 y 3 si caben) | DETRÁS DE L1 |
-| — | **L5 · Carcasa y accesibilidad** | CAR-2 (`viewport-fit=cover`), CAR-3, CAR-4, CAR-5 (puntos 1 y 3), CAR-7, A11Y-2, A11Y-3, A11Y-6; y **al final de todo**, con lo demás ya fusionado, A11Y-4 (borrar ~600 líneas de CSS muerto) y A11Y-5 | PENDIENTE (siguiente ventana) |
+| A · `lote-A-pasar-lista-coordinacion` | **L2 · Pasar Lista** | PL-1, 2, 5, 3, 13, 4, 7, 8, 6, 10 (sin el punto 5), 12, 11, 9 (sin su punto 3) + VEL-2 | **HECHO** (09/10) — los 14, un commit cada uno |
+| A | **L3 · Coordinación** | COO-1, 2, 7, 4, 3, 9, 6, 5 | **HECHO** salvo COO-5 (escritorio), EN CURSO el 10/10 |
+| B · `lote-B-familias-velocidad` | **L1 · Familias** | FAM-a1, a3, a6, a2, a7, a5, a4, a9, a12, a11 y la parte sin decisión de a13 | **HECHO** (09/10) — todos, ninguno saltado |
+| B | **L4 · Velocidad** | VEL-1, 5, 4, 7, 6 (sin subir la concurrencia), 10 mínima (cabecera `Server-Timing`), (9 y 3 si caben) | VEL-1, 4, 5, 7 **HECHOS**; VEL-6, 10 (y 9/3 si son seguros) EN CURSO el 10/10 |
+| A (tras L3) | **L5 · Carcasa y accesibilidad** | CAR-2 (`viewport-fit=cover`), CAR-3, CAR-4, CAR-5 (puntos 1 y 3), CAR-7, A11Y-6, A11Y-2, A11Y-3; y al final A11Y-4 (CSS muerto, solo lo demostrado) y A11Y-5 si es seguro | EN CURSO el 10/10 |
 
 Si una sesión se corta: las ramas de los carriles viven en el contenedor
 (`git branch`), con un commit por hallazgo, y los worktrees en el scratchpad de la
 sesión. Para seguir, mira `git log claudito/gallant-babbage-n74kag..lote-…` y
 continúa por el siguiente hallazgo de la lista.
+
+### Para comprobar en producción después de desplegar
+
+Nada de esto se puede probar sin WordPress ni el CRM de verdad; está apuntado
+por quien hizo el cambio.
+
+- **«Pagar con tarjeta»** (VEL-1): el área ya no carga la capa de los formularios
+  públicos, cuyo JS arrancaba su motor de alta sobre ese formulario (lleva
+  `id="WebToLeadForm"`). Se comprobó que no lo necesita, pero es el punto con más
+  riesgo: hacer un pago de prueba.
+- **La barra de guardar de Pasar Lista dentro de MCM App** (PL-3), en un iPhone y
+  con una lista de 14: que quede por encima de la tab bar, en marcar y en la lista
+  de monitores.
+- **Subir un documento** (FAM-a9) contra el CRM real (es `SEC-10`).
+- **Marcar con `?pl_diag=1`** (VEL-2): si sale
+  `ajmcm_GRUPOS:ajmcm_grupos_stic_contacts_relationships`, cachearlo quita dos
+  esperas más.
+- **Una familia con dos o más hijos que entra por el enlace de un evento**
+  (FAM-a1): debe ver «¿A quién quieres apuntar?» y, al elegir, llegar a la ficha
+  del evento.
+
+### Pequeñas decisiones que salieron al implementar
+
+- **PL-9, punto 3**: ¿se vacía también la cola de listas sin enviar desde
+  cualquier pantalla del área (`js/stic-ui.js`), y no solo desde Pasar Lista?
+- **FAM-a11**: el selector de participante de la barra se ve de 31 px, aunque su
+  zona táctil ya es de 45 px. Hacerlo de 44 px de verdad hace la barra 13 px más
+  alta en todas las pantallas.
+- **«Atrás» frente a «Volver»**: el formulario de inscripción ya dice «Volver»;
+  documentos, perfil y pagos siguen con «Atrás». Unificarlo es una línea por
+  formulario.
 
 ---
 
