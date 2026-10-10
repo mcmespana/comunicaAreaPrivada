@@ -795,6 +795,14 @@ Cargadores de colección (uno por colección, nunca uno por fila):
   desglose, y `?pl_diag=1` lo enseña por pantalla. **Antes de tocar nada más de
   rendimiento, mira esos números**: lo siguiente (paralelizar con `curl_multi`)
   es la parte cara y no se empieza a ciegas.
+- **Y desde cualquier móvil o navegador (10/10/2026, plan 042 VEL-10):** cada
+  página del área lleva la cabecera `Server-Timing` con el tiempo del CRM, sus
+  llamadas y el total del servidor. Se mira en las herramientas de desarrollo →
+  Network → la petición de la página (la de `?internalpage=…`) → **Timing**,
+  abajo, «Server Timing»: si `crm` se come casi todo el `total`, es el CRM; si
+  no, es WordPress; y lo que va de `total` a lo que se ha esperado es red y
+  navegador. Por consola: `performance.getEntriesByType('navigation')[0].serverTiming`.
+  Detalles en `inc/stic-perf.php`.
 
 ### Medido y DESCARTADO: no envolver `session_attendances` en una tanda
 

@@ -91,4 +91,95 @@ class PerfTest extends TestCase
             $this->assertStringNotContainsString('crm-profile-app', $src, basename($f) . ' usa el armazón de los formularios');
         }
     }
+
+    /* ---- VEL-10: Server-Timing ------------------------------------------ */
+
+    /** La forma exacta: es lo que lee el navegador y lo que se mira en Network → Timing. */
+    public function test_server_timing_dice_el_crm_y_el_total(): void
+    {
+        $this->assertSame(
+            'crm;dur=812.4;desc="CRM (9 llamadas)", total;dur=1234.5;desc="Servidor (total)"',
+            sticpa_server_timing_value(9, 812.42, 1234.48)
+        );
+        $this->assertSame(
+            'crm;dur=0.0;desc="CRM (1 llamada)", total;dur=35.0;desc="Servidor (total)"',
+            sticpa_server_timing_value(1, 0, 35)
+        );
+    }
+
+    /**
+     * Punto decimal aunque la locale sea de coma: con «812,4» el navegador
+     * tira la métrica sin avisar. (Si el sistema no tiene ninguna de estas
+     * locales, la comprobación vale igual: es la de siempre.)
+     */
+    public function test_server_timing_con_punto_decimal_en_cualquier_locale(): void
+    {
+        $antes = setlocale(LC_NUMERIC, 0);
+        setlocale(LC_NUMERIC, 'es_ES.UTF-8', 'es_ES', 'de_DE.UTF-8', 'fr_FR.UTF-8');
+        try {
+            $v = sticpa_server_timing_value(9, 812.42, 1234.48);
+        } finally {
+            setlocale(LC_NUMERIC, $antes);
+        }
+        $this->assertStringContainsString('crm;dur=812.4;', $v);
+        $this->assertStringContainsString('total;dur=1234.5;', $v);
+        // Y donde no hay locale de coma con que probarlo, que nadie vuelva a %f.
+        $src = file_get_contents(dirname(__DIR__) . '/inc/stic-perf.php');
+        $this->assertDoesNotMatchRegularExpression('/dur=%\.1f/', $src);
+    }
+
+    /** Lo que cuenta es lo de ESTA petición: los contadores del cliente del CRM y su inicio. */
+    public function test_server_timing_lleva_lo_de_esta_peticion(): void
+    {
+        $guardado = array($_SESSION ?? null, $_SERVER['REQUEST_TIME_FLOAT'] ?? null,
+            SugarRestApiCall::$callCount, SugarRestApiCall::$callMs);
+        try {
+            $_SESSION = array('scp_user_id' => 'c1');
+            $_SERVER['REQUEST_TIME_FLOAT'] = 1000.0;
+            SugarRestApiCall::$callCount = 9;
+            SugarRestApiCall::$callMs = 812.4;
+            $this->assertSame(
+                'Server-Timing: crm;dur=812.4;desc="CRM (9 llamadas)", total;dur=1500.0;desc="Servidor (total)"',
+                sticpa_server_timing_header(1001.5)
+            );
+
+            // Sin sesión no hay CRM que medir: nada.
+            $_SESSION = array();
+            $this->assertSame('', sticpa_server_timing_header(1001.5));
+        } finally {
+            list($_SESSION, $_SERVER['REQUEST_TIME_FLOAT'], SugarRestApiCall::$callCount, SugarRestApiCall::$callMs) = $guardado;
+        }
+    }
+
+    /**
+     * La cabecera tiene que salir ANTES que el HTML, y las llamadas al CRM se
+     * hacen mientras se pinta: por eso el búfer, solo en el área, abierto en
+     * `template_redirect` y que deja pasar la página tal cual.
+     */
+    public function test_el_bufer_solo_en_el_area_y_la_pagina_pasa_tal_cual(): void
+    {
+        $nivel = ob_get_level();
+        $this->assertFalse(sticpa_server_timing_start(false), 'fuera del área no se retiene nada');
+        $this->assertSame($nivel, ob_get_level());
+
+        $GLOBALS['__stic_filters']['sticpa_server_timing'] = false;
+        try {
+            $this->assertFalse(sticpa_server_timing_start(true), 'el filtro lo apaga');
+        } finally {
+            unset($GLOBALS['__stic_filters']['sticpa_server_timing']);
+        }
+        $this->assertSame($nivel, ob_get_level());
+
+        ob_start();
+        $this->assertTrue(sticpa_server_timing_start(true));
+        $estado = ob_get_status();
+        $this->assertSame('sticpa_server_timing_flush', $estado['name']);
+        echo '<!doctype html><title>Área</title>';
+        ob_end_flush();
+        $this->assertSame('<!doctype html><title>Área</title>', ob_get_clean());
+        $this->assertSame($nivel, ob_get_level());
+
+        $src = file_get_contents(dirname(__DIR__) . '/inc/stic-perf.php');
+        $this->assertMatchesRegularExpression("/add_action\('template_redirect', 'sticpa_server_timing_start', 0\)/", $src);
+    }
 }

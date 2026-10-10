@@ -27,9 +27,11 @@ class SugarRestApiCall
 
     /**
      * Contadores de la petición HTTP en curso (no de la instancia): cuántas
-     * llamadas al CRM se han hecho y cuánto han costado. Los lee
-     * `sticpa_crm_timing_header()` para la cabecera `Server-Timing`, que es la
-     * única forma de saber si una pantalla va lenta por el CRM o por otra cosa.
+     * llamadas al CRM se han hecho y cuánto han costado. Los leen el panel
+     * `?pl_diag=1`, el aviso de petición lenta del `error_log` y la cabecera
+     * `Server-Timing` de las páginas del área (`sticpa_server_timing_header()`,
+     * en inc/stic-perf.php), que es la forma de saber desde fuera si una
+     * pantalla va lenta por el CRM o por otra cosa.
      */
     public static $callCount = 0;
     public static $callMs = 0.0;

@@ -67,6 +67,37 @@
  * WordPress: en Elementor, Herramientas → Regenerar archivos, para que sus
  * fuentes locales apunten al dominio de verdad.
  *
+ * ---- VEL-10: la cabecera `Server-Timing` -----------------------------------
+ * «Va lento» no se podía contrastar con nada. Cada página del área lleva ahora
+ * una cabecera con lo que ha costado en el servidor:
+ *
+ *     Server-Timing: crm;dur=812.4;desc="CRM (9 llamadas)", total;dur=1234.5;desc="Servidor (total)"
+ *
+ * `crm` es el tiempo esperando al CRM (una tanda cuenta su tiempo entero una
+ * vez) y `total`, la petición entera en PHP. Lo que falta hasta lo que ve
+ * quien espera es red y navegador. Se mira en las herramientas de desarrollo:
+ * Network → la petición de la página → Timing (o en
+ * `performance.getEntriesByType('navigation')[0].serverTiming`).
+ *
+ * El problema es CUÁNDO mandarla. Las llamadas al CRM se hacen mientras se
+ * pinta el shortcode, y para entonces el tema ya ha escrito el <head>: con
+ * el búfer de PHP de 4 KB las cabeceras ya se habrían ido. Por eso, en las
+ * páginas del área, se abre un búfer en `template_redirect` (lo último antes
+ * de que el tema escriba nada) y la cabecera se pone al vaciarlo, cuando ya
+ * está todo hecho: al final de la petición (`wp_ob_end_flush_all`, en
+ * `shutdown`) o antes si alguien lo vacía.
+ *
+ * Lo que cambia a cambio: la página sale entera al final. El contenido ya
+ * salía así (lo pinta un shortcode dentro del maquetado de Elementor, que se
+ * arma como cadena); lo único que podía adelantarse era el <head>, a trozos
+ * de 4 KB, y la auditoría del plan 042 ya miró y descartó adelantarlo: el
+ * navegador da la navegación por hecha y enseña una página en blanco en vez
+ * de dejar la de antes con su «Cargando…». Las hojas y scripts del área
+ * llevan versión y salen de la caché del navegador.
+ *
+ * Solo con sesión (sin ella no hay CRM que medir) y se apaga con el filtro
+ * `sticpa_server_timing`.
+ *
  * POR QUÉ TRES ENGANCHES: quien encola puede hacerlo tarde. `wp_enqueue_scripts`
  * con prioridad 100 llega después de casi todo; `wp_print_styles` (justo antes
  * de imprimir las hojas del <head>) recoge lo que se encola en `wp_head`, como
@@ -148,3 +179,79 @@ function sticpa_area_resource_hints($urls, $relation = '')
     return sticpa_strip_google_font_hints($urls);
 }
 add_filter('wp_resource_hints', 'sticpa_area_resource_hints', 100, 2);
+
+/* ==========================================================================
+ * VEL-10: Server-Timing (ver la cabecera de este fichero)
+ * ========================================================================== */
+
+/**
+ * El valor de la cabecera. Puntos decimales siempre (`%F`): con una locale
+ * de coma, `%f` escribiría «812,4» y el navegador tiraría la métrica.
+ */
+function sticpa_server_timing_value($calls, $crmMs, $totalMs)
+{
+    $calls = max(0, (int) $calls);
+    return sprintf(
+        'crm;dur=%.1F;desc="CRM (%d %s)", total;dur=%.1F;desc="Servidor (total)"',
+        max(0.0, (float) $crmMs),
+        $calls,
+        $calls === 1 ? 'llamada' : 'llamadas',
+        max(0.0, (float) $totalMs)
+    );
+}
+
+/**
+ * La línea entera con lo de ESTA petición, o '' si no toca (sin sesión).
+ *
+ * @param float|null $now para los tests; por defecto, ahora.
+ */
+function sticpa_server_timing_header($now = null)
+{
+    if (empty($_SESSION['scp_user_id'])) {
+        return '';
+    }
+    $now = $now === null ? microtime(true) : (float) $now;
+    $start = isset($_SERVER['REQUEST_TIME_FLOAT']) ? (float) $_SERVER['REQUEST_TIME_FLOAT']
+        : (isset($GLOBALS['timestart']) ? (float) $GLOBALS['timestart'] : $now);
+    $calls = class_exists('SugarRestApiCall') ? (int) SugarRestApiCall::$callCount : 0;
+    $crmMs = class_exists('SugarRestApiCall') ? (float) SugarRestApiCall::$callMs : 0.0;
+    return 'Server-Timing: ' . sticpa_server_timing_value($calls, $crmMs, ($now - $start) * 1000);
+}
+
+/**
+ * Abre el búfer que retiene la página hasta que se sabe lo que ha costado.
+ *
+ * @param bool|null $isArea para los tests; por defecto, si la página pedida
+ *                          lleva el shortcode del área.
+ * @return bool si se ha abierto.
+ */
+function sticpa_server_timing_start($isArea = null)
+{
+    if ($isArea === null) {
+        $isArea = function_exists('sticpa_queried_page_has_area_shortcode') && sticpa_queried_page_has_area_shortcode();
+    }
+    if (!$isArea || !apply_filters('sticpa_server_timing', true)) {
+        return false;
+    }
+    return ob_start('sticpa_server_timing_flush');
+}
+add_action('template_redirect', 'sticpa_server_timing_start', 0);
+
+/**
+ * Al vaciar el búfer: la cabecera, una sola vez y solo si aún se puede. La
+ * página pasa tal cual.
+ */
+function sticpa_server_timing_flush($buffer, $phase = 0)
+{
+    static $done = false;
+    if (!$done) {
+        $done = true;
+        if (!headers_sent()) {
+            $line = sticpa_server_timing_header();
+            if ($line !== '') {
+                header($line);
+            }
+        }
+    }
+    return $buffer;
+}
