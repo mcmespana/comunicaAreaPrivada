@@ -100,35 +100,57 @@ La app dibuja la web **a pantalla completa**, por detrás de su barra superior
 translúcida y de su tab bar inferior, y compensa con `contentInset`. Eso funciona
 para contenido que scrollea normal.
 
-⚠️ **Con elementos `position: fixed` el inset no sirve** — una barra fija abajo
-(tipo «Guardar» pegado al viewport) queda tapada por el tab bar. Los elementos
-fijos del área reservan el hueco ellos mismos:
+⚠️ **Con lo que va pegado abajo (`position: fixed` o `sticky; bottom`) el inset
+no sirve**: la tab bar flotante ocupa ~73 pt desde el borde de abajo y la
+píldora de atrás/adelante empieza a ~168 pt (medido en un iPhone, 27/09/2026).
+La botonera de los formularios, «Inscribirme» y la barra de guardar de Pasar
+Lista quedaban debajo de las dos.
+
+**El `<head>` lleva `viewport-fit=cover`, y lo pone el plugin** (10/10/2026,
+plan 042 CAR-2): `sticpa_viewport_meta()` en `inc/stic-theme.php`, solo en las
+páginas del área. Antes este documento decía que lo ponía el tema, y no: el
+`header.php` de Astra imprime una línea fija sin `cover`, y con ella WebKit deja
+`env(safe-area-inset-*)` siempre a 0. La del plugin va dentro de `wp_head`,
+después de la del tema, y con dos `meta viewport` manda la última.
+
+**Cómo se reserva: con dos tokens de `custom-style.css` §1, y con nada más.**
+
+| Token | Navegador | Dentro de MCM App (`body.sticpa-app-mode`) |
+|---|---|---|
+| `--stic-safe-bottom` | `env(safe-area-inset-bottom, 0px)` (el indicador de inicio del iPhone) | `0px` |
+| `--stic-app-bottom` | `0px` | `10.5rem` (salva la tab bar y la píldora) |
 
 ```css
-padding-bottom: calc(12px + env(safe-area-inset-bottom));
+.lo-que-se-pega-abajo {
+    position: sticky;            /* o fixed */
+    bottom: var(--stic-app-bottom);
+    padding-bottom: calc(0.6rem + var(--stic-safe-bottom));
+}
 ```
 
-Ya aplicado en la botonera sticky de los formularios y en el control de
-apariencia de la pantalla de login.
+En el navegador la barra crece lo que mide el indicador de inicio; en la app se
+sube por encima de la tab bar y de la píldora **sin crecer**. Como cada token
+vale 0 donde manda el otro, **nada se sube dos veces**: si la WebView de la app
+llegara a dar un `env()` distinto de 0, no se suma (el indicador de inicio ya
+cae dentro de la tab bar). `TokensCssTest` falla si aparece un
+`env(safe-area-inset-bottom)` suelto o una barra `sticky` que no se pegue con
+`--stic-app-bottom`.
 
-⚠️ **Con la tab bar flotante de la app el inset NO basta** (27/09/2026). Medido
-en un iPhone: la tab bar ocupa ~73 pt desde el borde de abajo y la píldora de
-atrás/adelante llega a ~168 pt. La hoja de estados de Pasar Lista quedaba
-debajo de las dos; ahora, solo en la app, reserva lo suyo:
-`body.sticpa-app-mode .pl-sheet { padding-bottom: 11.5rem; }`
-(`css/pasar-lista.css`). Un elemento fijo nuevo abajo tiene que hacer lo mismo.
-La **barra de guardar** de Pasar Lista (marcar y monitores), que es `sticky`,
-se quedaba igual debajo de las dos mientras se marcaba (09/10/2026, plan 042
-PL-3); ahora, solo en la app, se pega más arriba:
-`body.sticpa-app-mode .pl-savebar { bottom: 10.5rem; }` —con `bottom` y no con
-`padding`, para que no crezca—. Falta confirmarlo en un iPhone con 14 filas. Para que `env(safe-area-inset-*)` no valga
-siempre 0 hace falta que el `<head>` lleve:
+Y una barra subida en la app necesita **el mismo hueco debajo**: si no, al final
+del scroll taparía el último campo, que ya no tiene adónde subir. Lo llevan
+`[data-pl-form]` (Pasar Lista) y, con margen, la `.stic-form` con botonera y la
+ficha con «Inscribirme» (`custom-style.css` §65.a). La hoja de estados de Pasar
+Lista (`fixed`) reserva por dentro: `calc(var(--stic-app-bottom) + 1rem)`.
 
-```html
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-```
+Con `cover` la web llega también a los bordes **a lo ancho**. En vertical no
+cambia nada (los insets laterales valen 0); en apaisado, con muesca, el área se
+aparta lo que diga `env(safe-area-inset-left/right)` (`custom-style.css` §65.b).
 
-(lo pone el tema de WordPress; si algún día deja de ponerlo, se nota aquí).
+Medido con Chromium y los insets simulados (390×844, indicador de 34 px, tab bar
+de 73 y píldora de 168): en el navegador las barras crecen 34 px y siguen
+pegadas al borde; en la app quedan de 602 a 676 con el `env()` a 0 y a 34, igual.
+**Falta confirmarlo en un iPhone con la app** (un formulario largo: Mis datos de
+monitor) y en un Android.
 
 ---
 
@@ -242,5 +264,7 @@ Detalle completo y pasos pendientes en el README §8.6.
       {apariencia auto, apariencia forzada}.
 - [ ] ¿Va anclado a `<body>` (overlay, tooltip, modal, desplegable)? Entonces
       añádelo a la lista de anfitriones de tokens de §44.a, o no heredará el tema.
-- [ ] ¿Tiene elementos `position: fixed`? Reserva `env(safe-area-inset-bottom)`.
+- [ ] ¿Se pega abajo (`fixed` o `sticky; bottom`)? Reserva con los dos tokens de
+      §3 (`--stic-app-bottom` y `--stic-safe-bottom`), nunca con un `env()` suelto,
+      y deja el mismo hueco debajo en la app.
 - [ ] Pruébalo con `?app=1` además de en navegador.

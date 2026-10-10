@@ -632,7 +632,7 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
    único uso barato del desenfoque. */
 .pl-savebar {
     position: sticky;
-    bottom: 0;
+    bottom: var(--stic-app-bottom);
     margin: 1.1rem -1rem 0;
     padding: 1.4rem 1rem 1.2rem;
     background: linear-gradient(
@@ -645,28 +645,23 @@ body.pl-hold-seen .pl-hold-ring::before { animation: none; opacity: 0.3; }
     flex-direction: column;
     gap: 0.6rem;
     z-index: 5;
-    /* El indicador de inicio del iPhone en el navegador (plan 042, PL-3).
-       Vale 0 mientras el <head> no lleve `viewport-fit=cover` (auditoría de
-       la carcasa, CAR-2); cuando lo lleve, reserva sin tocar nada más. */
-    padding-bottom: calc(1.2rem + env(safe-area-inset-bottom, 0px));
-}
-/* EN MCM APP la barra quedaba DEBAJO de la tab bar flotante y de la píldora
-   de atrás/adelante mientras se marcaba (plan 042, PL-3): `sticky` se pega al
-   borde del viewport, y la app pinta la web a pantalla completa por detrás de
-   las dos (CONTRATO-APP-WEBVIEW.md §3). Medido a 390×844 con la lista de 14:
-   «Guardar» de 771 a 825, entero dentro de la tab bar (73 pt), y el aviso de
-   «Cambios sin guardar» dentro de la píldora (hasta ~168 pt). Es la misma
-   reserva que la hoja de estados, pero con `bottom` y no con `padding`: así
-   la barra no crece y la lista se sigue viendo pasar por detrás. Sin el
-   `env()`: el indicador de inicio ya cae dentro de la tab bar. */
-body.sticpa-app-mode .pl-savebar {
-    bottom: 10.5rem;
-    padding-bottom: 1.2rem;
+    /* LA ZONA SEGURA, con los dos tokens de custom-style §1 (plan 042, PL-3
+       y CAR-2). En el navegador la barra crece lo que mide el indicador de
+       inicio del iPhone. EN MCM APP quedaba DEBAJO de la tab bar flotante y
+       de la píldora de atrás/adelante mientras se marcaba: `sticky` se pega
+       al borde del viewport y la app pinta la web a pantalla completa por
+       detrás de las dos (CONTRATO-APP-WEBVIEW.md §3). Medido a 390×844 con
+       la lista de 14: «Guardar» de 771 a 825, entero dentro de la tab bar
+       (73 pt), y «Cambios sin guardar» dentro de la píldora (~168 pt). Allí
+       se sube con `bottom` y no con `padding`: así no crece y la lista se
+       sigue viendo pasar por detrás. Y sin el `env()`, que el token ya vale
+       0 en la app: el indicador de inicio cae dentro de la tab bar. */
+    padding-bottom: calc(1.2rem + var(--stic-safe-bottom));
 }
 /* Y el mismo hueco DEBAJO del formulario: sin él, al llegar al final del
    scroll la barra seguiría subida 10,5 rem y taparía la última fila y la
    leyenda, que ya no tendrían adónde subir. */
-body.sticpa-app-mode [data-pl-form] { padding-bottom: 10.5rem; }
+body.sticpa-app-mode [data-pl-form] { padding-bottom: var(--stic-app-bottom); }
 
 .pl-counts {
     display: flex;
@@ -730,7 +725,7 @@ body.sticpa-app-mode [data-pl-form] { padding-bottom: 10.5rem; }
     border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
     background: var(--surface);
     box-shadow: 0 -20px 44px rgba(21, 36, 71, 0.18);
-    padding: 0.75rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom));
+    padding: 0.75rem 1.25rem calc(1.5rem + var(--stic-safe-bottom));
     transform: translate3d(0, 101%, 0);
     z-index: 61;
     max-height: 88vh;
@@ -748,8 +743,9 @@ body.sticpa-app-mode [data-pl-form] { padding-bottom: 10.5rem; }
    «Quitar la marca» (27/09/2026). Medido en un iPhone: la píldora empieza a
    ~168 pt del borde de abajo, así que se reserva eso y un poco; la hoja hace
    scroll si no cabe. Solo en la app: en el navegador no hay nada que esquivar.
-   Es la misma hoja en chavales y monitores. */
-body.sticpa-app-mode .pl-sheet { padding-bottom: 11.5rem; }
+   Es la misma hoja en chavales y monitores. Con el token de custom-style §1
+   (CAR-2), que en la app vale esos 10,5 rem: 11,5 en total, como siempre. */
+body.sticpa-app-mode .pl-sheet { padding-bottom: calc(var(--stic-app-bottom) + 1rem); }
 /* Mientras el dedo la lleva, se promociona a capa propia: el movimiento va en
    el compositor y no toca el hilo principal. Fuera del arrastre se quita, que
    dejar capas promocionadas de más es peor que no promocionar. */

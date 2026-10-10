@@ -165,6 +165,30 @@
     --line-height-tight: 1.25;
     --line-height-normal: 1.5;
     --line-height-relaxed: 1.75;
+
+    /* ---- Zona segura (plan 042, CAR-2) — lo que se pega abajo ----
+       Todo lo que va `sticky`/`fixed` al pie (la botonera de los
+       formularios, «Inscribirme» de la ficha, la barra de guardar y la hoja
+       de Pasar Lista) reserva con ESTOS DOS y con nada más:
+         bottom: var(--stic-app-bottom);
+         padding-bottom: calc(<lo suyo> + var(--stic-safe-bottom));
+       En el navegador, `--stic-safe-bottom` es el indicador de inicio del
+       iPhone (vale algo porque el <head> lleva `viewport-fit=cover`) y
+       `--stic-app-bottom` es 0. En MCM App es al revés: ver justo debajo.
+       Así nadie suma las dos reservas y nada se sube dos veces. No cambian
+       con el tema, así que no tienen valor en §44.a. */
+    --stic-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --stic-app-bottom: 0px;
+}
+
+/* EN MCM APP la web va a pantalla completa por detrás de la tab bar flotante
+   (~73 pt) y de la píldora de atrás/adelante (empieza a ~168 pt del borde):
+   CONTRATO-APP-WEBVIEW.md §3. Lo pegado abajo se sube 10,5 rem, que salva las
+   dos, y el indicador de inicio ya cae DENTRO de la tab bar: sumarle el
+   `env()` lo subiría dos veces. */
+body.sticpa-app-mode {
+    --stic-safe-bottom: 0px;
+    --stic-app-bottom: 10.5rem;
 }
 
 /* ============================================================
@@ -2990,15 +3014,16 @@ span.stic-field {
 }
 
 /* Barra de acciones (Guardar / Atrás / Eliminar) PEGAJOSA al pie: en formularios
-   largos el botón Guardar queda siempre accesible sin scrollear hasta el final. */
+   largos el botón Guardar queda siempre accesible sin scrollear hasta el final.
+   La zona segura sale de los dos tokens de §1 (plan 042, CAR-2): en el
+   navegador crece lo que mide el indicador de inicio del iPhone; en MCM App
+   se sube por encima de la tab bar y de la píldora, sin crecer. */
 .stic-form > form > ul.stic-ctabs-list {
     position: sticky;
-    bottom: 0;
+    bottom: var(--stic-app-bottom);
     z-index: 20;
     margin-top: 0.8rem !important;
-    /* safe-area: en la WebView de la app (?app=1) el botón Guardar quedaba
-       bajo el indicador de inicio de los iPhone con notch. */
-    padding: 0.85rem 0 calc(0.65rem + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 0.85rem 0 calc(0.65rem + var(--stic-safe-bottom)) !important;
     background: linear-gradient(to top, var(--surface-2) 70%, color-mix(in srgb, var(--surface-2) 40%, transparent));
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
@@ -4480,7 +4505,8 @@ span.stic-field {
    hijo en flujo se colocaría al lado de la tarjeta, no debajo. Para que no se
    solape con la tarjeta en pantallas cortas, el shell reserva el hueco. */
 .stic-auth-shell:has(.stic-appearance) {
-    padding-bottom: calc(clamp(1.5rem, 5vw, 3.5rem) + 3.4rem);
+    /* + la zona segura: el control de abajo crece lo mismo (CAR-2). */
+    padding-bottom: calc(clamp(1.5rem, 5vw, 3.5rem) + 3.4rem + var(--stic-safe-bottom));
 }
 .stic-auth-shell .stic-appearance {
     position: absolute;
@@ -4489,7 +4515,7 @@ span.stic-field {
     bottom: 0;
     justify-content: center;
     margin: 0;
-    padding: 0.9rem 1rem calc(0.9rem + env(safe-area-inset-bottom));
+    padding: 0.9rem 1rem calc(0.9rem + var(--stic-safe-bottom));
     border-top: 0;
 }
 .stic-appearance-label {
@@ -7200,13 +7226,13 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
    Con el cartel y «Toda la información», «Inscribirme» quedaba a 2.183 px
    en un móvil y a 1.411 en escritorio. Pegada al pie de su columna, se ve
    desde la primera pantalla. Mismo patrón que la botonera de los
-   formularios (§28): fondo de la página y el safe-area de la app. */
+   formularios (§28): fondo de la página y la zona segura de §1 (CAR-2). */
 .stic-rec-detail--cta-sticky .stic-rec-cta-row {
     position: sticky;
-    bottom: 0;
+    bottom: var(--stic-app-bottom);
     z-index: 5;
     background: var(--surface-2);
-    padding: 0.6rem 0 calc(0.6rem + env(safe-area-inset-bottom, 0px));
+    padding: 0.6rem 0 calc(0.6rem + var(--stic-safe-bottom));
 }
 /* La nota (p. ej. «la inscripción se hace en el formulario de la
    actividad») va encima del botón y sin caja: pegada abajo, una caja más
@@ -7241,3 +7267,39 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 /* En la portada del familiar, las mismas tarjetas que en la selección: aire
    antes del bloque siguiente, como el que tenía la lista a la que sustituyen. */
 .stic-section-label--mini + .stic-profiles-grid { margin-bottom: 1.5rem; }
+
+
+/* ============================================================
+   65. ZONA SEGURA — `viewport-fit=cover` y lo que se pega abajo
+       (plan 042, CAR-2, 10/10/2026)
+   ------------------------------------------------------------
+   Desde CAR-2 el área imprime su propio `meta viewport` con
+   `viewport-fit=cover` (inc/stic-theme.php), y con él
+   `env(safe-area-inset-*)` deja de valer siempre 0. Las reservas
+   de lo que se pega abajo salen de los dos tokens de §1; aquí va
+   lo que no tenía regla donde engancharse.
+   ============================================================ */
+
+/* --- 65.a El hueco de debajo, en MCM App ---
+   En la app, la botonera de los formularios e «Inscribirme» se
+   pegan 10,5 rem más arriba. Al final del scroll seguirían subidos y
+   taparían el último campo, que ya no tendría adónde subir: el mismo
+   hueco DEBAJO lo evita (como `[data-pl-form]` en Pasar Lista). Con
+   margen y no con relleno, para no alargar la tarjeta en blanco. */
+body.sticpa-app-mode .stic-form:has(> form > ul.stic-ctabs-list),
+body.sticpa-app-mode .stic-rec-detail--cta-sticky {
+    margin-bottom: var(--stic-app-bottom);
+}
+
+/* --- 65.b En apaisado, la muesca ---
+   Con `cover` el contenido llega a los bordes también a lo ancho. En
+   vertical los insets laterales valen 0 y esto no hace nada; en un
+   iPhone con muesca en apaisado valen ~47 px y el relleno del tema
+   (30 px) se quedaba corto: el área entraba debajo de la muesca. Es
+   lo que hacía el navegador sin `cover`, apartar la página de los
+   lados, pero sin perder la reserva de abajo. `html[data-stic-theme]`
+   lo lleva solo una página del área (sticpa_theme_html_attrs). */
+html[data-stic-theme] {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+}

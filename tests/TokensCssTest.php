@@ -431,4 +431,49 @@ class TokensCssTest extends TestCase
         );
     }
 
+    /**
+     * LO QUE SE PEGA ABAJO RESERVA CON LOS DOS TOKENS DE LA ZONA SEGURA, Y CON
+     * NADA MÁS (plan 042, CAR-2).
+     *
+     * Con `viewport-fit=cover` el `env()` ya vale algo, y dentro de MCM App
+     * cada barra se sube además por encima de la tab bar. Si una regla suma
+     * las dos cosas por su cuenta, la barra se sube DOS veces. Por eso:
+     *   1. `env(safe-area-inset-bottom` solo aparece en la definición del
+     *      token, en custom-style §1;
+     *   2. en la app ese token vale 0 y el de la app, 10,5 rem;
+     *   3. toda barra `sticky` pegada abajo se pega con `--stic-app-bottom`.
+     */
+    public function test_lo_pegado_abajo_reserva_con_los_tokens_de_la_zona_segura()
+    {
+        $custom = file_get_contents(dirname(__DIR__) . '/css/custom-style.css');
+        $hojas = array('custom-style.css' => $custom, 'pasar-lista.css' => $this->pasarLista());
+
+        $env = 0;
+        foreach ($hojas as $css) {
+            $sinComentarios = preg_replace('#/\*.*?\*/#s', '', $css);
+            $env += substr_count($sinComentarios, 'env(safe-area-inset-bottom');
+        }
+        $this->assertSame(1, $env, 'Un `env(safe-area-inset-bottom)` suelto reserva por su cuenta: usa var(--stic-safe-bottom).');
+        $this->assertMatchesRegularExpression('/--stic-safe-bottom:\s*env\(safe-area-inset-bottom, 0px\);/', $custom);
+
+        $this->assertMatchesRegularExpression(
+            '/body\.sticpa-app-mode\s*\{\s*--stic-safe-bottom:\s*0px;\s*--stic-app-bottom:\s*10\.5rem;\s*\}/',
+            $custom
+        );
+
+        foreach ($hojas as $nombre => $css) {
+            $sinComentarios = preg_replace('#/\*.*?\*/#s', '', $css);
+            preg_match_all('/([^{}]+)\{([^{}]*position:\s*sticky[^{}]*)\}/', $sinComentarios, $m, PREG_SET_ORDER);
+            foreach ($m as $regla) {
+                if (!preg_match('/(^|;|\s)bottom:\s*([^;]+);/', $regla[2], $b)) {
+                    continue;
+                }
+                $this->assertSame(
+                    'var(--stic-app-bottom)',
+                    trim($b[2]),
+                    "$nombre: «" . trim($regla[1]) . '» se pega abajo sin el token de la app.'
+                );
+            }
+        }
+    }
 }

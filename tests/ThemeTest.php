@@ -161,4 +161,42 @@ final class ThemeTest extends TestCase
         $html = sticpa_appearance_switch_html();
         $this->assertStringContainsString("data-stic-theme-set='auto' aria-pressed='true'", $html);
     }
+
+    // ---- Zona segura (plan 042, CAR-2) -----------------------------------
+
+    /**
+     * El `<head>` del área lleva `viewport-fit=cover`: sin él WebKit deja
+     * `env(safe-area-inset-*)` a 0 y nada de lo pegado abajo reserva el
+     * indicador de inicio. Lo imprime el plugin, porque el de Astra no lo
+     * lleva, y SOLO en las páginas del área.
+     */
+    public function test_el_area_imprime_su_viewport_con_cover(): void
+    {
+        ob_start();
+        sticpa_viewport_meta();
+        $this->assertSame('', ob_get_clean(), 'Fuera del área no se toca el viewport del sitio.');
+
+        $GLOBALS['__stic_area_page'] = true;
+        try {
+            ob_start();
+            sticpa_viewport_meta();
+            $meta = ob_get_clean();
+        } finally {
+            unset($GLOBALS['__stic_area_page']);
+        }
+        $this->assertSame(
+            '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">' . "\n",
+            $meta
+        );
+    }
+
+    /**
+     * Y va DENTRO de `wp_head`, que es después de la línea fija del tema: con
+     * dos `meta viewport` manda el último.
+     */
+    public function test_el_viewport_del_area_va_en_wp_head(): void
+    {
+        $src = file_get_contents(__DIR__ . '/../inc/stic-theme.php');
+        $this->assertStringContainsString("add_action('wp_head', 'sticpa_viewport_meta', 0);", $src);
+    }
 }
