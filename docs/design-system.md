@@ -591,6 +591,26 @@ uno de esos bloques por otro motivo, súbelo de camino.
 No añadas un breakpoint nuevo si uno de los cinco sirve; y si de verdad no
 sirve, deja escrito al lado por qué.
 
+**Escritorio (`≥ 1024px`): repartir el ancho, no estirar la fila.** Una lista
+de lado a lado a 1.280 px deja el estado de cada fila a un metro de su nombre.
+Los patrones que ya hay, para no inventar otro (plan 042, COO-5; CSS al final
+de `pasar-lista.css`):
+
+- **Columna lateral**: lo principal a la izquierda y lo que se consulta a la
+  derecha, `grid-template-columns: minmax(0, 1fr) 340px`. La portada
+  (`.stic-home-layout`, la agenda) y la ficha del monitor (`.pl-mon-layout`,
+  el papeleo). La columna de la derecha va DESPUÉS en el HTML: el móvil y el
+  lector de pantalla leen en el orden de siempre.
+- **Una columna por etapa**: `.pl-etapas` > `.pl-etapa-col` (título + lista),
+  `repeat(auto-fit, minmax(18rem, 1fr))`. El Resumen de grupos y «Tu equipo»
+  de Coordinación. Con una sola etapa, son sus filas las que se reparten, cada
+  una en su tarjeta.
+- **Filas de navegación en una fila**: `.pl-list--nav` pasa a tres celdas con
+  filete vertical.
+
+Debajo de 1024 no cambia nada: compruébalo midiendo las cajas a 375 y 768
+antes y después, no a ojo.
+
 ### 11.2 UN solo lenguaje para "un registro" (la tarjeta)
 
 Todo lo que sea un registro — un evento, una inscripción, una sesión, un

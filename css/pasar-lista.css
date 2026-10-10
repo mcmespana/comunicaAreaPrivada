@@ -3738,3 +3738,78 @@ a.pl-group .pl-name { display: block; }
 @media (prefers-reduced-motion: reduce) {
     .pl-review-btn { transition: none; }
 }
+
+/* ---- COO-5: el escritorio de coordinación ---------------------------------
+   Coordinación es quien más trabaja en escritorio, y estas pantallas eran una
+   columna de lado a lado: en el Resumen la pastilla «Falta» quedaba a 1.150 px
+   de la tira de su grupo, y las flechas de Coordinación a 1.223 px de su texto.
+   A partir de 1024 px (design.md §5: «layouts con columna lateral») se reparte
+   el ancho; por debajo no cambia nada, y el orden del HTML tampoco. */
+.pl-etapa-col,
+.pl-mon-main,
+.pl-mon-aside { min-width: 0; }
+
+@media (min-width: 1024px) {
+    /* EL RESUMEN Y «TU EQUIPO»: una columna por etapa, MIC · COM · LC, justo
+       debajo de sus tres tarjetas. `auto-fit`: con dos etapas, dos columnas. */
+    .pl-etapas {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+        column-gap: 1rem;
+        align-items: start;
+    }
+    /* UNA ETAPA SOLA —quien coordina una etapa, que es lo corriente— no tiene
+       con quién repartir el ancho: son sus FILAS las que se reparten, cada una
+       en su tarjeta (design.md §6.1), con el mismo hueco que las tarjetas de
+       etapa de arriba. La lista deja de ser tarjeta para no meter una dentro de
+       otra. Va con `border: 0` porque el borde de las tarjetas en claro (§ de
+       arriba) también la alcanza. */
+    .pl-etapa-col:only-child > .pl-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+        gap: 0.6rem;
+        border: 0;
+        border-radius: 0;
+        background: none;
+        box-shadow: none;
+        overflow: visible;
+    }
+    .pl-etapa-col:only-child > .pl-list > :is(.pl-grouprow, .pl-rowwrap) {
+        border-top: 0;
+        border-radius: var(--radius-lg);
+        background: var(--surface);
+        box-shadow: var(--shadow-xs);
+    }
+    :root:not([data-stic-scheme="dark"]) .pl-etapa-col:only-child > .pl-list > :is(.pl-grouprow, .pl-rowwrap) {
+        border: 1px solid var(--gray-200);
+    }
+
+    /* COORDINACIÓN: las tres puertas en una fila de tres, dentro de la misma
+       tarjeta y separadas por un filete vertical en vez del horizontal. Quien
+       solo acompaña tiene una: media barra, para que su resumen («Sat 15 Nov ·
+       1 de 4 listas · faltan M1, C2, Ruah») quepa en una línea sin que la
+       flecha se vaya al otro lado. */
+    .pl-list--nav {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .pl-list--nav > .pl-group { border-top: 0; }
+    .pl-list--nav > .pl-group + .pl-group { border-left: 1px solid var(--gray-100); }
+    .pl-list--nav-solo {
+        display: block;
+        width: calc((100% - 1rem) / 2);
+    }
+
+    /* LA FICHA DEL MONITOR, en dos columnas como la portada: a la izquierda
+       quién es, cómo va, sus grupos y sus seguimientos; a la derecha el
+       papeleo. Sin `sticky`: el papeleo mide más que una pantalla y se
+       quedaría cortado por abajo. */
+    .pl-mon-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 340px;
+        gap: clamp(1.1rem, 2.5vw, 1.8rem);
+        align-items: start;
+    }
+    /* El papeleo arranca a la altura de la identidad, no 1,85 rem más abajo. */
+    .pl-mon-aside > .pl-sec-row:first-child { padding-top: 0.9rem; }
+}

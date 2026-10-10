@@ -239,7 +239,10 @@ if ($isCoord) {
 // `desde=coordinacion` hace que la flecha de atrás de esas pantallas vuelva aquí
 // y no a Pasar lista, que es la otra puerta por la que se llega a ellas.
 // `pl-list--nav`: el buscador de abajo no filtra estas filas (js/stic-pasar-lista.js).
-$html .= '<div class="pl-list pl-list--nav">';
+// En escritorio van en una fila de tres (plan 042, COO-5); quien solo acompaña
+// tiene una sola, y `--solo` la deja en media barra en vez de estirarla de un
+// borde al otro con la flecha a un metro del texto.
+$html .= '<div class="pl-list pl-list--nav' . ($isCoord ? '' : ' pl-list--nav-solo') . '">';
 if ($isCoord) {
     $html .= sticpa_pl_nav_row_html(
         '?internalpage=single_stic_pasar_lista_monitores&desde=coordinacion',

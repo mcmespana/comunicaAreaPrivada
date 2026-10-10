@@ -263,6 +263,14 @@ $html .= '<div class="pl-subtitle">' . esc_html__('Ficha del monitor', 'sticpa')
 $html .= '</div>';
 $html .= '</div>';
 
+/* EN ESCRITORIO, DOS COLUMNAS (plan 042, COO-5): a la izquierda quién es, cómo
+ * va y con quién está; a la derecha el papeleo, que se consulta y no se lee.
+ * Como la portada (`.stic-home-layout`). En el móvil y en el HTML el orden es
+ * el de siempre (PASAR-LISTA-COORDINACION.md §4): la columna de la derecha va
+ * DESPUÉS en el código, así que el lector de pantalla y el móvil no cambian. */
+$html .= '<div class="pl-mon-layout">';
+$html .= '<div class="pl-mon-main">';
+
 /* El nombre, grande y entero, con el avatar de marca: es la misma identidad que
  * la ficha de un participante y se aprende una sola vez. Debajo, la línea que
  * sitúa a la persona sin etiquetas. */
@@ -946,6 +954,8 @@ if (count($historico) > 1 || (count($historico) === 1 && !$historico[0]['actual'
 // El papeleo: en regla, datos MCM, formación y datos personales
 // ---------------------------------------------------------------------------
 
+$html .= '</div>';
+$html .= '<div class="pl-mon-aside">';
 foreach (sticpa_pl_monitor_bloques($ficha) as $bloque) {
     if ($bloque['kind'] === 'check') {
         // La cuenta de lo que falta va en la cabecera: es el resumen que se
@@ -1074,6 +1084,8 @@ foreach (sticpa_pl_monitor_bloques($ficha) as $bloque) {
         $html .= '<div class="pl-sec">' . esc_html($bloque['label']) . '</div>' . $filas;
     }
 }
+$html .= '</div>';
+$html .= '</div>';
 
 
 // ---------------------------------------------------------------------------

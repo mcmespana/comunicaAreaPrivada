@@ -1629,10 +1629,14 @@ function sticpa_pl_directorio_monitores_html($monitors, $groups, $puedoVincular,
     }
 
     $etapaDots = array('MIC' => 'var(--danger-color)', 'COM' => 'var(--success-color)', 'LC' => 'var(--primary-color)');
+    // Cada etapa en su columna en escritorio, como las tiras del Resumen
+    // (plan 042, COO-5). En el móvil, una debajo de otra, como siempre.
+    $html .= '<div class="pl-etapas">';
     foreach (array('MIC', 'COM', 'LC', '?') as $etapa) {
         if (empty($porEtapa[$etapa])) {
             continue;
         }
+        $html .= '<section class="pl-etapa-col">';
         if (count($porEtapa) > 1) {
             $dot = isset($etapaDots[$etapa]) ? $etapaDots[$etapa] : 'var(--gray-300)';
             $titulo = ($etapa === '?') ? __('Sin etapa', 'sticpa') : $etapa;
@@ -1666,7 +1670,9 @@ function sticpa_pl_directorio_monitores_html($monitors, $groups, $puedoVincular,
             );
         }
         $html .= '</div>';
+        $html .= '</section>';
     }
+    $html .= '</div>';
 
     $html .= sticpa_pl_buscador_vacio_html();
     return $html;

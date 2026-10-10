@@ -1413,6 +1413,12 @@
                         || title.classList.contains('pl-sec'))) {
                         title.hidden = !any;
                     }
+                    // Y su columna (plan 042, COO-5): en escritorio cada etapa
+                    // es una columna de la rejilla, y una vacía dejaría el hueco.
+                    var col = list.parentElement;
+                    if (col && col.classList.contains('pl-etapa-col')) {
+                        col.hidden = !any;
+                    }
                 }
             );
 
