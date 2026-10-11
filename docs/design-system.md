@@ -77,7 +77,8 @@ Definidos en `:root` de `custom-style.css` §1. Los importantes:
 --grad-brand-rev  /* el inverso (alternancia visual en tarjetas pares) */
 --grad-brand-soft /* fondo suave de hover */
 --surface / --surface-2      /* blanco / gris azulado muy claro */
---shadow-xs … --shadow-xl    /* elevaciones; --shadow-glow = anillo de foco */
+--shadow-xs … --shadow-xl    /* elevaciones; --shadow-glow = halo del campo con :focus */
+--focus-ring      /* anillo del :focus-visible (teclado); también en §44.a */
 --radius-sm … --radius-2xl, --radius-full
 --font-family     /* Inter + system stack */
 --ease-out / --ease-spring   /* curvas de animación */
@@ -442,7 +443,8 @@ menú de verdad, no solo la decisión).
 7. Animaciones: 150–450ms, `--ease-out`/`--ease-spring`, y nada imprescindible
    debe depender de ellas (reduced-motion las apaga).
 8. Accesibilidad mínima: `label[for]`, `aria-label` en botones de solo icono,
-   foco visible (`--shadow-glow`), tooltips usables con teclado.
+   foco visible (`--focus-ring` en `:focus-visible`; si la regla de «elegido»
+   pisa la sombra, dale su propio `:focus-visible`), tooltips usables con teclado.
 9. Redirecciones en handlers: `wp_redirect(...); exit;` SIEMPRE. El `id` sobre
    el que se escribe sale de `$_SESSION`, nunca del request.
 10. ¿Página nueva en `pages/`? El nombre debe cumplir `[a-z0-9_]+`

@@ -218,4 +218,102 @@ class CarcasaTest extends TestCase
         $this->assertStringContainsString($m[0], $fila);
         $this->assertStringContainsString('backdrop-filter: blur(4px);', $fila);
     }
+
+    /**
+     * A11Y-1 (plan 043, fila 5). El foco de teclado se marca con `--focus-ring`
+     * (anillo sólido, ≥3:1), no con el halo al 16 % de `--shadow-glow`, que
+     * sobre blanco se quedaba en 1,25:1. El halo sigue en el `:focus` de los
+     * campos, que no se toca. Y el token se repite en el tema oscuro: si solo
+     * estuviera en :root, leería la superficie y el azul claros.
+     */
+    public function test_el_foco_de_teclado_usa_el_anillo_y_no_el_halo()
+    {
+        $css = preg_replace('#/\*.*?\*/#s', '', $this->css('custom-style.css'));
+        $anillo = '--focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary-color);';
+        $this->assertSame(2, substr_count($css, $anillo), 'En §1 y en §44.a, con el mismo valor.');
+        $oscuro = strpos($css, '--surface: #1c1d21;');
+        $this->assertNotFalse($oscuro);
+        $this->assertGreaterThan($oscuro, strrpos($css, $anillo), 'El segundo va en el bloque oscuro.');
+
+        preg_match_all('/([^{}]*):focus-visible([^{}]*)\{([^{}]*)\}/', $css, $reglas, PREG_SET_ORDER);
+        $this->assertGreaterThan(15, count($reglas));
+        foreach ($reglas as $r) {
+            $this->assertStringNotContainsString('var(--shadow-glow)', $r[3], 'Halo en un :focus-visible: ' . trim($r[0]));
+        }
+        $this->assertStringContainsString('var(--shadow-glow)', $this->rule($css, '.stic-field input:focus'));
+    }
+
+    /**
+     * A11Y-1. Las reglas de «elegido» llevan su sombra con `!important` y tanta
+     * o más especificidad que la del foco, y se comían el anillo: la pestaña
+     * «Por correo», el «Auto» de Apariencia y «Volver» / «Eliminar» de los
+     * formularios no cambiaban nada al tabular. Cada una tiene su :focus-visible.
+     */
+    public function test_lo_elegido_no_se_come_el_anillo()
+    {
+        $css = preg_replace('#/\*.*?\*/#s', '', $this->css('custom-style.css'));
+        foreach (array(
+            '.stic-auth[data-mode="magic"] .stic-auth-tab[data-auth-toggle="magic"]:focus-visible',
+            '.stic-auth[data-mode="password"] .stic-auth-tab[data-auth-toggle="password"]:focus-visible',
+            '.stic-appearance-btn[aria-pressed="true"]:focus-visible',
+            '.stic-send input.stic-button[type="button"]:focus-visible',
+            '.stic-send input.stic-button.stic-danger-button:focus-visible',
+        ) as $sel) {
+            $this->assertMatchesRegularExpression(
+                '/' . preg_quote($sel, '/') . '\s*(,[^{]*)?\{[^}]*box-shadow: var\(--focus-ring\) !important;/',
+                $css,
+                $sel
+            );
+        }
+    }
+
+    /**
+     * CAR-6 (plan 043, fila 6). La cabecera de las fichas (evento, pago,
+     * inscripción) iba en el degradado de marca justo debajo de la barra, que
+     * también lo es: dos bloques de marca seguidos que no se cierran (design.md
+     * §3). Va en superficie neutra, el título en tinta y los chips con el tono
+     * de las tarjetas del listado, sin la versión de cristal.
+     */
+    public function test_la_cabecera_de_la_ficha_no_lleva_el_degradado()
+    {
+        $css = preg_replace('#/\*.*?\*/#s', '', $this->css('custom-style.css'));
+        $hero = $this->rule($css, '.stic-rec-hero');
+        $this->assertStringContainsString('background: var(--surface);', $hero);
+        $this->assertStringNotContainsString('grad-brand', $hero);
+        $this->assertStringNotContainsString('.stic-rec-hero::after', $css);
+        $this->assertStringNotContainsString('.stic-rec-hero-meta .stic-rec-chip', $css, 'Los chips, con su tono normal.');
+        $titulo = $this->rule($css, '.stic-container .stic-rec-hero-title,
+.stic-rec-hero-title');
+        $this->assertStringContainsString('-webkit-text-fill-color: var(--gray-900) !important;', $titulo);
+        $this->assertStringNotContainsString('on-brand', $this->rule($css, '.stic-rec-back'));
+        $this->assertStringNotContainsString('on-brand', $this->rule($css, '.stic-rec-hero-sub'));
+    }
+
+    /**
+     * FAM-a13 (plan 043, fila 7). Los iconos de acceso de la portada iban en
+     * el degradado, siete u ocho más la barra y el saludo: «degradado en todas
+     * partes» (design.md §8). Van en tinta suave, el mismo par que el icono de
+     * los datos de una ficha, que en oscuro se recalcula solo (§44.a).
+     */
+    public function test_los_iconos_de_la_portada_van_en_tinta_suave()
+    {
+        $css = preg_replace('#/\*.*?\*/#s', '', $this->css('custom-style.css'));
+        $icono = $this->rule($css, '.stic-dash-icon');
+        $this->assertStringContainsString('background: var(--primary-50);', $icono);
+        $this->assertStringContainsString('color: var(--primary-color);', $icono);
+        $this->assertDoesNotMatchRegularExpression('/\.stic-dash-icon\s*\{[^}]*grad-brand/', $css);
+    }
+
+    /**
+     * FAM-a11 (plan 043, fila 8). El selector de hijo de la barra medía 31 px
+     * de alto con un área táctil ampliada por un ::before invisible. El
+     * propietario quiso que lo que se ve mida 44: el botón lleva su
+     * min-height, y el ::before sobra (ampliaría el toque por encima de 44).
+     */
+    public function test_el_selector_de_hijo_mide_44_a_la_vista()
+    {
+        $css = preg_replace('#/\*.*?\*/#s', '', $this->css('custom-style.css'));
+        $this->assertMatchesRegularExpression('/\.stic-part-switch-btn \{ min-height: 44px; \}/', $css);
+        $this->assertStringNotContainsString('.stic-part-switch-btn::before', $css);
+    }
 }
