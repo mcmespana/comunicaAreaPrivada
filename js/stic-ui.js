@@ -78,6 +78,26 @@
         } catch (err) { /* el puente es opcional: nunca debe romper la página */ }
     }
 
+    /**
+     * Avisa a la app MCM de si ESTA pantalla tiene una barra suya pegada abajo
+     * (guardar de Pasar Lista, la botonera de un formulario, «Inscribirme»).
+     * Con ella, la cápsula atrás/adelante de la app y la barra quedaban una
+     * encima de otra; la app puede esconder su cápsula mientras dure la
+     * pantalla y, si lo hace, ponerle a <html> la clase `sticpa-app-sin-flechas`:
+     * entonces la barra baja hasta su tab bar (custom-style.css §1).
+     * CONTRATO-APP-WEBVIEW.md §4.b. Una app que no lo sepa lo ignora.
+     */
+    var BARRAS_ABAJO = '.pl-savebar, .stic-form > form > ul.stic-ctabs-list, .stic-rec-detail--cta-sticky .stic-rec-cta-row';
+    function notifyBarra() {
+        if (!window.ReactNativeWebView || !window.ReactNativeWebView.postMessage) { return; }
+        try {
+            window.ReactNativeWebView.postMessage(JSON.stringify({
+                type: 'sticpa:barra',
+                abajo: !!document.querySelector(BARRAS_ABAJO)
+            }));
+        } catch (err) { /* el puente es opcional: nunca debe romper la página */ }
+    }
+
     /* -------- Formularios que muestran carga al enviar -------- */
     function bindLoadingForms() {
         var forms = document.querySelectorAll('form.stic-loading-form');
@@ -144,6 +164,7 @@
         window.addEventListener('pageshow', function (e) {
             if (e.persisted) { hideOverlay(); }
             notifyApp('end', window.location.href);
+            notifyBarra();
         });
     }
 

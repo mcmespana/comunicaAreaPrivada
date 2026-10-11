@@ -195,6 +195,9 @@
        con el tema, así que no tienen valor en §44.a. */
     --stic-safe-bottom: env(safe-area-inset-bottom, 0px);
     --stic-app-bottom: 0px;
+    /* Lo que ocupa la tab bar de MCM App desde abajo. Lo pisa la app (estilo
+       en línea en <html>) cuando esconde su cápsula: ver justo debajo. */
+    --stic-app-tabbar: 5.5rem;
 }
 
 /* EN MCM APP la web va a pantalla completa por detrás de la tab bar flotante
@@ -205,6 +208,14 @@
 body.sticpa-app-mode {
     --stic-safe-bottom: 0px;
     --stic-app-bottom: 10.5rem;
+}
+
+/* Y si la app ha escondido su cápsula porque la pantalla tiene barra propia
+   abajo (mensaje `sticpa:barra`, CONTRATO-APP-WEBVIEW.md §4.b), lo pegado
+   abajo baja hasta su tab bar: la app pone la clase y la medida exacta. Sin
+   la clase —una app que no lo sabe—, todo sigue en 10,5 rem. */
+html.sticpa-app-sin-flechas body.sticpa-app-mode {
+    --stic-app-bottom: var(--stic-app-tabbar);
 }
 
 /* ============================================================

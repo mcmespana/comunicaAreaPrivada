@@ -179,8 +179,8 @@ casos.
 
 ### 4.a El área avisa de sus navegaciones (`sticpa:nav`) — web → app
 
-Es el **único** mensaje que viaja de la web a la app; todo lo demás del contrato
-va en sentido contrario. Existe por rendimiento percibido: el área son recargas
+Es uno de los dos mensajes que viajan de la web a la app (el otro es
+`sticpa:barra`, §4.b); todo lo demás del contrato va en sentido contrario. Existe por rendimiento percibido: el área son recargas
 completas de página, y entre el tap y el primer pintado pasa todo lo que el
 servidor tarda en hablar con el CRM. El único indicador nativo de eso es la barra
 de progreso de la WebView, que es fina, va arriba y queda fuera del foco visual:
@@ -212,6 +212,30 @@ Lado web: `bindLoadingLinks()` / `notifyApp()` en
 > `'start'` previo (primera carga, enlace del correo, recarga manual), así que la
 > app no debe asumir que van emparejados. Y si algún día se añaden más tipos de
 > mensaje, mantener el prefijo `sticpa:` para poder filtrarlos.
+
+### 4.b La pantalla tiene barra abajo (`sticpa:barra`) — web → app
+
+Pedido el 11/10/2026: en Pasar Lista, dentro de la app, la cápsula
+atrás/adelante y la barra de guardar quedaban una encima de otra, con el tab
+bar debajo y la lista asomando entre las tres.
+
+En cada `pageshow`, el área manda, **si el puente existe**:
+
+```js
+window.ReactNativeWebView.postMessage(JSON.stringify({
+    type: 'sticpa:barra',
+    abajo: true            // esta pantalla tiene una barra suya pegada abajo
+}));
+```
+
+Cuentan como barra la de guardar de Pasar Lista (`.pl-savebar`), la botonera
+de los formularios y «Inscribirme» de la ficha de un evento (`BARRAS_ABAJO` en
+`js/stic-ui.js`).
+
+| Quién | Qué hace |
+|---|---|
+| **App** | Con `abajo: true`, **esconde su cápsula** atrás/adelante y, en la WebView, pone en `<html>` la clase `sticpa-app-sin-flechas` y la variable `--stic-app-tabbar` (px, lo que ocupa su tab bar desde abajo, con la zona segura y un respiro). Con `abajo: false`, vuelve a enseñar la cápsula y quita la clase. Esas pantallas tienen su propio «volver», y en Android está el botón atrás |
+| **Área (web)** | Manda el mensaje. Con la clase puesta, `--stic-app-bottom` vale `--stic-app-tabbar` (si falta, 5,5 rem) en vez de 10,5 rem: la barra baja hasta el tab bar. Sin la clase, nada cambia, así que una app vieja no rompe nada |
 
 ---
 
