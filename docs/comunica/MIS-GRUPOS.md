@@ -260,7 +260,7 @@ CRM.
 ## 8. Decisiones que parecen detalles y no lo son
 
 **El cero inventado.** Si el mapa de relaciones viene a medias, contar da cero,
-y un «0 chavales» al lado de un grupo que tiene doce **se lee como un dato**, no
+y un «0 chavalines» al lado de un grupo que tiene doce **se lee como un dato**, no
 como un fallo. Cuando no hay a quién contar se usa el recuento que deja el
 Guardián por la noche ([`PASAR-LISTA-RECUENTOS.md`](PASAR-LISTA-RECUENTOS.md)),
 y si tampoco ese está fresco, un hueco.
@@ -269,6 +269,13 @@ y si tampoco ese está fresco, un hueco.
 `sticpa_pl_group_people()` por grupo: no cuesta llamadas al CRM, pero recorre el
 mapa entero una vez por grupo — con 28 grupos y 600 relaciones son diecisiete
 mil vueltas para pintar veintiocho números. Se recorre una vez y se cuenta todo.
+
+**«Chavalines», en todos los recuentos de gente** (plan 043, fila 4,
+decidido por el propietario el 10/10/2026): «9 chavalines», «1 chavalín», con
+`_n()`. Antes Mis grupos decía «chavales» y Pasar Lista «participantes» para el
+mismo número. Vale para las pastillas y las líneas de recuento de las dos
+secciones; «participante» como papel (la relación, «participantes sin grupo
+asignado») no cambia.
 
 **`vengo` solo acepta valores conocidos.** Lo que venga en la URL nunca se
 convierte en un enlace tal cual, y si no se reconoce **se tira**: si solo se

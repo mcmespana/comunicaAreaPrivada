@@ -573,7 +573,7 @@ final class PasarListaTest extends TestCase
             'level' => 'com',
         ), $now);
 
-        $this->assertSame(array('Mercedes, Jaime', '1º ESO', '11 participantes'), $meta);
+        $this->assertSame(array('Mercedes, Jaime', '1º ESO', '11 chavalines'), $meta);
         // La etapa NO va: el arbol ya agrupa por etapa.
         $this->assertStringNotContainsStringIgnoringCase('com', implode(' ', $meta));
     }
@@ -611,7 +611,7 @@ final class PasarListaTest extends TestCase
             'n_participantes' => 0,
             'recuento_al' => '2026-02-10 01:30:00',
         ), $now);
-        $this->assertSame(array('1º ESO', '0 participantes'), $meta);
+        $this->assertSame(array('1º ESO', '0 chavalines'), $meta);
     }
 
     // -----------------------------------------------------------------------

@@ -157,7 +157,11 @@ function sticpa_pl_buscador_vacio_html($msg = '')
 }
 
 /**
- * El recuento de un grupo: «12 chavales · 2 monitores».
+ * El recuento de un grupo: «12 chavalines · 2 monitores».
+ *
+ * «Chavalines», y en todas las pastillas y recuentos de gente de Pasar Lista y
+ * Mis grupos: lo decidió el propietario el 10/10/2026 (plan 043, fila 4). Antes
+ * una sección decía «chavales» y la otra «participantes» para el mismo número.
  *
  * Se cuenta la gente que de verdad se ha pintado, no el recuento nocturno del
  * grupo: aquí el mapa de relaciones ya está cargado, así que contar es gratis y
@@ -175,7 +179,7 @@ function sticpa_pl_recuento_texto($nParticipantes, $nMonitores = 0)
 
     $bits = array(sprintf(
         /* translators: %d: cuántos participantes tiene el grupo */
-        _n('%d chaval', '%d chavales', $nParticipantes, 'sticpa'),
+        _n('%d chavalín', '%d chavalines', $nParticipantes, 'sticpa'),
         $nParticipantes
     ));
     if ($nMonitores > 0) {

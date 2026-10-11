@@ -341,7 +341,7 @@ if (!empty($monitorNames)) {
 }
 $sub[] = sprintf(
     /* translators: %d: número de participantes del grupo */
-    _n('%d participante', '%d participantes', count($people['participants']), 'sticpa'),
+    _n('%d chavalín', '%d chavalines', count($people['participants']), 'sticpa'),
     count($people['participants'])
 );
 $html .= '<div class="pl-subtitle">' . esc_html(implode(' · ', $sub)) . '</div>';

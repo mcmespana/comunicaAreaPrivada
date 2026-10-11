@@ -631,7 +631,7 @@ foreach ($porCurso as $curso => $gente) {
     $html .= esc_html(($curso === '?') ? __('Sin curso', 'sticpa') : $curso)
         . '<span class="pl-etapa-count">' . esc_html(sprintf(
             /* translators: %d: cuántos participantes hay en el curso */
-            _n('%d participante', '%d participantes', count($gente), 'sticpa'),
+            _n('%d chavalín', '%d chavalines', count($gente), 'sticpa'),
             count($gente)
         )) . '</span></div>';
     $html .= '<div class="pl-list">';

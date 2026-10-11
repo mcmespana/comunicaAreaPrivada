@@ -1446,6 +1446,33 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('pl-hero--done', $html);
     }
 
+    /**
+     * «CHAVALINES», Y SIEMPRE CON SU UNIDAD (plan 043, fila 4; auditoría
+     * PL-10 punto 5). Las pastillas de «Pasar lista de otro grupo» decían «9»
+     * al lado de «1 gr.», y la diferencia solo estaba en un `title`, que en el
+     * móvil no existe. En el doble, MIC y COM tienen recuento fresco y LC no.
+     */
+    public function test_portada_las_pastillas_dicen_chavalines_y_grupos()
+    {
+        $html = $this->render('single_stic_pasar_lista');
+
+        $this->assertStringContainsString('<span class="pl-bucket-count">9 chavalines</span>', $html);
+        $this->assertStringContainsString('<span class="pl-bucket-count">11 chavalines</span>', $html);
+        $this->assertStringContainsString('<span class="pl-bucket-count pl-bucket-count--groups">1 grupo</span>', $html);
+        $this->assertStringNotContainsString(' gr.', $html);
+        $this->assertStringNotContainsString('participantes', $html);
+    }
+
+    /** Con la lista aún por pasar, el atajo cuenta la gente del grupo igual. */
+    public function test_portada_el_atajo_cuenta_chavalines()
+    {
+        $this->scp->listas['l1'] = array('estado' => '');
+        $html = $this->render('single_stic_pasar_lista');
+
+        $this->assertStringNotContainsString('pl-hero--done', $html);
+        $this->assertStringContainsString('16:30 – 18:00 · 3 chavalines', $html);
+    }
+
     public function test_arbol_pone_tu_grupo_primero_y_agrupa_por_etapa()
     {
         $html = $this->render('single_stic_pasar_lista_grupos');
@@ -3420,7 +3447,7 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringNotContainsString('>11<', $com);
         // Donde todos tienen recuento, el número lleva su unidad pegada y la
         // línea de abajo no abrevia.
-        $this->assertStringContainsString('<span class="pl-card-unit">chavales</span>', $cards);
+        $this->assertStringContainsString('<span class="pl-card-unit">chavalines</span>', $cards);
         $this->assertStringContainsString('1 monitor', $cards);
         $this->assertStringNotContainsString('mon.', $cards);
     }
@@ -4740,9 +4767,9 @@ final class PasarListaRenderTest extends TestCase
 
         $this->assertStringContainsString('Sus grupos', $html);
         // El que lleva, con enlace a su lista y los recuentos del mapa de
-        // relaciones (3 participantes en g1: c1, c2 y la del rol `grupo`).
+        // relaciones (3 chavalines en g1: c1, c2 y la del rol `grupo`).
         $this->assertStringContainsString('pl-grp-role--lleva', $html);
-        $this->assertStringContainsString('3 participantes', $html);
+        $this->assertStringContainsString('3 chavalines', $html);
         $this->assertStringContainsString('single_stic_pasar_lista_marcar&amp;grupo=g1', $html);
         // Y el suyo, el COM-LC, que en el CRM está en otra pestaña y aquí no.
         $this->assertStringContainsString('pl-grp-role--suyo', $html);
@@ -5268,10 +5295,10 @@ final class PasarListaRenderTest extends TestCase
         $html = $this->render('single_stic_pasar_lista_grupos');
 
         $this->assertStringContainsString('David Soler', $html);
-        $this->assertStringContainsString('11 participantes', $html);
+        $this->assertStringContainsString('11 chavalines', $html);
         // g2 tiene el recuento VIEJO: su numero no se pinta, su monitor si.
         $this->assertStringContainsString('Mercedes', $html);
-        $this->assertStringNotContainsString('10 participantes', $html);
+        $this->assertStringNotContainsString('10 chavalines', $html);
     }
 
     /**
@@ -5756,7 +5783,7 @@ final class PasarListaRenderTest extends TestCase
 
         // g1 tiene tres participantes vigentes (c1, c2 y la adulta c3) y un
         // monitor (m1). Se cuentan del mapa, no del recuento nocturno.
-        $this->assertStringContainsString('3 chavales', $html);
+        $this->assertStringContainsString('3 chavalines', $html);
         $this->assertStringContainsString('1 monitor', $html);
     }
 
@@ -5776,9 +5803,9 @@ final class PasarListaRenderTest extends TestCase
     {
         $html = $this->render('single_stic_mis_grupos');
 
-        $this->assertStringNotContainsString('0 chavales', $html);
+        $this->assertStringNotContainsString('0 chavalines', $html);
         // Sale el recuento del Guardián, que es el que sabe cuántos había.
-        $this->assertStringContainsString('9 chavales', $html);
+        $this->assertStringContainsString('9 chavalines', $html);
         // Y los monitores contados de verdad, que es el dato de hoy.
         $this->assertStringContainsString('1 monitor', $html);
     }
@@ -5793,10 +5820,10 @@ final class PasarListaRenderTest extends TestCase
         $this->scp->sinEnlaces = true;
         $html = $this->render('single_stic_mis_grupos');
 
-        $this->assertStringNotContainsString('0 chavales', $html);
+        $this->assertStringNotContainsString('0 chavalines', $html);
         // g2 lleva `ajmcm_n_participantes_c = 10` con recuento del 1/9, que a
         // 15/11 ya no es fresco; g3 lo tiene del 14/11, o sea de anoche.
-        $this->assertStringContainsString('9 chavales', $html);
+        $this->assertStringContainsString('9 chavalines', $html);
     }
 
     /** La ficha de un grupo: su gente, en dos secciones y sin marcar nada. */
@@ -5854,8 +5881,8 @@ final class PasarListaRenderTest extends TestCase
         // aunque estuvieran repartidos en varios grupos.
         $this->assertStringContainsString('1º ESO', $html);
         $this->assertStringContainsString('Solete Vilarroya', $html);
-        // Y el título lleva su recuento.
-        $this->assertStringContainsString('participantes', $html);
+        // Y el título lleva su recuento: c1, c2 y c3 (plan 043, fila 4).
+        $this->assertStringContainsString('3 chavalines', $html);
     }
 
     /** El buscador: solo se pinta una vez y con su mensaje de «nada coincide». */

@@ -178,7 +178,7 @@ if ($mainGroupId !== '') {
             $meta[] = $hora;
             $meta[] = sprintf(
                 /* translators: %d: número de participantes del grupo */
-                _n('%d participante', '%d participantes', count($heroPeople['participants']), 'sticpa'),
+                _n('%d chavalín', '%d chavalines', count($heroPeople['participants']), 'sticpa'),
                 count($heroPeople['participants'])
             );
         }
@@ -392,17 +392,22 @@ if (!empty($buckets)) {
         // verdad (esa sección no tiene participantes con relación vigente),
         // pero una fila «MIC · 0» al lado de nueve grupos se lee como una
         // avería, y el dato útil para entrar ahí es cuántos grupos hay.
+        //
+        // SIEMPRE CON SU UNIDAD (plan 043, fila 4). Era «9» al lado de
+        // «1 gr.», y la diferencia solo estaba en un `title`, que en el móvil
+        // no existe: «9 chavalines» y «1 grupo» se leen sin pistas.
         if ($b['fresh'] && $b['participants'] > 0) {
-            $html .= '<span class="pl-bucket-count" title="'
-                . esc_attr__('Participantes', 'sticpa') . '">'
-                . esc_html((string) $b['participants']) . '</span>';
+            $html .= '<span class="pl-bucket-count">' . esc_html(sprintf(
+                /* translators: %d: cuántos chavalines hay en la sección */
+                _n('%d chavalín', '%d chavalines', $b['participants'], 'sticpa'),
+                $b['participants']
+            )) . '</span>';
         } else {
-            $html .= '<span class="pl-bucket-count pl-bucket-count--groups" title="'
-                . esc_attr__('Grupos', 'sticpa') . '">' . esc_html(sprintf(
-                    /* translators: %d: número de grupos. Abreviado: va en una pastilla. */
-                    __('%d gr.', 'sticpa'),
-                    $b['groups']
-                )) . '</span>';
+            $html .= '<span class="pl-bucket-count pl-bucket-count--groups">' . esc_html(sprintf(
+                /* translators: %d: número de grupos de la sección */
+                _n('%d grupo', '%d grupos', $b['groups'], 'sticpa'),
+                $b['groups']
+            )) . '</span>';
         }
         $html .= '<span class="pl-detail">' . sticpa_pl_icon('next') . '</span>';
         $html .= '</a>';
