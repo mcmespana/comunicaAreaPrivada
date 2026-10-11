@@ -221,17 +221,27 @@ function sticpa_participant_switcher_html()
     $activeLabel = $isSelfActive ? $selfLabel : sticpa_short_name($activeName);
 
     $current_url = explode('?', $_SERVER['REQUEST_URI'], 2)[0];
-    // (Sin 'default_page': tras elegir participante el handler va SIEMPRE a la
-    // home — ver prefix_admin_single_stic_profile_selection en inc/stic-action.php.)
-    $selectUrl = function ($id, $name) use ($current_url, $familiarId, $familiarName) {
-        return esc_url(add_query_arg(array(
+    // (Sin 'default_page': tras elegir participante el handler va a la home.)
+    // SALVO SI SE ESTÁ EN UNA PÁGINA QUE NO ES DE NADIE (plan 043, FAM-a8): la
+    // lista de eventos, la ficha de un evento o el calendario viajan en
+    // `volver` y el handler vuelve a ellas con el otro hijo. La lista blanca es
+    // sticpa_family_switch_destination(), y el handler la vuelve a pasar.
+    $volver = function_exists('sticpa_family_switch_destination') ? sticpa_family_switch_destination($_GET) : array();
+    $selectUrl = function ($id, $name) use ($current_url, $familiarId, $familiarName, $volver) {
+        $args = array(
             'action' => 'single_stic_profile_selection',
             'profile_selected_id' => $id,
             'profile_selected_name' => rawurlencode($name),
             'scp_user_id' => $familiarId,
             'scp_user_contact_name' => rawurlencode($familiarName),
             'scp_current_url' => $current_url,
-        ), admin_url('admin-post.php')));
+        );
+        if (!empty($volver)) {
+            // En un solo parámetro, como `dest` (FAM-a1): `action` ya lo usa
+            // admin-post y add_query_arg() no codifica.
+            $args['volver'] = rawurlencode(http_build_query($volver, '', '&', PHP_QUERY_RFC3986));
+        }
+        return esc_url(add_query_arg($args, admin_url('admin-post.php')));
     };
 
     $chevron = "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><path d='m6 9 6 6 6-6'/></svg>";

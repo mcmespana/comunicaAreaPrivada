@@ -62,8 +62,8 @@ function prefix_admin_single_stic_profile_selection()
         // calentará sola.
     }
 
-    // Sin sesión de familiar montada → de vuelta a la selección; si no, SIEMPRE a
-    // la home. Antes se saltaba a `default_page` (= 'list_stic_events'), así que
+    // Sin sesión de familiar montada → de vuelta a la selección; si no, a la
+    // home (salvo las dos excepciones de abajo). Antes se saltaba a `default_page` (= 'list_stic_events'), así que
     // cambiar de participante te dejaba en Eventos, con el contexto perdido:
     // acabas de decir "quiero ver a X" y lo primero que quieres es el panel de X,
     // no una sección cualquiera. El parámetro `default_page` ya no se usa (se
@@ -74,9 +74,19 @@ function prefix_admin_single_stic_profile_selection()
     // él. Pasa por la misma lista blanca que el login —una página de `pages/`
     // y `action`/`id`/`from` con su forma—, nada de URLs, y solo con una
     // elección válida. La página de destino hace sus comprobaciones de siempre.
+    //
+    // Y LA OTRA (FAM-a8, plan 043): el selector de la barra manda en `volver`
+    // la página en la que se estaba, y se vuelve a ella si no es de nadie —la
+    // lista de eventos, la ficha de un evento, el calendario— para apuntar al
+    // otro hermano sin pasar por la portada. La lista blanca, más corta que la
+    // de `dest`, está en sticpa_family_switch_destination(); se mira DESPUÉS
+    // de cambiar, con quien se está viendo ahora. Lo demás, a la portada.
     $destino = array();
     if (isset($perfil) && $perfil !== null && isset($_REQUEST['dest']) && is_string($_REQUEST['dest'])) {
         $destino = sticpa_family_deep_link_destination(wp_unslash($_REQUEST['dest']));
+    }
+    if (empty($destino) && isset($perfil) && $perfil !== null && isset($_REQUEST['volver']) && is_string($_REQUEST['volver'])) {
+        $destino = sticpa_family_switch_destination(wp_unslash($_REQUEST['volver']));
     }
     if (!isset($_SESSION['scp_tutor_user_id'])) {
         $redirectUrl = sticpa_return_path() . "?internalpage=single_stic_profile_selection";
