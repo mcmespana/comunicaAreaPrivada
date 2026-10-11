@@ -103,7 +103,7 @@ switch ($_REQUEST['action']) {
         break;
     case 'create':
     case 'edit':
-        $formSettings['submitButton']['back'] = __('Back', 'sticpa'); // submit button title. If not defined, it will be a read-only view
+        $formSettings['submitButton']['back'] = __('Volver', 'sticpa'); // submit button title. If not defined, it will be a read-only view
         $formSettings['submitButtonType']['back'] = 'button';
         $formSettings['submitButtonActions']['back'] = array(
             'onclick' => "location.href='?internalpage=list_stic_payments';",
@@ -114,7 +114,7 @@ switch ($_REQUEST['action']) {
         );
         break;
     case 'detail':
-        $formSettings['submitButton']['back'] = __('Back', 'sticpa');
+        $formSettings['submitButton']['back'] = __('Volver', 'sticpa');
         $formSettings['submitButtonType']['back'] = 'button';
         $formSettings['submitButtonActions']['back'] = array(
             'onclick' => "location.href='?internalpage=list_stic_payments';",

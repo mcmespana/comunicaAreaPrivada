@@ -749,6 +749,14 @@ estructura fría, que es como arranca el test):
 > 200/200 ms: de ~1.010 a ~805 ms, medido con `tests/manual/check-crm-multi.php`).
 > Con latencias parecidas una tanda de 5 sigue costando dos esperas; subir la
 > concurrencia a 6 sí la dejaría en una, y eso lo decide el propietario.
+>
+> **11/10/2026: la concurrencia sube a 6** (lo aprobó el propietario). Una tanda
+> de 5 o 6 es ya una sola espera. **Cómo mirar que el CRM lo aguanta:** en el
+> `error_log` del hosting, las líneas `Petición lenta` (las escribe
+> `inc/stic-pasar-lista-diag.php`) no deben crecer; y en el navegador, la
+> cabecera `Server-Timing` de cualquier página del área (herramientas de
+> desarrollo → Network → la página → Timing) dice cuánto ha esperado al CRM.
+> Si se resiente, se vuelve a 4 con el filtro `sticpa_crm_multi_concurrency`.
 
 | Pantalla | Llamadas | Esperas |
 |---|---|---|

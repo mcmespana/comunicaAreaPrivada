@@ -30,7 +30,7 @@ $TIMEOUT = (int) (getenv('TEST_TIMEOUT') ?: 2);
 
 // --- Stubs mínimos de WordPress ---
 function get_locale() { return 'es_ES'; }
-$CONCURRENCIA = null;   // null = la de siempre (4)
+$CONCURRENCIA = null;   // null = la de serie (6 desde el 11/10/2026)
 function apply_filters($tag, $value = null) {
     global $TIMEOUT, $CONCURRENCIA;
     if ($tag === 'sticpa_crm_timeout') { return $TIMEOUT; }
@@ -147,7 +147,10 @@ foreach ($reqs as $r) {
 }
 check('cada respuesta está en el memo con SU firma', $todas);
 $maxVuelo = maxSimultaneas($fines);
-check('nunca más de 4 a la vez en el servidor', $maxVuelo <= 4, "máximo=$maxVuelo");
+// El tope es el del filtro si la prueba lo fija; si no, el de serie (6 desde
+// el 11/10/2026).
+$tope = ($CONCURRENCIA !== null) ? (int) $CONCURRENCIA : 6;
+check('nunca más de ' . $tope . ' a la vez en el servidor', $maxVuelo <= $tope, "máximo=$maxVuelo");
 check('ventana deslizante: ~800 ms y no ~1.000 (olas de 4)', $ms >= 790 && $ms < 940, sprintf('%.0f ms', $ms));
 // La quinta tiene que arrancar al acabar una de 200, no al acabar la de 800.
 $a = null; $quinta = null;

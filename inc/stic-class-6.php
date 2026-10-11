@@ -558,7 +558,11 @@ class SugarRestApiCall
             return 0;
         }
 
-        $lote = self::intSetting('sticpa_crm_multi_concurrency', 4);
+        // 6 en vuelo desde el 11/10/2026 (plan 042, VEL-6, aprobado por el
+        // propietario): una espera menos en las tandas de 5-6. Si el CRM se
+        // resiente («Petición lenta» en el error_log), se vuelve a 4 con el
+        // filtro, sin tocar código.
+        $lote = self::intSetting('sticpa_crm_multi_concurrency', 6);
         if ($lote < 2) {
             return 0;
         }

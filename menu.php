@@ -54,7 +54,11 @@ function getSticMenuElements()
 
     // --- 1. Actividades ---
     $menuElements['list_stic_events'] = __('Eventos', 'sticpa');
-    $menuElements['list_stic_registrations'] = __('Inscripciones', 'sticpa');
+    // «Mis inscripciones» (decidido el 10/10/2026). Viendo a un hijo no son
+    // «mías»: ahí se queda «Inscripciones» y la pantalla dice de quién son.
+    $menuElements['list_stic_registrations'] = (function_exists('sticpa_viendo_a_nombre') && sticpa_viendo_a_nombre() !== '')
+        ? __('Inscripciones', 'sticpa')
+        : __('Mis inscripciones', 'sticpa');
     $menuElements['single_stic_activities_calendar'] = __('Calendario', 'sticpa');
     $menuElements['list_stic_payments'] = __('Pagos', 'sticpa');
     $menuElements['list_stic_documents'] = __('Documentos', 'sticpa');
