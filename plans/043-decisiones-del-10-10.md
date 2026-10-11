@@ -60,7 +60,11 @@ Pidió que se le recordara **en cuanto esté desplegado**. Dónde mirarlo:
 
 ## Por hacer, en este orden
 
-### 1. CAR-1 — Para el equipo, sus herramientas primero (S) — APROBADO
+> **11/10/2026: las filas 1 a 9 están hechas** (PR de la rama
+> `claudito/gallant-babbage-n74kag`). Lo que queda es la 10, las pruebas en
+> producción, y el lado de la app de «Las flechas de la app» (abajo).
+
+### 1. CAR-1 — Para el equipo, sus herramientas primero (S) — ✅ HECHA 11/10/2026 (`91566b9`)
 Detalle: `plans/042-pulido-integral/auditoria-carcasa.md` CAR-1, opción A. Para
 quien es del equipo (`sticpa_equipo_es_del_equipo()`), el bloque del equipo va
 primero en el menú (`getSticMenuElements()` en `menu.php`), en la barra de
@@ -69,13 +73,13 @@ la sección `stic-home-equipo` antes de `.stic-home-layout`). Las familias y los
 miembros sin papel de equipo no cambian. Actualizar el comentario de
 `menu.php:10-28` y el test de orden del menú si lo hay.
 
-### 2. CAR-5 punto 2 — «Salir» dentro del menú en el móvil (S) — APROBADO
+### 2. CAR-5 punto 2 — «Salir» dentro del menú en el móvil (S) — ✅ HECHA 11/10/2026 (`9240452`)
 `auditoria-carcasa.md` CAR-5. En móvil (`max-width: 767px`) quitar «Salir» de la
 barra y pintarlo como último elemento del desplegable (`<li class="stic-nav-item
 stic-nav-logout-item">`, que ya tiene CSS). Escritorio igual. Quitar de
 `menu.php` el comentario «"Salir" SIEMPRE arriba a la derecha».
 
-### 3. FAM-a8 — Cambiar de hijo sin volver a la portada (S) — APROBADO
+### 3. FAM-a8 — Cambiar de hijo sin volver a la portada (S) — ✅ HECHA 11/10/2026 (`59ef2e2`)
 `auditoria-familias.md` FAM-a8. El selector de la barra manda la página actual
 (`internalpage` y, si es `single_stic_events`, su `action=detail&id`); el handler
 `prefix_admin_single_stic_profile_selection()` (`inc/stic-action.php`) vuelve a
@@ -85,7 +89,7 @@ ella SOLO si está en una lista blanca de páginas no personales: `list_stic_eve
 mira cómo lo hizo FAM-a1 con el parámetro `dest`). Cualquier otra página → la
 portada, como ahora. Tests en `tests/FamilyContextTest.php`.
 
-### 4. PL-10 punto 5 — «chavalines» (S) — APROBADO con cambio
+### 4. PL-10 punto 5 — «chavalines» (S) — ✅ HECHA 11/10/2026 (`72f420f`)
 El propietario quiere **«chavalines»** (no «chavales» ni «participantes») en las
 pastillas de recuento de Pasar Lista y Mis grupos: «9 chavalines», «1 chavalín»
 (con `_n()`). Detalle en `auditoria-pasar-lista.md` PL-10 punto 5. Buscar los
@@ -95,7 +99,7 @@ pages/single_stic_pasar_lista*.php pages/single_stic_mis_grupos.php`
 no los nombres de tipos de relación ni textos legales. Ajustar los tests que
 fijan el texto.
 
-### 5. A11Y-1 — Anillo de foco visible (S) — APROBADO
+### 5. A11Y-1 — Anillo de foco visible (S) — ✅ HECHA 11/10/2026 (`741769f`)
 `auditoria-a11y.md` A11Y-1: token `--focus-ring` en §1 de `custom-style.css`
 (`0 0 0 2px var(--surface), 0 0 0 4px var(--primary-color)`), sustituir
 `var(--shadow-glow)` por él en las reglas `:focus-visible` (no en el `:focus` de
@@ -103,27 +107,27 @@ los campos), arreglar las dos reglas de «elegido» que se comen el anillo, y
 actualizar design.md §4 «Foco». Verificar tabulando el login, un formulario y la
 ficha de un evento a 1280 en los dos temas.
 
-### 6. CAR-6 — Cabecera de las fichas sin degradado (S) — APROBADO
+### 6. CAR-6 — Cabecera de las fichas sin degradado (S) — ✅ HECHA 11/10/2026 (`03c463b`)
 `auditoria-carcasa.md` CAR-6: `.stic-rec-hero` (custom-style.css §49) a superficie
 neutra, sin el `::after`; título `--gray-900`, subtítulo y fecha `--gray-600/700`,
 icono `--primary-color`, chips con su tono normal (quitar las versiones
 translúcidas). Capturar fichas de evento (con y sin cartel), pago devuelto,
 pago pagado e inscripción.
 
-### 7. FAM-a13 — Iconos de la portada sin degradado (S) — APROBADO, CON CONDICIÓN
+### 7. FAM-a13 — Iconos de la portada sin degradado (S) — ✅ HECHA 11/10/2026 (`9f0ae71`)
 El propietario: «si queda bien, vale, pero que quede bien». Iconos de acceso de
 la portada (`.stic-dash-icon`, custom-style.css) en tinta suave: fondo
 `--primary-50`, trazo `--primary-color`, también en oscuro. **Captura antes y
 después** a 375 y 1280 en los dos temas y compáralas de verdad. Si no queda
 claramente mejor, NO se hace: se apunta aquí por qué y se deja como está.
 
-### 8. FAM-a11 — Selector de hijo a 44 px de verdad (S) — APROBADO
+### 8. FAM-a11 — Selector de hijo a 44 px de verdad (S) — ✅ HECHA 11/10/2026 (`15d6d3b`)
 El propietario dijo Sí (aunque se recomendaba dejarlo). `.stic-part-switch-btn`
 (custom-style.css, la barra de familia) con `min-height: 44px` visible; la barra
 crece ~13 px en todas las pantallas de familia: comprobar que no tapa nada en
 375 y dentro de la app.
 
-### 9. F3 — «Lo importante del grupo, de un vistazo» (S) — APROBADO
+### 9. F3 — «Lo importante del grupo, de un vistazo» (S) — ✅ HECHA 11/10/2026 (`095a761`)
 Ficha completa en `docs/comunica/PROPUESTAS-FUNCIONALIDADES-2026-10.md` F3. En la
 lista del grupo (Mis grupos y marcar), una marca discreta junto al nombre, como
 mucho tres: «No se va solo/a» (`ajmcm_soloacasa_c` = 0), «Sin fotos»
@@ -144,6 +148,15 @@ enlace de un evento, pasar lista en un evento (con y sin sesiones, y en modo
 avión) y la cabecera `Server-Timing`.
 
 ---
+
+## Las flechas de la app y la barra de abajo (11/10/2026)
+
+En Pasar Lista, dentro de MCM App, la cápsula atrás/adelante de la app y la
+barra de guardar quedaban una encima de otra. **Lado área: hecho** (`sticpa:barra`,
+CONTRATO-APP-WEBVIEW.md §4.b). **Lado app (`mcmespana/mcmapp`): pendiente**:
+escuchar `sticpa:barra` en `ComunicaScreen.tsx`, esconder `WebViewNavControls`
+con `abajo: true` y poner en `<html>` la clase `sticpa-app-sin-flechas` y
+`--stic-app-tabbar`. Mientras no esté, todo sigue como hoy.
 
 ## Para más adelante (decidido «sí, pero no ahora»)
 
