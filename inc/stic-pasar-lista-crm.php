@@ -628,9 +628,11 @@ function sticpa_pl_all_relationships($objSCP)
  * que la de arriba tira. Una relación terminada no es un dato de hoy, pero sí
  * es el dato de entonces.
  *
- * Cada fila lleva `vigente`, `start`, `end` y `cursos` (los cursos escolares
- * que cubre, calculados de las fechas). El CRM no guarda el curso escolar de
- * una relación en ningún campo, así que se deduce: septiembre manda.
+ * Cada fila lleva `vigente`, `start`, `end` y `cursos` (los AÑOS académicos
+ * que cubre, calculados de las fechas). El CRM no guarda el año académico de
+ * una relación en ningún campo, así que se deduce: septiembre manda. Y lleva
+ * `curso_escolar`, que es otra cosa: el NIVEL (`5_primaria`) del campo
+ * `ajmcm_curso_escolar_c`, solo en las de participante ('' en las demás).
  */
 function sticpa_pl_all_relationships_raw($objSCP)
 {
@@ -647,6 +649,11 @@ function sticpa_pl_all_relationships_raw($objSCP)
     // Y 'relshist2' por lo mismo (plan 043, fila 9): cada persona lleva ahora
     // sus marcas («no se va solo/a», «sin fotos», «salud»), y una caché vieja
     // las daría por vacías hasta caducar — un día entero sin avisar de nada.
+    //
+    // Y cada fila lleva también `curso_escolar` (11/10/2026, la lista del
+    // autobús): el NIVEL escolar de la relación de participante. Va en la
+    // misma 'relshist2', que aún no se ha desplegado: si llega a producción
+    // por separado de la fila 9, aquí haría falta otra clave por lo mismo.
     $cacheKey = sticpa_pl_cache_key('relshist2', $objSCP);
     $ttl = sticpa_pl_ttl_structure();
     if ($ttl > 0) {
@@ -672,6 +679,10 @@ function sticpa_pl_all_relationships_raw($objSCP)
         'stic_contacts_relationships_contacts_name',
         'ajmcm_grupos_stic_contacts_relationshipsajmcm_grupos_ida',
         'ajmcm_grupos_stic_contacts_relationships_name',
+        // El NIVEL escolar de la persona (`4_primaria`, `1_eso`…): de aquí
+        // sale el curso en la lista de un evento, porque el de la inscripción
+        // llega vacío (CAMPOS.md). Una columna más, ni una llamada más.
+        'ajmcm_curso_escolar_c',
     );
 
     // La vigencia se filtra en PHP y NO en SQL. En SQL era mas barato, pero si
@@ -762,6 +773,15 @@ function sticpa_pl_all_relationships_raw($objSCP)
                 'start' => $startTs,
                 'end' => $endTs,
                 'cursos' => sticpa_pl_rel_cursos($startTs, $endTs, $now),
+                // OJO, DOS EJES: `cursos` son los AÑOS académicos que cubre la
+                // relación (de sus fechas); `curso_escolar` es el NIVEL
+                // (`5_primaria`), del campo. Solo en las de PARTICIPANTE: en
+                // una de monitor el campo lleva el curso del grupo que lleva,
+                // no el suyo (CAMPOS.md), y aquí no se guarda para que nadie
+                // lo lea como «el curso de esta persona».
+                'curso_escolar' => ($role === 'participante')
+                    ? sticpa_pl_ev_curso_key(isset($v->ajmcm_curso_escolar_c->value) ? $v->ajmcm_curso_escolar_c->value : '')
+                    : '',
                 'group_id' => sticpa_pl_nvl_first($v, array(
                     'grupo_id',
                     'ajmcm_grupos_stic_contacts_relationshipsajmcm_grupos_ida',

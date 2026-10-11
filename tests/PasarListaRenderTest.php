@@ -435,7 +435,7 @@ class FakeSCP
             return array(
                 $this->nvl($marcar(array(
                     'id' => 'g1', 'name' => 'Los Peques', 'code' => 'C1', 'level' => 'COM',
-                    'cursos_c' => '1º ESO',
+                    'cursos_c' => '1 ESO',
                     'ajmcm_n_participantes_c' => '11', 'ajmcm_n_monitores_c' => '2',
                     'ajmcm_monitores_c' => 'David Soler', 'ajmcm_recuento_al_c' => '2025-11-15 01:30:00',
                 ))),
@@ -1563,7 +1563,7 @@ final class PasarListaRenderTest extends TestCase
     public function test_arbol_enseña_el_curso_escolar_del_grupo()
     {
         $html = $this->render('single_stic_pasar_lista_grupos');
-        $this->assertStringContainsString('1º ESO', $html);
+        $this->assertStringContainsString('1 ESO', $html);
         $this->assertStringContainsString('5º Primaria', $html);
     }
 
@@ -4314,7 +4314,7 @@ final class PasarListaRenderTest extends TestCase
 
         // Primaria antes que ESO, y dentro por número.
         $this->assertLessThan($r('5º Primaria'), $r('4º Primaria'));
-        $this->assertLessThan($r('1º ESO'), $r('6º Primaria'));
+        $this->assertLessThan($r('1 ESO'), $r('6º Primaria'));
         $this->assertLessThan($r('1º Bachillerato'), $r('4º ESO'));
         // Valenciano y castellano, lo mismo.
         $this->assertSame($r('6º Primaria'), $r('6é Primària'));
@@ -6057,7 +6057,7 @@ final class PasarListaRenderTest extends TestCase
 
         // g1 es «1º ESO» en el doble: su gente sale bajo ese título, junta,
         // aunque estuvieran repartidos en varios grupos.
-        $this->assertStringContainsString('1º ESO', $html);
+        $this->assertStringContainsString('1 ESO', $html);
         $this->assertStringContainsString('Solete Vilarroya', $html);
         // Y el título lleva su recuento: c1, c2 y c3 (plan 043, fila 4).
         $this->assertStringContainsString('3 chavalines', $html);
@@ -6259,7 +6259,7 @@ final class PasarListaRenderTest extends TestCase
      */
     public function test_intensidad_de_curso_crece_con_la_edad()
     {
-        $escalera = array('Infantil 3', '1º Primaria', '6º Primaria', '1º ESO',
+        $escalera = array('Infantil 3', '1º Primaria', '6º Primaria', '1 ESO',
             '4º ESO', '1º Bachillerato', 'FP', 'Universidad', 'Adultos');
 
         $previo = -1.0;
@@ -6413,7 +6413,7 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('pl_assign_rel', $html);
         $this->assertStringContainsString('pl_assign_group', $html);
         // El curso va en la opción: sin él no se puede decidir a dónde va nadie.
-        $this->assertStringContainsString('1º ESO', $html);
+        $this->assertStringContainsString('1 ESO', $html);
     }
 
     /** Sin nonce válido no se escribe nada, aunque coordines. */
@@ -6932,27 +6932,60 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame($porId['cerca']['start'], $porId['cerca']['end']);
     }
 
-    /** La etapa: manda la ficha; si está vacía, se deduce del curso
-     *  (primaria → MIC; ESO, Bachillerato y FP → COM). Lo demás, sin etapa. */
-    public function test_ev_etapa_de_la_ficha_o_del_curso()
+    /** La etapa: manda el CURSO (primaria → MIC; ESO, Bachillerato y FP →
+     *  COM); si no dice nada, la del grupo y, al final, la de la ficha, que
+     *  se queda vieja (Castellón, 11/10/2026: 20 de 47 de primaria con COM). */
+    public function test_ev_etapa_del_curso_luego_grupo_luego_ficha()
     {
-        $this->assertSame('COM', sticpa_pl_ev_etapa('COM', '5_primaria'));
-        $this->assertSame('LC', sticpa_pl_ev_etapa('lc', ''));
-        $this->assertSame('MIC', sticpa_pl_ev_etapa('', '4_primaria'));
-        $this->assertSame('COM', sticpa_pl_ev_etapa('', '3_eso'));
-        $this->assertSame('COM', sticpa_pl_ev_etapa('', '1_bachillerato'));
-        $this->assertSame('COM', sticpa_pl_ev_etapa('', 'fp_gm'));
-        $this->assertSame('', sticpa_pl_ev_etapa('', 'universitario'));
-        $this->assertSame('', sticpa_pl_ev_etapa('', ''));
+        // El caso real: ficha COM, relación de 5.º de primaria → MIC.
+        $this->assertSame('MIC', sticpa_pl_ev_etapa('5_primaria', '', 'COM'));
+        $this->assertSame('MIC', sticpa_pl_ev_etapa('4_primaria', 'COM', 'COM'));
+        $this->assertSame('COM', sticpa_pl_ev_etapa('3_eso'));
+        $this->assertSame('COM', sticpa_pl_ev_etapa('1_bachillerato'));
+        $this->assertSame('COM', sticpa_pl_ev_etapa('fp_gm'));
+        // Sin curso que diga algo: el grupo antes que la ficha.
+        $this->assertSame('LC', sticpa_pl_ev_etapa('universitario', 'LC', 'COM'));
+        $this->assertSame('MIC', sticpa_pl_ev_etapa('', 'MIC', 'COM'));
+        $this->assertSame('LC', sticpa_pl_ev_etapa('', '', 'lc'));
+        $this->assertSame('', sticpa_pl_ev_etapa('universitario'));
+        $this->assertSame('', sticpa_pl_ev_etapa(''));
         // `na` no es un curso.
         $this->assertSame('', sticpa_pl_ev_curso_key('na'));
         $this->assertSame('', sticpa_pl_ev_curso_key('inventado'));
     }
 
+    /** El curso sale de la relación de PARTICIPANTE vigente más reciente que
+     *  lo tenga: la tanda vieja sin cerrar (6 EP) pierde contra la de este
+     *  curso (1 ESO); las de monitor no cuentan; las terminadas tampoco. Y el
+     *  grupo, con la misma elección. */
+    public function test_ev_curso_y_grupo_de_la_relacion_mas_reciente()
+    {
+        $rel = function ($cid, $role, $start, $curso, $gid = '', $vigente = true) {
+            return array('role' => $role, 'vigente' => $vigente, 'start' => $start,
+                'curso_escolar' => $curso, 'group_id' => $gid, 'person' => array('id' => $cid));
+        };
+        $rels = array(
+            $rel('p1', 'participante', 100, '6_primaria', 'gv'),
+            $rel('p1', 'participante', 200, '1_eso', 'gn'),
+            $rel('p2', 'monitor', 300, '5_primaria', 'gv'),
+            $rel('p3', 'participante', 300, '4_eso', 'gn', false),
+            $rel('p4', 'participante', 300, '', 'gn'),
+            $rel('p4', 'participante', 100, '2_eso', 'gv'),
+        );
+        $this->assertSame(array('p1' => '1_eso', 'p4' => '2_eso'), sticpa_pl_ev_cursos_de($rels));
+        $groups = array('gv' => array('code' => 'M6', 'etapa' => 'MIC'), 'gn' => array('code' => 'C1', 'etapa' => 'COM'));
+        $g = sticpa_pl_ev_grupos_de($rels, $groups);
+        $this->assertSame(array('id' => 'gn', 'code' => 'C1', 'etapa' => 'COM'), $g['p1']);
+        $this->assertSame('gn', $g['p4']['id']);
+        $this->assertArrayNotHasKey('p2', $g);
+        $this->assertArrayNotHasKey('p3', $g);
+    }
+
     /** El armado de la lista: las canceladas al final y fuera del mapa que se
      *  puede escribir; una persona con una cancelada vieja y una confirmada
      *  nueva sale UNA vez, activa; los cursos y etapas se cuentan con las
-     *  activas; orden por apellidos. */
+     *  activas; orden por CURSO y, dentro, por apellidos (sin acentos). El
+     *  curso de la inscripción manda; si falta, el de la relación. */
     public function test_ev_lista_separa_canceladas_y_no_duplica()
     {
         $ins = array(
@@ -6969,9 +7002,20 @@ final class PasarListaRenderTest extends TestCase
             'c' => array('first' => 'Ciro', 'last' => 'Mas', 'full' => 'Ciro Mas', 'etapa' => 'COM'),
             'd' => array('first' => 'Dani', 'last' => 'Pons', 'full' => 'Dani Pons', 'etapa' => ''),
         );
-        $l = sticpa_pl_ev_lista($ins, $per, array('a' => array('id' => 'g1', 'code' => 'C1')));
+        $ins[] = array('reg_id' => 'r6', 'contact_id' => 'e', 'status' => 'confirmed', 'curso' => '');
+        $ins[] = array('reg_id' => 'r7', 'contact_id' => 'f', 'status' => 'confirmed', 'curso' => '');
+        $per['e'] = array('first' => 'Eva', 'last' => 'Álvarez', 'full' => 'Eva Álvarez', 'etapa' => 'COM');
+        $per['f'] = array('first' => 'Fran', 'last' => 'Beltrán', 'full' => 'Fran Beltrán', 'etapa' => 'COM');
+        $l = sticpa_pl_ev_lista($ins, $per, array('a' => array('id' => 'g1', 'code' => 'C1')),
+            array('e' => '5_primaria', 'f' => '5_primaria', 'a' => '4_primaria'));
 
-        $this->assertSame(array('b', 'd', 'a'), array_column($l['activos'], 'id'));
+        // 5 EP (Álvarez, Beltrán, Pons) · 1 ESO (Zurita: manda su inscripción) · 2 ESO.
+        $this->assertSame(array('e', 'f', 'd', 'a', 'b'), array_column($l['activos'], 'id'));
+        $this->assertSame('MIC', $l['activos'][0]['etapa']);   // ficha COM, curso de primaria
+        $this->assertSame('5 EP', $l['activos'][0]['curso_label']);
+        unset($l['activos']);
+        $ins = array_slice($ins, 0, 6);
+        $l = sticpa_pl_ev_lista($ins, $per, array('a' => array('id' => 'g1', 'code' => 'C1')));
         $this->assertSame(array('c'), array_column($l['fuera'], 'id'));
         $this->assertSame('Cancelada', $l['fuera'][0]['status_label']);
         $this->assertSame(array('r1' => 'a', 'r2' => 'b', 'r4' => 'd'), $l['regMap']);
@@ -6979,7 +7023,7 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame(array('MIC' => 1, 'COM' => 2), $l['etapas']);
         $porId = array_column($l['activos'], null, 'id');
         $this->assertSame('g1', $porId['a']['grupo_id']);
-        $this->assertSame('1º ESO', $porId['a']['curso_label']);
+        $this->assertSame('1 ESO', $porId['a']['curso_label']);
     }
 
     /** El selector: la convivencia que empieza HOY arriba y destacada, luego
@@ -7028,7 +7072,12 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame(1, substr_count($html, 'data-contact="c2"'));
         // Chips: todos (4) y cada curso con su número; «Sin curso» para el `na`.
         $this->assertStringContainsString('data-pl-ev-curso="" aria-pressed="true">Todos<span class="pl-evchip-n">4</span>', $html);
-        $this->assertStringContainsString('1º ESO<span class="pl-evchip-n">1</span>', $html);
+        $this->assertStringContainsString('1 ESO<span class="pl-evchip-n">1</span>', $html);
+        // Por etapa y, dentro, por curso con su subtítulo y su número; debajo
+        // del nombre, el curso corto y el grupo.
+        $this->assertStringContainsString('<span>5 EP</span><span class="pl-evcurso-n" aria-hidden="true">·</span><span class="pl-evcurso-n" data-pl-ev-n>1</span>', $html);
+        $this->assertStringContainsString('<span class="pl-rowsub">2 ESO · C1</span>', $html);
+        $this->assertLessThan(strpos($html, '<span>2 ESO</span>'), strpos($html, '<span>1 ESO</span>'));
         $this->assertStringContainsString('Sin curso<span class="pl-evchip-n">1</span>', $html);
         // «Se Fue» canceló: al final, sin botón y con su chip.
         $this->assertStringNotContainsString('data-contact="c9"', $html);

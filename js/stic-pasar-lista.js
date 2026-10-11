@@ -806,20 +806,47 @@
                     el.hidden = !ok;
                     if (ok) { shown++; }
                 });
-                // Las secciones (MIC, COM…) sin nadie a la vista, fuera; y su
+                // Los cursos (y «No van») sin nadie a la vista, fuera; y su
                 // número dice cuántos se ven.
+                var evCount = function (box, n) {
+                    var c = box.querySelector('[data-pl-ev-n]');
+                    if (c) { c.textContent = n; }
+                };
                 Array.prototype.forEach.call(root.querySelectorAll('[data-pl-ev-list]'), function (list) {
                     var n = list.querySelectorAll('[data-pl-ev-curso]:not([hidden])').length;
                     list.hidden = (n === 0);
                     var title = list.previousElementSibling;
                     if (title && title.hasAttribute('data-pl-ev-sec')) {
                         title.hidden = (n === 0);
-                        var c = title.querySelector('.pl-etapa-count');
-                        if (c) { c.textContent = n; }
+                        evCount(title, n);
                     }
+                });
+                // Y las etapas (MIC, COM…), que llevan dentro sus cursos.
+                Array.prototype.forEach.call(root.querySelectorAll('[data-pl-ev-etapa]'), function (box) {
+                    var n = box.querySelectorAll('[data-pl-ev-list] > [data-pl-ev-curso]:not([hidden])').length;
+                    box.hidden = (n === 0);
+                    evCount(box, n);
                 });
                 if (evVacio) { evVacio.hidden = (shown > 0); }
                 refresh();
+            };
+
+            /* Tocar un chip con la lista ya bajada vuelve ARRIBA DE LA LISTA
+               (a «Están todos», justo bajo los chips, que van pegados): el
+               curso elegido empieza ahí, no donde estaba el dedo. Si la lista
+               ya se ve desde arriba, no se mueve nada. */
+            var evChipsBar = root.querySelector('[data-pl-ev-chips]');
+            var evToTop = function () {
+                var anchor = allBtn || root.querySelector('[data-pl-ev-list]');
+                if (!anchor || !evChipsBar || !anchor.getBoundingClientRect) { return; }
+                var now = window.pageYOffset || document.documentElement.scrollTop || 0;
+                var y = anchor.getBoundingClientRect().top + now - evChipsBar.getBoundingClientRect().height - 8;
+                if (now <= y) { return; }
+                try {
+                    window.scrollTo({ top: Math.max(0, y), behavior: REDUCED ? 'auto' : 'smooth' });
+                } catch (e) {
+                    window.scrollTo(0, Math.max(0, y));
+                }
             };
 
             evChips.forEach(function (chip) {
@@ -830,6 +857,7 @@
                         c.setAttribute('aria-pressed', ((c.getAttribute('data-pl-ev-curso') || '') === evCurso) ? 'true' : 'false');
                     });
                     evApply();
+                    evToTop();
                     haptic(8);
                 });
             });

@@ -1079,7 +1079,7 @@ nadie cree uno igual: `inc_*` (34, programa Incorpora / SEPE), `sepe_*` (4) y
 | Campo | Tipo | Qué es |
 |---|---|---|
 | `ajmcm_clase_c` | `enum` | Clase del/de la participante en la inscripción |
-| `ajmcm_curso_escolar_c` | `enum` | Curso escolar (misma lista que en las relaciones, ver abajo) |
+| `ajmcm_curso_escolar_c` | `enum` | Curso escolar (misma lista que en las relaciones, ver abajo). ⚠️ **11/10/2026**: leído por MCP en las 90 inscripciones de las dos convivencias de Castellón, **no viene** (ni con `fields` ni por la relación del evento). El curso de la persona sale de su relación de participante. Pendiente de mirar en Studio si el campo existe en esta instancia |
 | `ajmcm_registration_amount_c` | `decimal(6)` | Importe de la inscripción |
 | `ajmcm_convivencia_c` | `enum` | Si va a la convivencia |
 | `ajmcm_convivencia_fecha_c` | `date` | Fecha de la convivencia |
