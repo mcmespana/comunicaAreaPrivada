@@ -143,6 +143,10 @@ por quien hizo el cambio.
 
 ## Decisiones del propietario
 
+> **TOMADAS el 10/10/2026.** Lo que sale de ellas, ordenado para hacerse, está en
+> [`../043-decisiones-del-10-10.md`](../043-decisiones-del-10-10.md). Lo de abajo queda
+> como contexto de cada una.
+
 Cada una con la recomendación de quien la ha visto. Hasta que se decida, no se toca.
 El detalle está en el fichero de cada auditoría.
 

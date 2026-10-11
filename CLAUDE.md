@@ -104,6 +104,15 @@ contexto**. Reglas:
 
 ---
 
+## «Sigue con el área privada»
+
+Si el propietario dice eso (o algo parecido) sin más: es
+**[`plans/043-decisiones-del-10-10.md`](plans/043-decisiones-del-10-10.md)**.
+Ahí están sus decisiones del 10/10/2026 ordenadas, fila a fila, con cómo
+hacerlas y verificarlas. No vuelvas a preguntar lo que ya está decidido allí.
+
+---
+
 ## Si vas a tocar Pasar Lista
 
 Lee **[`docs/comunica/PASAR-LISTA-ESTADO.md`](docs/comunica/PASAR-LISTA-ESTADO.md)**

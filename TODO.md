@@ -63,12 +63,11 @@ Nada de esto es código; sin ello, el código que lo espera no avanza.
       (cuenta, concepto, a quién mandar el justificante). Hoy van solo en el correo. Idea del
       propietario (02/10): sacarlas de la delegación (organización) en MCM Bank. Para el futuro.
 
-- [ ] `042` (P1 · S) **Decisiones del pulido de octubre** — una docena de sí/no con su
-      recomendación (menú del equipo, cabecera de las fichas, foco, concurrencia de las
-      tandas, la cola sin cobertura de 72 h, eventos nacionales en Pasar lista…) en
-      [`plans/042-pulido-integral/README.md`](plans/042-pulido-integral/README.md) «Decisiones», y
-      las 12 funcionalidades con casilla GO / NO GO en
-      [`docs/comunica/PROPUESTAS-FUNCIONALIDADES-2026-10.md`](docs/comunica/PROPUESTAS-FUNCIONALIDADES-2026-10.md).
+- [x] `042` **Decisiones del pulido de octubre**: tomadas el 10/10/2026. Lo que sale de ellas
+      está ordenado en [`plans/043-decisiones-del-10-10.md`](plans/043-decisiones-del-10-10.md).
+- [ ] `043` (P1 · S por fila) **Siguiente tanda del área**: 9 filas en orden, en
+      [`plans/043`](plans/043-decisiones-del-10-10.md). ⏰ Tras desplegar: mirar que el CRM aguanta
+      las 6 consultas a la vez (cómo, en el 043).
 
 **Crear en Studio** (el código está hecho y se activa solo)
 - [x] `EV-6` (P2 · S) **Preguntas simples — campos creados el 30/09**: `ajmcm_pregunta_1_c` y `ajmcm_pregunta_2_c` en
