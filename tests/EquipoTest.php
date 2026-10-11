@@ -278,17 +278,19 @@ class EquipoTest extends TestCase
 
         $claves = array_keys(getSticMenuElements()[0]);
 
-        // Tres bloques que no se mezclan: Actividades (lo de miembro del MCM),
-        // Equipo de monitores (todo junto, Coordinación incluida) y Tu perfil.
+        // Tres bloques que no se mezclan: Equipo de monitores (todo junto,
+        // Coordinación incluida), Actividades (lo de miembro del MCM) y Tu
+        // perfil. Para el equipo, sus herramientas PRIMERO (plan 043, CAR-1):
+        // pasa lista todos los sábados y se apunta a algo tres veces al curso.
         $this->assertSame(array(
+            'single_stic_pasar_lista',
+            'single_stic_mis_grupos',
+            'single_stic_coordinacion',
             'list_stic_events',
             'list_stic_registrations',
             'single_stic_activities_calendar',
             'list_stic_payments',
             'list_stic_documents',
-            'single_stic_pasar_lista',
-            'single_stic_mis_grupos',
-            'single_stic_coordinacion',
             'single_stic_comunica_perfil',
             'single_stic_comunica_monitor',
             'single_stic_password_change',
@@ -327,8 +329,88 @@ class EquipoTest extends TestCase
             intdiv($orden('single_stic_pasar_lista'), 100),
             intdiv($orden('single_stic_coordinacion'), 100)
         );
-        $this->assertLessThan($orden('single_stic_pasar_lista'), $orden('list_stic_documents'));
-        $this->assertLessThan($orden('single_stic_comunica_perfil'), $orden('single_stic_coordinacion'));
+        // Y el bloque del equipo, delante de Actividades (CAR-1): el mismo
+        // orden en el desplegable del móvil que en la barra y en la portada.
+        $this->assertLessThan($orden('list_stic_events'), $orden('single_stic_coordinacion'));
+        $this->assertLessThan($orden('single_stic_comunica_perfil'), $orden('list_stic_documents'));
+        $this->assertLessThan($orden('single_stic_pasar_lista'), $orden('single_stic_home'));
+        $grupos = array_column($layout['groups'], 'label');
+        $this->assertSame(array('', 'Equipo de monitores', 'Actividades', 'Tu perfil'), $grupos);
+    }
+
+    /**
+     * CAR-1, el otro lado de la puerta: quien NO es del equipo ve exactamente
+     * el orden de siempre, en la barra y en el desplegable del móvil.
+     */
+    public function test_sin_papel_de_equipo_el_orden_no_cambia(): void
+    {
+        require_once __DIR__ . '/../menu.php';
+        $this->conRelacion('^grupo^');
+
+        $claves = array_keys(getSticMenuElements()[0]);
+        $this->assertSame(array(
+            'list_stic_events',
+            'list_stic_registrations',
+            'single_stic_activities_calendar',
+            'list_stic_payments',
+            'list_stic_documents',
+            'single_stic_comunica_perfil',
+            'single_stic_password_change',
+        ), $claves);
+
+        $layout = sticpa_nav_layout(array_merge(array('single_stic_home'), $claves));
+        $this->assertSame(array('', 'Actividades', 'Tu perfil'), array_column($layout['groups'], 'label'));
+        $this->assertLessThan($layout['items']['single_stic_comunica_perfil']['order'], $layout['items']['list_stic_documents']['order']);
+    }
+
+    /**
+     * CAR-1. Una familia viendo a su hijo: aunque la madre sea monitora, en la
+     * ficha del hijo no hay nada del equipo, y el orden es el de siempre.
+     */
+    public function test_una_familia_viendo_a_su_hijo_tiene_el_orden_de_siempre(): void
+    {
+        require_once __DIR__ . '/../menu.php';
+        $this->conRelacion('^grupo^,^monitor^');
+        $GLOBALS['__stic_filters']['sticpa_profile_audience'] = 'participante';
+        $_SESSION['scp_user_contact_name'] = 'Messeguer, Lucía';
+
+        $claves = array_keys(getSticMenuElements()[0]);
+        $this->assertSame('list_stic_events', $claves[0]);
+        $this->assertNotContains('single_stic_pasar_lista', $claves);
+        $layout = sticpa_nav_layout(array_merge(array('single_stic_home'), $claves));
+        $this->assertSame(array('', 'Actividades', 'Tu perfil'), array_column($layout['groups'], 'label'));
+    }
+
+    /** Pinta la portada de verdad (pages/single_stic_home.php), sin CRM. */
+    private function portada()
+    {
+        require_once __DIR__ . '/../menu.php';
+        $_SERVER['REQUEST_URI'] = '/ap/';
+        ob_start();
+        require __DIR__ . '/../pages/single_stic_home.php';
+        return ob_get_clean();
+    }
+
+    /**
+     * CAR-1, en la portada: para el equipo, su bloque va antes que la rejilla
+     * de «Actividades» (en el móvil, «Pasar lista» pasa de y = 986 a la
+     * primera pantalla). Para quien no es del equipo no hay bloque.
+     */
+    public function test_en_la_portada_el_bloque_del_equipo_va_primero(): void
+    {
+        $this->conRelacion('^grupo^,^monitor^,^coordinacion_mic_com^');
+        $html = $this->portada();
+        $equipo = strpos($html, 'stic-home-equipo');
+        $actividades = strpos($html, 'stic-home-layout');
+        $this->assertNotFalse($equipo);
+        $this->assertNotFalse($actividades);
+        $this->assertLessThan($actividades, $equipo);
+        $this->assertLessThan(strpos($html, 'internalpage=list_stic_events'), strpos($html, 'internalpage=single_stic_pasar_lista'));
+
+        $this->conRelacion('^grupo^');
+        $html = $this->portada();
+        $this->assertStringNotContainsString('stic-home-equipo', $html);
+        $this->assertStringNotContainsString('single_stic_pasar_lista', $html);
     }
 
     public function test_el_menu_de_un_miembro_normal_no_tiene_nada_de_monitor(): void

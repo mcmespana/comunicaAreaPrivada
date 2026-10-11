@@ -24,6 +24,15 @@ function getSticMenuElements()
      *   3. TU PERFIL — tus datos, tus datos de monitor, y tu usuario y
      *      contraseña. Se tocan una vez cada muchos meses: lo último.
      *
+     * PARA EL EQUIPO, SUS HERRAMIENTAS PRIMERO (plan 043, CAR-1, decidido el
+     * 10/10/2026). Un monitor pasa lista todos los sábados —unas 30 veces al
+     * curso— y se apunta a algo tres o cuatro veces: con el orden de arriba,
+     * lo que viene a hacer cada semana era lo más difícil de alcanzar (en el
+     * móvil, «Pasar lista» bajo el pliegue; en escritorio, «Coordinación»
+     * dentro de «Más»). Así que, para quien es del equipo, el bloque 2 va
+     * PRIMERO, en los tres sitios a la vez: aquí, en sticpa_nav_layout() y en
+     * la portada. Para todos los demás, el orden de siempre.
+     *
      * Quién ve cada cosa lo deciden otras dos funciones, no este orden:
      * sticpa_equipo_secciones() (inc/stic-equipo.php) para lo del equipo, y
      * sticpa_visible_sections() (inc/stic-family.php) para las familias.
@@ -52,6 +61,11 @@ function getSticMenuElements()
         $deCuenta['single_stic_comunica_monitor'] = __('Mis datos de monitor', 'sticpa');
     }
 
+    // --- 2. Equipo de monitores, todo junto y, si lo hay, lo primero (CAR-1) ---
+    foreach ($delEquipo as $clave => $etiqueta) {
+        $menuElements[$clave] = $etiqueta;
+    }
+
     // --- 1. Actividades ---
     $menuElements['list_stic_events'] = __('Eventos', 'sticpa');
     // «Mis inscripciones» (decidido el 10/10/2026). Viendo a un hijo no son
@@ -62,11 +76,6 @@ function getSticMenuElements()
     $menuElements['single_stic_activities_calendar'] = __('Calendario', 'sticpa');
     $menuElements['list_stic_payments'] = __('Pagos', 'sticpa');
     $menuElements['list_stic_documents'] = __('Documentos', 'sticpa');
-
-    // --- 2. Equipo de monitores, todo junto ---
-    foreach ($delEquipo as $clave => $etiqueta) {
-        $menuElements[$clave] = $etiqueta;
-    }
 
     // --- 3. Tu perfil, lo último ---
     $menuElements['single_stic_comunica_perfil'] = ($audience === 'participante')
@@ -116,7 +125,8 @@ function defaultMenuElement()
  * CÓMO SE AGRUPA EL MENÚ EN EL MÓVIL.
  *
  * Los mismos grupos que la portada, en su mismo orden: Inicio suelto arriba,
- * «Actividades», «Equipo de monitores» y «Tu perfil». Cada grupo va en
+ * «Actividades», «Equipo de monitores» y «Tu perfil» (para quien es del
+ * equipo, «Equipo de monitores» delante de «Actividades»). Cada grupo va en
  * mosaicos de dos en dos; si le toca un número impar, el último ocupa el
  * ancho entero, para que no quede un hueco a la derecha.
  *
@@ -151,6 +161,16 @@ function sticpa_nav_layout($keys)
             $g = 'dia';
         }
         $groups[$g]['keys'][] = $key;
+    }
+    // Para el equipo, sus herramientas primero, como en getSticMenuElements()
+    // y en la portada (plan 043, CAR-1). Sin claves del equipo, nada cambia.
+    if (!empty($groups['equipo']['keys'])) {
+        $groups = array(
+            'inicio' => $groups['inicio'],
+            'equipo' => $groups['equipo'],
+            'dia'    => $groups['dia'],
+            'cuenta' => $groups['cuenta'],
+        );
     }
 
     $items = array();

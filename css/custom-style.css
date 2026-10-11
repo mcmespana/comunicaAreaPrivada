@@ -5027,6 +5027,11 @@ span.stic-field {
    ante todo un lanzador, y ponerla encima empujaba los accesos fuera de
    pantalla. En escritorio la agenda sigue en su columna lateral. */
 .stic-home-account { margin-top: 0.4rem; }
+/* Para el equipo, su bloque va el PRIMERO, antes de «Actividades» (plan 043,
+   CAR-1). Sin margen propio, la etiqueta «ACTIVIDADES» quedaba pegada a la
+   tarjeta de Coordinación: el mismo aire que separa las secciones de la
+   rejilla de la agenda (.stic-home-layout, su `gap`). */
+.stic-home-equipo { margin-bottom: clamp(1.1rem, 2.5vw, 1.8rem); }
 
 /* --- 48.c Home compacta en móvil --- */
 @media (max-width: 640px) {
