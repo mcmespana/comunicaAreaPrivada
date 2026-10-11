@@ -431,4 +431,165 @@ class TokensCssTest extends TestCase
         );
     }
 
+    /**
+     * LO QUE SE PEGA ABAJO RESERVA CON LOS DOS TOKENS DE LA ZONA SEGURA, Y CON
+     * NADA MÁS (plan 042, CAR-2).
+     *
+     * Con `viewport-fit=cover` el `env()` ya vale algo, y dentro de MCM App
+     * cada barra se sube además por encima de la tab bar. Si una regla suma
+     * las dos cosas por su cuenta, la barra se sube DOS veces. Por eso:
+     *   1. `env(safe-area-inset-bottom` solo aparece en la definición del
+     *      token, en custom-style §1;
+     *   2. en la app ese token vale 0 y el de la app, 10,5 rem;
+     *   3. toda barra `sticky` pegada abajo se pega con `--stic-app-bottom`.
+     */
+    public function test_lo_pegado_abajo_reserva_con_los_tokens_de_la_zona_segura()
+    {
+        $custom = file_get_contents(dirname(__DIR__) . '/css/custom-style.css');
+        $hojas = array('custom-style.css' => $custom, 'pasar-lista.css' => $this->pasarLista());
+
+        $env = 0;
+        foreach ($hojas as $css) {
+            $sinComentarios = preg_replace('#/\*.*?\*/#s', '', $css);
+            $env += substr_count($sinComentarios, 'env(safe-area-inset-bottom');
+        }
+        $this->assertSame(1, $env, 'Un `env(safe-area-inset-bottom)` suelto reserva por su cuenta: usa var(--stic-safe-bottom).');
+        $this->assertMatchesRegularExpression('/--stic-safe-bottom:\s*env\(safe-area-inset-bottom, 0px\);/', $custom);
+
+        $this->assertMatchesRegularExpression(
+            '/body\.sticpa-app-mode\s*\{\s*--stic-safe-bottom:\s*0px;\s*--stic-app-bottom:\s*10\.5rem;\s*\}/',
+            $custom
+        );
+
+        foreach ($hojas as $nombre => $css) {
+            $sinComentarios = preg_replace('#/\*.*?\*/#s', '', $css);
+            preg_match_all('/([^{}]+)\{([^{}]*position:\s*sticky[^{}]*)\}/', $sinComentarios, $m, PREG_SET_ORDER);
+            foreach ($m as $regla) {
+                if (!preg_match('/(^|;|\s)bottom:\s*([^;]+);/', $regla[2], $b)) {
+                    continue;
+                }
+                $this->assertSame(
+                    'var(--stic-app-bottom)',
+                    trim($b[2]),
+                    "$nombre: «" . trim($regla[1]) . '» se pega abajo sin el token de la app.'
+                );
+            }
+        }
+    }
+
+    /**
+     * Plan 042, A11Y-2 (design.md §8): todo `:hover` va dentro de
+     * `@media (hover: hover)`. En táctil el navegador lo simula al tocar y se
+     * queda pegado: el «?» de ayuda relleno y ampliado después de cerrarlo,
+     * «Descargar» azul y levantado, las pestañas de Pasar Lista oscurecidas.
+     * Se admite también dentro de `@media (hover: none)`: ahí no es un efecto
+     * de pasar el ratón sino lo contrario, devolver el reposo en táctil (el
+     * color de los enlaces, que el tema pinta en `a:hover, a:focus`).
+     */
+    public function test_ningun_hover_fuera_de_su_media_query()
+    {
+        $sueltos = array();
+        foreach ($this->stylesheets() as $file) {
+            $css = preg_replace_callback('#/\*.*?\*/#s', function ($m) {
+                return preg_replace('/[^\n]/', ' ', $m[0]);
+            }, file_get_contents($file));
+            $pila = array();
+            $desde = 0;
+            $n = strlen($css);
+            for ($i = 0; $i < $n; $i++) {
+                $c = $css[$i];
+                if ($c === '{') {
+                    $pila[] = trim(substr($css, $desde, $i - $desde));
+                    $desde = $i + 1;
+                } elseif ($c === '}') {
+                    array_pop($pila);
+                    $desde = $i + 1;
+                } elseif ($c === ';') {
+                    $desde = $i + 1;
+                } else {
+                    continue;
+                }
+                if ($c !== '{') {
+                    continue;
+                }
+                $selector = end($pila);
+                if (strpos($selector, ':hover') === false || $selector[0] === '@') {
+                    continue;
+                }
+                $dentro = false;
+                foreach (array_slice($pila, 0, -1) as $at) {
+                    if (preg_match('/@media[^{]*\(\s*hover\s*:\s*(hover|none)\s*\)/', $at)) {
+                        $dentro = true;
+                    }
+                }
+                if (!$dentro) {
+                    $linea = substr_count(substr($css, 0, $i), "\n") + 1;
+                    $sueltos[] = basename($file) . ":{$linea} " . preg_replace('/\s+/', ' ', $selector);
+                }
+            }
+        }
+        $this->assertSame(array(), $sueltos,
+            "Un :hover sin @media (hover: hover) se queda pegado al tocar en el móvil:\n" . implode("\n", $sueltos));
+    }
+
+    /**
+     * Plan 042, A11Y-3 (design.md §8): ningún selector de elemento sin acotar.
+     * Las hojas del área se cargan en la misma página que la cabecera y el pie
+     * del tema de WordPress: un `a {…}` suelto los pintaba en azul Comunica,
+     * un `button {min-width: 140px}` estiraba sus botones de icono, un `td`
+     * cambiaba sus tablas. Todo va colgado del área (`.stic-container`,
+     * `.stic-auth-shell`…); en stic-base.css con `:where()`, que no suma
+     * especificidad. Se mira cada selector de la lista: si no lleva ni una
+     * clase ni un id, alcanza a toda la página.
+     */
+    public function test_ningun_selector_alcanza_a_toda_la_pagina()
+    {
+        $globales = array();
+        foreach ($this->stylesheets() as $file) {
+            $css = preg_replace_callback('#/\*.*?\*/#s', function ($m) {
+                return preg_replace('/[^\n]/', ' ', $m[0]);
+            }, file_get_contents($file));
+            $pila = array();
+            $desde = 0;
+            $n = strlen($css);
+            for ($i = 0; $i < $n; $i++) {
+                $c = $css[$i];
+                if ($c === '}') {
+                    array_pop($pila);
+                    $desde = $i + 1;
+                    continue;
+                }
+                if ($c === ';') {
+                    $desde = $i + 1;
+                    continue;
+                }
+                if ($c !== '{') {
+                    continue;
+                }
+                $prelude = trim(substr($css, $desde, $i - $desde));
+                $pila[] = $prelude;
+                $desde = $i + 1;
+                if ($prelude === '' || $prelude[0] === '@') {
+                    continue;
+                }
+                foreach ($pila as $at) {
+                    if (strpos($at, '@keyframes') === 0 || strpos($at, '@font-face') === 0) {
+                        continue 2;
+                    }
+                }
+                // Partes de la lista de selectores, sin romper los paréntesis.
+                foreach (preg_split('/,(?![^()]*\))/', $prelude) as $parte) {
+                    $parte = trim($parte);
+                    if (preg_match('/[.#]/', $parte) || preg_match('/^(:root|html|body)\b/', $parte)) {
+                        continue;
+                    }
+                    $linea = substr_count(substr($css, 0, $i), "\n") + 1;
+                    $globales[] = basename($file) . ":{$linea} " . preg_replace('/\s+/', ' ', $parte);
+                }
+            }
+        }
+        $this->assertSame(array(), $globales,
+            "Un selector sin clase ni id alcanza también al tema de WordPress. Cuélgalo del área:\n"
+            . implode("\n", $globales));
+    }
 }

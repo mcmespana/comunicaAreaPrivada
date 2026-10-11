@@ -117,7 +117,7 @@ editan `--primary-*` y `--secondary-*`.**
 | Nota de alerta ámbar | `.stic-form-note.stic-note-warning` | §29 CSS |
 | Hint bajo el campo | `.stic-field-hint` | §29 CSS · clave `'hint'` |
 | Nota de sección | `.stic-form-note` (+ `.stic-note-soft`) | §29 CSS · tipo `'note'` |
-| Consentimiento legal (enlace + Sí/No) | `.stic-legal-row`, `.stic-legal-link` | §30 CSS · ver `single_stic_comunica_perfil.php` |
+| Enlace a un texto legal o a un trámite (píldora) | `.stic-legal-link` | §30 CSS · ver `single_stic_comunica_monitor.php` |
 | Tarjetas de opción (radio) | `.stic-option-grid`, `.stic-option-card` | §31 CSS · ver `single_stic_comunica_monitor.php` |
 | Selección de participante | `.stic-profiles-grid`, `.stic-profile-card` | §32 CSS · `pages/single_stic_profile_selection.php` |
 | **Ficha de registro (LA unidad de registro)** | `.stic-rec-*` — tarjeta, rejilla, cápsula, chip con tono, importe, acción rápida, ficha con cabecera, barra de progreso y avisos | §49 + §56 CSS · **`inc/stic-record-view.php`** |
@@ -131,7 +131,7 @@ editan `--primary-*` y `--secondary-*`.**
 | Auth / login | `.stic-auth-shell`, `.stic-auth-tabs`, `.stic-auth-view`, `.stic-field` | §3-4, 24, 34 CSS |
 | Control de apariencia (Auto/Claro/Oscuro) | `.stic-appearance*` | §44.j CSS · `sticpa_appearance_switch_html()` |
 | Aviso ámbar en línea del motor | `.stic-warning-card` | §47 CSS |
-| Campo bloqueado (viene del CRM) | `.stic-locked-field` | §47 CSS |
+| Campo bloqueado (viene del CRM) | `.stic-locked-field` — hoy no lo pinta ninguna pantalla; es el que pide design.md §6.5 | §47 CSS |
 
 ### 4.1 La ficha de registro (`stic-rec-*`) — empieza SIEMPRE por aquí
 
@@ -591,6 +591,26 @@ uno de esos bloques por otro motivo, súbelo de camino.
 No añadas un breakpoint nuevo si uno de los cinco sirve; y si de verdad no
 sirve, deja escrito al lado por qué.
 
+**Escritorio (`≥ 1024px`): repartir el ancho, no estirar la fila.** Una lista
+de lado a lado a 1.280 px deja el estado de cada fila a un metro de su nombre.
+Los patrones que ya hay, para no inventar otro (plan 042, COO-5; CSS al final
+de `pasar-lista.css`):
+
+- **Columna lateral**: lo principal a la izquierda y lo que se consulta a la
+  derecha, `grid-template-columns: minmax(0, 1fr) 340px`. La portada
+  (`.stic-home-layout`, la agenda) y la ficha del monitor (`.pl-mon-layout`,
+  el papeleo). La columna de la derecha va DESPUÉS en el HTML: el móvil y el
+  lector de pantalla leen en el orden de siempre.
+- **Una columna por etapa**: `.pl-etapas` > `.pl-etapa-col` (título + lista),
+  `repeat(auto-fit, minmax(18rem, 1fr))`. El Resumen de grupos y «Tu equipo»
+  de Coordinación. Con una sola etapa, son sus filas las que se reparten, cada
+  una en su tarjeta.
+- **Filas de navegación en una fila**: `.pl-list--nav` pasa a tres celdas con
+  filete vertical.
+
+Debajo de 1024 no cambia nada: compruébalo midiendo las cajas a 375 y 768
+antes y después, no a ojo.
+
 ### 11.2 UN solo lenguaje para "un registro" (la tarjeta)
 
 Todo lo que sea un registro — un evento, una inscripción, una sesión, un
@@ -663,9 +683,15 @@ lo que **sí** aporta pero cansa a diario.
 ### 11.5 Táctil, no hover
 
 - Los efectos de `:hover` (elevación, giro de iconos) van dentro de
-  `@media (hover: hover)`, o se anulan en `@media (hover: none)`. Sin esto el
-  navegador los simula al tocar y **se quedan pegados** hasta que tocas en otro
-  sitio.
+  `@media (hover: hover)`. Sin esto el navegador los simula al tocar y **se
+  quedan pegados** hasta que tocas en otro sitio. No se «anulan» en
+  `@media (hover: none)`: el parche nunca vuelve exacto al reposo. Lo comprueba
+  `TokensCssTest` en las tres hojas (plan 042, A11Y-2).
+- La excepción es el tema: Astra pinta `a:hover, a:focus { color: … }` sin
+  `@media`, y un enlace con su color en una clase suelta pierde (0,1,0 contra
+  0,1,1). En táctil lo devuelven al reposo `@media (hover: none)` de
+  `stic-base.css` (los enlaces azules), custom-style §67 y el final de
+  `pasar-lista.css`. Si cambias el color de uno de esos enlaces, cámbialo allí.
 - El feedback real en táctil es `:active` (`transform: scale(0.97-0.98)`).
 - `-webkit-tap-highlight-color: transparent` en todo lo pulsable (el recuadro
   gris del navegador se come el diseño).

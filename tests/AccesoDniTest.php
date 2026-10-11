@@ -117,9 +117,22 @@ class AccesoDniTest extends TestCase
         $html = sticpa_dni_access_form_html('/area?stic_auth=1');
         $this->assertStringContainsString('sticpa_send_access_dni', $html);
         $this->assertStringContainsString('sticpa_dni', $html);
-        // Va cerrado: es la salida de emergencia, no la puerta principal.
-        $this->assertStringContainsString('<details', $html);
-        $this->assertStringNotContainsString(' open', $html);
+    }
+
+    public function test_la_ayuda_va_plegada_y_lleva_el_formulario(): void
+    {
+        // Cerrada: es la salida de emergencia, no la puerta principal.
+        foreach (array(
+            sticpa_login_help_html('/area?stic_auth=1'),
+            sticpa_access_rescue_html('da••@movimientoconsolacion.com', '/area?stic_auth=1'),
+        ) as $html) {
+            $this->assertStringContainsString('<details', $html);
+            $this->assertStringNotContainsString(' open', $html);
+            $this->assertStringContainsString('sticpa_send_access_dni', $html);
+        }
+        // Al volver de un error del DNI, el login la abre: el formulario a mano.
+        $this->assertStringContainsString(' open', sticpa_login_help_html('/area?stic_auth=1', true));
+        $this->assertStringContainsString(sticpa_support_email(), sticpa_access_rescue_html('', '/area'));
     }
 
     public function test_cada_error_dice_que_hacer_ahora(): void

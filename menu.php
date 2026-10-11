@@ -54,7 +54,11 @@ function getSticMenuElements()
 
     // --- 1. Actividades ---
     $menuElements['list_stic_events'] = __('Eventos', 'sticpa');
-    $menuElements['list_stic_registrations'] = __('Inscripciones', 'sticpa');
+    // «Mis inscripciones» (decidido el 10/10/2026). Viendo a un hijo no son
+    // «mías»: ahí se queda «Inscripciones» y la pantalla dice de quién son.
+    $menuElements['list_stic_registrations'] = (function_exists('sticpa_viendo_a_nombre') && sticpa_viendo_a_nombre() !== '')
+        ? __('Inscripciones', 'sticpa')
+        : __('Mis inscripciones', 'sticpa');
     $menuElements['single_stic_activities_calendar'] = __('Calendario', 'sticpa');
     $menuElements['list_stic_payments'] = __('Pagos', 'sticpa');
     $menuElements['list_stic_documents'] = __('Documentos', 'sticpa');
@@ -95,12 +99,7 @@ function getSticMenuElements()
  */
 function sticpa_datos_de_label()
 {
-    $nombre = trim((string) ($_SESSION['scp_user_contact_name'] ?? ''));
-    if (strpos($nombre, ',') !== false) {
-        $partes = explode(',', $nombre, 2);
-        $nombre = trim($partes[1]) !== '' ? trim($partes[1]) : trim($partes[0]);
-    }
-    $nombre = ($nombre !== '') ? preg_split('/\s+/', $nombre)[0] : '';
+    $nombre = sticpa_nombre_de_pila($_SESSION['scp_user_contact_name'] ?? '');
     return ($nombre !== '')
         /* translators: %s: nombre de pila del participante */
         ? sprintf(__('Datos de %s', 'sticpa'), $nombre)
@@ -323,8 +322,83 @@ function sticpa_name_initial($name)
 }
 
 /**
+ * LA TARJETA DE UNA PERSONA a la que se puede pasar a ver (avatar con la
+ * inicial, nombre corto y flecha). La usan la pantalla de elegir participante
+ * y la portada del familiar: antes la misma acción se pintaba de dos formas,
+ * avatar con degradado en una e icono gris en la otra (plan 042, FAM-a11).
+ *
+ * El nombre, corto como en la barra («Lucía Messeguer», no «Messeguer
+ * Villarroya, Lucía»), con el completo en el title.
+ *
+ * @param string $url   Ya escapada (esc_url).
+ * @param string $name  Nombre tal y como viene del CRM.
+ * @param string $tag   Etiqueta pequeña bajo el nombre ('' = ninguna).
+ * @param string $go    Texto del CTA (en móvil solo se ve la flecha).
+ * @param string $extra Clases extra (is-active, stic-profile-card--self).
+ */
+function sticpa_profile_card_html($url, $name, $tag, $go, $extra = '')
+{
+    $goIcon = "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'><path d='M5 12h14'/><path d='m13 6 6 6-6 6'/></svg>";
+    return "<a class='stic-profile-card" . ($extra !== '' ? ' ' . esc_attr($extra) : '') . "' href='" . $url . "'"
+        . " data-part-switch-to='" . esc_attr__('Cambiando de participante…', 'sticpa') . "'>"
+        . "<span class='stic-profile-avatar' aria-hidden='true'>" . esc_html(sticpa_name_initial($name)) . "</span>"
+        . "<span class='stic-profile-name' title='" . esc_attr($name) . "'>" . esc_html(sticpa_short_name($name)) . "</span>"
+        . ($tag !== '' ? "<span class='stic-profile-tag'>" . esc_html($tag) . "</span>" : '')
+        . "<span class='stic-profile-go'><span class='stic-profile-go-text'>" . esc_html($go) . "</span>{$goIcon}</span>"
+        . "</a>";
+}
+
+/**
  * Return html menu from  $menuElements
  */
+/**
+ * LA SECCIÓN DEL MENÚ A LA QUE PERTENECE UNA PANTALLA (plan 042, COO-3).
+ *
+ * El resaltado comparaba la clave exacta de la página: en el Resumen de
+ * grupos, la Lista de monitores, las Reuniones o la ficha de un monitor no se
+ * marcaba ninguna sección, y no había forma de saber dónde estabas. Las
+ * subpantallas van a su sección, y por la puerta por la que se entró: lo
+ * abierto desde Coordinación es de Coordinación aunque también se llegue desde
+ * Pasar lista. Se lee `desde` y `vengo` con la misma lista blanca que la flecha
+ * de volver; un valor desconocido no cambia nada.
+ *
+ * Y LAS FICHAS DE LAS DEMÁS SECCIONES (plan 042, CAR-3, punto 5): la ficha
+ * de un evento es `single_stic_events` y no `list_stic_events`, así que en
+ * escritorio la barra no marcaba nada y en el móvil el desplegable no
+ * resaltaba ningún mosaico. Cada ficha va a la sección de su listado.
+ */
+function sticpa_menu_section_for($page)
+{
+    $page = (string) $page;
+    $fichas = array(
+        'single_stic_events'               => 'list_stic_events',
+        'single_stic_registrations'        => 'list_stic_registrations',
+        'single_stic_payments'             => 'list_stic_payments',
+        'single_stic_payment_form'         => 'list_stic_payments',
+        'single_stic_payment_error'        => 'list_stic_payments',
+        'single_stic_payment_commitments'  => 'list_stic_payments',
+        'list_stic_payment_commitments'    => 'list_stic_payments',
+        'single_stic_documents'            => 'list_stic_documents',
+        'single_stic_sessions'             => 'single_stic_activities_calendar',
+    );
+    if (isset($fichas[$page])) {
+        return $fichas[$page];
+    }
+    if (strpos($page, 'single_stic_pasar_lista_') !== 0) {
+        return $page;
+    }
+    $desde = isset($_REQUEST['desde']) ? (string) $_REQUEST['desde'] : '';
+    $vengo = isset($_REQUEST['vengo']) ? (string) $_REQUEST['vengo'] : '';
+    if (in_array($vengo, array('grupo', 'grupos', 'cursos', 'az'), true)) {
+        return 'single_stic_mis_grupos';
+    }
+    if ($page === 'single_stic_pasar_lista_monitor'
+        || in_array($desde, array('coordinacion', 'resumen-coordinacion'), true)) {
+        return 'single_stic_coordinacion';
+    }
+    return 'single_stic_pasar_lista';
+}
+
 function menu()
 {
     global $defaultMenuElement;
@@ -342,6 +416,9 @@ function menu()
 
     // Página actual (para resaltar el item activo). Sin internalpage => Inicio.
     $page = empty($_REQUEST['internalpage']) ? 'single_stic_home' : $_REQUEST['internalpage'];
+    // Una subpantalla resalta la sección a la que pertenece (COO-3).
+    $rawPage = $page;
+    $page = sticpa_menu_section_for($page);
 
     // ¿Mostramos los items de navegación? (usuario adulto o familiar con perfil elegido).
     $showItems = (isset($_SESSION['scp_tutor_user_contact_name']) || (isset($_SESSION['scp_user_adult']) && $_SESSION['scp_user_adult']));
@@ -411,11 +488,12 @@ function menu()
                    </a>";
 
     // ---- Acciones de la barra superior ----
-    // Con menú: solo la hamburguesa (en móvil). El "Salir" va como último item.
-    // Sin menú (p. ej. selección de perfil): dejamos "Salir" accesible aquí.
-    // "Salir" SIEMPRE arriba a la derecha (icono + texto en escritorio, solo icono en móvil).
-    // (El conmutador de tema claro/oscuro se retiró: el modo oscuro queda
-    // aparcado hasta rediseñarlo. De momento todo claro.)
+    // "Salir" SIEMPRE arriba a la derecha (icono + texto en escritorio, solo
+    // icono en móvil) y, con menú, la hamburguesa a su lado en el móvil: los
+    // dos a 44 px y separados (custom-style §66.a, plan 042 CAR-5).
+    // `$logoutItem` no se pinta hoy: queda para llevar "Salir" al final del
+    // menú del móvil si se decide (CAR-5, punto 2). El tema claro/oscuro se
+    // elige en el pie (sticpa_appearance_switch_html), no aquí.
     $actions = "<div class='stic-nav-actions'>";
     $actions .= "<a class='stic-iconbtn stic-logout' href='?logout=true' title='" . esc_attr__('Cerrar sesión', 'sticpa') . "' aria-label='" . esc_attr__('Cerrar sesión', 'sticpa') . "'>"
         . ($iconFn ? sticpa_icon('logout') : '') . "<span class='stic-logout-text'>" . __('Salir', 'sticpa') . "</span></a>";
@@ -449,7 +527,8 @@ function menu()
         foreach ($items as $key => $label) {
             $isActive = ($page == $key) ? 'current-menu-item stic-current-menu-item' : '';
             // aria-current: señal programática de "estás aquí" (la clase es solo visual).
-            $ariaCurrent = ($page == $key) ? " aria-current='page'" : '';
+            // En una subpantalla la sección es «dónde estás», no «esta página».
+            $ariaCurrent = ($page == $key) ? ($rawPage == $key ? " aria-current='page'" : " aria-current='true'") : '';
             $icon = function_exists('sticpa_section_icon') ? sticpa_section_icon($key) : '';
             $wide = !empty($layout['items'][$key]['wide']) ? ' stic-nav-item--wide' : '';
             $order = (int) ($layout['items'][$key]['order'] ?? 999);

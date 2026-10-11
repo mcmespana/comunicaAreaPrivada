@@ -771,16 +771,21 @@ class EventAudienceTest extends TestCase
         $this->assertStringContainsString('Inscripción cerrada', $html);
         $this->assertStringNotContainsString('Inscripción abierta', $html);
         $this->assertStringNotContainsString('Cerrada el', $html);
-        $this->assertStringContainsString('Ver detalle', $html);
+        // Y sin «Ver detalle» (plan 042, FAM-a7): la tarjeta entera ya lleva a
+        // la ficha, y un botón que hace lo mismo es lo que design.md §6.1
+        // prohíbe. Sin acciones, sin barra.
+        $this->assertStringNotContainsString('Ver detalle', $html);
+        $this->assertStringContainsString("href='?internalpage=single_stic_events&amp;action=detail&amp;id=e1'", $html);
+        $this->assertStringNotContainsString('stic-rec-actions', $html);
     }
 
     /**
-     * LO QUE YA TE HAS APUNTADO SIGUE EN EVENTOS (30/09/2026), arriba y con su
-     * propio bloque, hasta que pasa. Antes desaparecía al inscribirte y quien
+     * LO QUE YA TE HAS APUNTADO SIGUE EN EVENTOS (30/09/2026), con su propio
+     * bloque y DEBAJO de «Para apuntarte» (08/10/2026), hasta que pasa. Antes desaparecía al inscribirte y quien
      * volvía a mirar si se había apuntado no lo encontraba. Lo ya celebrado no
      * sale en Eventos: está en Inscripciones.
      */
-    public function testLoQueYaTeHasApuntadoSaleArribaHastaQuePasa()
+    public function testLoQueYaTeHasApuntadoSaleDebajoHastaQuePasa()
     {
         $fila = function ($id, $name, $start, $extra = array()) {
             $f = new stdClass();
@@ -799,16 +804,24 @@ class EventAudienceTest extends TestCase
         $paraApuntarte = strpos($html, 'Para apuntarte');
         $this->assertNotFalse($apuntado);
         $this->assertNotFalse($paraApuntarte);
-        $this->assertLessThan($paraApuntarte, $apuntado);
-        $this->assertLessThan($paraApuntarte, strpos($html, 'Convivencia de inicio'));
-        $this->assertGreaterThan($paraApuntarte, strpos($html, 'Pascua 2027'));
+        $this->assertLessThan($apuntado, $paraApuntarte);
+        $this->assertGreaterThan($apuntado, strpos($html, 'Convivencia de inicio'));
+        $this->assertLessThan($apuntado, strpos($html, 'Pascua 2027'));
         // Lo tuyo lleva a TU inscripción y no ofrece apuntarse otra vez.
         $this->assertStringContainsString('single_stic_registrations&amp;action=detail&amp;id=reg-1', $html);
-        $this->assertStringContainsString('Inscrito', $html);
+        // El chip de lo tuyo: «Con plaza», sin género (FAM-a4; antes «Inscrito»).
+        $this->assertStringContainsString('Con plaza', $html);
         $this->assertSame(1, substr_count($html, 'Inscribirme'));
         // Lo ya celebrado, fuera: tuyo o no.
         $this->assertStringNotContainsString('Campamento 2026', $html);
         $this->assertStringNotContainsString('Encuentro de verano', $html);
+    }
+
+    /** El estado `registration` del CRM se llama «Inscripciones»; en el chip dice «abiertas». */
+    public function testElChipDeEstadoRegistrationDiceInscripcionesAbiertas()
+    {
+        $this->assertSame('Inscripciones abiertas', sticpa_event_status_label('registration', 'Inscripciones'));
+        $this->assertSame('En curso', sticpa_event_status_label('in_progress', 'En curso'));
     }
 
     /** Sin nada tuyo, un solo bloque y sin título: como siempre. */

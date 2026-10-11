@@ -4,10 +4,11 @@
 
 ---
 
-> **⏳ HAY UNA LISTA DE PENDIENTES JUSTO DEBAJO** (§ Lo que queda por revisar).
-> Por crear no queda nada; lo que falta es **leer en Studio las opciones de dos
-> desplegables de eventos**, porque si no casan con lo que espera el código el
-> filtro falla EN SILENCIO. Míralo antes de tocar la audiencia de eventos.
+> **Por crear no queda nada y los dos desplegables de eventos están aclarados
+> (08/10/2026, el propietario):** `ajmcm_ambito_c` solo tiene `local` y
+> `nacional`, y `ajmcm_dirigido_a_c` usa la lista de etapa (`MIC`, `COM`, `LC`,
+> `lcincorporado`, `asesora`, `apoyo`; ver § Lo que queda por revisar, puntos 1
+> y 2). Lo abierto: el código no mapea esas claves (punto 1).
 >
 > **Última revisión contra el CRM: 25 de septiembre de 2026 — la primera
 > COMPLETA por MCP.** Se comparó el documento entero con `get_module_fields` de
@@ -113,14 +114,41 @@ Es el peor modo de fallo que tiene este proyecto, y ya nos ha mordido dos veces
 (el rol «laico» que buscaba tres cadenas inexistentes y no se disparó jamás; el
 `na` de los cursos, que habría excluido a gente en silencio).
 
-### 1. `stic_Events.ajmcm_dirigido_a_c` — una clave CONFIRMADA, el resto no ⚠️ RIESGO MEDIO
+### 1. `stic_Events.ajmcm_dirigido_a_c` — usa la lista de ETAPA ✅ (08/10/2026) ⚠️ el código no la mapea
+
+**Lista leída en Studio por el propietario el 08/10/2026:** `ajmcm_dirigido_a_c`
+usa la misma lista que la etapa, `ajmcm_etapa_c_list`:
+
+| Clave | Etiqueta |
+|---|---|
+| `-vacío-` | -vacío- |
+| `MIC` | MIC |
+| `COM` | COM |
+| `LC` | LC |
+| `lcincorporado` | LC Incorporado |
+| `asesora` | Asesora |
+| `apoyo` | Monitor/a Apoyo |
+
+⚠️ **Esto contradice lo que se anotó antes** (25/09/2026): entonces cinco eventos
+llevaban `^participante_mic_com^`, una clave del tipo de relación que **no está en
+esta lista**, y el texto de abajo decía que el vocabulario era el de
+`relationship_type`. Si el campo cambió de lista, esos valores ya no son
+seleccionables; si no, hay que mirar los datos. **Sin resolver.**
+
+⚠️ **El código no casa con esta lista.** El mapa de
+`sticpa_event_audience_perfil_map()` espera `grupo`, `monitor`,
+`participante_mic_com`, `coordinacion` y `familiar_menor`; ninguna es una clave de
+etapa. Una clave que no está en el mapa casa consigo misma, así que un evento
+marcado `MIC`, `asesora` o `apoyo` buscaría a gente con ese papel literal y, como
+no existe, **se escondería a todos**. Hay que decidir cómo se traduce etapa →
+perfil antes de usar el campo así.
+
+*(Lo que sigue es el estado del 25/09/2026, anterior a esta aclaración.)*
 
 El campo existe y es **`multienum`** (verificado el 25/09/2026; el 10/09 era
-`enum` simple, ver punto 3). Las opciones de Studio siguen sin leerse, pero se
-leyeron **los datos**, que es la otra forma de confirmarlas: el 25/09/2026 hay
+`enum` simple, ver punto 3). Se leyeron **los datos**: el 25/09/2026 hay
 **5 de 10 eventos** con el campo relleno y **los cinco llevan
-`^participante_mic_com^`**, o sea **la clave exacta que espera el código**. Dos
-cosas que eso cierra:
+`^participante_mic_com^`**. Dos cosas que eso cerraba:
 
 - El vocabulario **es** el de `relationship_type`, como se pidió. No hay dos
   listas.
@@ -148,15 +176,19 @@ error y sin aviso.
 el mapa con `add_filter('sticpa_event_audience_perfil_map', …)`. No hay que
 rehacer nada.
 
-### 2. `stic_Events.ajmcm_ambito_c` — `local` CONFIRMADO, `nacional` no ⚠️ RIESGO MEDIO
+### 2. `stic_Events.ajmcm_ambito_c` — ✅ CERRADO (08/10/2026): solo `local` y `nacional`
+
+**El propietario confirma que el desplegable solo tiene `local` y `nacional`, y
+nada más.** Son exactamente las claves que espera el código, así que **ya no hay
+riesgo de que una clave no case**. El resto de este punto es el historial:
 
 Existe (`enum(100)`) y las opciones de Studio siguen sin leerse, pero los datos
 del 20/09/2026 confirman la mitad que importa: **seis de los siete eventos
 llevan `ajmcm_ambito_c = local`**, la clave literal que espera
 `sticpa_event_audience_scope()`. El eje local funciona.
 
-Lo que **sigue sin confirmar es la clave de «para todas las delegaciones»**,
-porque ningún evento la usa aún. El código acepta tres sinónimos —`nacional`,
+Lo que entonces no estaba confirmado era la clave de «para todas las delegaciones»
+(resuelto: es `nacional`). El código acepta tres sinónimos —`nacional`,
 `todas` e `interdelegacional`— y **cualquier otra cosa la entiende como local**.
 
 **Qué pasa si no casa:** el primer evento nacional que se cree marcado `estatal`
@@ -191,7 +223,7 @@ Lista completa (dada por el propietario el 30/09/2026, copiada de Studio; clave 
 `school_partner` [Compañero/a de escuela] · `work_partner` [Compañero/a de trabajo] ·
 `culture` [Espacio/Organización cultural] · `sports` [Espacio/Organización deportiva].
 
-**Resuelto el 30/09/2026:** la clave de tutor/a legal es `legal` [Tutor/a] (la lista de arriba la confirma). Lo que ya estaba escrito antes de esta fecha habla de «pendiente»; vale esta nota.
+**Resuelto el 30/09/2026:** la clave de tutor/a legal es `legal` [Tutor/a] (la lista de arriba la confirma).
 
 ### 5. `ajmcm_GRUPOS.ajmcm_segmento_com_c` — valores observados, no leídos
 
@@ -205,10 +237,10 @@ menos grave porque aquí no hay comparación cruzada.
 `varchar(255)`, **vacío en todos los contactos** (25/09/2026). No hay nada que
 perder si algún día se le da uso; anotado para que nadie cree otro igual.
 
-### 7. Módulos del CRM que este documento no recoge — PENDIENTE (lo hace el propietario)
+### 7. Módulos del CRM que este documento no recoge — NO RELEVANTES por ahora (propietario, 08/10/2026)
 
 `get_available_modules` (25/09/2026) devuelve 38 módulos. Estos existen y
-**aquí no aparecen**; el propietario ha dicho que se documentarán más adelante.
+**aquí no aparecen**; el propietario dijo el 08/10/2026 que, por ahora, no son relevantes y no hay que documentarlos.
 Mientras tanto, antes de crear un módulo o un campo para algo de esto, **mira si
 ya está aquí**:
 
@@ -915,8 +947,9 @@ las devuelve la API: si las necesitas, míralas allí.
 | `web_slug_c` | texto (255) | La URL bonita (`?e=convivencia26-cs-com`). Vacío → se saca del nombre |
 
 **Preguntas simples — ✅ CREADOS** (propuestos el 25/09/2026, TODO EV-6; creados en Studio
-por el propietario del CRM, comunicado el 30/09/2026; **no verificados por MCP**: el
-MCP del 30/09 aún no los devolvía, comprobar). Para que un evento sí/no con una o dos
+por el propietario del CRM, comunicado el 30/09/2026; **`stic_Events.ajmcm_pregunta_1_c` y
+`_2_c` vistos por MCP el 08/10/2026** (`text`); los dos `ajmcm_respuesta_*_c` de
+`stic_Registrations` siguen sin verificar por MCP). Para que un evento sí/no con una o dos
 preguntas no necesite un formulario web avanzado. El área los pide solo si existen en
 la definición del CRM. Si tienen otro nombre, apúntalo aquí y cámbialo en
 `sticpa_event_question_fields()`. Formato y comportamiento en `EVENTOS.md` §10.1.
@@ -944,14 +977,14 @@ abrir el formulario ya rellenado con los datos de quien ha entrado.
 |---|---|---|---|
 | `stic_Events` | `ajmcm_fwa_url_c` | URL | El enlace público del formulario web avanzado del evento. Vacío = el evento no usa FWA |
 
-**Ocultar en el área privada — ⏳ PROPUESTO, NO CREADO** (30/09/2026). Hay muchos
+**Ocultar en el área privada — ✅ CREADO** (propuesto el 30/09/2026; **visto por MCP el 08/10/2026**: `bool`, por defecto 0). Hay muchos
 eventos en los listados y el filtro por edades no acaba de aclarar cuáles se ven.
 Un interruptor simple por evento. Es de OCULTAR y no de mostrar a propósito: los
 eventos que ya existen lo tienen vacío, y vacío = «se ve como hasta ahora»; con
 «mostrar», editar un evento antiguo (que saldría sin marcar) lo escondería sin
 querer.
 
-| Módulo | Campo propuesto | Tipo | Para qué |
+| Módulo | Campo | Tipo | Para qué |
 |---|---|---|---|
 | `stic_Events` | `ajmcm_ocultar_area_c` | casilla (por defecto sin marcar) | Etiqueta «Ocultar en el área privada». Marcada, el evento NO sale en Eventos, calendario ni agenda de la home **a quien aún no se ha apuntado**. No cierra la puerta: con el enlace directo a la ficha se sigue pudiendo ver y apuntarse, y lo ya inscrito no desaparece. En «Mis inscripciones», las inscripciones de eventos ocultos van plegadas bajo «Otros eventos» |
 

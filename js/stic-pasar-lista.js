@@ -215,6 +215,11 @@
 
     var QUEUE_MAX_TRIES = 5;
 
+    /* Hasta cuándo una entrada puede reintentarse con un nonce nuevo (revisión
+       042): tres días cubren el fin de semana sin cobertura para el que existe
+       ese reintento. Más vieja, la manda su propio nonce o no la manda nadie. */
+    var QUEUE_FRESH_MS = 72 * 3600 * 1000;
+
     /** ¿Hay algo en la cola que ya no hay forma de enviar solo? */
     function queueStuck() {
         return queueRead().some(function (e) { return (e.tries || 0) >= QUEUE_MAX_TRIES; });
@@ -236,17 +241,16 @@
         var pending = q.length;
         var sent = 0;
 
-        q.forEach(function (entry) {
+        function post(entry, nonce) {
             var body = new URLSearchParams();
             body.set('pl_action', entry.action || 'save');
-            body.set('pl_nonce', entry.nonce || '');
+            body.set('pl_nonce', nonce || '');
             body.set('pl_marks', entry.marks || '{}');
             // Los motivos van igual que en el envío normal. Una entrada de la
             // cola de antes de que esto existiera no los trae, y entonces se
             // manda vacío: se guardan los estados y no se pierde la lista.
             body.set('pl_notes', entry.notes || '{}');
-
-            fetch(entry.url, {
+            return fetch(entry.url, {
                 method: 'POST',
                 body: body,
                 credentials: 'same-origin',
@@ -257,12 +261,45 @@
                 // enviada — la lista del monitor se perdía en silencio. La
                 // prueba es el atributo que el servidor pinta SOLO cuando ha
                 // releído el CRM y lo ha comprobado.
-                if (!res.ok) { return null; }
-                return res.text();
+                return res.ok ? res.text() : null;
+            });
+        }
+
+        /* EL NONCE, FRESCO (plan 042, PL-9). Cada entrada lleva el del
+           formulario del momento, que caduca a las 12-24 h: quien guardaba sin
+           cobertura un sábado y volvía a abrir el lunes no enviaba nada, y a
+           los cinco intentos la lista quedaba «atascada». La respuesta de un
+           nonce caducado es la propia pantalla, con su formulario y un nonce
+           NUEVO: se reintenta UNA vez con él.
+           Ese nonce NO es «de esta sesión»: quien entra en el área no es
+           usuario de WordPress, y el nonce es el mismo para todos. Lo único
+           que ataba una entrada vieja era su nonce caducado, así que el
+           reintento tiene límite (revisión 042): solo la entrada reciente
+           (QUEUE_FRESH_MS) y no atascada. Sin él, una lista de hace semanas
+           pisaba en el CRM la que se había vuelto a guardar después. */
+        function freshNonce(html) {
+            if (!html || html.indexOf('data-pl-nonce-expired') === -1) { return ''; }
+            var m = html.match(/name="pl_nonce" value="([^"]+)"/);
+            return m ? m[1] : '';
+        }
+
+        q.forEach(function (entry) {
+            post(entry, entry.nonce).then(function (html) {
+                var nonce = freshNonce(html);
+                var retry = nonce && (entry.tries || 0) < QUEUE_MAX_TRIES
+                    && entry.ts && (Date.now() - entry.ts) < QUEUE_FRESH_MS;
+                return retry ? post(entry, nonce) : html;
             }).then(function (html) {
                 if (html === null) { return; }
                 if (html.indexOf('data-pl-saved-ok') !== -1) {
                     queueRemove(entry);
+                    // El borrador de ESA lista, no el de la pantalla abierta:
+                    // antes, enviar una entrada de otro grupo se llevaba el
+                    // borrador de lo que se estaba marcando (plan 042, PL-9). Y
+                    // solo si no se ha tocado después de encolarla.
+                    var dk = STORE_DRAFT + entry.session + '_' + entry.group;
+                    var d = readJson(dk, null);
+                    if (d && (d.ts || 0) <= (entry.ts || 0)) { lsDel(dk); }
                     sent++;
                 } else {
                     queueBumpTries(entry);
@@ -276,6 +313,38 @@
         });
     }
 
+    /* El aviso de «lo que quedó en el móvil», fuera de la pantalla de marcar
+       (plan 042, PL-9). En la portada y en el árbol el reenvío era mudo,
+       acertara o fallara: quien cerró la app sin cobertura no sabía que tenía
+       una lista sin enviar. Se pinta con nodos y `textContent`: las etiquetas
+       vienen del almacenamiento del móvil y no se tratan como HTML. */
+    function queueNotice(box) {
+        if (!box) { return; }
+        var q = queueRead();
+        while (box.firstChild) { box.removeChild(box.firstChild); }
+        if (!q.length) {
+            box.hidden = true;
+            return;
+        }
+        var stuck = q.some(function (e) { return (e.tries || 0) >= QUEUE_MAX_TRIES; });
+        box.setAttribute('data-kind', stuck ? 'error' : 'draft');
+        var title = document.createElement('p');
+        title.className = 'pl-queue-title';
+        title.textContent = (q.length === 1
+            ? box.getAttribute('data-msg-one')
+            : (box.getAttribute('data-msg-many') || '').replace('{n}', q.length)) || '';
+        box.appendChild(title);
+        q.forEach(function (e) {
+            var a = document.createElement('a');
+            a.className = 'pl-queue-item';
+            a.href = e.url;
+            a.textContent = (e.label || box.getAttribute('data-msg-nolabel') || '')
+                + (((e.tries || 0) >= QUEUE_MAX_TRIES) ? ' · ' + (box.getAttribute('data-msg-stuck') || '') : '');
+            box.appendChild(a);
+        });
+        box.hidden = false;
+    }
+
     /* =====================================================================
      * Pantalla de marcado
      * ===================================================================== */
@@ -286,9 +355,15 @@
         initMarcar(root);
     } else {
         // Fuera de la pantalla de marcado, la cola sigue siendo asunto nuestro:
-        // si el monitor vuelve a entrar con cobertura, se envía lo pendiente.
-        if (navigator.onLine) { queueFlush(); }
-        window.addEventListener('online', function () { queueFlush(); });
+        // si el monitor vuelve a entrar con cobertura, se envía lo pendiente,
+        // y lo que no se pueda enviar se DICE (plan 042, PL-9).
+        var queueBox = document.querySelector('[data-pl-queue-notice]');
+        var flushAndTell = function () {
+            queueNotice(queueBox);
+            queueFlush(function () { queueNotice(queueBox); });
+        };
+        if (navigator.onLine) { flushAndTell(); } else { queueNotice(queueBox); }
+        window.addEventListener('online', flushAndTell);
     }
 
     function initMarcar(root) {
@@ -324,6 +399,9 @@
 
         var rows = Array.prototype.slice.call(root.querySelectorAll('.pl-row'));
         var saveBtn = root.querySelector('[data-pl-save]');
+        var skipBtn = root.querySelector('[data-pl-skip]');
+        var allBtn = root.querySelector('[data-pl-all-present]');
+        var allLabel = allBtn ? allBtn.querySelector('[data-pl-all-label]') : null;
         var form = root.querySelector('[data-pl-form]');
         var marksInput = root.querySelector('[data-pl-marks]');
         var notesInput = root.querySelector('[data-pl-notes]');
@@ -337,10 +415,32 @@
 
         var dirty = false;
 
+        /* Lo que dijo el servidor del último guardado (plan 042, PL-5): el
+           aviso de la barra llega pintado («Lista guardada · …» o el fallo) y
+           se queda hasta el primer toque. Con el guardado confirmado el botón
+           arranca en secundario («Guardada ✓») y vuelve a principal con el
+           primer cambio. */
+        var serverSaid = !!(status && status.hasAttribute('data-pl-server') && !status.hidden);
+        // Y cómo lo dijo, para volver a pintarlo si un corte de cobertura lo
+        // tapa (revisión 042): sin esto, al volver la red se quedaba «Sin
+        // cobertura» para siempre. El HTML tal cual, que lleva su icono.
+        var serverKind = serverSaid ? status.getAttribute('data-kind') : '';
+        var serverHtml = serverSaid ? status.innerHTML : '';
+        var savedMode = root.hasAttribute('data-pl-saved-ok');
+
         /* ---- Estado en memoria ----------------------------------------- */
 
         function getState(row) {
             return row.getAttribute('data-state') || '';
+        }
+
+        /* Lo que se VE. En la lista de un evento se puede filtrar por curso o
+           buscar por nombre, y «Están todos» solo tiene que tocar lo que el
+           monitor tiene delante. Las escondidas siguen en `collect()`: sus
+           marcas se guardan igual. En la lista de los sábados no se esconde
+           nada, así que ahí es siempre «todas». */
+        function isVisible(row) {
+            return !row.hidden && !(row.closest && row.closest('[hidden]'));
         }
 
         function collect() {
@@ -389,6 +489,15 @@
             var text = [label, warn, why].filter(Boolean).join(' · ');
             note.textContent = text;
             note.hidden = (text === '');
+
+            // El estado, para el lector de pantalla (plan 042, PL-11): los que
+            // la nota no dice ya con palabras. Mismo criterio que
+            // sticpa_pl_row_html() en PHP.
+            var sr = row.querySelector('[data-pl-sr-state]');
+            if (sr) {
+                var srLabel = label ? '' : (row.getAttribute('data-label-' + (value === '' ? 'none' : value)) || '');
+                sr.textContent = srLabel ? ', ' + srLabel : '';
+            }
         }
 
         function setState(row, value, quiet) {
@@ -429,22 +538,60 @@
         }
 
         function refresh() {
-            var nYes = 0, nNo = 0, nNone = 0;
+            var nYes = 0, nNo = 0, nNone = 0, nNoneVisible = 0, nVisible = 0;
             rows.forEach(function (row) {
                 var s = getState(row);
                 if (s === '') { nNone++; } else if (COUNTS[s]) { nYes++; } else { nNo++; }
+                if (isVisible(row)) {
+                    nVisible++;
+                    if (s === '') { nNoneVisible++; }
+                }
             });
             if (counts.yes) { counts.yes.textContent = nYes; }
             if (counts.no) { counts.no.textContent = nNo; }
             if (counts.none) { counts.none.textContent = nNone; }
             if (counts.noneWrap) { counts.noneWrap.hidden = (nNone === 0); }
+            // La palabra acompaña al número: «1 vino», «2 vinieron» (plan 042,
+            // PL-10). Antes era fija y salía «1 vinieron · 1 ausencias».
+            var byKey = { yes: nYes, no: nNo };
+            Array.prototype.forEach.call(root.querySelectorAll('[data-pl-word]'), function (w) {
+                var n = byKey[w.getAttribute('data-pl-word')];
+                var word = w.getAttribute(n === 1 ? 'data-one' : 'data-many');
+                if (word) { w.textContent = word; }
+            });
 
             // Si queda gente sin marcar, el botón lo dice en vez de callárselo.
             if (saveBtn && !saveBtn.disabled) {
                 var tpl = nNone > 0
                     ? (saveBtn.getAttribute('data-label-partial') || 'Guardar ({n} sin marcar)')
                     : (saveBtn.getAttribute('data-label-full') || 'Guardar lista');
+                if (savedMode && saveBtn.getAttribute('data-label-saved')) {
+                    tpl = saveBtn.getAttribute('data-label-saved');
+                }
                 saveBtn.textContent = tpl.replace('{n}', nNone);
+                saveBtn.classList.toggle('is-saved', savedMode);
+            }
+
+            // «Han venido todos» habla de lo que va a hacer: sin ninguna
+            // marca, todos; con alguna, «el resto» y cuántos; sin nadie por
+            // marcar, nada que hacer (plan 042, PL-2).
+            // Con un filtro puesto (lista de un evento) habla de lo que se ve.
+            if (allBtn && allLabel) {
+                var marked = nVisible - nNoneVisible;
+                var tplAll = (marked === 0)
+                    ? (allBtn.getAttribute('data-label-all') || '')
+                    : (allBtn.getAttribute('data-label-rest') || '');
+                if (tplAll) { allLabel.textContent = tplAll.replace('{n}', nNoneVisible); }
+                allBtn.disabled = (nNoneVisible === 0);
+            }
+
+            // «Sin registro» confirma SIEMPRE, y con marcas en pantalla avisa
+            // de lo que se pierde: con «sin registro» no se escribe ninguna
+            // asistencia (plan 042, PL-1).
+            if (skipBtn) {
+                var key = (nYes + nNo > 0) ? 'data-confirm-marks' : 'data-confirm-empty';
+                var msg = skipBtn.getAttribute(key);
+                if (msg) { skipBtn.setAttribute('data-pl-confirm', msg); }
             }
         }
 
@@ -482,9 +629,14 @@
 
             if (changed > 0) {
                 // Sin guardar, sí, pero el aviso que toca es el del borrador:
-                // dice lo mismo Y de dónde salen esas marcas.
+                // dice lo mismo Y de dónde salen esas marcas. Salvo si el
+                // servidor acaba de decir que el guardado ha fallado: ese aviso
+                // es la noticia, y ya dice que las marcas siguen aquí.
                 dirty = true;
-                say('draft', root.getAttribute('data-msg-draft') || '');
+                savedMode = false;
+                if (!serverSaid) {
+                    say('draft', root.getAttribute('data-msg-draft') || '');
+                }
             }
         }
 
@@ -517,6 +669,13 @@
          */
         function setDirty(value) {
             dirty = !!value;
+            if (dirty && (savedMode || serverSaid)) {
+                // El primer cambio después de guardar: el botón vuelve a ser
+                // la acción y el aviso del servidor deja paso al de ahora.
+                savedMode = false;
+                serverSaid = false;
+                refresh();
+            }
             if (!status) { return; }
             if (!dirty) {
                 if (status.getAttribute('data-kind') === 'dirty') { hush(); }
@@ -617,21 +776,105 @@
             });
         });
 
+        /* ---- Lista de un evento: buscar y filtrar por curso ------------
+           En la puerta del autobús: «¿y Lucía?» o «a ver los de 1.º de ESO».
+           Todo en el navegador, sobre lo ya pintado. Se esconde con `hidden`
+           (no se quita): lo marcado sigue contando y se guarda igual. */
+        if (root.hasAttribute('data-pl-evento')) {
+            var evBuscar = root.querySelector('[data-pl-ev-buscar]');
+            var evVacio = root.querySelector('[data-pl-ev-vacio]');
+            var evChips = Array.prototype.slice.call(root.querySelectorAll('[data-pl-ev-curso].pl-evchip'));
+            var evItems = Array.prototype.slice.call(root.querySelectorAll('[data-pl-ev-list] > [data-pl-ev-curso]'));
+            var evCurso = '';
+            var evNorm = function (str) {
+                str = String(str || '').toLowerCase();
+                if (str.normalize) {
+                    str = str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                }
+                return str.replace(/\s+/g, ' ').trim();
+            };
+            var evHay = evItems.map(function (el) {
+                return evNorm(el.getAttribute('data-pl-ev-hay') || el.textContent);
+            });
+
+            var evApply = function () {
+                var q = evBuscar ? evNorm(evBuscar.value) : '';
+                var shown = 0;
+                evItems.forEach(function (el, i) {
+                    var ok = (evCurso === '' || el.getAttribute('data-pl-ev-curso') === evCurso)
+                        && (q === '' || evHay[i].indexOf(q) !== -1);
+                    el.hidden = !ok;
+                    if (ok) { shown++; }
+                });
+                // Las secciones (MIC, COM…) sin nadie a la vista, fuera; y su
+                // número dice cuántos se ven.
+                Array.prototype.forEach.call(root.querySelectorAll('[data-pl-ev-list]'), function (list) {
+                    var n = list.querySelectorAll('[data-pl-ev-curso]:not([hidden])').length;
+                    list.hidden = (n === 0);
+                    var title = list.previousElementSibling;
+                    if (title && title.hasAttribute('data-pl-ev-sec')) {
+                        title.hidden = (n === 0);
+                        var c = title.querySelector('.pl-etapa-count');
+                        if (c) { c.textContent = n; }
+                    }
+                });
+                if (evVacio) { evVacio.hidden = (shown > 0); }
+                refresh();
+            };
+
+            evChips.forEach(function (chip) {
+                chip.addEventListener('click', function () {
+                    var k = chip.getAttribute('data-pl-ev-curso') || '';
+                    evCurso = (k === evCurso) ? '' : k;
+                    evChips.forEach(function (c) {
+                        c.setAttribute('aria-pressed', ((c.getAttribute('data-pl-ev-curso') || '') === evCurso) ? 'true' : 'false');
+                    });
+                    evApply();
+                    haptic(8);
+                });
+            });
+            if (evBuscar) {
+                evBuscar.addEventListener('input', evApply);
+                // El buscador vive DENTRO del formulario de la lista: un Enter
+                // lo enviaría y guardaría a medias. Enter solo cierra el teclado.
+                evBuscar.addEventListener('keydown', function (ev) {
+                    if (ev.key === 'Enter') {
+                        ev.preventDefault();
+                        evBuscar.blur();
+                    }
+                });
+            }
+        }
+
         /* ---- "Han venido todos" ---------------------------------------- */
 
-        var allBtn = root.querySelector('[data-pl-all-present]');
         if (allBtn) {
             allBtn.addEventListener('click', function () {
                 // Escalonado mínimo: las filas se marcan en cascada de arriba
                 // abajo. Cuesta 20 ms por fila y convierte un cambio de golpe
                 // (que se lee como un parpadeo) en algo que se entiende.
-                rows.forEach(function (row, i) {
+                // SOLO LO QUE ESTÁ SIN MARCAR (plan 042, PL-2). Antes ponía
+                // `yes` en todas las filas: quien marcaba primero las faltas y
+                // luego «el resto, todos» perdía las faltas, las justificadas
+                // con su motivo y las parciales, sin deshacer.
+                var empty = rows.filter(function (row) { return getState(row) === '' && isVisible(row); });
+                if (!empty.length) { return; }
+                // Los recuentos son región viva: sin esto, la cascada le
+                // encolaba al lector de pantalla un recuento por fila. Ocupada
+                // mientras dura, se lee una vez, el final (revisión 042).
+                var live = root.querySelector('.pl-counts');
+                if (live) { live.setAttribute('aria-busy', 'true'); }
+                empty.forEach(function (row, i) {
                     if (REDUCED) {
                         setState(row, 'yes', i > 0);
                         return;
                     }
-                    setTimeout(function () { setState(row, 'yes', i > 0); }, i * 20);
+                    setTimeout(function () {
+                        setState(row, 'yes', i > 0);
+                        if (i === empty.length - 1 && live) { live.removeAttribute('aria-busy'); }
+                    }, i * 20);
                 });
+                if (REDUCED && live) { live.removeAttribute('aria-busy'); }
                 haptic(10);
             });
         }
@@ -938,17 +1181,26 @@
                     // dice. El monitor se va a casa con la lista puesta.
                     ev.preventDefault();
                     var nonceEl = form.querySelector('input[name="pl_nonce"]');
+                    // El borrador ANTES que la entrada: al enviarla se tira el
+                    // borrador solo si no es más nuevo que ella.
+                    saveDraft();
                     queuePush({
-                        url: window.location.href,
+                        // La URL del formulario, si la lleva: la lista de un
+                        // evento sin días en el CRM guarda ahí el día que se
+                        // marcó, para que un envío tardío cree la sesión de
+                        // ESE día. Sin `action`, la de la página, como antes.
+                        url: form.getAttribute('action') ? form.action : window.location.href,
                         session: sessionId,
                         group: groupId,
+                        // Qué lista es, para decirlo fuera de esta pantalla
+                        // («C1 · sáb 15 nov»), plan 042 PL-9.
+                        label: root.getAttribute('data-queue-label') || '',
                         action: action,
                         nonce: nonceEl ? nonceEl.value : '',
                         marks: marks,
                         notes: notes,
                         ts: Date.now()
                     });
-                    saveDraft();
                     // Ya está guardado (en el móvil), así que el aviso de salir
                     // sin guardar sería mentira: un aviso que miente enseña a
                     // ignorar todos los avisos.
@@ -1003,17 +1255,30 @@
             if (pending > 0) {
                 say('sync', root.getAttribute('data-msg-sync') || '');
                 queueFlush(function (sent) {
-                    if (sent > 0) {
+                    // El borrador lo tira el envío, y solo el de la lista
+                    // enviada (plan 042, PL-9): aquí antes se borraba el de la
+                    // pantalla abierta aunque lo enviado fuera de otro grupo.
+                    if (queueStuck()) {
+                        // Ni con cobertura entra. Callarlo dejaría al monitor
+                        // creyendo que su lista se envió sola; y con QUÉ lista
+                        // es, que «lo pendiente» no dice nada.
+                        var labels = queueRead().filter(function (e) {
+                            return (e.tries || 0) >= QUEUE_MAX_TRIES;
+                        }).map(function (e) { return e.label; }).filter(Boolean);
+                        say('error', (root.getAttribute('data-msg-stuck')
+                            || 'No se ha podido enviar lo que quedó pendiente. Vuelve a marcar y guardar.')
+                            + (labels.length ? ' (' + labels.join(', ') + ')' : ''));
+                    } else if (sent > 0) {
+                        // Si lo enviado era ESTA lista, su borrador ya no está
+                        // y lo de la pantalla ya está en el CRM.
+                        if (!lsGet(draftKey)) { setDirty(false); }
                         say('ok', root.getAttribute('data-msg-sent') || '');
-                        lsDel(draftKey);
-                    } else if (queueStuck()) {
-                        // Ni con cobertura entra: casi siempre el nonce caducado
-                        // de una pantalla vieja. Callarlo dejaría al monitor
-                        // creyendo que su lista se envió sola.
-                        say('offline', root.getAttribute('data-msg-stuck')
-                            || 'No se ha podido enviar lo que quedó pendiente. Vuelve a marcar y guardar.');
                     }
                 });
+            } else if (serverSaid) {
+                status.innerHTML = serverHtml;
+                status.setAttribute('data-kind', serverKind);
+                status.hidden = false;
             } else {
                 hush();
             }
@@ -1027,8 +1292,14 @@
         if (lsGet(STORE_HINT)) { document.body.classList.add('pl-hold-seen'); }
         // El servidor ha confirmado, releyendo el CRM, que esto está guardado:
         // ahora sí se puede tirar el borrador. Va ANTES de restoreDraft() para
-        // que no reviva las marcas que ya están en el CRM.
-        if (root.hasAttribute('data-pl-saved-ok')) { lsDel(draftKey); }
+        // que no reviva las marcas que ya están en el CRM. Y con él, lo que
+        // quedara en la cola de ESTA lista (revisión 042): es más viejo que lo
+        // que se acaba de guardar, y enviarlo después lo pisaría. Va antes de
+        // showConnectivity(), que es quien vacía la cola.
+        if (root.hasAttribute('data-pl-saved-ok')) {
+            lsDel(draftKey);
+            queueRemove({ session: sessionId, group: groupId });
+        }
         restoreDraft();
         showConnectivity();
         refresh();
@@ -1265,6 +1536,12 @@
                     if (title && (title.classList.contains('pl-etapa-title')
                         || title.classList.contains('pl-sec'))) {
                         title.hidden = !any;
+                    }
+                    // Y su columna (plan 042, COO-5): en escritorio cada etapa
+                    // es una columna de la rejilla, y una vacía dejaría el hueco.
+                    var col = list.parentElement;
+                    if (col && col.classList.contains('pl-etapa-col')) {
+                        col.hidden = !any;
                     }
                 }
             );

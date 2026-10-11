@@ -88,9 +88,13 @@ include plugin_dir_path(__FILE__) . 'inc/stic-sessions.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-crm.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-ui.php';
+include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-eventos.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-sw.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-warm.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-diag.php';
+// Velocidad: lo que el área no pide (hojas y scripts ajenos que se apartan de
+// sus páginas) y la medida de cada petición. Plan 042.
+include plugin_dir_path(__FILE__) . 'inc/stic-perf.php';
 
 add_action('admin_menu', 'sugar_crm_portal_create_menu');
 
@@ -689,7 +693,7 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
     $html .= "
         <div class='stic-auth-view stic-auth-magic' id='stic-auth-panel-magic' role='tabpanel' aria-labelledby='stic-auth-tab-magic'>
             " . $magicMsg . "
-            <p class='stic-auth-help'>" . __('Escribe tu correo y te mandamos un código y un enlace para entrar. Sin contraseñas ni líos.', 'sticpa') . "</p>
+            <p class='stic-auth-help'>" . __('Te mandamos un código al correo para entrar. Sin contraseñas ni líos.', 'sticpa') . "</p>
             <form action='" . site_url() . "/wp-admin/admin-post.php' method='post' class='stic-loading-form'
                   data-loading-text='" . esc_attr__('Preparando tu acceso…', 'sticpa') . "'
                   data-loading-sub='" . esc_attr__('En unos segundos lo tienes en el correo.', 'sticpa') . "'>
@@ -700,13 +704,6 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
                             <span class='stic-field-icon'>" . sticpa_icon('mail') . "</span>
                             <input type='email' class='input-text' name='forgot-password-email-address' id='stic-magic-email' autocomplete='email' inputmode='email' placeholder='" . esc_attr__('nombre@correo.com', 'sticpa') . "' required>
                         </span>
-                        <details class='stic-hint'>
-                            <summary>" . sticpa_icon('help', 'stic-hint-icon') . "<span>" . __('¿Qué correo debo poner?', 'sticpa') . "</span>" . sticpa_icon('chevron', 'stic-hint-chevron') . "</summary>
-                            <div class='stic-hint-body'>
-                                <p><strong>" . __('Familias de MIC y COM', 'sticpa') . ":</strong> " . __('el correo del familiar (no el del participante).', 'sticpa') . "</p>
-                                <p><strong>" . __('Miembros del MCM', 'sticpa') . "</strong> " . __('(monitores, COM, LC): tu correo propio.', 'sticpa') . "</p>
-                            </div>
-                        </details>
                     </li>
                     <li class='stic-send'>
                         <input type='hidden' name='action' value='sticpa_send_access'>
@@ -718,8 +715,9 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
                     </li>
                 </ul>
             </form>"
-            // La salida de emergencia, cerrada y debajo del formulario normal.
-            . sticpa_dni_access_form_html($return_url) . "
+            // La ayuda, plegada y debajo del botón: qué correo poner y, si no
+            // lo sabes, el DNI. Se abre sola al volver de un error del DNI.
+            . sticpa_login_help_html($return_url, $dniMsg !== '') . "
         </div>";
 
     /* ---------- VISTA 2: USUARIO + CONTRASEÑA ---------- */
@@ -821,8 +819,8 @@ function sticpa_access_code_form($html = "")
             <div>
                 <h3>" . esc_html__('Mira tu correo', 'sticpa') . "</h3>
                 <p class='stic-auth-sub'>" . ($masked !== ''
-                    ? sprintf(esc_html__('Te lo hemos enviado a %s', 'sticpa'), esc_html($masked))
-                    : esc_html__('Si tu correo está registrado, ya lo tienes en tu bandeja.', 'sticpa')) . "</p>
+                    ? sprintf(esc_html__('Te hemos enviado un código a %s', 'sticpa'), esc_html($masked))
+                    : esc_html__('Si tu correo está registrado, te hemos enviado un código.', 'sticpa')) . "</p>
             </div>
         </div>";
 
@@ -866,11 +864,7 @@ function sticpa_access_code_form($html = "")
             <label class='stic-code-label' for='stic-otp-code'>" . esc_html__('Código de 6 cifras', 'sticpa') . "</label>
             <input type='text' id='stic-otp-code' name='sticpa_otp_code' class='stic-code-input" . ($error === 'bad' ? " is-wrong" : "") . "'
                    inputmode='numeric' autocomplete='one-time-code' maxlength='7'
-                   placeholder='000 000' aria-describedby='stic-code-hint' required" . ($askEmail ? "" : " autofocus") . ">
-            <p class='stic-code-hint' id='stic-code-hint'>" . sprintf(
-                esc_html__('Caduca en %d minutos.', 'sticpa'),
-                (int) round(sticpa_otp_ttl() / MINUTE_IN_SECONDS)
-            ) . "</p>";
+                   placeholder='000 000' required" . ($askEmail ? "" : " autofocus") . ">";
 
     $codeForm .= "
             <input type='hidden' name='action' value='sticpa_verify_code'>
@@ -881,36 +875,39 @@ function sticpa_access_code_form($html = "")
             </button>
         </form>";
 
+    // Lo que hay en la pantalla, y nada más (03/10/2026, como cualquier
+    // pantalla de «revisa tu correo»): el código, el botón, una línea que
+    // recuerda el botón del correo, «Reenviar código · Usar otro correo» y la
+    // ayuda plegada. Se fueron la frase de ayuda que repetía el
+    // título, el «Caduca en N minutos» (lo dice el correo, y el error de código
+    // caducado también) y la lista de consejos siempre abierta.
     $html .= "<div class='stic-code stic-code--hero'>"
-        . "<p class='stic-auth-help'>" . esc_html__('Escribe el código que te hemos mandado y entras directo.', 'sticpa') . "</p>"
         . $codeForm
-        . "<p class='stic-code-or'>" . esc_html__('…o abre el correo y pulsa «Acceder a mi área privada».', 'sticpa') . "</p>"
+        . "<p class='stic-code-or'>" . esc_html__('O entra con el botón del correo.', 'sticpa') . "</p>"
         . "</div>";
 
-    /* ---------- Reenvío ---------- */
+    /* ---------- Reenviar código · Usar otro correo ---------- */
     // Reenviar solo tiene sentido cuando escribió él el correo. Por la vía del
     // documento no se pinta: la dirección iría en un campo oculto y volveríamos
     // a enseñar entera la que estamos tapando.
+    $otherEmail = "<a href='" . esc_url($return_url) . "'>" . esc_html__('Usar otro correo', 'sticpa') . "</a>";
     if ($pending !== '' && !$viaDni) {
         $html .= "
             <form action='" . site_url() . "/wp-admin/admin-post.php' method='post' class='stic-code-resend'>
                 <input type='hidden' name='action' value='sticpa_send_access'>
                 <input type='hidden' name='forgot-password-email-address' value='" . esc_attr($pending) . "'>
                 <input type='hidden' name='scp_current_url' value='" . esc_attr($return_url) . "'>
-                <span>" . esc_html__('¿No te llega?', 'sticpa') . "</span>
-                <button type='submit'>" . esc_html__('Envíamelo otra vez', 'sticpa') . "</button>
+                <button type='submit'>" . esc_html__('Reenviar código', 'sticpa') . "</button>
+                <span aria-hidden='true'>·</span>
+                " . $otherEmail . "
             </form>";
+    } else {
+        $html .= "<p class='stic-code-resend'>" . $otherEmail . "</p>";
     }
 
-    // El bloque de rescate («¿no te llega nada?») vive en inc/stic-otp.php,
-    // con el resto del acceso: así se puede pintar en el arnés de render sin
-    // arrastrar medio WordPress, que es la única forma de mirarlo a 375px.
+    // La ayuda vive en inc/stic-otp.php, con el resto del acceso: así se puede
+    // pintar en el arnés de render sin arrastrar medio WordPress.
     $html .= sticpa_access_rescue_html($masked, $return_url);
-
-    $html .= "
-        <p class='stic-auth-links'>
-            <a href='" . esc_url($return_url) . "'>" . esc_html__('Usar otro correo', 'sticpa') . "</a>
-        </p>";
 
     $html .= "</div>"; // .stic-auth-panel
 
@@ -1071,6 +1068,15 @@ function sugar_crm_portal_index($html = "")
             : 'single_stic_home';
     } else {
         $currentPage = $_REQUEST['internalpage'];
+        // ENLACE PROFUNDO DE UNA FAMILIA CON VARIOS HIJOS (FAM-a1): mientras no
+        // haya elegido a quién ve, la página pedida se cambia por la de elegir.
+        // La URL sigue siendo la del destino, y la pantalla de selección lo
+        // recoge de `$_GET` para llevar a él tras elegir. Se pinta en el sitio
+        // (nada de redirigir), así que no hay bucle.
+        if (function_exists('sticpa_family_must_choose_first')
+            && sticpa_family_must_choose_first((string) $currentPage)) {
+            $currentPage = 'single_stic_profile_selection';
+        }
     }
 
     $html .= menu();

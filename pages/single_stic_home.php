@@ -117,28 +117,30 @@ $portalName = get_option('sticpa_scp_name');
     // escondida en el selector de la barra.
     if (!empty($ctx['solo_familiar']) && !empty($ctx['participantes'])) {
         $perfiles = function_exists('sticpa_available_profiles') ? sticpa_available_profiles() : array();
-        $tarjetas = array();
+        // Las MISMAS tarjetas de avatar que la pantalla de elegir: antes la
+        // misma acción se pintaba de dos formas (FAM-a11).
+        $tarjetas = '';
         foreach ($perfiles as $perfil) {
-            $tarjetas[] = array(
-                'url'   => add_query_arg(array(
+            $tarjetas .= sticpa_profile_card_html(
+                esc_url(add_query_arg(array(
                     'action' => 'single_stic_profile_selection',
                     'profile_selected_id' => $perfil['id'],
                     'profile_selected_name' => rawurlencode($perfil['name']),
                     'scp_user_id' => $_SESSION['scp_tutor_user_id'] ?? '',
                     'scp_user_contact_name' => rawurlencode($_SESSION['scp_tutor_user_contact_name'] ?? ''),
                     'scp_current_url' => explode('?', $_SERVER['REQUEST_URI'], 2)[0],
-                ), admin_url('admin-post.php')),
-                'icon'  => 'user',
-                'name'  => $perfil['name'],
-                'lines' => array(array('icon' => 'go', 'text' => __('Ver su ficha, inscripciones y pagos', 'sticpa'))),
+                ), admin_url('admin-post.php'))),
+                $perfil['name'],
+                '',
+                __('Ver su ficha', 'sticpa')
             );
         }
-        if (!empty($tarjetas) && function_exists('sticpa_record_list_html')) {
+        if ($tarjetas !== '') {
             // Misma etiqueta de grupo que usa "Tu perfil" más abajo: no se
             // inventa una clase nueva para decir lo mismo.
             echo "<p class='stic-section-label stic-section-label--mini'>"
                 . esc_html__('A quién tienes a tu cargo', 'sticpa') . "</p>";
-            echo sticpa_record_list_html($tarjetas);
+            echo "<div class='stic-profiles-grid'>" . $tarjetas . "</div>";
         }
     }
 
@@ -255,7 +257,16 @@ $portalName = get_option('sticpa_scp_name');
     ?>
     <div class="stic-home-layout<?= $showAgenda ? '' : ' stic-home-layout--solo'; ?>">
         <div class="stic-home-main">
-            <p class="stic-section-label"><?= esc_html($accountCards ? __('Actividades', 'sticpa') : __('Tus secciones', 'sticpa')); ?></p>
+            <?php
+            // «Actividades» encabezando un único acceso, «Pagos», no dice nada
+            // (la portada del familiar): entonces la etiqueta es «Tus pagos»
+            // (FAM-a11).
+            $mainLabel = $accountCards ? __('Actividades', 'sticpa') : __('Tus secciones', 'sticpa');
+            if (array_keys($mainCards) === array('list_stic_payments')) {
+                $mainLabel = __('Tus pagos', 'sticpa');
+            }
+            ?>
+            <p class="stic-section-label"><?= esc_html($mainLabel); ?></p>
 
             <div class="stic-dashboard-grid">
                 <?php foreach ($mainCards as $key => $label) { $renderCard($key, $label); } ?>

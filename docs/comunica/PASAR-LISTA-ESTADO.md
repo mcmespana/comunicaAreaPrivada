@@ -492,8 +492,15 @@ no es la noticia, y dos avisos discutiendo en la misma línea no los lee nadie.
 - El orden de los grupos: por etapa y, dentro, por código en orden natural.
 - El botón de refrescar invalida de verdad, y en las cuatro pantallas.
 - Los recuentos nocturnos del Guardián se leen en la ficha del grupo.
-- El modo sin conexión está construido (apagado por defecto con el filtro
-  `sticpa_pl_offline_enabled`).
+- El modo sin conexión está construido y **encendido por defecto**: el filtro
+  `sticpa_pl_offline_enabled` devuelve `true` (este documento decía lo
+  contrario hasta el 09/10/2026). La cola de «guardar sin cobertura» vive en
+  `localStorage` y se vacía en cualquier pantalla de Pasar Lista; desde el plan
+  042 (PL-9) reintenta UNA vez con el nonce nuevo que trae la respuesta de un
+  nonce caducado, dice en la portada y en el árbol qué listas se han quedado
+  en el móvil («C1 · 15 nov», en rojo si no se han podido enviar) y, al
+  enviar una, solo tira el borrador de ESA lista. Lo que falta: vaciarla
+  también desde `js/stic-ui.js` (fuera de Pasar Lista no se envía nada).
 - La ficha de un monitor enseña su seguimiento del curso, sus datos agrupados,
   sus grupos y por dónde ha pasado, sin abrir el CRM.
 - Los porcentajes de asistencia cuentan sobre lo marcado, no sobre lo celebrado.
@@ -673,7 +680,10 @@ declarar lo suyo también con `!important`.
 Lista que sea un `<button>`, un `<label>` o lleve un `<input>` dentro pasa por
 §0.b/§0.c/§0.d antes de darse por bueno.** Y ojo con el efecto secundario: una
 regla de `display` con `!important` se come los `display: none` que la esconden,
-así que esos también tienen que llevarlo (le pasó al motivo).
+así que esos también tienen que llevarlo (le pasó al motivo). Los dos que se
+habían escapado, `.pl-copy` (copiar el correo en la ficha del monitor) y
+`.pl-review-btn` («Vincular» en Coordinación y en Mis grupos → Sin grupo), entraron
+en §0.b el 09/10/2026 (plan 042, COO-6).
 
 ### 3.6-bis El texto original sobre los `<button>`
 
@@ -723,23 +733,47 @@ llamada fallaba en silencio y caía a respaldos 1+N).
 > es lo que se nota. Diez llamadas en dos tandas paralelas son dos esperas; diez
 > en fila son diez.
 
-**Coste real hoy** (sin enlaces anidados, que es como responde esta instancia):
+**Coste real hoy** (sin enlaces anidados, que es como responde esta instancia;
+estructura fría, que es como arranca el test):
+
+> **10/10/2026 (plan 042, VEL-6): las esperas se cuentan de verdad.** Hasta ese
+> día cada tanda contaba como UNA espera, pero `callMany()` no tiene más de 4
+> peticiones en vuelo (`sticpa_crm_multi_concurrency`): una tanda de 5 a 8 son
+> DOS. Por eso la portada, la ficha y la lista de monitores suben una: no cuestan
+> más que antes, es que antes se contaban mal. Con la estructura caliente (la
+> deja el calentado nocturno) esas tandas bajan de 4 y vuelven a ser una.
+>
+> El mismo día `callMany()` pasó de olas de 4 a **ventana deslizante**: siguen
+> sin ir más de 4 a la vez, pero en cuanto acaba una entra la siguiente, y la
+> quinta ya no espera a la más lenta de las cuatro primeras (800/200/200/200/
+> 200/200 ms: de ~1.010 a ~805 ms, medido con `tests/manual/check-crm-multi.php`).
+> Con latencias parecidas una tanda de 5 sigue costando dos esperas; subir la
+> concurrencia a 6 sí la dejaría en una, y eso lo decide el propietario.
+>
+> **11/10/2026: la concurrencia sube a 6** (lo aprobó el propietario). Una tanda
+> de 5 o 6 es ya una sola espera. **Cómo mirar que el CRM lo aguanta:** en el
+> `error_log` del hosting, las líneas `Petición lenta` (las escribe
+> `inc/stic-pasar-lista-diag.php`) no deben crecer; y en el navegador, la
+> cabecera `Server-Timing` de cualquier página del área (herramientas de
+> desarrollo → Network → la página → Timing) dice cuánto ha esperado al CRM.
+> Si se resiente, se vuelve a 4 con el filtro `sticpa_crm_multi_concurrency`.
 
 | Pantalla | Llamadas | Esperas |
 |---|---|---|
-| Portada (26/09/2026: «¿coordina?» ya va en la primera tanda) | 9 | **4** |
-| Portada de quien coordina (con el aviso de reuniones) | 11 | 5 |
+| Portada (26/09/2026: «¿coordina?» ya va en la primera tanda) | 9 | **5** (tandas 5+2) |
+| Portada de quien coordina (con el aviso de reuniones) | 11 | 6 (5+3) |
 | Árbol de grupos | 7 | 3 |
-| Marcar | 10 | 6 |
+| Marcar (09/10/2026: el estado en una tanda, plan 042 VEL-2) | 10 | **5** |
+| **Guardar** una lista (relectura incluida) | 12 | 8 → **6** |
 | Resumen | 7 | 3 |
-| Ficha del participante | 13 | 7 |
-| Lista de monitores (sábado o reunión) | 10 | 4 |
+| Ficha del participante | 13 | 8 (2+5+2) |
+| Lista de monitores (sábado o reunión) | 10 | 5 (5+2+2) |
 | Reuniones (26/09/2026: antes sin tanda) | 5 | 3 |
+| Coordinación | 7 | 4 (5) |
 | **Guardar la lista de monitores**, 14 sin inscribir (26/09/2026) | ~75 | ~75 → **~22** (tandas de 4) |
-| **Mis grupos** (índice, y sus tres vistas) | **3** | **2** |
-| Mis grupos → un grupo | 3 (5 si el mapa falla) | 2 |
-| Mis grupos → monitores | 4 | 3 |
-| Mis grupos → sin grupo | 3 | 2 |
+| **Mis grupos** (índice, y sus tres vistas) | **3** | **1** (una tanda de 3) |
+| Mis grupos → un grupo | 3 (5 si el mapa falla) | 1 (3 si el mapa falla) |
+| Mis grupos → sin grupo | 3 | 1 |
 | **Cambiar de fecha** (caché caliente) | **4** | 4 |
 
 Lo que bajó esos números el 28/08: matar el 1+N que resolvía a la gente de un
@@ -780,8 +814,24 @@ Cargadores de colección (uno por colección, nunca uno por fila):
   desglose, y `?pl_diag=1` lo enseña por pantalla. **Antes de tocar nada más de
   rendimiento, mira esos números**: lo siguiente (paralelizar con `curl_multi`)
   es la parte cara y no se empieza a ciegas.
+- **Y desde cualquier móvil o navegador (10/10/2026, plan 042 VEL-10):** cada
+  página del área lleva la cabecera `Server-Timing` con el tiempo del CRM, sus
+  llamadas y el total del servidor. Se mira en las herramientas de desarrollo →
+  Network → la petición de la página (la de `?internalpage=…`) → **Timing**,
+  abajo, «Server Timing»: si `crm` se come casi todo el `total`, es el CRM; si
+  no, es WordPress; y lo que va de `total` a lo que se ha esperado es red y
+  navegador. Por consola: `performance.getEntriesByType('navigation')[0].serverTiming`.
+  Detalles en `inc/stic-perf.php`.
 
-### Medido y DESCARTADO: no envolver `session_attendances` en una tanda
+### ~~Medido y DESCARTADO~~: no envolver `session_attendances` en una tanda
+
+> **Ya no vale (09/10/2026, plan 042 VEL-2).** El argumento de abajo dejó de
+> ser cierto el 26/09 (`a9e6634`), cuando el respaldo de las asistencias pasó a
+> salir SOLO si el CRM falla o devuelve asistencias sin inscripción. Ahora
+> marcar pide en una tanda las asistencias de la sesión y las rachas (y las
+> listas, al guardar): abrir, de 6 a 5 esperas sin enlaces; guardar, de 8 a 6.
+> El respaldo de las rachas lleva ya su `!sticpa_pl_collecting()`. Lo de abajo
+> se queda como historia.
 
 Parece la jugada obvia —las dos lecturas de asistencias de la pantalla de marcar
 son independientes y son dos esperas en fila— pero **sube el coste**: de 10 a 12

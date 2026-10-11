@@ -116,6 +116,31 @@ function sticpa_has_area_shortcode()
 }
 
 /**
+ * EL VIEWPORT DEL ÁREA, CON `viewport-fit=cover` (plan 042, CAR-2).
+ *
+ * Sin `cover`, WebKit deja `env(safe-area-inset-*)` a 0 y las reservas de lo
+ * que se pega abajo (la botonera de los formularios, «Inscribirme», la barra
+ * de guardar de Pasar Lista) no reservaban nada: en un iPhone el indicador de
+ * inicio caía encima del botón. CONTRATO-APP-WEBVIEW.md §3 daba por hecho que
+ * lo ponía el tema, y no: el `header.php` de Astra imprime una línea fija
+ * `width=device-width, initial-scale=1`, ANTES de `wp_head`.
+ *
+ * Este va después, dentro de `wp_head`, y con dos `meta viewport` manda el
+ * ÚLTIMO (Blink y WebKit procesan cada uno y el siguiente pisa al anterior;
+ * comprobado en Chromium). Solo en las páginas del área: el resto de la web
+ * se queda como estaba. Lo que esto cambia a lo ancho en apaisado lo recoge
+ * custom-style §65.b. Las reservas, con los tokens de custom-style §1.
+ */
+add_action('wp_head', 'sticpa_viewport_meta', 0);
+function sticpa_viewport_meta()
+{
+    if (!sticpa_has_area_shortcode()) {
+        return;
+    }
+    echo '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">' . "\n";
+}
+
+/**
  * Script de arranque del tema, inline y lo más arriba posible de `<head>`:
  * resuelve 'auto' ANTES del primer pintado (sin flash blanco) y deja el área
  * escuchando cambios del dispositivo y de la app.
@@ -242,12 +267,22 @@ function sticpa_appearance_switch_html()
 }
 
 // Clase en el body + CSS que esconde el "chrome" del tema alrededor del área.
-add_filter('body_class', function ($classes) {
+add_filter('body_class', 'sticpa_body_classes');
+function sticpa_body_classes($classes)
+{
     if (sticpa_is_app_mode()) {
         $classes[] = 'sticpa-app-mode';
     }
+    /* LA PÁGINA QUE PINTA UN ENVÍO (plan 042, CAR-3). Pasar Lista guarda en la
+     * misma URL y sin redirigir, así que esa entrada del historial es un POST:
+     * volver a ella con «atrás» hace que el navegador pregunte si se reenvía.
+     * js/stic-ui.js la apunta y su «volver» no la usa: navega como siempre. */
+    if (sticpa_has_area_shortcode() && isset($_SERVER['REQUEST_METHOD'])
+        && strtoupper((string) $_SERVER['REQUEST_METHOD']) === 'POST') {
+        $classes[] = 'sticpa-posted';
+    }
     return $classes;
-});
+}
 
 function sticpa_app_mode_css()
 {

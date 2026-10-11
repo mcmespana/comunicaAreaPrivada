@@ -196,6 +196,21 @@ class PaymentsViewTest extends TestCase
         $this->assertStringNotContainsString('Fecha del pago', $html);
     }
 
+    /** «Servicios» no se enseña, y el código del TPV es un «Nº de operación» (08/10/2026). */
+    public function testLaFichaDeUnPagoConTarjetaNoEnseñaServiciosNiReferencia()
+    {
+        $pay = sticpa_payment_view_model($this->nvl(array(
+            'id' => 'p1', 'name' => 'Foro', 'amount' => '110.00', 'payment_date' => '2026-10-02',
+            'status' => 'paid', 'payment_method' => 'card', 'payment_type' => 'services',
+            'transaction_code' => '320',
+        )));
+        $html = sticpa_payment_detail_html($pay, $this->defPagos());
+        $this->assertStringNotContainsString('>Tipo<', $html);
+        $this->assertStringNotContainsString('>Referencia<', $html);
+        $this->assertStringContainsString('Nº de operación', $html);
+        $this->assertStringContainsString('320', $html);
+    }
+
     /* -------------------------------------------------------- Compromisos */
 
     /** Un compromiso con fecha de fin pasada está terminado, diga lo que diga
@@ -342,5 +357,29 @@ class PaymentsViewTest extends TestCase
         $this->assertStringNotContainsString('Lo paga', sticpa_commitment_detail_html($com, $this->defCom()));
 
         unset($GLOBALS['__stic_filters']['sticpa_profile_audience']);
+    }
+
+    /**
+     * UN RECIBO DEVUELTO no da dos instrucciones contrarias (plan 042,
+     * FAM-a12): si se puede pagar desde la ficha, el aviso no manda a la
+     * delegación con el botón de pagar justo debajo.
+     */
+    public function testUnReciboDevueltoNoDaDosInstruccionesContrarias()
+    {
+        require_once __DIR__ . '/../inc/stic-pay-card.php';
+        $pay = sticpa_payment_view_model($this->nvl(array(
+            'id' => 'p1', 'name' => 'Convivencia', 'amount' => '120.00',
+            'payment_date' => '2026-10-01', 'status' => 'rejected', 'payment_method' => 'direct_debit',
+        )));
+
+        $pay['pagable'] = true;
+        $html = sticpa_payment_detail_html($pay, $this->defPagos());
+        $this->assertStringContainsString('Puedes pagarlo con tarjeta o hablar con tu delegación.', $html);
+        $this->assertStringNotContainsString('Ponte en contacto con tu delegación', $html);
+
+        // Sin forma de pagar desde aquí, lo único que queda es la delegación.
+        $pay['pagable'] = false;
+        $html = sticpa_payment_detail_html($pay, $this->defPagos());
+        $this->assertStringContainsString('Ponte en contacto con tu delegación para volver a intentarlo.', $html);
     }
 }

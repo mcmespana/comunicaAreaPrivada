@@ -61,11 +61,25 @@ if ((isset($_SESSION['scp_tutor_is_user']) && $_SESSION['scp_tutor_is_user']) ||
     // lo dice la barra de identidad de arriba, que es de quien estás viendo.
     // LOS COMPROMISOS de quien paga (plan 041): para saber qué pago es un
     // intento de tarjeta y qué cuelga de algo ya cerrado, y para reclamar.
-    $commitmentRows = sticpa_payments_commitment_rows($objSCP, $parentModule,
-        $parentModule === 'Accounts' ? 'stic_payment_commitments_accounts' : 'stic_payment_commitments_contacts');
+    $commitmentLink = $parentModule === 'Accounts' ? 'stic_payment_commitments_accounts' : 'stic_payment_commitments_contacts';
+    // EN UNA TANDA (plan 042, VEL-4): tus compromisos y tus pagos solo
+    // necesitan tu id, y Pagos no tiene caché (es dinero: se quiere ver al
+    // momento), así que se pagaban en fila en CADA visita. 3 esperas → 2 (la
+    // segunda, los pagos de cada compromiso vivo, sí depende de la primera).
+    if (function_exists('sticpa_pl_prime')) {
+        sticpa_pl_prime($objSCP, function () use ($objSCP, $parentModule, $commitmentLink, $params) {
+            sticpa_payments_commitment_rows($objSCP, $parentModule, $commitmentLink);
+            $objSCP->getRelatedElementsForLoggedUser($params);
+        });
+    }
+    $commitmentRows = sticpa_payments_commitment_rows($objSCP, $parentModule, $commitmentLink);
     if (sticpa_payments_settle($objSCP, $commitmentRows)) {
-        $commitmentRows = sticpa_payments_commitment_rows($objSCP, $parentModule,
-            $parentModule === 'Accounts' ? 'stic_payment_commitments_accounts' : 'stic_payment_commitments_contacts');
+        // Ha ESCRITO (al volver del TPV se reclama el pago con tarjeta): los
+        // pagos traídos en la tanda son de antes. Fuera, y se relee todo.
+        if (class_exists('SugarRestApiCall')) {
+            SugarRestApiCall::forgetMemo();
+        }
+        $commitmentRows = sticpa_payments_commitment_rows($objSCP, $parentModule, $commitmentLink);
     }
     $availablePayments = $objSCP->getRelatedElementsForLoggedUser($params);
     // De qué compromiso es cada pago, los que no tienen persona y los que no
