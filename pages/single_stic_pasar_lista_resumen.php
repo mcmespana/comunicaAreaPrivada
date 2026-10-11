@@ -202,8 +202,8 @@ foreach (array('MIC', 'COM', 'LC') as $etapa) {
     $num = $completo ? $nPart : $nGrupos;
     $unidad = $completo
         /* translators: unidad del número grande de la tarjeta de etapa. El
-         * término lo decide el propietario (plan 042, PL-10 punto 5). */
-        ? _n('chaval', 'chavales', $nPart, 'sticpa')
+         * término lo decidió el propietario: «chavalines» (plan 043, fila 4). */
+        ? _n('chavalín', 'chavalines', $nPart, 'sticpa')
         : _n('grupo', 'grupos', $nGrupos, 'sticpa');
     $html .= '<div class="pl-card-num">' . esc_html((string) $num)
         . '<span class="pl-card-unit">' . esc_html($unidad) . '</span></div>';

@@ -944,7 +944,7 @@ function sticpa_pl_group_meta($group, $now = null)
     if ($n >= 0 && sticpa_pl_recuento_fresco($al, $now)) {
         $bits[] = sprintf(
             /* translators: %d: número de participantes del grupo */
-            _n('%d participante', '%d participantes', $n, 'sticpa'),
+            _n('%d chavalín', '%d chavalines', $n, 'sticpa'),
             $n
         );
     }

@@ -451,6 +451,27 @@ html.pl-holding body * {
 }
 .pl-row[data-motive-note] .pl-note:not([style]) { color: var(--gray-500); }
 
+/* Las marcas de «lo importante del grupo» (plan 043, fila 9): pastillas de
+   texto pequeñas en su propia línea bajo el nombre, para no partirlo ni
+   empujar el círculo de marcar en 375 px. Si no caben, bajan a otra línea.
+   Grises, como un dato; la de salud en ámbar suave porque es la que se mira
+   antes de repartir la merienda. No son pulsables: el toque sigue siendo de
+   la fila entera. */
+.pl-marcas { display: flex; flex-wrap: wrap; gap: 0.25rem; margin: 0.1rem 0 0.05rem; }
+.pl-marca {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.08rem 0.45rem;
+    border-radius: var(--radius-full);
+    background: var(--gray-100);
+    color: var(--gray-700);
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.35;
+    white-space: nowrap;
+}
+.pl-marca--salud { background: var(--warning-soft); color: var(--warning-dark); }
+
 /* El círculo de estado. Vacío y punteado = por marcar, y así se lee como un
    control que espera un toque; lleno = marcado, con glifo y color propios,
    que es lo que hace innecesaria la etiqueta en cada fila. */

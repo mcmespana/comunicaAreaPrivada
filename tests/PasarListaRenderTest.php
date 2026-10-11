@@ -33,6 +33,11 @@ class FakeSCP
     public $isAcomp = false;
     /** Seguimientos que devuelve el CRM (claves ya del CRM: mcm_*). */
     public $seguimientos = array();
+    /** Campos de más de la ficha de cada persona (id de contacto => campos):
+     *  los permisos y la salud de las marcas de la lista (plan 043, fila 9).
+     *  Solo llegan si se PIDEN, como en el CRM: un doble que los devolviera
+     *  siempre daría por buena una consulta que se olvidó de pedirlos. */
+    public $personaExtra = array();
 
     /**
      * ESTE DOBLE GUARDA. Lo que se escribe con set_entry se ve al volver a
@@ -166,6 +171,27 @@ class FakeSCP
         }
 
         return SugarRestApiCall::flattenRelationshipFields($entries, $relationshipList, $relationshipFields);
+    }
+
+    /**
+     * Añade a la persona de cada fila los campos de `$personaExtra`, pero
+     * SOLO los que la consulta pide en el enlace 'persona': el CRM devuelve lo
+     * que se le pide y nada más (trampa §3.2 del parte de estado).
+     */
+    private function conPersonaExtra($rows, $rel)
+    {
+        $pedidos = (is_array($rel) && isset($rel['persona']['fields'])) ? (array) $rel['persona']['fields'] : array();
+        foreach ($rows as $i => $row) {
+            if (!is_array($row) || empty($row['persona']['id']) || !isset($this->personaExtra[$row['persona']['id']])) {
+                continue;
+            }
+            foreach ($this->personaExtra[$row['persona']['id']] as $k => $v) {
+                if (in_array($k, $pedidos, true)) {
+                    $rows[$i]['persona'][$k] = $v;
+                }
+            }
+        }
+        return $rows;
     }
 
     /**
@@ -450,7 +476,7 @@ class FakeSCP
             }
             // El curso cerrado: las de participante caducan, las de monitor no.
             $fin = $this->cursoCerrado ? '2026-08-31' : '';
-            return $this->entryListShape(array(
+            return $this->entryListShape($this->conPersonaExtra(array(
                 array(
                     'fields' => array('id' => 'r1', 'relationship_type' => 'participante_mic_com', 'start_date' => '2025-09-01', 'end_date' => $fin),
                     'grupo' => array('id' => 'g1', 'name' => 'Los Peques'),
@@ -528,7 +554,7 @@ class FakeSCP
                     'grupo' => array('id' => 'g9', 'name' => 'Ruah'),
                     'persona' => array('id' => 'm1', 'name' => 'David Soler', 'first_name' => 'David', 'last_name' => 'Soler'),
                 ),
-            ), $rel);
+            ), $rel), $rel);
         }
         // La comprobación de los enlaces de lo recién creado: por id, con los
         // campos planos tal como han quedado (ver `sticpa_pl_enlaces_pendientes`).
@@ -689,6 +715,14 @@ class FakeSCP
             $out = array();
             foreach ($fam as $id => $datos) {
                 if (strpos((string) $query, "'" . $id . "'") !== false) {
+                    // Los campos de las marcas, solo si se piden (como arriba).
+                    if (isset($this->personaExtra[$id])) {
+                        foreach ($this->personaExtra[$id] as $k => $v) {
+                            if (in_array($k, (array) $fields, true)) {
+                                $datos[$k] = $v;
+                            }
+                        }
+                    }
                     $out[] = $this->nvl($datos);
                 }
             }
@@ -1444,6 +1478,33 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('<span class="pl-hero-when">Pasada</span>', $html);
         $this->assertStringContainsString('2 vinieron, 0 ausencias', $html);
         $this->assertStringContainsString('pl-hero--done', $html);
+    }
+
+    /**
+     * «CHAVALINES», Y SIEMPRE CON SU UNIDAD (plan 043, fila 4; auditoría
+     * PL-10 punto 5). Las pastillas de «Pasar lista de otro grupo» decían «9»
+     * al lado de «1 gr.», y la diferencia solo estaba en un `title`, que en el
+     * móvil no existe. En el doble, MIC y COM tienen recuento fresco y LC no.
+     */
+    public function test_portada_las_pastillas_dicen_chavalines_y_grupos()
+    {
+        $html = $this->render('single_stic_pasar_lista');
+
+        $this->assertStringContainsString('<span class="pl-bucket-count">9 chavalines</span>', $html);
+        $this->assertStringContainsString('<span class="pl-bucket-count">11 chavalines</span>', $html);
+        $this->assertStringContainsString('<span class="pl-bucket-count pl-bucket-count--groups">1 grupo</span>', $html);
+        $this->assertStringNotContainsString(' gr.', $html);
+        $this->assertStringNotContainsString('participantes', $html);
+    }
+
+    /** Con la lista aún por pasar, el atajo cuenta la gente del grupo igual. */
+    public function test_portada_el_atajo_cuenta_chavalines()
+    {
+        $this->scp->listas['l1'] = array('estado' => '');
+        $html = $this->render('single_stic_pasar_lista');
+
+        $this->assertStringNotContainsString('pl-hero--done', $html);
+        $this->assertStringContainsString('16:30 – 18:00 · 3 chavalines', $html);
     }
 
     public function test_arbol_pone_tu_grupo_primero_y_agrupa_por_etapa()
@@ -3420,7 +3481,7 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringNotContainsString('>11<', $com);
         // Donde todos tienen recuento, el número lleva su unidad pegada y la
         // línea de abajo no abrevia.
-        $this->assertStringContainsString('<span class="pl-card-unit">chavales</span>', $cards);
+        $this->assertStringContainsString('<span class="pl-card-unit">chavalines</span>', $cards);
         $this->assertStringContainsString('1 monitor', $cards);
         $this->assertStringNotContainsString('mon.', $cards);
     }
@@ -4740,9 +4801,9 @@ final class PasarListaRenderTest extends TestCase
 
         $this->assertStringContainsString('Sus grupos', $html);
         // El que lleva, con enlace a su lista y los recuentos del mapa de
-        // relaciones (3 participantes en g1: c1, c2 y la del rol `grupo`).
+        // relaciones (3 chavalines en g1: c1, c2 y la del rol `grupo`).
         $this->assertStringContainsString('pl-grp-role--lleva', $html);
-        $this->assertStringContainsString('3 participantes', $html);
+        $this->assertStringContainsString('3 chavalines', $html);
         $this->assertStringContainsString('single_stic_pasar_lista_marcar&amp;grupo=g1', $html);
         // Y el suyo, el COM-LC, que en el CRM está en otra pestaña y aquí no.
         $this->assertStringContainsString('pl-grp-role--suyo', $html);
@@ -5268,10 +5329,10 @@ final class PasarListaRenderTest extends TestCase
         $html = $this->render('single_stic_pasar_lista_grupos');
 
         $this->assertStringContainsString('David Soler', $html);
-        $this->assertStringContainsString('11 participantes', $html);
+        $this->assertStringContainsString('11 chavalines', $html);
         // g2 tiene el recuento VIEJO: su numero no se pinta, su monitor si.
         $this->assertStringContainsString('Mercedes', $html);
-        $this->assertStringNotContainsString('10 participantes', $html);
+        $this->assertStringNotContainsString('10 chavalines', $html);
     }
 
     /**
@@ -5756,7 +5817,7 @@ final class PasarListaRenderTest extends TestCase
 
         // g1 tiene tres participantes vigentes (c1, c2 y la adulta c3) y un
         // monitor (m1). Se cuentan del mapa, no del recuento nocturno.
-        $this->assertStringContainsString('3 chavales', $html);
+        $this->assertStringContainsString('3 chavalines', $html);
         $this->assertStringContainsString('1 monitor', $html);
     }
 
@@ -5776,9 +5837,9 @@ final class PasarListaRenderTest extends TestCase
     {
         $html = $this->render('single_stic_mis_grupos');
 
-        $this->assertStringNotContainsString('0 chavales', $html);
+        $this->assertStringNotContainsString('0 chavalines', $html);
         // Sale el recuento del Guardián, que es el que sabe cuántos había.
-        $this->assertStringContainsString('9 chavales', $html);
+        $this->assertStringContainsString('9 chavalines', $html);
         // Y los monitores contados de verdad, que es el dato de hoy.
         $this->assertStringContainsString('1 monitor', $html);
     }
@@ -5793,10 +5854,10 @@ final class PasarListaRenderTest extends TestCase
         $this->scp->sinEnlaces = true;
         $html = $this->render('single_stic_mis_grupos');
 
-        $this->assertStringNotContainsString('0 chavales', $html);
+        $this->assertStringNotContainsString('0 chavalines', $html);
         // g2 lleva `ajmcm_n_participantes_c = 10` con recuento del 1/9, que a
         // 15/11 ya no es fresco; g3 lo tiene del 14/11, o sea de anoche.
-        $this->assertStringContainsString('9 chavales', $html);
+        $this->assertStringContainsString('9 chavalines', $html);
     }
 
     /** La ficha de un grupo: su gente, en dos secciones y sin marcar nada. */
@@ -5813,6 +5874,150 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('pl-rowlink', $html);
         $this->assertStringContainsString('single_stic_pasar_lista_ficha', $html);
         $this->assertStringNotContainsString('pl-mark', $html);
+    }
+
+    // ---- Lo importante del grupo, de un vistazo (plan 043, fila 9; F3) -----
+
+    /**
+     * Las fichas del doble para las marcas. c1 lo tiene todo; c2 tiene «Sí»
+     * en los permisos y un tratamiento, pero NO autoriza el uso de sus datos
+     * de salud; c3 no ha contestado nada (una ficha migrada, CAMPOS.md); y el
+     * monitor m1 dice «No» a dos.
+     */
+    private function conMarcas()
+    {
+        $this->scp->personaExtra = array(
+            'c1' => array(
+                'ajmcm_soloacasa_c' => '0',
+                'ajmcm_cesionimagenes_interne_c' => '0',
+                'ajmcm_datossalud_c' => '1',
+                'ajmcm_descripcion_allergies__c' => 'Frutos secos',
+            ),
+            'c2' => array(
+                'ajmcm_soloacasa_c' => '1',
+                'ajmcm_cesionimagenes_interne_c' => '1',
+                'ajmcm_datossalud_c' => '0',
+                'ajmcm_descripcion_tratam_c' => 'Ventolin antes de correr',
+            ),
+            'c3' => array(
+                'ajmcm_soloacasa_c' => '',
+                'ajmcm_cesionimagenes_interne_c' => '',
+                'ajmcm_datossalud_c' => '',
+            ),
+            // El monitor también tiene su «No»: las marcas son de la lista de
+            // los chavales y no le tienen que salir.
+            'm1' => array('ajmcm_cesionimagenes_interne_c' => '0', 'ajmcm_soloacasa_c' => '0'),
+        );
+    }
+
+    /** El trozo de HTML de la fila de una persona, para mirar SUS marcas. */
+    private function filaDe($html, $nombre, $abre, $cierra)
+    {
+        $pos = strpos($html, $nombre);
+        $this->assertNotFalse($pos, $nombre . ' no sale en la lista');
+        $ini = strrpos(substr($html, 0, $pos), $abre);
+        $fin = strpos($html, $cierra, $pos);
+        return substr($html, $ini, $fin - $ini);
+    }
+
+    /**
+     * Mis grupos: una pastilla por marca bajo el nombre, en el orden fijo y
+     * como mucho tres; el «Sí» y el vacío no marcan, y la salud con el uso de
+     * sus datos denegado tampoco. El texto de salud NO sale en el HTML.
+     */
+    public function test_mis_grupos_marca_lo_importante_junto_al_nombre()
+    {
+        $this->conMarcas();
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_mis_grupos');
+
+        $solete = $this->filaDe($html, 'Solete Vilarroya', '<a class="pl-rowwrap', '</a>');
+        $this->assertStringContainsString(
+            '<span class="pl-marcas">'
+            . '<span class="pl-marca pl-marca--no_solo" title="No tiene autorización para irse solo/a a casa">No se va solo/a</span>'
+            . '<span class="pl-marca pl-marca--sin_fotos" title="No autoriza la cesión de imágenes">Sin fotos</span>'
+            . '<span class="pl-marca pl-marca--salud" title="Tiene alergias, intolerancias o tratamientos: el detalle está en su ficha">Alergia o tratamiento</span>'
+            . '</span>',
+            $solete
+        );
+
+        // c2: «Sí» en los dos permisos, y el tratamiento no se marca porque no
+        // autoriza el uso de sus datos de salud (`ajmcm_datossalud_c` = 0).
+        $this->assertStringNotContainsString('pl-marca', $this->filaDe($html, 'Jaume Pascual', '<a class="pl-rowwrap', '</a>'));
+        // c3: sin contestar. Un vacío no es un «no».
+        $this->assertStringNotContainsString('pl-marca', $this->filaDe($html, 'Marta Adulta', '<a class="pl-rowwrap', '</a>'));
+        // Los monitores no llevan marcas: son de la lista de los chavales.
+        $this->assertStringNotContainsString('pl-marca', $this->filaDe($html, 'David Soler', '<div class="pl-rowwrap', '</div>'));
+
+        // Lo de salud, NUNCA en el HTML: ni el texto ni en un atributo.
+        $this->assertStringNotContainsString('Frutos secos', $html);
+        $this->assertStringNotContainsString('Ventolin', $html);
+    }
+
+    /** Sin marcas en las fichas, ni pastillas ni filtro: nada que decir. */
+    public function test_mis_grupos_sin_marcas_no_pinta_nada()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_mis_grupos');
+
+        $this->assertStringNotContainsString('pl-marca', $html);
+        $this->assertStringNotContainsString('data-pl-filtro-fotos', $html);
+        $this->assertStringNotContainsString('data-pl-sin-fotos', $html);
+    }
+
+    /**
+     * «¿Quién no puede salir en fotos?»: el chip de filtro de la lista de un
+     * evento, con cuántos son, y la marca que mira el JS solo en sus filas.
+     */
+    public function test_mis_grupos_filtra_quien_no_puede_salir_en_fotos()
+    {
+        $this->conMarcas();
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_mis_grupos');
+
+        $this->assertStringContainsString(
+            '<button type="button" class="pl-evchip" data-pl-filtro-fotos aria-pressed="false">'
+            . '¿Quién no puede salir en fotos?<span class="pl-evchip-n">1</span></button>',
+            $html
+        );
+        $this->assertSame(1, substr_count($html, 'data-pl-sin-fotos'));
+        $this->assertStringContainsString('data-pl-sin-fotos', $this->filaDe($html, 'Solete Vilarroya', '<a class="pl-rowwrap', '</a>'));
+        // Va con el buscador, que es quien lo aplica.
+        $this->assertLessThan(strpos($html, 'data-pl-filtro-fotos'), strpos($html, 'data-pl-filter'));
+    }
+
+    /**
+     * Con el mapa inservible, la gente sale del respaldo por grupo (una
+     * consulta de contactos para todos): las marcas viajan también ahí.
+     */
+    public function test_mis_grupos_las_marcas_salen_tambien_por_el_respaldo()
+    {
+        $this->conMarcas();
+        $this->scp->sinEnlaces = true;
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_mis_grupos');
+
+        $solete = $this->filaDe($html, 'Solete Vilarroya', '<a class="pl-rowwrap', '</a>');
+        $this->assertStringContainsString('pl-marca--no_solo', $solete);
+        $this->assertStringContainsString('pl-marca--salud', $solete);
+        $this->assertStringNotContainsString('Frutos secos', $html);
+    }
+
+    /** La pantalla de marcar lleva las mismas marcas, dentro de la fila. */
+    public function test_marcar_lleva_las_marcas_del_grupo()
+    {
+        $this->conMarcas();
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $solete = $this->filaDe($html, 'Solete Vilarroya</span>', '<div class="pl-rowwrap">', '</button>');
+        $this->assertStringContainsString('pl-marca--no_solo', $solete);
+        $this->assertStringContainsString('pl-marca--sin_fotos', $solete);
+        $this->assertStringContainsString('pl-marca--salud', $solete);
+        $this->assertStringNotContainsString('pl-marca', $this->filaDe($html, 'Jaume Pascual</span>', '<div class="pl-rowwrap">', '</button>'));
+        $this->assertStringNotContainsString('Frutos secos', $html);
+        // El filtro es de Mis grupos: aquí se marca, no se esconde a nadie.
+        $this->assertStringNotContainsString('data-pl-filtro-fotos', $html);
     }
 
     /** La foto, que es lo que se pidió: en el avatar y por el endpoint propio. */
@@ -5854,8 +6059,8 @@ final class PasarListaRenderTest extends TestCase
         // aunque estuvieran repartidos en varios grupos.
         $this->assertStringContainsString('1º ESO', $html);
         $this->assertStringContainsString('Solete Vilarroya', $html);
-        // Y el título lleva su recuento.
-        $this->assertStringContainsString('participantes', $html);
+        // Y el título lleva su recuento: c1, c2 y c3 (plan 043, fila 4).
+        $this->assertStringContainsString('3 chavalines', $html);
     }
 
     /** El buscador: solo se pinta una vez y con su mensaje de «nada coincide». */
