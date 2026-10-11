@@ -451,6 +451,27 @@ html.pl-holding body * {
 }
 .pl-row[data-motive-note] .pl-note:not([style]) { color: var(--gray-500); }
 
+/* Las marcas de «lo importante del grupo» (plan 043, fila 9): pastillas de
+   texto pequeñas en su propia línea bajo el nombre, para no partirlo ni
+   empujar el círculo de marcar en 375 px. Si no caben, bajan a otra línea.
+   Grises, como un dato; la de salud en ámbar suave porque es la que se mira
+   antes de repartir la merienda. No son pulsables: el toque sigue siendo de
+   la fila entera. */
+.pl-marcas { display: flex; flex-wrap: wrap; gap: 0.25rem; margin: 0.1rem 0 0.05rem; }
+.pl-marca {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.08rem 0.45rem;
+    border-radius: var(--radius-full);
+    background: var(--gray-100);
+    color: var(--gray-700);
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.35;
+    white-space: nowrap;
+}
+.pl-marca--salud { background: var(--warning-soft); color: var(--warning-dark); }
+
 /* El círculo de estado. Vacío y punteado = por marcar, y así se lee como un
    control que espera un toque; lleno = marcado, con glifo y color propios,
    que es lo que hace innecesaria la etiqueta en cada fila. */
@@ -3891,16 +3912,31 @@ a.pl-group .pl-name { display: block; }
    móvil (doce cursos no caben a 375 px y partirlos en tres líneas empuja la
    lista fuera de la pantalla). 44 px, como todo lo que se toca. El elegido va
    en el azul FIJO de la marca con texto blanco fijo: con el azul de los
-   tokens, en oscuro, el blanco se queda en 3,2:1 (plan 042, A11Y-6). */
+   tokens, en oscuro, el blanco se queda en 3,2:1 (plan 042, A11Y-6).
+
+   PEGADA ARRIBA al bajar por la lista (11/10/2026): en el autobús se salta de
+   curso en curso con la lista ya bajada. Precedente: el buscador del árbol
+   (`.pl-search`, `top: 0`), que ya va así dentro de MCM App. La fila sangra
+   hasta el borde, como la barra de guardar, y lleva el fondo de la página
+   para que la lista pase por debajo sin verse a través. Solo la fila: en esta
+   pantalla el buscador NO se pega (abajo), porque dos barras pegadas son
+   ~110 px de los ~580 que deja la app entre su barra y su tab bar. */
 .pl-evchips {
+    position: sticky;
+    top: 0;
+    z-index: 4;
     display: flex;
     gap: 0.45rem;
     overflow-x: auto;
-    margin: 0.1rem 0 0.35rem;
-    padding: 0.15rem 0.1rem 0.5rem;
+    margin: 0.1rem -1rem 0.35rem;
+    padding: 0.4rem 1rem 0.5rem;
+    background: var(--surface-2);
+    box-shadow: 0 6px 8px -8px rgba(15, 23, 42, 0.18);
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
 }
+[data-pl-evento] .pl-search { position: relative; top: auto; }
 .pl-evchips::-webkit-scrollbar { display: none; }
 .pl-evchip {
     display: inline-flex !important;
@@ -3932,6 +3968,21 @@ a.pl-group .pl-name { display: block; }
 @media (hover: hover) {
     .pl-evchip[aria-pressed="false"]:hover { border-color: var(--gray-300) !important; }
 }
+
+/* El subtítulo de cada CURSO dentro de su etapa: «4.º primaria · 19». Más
+   pequeño que el de la etapa (que va en versalitas) y en minúscula, para que
+   se lea como un nivel por debajo; el número en gris, como el de la etapa. */
+.pl-evcurso {
+    display: flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    padding: 0.75rem 0.3rem 0.4rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--gray-700);
+}
+.pl-etapa-title + .pl-evcurso { padding-top: 0.1rem; }
+.pl-evcurso-n { font-weight: 700; color: var(--gray-500); }
 
 /* Quien NO va (inscripción cancelada o parecida): al final, sin botón —no se
    marca— y con su chip. El nombre en gris de texto secundario, no apagado con

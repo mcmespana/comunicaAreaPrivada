@@ -53,25 +53,28 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * Los cursos escolares de `ajmcm_curso_escolar_c_list`, en su orden y con la
- * etiqueta que se enseña. Las CLAVES son el dominio completo leído en Studio
- * (docs/comunica/CAMPOS.md, «Relaciones con personas»); las etiquetas son de
- * esta pantalla («3º Primaria» y no el «3º» a secas del CRM, que en un chip
- * suelto no se entiende). `na` y el vacío son «sin curso».
+ * Los cursos escolares de `ajmcm_curso_escolar_c_list`, en su orden y con el
+ * nombre que se lee debajo de cada persona y en los subtítulos de la lista
+ * («4 EP · 19»). Las CLAVES son el dominio completo leído en Studio
+ * (docs/comunica/CAMPOS.md, «Relaciones con personas»); los nombres son de
+ * esta pantalla, cortos como se dicen en la casa («4 EP», «1 ESO»): caben en
+ * un chip a 375 px y se leen igual debajo del nombre (el CRM dice «4º» a
+ * secas para primaria, y suelto no se entiende). `na` y el vacío son «sin
+ * curso».
  */
 function sticpa_pl_ev_cursos()
 {
     return array(
-        '3_primaria' => __('3º Primaria', 'sticpa'),
-        '4_primaria' => __('4º Primaria', 'sticpa'),
-        '5_primaria' => __('5º Primaria', 'sticpa'),
-        '6_primaria' => __('6º Primaria', 'sticpa'),
-        '1_eso' => __('1º ESO', 'sticpa'),
-        '2_eso' => __('2º ESO', 'sticpa'),
-        '3_eso' => __('3º ESO', 'sticpa'),
-        '4_eso' => __('4º ESO', 'sticpa'),
-        '1_bachillerato' => __('1º Bach', 'sticpa'),
-        '2_bachillerato' => __('2º Bach', 'sticpa'),
+        '3_primaria' => __('3 EP', 'sticpa'),
+        '4_primaria' => __('4 EP', 'sticpa'),
+        '5_primaria' => __('5 EP', 'sticpa'),
+        '6_primaria' => __('6 EP', 'sticpa'),
+        '1_eso' => __('1 ESO', 'sticpa'),
+        '2_eso' => __('2 ESO', 'sticpa'),
+        '3_eso' => __('3 ESO', 'sticpa'),
+        '4_eso' => __('4 ESO', 'sticpa'),
+        '1_bachillerato' => __('1 Bach', 'sticpa'),
+        '2_bachillerato' => __('2 Bach', 'sticpa'),
         'fp_gm' => __('FP GM', 'sticpa'),
         'fp_gs' => __('FP GS', 'sticpa'),
         'universitario' => __('Universitario', 'sticpa'),
@@ -88,21 +91,23 @@ function sticpa_pl_ev_curso_key($raw)
 }
 
 /**
- * La etapa con la que se agrupa a una persona en la lista.
+ * La etapa con la que se agrupa a una persona en la lista. Por este orden:
  *
- * Manda la de su ficha (`Contacts.ajmcm_etapa_c`: MIC, COM o LC). Si está
- * vacía —pasa—, se deduce del curso de la inscripción con la equivalencia de
- * la casa: primaria es MIC; ESO, Bachillerato y FP son COM (las sesiones
- * semanales del MIC están marcadas de 4.º a 6.º de primaria, y las del COM de
- * 1.º de ESO en adelante). Universitario y «otros» no se deducen: sin dato,
- * «Sin etapa», mejor que adivinar.
+ *   1. DEDUCIDA DEL CURSO, con la equivalencia de la casa: primaria es MIC;
+ *      ESO, Bachillerato y FP son COM (las sesiones semanales del MIC están
+ *      marcadas de 4.º a 6.º de primaria, y las del COM de 1.º de ESO en
+ *      adelante). El curso de ESTE año es el dato vivo.
+ *   2. La del GRUPO de la persona (`sticpa_pl_groups()`, resuelta de `level`).
+ *   3. La de su ficha (`Contacts.ajmcm_etapa_c`).
+ *   4. '' («Sin etapa»): mejor que adivinar.
+ *
+ * Por qué la ficha va la última: se queda vieja. En la convivencia del MIC de
+ * Castellón (11/10/2026) 20 de 47 chavales de 5.º y 6.º de primaria tenían
+ * COM en la ficha, y salían en la sección del COM. Universitario y «otros» no
+ * deducen nada del curso: pasan al grupo y a la ficha.
  */
-function sticpa_pl_ev_etapa($contactEtapa, $cursoKey)
+function sticpa_pl_ev_etapa($cursoKey, $grupoEtapa = '', $fichaEtapa = '')
 {
-    $e = strtoupper(trim((string) $contactEtapa));
-    if (in_array($e, array('MIC', 'COM', 'LC'), true)) {
-        return $e;
-    }
     $c = (string) $cursoKey;
     if (substr($c, -9) === '_primaria') {
         return 'MIC';
@@ -110,7 +115,139 @@ function sticpa_pl_ev_etapa($contactEtapa, $cursoKey)
     if (substr($c, -4) === '_eso' || substr($c, -13) === '_bachillerato' || $c === 'fp_gm' || $c === 'fp_gs') {
         return 'COM';
     }
+    foreach (array($grupoEtapa, $fichaEtapa) as $e) {
+        $e = strtoupper(trim((string) $e));
+        if (in_array($e, array('MIC', 'COM', 'LC'), true)) {
+            return $e;
+        }
+    }
     return '';
+}
+
+/**
+ * La relación de PARTICIPANTE vigente que manda para cada persona: la de
+ * `start` más reciente entre las que cumplen `$acepta`.
+ *
+ * PURA. Por qué hace falta: «vigente» es «sin fecha de fin o con fin
+ * futuro», y en la delegación hay una tanda vieja de relaciones del curso
+ * pasado que nadie cerró (148 en Castellón el 11/10/2026: empiezan antes de
+ * agosto y no tienen `end_date`). Una persona puede tener DOS vigentes —la
+ * vieja con 6.º de primaria y la nueva con 1.º de ESO— y quedarse con la
+ * primera que sale es quedarse con la que diga el orden del CRM. La de inicio
+ * más reciente es la de este curso. A igual inicio, la primera (las dos son
+ * la misma relación duplicada, pasa).
+ *
+ * Solo `role` 'participante' (`participante_mic_com` y `grupo`): las de
+ * monitor llevan el curso y el grupo de lo que la persona LLEVA.
+ *
+ * @param array         $rels   filas de sticpa_pl_all_relationships()
+ * @param callable|null $acepta fila => bool; solo cuentan las que la cumplen
+ *                              (con curso, con grupo de la delegación…)
+ * @return array contactId => fila de relación
+ */
+function sticpa_pl_ev_rel_reciente($rels, $acepta = null)
+{
+    $out = array();
+    foreach ((array) $rels as $rel) {
+        if (!isset($rel['role']) || $rel['role'] !== 'participante') {
+            continue;
+        }
+        if (isset($rel['vigente']) && !$rel['vigente']) {
+            continue;
+        }
+        $cid = isset($rel['person']['id']) ? (string) $rel['person']['id'] : '';
+        if ($cid === '' || ($acepta !== null && !call_user_func($acepta, $rel))) {
+            continue;
+        }
+        $start = isset($rel['start']) ? (int) $rel['start'] : 0;
+        if (!isset($out[$cid]) || $start > (int) $out[$cid]['start']) {
+            $rel['start'] = $start;
+            $out[$cid] = $rel;
+        }
+    }
+    return $out;
+}
+
+/**
+ * El CURSO escolar de cada persona, de su relación de participante vigente
+ * más reciente QUE LO TENGA (`ajmcm_curso_escolar_c` de la relación).
+ *
+ * PURA. Existe porque el curso de la inscripción llega vacío (leído por MCP
+ * en las 90 inscripciones de las convivencias de Castellón, 11/10/2026), y el
+ * de la relación sí está: 83 de 90. Sale del mapa de relaciones de la
+ * delegación, ya cacheado: cero llamadas.
+ *
+ * @return array contactId => clave de curso ('5_primaria')
+ */
+function sticpa_pl_ev_cursos_de($rels)
+{
+    $out = array();
+    $elegidas = sticpa_pl_ev_rel_reciente($rels, function ($rel) {
+        return isset($rel['curso_escolar']) && sticpa_pl_ev_curso_key($rel['curso_escolar']) !== '';
+    });
+    foreach ($elegidas as $cid => $rel) {
+        $out[$cid] = sticpa_pl_ev_curso_key($rel['curso_escolar']);
+    }
+    return $out;
+}
+
+/**
+ * El GRUPO de la delegación de cada persona, de su relación de participante
+ * vigente más reciente con un grupo de la delegación: para el enlace a su
+ * ficha (que es por grupo), su código debajo del nombre y su etapa.
+ *
+ * PURA. Misma elección que el curso, y por lo mismo: antes se quedaba con la
+ * primera relación que salía, y con la tanda vieja sin cerrar podía ser el
+ * grupo del curso pasado.
+ *
+ * @param array $rels   filas de sticpa_pl_all_relationships()
+ * @param array $groups sticpa_pl_groups()
+ * @return array contactId => array('id', 'code', 'etapa')
+ */
+function sticpa_pl_ev_grupos_de($rels, $groups)
+{
+    $groups = (array) $groups;
+    $out = array();
+    $elegidas = sticpa_pl_ev_rel_reciente($rels, function ($rel) use ($groups) {
+        $gid = isset($rel['group_id']) ? (string) $rel['group_id'] : '';
+        return $gid !== '' && isset($groups[$gid]);
+    });
+    foreach ($elegidas as $cid => $rel) {
+        $g = $groups[(string) $rel['group_id']];
+        $out[$cid] = array(
+            'id' => (string) $rel['group_id'],
+            'code' => isset($g['code']) ? (string) $g['code'] : '',
+            'etapa' => isset($g['etapa']) ? (string) $g['etapa'] : '',
+        );
+    }
+    return $out;
+}
+
+/**
+ * La clave con la que se ordena por nombre: apellidos y luego nombre, en
+ * minúsculas y sin acentos. «Álvarez» va con la A y no detrás de la Z.
+ *
+ * Sin `iconv` a propósito (es lo que usa `sticpa_pl_sort_key()`): su
+ * transliteración depende del locale del servidor y con el «C» de un PHP-FPM
+ * convierte «Á» en «?», que se ordena delante de todo. Una tabla fija no
+ * depende de nada. La ñ va detrás de la n, como en el diccionario.
+ */
+function sticpa_pl_ev_clave_nombre($last, $first, $full = '')
+{
+    $s = trim(trim((string) $last) . ' ' . trim((string) $first));
+    if ($s === '') {
+        $s = trim((string) $full);
+    }
+    $s = function_exists('mb_strtolower') ? mb_strtolower($s, 'UTF-8') : strtolower($s);
+    $s = strtr($s, array(
+        'á' => 'a', 'à' => 'a', 'ä' => 'a', 'â' => 'a', 'ã' => 'a',
+        'é' => 'e', 'è' => 'e', 'ë' => 'e', 'ê' => 'e',
+        'í' => 'i', 'ì' => 'i', 'ï' => 'i', 'î' => 'i',
+        'ó' => 'o', 'ò' => 'o', 'ö' => 'o', 'ô' => 'o', 'õ' => 'o',
+        'ú' => 'u', 'ù' => 'u', 'ü' => 'u', 'û' => 'u',
+        'ç' => 'c', 'ñ' => 'n~', 'l·l' => 'll', '·' => '',
+    ));
+    return preg_replace('/\s+/', ' ', $s);
 }
 
 /**
@@ -397,22 +534,33 @@ function sticpa_pl_ev_personas($objSCP, $ids)
  * pinta y lo que se puede escribir.
  *
  * Devuelve:
- *   'activos'  — personas que se marcan, por nombre (apellidos primero).
- *   'fuera'    — las de inscripción cancelada o parecida, para el final.
+ *   'activos'  — personas que se marcan, por CURSO (en el orden de
+ *                sticpa_pl_ev_cursos(), «sin curso» al final) y, dentro, por
+ *                apellidos y nombre. La pantalla las parte por etapa sin
+ *                deshacer ese orden.
+ *   'fuera'    — las de inscripción cancelada o parecida, para el final, por
+ *                apellidos.
  *   'regMap'   — inscripción => contacto, SOLO de las activas: es lo que el
  *                guardado puede tocar y lo que traduce las asistencias leídas.
  *   'cursos'   — curso => cuántos activos (en el orden de los cursos; '' es
  *                «sin curso»), para los chips del filtro.
  *   'etapas'   — etapa => cuántos activos (MIC, COM, LC, '').
  *
+ * EL CURSO: el de la inscripción si viene (es el de ESE evento); si no, el de
+ * la relación de participante de la persona (`$cursosRel`, de
+ * sticpa_pl_ev_cursos_de()). Hoy la inscripción no lo trae nunca (CAMPOS.md),
+ * pero el día que lo traiga, manda. LA ETAPA, de sticpa_pl_ev_etapa(): el
+ * curso, el grupo y, al final, la ficha.
+ *
  * Una persona con dos inscripciones (pasa: una cancelada y otra nueva) sale
  * UNA vez, con la activa. Con dos activas, la primera; las dos apuntan al
  * mismo contacto y la asistencia es una por persona y sesión.
  *
- * @param array $grupos contactId => array('id', 'code') del grupo de la
- *                      delegación de cada persona, si lo tiene (para la ficha).
+ * @param array $grupos    contactId => array('id', 'code', 'etapa') del grupo
+ *                         de la delegación de cada persona (sticpa_pl_ev_grupos_de()).
+ * @param array $cursosRel contactId => clave de curso (sticpa_pl_ev_cursos_de()).
  */
-function sticpa_pl_ev_lista($inscripciones, $personas, $grupos = array())
+function sticpa_pl_ev_lista($inscripciones, $personas, $grupos = array(), $cursosRel = array())
 {
     $fuera = sticpa_pl_ev_estados_fuera();
     $cursos = sticpa_pl_ev_cursos();
@@ -428,16 +576,21 @@ function sticpa_pl_ev_lista($inscripciones, $personas, $grupos = array())
         $status = isset($r['status']) ? (string) $r['status'] : '';
         $esFuera = isset($fuera[$status]);
         $p = isset($personas[$cid]) ? $personas[$cid] : array('first' => '', 'last' => '', 'full' => '', 'etapa' => '');
-        $curso = isset($r['curso']) ? (string) $r['curso'] : '';
+        $curso = sticpa_pl_ev_curso_key(isset($r['curso']) ? $r['curso'] : '');
+        if ($curso === '' && isset($cursosRel[$cid])) {
+            $curso = sticpa_pl_ev_curso_key($cursosRel[$cid]);
+        }
+        $g = isset($grupos[$cid]) ? (array) $grupos[$cid] : array();
         $persona = sticpa_pl_person_array($cid, $p['first'], $p['last'], $p['full'] !== '' ? $p['full'] : __('(sin nombre)', 'sticpa'));
+        $persona['orden'] = sticpa_pl_ev_clave_nombre($p['last'], $p['first'], $persona['full']);
         $persona['reg_id'] = (string) $r['reg_id'];
         $persona['status'] = $status;
         $persona['status_label'] = $esFuera ? $fuera[$status] : '';
         $persona['curso'] = $curso;
         $persona['curso_label'] = isset($cursos[$curso]) ? $cursos[$curso] : '';
-        $persona['etapa'] = sticpa_pl_ev_etapa($p['etapa'], $curso);
-        $persona['grupo_id'] = isset($grupos[$cid]['id']) ? (string) $grupos[$cid]['id'] : '';
-        $persona['grupo_code'] = isset($grupos[$cid]['code']) ? (string) $grupos[$cid]['code'] : '';
+        $persona['etapa'] = sticpa_pl_ev_etapa($curso, isset($g['etapa']) ? $g['etapa'] : '', $p['etapa']);
+        $persona['grupo_id'] = isset($g['id']) ? (string) $g['id'] : '';
+        $persona['grupo_code'] = isset($g['code']) ? (string) $g['code'] : '';
 
         if (!$esFuera) {
             if (isset($activos[$cid])) {
@@ -451,12 +604,21 @@ function sticpa_pl_ev_lista($inscripciones, $personas, $grupos = array())
         }
     }
 
+    // El orden de los cursos, con «sin curso» detrás de todos.
+    $posCurso = array_flip(array_keys($cursos));
+    $posCurso[''] = count($posCurso);
     $porNombre = function ($a, $b) {
-        return strcmp($a['sort'], $b['sort']);
+        $cmp = strcmp($a['orden'], $b['orden']);
+        return ($cmp !== 0) ? $cmp : strcmp($a['id'], $b['id']);   // estable
+    };
+    $porCurso = function ($a, $b) use ($posCurso, $porNombre) {
+        $pa = $posCurso[$a['curso']];
+        $pb = $posCurso[$b['curso']];
+        return ($pa !== $pb) ? $pa - $pb : $porNombre($a, $b);
     };
     $activos = array_values($activos);
     $apagados = array_values($apagados);
-    usort($activos, $porNombre);
+    usort($activos, $porCurso);
     usort($apagados, $porNombre);
 
     $nCursos = array();
@@ -477,31 +639,6 @@ function sticpa_pl_ev_lista($inscripciones, $personas, $grupos = array())
         'cursos' => array_filter($nCursos),
         'etapas' => array_filter($nEtapas),
     );
-}
-
-/**
- * El grupo de la delegación de cada persona (participante, vigente), para el
- * enlace a su ficha, que es por grupo. Sale del mapa de relaciones, que ya
- * está cacheado: cero llamadas propias.
- *
- * @return array contactId => array('id', 'code')
- */
-function sticpa_pl_ev_grupos_de($objSCP)
-{
-    $groups = sticpa_pl_groups($objSCP);
-    $out = array();
-    foreach (sticpa_pl_all_relationships($objSCP) as $rel) {
-        if (!isset($rel['role']) || $rel['role'] !== 'participante') {
-            continue;
-        }
-        $cid = isset($rel['person']['id']) ? (string) $rel['person']['id'] : '';
-        $gid = isset($rel['group_id']) ? (string) $rel['group_id'] : '';
-        if ($cid === '' || $gid === '' || isset($out[$cid]) || !isset($groups[$gid])) {
-            continue;
-        }
-        $out[$cid] = array('id' => $gid, 'code' => (string) $groups[$gid]['code']);
-    }
-    return $out;
 }
 
 /**
@@ -719,28 +856,35 @@ function sticpa_pl_ev_hoy_card_html($ev)
 }
 
 /**
- * Los chips del filtro por curso: «Todos 34 · 1º ESO 12 · 2º ESO 9…».
+ * Los chips del filtro por curso: «Todos 47 · 4 EP 19 · 5 EP 16 · 1 ESO 14…».
  *
  * Botones de verdad (`aria-pressed`), con el número de cada curso, en una fila
- * que se desliza en horizontal en el móvil. Solo si hay más de un curso: con
- * uno, filtrar no filtra nada.
+ * que se desliza en horizontal en el móvil y que se queda PEGADA ARRIBA al
+ * bajar por la lista (css/pasar-lista.css, 042): en la puerta del autobús es
+ * «a ver los de primero, pam; los de segundo, pam».
+ * Solo si hay más de un curso: con uno, filtrar no filtra nada.
  */
 function sticpa_pl_ev_chips_html($nCursos, $total)
 {
     if (count($nCursos) < 2) {
         return '';
     }
-    $cursos = sticpa_pl_ev_cursos();
-    $html = '<div class="pl-evchips" role="group" aria-label="' . esc_attr__('Filtrar por curso', 'sticpa') . '">';
+    $html = '<div class="pl-evchips" data-pl-ev-chips role="group" aria-label="' . esc_attr__('Filtrar por curso', 'sticpa') . '">';
     $html .= '<button type="button" class="pl-evchip" data-pl-ev-curso="" aria-pressed="true">'
         . esc_html__('Todos', 'sticpa') . '<span class="pl-evchip-n">' . (int) $total . '</span></button>';
     foreach ($nCursos as $k => $n) {
-        $label = isset($cursos[$k]) ? $cursos[$k] : __('Sin curso', 'sticpa');
         $html .= '<button type="button" class="pl-evchip" data-pl-ev-curso="' . esc_attr($k === '' ? '-' : $k) . '" aria-pressed="false">'
-            . esc_html($label) . '<span class="pl-evchip-n">' . (int) $n . '</span></button>';
+            . esc_html(sticpa_pl_ev_curso_titulo($k)) . '<span class="pl-evchip-n">' . (int) $n . '</span></button>';
     }
     $html .= '</div>';
     return $html;
+}
+
+/** El nombre de un curso para su subtítulo: «4 EP» o «Sin curso». */
+function sticpa_pl_ev_curso_titulo($k)
+{
+    $cursos = sticpa_pl_ev_cursos();
+    return isset($cursos[$k]) ? $cursos[$k] : __('Sin curso', 'sticpa');
 }
 
 /** El nombre de una etapa para el título de su sección. */
@@ -750,9 +894,58 @@ function sticpa_pl_ev_etapa_titulo($etapa)
 }
 
 /**
+ * Las personas que van, por ETAPA (MIC, COM, LC, «Sin etapa») y, dentro, por
+ * CURSO, cada curso con su subtítulo y su número («4 EP · 19»).
+ * Dentro de cada curso, por apellidos: es el orden en que llegan de
+ * sticpa_pl_ev_lista(), que aquí solo se parte.
+ *
+ * Los títulos son encabezados (nivel 2 la etapa, 3 el curso) con `role` y no
+ * con `<h2>`/`<h3>`: el tema de WordPress pinta los hN a su manera, como pinta
+ * los `<button>` (la trampa de PASAR-LISTA-ESTADO.md §3). Cada etapa va en su
+ * caja (`data-pl-ev-etapa`) y cada curso en su lista (`data-pl-ev-list`): el
+ * JS del filtro esconde y recuenta las dos.
+ *
+ * @param callable $fila persona => HTML de su fila (lleva el estado leído).
+ */
+function sticpa_pl_ev_secciones_html($activos, $fila)
+{
+    $porEtapa = array('MIC' => array(), 'COM' => array(), 'LC' => array(), '' => array());
+    foreach ((array) $activos as $p) {
+        $porEtapa[isset($porEtapa[$p['etapa']]) ? $p['etapa'] : ''][] = $p;
+    }
+    $html = '';
+    foreach ($porEtapa as $etapa => $gente) {
+        if (empty($gente)) {
+            continue;
+        }
+        $html .= '<div class="pl-evetapa" data-pl-ev-etapa>';
+        $html .= '<div class="pl-etapa-title pl-evsec" role="heading" aria-level="2"><span>' . esc_html(sticpa_pl_ev_etapa_titulo($etapa)) . '</span>'
+            . '<span class="pl-etapa-count" data-pl-ev-n>' . count($gente) . '</span></div>';
+        $porCurso = array();
+        foreach ($gente as $p) {
+            $porCurso[$p['curso']][] = $p;   // ya vienen en el orden de los cursos
+        }
+        foreach ($porCurso as $curso => $deEse) {
+            $html .= '<div class="pl-evcurso" role="heading" aria-level="3" data-pl-ev-sec>'
+                . '<span>' . esc_html(sticpa_pl_ev_curso_titulo($curso)) . '</span>'
+                . '<span class="pl-evcurso-n" aria-hidden="true">·</span>'
+                . '<span class="pl-evcurso-n" data-pl-ev-n>' . count($deEse) . '</span></div>';
+            $html .= '<div class="pl-list" data-pl-ev-list>';
+            foreach ($deEse as $p) {
+                $html .= call_user_func($fila, $p);
+            }
+            $html .= '</div>';
+        }
+        $html .= '</div>';
+    }
+    return $html;
+}
+
+/**
  * Una fila de la lista que se marca: la de los sábados, con dos datos más
- * para el filtro (curso y texto de búsqueda) y, debajo del nombre, el curso y
- * el grupo, que es lo que se pregunta en la puerta del autobús.
+ * para el filtro (curso y texto de búsqueda) y, debajo del nombre, en
+ * pequeño, el curso entero y el código del grupo («4 EP · M4.1»),
+ * que es lo que se pregunta en la puerta del autobús.
  */
 function sticpa_pl_ev_row_html($p, $state, $motive)
 {
@@ -792,9 +985,9 @@ function sticpa_pl_ev_fuera_html($fuera)
     if (empty($fuera)) {
         return '';
     }
-    $html = '<div class="pl-etapa-title pl-evsec" data-pl-ev-sec>'
+    $html = '<div class="pl-etapa-title pl-evsec" role="heading" aria-level="2" data-pl-ev-sec>'
         . '<span>' . esc_html__('No van', 'sticpa') . '</span>'
-        . '<span class="pl-etapa-count">' . count($fuera) . '</span></div>';
+        . '<span class="pl-etapa-count" data-pl-ev-n>' . count($fuera) . '</span></div>';
     $html .= '<div class="pl-list pl-evfuera" data-pl-ev-list>';
     foreach ($fuera as $p) {
         $sub = array();

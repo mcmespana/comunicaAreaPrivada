@@ -714,7 +714,7 @@ if (!empty($grupos)) {
         if ($g['n_participantes'] > 0) {
             $meta[] = sprintf(
                 /* translators: %d: cuántos participantes tiene el grupo */
-                _n('%d participante', '%d participantes', $g['n_participantes'], 'sticpa'),
+                _n('%d chavalín', '%d chavalines', $g['n_participantes'], 'sticpa'),
                 $g['n_participantes']
             );
         }

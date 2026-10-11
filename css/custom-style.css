@@ -64,6 +64,15 @@
     --shadow-xl: 0 32px 70px rgba(21, 36, 71, 0.20);
     --shadow-glow: 0 0 0 4px color-mix(in srgb, var(--primary-color) 16%, transparent);
     --shadow-glow-pink: 0 0 0 4px color-mix(in srgb, var(--secondary-color) 16%, transparent);
+    /* El anillo del FOCO DE TECLADO (`:focus-visible`), que no es el halo de
+       arriba. El halo al 16 % se quedaba en 1,25:1 sobre blanco (2,04:1 en
+       oscuro), y WCAG 1.4.11 pide 3:1 para lo que marca un estado: quien
+       coordina con el teclado no sabía dónde estaba (plan 042, A11Y-1). Este
+       es sólido, con un hueco del color de la superficie para que se separe
+       también de un botón de marca: --primary-color da 5,3:1 sobre blanco y
+       5,5:1 sobre el oscuro. `--shadow-glow` se queda para el `:focus` de los
+       campos, donde acompaña a un cambio de borde y ahí sí se ve. */
+    --focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary-color);
 
     /* ---- Encima de un relleno de MARCA (§44 NO los toca a propósito) ----
        Los degradados de marca se fijan con los hex originales en los dos temas,
@@ -186,6 +195,9 @@
        con el tema, así que no tienen valor en §44.a. */
     --stic-safe-bottom: env(safe-area-inset-bottom, 0px);
     --stic-app-bottom: 0px;
+    /* Lo que ocupa la tab bar de MCM App desde abajo. Lo pisa la app (estilo
+       en línea en <html>) cuando esconde su cápsula: ver justo debajo. */
+    --stic-app-tabbar: 5.5rem;
 }
 
 /* EN MCM APP la web va a pantalla completa por detrás de la tab bar flotante
@@ -196,6 +208,14 @@
 body.sticpa-app-mode {
     --stic-safe-bottom: 0px;
     --stic-app-bottom: 10.5rem;
+}
+
+/* Y si la app ha escondido su cápsula porque la pantalla tiene barra propia
+   abajo (mensaje `sticpa:barra`, CONTRATO-APP-WEBVIEW.md §4.b), lo pegado
+   abajo baja hasta su tab bar: la app pone la clase y la medida exacta. Sin
+   la clase —una app que no lo sabe—, todo sigue en 10,5 rem. */
+html.sticpa-app-sin-flechas body.sticpa-app-mode {
+    --stic-app-bottom: var(--stic-app-tabbar);
 }
 
 /* ============================================================
@@ -850,7 +870,9 @@ span.stic-field {
     outline-offset: 2px;
 }
 
-/* "Salir": último item, empujado a la derecha en escritorio. */
+/* "Salir" como elemento del menú: el último del desplegable del MÓVIL (plan
+   043, CAR-5). En escritorio no se pinta: allí "Salir" va en la barra. */
+.stic-nav-logout-item { display: none; }
 .stic-nav-logout .stic-nav-ico { opacity: 1; }
 @media (hover: hover) {
     .stic-nav-logout:hover { background: rgba(239, 68, 68, 0.9) !important; }
@@ -929,7 +951,7 @@ span.stic-field {
 /* Foco visible dentro del panel claro (el outline:none de arriba lo borraba). */
 .stic-nav-more-menu .stic-nav-link:focus-visible {
     outline: none !important;
-    box-shadow: var(--shadow-glow) !important;
+    box-shadow: var(--focus-ring) !important;
     background: var(--primary-50) !important;
 }
 .stic-nav-more-menu .stic-nav-item.current-menu-item .stic-nav-link,
@@ -1071,7 +1093,7 @@ span.stic-field {
     /* En móvil se ven todas las secciones en el drawer: "Más" no aplica */
     .stic-nav-more-wrap { display: none !important; }
     /* "Salir" separado al final del desplegable */
-    .stic-nav-logout-item { grid-column: 1 / -1; order: 9999; margin-top: 0.35rem; padding-top: 0.45rem; border-top: 1px solid rgba(255, 255, 255, 0.16); }
+    .stic-nav-logout-item { display: block; grid-column: 1 / -1; order: 9999; margin-top: 0.35rem; padding-top: 0.45rem; border-top: 1px solid rgba(255, 255, 255, 0.16); }
 }
 
 /* ============================================================
@@ -1201,12 +1223,14 @@ span.stic-field {
     width: 54px;
     height: 54px;
     border-radius: var(--radius-md);
-    background: var(--grad-brand);
-    color: #fff;
-    box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    /* En tinta suave, como el icono de los datos de la ficha (.stic-rec-fact-ico),
+       y no en el degradado (plan 043, fila 7: FAM-a13). Eran siete u ocho
+       pastillas de marca en la portada, además de la barra y el saludo, y el
+       degradado deja de firmar nada (design.md §3 y §8). */
+    background: var(--primary-50);
+    color: var(--primary-color);
     transition: transform 0.28s var(--ease-spring);
 }
-.stic-dash-card:nth-child(even) .stic-dash-icon { background: var(--grad-brand-rev); }
 @media (hover: hover) {
     .stic-dash-card:hover .stic-dash-icon { transform: scale(1.08) rotate(-4deg); }
 }
@@ -1992,7 +2016,7 @@ span.stic-field {
 @media (hover: hover) {
     .stic-rowbtn--ghost:hover { background: var(--gray-50); color: var(--gray-900) !important; }
 }
-.stic-rowbtn:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+.stic-rowbtn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 @media (hover: none) {
     .stic-rowbtn:active { transform: scale(0.98); }
 }
@@ -2451,7 +2475,7 @@ span.stic-field {
 }
 
 .stic-form input[type="checkbox"]:focus-visible {
-    box-shadow: var(--shadow-glow) !important;
+    box-shadow: var(--focus-ring) !important;
 }
 
 .stic-form input[type="checkbox"]:checked {
@@ -3258,7 +3282,7 @@ span.stic-field {
     font-size: 0.8rem;
     font-weight: 800;
 }
-.stic-option-card:has(input:focus-visible) { box-shadow: var(--shadow-glow); }
+.stic-option-card:has(input:focus-visible) { box-shadow: var(--focus-ring); }
 
 /* ============================================================
    32. SELECCIÓN DE PARTICIPANTE (familias) — tarjetas grandes
@@ -3510,7 +3534,7 @@ span.stic-field {
 }
 .stic-part-option:focus-visible {
     outline: none;
-    box-shadow: var(--shadow-glow);
+    box-shadow: var(--focus-ring);
     background: var(--primary-50);
 }
 .stic-part-option .stic-part-avatar {
@@ -3584,9 +3608,14 @@ span.stic-field {
     color: var(--primary-color) !important;
     box-shadow: var(--shadow-sm) !important;
 }
-.stic-auth-tab:focus-visible {
+/* La pestaña ELEGIDA lleva su sombra con más especificidad (0,4,0) que la
+   regla de foco, y se comía el anillo: «Por correo» no cambiaba nada al
+   tabular (plan 042, A11Y-1). Por eso la elegida tiene su propio :focus-visible. */
+.stic-auth-tab:focus-visible,
+.stic-auth[data-mode="magic"] .stic-auth-tab[data-auth-toggle="magic"]:focus-visible,
+.stic-auth[data-mode="password"] .stic-auth-tab[data-auth-toggle="password"]:focus-visible {
     outline: none;
-    box-shadow: var(--shadow-glow) !important;
+    box-shadow: var(--focus-ring) !important;
 }
 /* En móvil estrecho, que "Enlace mágico" no parta en dos líneas. */
 @media (max-width: 480px) {
@@ -3755,7 +3784,7 @@ span.stic-field {
 .stic-form h5.stic-sec-toggle .stic-sec-btn:focus-visible {
     outline: none !important;
     border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-glow) !important;
+    box-shadow: var(--focus-ring) !important;
 }
 /* La tarjeta plegada desaparece del flujo (los campos required dentro los
    desactiva el JS mientras están ocultos, como en los condicionales). */
@@ -4002,20 +4031,25 @@ span.stic-field {
     animation: stic-msg-in 0.25s var(--ease-out) both;
 }
 
-/* --- 42.b Foco visible en botones de acción y modales --- */
+/* --- 42.b Foco visible en botones de acción y modales ---
+   «Volver» y «Eliminar» de los formularios pierden su sombra con
+   `.stic-send input.stic-button[…]` (0,3,1, §23), que pesa más que
+   `.stic-container .stic-back-button:focus-visible` (0,3,0): al tabular no se
+   veía nada. Van aquí con ese mismo selector. Y «Eliminar» lleva el mismo
+   anillo que los demás: su halo rojo al 22 % tenía el problema del azul al
+   16 % (plan 042, A11Y-1), y el botón ya dice que es rojo. */
 .stic-container .stic-button:focus-visible,
 .stic-container .stic-back-button:focus-visible,
 .stic-container .stic-soft-btn:focus-visible,
+.stic-container .stic-danger-button:focus-visible,
+.stic-send input.stic-button[type="button"]:focus-visible,
+.stic-send input.stic-button.stic-danger-button:focus-visible,
 .stic-auth-shell .stic-btn-magic:focus-visible,
 .stic-auth-shell input[type="submit"]:focus-visible,
-.stic-modal-btn:focus-visible {
-    outline: none !important;
-    box-shadow: var(--shadow-glow) !important;
-}
-.stic-container .stic-danger-button:focus-visible,
+.stic-modal-btn:focus-visible,
 .stic-modal-btn--delete:focus-visible {
     outline: none !important;
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger-color) 22%, transparent) !important;
+    box-shadow: var(--focus-ring) !important;
 }
 
 /* --- 42.c Placeholders con contraste suficiente --- */
@@ -4295,6 +4329,10 @@ span.stic-field {
     --shadow-xl: 0 32px 70px rgba(0, 0, 0, 0.62);
     --shadow-glow: 0 0 0 4px color-mix(in srgb, var(--primary-light) 34%, transparent);
     --shadow-glow-pink: 0 0 0 4px color-mix(in srgb, var(--secondary-light) 34%, transparent);
+    /* El mismo valor que en §1, repetido a propósito: una propiedad que lee
+       otras se resuelve donde se declara, y la de :root leería la superficie
+       y el azul CLAROS. Aquí lee los de este bloque. */
+    --focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary-color);
 
     /* Colores de estado: el ACENTO se aclara (para que se vea sobre oscuro),
        el fondo suave se oscurece y el "-dark" pasa a ser el texto CLARO que
@@ -4553,12 +4591,15 @@ span.stic-field {
 @media (hover: hover) {
     .stic-appearance-btn:hover { color: var(--gray-700) !important; background: var(--gray-100) !important; }
 }
-.stic-appearance-btn:focus-visible { outline: none; box-shadow: var(--shadow-glow) !important; }
+.stic-appearance-btn:focus-visible { outline: none; box-shadow: var(--focus-ring) !important; }
 .stic-appearance-btn[aria-pressed="true"] {
     background: var(--surface) !important;
     color: var(--primary-color) !important;
     box-shadow: var(--shadow-xs) !important;
 }
+/* El elegido va después y con la misma especificidad: sin esto su sombra se
+   comía el anillo y «Auto» no cambiaba nada al tabular (plan 042, A11Y-1). */
+.stic-appearance-btn[aria-pressed="true"]:focus-visible { box-shadow: var(--focus-ring) !important; }
 /* En claro el segmento activo destaca por ser BLANCO sobre la pista gris. En
    oscuro eso se invierte (el activo saldría más oscuro que la pista y no se
    leería como "seleccionado"), así que aquí sube de nivel y toma color de marca. */
@@ -4601,7 +4642,7 @@ span.stic-field {
 @media (hover: hover) {
     .fc .fc-daygrid-event:hover { background: var(--surface-2) !important; }
 }
-.fc .fc-daygrid-event:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+.fc .fc-daygrid-event:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .fc .fc-daygrid-event .fc-daygrid-event-dot { display: none !important; } /* usamos nuestro chip */
 .stic-fc-registered { opacity: 0.9; }
 
@@ -4649,7 +4690,7 @@ span.stic-field {
     text-decoration: none !important;
     color: inherit !important;
 }
-.stic-cal-day-item:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+.stic-cal-day-item:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .stic-cal-day-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--primary-color); }
 .stic-cal-day-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
 .stic-cal-day-name { font-weight: 700; font-size: 0.92rem; color: var(--gray-900); line-height: 1.3; }
@@ -4752,7 +4793,7 @@ span.stic-field {
 @media (hover: hover) {
     .stic-agenda-link:hover { background: var(--surface-2); transform: translateX(2px); }
 }
-.stic-agenda-link:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+.stic-agenda-link:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
 /* Chip de fecha (día de la semana + número + mes) */
 .stic-agenda-date {
@@ -4833,7 +4874,7 @@ span.stic-field {
 @media (hover: hover) {
     .stic-agenda-cta:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
 }
-.stic-agenda-cta:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+.stic-agenda-cta:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
 /* ============================================================
    54. CALENDARIO EN MÓVIL — el sitio principal es la app (?app=1)   [antes §45, duplicado]
@@ -5027,6 +5068,11 @@ span.stic-field {
    ante todo un lanzador, y ponerla encima empujaba los accesos fuera de
    pantalla. En escritorio la agenda sigue en su columna lateral. */
 .stic-home-account { margin-top: 0.4rem; }
+/* Para el equipo, su bloque va el PRIMERO, antes de «Actividades» (plan 043,
+   CAR-1). Sin margen propio, la etiqueta «ACTIVIDADES» quedaba pegada a la
+   tarjeta de Coordinación: el mismo aire que separa las secciones de la
+   rejilla de la agenda (.stic-home-layout, su `gap`). */
+.stic-home-equipo { margin-bottom: clamp(1.1rem, 2.5vw, 1.8rem); }
 
 /* --- 48.c Home compacta en móvil --- */
 @media (max-width: 640px) {
@@ -5332,7 +5378,7 @@ span.stic-field {
 @media (hover: hover) {
     .stic-rec-btn--primary:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
 }
-.stic-rec-btn:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+.stic-rec-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 @media (hover: none) {
     .stic-rec-btn:active { transform: scale(0.98); }
 }
@@ -5342,21 +5388,19 @@ span.stic-field {
 
 .stic-rec-hero {
     position: relative;
-    overflow: hidden;
     padding: clamp(1.1rem, 3vw, 1.75rem);
     border-radius: var(--radius-xl);
-    background: var(--grad-brand);
-    color: var(--on-brand);
-    box-shadow: var(--shadow-md);
+    /* Superficie neutra, no el degradado de marca (plan 043, fila 6: CAR-6).
+       Venía justo debajo de la barra, que ya lo es: dos bloques de marca
+       seguidos que no se pueden cerrar, lo que design.md §3 prohíbe, y con
+       «Inscribirme» eran tres en una pantalla. Ahora la cabecera va en tinta
+       sobre la tarjeta, como la de los listados y la de Pasar Lista, y el
+       degradado queda para la barra y la acción principal. */
+    background: var(--surface);
+    color: var(--gray-900);
+    border: 1px solid var(--gray-200);
+    box-shadow: var(--shadow-xs);
 }
-.stic-rec-hero::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(60% 80% at 100% 0%, rgba(255, 255, 255, 0.2), transparent 60%);
-    pointer-events: none;
-}
-.stic-rec-hero > * { position: relative; z-index: 1; }
 /* 44px de alto, no 25. Medido en el render offline: era el único pulsable de
    la ficha por debajo del mínimo táctil, y es la SALIDA de todas las fichas —
    lo que más se toca después de la acción principal. design.md §2 regla 1: el
@@ -5369,8 +5413,8 @@ span.stic-field {
     margin-bottom: 0.7rem;
     padding: 0 0.9rem 0 0.75rem;
     border-radius: var(--radius-full);
-    background: rgba(255, 255, 255, 0.18);
-    color: var(--on-brand) !important;
+    background: var(--surface-2);
+    color: var(--gray-700) !important;
     font-size: 0.82rem;
     font-weight: 700;
     text-decoration: none !important;
@@ -5378,7 +5422,7 @@ span.stic-field {
 .stic-rec-back::after { display: none !important; }
 .stic-rec-back svg { width: 15px; height: 15px; }
 @media (hover: hover) {
-    .stic-rec-back:hover { background: rgba(255, 255, 255, 0.3); }
+    .stic-rec-back:hover { background: var(--gray-200); }
 }
 .stic-container .stic-rec-hero-title,
 .stic-rec-hero-title {
@@ -5387,17 +5431,15 @@ span.stic-field {
     font-weight: 800;
     line-height: 1.15;
     letter-spacing: -0.02em;
-    color: #fff !important;
+    color: var(--gray-900) !important;
     background: none !important;
-    -webkit-text-fill-color: #fff !important;
+    -webkit-text-fill-color: var(--gray-900) !important;
 }
 .stic-rec-hero-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.8rem; }
-.stic-rec-hero-when { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.95rem; font-weight: 600; }
-.stic-rec-hero-when svg { width: 16px; height: 16px; }
-/* Encima del degradado de marca el texto es --on-brand, nunca --white
-   (que en oscuro vale #16171a y deja letras negras sobre el degradado). */
-.stic-rec-hero-meta .stic-rec-chip { background: rgba(255, 255, 255, 0.22); color: var(--on-brand); }
-.stic-rec-hero-meta .stic-rec-chip--past { background: rgba(0, 0, 0, 0.22); color: var(--on-brand); }
+.stic-rec-hero-when { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.95rem; font-weight: 600; color: var(--gray-700); }
+.stic-rec-hero-when svg { width: 16px; height: 16px; color: var(--primary-color); }
+/* Los chips de la cabecera llevan su tono de siempre, el de las tarjetas del
+   listado (§56.a): ya no van sobre la marca y no necesitan vestirse de cristal. */
 
 /* Datos clave: solo salen los que el CRM tenga rellenos. */
 .stic-rec-facts {
@@ -6078,18 +6120,6 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 .stic-rec-chip--danger { background: var(--danger-soft);  color: var(--danger-dark); }
 .stic-rec-chip--info   { background: var(--info-light);   color: var(--info-dark); }
 
-/* Sobre el degradado de la cabecera los tonos no se leen (fondo claro sobre
-   fondo de marca): allí todos los chips se visten de cristal, como el neutro.
-   Lo hace la §49 con .stic-rec-hero-meta .stic-rec-chip; esto solo evita que
-   los modificadores le ganen por especificidad. */
-.stic-rec-hero-meta .stic-rec-chip--ok,
-.stic-rec-hero-meta .stic-rec-chip--warn,
-.stic-rec-hero-meta .stic-rec-chip--danger,
-.stic-rec-hero-meta .stic-rec-chip--info {
-    background: rgba(255, 255, 255, 0.22);
-    color: var(--on-brand);
-}
-
 /* --- 56.b  El dato que manda en la ficha ---------------------------- */
 .stic-rec-headline {
     display: flex;
@@ -6443,7 +6473,7 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 .stic-rec-quick::after { display: none !important; }
 .stic-rec-quick svg { width: 20px; height: 20px; }
 .stic-rec-quick:active { transform: scale(0.94); }
-.stic-rec-quick:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+.stic-rec-quick:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
 @media (hover: hover) {
     .stic-rec-quick:hover { background: var(--surface); }
@@ -6615,14 +6645,13 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
    y la sección su <h4> (ver `titulo_base` en inc/stic-event-web.php).
    ============================================================ */
 
-/* El lema, encima del degradado del hero: texto --on-brand, como el título. */
+/* El lema, debajo del título de la cabecera, en tinta secundaria. */
 .stic-rec-hero-sub {
     margin: -0.15rem 0 0.6rem;
     font-size: 1rem;
     font-style: italic;
     font-weight: 500;
-    color: var(--on-brand);
-    opacity: 0.92;
+    color: var(--gray-600);
 }
 
 /* El cartel: entero y a su tamaño. Un cartel de imprenta es vertical, y a todo
@@ -7240,17 +7269,14 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     font-size: 0.82rem;
 }
 
-/* --- 64.b El selector de participante, con 44 px de dedo (FAM-a11) ---
-   Es EL control de una familia y medía 172×31. Subirlo a 44 de alto
-   agrandaba la barra de identidad 13 px en cada pantalla; en su lugar se
-   amplía el área táctil alrededor, sin cambiar lo que se ve (el mismo
-   patrón que .stic-info y .stic-appearance-btn, WCAG 2.5.8). */
-.stic-part-switch-btn { position: relative; }
-.stic-part-switch-btn::before {
-    content: '';
-    position: absolute;
-    inset: -7px -2px;
-}
+/* --- 64.b El selector de participante, a 44 px de verdad (FAM-a11) ---
+   Es EL control de una familia y medía 172×31. Primero se le amplió solo el
+   área táctil (un ::before invisible), para no crecer la barra; el
+   propietario prefirió que lo que se ve mida 44 (plan 043, fila 8): la barra
+   de identidad crece ~13 px en las pantallas de familia, y a cambio el botón
+   parece lo que es. Nada va pegado a la barra (no es sticky) y el desplegable
+   se ancla por JS al botón, así que no hay que mover nada más. */
+.stic-part-switch-btn { min-height: 44px; }
 
 /* --- 64.c Tarjeta de persona sin etiqueta (FAM-a11) ---
    Los hijos ya no llevan «Participante» (lo llevaban todos y no distinguía
@@ -7322,6 +7348,11 @@ html[data-stic-theme] {
         min-width: 44px;
         min-height: 44px;
     }
+    /* Y con menú, «Salir» ni siquiera está al lado: va el último del
+       desplegable (plan 043, CAR-5 punto 2). La barra se queda con la
+       identidad y un solo botón grande. Sin menú no lleva la clase y se
+       queda, que si no no habría forma de salir. */
+    .stic-nav-actions .stic-logout--escritorio { display: none; }
 }
 
 /* --- 66.b La regla del toque (CAR-7) ---

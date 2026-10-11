@@ -74,12 +74,83 @@ class CarcasaTest extends TestCase
         );
     }
 
+    /** La barra de verdad (menu()) de alguien con sesión. */
+    private function barra($conMenu)
+    {
+        require_once dirname(__DIR__) . '/menu.php';
+        $_SESSION = array(
+            'scp_user_id' => 'm1',
+            'scp_user_contact_name' => 'Soler, David',
+            'scp_role' => 'laico',
+            'scp_role_resolved' => true,
+            'scp_relationship_raw' => '^grupo^',
+        );
+        // Sin `scp_user_adult` ni sesión de familiar no hay menú (ni hamburguesa).
+        if ($conMenu) {
+            $_SESSION['scp_user_adult'] = true;
+        }
+        $_REQUEST = array();
+        $_SERVER['REQUEST_URI'] = '/ap/';
+        $html = menu();
+        $_SESSION = array();
+        return $html;
+    }
+
+    /**
+     * CAR-5, punto 2 (plan 043). En el móvil «Salir» va dentro del menú, el
+     * último: el de la barra lleva la clase que lo esconde por debajo de 768
+     * y el desplegable lleva su elemento, después de todo lo demás.
+     */
+    public function test_con_menu_salir_va_el_ultimo_del_desplegable()
+    {
+        $html = $this->barra(true);
+        $this->assertMatchesRegularExpression("/class='stic-iconbtn stic-logout stic-logout--escritorio' href='\?logout=true'/", $html);
+        $ultimo = strrpos($html, '<li ');
+        $this->assertNotFalse($ultimo);
+        $li = substr($html, $ultimo);
+        $this->assertStringStartsWith("<li class='stic-nav-item stic-nav-item--wide stic-nav-logout-item' style='--stic-order:9999'>", $li);
+        $this->assertStringContainsString("href='?logout=true'", $li);
+        $this->assertStringContainsString('Salir', $li);
+    }
+
+    /** Sin menú no hay hamburguesa: «Salir» se queda en la barra, también en el móvil. */
+    public function test_sin_menu_salir_se_queda_en_la_barra()
+    {
+        $html = $this->barra(false);
+        $this->assertStringContainsString("class='stic-iconbtn stic-logout' href='?logout=true'", $html);
+        $this->assertStringNotContainsString('stic-logout--escritorio', $html);
+        $this->assertStringNotContainsString('stic-nav-logout-item', $html);
+        $this->assertStringNotContainsString('stic-nav-toggle', $html);
+    }
+
+    /**
+     * CAR-5, punto 2: el CSS que lo hace. En escritorio el elemento del menú
+     * no se pinta; en el móvil se pinta y el de la barra se esconde.
+     */
+    public function test_el_css_lleva_salir_al_menu_solo_en_el_movil()
+    {
+        $css = preg_replace('#/\*.*?\*/#s', '', $this->css('custom-style.css'));
+        $this->assertSame('display: none;', trim($this->rule($css, '.stic-nav-logout-item')));
+        $ini = strpos($css, '.stic-nav-actions .stic-logout--escritorio { display: none; }');
+        $this->assertNotFalse($ini, 'Falta esconder el «Salir» de la barra en el móvil.');
+        $media = substr($css, strrpos(substr($css, 0, $ini), '@media'), 40);
+        $this->assertStringStartsWith('@media (max-width: 767px)', $media);
+        // Y dentro del bloque del móvil (que lleva un @media anidado, así que
+        // se mira cuál de los dos breakpoints abre más cerca).
+        $pos = strpos($css, '.stic-nav-logout-item { display: block;');
+        $this->assertNotFalse($pos);
+        $antes = substr($css, 0, $pos);
+        $this->assertGreaterThan((int) strrpos($antes, '@media (min-width'), (int) strrpos($antes, '@media (max-width: 767px)'));
+    }
+
     /** CAR-5, punto 3: el comentario de «de momento todo claro» era falso. */
     public function test_el_menu_no_dice_que_el_modo_oscuro_esta_aparcado()
     {
         $menu = file_get_contents(dirname(__DIR__) . '/menu.php');
         $this->assertStringNotContainsString('De momento todo claro', $menu);
         $this->assertStringNotContainsString('El "Salir" va como último item', $menu);
+        // Y desde el plan 043 (CAR-5, punto 2) tampoco va SIEMPRE arriba.
+        $this->assertStringNotContainsString('"Salir" SIEMPRE arriba a la derecha', $menu);
     }
 
     /**
@@ -146,5 +217,103 @@ class CarcasaTest extends TestCase
         preg_match('/background: linear-gradient\([^;]+;/', $botonera, $m);
         $this->assertStringContainsString($m[0], $fila);
         $this->assertStringContainsString('backdrop-filter: blur(4px);', $fila);
+    }
+
+    /**
+     * A11Y-1 (plan 043, fila 5). El foco de teclado se marca con `--focus-ring`
+     * (anillo sólido, ≥3:1), no con el halo al 16 % de `--shadow-glow`, que
+     * sobre blanco se quedaba en 1,25:1. El halo sigue en el `:focus` de los
+     * campos, que no se toca. Y el token se repite en el tema oscuro: si solo
+     * estuviera en :root, leería la superficie y el azul claros.
+     */
+    public function test_el_foco_de_teclado_usa_el_anillo_y_no_el_halo()
+    {
+        $css = preg_replace('#/\*.*?\*/#s', '', $this->css('custom-style.css'));
+        $anillo = '--focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary-color);';
+        $this->assertSame(2, substr_count($css, $anillo), 'En §1 y en §44.a, con el mismo valor.');
+        $oscuro = strpos($css, '--surface: #1c1d21;');
+        $this->assertNotFalse($oscuro);
+        $this->assertGreaterThan($oscuro, strrpos($css, $anillo), 'El segundo va en el bloque oscuro.');
+
+        preg_match_all('/([^{}]*):focus-visible([^{}]*)\{([^{}]*)\}/', $css, $reglas, PREG_SET_ORDER);
+        $this->assertGreaterThan(15, count($reglas));
+        foreach ($reglas as $r) {
+            $this->assertStringNotContainsString('var(--shadow-glow)', $r[3], 'Halo en un :focus-visible: ' . trim($r[0]));
+        }
+        $this->assertStringContainsString('var(--shadow-glow)', $this->rule($css, '.stic-field input:focus'));
+    }
+
+    /**
+     * A11Y-1. Las reglas de «elegido» llevan su sombra con `!important` y tanta
+     * o más especificidad que la del foco, y se comían el anillo: la pestaña
+     * «Por correo», el «Auto» de Apariencia y «Volver» / «Eliminar» de los
+     * formularios no cambiaban nada al tabular. Cada una tiene su :focus-visible.
+     */
+    public function test_lo_elegido_no_se_come_el_anillo()
+    {
+        $css = preg_replace('#/\*.*?\*/#s', '', $this->css('custom-style.css'));
+        foreach (array(
+            '.stic-auth[data-mode="magic"] .stic-auth-tab[data-auth-toggle="magic"]:focus-visible',
+            '.stic-auth[data-mode="password"] .stic-auth-tab[data-auth-toggle="password"]:focus-visible',
+            '.stic-appearance-btn[aria-pressed="true"]:focus-visible',
+            '.stic-send input.stic-button[type="button"]:focus-visible',
+            '.stic-send input.stic-button.stic-danger-button:focus-visible',
+        ) as $sel) {
+            $this->assertMatchesRegularExpression(
+                '/' . preg_quote($sel, '/') . '\s*(,[^{]*)?\{[^}]*box-shadow: var\(--focus-ring\) !important;/',
+                $css,
+                $sel
+            );
+        }
+    }
+
+    /**
+     * CAR-6 (plan 043, fila 6). La cabecera de las fichas (evento, pago,
+     * inscripción) iba en el degradado de marca justo debajo de la barra, que
+     * también lo es: dos bloques de marca seguidos que no se cierran (design.md
+     * §3). Va en superficie neutra, el título en tinta y los chips con el tono
+     * de las tarjetas del listado, sin la versión de cristal.
+     */
+    public function test_la_cabecera_de_la_ficha_no_lleva_el_degradado()
+    {
+        $css = preg_replace('#/\*.*?\*/#s', '', $this->css('custom-style.css'));
+        $hero = $this->rule($css, '.stic-rec-hero');
+        $this->assertStringContainsString('background: var(--surface);', $hero);
+        $this->assertStringNotContainsString('grad-brand', $hero);
+        $this->assertStringNotContainsString('.stic-rec-hero::after', $css);
+        $this->assertStringNotContainsString('.stic-rec-hero-meta .stic-rec-chip', $css, 'Los chips, con su tono normal.');
+        $titulo = $this->rule($css, '.stic-container .stic-rec-hero-title,
+.stic-rec-hero-title');
+        $this->assertStringContainsString('-webkit-text-fill-color: var(--gray-900) !important;', $titulo);
+        $this->assertStringNotContainsString('on-brand', $this->rule($css, '.stic-rec-back'));
+        $this->assertStringNotContainsString('on-brand', $this->rule($css, '.stic-rec-hero-sub'));
+    }
+
+    /**
+     * FAM-a13 (plan 043, fila 7). Los iconos de acceso de la portada iban en
+     * el degradado, siete u ocho más la barra y el saludo: «degradado en todas
+     * partes» (design.md §8). Van en tinta suave, el mismo par que el icono de
+     * los datos de una ficha, que en oscuro se recalcula solo (§44.a).
+     */
+    public function test_los_iconos_de_la_portada_van_en_tinta_suave()
+    {
+        $css = preg_replace('#/\*.*?\*/#s', '', $this->css('custom-style.css'));
+        $icono = $this->rule($css, '.stic-dash-icon');
+        $this->assertStringContainsString('background: var(--primary-50);', $icono);
+        $this->assertStringContainsString('color: var(--primary-color);', $icono);
+        $this->assertDoesNotMatchRegularExpression('/\.stic-dash-icon\s*\{[^}]*grad-brand/', $css);
+    }
+
+    /**
+     * FAM-a11 (plan 043, fila 8). El selector de hijo de la barra medía 31 px
+     * de alto con un área táctil ampliada por un ::before invisible. El
+     * propietario quiso que lo que se ve mida 44: el botón lleva su
+     * min-height, y el ::before sobra (ampliaría el toque por encima de 44).
+     */
+    public function test_el_selector_de_hijo_mide_44_a_la_vista()
+    {
+        $css = preg_replace('#/\*.*?\*/#s', '', $this->css('custom-style.css'));
+        $this->assertMatchesRegularExpression('/\.stic-part-switch-btn \{ min-height: 44px; \}/', $css);
+        $this->assertStringNotContainsString('.stic-part-switch-btn::before', $css);
     }
 }

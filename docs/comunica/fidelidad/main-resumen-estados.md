@@ -31,7 +31,8 @@ arranca a 40 px, y el botón de «Resumen de grupos» ya cuadraban.
 | «Resumen de grupos» | alto 48 px · radio 1.1 rem · borde `--gray-200` · 0.92 rem/700 | — |
 
 **El número de la pastilla** es participantes cuando el recuento nocturno está
-fresco y grupos cuando no, con la unidad dicha («12 gr.»). Es una decisión ya
+fresco y grupos cuando no, con la unidad dicha y entera: «12 chavalines» o
+«1 grupo» (plan 043, fila 4; antes «12» a secas y «12 gr.»). Es una decisión ya
 tomada y escrita en la propia pantalla: un número que no se puede calcular no se
 inventa, se cambia por el que sí y se dice cuál es.
 

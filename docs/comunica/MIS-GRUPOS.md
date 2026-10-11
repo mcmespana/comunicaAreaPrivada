@@ -260,7 +260,7 @@ CRM.
 ## 8. Decisiones que parecen detalles y no lo son
 
 **El cero inventado.** Si el mapa de relaciones viene a medias, contar da cero,
-y un «0 chavales» al lado de un grupo que tiene doce **se lee como un dato**, no
+y un «0 chavalines» al lado de un grupo que tiene doce **se lee como un dato**, no
 como un fallo. Cuando no hay a quién contar se usa el recuento que deja el
 Guardián por la noche ([`PASAR-LISTA-RECUENTOS.md`](PASAR-LISTA-RECUENTOS.md)),
 y si tampoco ese está fresco, un hueco.
@@ -269,6 +269,13 @@ y si tampoco ese está fresco, un hueco.
 `sticpa_pl_group_people()` por grupo: no cuesta llamadas al CRM, pero recorre el
 mapa entero una vez por grupo — con 28 grupos y 600 relaciones son diecisiete
 mil vueltas para pintar veintiocho números. Se recorre una vez y se cuenta todo.
+
+**«Chavalines», en todos los recuentos de gente** (plan 043, fila 4,
+decidido por el propietario el 10/10/2026): «9 chavalines», «1 chavalín», con
+`_n()`. Antes Mis grupos decía «chavales» y Pasar Lista «participantes» para el
+mismo número. Vale para las pastillas y las líneas de recuento de las dos
+secciones; «participante» como papel (la relación, «participantes sin grupo
+asignado») no cambia.
 
 **`vengo` solo acepta valores conocidos.** Lo que venga en la URL nunca se
 convierte en un enlace tal cual, y si no se reconoce **se tira**: si solo se
@@ -287,6 +294,42 @@ Cursos / A-Z» medían 37 y las de «Chavales / Monitores» (ya retiradas), 32: 
 mínimo táctil de `design.md` §2, que gana a lo demás. No hay artboard de esta
 pantalla; si algún día lo hay y dibuja pestañas más bajas, esto no se «arregla»
 de vuelta.
+
+---
+
+## 8 bis. Lo importante del grupo, de un vistazo (plan 043, fila 9; F3)
+
+A las 18:00 la pregunta es «¿quién se puede ir solo?», y antes de subir fotos,
+«¿quién no puede salir?». Eso estaba ficha a ficha, y nadie abre doce fichas un
+sábado. Ahora, en la lista de un grupo (`?grupo=<id>`) **y en la de marcar**,
+cada chaval lleva bajo el nombre como mucho tres pastillas de texto pequeñas:
+
+| Pastilla | Cuándo sale |
+|---|---|
+| **No se va solo/a** | `ajmcm_soloacasa_c` es «0» |
+| **Sin fotos** | `ajmcm_cesionimagenes_interne_c` es «0» |
+| **Alergia o tratamiento** | Hay texto en `ajmcm_descripcion_allergies__c`, `_intoler_c` o `_tratam_c`, **salvo** que `ajmcm_datossalud_c` sea «0» |
+
+Las decide `sticpa_pl_marcas_de()` y las pinta `sticpa_pl_marcas_html()`
+(`css/pasar-lista.css`, `.pl-marca`). Reglas que no se discuten:
+
+- **Un vacío no es un «no».** Las fichas migradas llegan con los permisos sin
+  contestar (CAMPOS.md, «Llegó VACÍO»); solo marca el «0» explícito.
+- **La de salud no dice cuál ni qué.** Ni en el texto ni en un atributo: estas
+  pantallas se guardan en el móvil para usarlas sin conexión. El detalle está en
+  la ficha. Lo que llega a la caché del mapa son las claves (`'salud'`), nunca
+  el texto.
+- **Solo los chavales.** Los monitores del grupo no llevan marcas.
+- **Ni una llamada más.** Los seis campos viajan en el enlace `persona` del mapa
+  de relaciones (`sticpa_pl_all_relationships_raw()`, caché `relshist2`) y en la
+  consulta de contactos del respaldo. Lo vigila
+  `CosteLlamadasTest::testLasMarcasDelGrupoNoCuestanLlamadas`.
+
+**El filtro «¿Quién no puede salir en fotos?»** va bajo el buscador de la ficha
+del grupo: el chip `.pl-evchip` de la lista de un evento, con cuántos son. Deja a
+la vista solo las filas con `data-pl-sin-fotos` y se combina con el buscador, sin
+ir al servidor. Solo sale si hay alguien con «Sin fotos»: un «0» no querría decir
+«todos pueden salir», porque quien no ha contestado no lleva la marca.
 
 ---
 

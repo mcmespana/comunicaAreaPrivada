@@ -651,6 +651,68 @@ function sticpa_family_deep_link_destination($source)
 }
 
 /**
+ * A DÓNDE SE VUELVE AL CAMBIAR DE HIJO desde el selector de la barra (plan
+ * 043, FAM-a8, decidido el 10/10/2026).
+ *
+ * Antes se iba SIEMPRE a la portada, y apuntar a dos hermanos a la misma
+ * convivencia costaba siete toques: elegir al otro, Eventos, la tarjeta,
+ * Inscribirme… Ahora se vuelve a la página en la que se estaba, pero SOLO si
+ * no es de nadie: la lista de eventos, la ficha de un evento y el calendario.
+ * Una ficha personal (una inscripción, un pago) es del hijo de antes, y la
+ * comprobación de propiedad la negaría con el nuevo: esas, a la portada, como
+ * siempre.
+ *
+ * Pasa primero por la lista blanca del login (sticpa_login_destination_args():
+ * una página de `pages/` y `action`/`id` con su forma, nada de URLs) y luego
+ * por la de aquí, que es más corta. De la ficha de un evento se quedan
+ * `action=detail` y el `id`; del resto, solo la página. Y solo si esa sección
+ * se le enseña a quien está viendo ahora (sticpa_visible_sections()): quien se
+ * elige a sí misma y solo es familiar no tiene Eventos ni Calendario, así que
+ * a la portada.
+ *
+ * @param array|string $source Los parámetros de la página (`$_GET`) o la query
+ *                             tal cual viaja en el enlace del selector.
+ * @return array Vacío si no hay a dónde volver (→ la portada).
+ */
+function sticpa_family_switch_destination($source)
+{
+    if (!function_exists('sticpa_login_destination_args')) {
+        return array();
+    }
+    if (is_string($source)) {
+        $params = array();
+        parse_str($source, $params);
+        $source = $params;
+    }
+    $args = sticpa_login_destination_args((array) $source);
+    if (empty($args)) {
+        return array();
+    }
+    // Página que se puede volver a abrir => la sección del menú a la que va.
+    $paginas = array(
+        'list_stic_events'                => 'list_stic_events',
+        'single_stic_events'              => 'list_stic_events',
+        'single_stic_activities_calendar' => 'single_stic_activities_calendar',
+    );
+    $page = $args['internalpage'];
+    if (!isset($paginas[$page])) {
+        return array();
+    }
+    if ($page === 'single_stic_events') {
+        if (($args['action'] ?? '') !== 'detail' || empty($args['id'])) {
+            return array();
+        }
+        $destino = array('internalpage' => $page, 'action' => 'detail', 'id' => $args['id']);
+    } else {
+        $destino = array('internalpage' => $page);
+    }
+    if (empty(sticpa_visible_sections(array($paginas[$page] => '')))) {
+        return array();
+    }
+    return $destino;
+}
+
+/**
  * A DÓNDE se aterriza tras el login, cuando la URL no pide página concreta.
  * El estado de la sesión ya lo ha dejado montado sticpa_bootstrap_family().
  */

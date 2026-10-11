@@ -2,6 +2,25 @@
 
 use PHPUnit\Framework\TestCase;
 
+if (!class_exists('StiRedirect')) {
+    /** El handler «redirige»: se corta aquí, antes del `exit`, y se mira a dónde. */
+    class StiRedirect extends Exception
+    {
+        public $url;
+        public function __construct($url)
+        {
+            parent::__construct('redirect: ' . $url);
+            $this->url = (string) $url;
+        }
+    }
+}
+if (!function_exists('wp_safe_redirect')) {
+    function wp_safe_redirect($url, $status = 302)
+    {
+        throw new StiRedirect($url);
+    }
+}
+
 /**
  * QUIÉN ERES Y QUÉ VES (inc/stic-family.php).
  *
@@ -469,6 +488,152 @@ class FamilyContextTest extends TestCase
             'Volver a la selección no es un destino');
         $this->assertSame(array('internalpage' => 'list_stic_events'),
             sticpa_family_deep_link_destination('internalpage=list_stic_events&id=no-es-un-uuid&redirect_to=https://malo.example'));
+    }
+
+    /* ------------------------------------- Cambiar de hijo (FAM-a8) */
+
+    /** Marta, viendo a Lucía, con sus dos hijos en sesión. */
+    private function sesionViendoALucia()
+    {
+        $_SESSION = array(
+            'scp_user_id' => 'lucia',
+            'scp_user_contact_name' => 'Messeguer, Lucía',
+            'scp_user_adult' => false,
+            'scp_tutor_user_id' => 'f1',
+            'scp_tutor_user_contact_name' => 'Messeguer, Marta',
+            'scp_tutor_is_user' => false,
+            'scp_tutor_es_miembro' => false,
+            'scp_available_profiles' => array(
+                array('id' => 'lucia', 'name' => 'Messeguer, Lucía'),
+                array('id' => 'martin', 'name' => 'Messeguer, Martín'),
+            ),
+        );
+    }
+
+    /**
+     * El selector de la barra con `volver` = la página de ahora, tal y como
+     * viaja (una query en un solo parámetro) y PHP la deja en `$_REQUEST`.
+     * Devuelve a dónde manda el handler de verdad.
+     */
+    private function cambiarA($id, $volver)
+    {
+        $_REQUEST = array(
+            'action' => 'single_stic_profile_selection',
+            'profile_selected_id' => $id,
+            'scp_current_url' => '/ap/',
+        );
+        if ($volver !== null) {
+            $_REQUEST['volver'] = is_array($volver)
+                ? rawurldecode(rawurlencode(http_build_query($volver, '', '&', PHP_QUERY_RFC3986)))
+                : $volver;
+        }
+        // El doble del CRM: con los hijos en sesión no se le pregunta nada,
+        // pero así el handler no intenta conectarse.
+        SugarRestApiCall::$objSCP = new stdClass();
+        try {
+            prefix_admin_single_stic_profile_selection();
+        } catch (StiRedirect $r) {
+            return $r->url;
+        } finally {
+            SugarRestApiCall::$objSCP = null;
+            $_REQUEST = array();
+        }
+        $this->fail('El handler no ha redirigido');
+    }
+
+    private $evento = '000006cd-2b27-b8e1-ad34-6ab060f8cb01';
+
+    /** A Lucía ya la ha apuntado; cambia a Martín desde la lista de eventos y sigue en ella. */
+    public function testCambiarDeHijoEnLaListaDeEventosVuelveAElla()
+    {
+        $this->sesionViendoALucia();
+        $this->assertSame('/ap/?internalpage=list_stic_events',
+            $this->cambiarA('martin', array('internalpage' => 'list_stic_events')));
+        $this->assertSame('martin', $_SESSION['scp_user_id'], 'Y el cambio se ha hecho');
+    }
+
+    /** Desde la ficha de la convivencia: vuelve a la misma ficha, con su id. */
+    public function testCambiarDeHijoEnLaFichaDeUnEventoVuelveALaFicha()
+    {
+        $this->sesionViendoALucia();
+        $this->assertSame('/ap/?internalpage=single_stic_events&action=detail&id=' . $this->evento,
+            $this->cambiarA('martin', array(
+                'internalpage' => 'single_stic_events', 'action' => 'detail', 'id' => $this->evento,
+            )));
+    }
+
+    public function testCambiarDeHijoEnElCalendarioVuelveAlCalendario()
+    {
+        $this->sesionViendoALucia();
+        $this->assertSame('/ap/?internalpage=single_stic_activities_calendar',
+            $this->cambiarA('martin', array('internalpage' => 'single_stic_activities_calendar')));
+    }
+
+    /** Sin `volver` (desde la portada, o un enlace viejo), a la portada como siempre. */
+    public function testSinPaginaDeVueltaVaALaPortada()
+    {
+        $this->sesionViendoALucia();
+        $this->assertSame('/ap/?internalpage=single_stic_home', $this->cambiarA('martin', null));
+    }
+
+    /**
+     * Lo que es de alguien NO: los pagos de Lucía no son de Martín, y la
+     * comprobación de propiedad los negaría. Tampoco una URL de fuera, una
+     * ficha de evento con un id que no es un id o sin `action=detail`.
+     */
+    public function testCambiarDeHijoNoVuelveAUnaPaginaPersonalNiAOtroSitio()
+    {
+        $portada = '/ap/?internalpage=single_stic_home';
+        $casos = array(
+            'pagos' => array('internalpage' => 'list_stic_payments'),
+            'una inscripción' => array('internalpage' => 'single_stic_registrations', 'action' => 'detail', 'id' => $this->evento),
+            'sus datos' => array('internalpage' => 'single_stic_comunica_perfil'),
+            'la portada' => array('internalpage' => 'single_stic_home'),
+            'la selección' => array('internalpage' => 'single_stic_profile_selection'),
+            'id con basura' => array('internalpage' => 'single_stic_events', 'action' => 'detail', 'id' => "x'><script>alert(1)</script>"),
+            'ficha sin id' => array('internalpage' => 'single_stic_events', 'action' => 'detail'),
+            'editar un evento' => array('internalpage' => 'single_stic_events', 'action' => 'edit', 'id' => $this->evento),
+            'URL externa' => 'https://malo.example/?internalpage=list_stic_events',
+            'página que es una URL' => array('internalpage' => 'https://malo.example'),
+            'ruta' => array('internalpage' => '../../wp-config'),
+        );
+        foreach ($casos as $que => $volver) {
+            $this->sesionViendoALucia();
+            $this->assertSame($portada, $this->cambiarA('martin', $volver), $que);
+        }
+    }
+
+    /** De la lista de eventos se queda la página y nada más: ni ids ni redirecciones colgando. */
+    public function testDeLaVueltaSoloSeQuedaLoQueHaceFalta()
+    {
+        $this->sesionViendoALucia();
+        $this->assertSame(array('internalpage' => 'list_stic_events'), sticpa_family_switch_destination(
+            'internalpage=list_stic_events&id=' . $this->evento . '&redirect_to=https://malo.example&action=detail'));
+        $this->assertSame(array('internalpage' => 'single_stic_events', 'action' => 'detail', 'id' => $this->evento),
+            sticpa_family_switch_destination(array(
+                'internalpage' => 'single_stic_events', 'action' => 'detail', 'id' => $this->evento, 'from' => 'calendar',
+            )));
+    }
+
+    /**
+     * Quien se elige a sí misma y solo es familiar no tiene Eventos ni
+     * Calendario en el menú (sticpa_visible_sections): a la portada.
+     */
+    public function testElegirseASiMismaSoloFamiliarVaALaPortada()
+    {
+        $this->sesionViendoALucia();
+        $this->assertSame('/ap/?internalpage=single_stic_home',
+            $this->cambiarA('f1', array('internalpage' => 'list_stic_events')));
+        $this->assertTrue($_SESSION['scp_tutor_is_user']);
+    }
+
+    /** Un id que no es de la familia no cambia nada ni sigue la vuelta: a la selección. */
+    public function testUnHijoQueNoEsDeLaFamiliaNoSigueLaVuelta()
+    {
+        $this->sesionViendoALucia();
+        $this->assertSame('/ap/?internalpage=single_stic_profile_selection',
+            $this->cambiarA('otra-persona', array('internalpage' => 'list_stic_events')));
+        $this->assertSame('lucia', $_SESSION['scp_user_id'], 'Sigue viendo a Lucía');
     }
 
     /**

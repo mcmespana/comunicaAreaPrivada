@@ -26,7 +26,8 @@ $sessionId = isset($_REQUEST['sesion']) ? sticpa_pl_safe_id($_REQUEST['sesion'])
 
 // TANDA 1: lo que no depende de nada. Los eventos ya los ha pedido la portada
 // de Pasar Lista (y están cacheados como estructura); los grupos y las
-// relaciones son para el enlace a la ficha de cada uno.
+// relaciones dan el curso, el grupo y la etapa de cada uno, y el enlace a su
+// ficha.
 sticpa_pl_prime($objSCP, function () use ($objSCP, $eventId) {
     sticpa_pl_etapa_events($objSCP);
     sticpa_pl_groups($objSCP);
@@ -173,7 +174,15 @@ sticpa_pl_prime($objSCP, function () use ($objSCP, $ids, $session, $regMapPrevio
     }
 });
 $personas = sticpa_pl_ev_personas($objSCP, $ids);
-$lista = sticpa_pl_ev_lista($inscripciones, $personas, sticpa_pl_ev_grupos_de($objSCP));
+// El curso y el grupo salen de la relación de participante vigente más
+// reciente de cada uno, del mapa de relaciones ya cacheado: cero llamadas.
+$relaciones = sticpa_pl_all_relationships($objSCP);
+$lista = sticpa_pl_ev_lista(
+    $inscripciones,
+    $personas,
+    sticpa_pl_ev_grupos_de($relaciones, sticpa_pl_groups($objSCP)),
+    sticpa_pl_ev_cursos_de($relaciones)
+);
 $regMap = $lista['regMap'];
 
 // ---------------------------------------------------------------------------
@@ -367,7 +376,8 @@ $html .= '<input type="hidden" name="pl_marks" value="" data-pl-marks>';
 $html .= '<input type="hidden" name="pl_notes" value="" data-pl-notes>';
 
 // Buscar a alguien («¿y Lucía?») y filtrar por curso. Todo en el navegador:
-// la lista ya está entera en la página.
+// la lista ya está entera en la página. Los chips se quedan pegados arriba al
+// bajar; el buscador no (dos barras pegadas se comen media pantalla del móvil).
 $html .= '<div class="pl-search">' . sticpa_pl_icon('search')
     . '<input type="search" data-pl-ev-buscar placeholder="' . esc_attr__('Buscar por nombre', 'sticpa') . '"'
     . ' aria-label="' . esc_attr__('Buscar por nombre', 'sticpa') . '" autocomplete="off" enterkeyhint="search"></div>';
@@ -381,30 +391,18 @@ $html .= '<button type="button" class="pl-all-present" data-pl-all-present'
     . ' data-label-rest="' . esc_attr__('El resto está ({n})', 'sticpa') . '">'
     . sticpa_pl_glyph('check') . '<span data-pl-all-label>' . esc_html__('Están todos', 'sticpa') . '</span></button>';
 
-// Por etapa: MIC, COM, LC y, si hay, «Sin etapa».
-$porEtapa = array('MIC' => array(), 'COM' => array(), 'LC' => array(), '' => array());
-foreach ($lista['activos'] as $p) {
-    $porEtapa[$p['etapa']][] = $p;
-}
-foreach ($porEtapa as $etapa => $gente) {
-    if (empty($gente)) {
-        continue;
+// Por etapa (MIC, COM, LC y, si hay, «Sin etapa») y, dentro, por curso; en
+// cada curso, por apellidos.
+$html .= sticpa_pl_ev_secciones_html($lista['activos'], function ($p) use ($attendances, $saved, $savedOk, $marks) {
+    $state = isset($attendances[$p['id']]['status']) ? $attendances[$p['id']]['status'] : '';
+    // Tras un guardado que NO se confirmó, lo que se pinta es lo marcado:
+    // el monitor no puede perder sus marcas por un fallo del CRM.
+    if (is_array($saved) && !$savedOk && isset($marks[$p['id']])) {
+        $state = $marks[$p['id']];
     }
-    $html .= '<div class="pl-etapa-title pl-evsec" data-pl-ev-sec><span>' . esc_html(sticpa_pl_ev_etapa_titulo($etapa)) . '</span>'
-        . '<span class="pl-etapa-count">' . count($gente) . '</span></div>';
-    $html .= '<div class="pl-list" data-pl-ev-list>';
-    foreach ($gente as $p) {
-        $state = isset($attendances[$p['id']]['status']) ? $attendances[$p['id']]['status'] : '';
-        // Tras un guardado que NO se confirmó, lo que se pinta es lo marcado:
-        // el monitor no puede perder sus marcas por un fallo del CRM.
-        if (is_array($saved) && !$savedOk && isset($marks[$p['id']])) {
-            $state = $marks[$p['id']];
-        }
-        $motive = isset($attendances[$p['id']]['description']) ? $attendances[$p['id']]['description'] : '';
-        $html .= sticpa_pl_ev_row_html($p, $state, $motive);
-    }
-    $html .= '</div>';
-}
+    $motive = isset($attendances[$p['id']]['description']) ? $attendances[$p['id']]['description'] : '';
+    return sticpa_pl_ev_row_html($p, $state, $motive);
+});
 $html .= '<p class="pl-search-empty" data-pl-ev-vacio hidden>' . esc_html__('Nadie coincide con lo que buscas.', 'sticpa') . '</p>';
 
 $html .= sticpa_pl_ev_fuera_html($lista['fuera']);
