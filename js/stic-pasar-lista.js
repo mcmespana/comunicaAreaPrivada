@@ -1534,10 +1534,18 @@
 
         // Se guardan las filas y su texto normalizado UNA vez: normalizar en
         // cada pulsación es trabajo repetido sobre algo que no cambia.
+        // Sin el texto de las marcas («No se va solo/a», «Alergia…»): si no,
+        // buscar «Sol» o «Ale» sacaba a todos los que llevan una.
         var rows = [];
         Array.prototype.forEach.call(
             document.querySelectorAll(PL_FILTRABLE),
-            function (el) { rows.push({ el: el, hay: norm(el.textContent) }); }
+            function (el) {
+                var copia = el.cloneNode(true);
+                Array.prototype.forEach.call(copia.querySelectorAll('.pl-marcas'), function (m) {
+                    m.parentNode.removeChild(m);
+                });
+                rows.push({ el: el, hay: norm(copia.textContent) });
+            }
         );
 
         function norm(str) {
