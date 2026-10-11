@@ -7251,17 +7251,14 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     font-size: 0.82rem;
 }
 
-/* --- 64.b El selector de participante, con 44 px de dedo (FAM-a11) ---
-   Es EL control de una familia y medía 172×31. Subirlo a 44 de alto
-   agrandaba la barra de identidad 13 px en cada pantalla; en su lugar se
-   amplía el área táctil alrededor, sin cambiar lo que se ve (el mismo
-   patrón que .stic-info y .stic-appearance-btn, WCAG 2.5.8). */
-.stic-part-switch-btn { position: relative; }
-.stic-part-switch-btn::before {
-    content: '';
-    position: absolute;
-    inset: -7px -2px;
-}
+/* --- 64.b El selector de participante, a 44 px de verdad (FAM-a11) ---
+   Es EL control de una familia y medía 172×31. Primero se le amplió solo el
+   área táctil (un ::before invisible), para no crecer la barra; el
+   propietario prefirió que lo que se ve mida 44 (plan 043, fila 8): la barra
+   de identidad crece ~13 px en las pantallas de familia, y a cambio el botón
+   parece lo que es. Nada va pegado a la barra (no es sticky) y el desplegable
+   se ancla por JS al botón, así que no hay que mover nada más. */
+.stic-part-switch-btn { min-height: 44px; }
 
 /* --- 64.c Tarjeta de persona sin etiqueta (FAM-a11) ---
    Los hijos ya no llevan «Participante» (lo llevaban todos y no distinguía

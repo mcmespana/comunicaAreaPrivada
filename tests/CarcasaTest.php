@@ -232,4 +232,17 @@ class CarcasaTest extends TestCase
         $this->assertStringContainsString('color: var(--primary-color);', $icono);
         $this->assertDoesNotMatchRegularExpression('/\.stic-dash-icon\s*\{[^}]*grad-brand/', $css);
     }
+
+    /**
+     * FAM-a11 (plan 043, fila 8). El selector de hijo de la barra medía 31 px
+     * de alto con un área táctil ampliada por un ::before invisible. El
+     * propietario quiso que lo que se ve mida 44: el botón lleva su
+     * min-height, y el ::before sobra (ampliaría el toque por encima de 44).
+     */
+    public function test_el_selector_de_hijo_mide_44_a_la_vista()
+    {
+        $css = preg_replace('#/\*.*?\*/#s', '', $this->css('custom-style.css'));
+        $this->assertMatchesRegularExpression('/\.stic-part-switch-btn \{ min-height: 44px; \}/', $css);
+        $this->assertStringNotContainsString('.stic-part-switch-btn::before', $css);
+    }
 }
