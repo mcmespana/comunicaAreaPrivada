@@ -193,6 +193,40 @@ function sticpa_pl_recuento_texto($nParticipantes, $nMonitores = 0)
 }
 
 /**
+ * LAS MARCAS DE UNA PERSONA en la lista del grupo (plan 043, fila 9; F3).
+ *
+ * A las 18:00 la pregunta es «¿quién se puede ir solo?», y antes de subir
+ * fotos, «¿quién no puede salir?». Eso estaba ficha a ficha. Aquí va una
+ * pastilla de texto pequeña por cosa, debajo del nombre y como mucho tres
+ * —`sticpa_pl_marcas_de()` decide cuáles—, sin color de alarma salvo la de
+ * salud, y sin iconos: una fila de símbolos es lo que design.md §8 no quiere,
+ * y un icono que solo se explica en un `title` no se explica en el móvil. El
+ * `title` de cada pastilla solo amplía lo que ya se lee.
+ *
+ * La de salud NO dice cuál ni qué: el detalle está en la ficha. Ni en el texto
+ * ni en un atributo, porque estas pantallas se guardan en el móvil.
+ *
+ * @param string[] $marcas claves de `sticpa_pl_marcas_de()`.
+ */
+function sticpa_pl_marcas_html($marcas)
+{
+    $textos = array(
+        'no_solo' => array(__('No se va solo/a', 'sticpa'), __('No tiene autorización para irse solo/a a casa', 'sticpa')),
+        'sin_fotos' => array(__('Sin fotos', 'sticpa'), __('No autoriza la cesión de imágenes', 'sticpa')),
+        'salud' => array(__('Alergia o tratamiento', 'sticpa'), __('Tiene alergias, intolerancias o tratamientos: el detalle está en su ficha', 'sticpa')),
+    );
+    $out = '';
+    foreach ((array) $marcas as $m) {
+        if (!isset($textos[$m])) {
+            continue;
+        }
+        $out .= '<span class="pl-marca pl-marca--' . esc_attr($m) . '" title="' . esc_attr($textos[$m][1]) . '">'
+            . esc_html($textos[$m][0]) . '</span>';
+    }
+    return ($out === '') ? '' : '<span class="pl-marcas">' . $out . '</span>';
+}
+
+/**
  * La nota al pie de los grupos que la casilla del CRM deja fuera.
  *
  * En gris pequeño y al final: es una nota al pie, no un aviso. Pero tiene que
@@ -230,12 +264,16 @@ function sticpa_pl_grupos_ocultos_html($objSCP)
  * Lo que SÍ se reutiliza es todo lo visible: las mismas clases, el mismo
  * avatar, la misma tipografía, la misma flecha. Se ve igual porque ES igual.
  */
-function sticpa_pl_person_link_html($person, $href, $sub = '', $extra = '', $conFoto = false)
+function sticpa_pl_person_link_html($person, $href, $sub = '', $extra = '', $conFoto = false, $marcas = array())
 {
-    $html = '<a class="pl-rowwrap pl-rowlink" href="' . esc_url($href) . '">';
+    // `data-pl-sin-fotos` es lo que mira el filtro «¿Quién no puede salir en
+    // fotos?» de Mis grupos. Solo esa marca: la de salud no se dice en el HTML.
+    $html = '<a class="pl-rowwrap pl-rowlink" href="' . esc_url($href) . '"'
+        . (in_array('sin_fotos', (array) $marcas, true) ? ' data-pl-sin-fotos' : '') . '>';
     $html .= sticpa_pl_avatar_html($person, $conFoto);
     $html .= '<span class="pl-row-body">';
     $html .= '<span class="pl-name">' . esc_html($person['name']) . '</span>';
+    $html .= sticpa_pl_marcas_html($marcas);
     if ($sub !== '') {
         $html .= '<span class="pl-rowsub">' . esc_html($sub) . '</span>';
     }
@@ -419,7 +457,7 @@ function sticpa_pl_pager_html($vecinos, $href)
  * porqué tiene que verse sin abrir nada. En la de los chavales no, por ahora:
  * tiene su diseño medido y ahí el motivo pesa menos (26/09/2026).
  */
-function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub = '', $motive = '', $aviso = '', $track = null, $motiveEnNota = false)
+function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub = '', $motive = '', $aviso = '', $track = null, $motiveEnNota = false, $marcas = array())
 {
     $states = sticpa_pl_states();
     $state = sticpa_pl_is_state($state) ? $state : '';
@@ -493,6 +531,9 @@ function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub =
     $html .= '<span class="pl-row-body">';
     $html .= '<span class="pl-name">' . esc_html($person['name']) . '</span>';
     $html .= '<span class="sr-only" data-pl-sr-state>' . ($srState !== '' ? esc_html(', ' . $srState) : '') . '</span>';
+    // Las marcas del grupo («No se va solo/a», «Sin fotos»…), solo en la
+    // lista de los chavales: quien llama las pasa (plan 043, fila 9).
+    $html .= sticpa_pl_marcas_html($marcas);
     // Línea fija: los grupos de un monitor. Es lo que distingue a dos personas
     // con el mismo nombre de pila y lo que explica por qué están en esta lista.
     if ($sub !== '' || $track !== null) {

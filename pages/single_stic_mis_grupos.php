@@ -279,6 +279,28 @@ if ($groupId !== '' && isset($groups[$groupId])) {
 
     $html .= sticpa_pl_buscador_html(__('Buscar por nombre…', 'sticpa'));
 
+    /* «¿QUIÉN NO PUEDE SALIR EN FOTOS?» (plan 043, fila 9; F3). La pregunta de
+     * antes de subir fotos, contestada con un toque: deja a la vista solo a
+     * quien tiene la marca «Sin fotos». Es el chip de filtro que ya usa la
+     * lista de un evento (`.pl-evchip`), y filtra lo pintado junto con el
+     * buscador, sin ir al servidor.
+     *
+     * Solo sale si hay alguien: quien no ha contestado la cesión no lleva la
+     * marca (un vacío no es un «no»), así que un «0» aquí no querría decir
+     * «todos pueden salir». */
+    $sinFotos = 0;
+    foreach ($people['participants'] as $p) {
+        if (isset($p['marcas']) && in_array('sin_fotos', $p['marcas'], true)) {
+            $sinFotos++;
+        }
+    }
+    if ($sinFotos > 0) {
+        $html .= '<div class="pl-evchips">'
+            . '<button type="button" class="pl-evchip" data-pl-filtro-fotos aria-pressed="false">'
+            . esc_html__('¿Quién no puede salir en fotos?', 'sticpa')
+            . '<span class="pl-evchip-n">' . (int) $sinFotos . '</span></button></div>';
+    }
+
     if (!empty($people['monitors'])) {
         $html .= '<div class="pl-sec">' . esc_html__('Monitores', 'sticpa') . '</div>';
         $html .= '<div class="pl-list">';
@@ -320,7 +342,8 @@ if ($groupId !== '' && isset($groups[$groupId])) {
                     . '&grupo=' . rawurlencode($groupId) . '&vengo=grupo',
                 $sub,
                 '',
-                true
+                true,
+                isset($p['marcas']) ? $p['marcas'] : array()
             );
         }
         $html .= '</div>';

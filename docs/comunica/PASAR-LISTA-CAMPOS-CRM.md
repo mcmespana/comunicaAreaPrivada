@@ -168,10 +168,12 @@ duplicados. Todo lo de abajo lo necesita «Pasar Lista» y **ya está en el CRM*
 | `ajmcm_etapa_c` | MIC / COM / LC — el primer nivel del árbol de navegación |
 | `ajmcm_nivel_com_c` | Nivel personal I-IV. **No** es el segmento del grupo |
 | `ajmcm_panuelo_c` | Ficha del participante, editable con confirmación |
-| `ajmcm_soloacasa_c` | Ficha: «puede irse solo a casa» |
+| `ajmcm_soloacasa_c` | Ficha: «puede irse solo a casa». Y con «0», la marca «No se va solo/a» de la lista |
+| `ajmcm_cesionimagenes_interne_c` | Ficha: «cesión de imágenes». Y con «0», la marca «Sin fotos» de la lista y el filtro de Mis grupos |
+| `ajmcm_datossalud_c` | Con «0», la lista NO pinta la marca de salud |
 | `stic_age_c` | Ficha: la edad, ya calculada desde `birthdate` |
 | `birthdate` | Ficha |
-| `ajmcm_descripcion_allergies__c` y hermanos (intolerancias, tratamientos, enfermedades, otros) | Ficha: bloque de salud |
+| `ajmcm_descripcion_allergies__c` y hermanos (intolerancias, tratamientos, enfermedades, otros) | Ficha: bloque de salud. Alergias, intolerancias y tratamientos dan además la marca «Alergia o tratamiento» de la lista, sin el texto |
 | `ajmcm_menorwhatsapp_c` | Si se puede o no meter al menor en WhatsApp — **condiciona el botón de WhatsApp de la ficha** |
 | `ajmcm_centro_educativo_c` | Ficha (secundario) |
 | `stic_relationship_type_c` | Detección de rol (monitor / laico), ya se usa hoy |

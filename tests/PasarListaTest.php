@@ -872,4 +872,81 @@ final class PasarListaTest extends TestCase
         $this->assertStringContainsString("start_date <= '2026-09-28 10:00:00'", $sql);
     }
 
+    // ---- Las marcas de la lista del grupo (plan 043, fila 9) ---------------
+
+    /** Una fila con la forma de la API (`->campo->value`). */
+    private static function nvlMarcas(array $campos)
+    {
+        $o = new stdClass();
+        foreach ($campos as $k => $v) {
+            $o->$k = (object) array('name' => $k, 'value' => $v);
+        }
+        return $o;
+    }
+
+    /** «0» marca; «1», el vacío y el campo que no llega, no. */
+    public function test_las_marcas_salen_solo_de_un_no()
+    {
+        $this->assertSame(array('no_solo', 'sin_fotos'), sticpa_pl_marcas_de(self::nvlMarcas(array(
+            'ajmcm_soloacasa_c' => '0', 'ajmcm_cesionimagenes_interne_c' => '0',
+        ))));
+        $this->assertSame(array(), sticpa_pl_marcas_de(self::nvlMarcas(array(
+            'ajmcm_soloacasa_c' => '1', 'ajmcm_cesionimagenes_interne_c' => '1',
+        ))));
+        // UN VACÍO NO ES UN «NO»: la ficha migrada sin contestar no se marca.
+        $this->assertSame(array(), sticpa_pl_marcas_de(self::nvlMarcas(array(
+            'ajmcm_soloacasa_c' => '', 'ajmcm_cesionimagenes_interne_c' => ' ',
+        ))));
+        $this->assertSame(array(), sticpa_pl_marcas_de(self::nvlMarcas(array())));
+        $this->assertSame(array(), sticpa_pl_marcas_de(null));
+    }
+
+    /** La de salud: cualquiera de los tres textos, salvo si no autoriza su uso. */
+    public function test_la_marca_de_salud()
+    {
+        foreach (array('ajmcm_descripcion_allergies__c', 'ajmcm_descripcion_intoler_c', 'ajmcm_descripcion_tratam_c') as $campo) {
+            $this->assertSame(array('salud'), sticpa_pl_marcas_de(self::nvlMarcas(array($campo => 'Algo'))), $campo);
+            // Sin contestar el uso de datos de salud, se marca: vacío no es «no».
+            $this->assertSame(array('salud'), sticpa_pl_marcas_de(self::nvlMarcas(array($campo => 'Algo', 'ajmcm_datossalud_c' => ''))), $campo);
+            // Con «No», no.
+            $this->assertSame(array(), sticpa_pl_marcas_de(self::nvlMarcas(array($campo => 'Algo', 'ajmcm_datossalud_c' => '0'))), $campo);
+        }
+        // Enfermedades y «otros» no cuentan: la marca es de alergia o tratamiento.
+        $this->assertSame(array(), sticpa_pl_marcas_de(self::nvlMarcas(array(
+            'ajmcm_descripcion_enfermed_c' => 'Asma', 'ajmcm_descripcion_otros_c' => 'Algo',
+        ))));
+        // Un texto en blanco no es un texto.
+        $this->assertSame(array(), sticpa_pl_marcas_de(self::nvlMarcas(array('ajmcm_descripcion_allergies__c' => "  \n"))));
+        // Y el campo con UN guion bajo no existe: no puede marcar.
+        $this->assertSame(array(), sticpa_pl_marcas_de(self::nvlMarcas(array('ajmcm_descripcion_allergies_c' => 'Polen'))));
+    }
+
+    /** Las tres a la vez, en orden fijo, y el HTML sin el texto de salud. */
+    public function test_las_tres_marcas_en_orden_y_sin_el_texto()
+    {
+        $marcas = sticpa_pl_marcas_de(self::nvlMarcas(array(
+            'ajmcm_descripcion_tratam_c' => 'Insulina',
+            'ajmcm_cesionimagenes_interne_c' => '0',
+            'ajmcm_soloacasa_c' => '0',
+        )));
+        $this->assertSame(array('no_solo', 'sin_fotos', 'salud'), $marcas);
+
+        $html = sticpa_pl_marcas_html($marcas);
+        $this->assertStringContainsString('>No se va solo/a<', $html);
+        $this->assertStringContainsString('>Sin fotos<', $html);
+        $this->assertStringContainsString('>Alergia o tratamiento<', $html);
+        $this->assertStringNotContainsString('Insulina', $html);
+        $this->assertSame('', sticpa_pl_marcas_html(array()));
+        $this->assertSame('', sticpa_pl_marcas_html(array('inventada')));
+    }
+
+    /** Los campos que se piden son los de CAMPOS.md, con el doble guion bajo. */
+    public function test_los_campos_de_las_marcas()
+    {
+        $this->assertSame(array(
+            'ajmcm_soloacasa_c', 'ajmcm_cesionimagenes_interne_c', 'ajmcm_datossalud_c',
+            'ajmcm_descripcion_allergies__c', 'ajmcm_descripcion_intoler_c', 'ajmcm_descripcion_tratam_c',
+        ), sticpa_pl_marcas_campos());
+    }
+
 }

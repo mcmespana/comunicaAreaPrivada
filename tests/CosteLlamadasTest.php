@@ -254,6 +254,52 @@ class CosteLlamadasTest extends TestCase
     }
 
     /**
+     * LAS MARCAS DEL GRUPO NO CUESTAN NI UNA LLAMADA (plan 043, fila 9).
+     *
+     * «No se va solo/a», «Sin fotos» y «Alergia o tratamiento» viajan en la
+     * consulta de la gente que la lista ya hacía —el mapa de relaciones, o los
+     * contactos del respaldo—, así que con las marcas puestas cada pantalla
+     * cuesta EXACTAMENTE lo mismo, en los dos modos del doble. Si esto falla,
+     * alguien ha ido a buscarlas a la ficha de cada uno.
+     */
+    public function testLasMarcasDelGrupoNoCuestanLlamadas()
+    {
+        $pantallas = array(
+            'single_stic_mis_grupos' => array('grupo' => 'g1'),
+            'single_stic_pasar_lista_marcar' => array('grupo' => 'g1'),
+        );
+        foreach ($pantallas as $page => $req) {
+            foreach (array(false, true) as $sinEnlaces) {
+                $cuenta = array();
+                foreach (array(false, true) as $conMarcas) {
+                    $this->setUp();
+                    $this->scp->sinEnlaces = $sinEnlaces;
+                    if ($conMarcas) {
+                        $this->scp->personaExtra = array('c1' => array(
+                            'ajmcm_soloacasa_c' => '0',
+                            'ajmcm_cesionimagenes_interne_c' => '0',
+                            'ajmcm_descripcion_allergies__c' => 'Polen',
+                        ));
+                    }
+                    $_REQUEST = $req;
+                    $html = $this->render($page);
+                    if ($conMarcas) {
+                        $this->assertStringContainsString('pl-marca--sin_fotos', $html, $page);
+                        $this->assertStringContainsString('pl-marca--salud', $html, $page);
+                    }
+                    $cuenta[] = count($this->scp->calls);
+                }
+                $this->assertSame(
+                    $cuenta[0],
+                    $cuenta[1],
+                    $page . ($sinEnlaces ? ' (sin enlaces)' : '') . ': con las marcas hace '
+                        . $cuenta[1] . ' llamadas y sin ellas ' . $cuenta[0]
+                );
+            }
+        }
+    }
+
+    /**
      * MARCAR: LAS LECTURAS DEL FINAL VAN EN UNA TANDA (plan 042, VEL-2).
      *
      * Las asistencias de la sesión y las rachas salían en fila, y al GUARDAR la

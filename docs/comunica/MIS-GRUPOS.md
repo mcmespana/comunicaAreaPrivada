@@ -297,6 +297,42 @@ de vuelta.
 
 ---
 
+## 8 bis. Lo importante del grupo, de un vistazo (plan 043, fila 9; F3)
+
+A las 18:00 la pregunta es «¿quién se puede ir solo?», y antes de subir fotos,
+«¿quién no puede salir?». Eso estaba ficha a ficha, y nadie abre doce fichas un
+sábado. Ahora, en la lista de un grupo (`?grupo=<id>`) **y en la de marcar**,
+cada chaval lleva bajo el nombre como mucho tres pastillas de texto pequeñas:
+
+| Pastilla | Cuándo sale |
+|---|---|
+| **No se va solo/a** | `ajmcm_soloacasa_c` es «0» |
+| **Sin fotos** | `ajmcm_cesionimagenes_interne_c` es «0» |
+| **Alergia o tratamiento** | Hay texto en `ajmcm_descripcion_allergies__c`, `_intoler_c` o `_tratam_c`, **salvo** que `ajmcm_datossalud_c` sea «0» |
+
+Las decide `sticpa_pl_marcas_de()` y las pinta `sticpa_pl_marcas_html()`
+(`css/pasar-lista.css`, `.pl-marca`). Reglas que no se discuten:
+
+- **Un vacío no es un «no».** Las fichas migradas llegan con los permisos sin
+  contestar (CAMPOS.md, «Llegó VACÍO»); solo marca el «0» explícito.
+- **La de salud no dice cuál ni qué.** Ni en el texto ni en un atributo: estas
+  pantallas se guardan en el móvil para usarlas sin conexión. El detalle está en
+  la ficha. Lo que llega a la caché del mapa son las claves (`'salud'`), nunca
+  el texto.
+- **Solo los chavales.** Los monitores del grupo no llevan marcas.
+- **Ni una llamada más.** Los seis campos viajan en el enlace `persona` del mapa
+  de relaciones (`sticpa_pl_all_relationships_raw()`, caché `relshist2`) y en la
+  consulta de contactos del respaldo. Lo vigila
+  `CosteLlamadasTest::testLasMarcasDelGrupoNoCuestanLlamadas`.
+
+**El filtro «¿Quién no puede salir en fotos?»** va bajo el buscador de la ficha
+del grupo: el chip `.pl-evchip` de la lista de un evento, con cuántos son. Deja a
+la vista solo las filas con `data-pl-sin-fotos` y se combina con el buscador, sin
+ir al servidor. Solo sale si hay alguien con «Sin fotos»: un «0» no querría decir
+«todos pueden salir», porque quien no ha contestado no lleva la marca.
+
+---
+
 ## 9. Qué queda por decidir
 
 - ~~El formulario de «datos por revisar» del resumen es un duplicado.~~

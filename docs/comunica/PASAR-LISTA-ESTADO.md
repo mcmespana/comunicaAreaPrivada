@@ -411,6 +411,15 @@ obligada antes de escribir una consulta nueva.
 
 ## 2. Qué SÍ funciona
 
+### ✅ Las marcas del grupo en la lista de marcar (11/10/2026)
+
+Bajo el nombre de cada chaval, como mucho tres pastillas: «No se va solo/a»,
+«Sin fotos» y «Alergia o tratamiento» (esta, sin decir cuál). Salen de la
+misma consulta que trae a la gente: ni una llamada más. Un permiso sin
+contestar no marca. Detalle y reglas en [`MIS-GRUPOS.md`](MIS-GRUPOS.md) §8 bis
+(plan 043, fila 9). **Ojo al tocar la fila:** las pastillas van dentro del
+`<button>` de marcar y no son pulsables; el toque sigue siendo de la fila.
+
 ### ✅ Un monitor que lleva varios grupos (28/08/2026)
 
 Sale **una sola vez** en la lista de monitores, con los códigos de todos sus

@@ -1490,11 +1490,19 @@
     // guardando es pedir un lío.
     // `.pl-list--nav` son filas de navegación (las de la portada de
     // Coordinación): van encima del buscador y no son lo que se busca.
-    var PL_FILTRABLE = '.pl-list:not(.pl-list--nav) .pl-group, .pl-mine, .pl-list .pl-rowlink';
+    // `.pl-rowstatic`: los monitores de un grupo que se enseñan sin enlace (a
+    // quien no puede abrir sus fichas). Sin contarlos, el primer filtro dejaba
+    // su sección escondida para siempre, también al borrar la búsqueda.
+    var PL_FILTRABLE = '.pl-list:not(.pl-list--nav) .pl-group, .pl-mine, .pl-list .pl-rowlink, .pl-list .pl-rowstatic';
 
     var filterInput = document.querySelector('[data-pl-filter]');
     if (filterInput) {
         var emptyMsg = document.querySelector('[data-pl-filter-empty]');
+        // «¿Quién no puede salir en fotos?» (Mis grupos, plan 043, fila 9): con
+        // el chip apretado solo quedan las filas con `data-pl-sin-fotos`, y el
+        // buscador sigue filtrando dentro de esas.
+        var fotosChip = document.querySelector('[data-pl-filtro-fotos]');
+        var soloSinFotos = false;
 
         // Se guardan las filas y su texto normalizado UNA vez: normalizar en
         // cada pulsación es trabajo repetido sobre algo que no cambia.
@@ -1517,7 +1525,8 @@
             var q = norm(filterInput.value);
             var shown = 0;
             rows.forEach(function (row) {
-                var hit = (q === '' || row.hay.indexOf(q) !== -1);
+                var hit = (q === '' || row.hay.indexOf(q) !== -1)
+                    && (!soloSinFotos || row.el.hasAttribute('data-pl-sin-fotos'));
                 // `hidden` y no display: así el CSS de la fila no compite.
                 row.el.hidden = !hit;
                 if (hit) { shown++; }
@@ -1529,7 +1538,7 @@
             Array.prototype.forEach.call(
                 document.querySelectorAll('.pl-list'),
                 function (list) {
-                    var any = !!list.querySelector('.pl-group:not([hidden]), .pl-rowlink:not([hidden])');
+                    var any = !!list.querySelector('.pl-group:not([hidden]), .pl-rowlink:not([hidden]), .pl-rowstatic:not([hidden])');
                     list.hidden = !any;
                     // El título va justo ANTES de la lista en el HTML.
                     var title = list.previousElementSibling;
@@ -1550,6 +1559,13 @@
         }
 
         filterInput.addEventListener('input', apply);
+        if (fotosChip) {
+            fotosChip.addEventListener('click', function () {
+                soloSinFotos = !soloSinFotos;
+                fotosChip.setAttribute('aria-pressed', soloSinFotos ? 'true' : 'false');
+                apply();
+            });
+        }
         // Escape limpia y devuelve la lista entera, que es lo que se espera de
         // un campo de búsqueda en cualquier sitio.
         filterInput.addEventListener('keydown', function (ev) {
