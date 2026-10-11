@@ -77,3 +77,40 @@ llamada 3: conexiones_nuevas=0   371 ms
 
 Es decir: el handshake (DNS + TCP + TLS) costaba ~1,6 s **por llamada al CRM**, y
 una sola pantalla del área hace entre 2 y 40. Ese es el porqué del plan 027.
+
+---
+
+## Tandas en paralelo (`check-crm-multi.php`)
+
+Valida `SugarRestApiCall::callMany()`, el transporte por el que salen TODAS las
+lecturas en paralelo del área (plan 034; ventana deslizante desde el plan 042,
+VEL-6). Los tests de PHPUnit lo cambian por dobles, así que esto es lo único que
+lo prueba de verdad. Comprueba:
+
+1. Que llegan todas, y cada respuesta queda en el memo con **su** firma.
+2. Que nunca hay más de 4 en vuelo (ni más de 2 con el filtro a 2), y que la
+   ventana es deslizante: 800/200/200/200/200/200 ms tardan ~800, no ~1.000.
+3. Que un cuelgue (timeout), un cuerpo roto, uno vacío y uno cortado no cuelgan
+   la tanda ni pierden las demás, y que ninguno se memoriza.
+4. Que la sesión caducada (`number == 11`) se reintenta: un login y cada una otra
+   vez, con la sesión nueva.
+5. Que contra un servidor caído vuelve al momento.
+6. Que los contadores de `pl_diag` (`$callCount`, `$callLog`) cuentan lo que sale.
+7. Que no se quedan descriptores ni memoria tras 40 tandas.
+
+**Para medir tiempos hace falta `mock-crm-fork.php`** (el mismo mock, con un
+proceso por conexión; necesita pcntl). Con `php -S` cada worker acepta a veces
+dos conexiones a la vez y las atiende en fila: la tanda de arriba salía en 801 ms
+dos veces de cada tres y en 1.204 la otra, sin tocar el cliente.
+
+```bash
+cd tests/manual
+rm -f /tmp/mockcrm.log
+MOCK_LOG=/tmp/mockcrm.log php mock-crm-fork.php 127.0.0.1:8814 &
+MOCK_URL=http://127.0.0.1:8814/ MOCK_LOG=/tmp/mockcrm.log TEST_TIMEOUT=2 php check-crm-multi.php
+kill %1
+```
+
+Con `CLASS_FILE=/ruta/a/otra/stic-class-6.php` se lanza contra otra versión de la
+clase (por ejemplo la de antes de un cambio, sacada con `git show`): la de olas
+de 4 da ~1.010 ms en la prueba 2 y memorizaba la respuesta cortada.

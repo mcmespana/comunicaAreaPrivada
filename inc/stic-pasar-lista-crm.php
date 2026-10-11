@@ -211,7 +211,10 @@ function sticpa_pl_cache_family($what)
     // `sticpa_pl_flush($objSCP, 'state')` de después de guardar no las tiraba.
     // Se salvaba por el TTL de cinco minutos, o sea que la lista que acababas
     // de pasar tardaba hasta cinco minutos en aparecer.
-    $state = array('state', 'streaks', 'listas', 'attrange', 'marks', 'avisos');
+    // 'evins': las inscripciones de un evento para pasar lista en él
+    // (inc/stic-pasar-lista-eventos.php). El día de la salida cambian, y el
+    // guardado tiene que ver al momento a quien se acaba de apuntar.
+    $state = array('state', 'streaks', 'listas', 'attrange', 'marks', 'avisos', 'evins');
     return in_array((string) $what, $state, true) ? 'state' : 'struct';
 }
 
@@ -2130,9 +2133,9 @@ function sticpa_pl_att_create_payload($objSCP, $sessionId, $regId, $key, $sessio
  * setenta viajes: un minuto largo mirando la rueda, y la webview o el servidor
  * cortaban antes. Ahora cada paso sale en UNA tanda para todos —las
  * inscripciones que faltan, las asistencias nuevas, sus enlaces— y las
- * actualizaciones, que son lo normal, siguen yendo en la suya. Una tanda va de
- * cuatro en cuatro (`sticpa_crm_multi_concurrency`, plan 034): catorce altas
- * son cuatro esperas, no una, pero tampoco catorce.
+ * actualizaciones, que son lo normal, siguen yendo en la suya. Una tanda no
+ * lleva más de cuatro en vuelo (`sticpa_crm_multi_concurrency`, plan 034):
+ * catorce altas son cuatro esperas, no una, pero tampoco catorce.
  *
  * `$regMap` se completa POR REFERENCIA con las inscripciones que se crean: la
  * pantalla relee después con él, y sin ellas daría por no guardado lo que sí.
@@ -2521,7 +2524,13 @@ function sticpa_pl_group_streaks($objSCP, $sessions, $currentSessionId, $regMap 
     foreach ($look as $s) {
         $att = isset($porSesion[$s['id']])
             ? $porSesion[$s['id']]
-            : (empty($porSesion) ? sticpa_pl_session_attendances($objSCP, $s['id'], $regMap) : array());
+            // El respaldo NO corre en la pasada de recolecta (la regla del plan
+            // 034 para todo cargador que entre en una tanda): ahí `$porSesion`
+            // sale vacío a propósito y se colaban en la tanda dos consultas
+            // inútiles (plan 042, VEL-2: tanda de 4 en vez de 2).
+            : ((empty($porSesion) && !sticpa_pl_collecting())
+                ? sticpa_pl_session_attendances($objSCP, $s['id'], $regMap)
+                : array());
         foreach ((array) $regMap as $contactId) {
             if (isset($closed[$contactId])) {
                 continue;
@@ -4318,6 +4327,9 @@ function sticpa_pl_family($objSCP, $contactId)
         $people[] = array(
             'id' => $id,
             'name' => $full,
+            // El nombre de pila, para decir a quién llaman los botones grandes
+            // de la ficha («Llamar a Marta»), plan 042 PL-10.
+            'first' => $first,
             'initials' => sticpa_pl_initials($first, $last, $full),
             'mobile' => isset($datos['mobile']) ? $datos['mobile'] : '',
             'email' => isset($datos['email']) ? $datos['email'] : '',

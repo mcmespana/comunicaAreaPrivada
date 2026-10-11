@@ -1146,4 +1146,39 @@ class RegistrationManageTest extends TestCase
         $this->assertStringNotContainsString('paymentId=', $html);
         $this->assertStringContainsString('confirmación del banco', $html);
     }
+
+    /**
+     * EL AVISO DE DESPUÉS DE APUNTARSE dice de quién es la plaza y no lleva
+     * «inscrito» en masculino (plan 042, FAM-a4). Con dos hijos, «Listo: ya
+     * estás inscrito» no decía a cuál se había apuntado.
+     */
+    public function testElAvisoDeDespuesDeApuntarseDiceDeQuienEsLaPlaza()
+    {
+        // Cada uno a sí mismo: segunda persona, sin género.
+        $this->assertSame('Listo: ya tienes tu plaza.', sticpa_registration_saved_note('inscrita')['text']);
+        $this->assertSame('Pago hecho. Ya tienes tu plaza.', sticpa_registration_saved_note('pagado')['text']);
+
+        // Una madre viendo a su hija: con su nombre.
+        $_SESSION = array(
+            'scp_user_id' => 'h1',
+            'scp_user_contact_name' => 'Messeguer Villarroya, Lucía',
+            'scp_user_adult' => false,
+            'scp_tutor_user_id' => 'f1',
+            'scp_tutor_is_user' => false,
+        );
+        $this->assertSame('Lucía', sticpa_viendo_a_nombre());
+        $this->assertSame('Listo: Lucía ya tiene su plaza.', sticpa_registration_saved_note('inscrita')['text']);
+        $this->assertSame('Listo: Lucía ya tiene su plaza.', sticpa_registration_saved_note('inscrita_pago')['text']);
+        $this->assertSame('Pago hecho. Lucía ya tiene su plaza.', sticpa_registration_saved_note('pagado')['text']);
+        $this->assertStringStartsWith('Lucía tiene su plaza', sticpa_registration_saved_note('pago_error')['text']);
+        foreach (array('inscrita', 'inscrita_pago', 'pagado', 'pago_error') as $msg) {
+            $this->assertStringNotContainsString('inscrit', sticpa_registration_saved_note($msg)['text']);
+        }
+
+        // Y viéndose a sí misma, otra vez en segunda persona.
+        $_SESSION['scp_tutor_is_user'] = true;
+        $_SESSION['scp_user_id'] = 'f1';
+        $this->assertSame('', sticpa_viendo_a_nombre());
+        $this->assertSame('Listo: ya tienes tu plaza.', sticpa_registration_saved_note('inscrita')['text']);
+    }
 }

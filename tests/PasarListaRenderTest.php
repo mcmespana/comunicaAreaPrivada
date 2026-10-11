@@ -86,6 +86,13 @@ class FakeSCP
      *  llegaban Mencía Saiz y Ana Pardo el 26/09/2026. */
     public $conComodin = false;
 
+    /** Cuando es true, la delegación tiene además EVENTOS de salida (pasar
+     *  lista en el autobús, inc/stic-pasar-lista-eventos.php): una convivencia
+     *  que empieza HOY (15/11/2025) con dos días, una salida pasada, un
+     *  campamento futuro SIN sesiones y uno del curso anterior. Apagado por
+     *  defecto para no mover ninguna otra prueba. */
+    public $conEventos = false;
+
     /** `set_entries`: 'ok' (la forma real, `{ids: [...]}`), 'no_soportado' (el
      *  CRM contesta un error sin ids y no escribe nada), 'sin_respuesta' (escribe
      *  pero la respuesta se pierde, como un timeout) o 'ids_incompletos'. */
@@ -672,6 +679,13 @@ class FakeSCP
                     'name' => 'David Soler',
                 ),
             );
+            if ($this->conEventos) {
+                // La etapa de la ficha. Marta (c3) no la tiene: la lista la
+                // deduce de su curso. Lucía (c5) solo existe en los eventos.
+                $fam['c1']['ajmcm_etapa_c'] = 'COM';
+                $fam['c2']['ajmcm_etapa_c'] = 'COM';
+                $fam['c5'] = array('id' => 'c5', 'first_name' => 'Lucía', 'last_name' => 'Gil', 'name' => 'Lucía Gil', 'ajmcm_etapa_c' => 'MIC');
+            }
             $out = array();
             foreach ($fam as $id => $datos) {
                 if (strpos((string) $query, "'" . $id . "'") !== false) {
@@ -681,7 +695,7 @@ class FakeSCP
             return $out;
         }
         if ($module === 'stic_Events') {
-            return array(
+            return array_merge(array(
                 // Un solo evento para MIC y COM, y el nombre NO dice la etapa:
                 // así lo unico que puede resolverla es el campo de seleccion
                 // multiple, que es lo que se quiere comprobar.
@@ -699,7 +713,12 @@ class FakeSCP
                 // ser EXACTAMENTE el que compone `sticpa_pl_reuniones_event_name()`:
                 // así es como lo encuentra el plugin, por nombre y no por id.
                 $this->nvl(array('id' => 'ev-reu', 'name' => 'Monitores | Reuniones de programación 2025-2026', 'ajmcm_etapa_c' => '')),
-            );
+            ), $this->conEventos ? array(
+                $this->nvl(array('id' => 'ev-bus', 'name' => 'Convivencia MIC y COM', 'start_date' => '2025-11-15 09:00:00', 'end_date' => '2025-11-16 18:00:00', 'ajmcm_etapa_c' => '')),
+                $this->nvl(array('id' => 'ev-pasado', 'name' => 'Salida al parque', 'start_date' => '2025-10-04 10:00:00', 'end_date' => '2025-10-04 13:00:00', 'ajmcm_etapa_c' => '')),
+                $this->nvl(array('id' => 'ev-futuro', 'name' => 'Campamento de Navidad', 'start_date' => '2025-12-27 10:00:00', 'end_date' => '2025-12-30 18:00:00', 'ajmcm_etapa_c' => '')),
+                $this->nvl(array('id' => 'ev-viejo', 'name' => 'Campamento de verano', 'start_date' => '2025-07-01 10:00:00', 'end_date' => '2025-07-10 18:00:00', 'ajmcm_etapa_c' => '')),
+            ) : array());
         }
         return array();
     }
@@ -841,6 +860,22 @@ class FakeSCP
                     : array();
 
             case 'stic_Events:stic_sessions_stic_events':
+                // Los eventos de salida (`$conEventos`): la convivencia tiene
+                // ida (hoy) y vuelta; el campamento futuro, NINGUNA sesión.
+                if ($this->conEventos && isset($p['module_id']) && in_array($p['module_id'], array('ev-bus', 'ev-pasado', 'ev-futuro'), true)) {
+                    if ($p['module_id'] === 'ev-bus') {
+                        return $this->apiShape(array(
+                            $this->nvl(array('id' => 'sb1', 'name' => 'Ida', 'start_date' => '2025-11-15 09:00:00', 'end_date' => '2025-11-15 10:00:00')),
+                            $this->nvl(array('id' => 'sb2', 'name' => 'Vuelta', 'start_date' => '2025-11-16 17:00:00', 'end_date' => '2025-11-16 18:00:00')),
+                        ));
+                    }
+                    if ($p['module_id'] === 'ev-pasado') {
+                        return $this->apiShape(array(
+                            $this->nvl(array('id' => 'sp1', 'start_date' => '2025-10-04 10:00:00', 'end_date' => '2025-10-04 13:00:00')),
+                        ));
+                    }
+                    return $this->apiShape(array());
+                }
                 // POR EVENTO, no un juego de sesiones para todos: el de
                 // reuniones y el de los sábados son dos eventos distintos y la
                 // ficha del monitor los pinta en dos filas separadas. Un doble
@@ -876,6 +911,26 @@ class FakeSCP
                             'stic_registrations_contactscontacts_ida' => $r['contact'],
                         ));
                     }
+                }
+                if ($this->conEventos && $evento === 'ev-bus') {
+                    // Confirmadas con su curso; Marta sin etapa en la ficha
+                    // (5.º de primaria → MIC); «Se Fue» cancelada; Jaume con
+                    // una cancelada vieja Y una confirmada nueva (sale una vez).
+                    // El contacto, unas por el campo plano y otras por el
+                    // enlace: las dos formas que devuelve la instancia.
+                    return $this->apiShape(array(
+                        $this->nvl(array('id' => 'rb1', 'status' => 'confirmed', 'ajmcm_curso_escolar_c' => '1_eso', 'stic_registrations_contactscontacts_ida' => 'c1')),
+                        $this->nvl(array('id' => 'rb2v', 'status' => 'cancelled', 'ajmcm_curso_escolar_c' => '2_eso'), array(array('id' => 'c2'))),
+                        $this->nvl(array('id' => 'rb2', 'status' => 'confirmed', 'ajmcm_curso_escolar_c' => '2_eso'), array(array('id' => 'c2'))),
+                        $this->nvl(array('id' => 'rb3', 'status' => '', 'ajmcm_curso_escolar_c' => '5_primaria', 'stic_registrations_contactscontacts_ida' => 'c3')),
+                        $this->nvl(array('id' => 'rb4', 'status' => 'cancelled', 'ajmcm_curso_escolar_c' => '1_eso', 'stic_registrations_contactscontacts_ida' => 'c9')),
+                        $this->nvl(array('id' => 'rb5', 'status' => 'confirmed', 'ajmcm_curso_escolar_c' => 'na', 'stic_registrations_contactscontacts_ida' => 'c5')),
+                    ));
+                }
+                if ($this->conEventos && $evento === 'ev-futuro') {
+                    return $this->apiShape(array(
+                        $this->nvl(array('id' => 'rf1', 'status' => 'confirmed', 'ajmcm_curso_escolar_c' => '1_eso', 'stic_registrations_contactscontacts_ida' => 'c1')),
+                    ));
                 }
                 if ($evento === 'ev-reu') {
                     return $this->apiShape(array_merge($this->reunionSinInscripciones ? array() : array(
@@ -1335,6 +1390,28 @@ final class PasarListaRenderTest extends TestCase
 
     // ---- Home ------------------------------------------------------------
 
+    /**
+     * LA LISTA OLVIDADA DEL SÁBADO PASADO, en la portada (plan 042, PL-4).
+     * En el doble, la sesión de hoy (s3) de C1 está pasada y las dos
+     * anteriores (s1, s2) no tienen lista: el atajo dice «Revisar la lista» y,
+     * hasta ahora, del hueco no se decía nada. Y sin llamadas nuevas: las
+     * listas son las de la primera tanda.
+     */
+    public function test_home_avisa_de_las_listas_atrasadas_del_grupo_del_atajo()
+    {
+        $html = $this->render('single_stic_pasar_lista');
+
+        $this->assertStringContainsString('Revisar la lista', $html);
+        $this->assertStringContainsString('Te faltan 2 listas', $html);
+        $this->assertStringContainsString('grupo=g1&sesion=s2', $html);
+        $this->assertStringContainsString('grupo=g1&sesion=s1', $html);
+        // La más reciente primero.
+        $this->assertLessThan(strpos($html, 'grupo=g1&sesion=s1'), strpos($html, 'grupo=g1&sesion=s2'));
+        // La de hoy no se repite como deuda: ya la enseña el atajo.
+        $this->assertSame(1, substr_count($html, 'grupo=g1&sesion=s3'));
+        $this->assertCount(7, $this->scp->calls);
+    }
+
     public function test_home_pinta_el_atajo_de_tu_grupo()
     {
         $html = $this->render('single_stic_pasar_lista');
@@ -1451,6 +1528,28 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('Sin pasar', $html);
         // La sesión que aún no ha llegado (s4) no se ofrece.
         $this->assertStringNotContainsString('sesion=s4', $html);
+
+        // ESTRUCTURA, no solo cadenas (plan 042, PL-8): la cabecera se cierra
+        // antes de la lista. Faltaba un `</div>` y la lista salía metida en la
+        // fila de la cabecera, estrujada a la derecha del título.
+        $head = strpos($html, '<div class="pl-head">');
+        $list = strpos($html, '<div class="pl-list">');
+        $this->assertNotFalse($head);
+        $this->assertNotFalse($list);
+        $tramo = substr($html, $head, $list - $head);
+        $this->assertSame(substr_count($tramo, '<div'), substr_count($tramo, '</div>'));
+    }
+
+    /** El desplegable de fechas dice el estado de cada lista, y marcar
+     *  enlaza al historial (plan 042, PL-8). */
+    public function test_el_desplegable_de_fechas_dice_el_estado_de_cada_lista()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertMatchesRegularExpression('/<option[^>]*sesion=s3[^>]*>3 · [^<]* · pasada<\/option>/u', $html);
+        $this->assertMatchesRegularExpression('/<option[^>]*sesion=s2[^>]*>2 · [^<]* · falta<\/option>/u', $html);
+        $this->assertStringContainsString('single_stic_pasar_lista_grupos&grupo=g1&sesiones=1', $html);
     }
 
     // ---- Marcar ----------------------------------------------------------
@@ -1474,14 +1573,59 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringNotContainsString('data-contact="c9"', $html);
     }
 
+    /**
+     * Con lector de pantalla cada fila dice su estado, y los contadores y el
+     * aviso de la barra se anuncian (plan 042, PL-11). El `aria-label` de la
+     * fila sustituía a todo su contenido: «Lucía, botón», marcada o no.
+     */
+    public function test_marcar_dice_el_estado_al_lector_de_pantalla()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertDoesNotMatchRegularExpression('/<button type="button" class="pl-row"[^>]*aria-label=/', $html);
+        // c1 viene «vino» del CRM y c2 sin marcar.
+        $this->assertMatchesRegularExpression('/data-contact="c1".*?<span class="sr-only" data-pl-sr-state>, Vino<\/span>/s', $html);
+        $this->assertMatchesRegularExpression('/data-contact="c2".*?<span class="sr-only" data-pl-sr-state>, Sin marcar<\/span>/s', $html);
+        $this->assertStringContainsString('<div class="pl-counts" aria-live="polite" aria-atomic="true">', $html);
+        $this->assertStringContainsString('class="pl-status" data-pl-status role="status"', $html);
+    }
+
+    /**
+     * «Han venido todos» marca en cascada, y cada fila tocaba la región viva
+     * de los recuentos: el lector encolaba un recuento por chaval (revisión
+     * 042). La región se lee entera (aria-atomic) y va ocupada mientras dura
+     * la cascada, en las tres pantallas que la tienen.
+     */
+    public function test_los_recuentos_se_leen_una_vez_tras_la_cascada()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $html = $this->render('single_stic_pasar_lista_monitores');
+        $this->assertStringContainsString('<div class="pl-counts" aria-live="polite" aria-atomic="true">', $html);
+        $evento = file_get_contents(dirname(__DIR__) . '/pages/single_stic_pasar_lista_evento.php');
+        $this->assertStringContainsString('<div class="pl-counts" aria-live="polite" aria-atomic="true">', $evento);
+
+        $js = file_get_contents(dirname(__DIR__) . '/js/stic-pasar-lista.js');
+        $ini = strpos($js, 'allBtn.addEventListener(');
+        $this->assertNotFalse($ini);
+        $all = substr($js, $ini, strpos($js, 'haptic(10);', $ini) - $ini);
+        $this->assertStringContainsString("live.setAttribute('aria-busy', 'true');", $all);
+        $this->assertStringContainsString("if (i === empty.length - 1 && live) { live.removeAttribute('aria-busy'); }", $all);
+        $this->assertStringContainsString("if (REDUCED && live) { live.removeAttribute('aria-busy'); }", $all);
+    }
+
     public function test_marcar_incluye_leyenda_gesto_largo_y_hoja()
     {
         $_REQUEST = array('grupo' => 'g1');
         $html = $this->render('single_stic_pasar_lista_marcar');
 
-        // Sin el chip, parcial y justificada son invisibles para el usuario.
+        // Sin el aviso del gesto, parcial y justificada son invisibles. Ya no
+        // es un chip con aspecto de botón (plan 042, PL-10): el anillo que
+        // late es el icono de la nota, y la explicación sale una sola vez.
         $this->assertStringContainsString('Mantén pulsado', $html);
         $this->assertStringContainsString('pl-hold-ring', $html);
+        $this->assertStringNotContainsString('pl-hold-hint', $html);
+        $this->assertSame(1, substr_count($html, 'Mantén pulsado'));
         // La hoja, con los cuatro estados del CRM.
         $this->assertStringContainsString('data-pl-sheet', $html);
         foreach (array('yes', 'partial', 'no_justified', 'no_unjustified') as $key) {
@@ -1699,7 +1843,9 @@ final class PasarListaRenderTest extends TestCase
      */
     public function test_el_formulario_manda_la_accion_en_un_campo_oculto()
     {
-        $_REQUEST = array('grupo' => 'g1');
+        // s2: una sesión SIN lista. En una ya pasada (s3) «Sin registro» no se
+        // pinta (plan 042, PL-1), y aquí hacen falta los dos botones.
+        $_REQUEST = array('grupo' => 'g1', 'sesion' => 's2');
         $html = $this->render('single_stic_pasar_lista_marcar');
 
         $this->assertStringContainsString(
@@ -1770,6 +1916,50 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame('ok', $log[0]['motivo']);
         $this->assertSame(1, $log[0]['saved']);
         $this->assertSame(0, $log[0]['failed']);
+    }
+
+    /**
+     * EL RESULTADO SE DICE EN LA BARRA, encima del botón, y no arriba en letra
+     * pequeña mientras abajo seguía «Guardar lista» (plan 042, PL-5). Con el
+     * guardado confirmado el botón pasa a «Guardada ✓», secundario.
+     */
+    public function test_el_resultado_del_guardado_sale_en_la_barra()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => json_encode(array('c1' => 'yes')),
+        );
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertMatchesRegularExpression(
+            '/<p class="pl-status" data-pl-status role="status" data-kind="ok" data-pl-server>.*Lista guardada · \d+ vin/sU',
+            $html
+        );
+        $this->assertStringNotContainsString('pl-notice--ok', $html);
+        $this->assertMatchesRegularExpression('/class="pl-save is-saved"/', $html);
+        // La barra va DESPUÉS de la lista: es lo último del formulario.
+        $this->assertGreaterThan(strpos($html, 'class="pl-list"'), strpos($html, 'Lista guardada'));
+    }
+
+    /** Y el fallo, arriba en su tarjeta y también en la barra. */
+    public function test_el_fallo_del_guardado_sale_en_tarjeta_y_en_la_barra()
+    {
+        $this->scp->failWrites = array('stic_Attendances');
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => json_encode(array('c1' => 'partial')),
+        );
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertStringContainsString('stic-alert stic-alert--danger', $html);
+        $this->assertStringContainsString('data-kind="error"', $html);
+        $this->assertStringNotContainsString('is-saved', $html);
+        // El recuento ya no se repite en el aviso: baja al detalle.
+        $this->assertStringContainsString('<code>recuento</code>', $html);
     }
 
     /**
@@ -2131,6 +2321,103 @@ final class PasarListaRenderTest extends TestCase
 
     // ---- El diario de intentos -------------------------------------------
 
+    /**
+     * LA COLA DEL MÓVIL TIENE DE QUÉ AGARRARSE (plan 042, PL-9): la respuesta
+     * a un nonce caducado lleva la señal y un nonce NUEVO de esta sesión (con
+     * eso el JS reintenta una vez), la pantalla dice qué lista es para el aviso
+     * de fuera, y la portada y el árbol tienen el hueco de ese aviso.
+     */
+    public function test_la_cola_del_movil_puede_reintentar_y_avisar()
+    {
+        $_REQUEST = array('grupo' => 'g1', 'sesion' => 's2');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => 'caducado',
+            'pl_marks' => json_encode(array('c1' => 'yes')),
+        );
+        $html = $this->render('single_stic_pasar_lista_marcar');
+        $this->assertStringContainsString('data-pl-nonce-expired', $html);
+        $this->assertMatchesRegularExpression('/name="pl_nonce" value="[^"]+"/', $html);
+        $this->assertMatchesRegularExpression('/data-queue-label="C1 · [^"]+"/u', $html);
+        $this->assertSame(array(), $this->scp->writes);
+
+        $_POST = array();
+        $_REQUEST = array();
+        foreach (array('single_stic_pasar_lista', 'single_stic_pasar_lista_grupos') as $page) {
+            $html = $this->render($page);
+            $this->assertMatchesRegularExpression('/<div class="pl-status pl-queue-notice" data-pl-queue-notice role="status" hidden/', $html, $page);
+        }
+    }
+
+    /**
+     * EL REINTENTO CON NONCE NUEVO TIENE LÍMITE (revisión 042). El nonce es el
+     * mismo para todo el que entra en el área, así que el caducado era lo único
+     * que paraba una entrada vieja de la cola: sin límite, una lista atascada
+     * de hace semanas pisaba en el CRM la que se había vuelto a guardar. Solo
+     * se reintenta la entrada reciente y no atascada.
+     */
+    public function test_la_cola_solo_reintenta_con_nonce_nuevo_lo_reciente()
+    {
+        $js = file_get_contents(dirname(__DIR__) . '/js/stic-pasar-lista.js');
+        $ini = strpos($js, 'function queueFlush(');
+        $this->assertNotFalse($ini);
+        $flush = substr($js, $ini, strpos($js, 'function queueNotice(') - $ini);
+
+        $this->assertMatchesRegularExpression('/var QUEUE_FRESH_MS = 72 \* 3600 \* 1000;/', $js);
+        $this->assertMatchesRegularExpression(
+            '/var retry = nonce && \(entry\.tries \|\| 0\) < QUEUE_MAX_TRIES\s*&& entry\.ts && \(Date\.now\(\) - entry\.ts\) < QUEUE_FRESH_MS;\s*return retry \? post\(entry, nonce\) : html;/',
+            $flush
+        );
+        $this->assertStringNotContainsString('return nonce ? post(entry, nonce) : html;', $flush);
+        $this->assertStringNotContainsString('misma sesión, así que no afloja', $flush);
+    }
+
+    /**
+     * Un guardado confirmado se lleva de la cola la entrada de ESA lista
+     * (revisión 042): antes solo tiraba el borrador, y la entrada vieja de la
+     * misma sesión y grupo se enviaba después y pisaba lo recién guardado. Y
+     * lo hace antes de showConnectivity(), que es quien vacía la cola.
+     */
+    public function test_el_guardado_confirmado_saca_su_lista_de_la_cola()
+    {
+        $js = file_get_contents(dirname(__DIR__) . '/js/stic-pasar-lista.js');
+        $this->assertMatchesRegularExpression(
+            "/if \\(root\\.hasAttribute\\('data-pl-saved-ok'\\)\\) \\{\\s*lsDel\\(draftKey\\);\\s*queueRemove\\(\\{ session: sessionId, group: groupId \\}\\);\\s*\\}\\s*restoreDraft\\(\\);\\s*showConnectivity\\(\\);/",
+            $js
+        );
+    }
+
+    /**
+     * El aviso del servidor («Lista guardada · …» o el fallo) vuelve cuando
+     * vuelve la cobertura (revisión 042): un corte de un segundo lo cambiaba
+     * por «Sin cobertura» y ahí se quedaba, con red. Se repinta tal cual llegó,
+     * con su icono, y solo mientras no se haya tocado nada.
+     */
+    public function test_el_aviso_del_servidor_vuelve_tras_un_corte()
+    {
+        $js = file_get_contents(dirname(__DIR__) . '/js/stic-pasar-lista.js');
+        $this->assertStringContainsString("var serverHtml = serverSaid ? status.innerHTML : '';", $js);
+        $ini = strpos($js, 'function showConnectivity()');
+        $this->assertNotFalse($ini);
+        $show = substr($js, $ini, strpos($js, "window.addEventListener('online', showConnectivity);") - $ini);
+        $this->assertMatchesRegularExpression(
+            '/\} else if \(serverSaid\) \{\s*status\.innerHTML = serverHtml;\s*status\.setAttribute\(\'data-kind\', serverKind\);\s*status\.hidden = false;\s*\} else \{\s*hush\(\);\s*\}/',
+            $show
+        );
+    }
+
+    /**
+     * COO-5, revisión 042. En la columna de 340 px de la ficha del monitor,
+     * el resumen de un plegable («Premonitores I · …») iba pegado al rótulo,
+     * porque `margin-left: auto` vale 0 cuando no cabe, y su segunda línea
+     * salía a la izquierda. Hueco mínimo y alineado a la derecha.
+     */
+    public function test_la_cuenta_del_plegable_no_va_pegada_al_rotulo()
+    {
+        $css = preg_replace('#/\*.*?\*/#s', '', file_get_contents(dirname(__DIR__) . '/css/pasar-lista.css'));
+        $this->assertMatchesRegularExpression('/(^|\})\s*\.pl-fold-count \{[^}]*padding-left: 0\.75rem;[^}]*text-align: right;[^}]*\}/', $css);
+    }
+
     /** Un nonce caducado no escribe nada, y eso también se apunta. */
     public function test_el_diario_apunta_el_nonce_caducado()
     {
@@ -2351,6 +2638,31 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame(array(), $this->scp->writes);
     }
 
+    /**
+     * «Sin registro» está a un roce de tirar las marcas: no escribe ninguna
+     * asistencia y el JS borra el borrador al ver el guardado confirmado.
+     * Por eso pide confirmación SIEMPRE (con un texto para cuando ya hay
+     * marcas), y en una lista ya pasada no se ofrece: la reescribía como
+     * «No hubo» con 0/0 (plan 042, PL-1).
+     */
+    public function test_sin_registro_pide_confirmacion_y_no_sale_en_una_lista_pasada()
+    {
+        $_REQUEST = array('grupo' => 'g1', 'sesion' => 's2');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+        $this->assertMatchesRegularExpression('/<button[^>]*value="skip"[^>]*data-pl-confirm="[^"]+"/', $html);
+        $this->assertMatchesRegularExpression('/<button[^>]*value="skip"[^>]*data-confirm-marks="[^"]+"/', $html);
+        // Arriba, antes de la lista: se decide antes de marcar, no al lado de
+        // «Guardar».
+        $this->assertLessThan(strpos($html, 'class="pl-list"'), strpos($html, 'value="skip"'));
+        $this->assertLessThan(strpos($html, 'data-pl-all-present'), strpos($html, 'value="skip"'));
+
+        // s3 es la lista PASADA de g1.
+        $_REQUEST = array('grupo' => 'g1', 'sesion' => 's3');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+        $this->assertStringContainsString('Esta lista ya está pasada', $html);
+        $this->assertStringNotContainsString('value="skip"', $html);
+    }
+
     /** "Sin registro" marca la lista como omitida y no toca las asistencias. */
     public function test_sin_registro_no_escribe_asistencias()
     {
@@ -2376,6 +2688,35 @@ final class PasarListaRenderTest extends TestCase
     // ---- La etapa del evento --------------------------------------------
 
     // ---- Ficha ----------------------------------------------------------
+
+    /**
+     * Volver de una ficha a la lista vuelve a LA MISMA FECHA, también después
+     * de pasar de ficha con el paginador (plan 042, PL-13). Antes la flecha
+     * iba sin sesión y marcar elegía la de hoy.
+     */
+    public function test_la_vuelta_de_la_ficha_conserva_la_sesion()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1', 'sesion' => 's1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+        $this->assertMatchesRegularExpression(
+            '/class="pl-back" href="\?internalpage=single_stic_pasar_lista_marcar&(amp;)?grupo=g1&(amp;)?sesion=s1"/',
+            $html
+        );
+        // El paginador NO arrastra la sesión (un aviso de la ficha siguiente
+        // no es de ese sábado), solo la vuelta.
+        $this->assertDoesNotMatchRegularExpression('/single_stic_pasar_lista_ficha[^"]*[&;]sesion=s1/', $html);
+        $this->assertMatchesRegularExpression('/single_stic_pasar_lista_ficha[^"]*vsesion=s1/', $html);
+
+        // Desde la ficha siguiente, la flecha sigue volviendo a s1.
+        $_REQUEST = array('participante' => 'c2', 'grupo' => 'g1', 'vsesion' => 's1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+        $this->assertMatchesRegularExpression(
+            '/class="pl-back" href="\?internalpage=single_stic_pasar_lista_marcar&(amp;)?grupo=g1&(amp;)?sesion=s1"/',
+            $html
+        );
+        // Y no se cuela como sesión de los avisos.
+        $this->assertStringNotContainsString('name="pl_aviso_sesion"', $html);
+    }
 
     public function test_ficha_pone_los_telefonos_primero()
     {
@@ -2890,8 +3231,19 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('pl-cell--gap', $html);
         // Y el número de huecos, dicho con palabras.
         $this->assertStringContainsString('sin pasar', $html);
-        // Cuántas sesiones entran en la tira, dicho en vez de recortado en silencio.
-        $this->assertStringContainsString('últimas', $html);
+        // Cuántas sesiones entran en la tira, dicho en vez de recortado en
+        // silencio. En el doble hay tres, por debajo del tope de 12: se dice lo
+        // que se ve, no el tope (plan 042, COO-9).
+        $this->assertStringContainsString('La tira enseña las sesiones del curso hasta hoy.', $html);
+        $this->assertStringNotContainsString('últimas 12', $html);
+    }
+
+    /** Con la tira llena, sí se dice el tope. */
+    public function test_resumen_dice_el_tope_de_la_tira_cuando_lo_alcanza()
+    {
+        $GLOBALS['__stic_filters']['sticpa_pl_resumen_strip_sessions'] = 2;
+        $html = $this->render('single_stic_pasar_lista_resumen');
+        $this->assertStringContainsString('La tira enseña las últimas 2 sesiones.', $html);
     }
 
     /**
@@ -2911,6 +3263,277 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('25%', $html);
         // Y va ANTES de las tiras por etapa, que es el orden en que se lee.
         $this->assertLessThan(strpos($html, 'pl-strip'), strpos($html, 'pl-lasthero'));
+    }
+
+    /**
+     * EL RESUMEN RESPETA EL ALCANCE (plan 042, COO-1). A quien coordina el
+     * COM le contaba toda la delegación: «1 de 4 listas», cuando lo suyo (C1 y
+     * C2) era 1 de 2. Ahora cuenta lo suyo, lo dice en la cabecera, y el resto
+     * de la delegación se ve, pero plegado y aparte.
+     */
+    public function test_el_resumen_cuenta_solo_el_alcance_de_quien_coordina()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $html = $this->render('single_stic_pasar_lista_resumen');
+
+        $this->assertStringContainsString('1 de 2 listas', $html);
+        $this->assertStringContainsString('1 grupo sin pasarla todavía', $html);
+        $this->assertStringNotContainsString('1 de 4 listas', $html);
+        // El alcance, en la cabecera.
+        $this->assertMatchesRegularExpression('/pl-subtitle">[^<]*· COM</', $html);
+        // M1 (MIC) y Ruah (LC) siguen a la vista, pero DENTRO del plegable.
+        $fold = strpos($html, 'pl-fold--resto');
+        $this->assertNotFalse($fold);
+        $this->assertGreaterThan($fold, strpos($html, 'Los Micos'));
+        $this->assertGreaterThan($fold, strpos($html, '>Ruah<'));
+        $this->assertLessThan($fold, strpos($html, '>C2<'));
+        // Y solo hay tarjeta de la etapa propia.
+        $this->assertStringContainsString('pl-cards pl-cards--n1', $html);
+    }
+
+    /** Con toda la delegación de alcance, la pantalla es la de siempre. */
+    public function test_el_resumen_de_toda_la_delegacion_no_pliega_nada()
+    {
+        $this->scp->coordEtapa = '';
+        $html = $this->render('single_stic_pasar_lista_resumen');
+
+        $this->assertStringContainsString('1 de 4 listas', $html);
+        $this->assertStringNotContainsString('pl-fold--resto', $html);
+        $this->assertStringContainsString('toda la delegación', $html);
+    }
+
+    /**
+     * «3 GRUPOS SIN PASARLA» Y CUÁLES (plan 042, COO-2): la tarjeta nombra los
+     * que faltan, y cada nombre abre su lista de esa sesión.
+     */
+    public function test_el_resumen_nombra_los_grupos_que_faltan()
+    {
+        $html = $this->render('single_stic_pasar_lista_resumen');
+
+        $this->assertStringContainsString('pl-lasthero-miss', $html);
+        $this->assertStringContainsString(
+            'class="pl-lasthero-chip" href="?internalpage=single_stic_pasar_lista_marcar&grupo=g2&sesion=s3&desde=resumen"',
+            $html
+        );
+        // C1 sí la pasó: no sale entre los que faltan.
+        $miss = substr($html, strpos($html, 'pl-lasthero-miss'));
+        $miss = substr($miss, 0, strpos($miss, '</span>'));
+        $this->assertStringNotContainsString('grupo=g1&', $miss);
+    }
+
+    /**
+     * LA PORTADA DE COORDINACIÓN DICE CÓMO VA (plan 042, COO-2): cada fila
+     * dice lo que hay, con el alcance de quien mira, y la reunión sin lista
+     * lleva su cabecera.
+     */
+    public function test_coordinacion_dice_como_va_la_ultima_sesion()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $html = $this->render('single_stic_coordinacion');
+
+        // C1 pasó la del sábado, C2 no; MIC y LC no son de su alcance.
+        $this->assertStringContainsString('1 de 2 listas · falta C2', $html);
+        $this->assertStringNotContainsString('Ruah', $html);
+        // La lista de monitores de la última sesión, sin pasar.
+        $this->assertMatchesRegularExpression('/Lista de monitores<\/span><span class="pl-group-meta">[^<]+· sin pasar</', $html);
+        // La reunión sin lista, con su cabecera.
+        $this->assertStringContainsString('pl-etapa-title--warn', $html);
+        $this->assertStringContainsString('Falta 1 lista', $html);
+    }
+
+    public function test_coordinacion_dice_cuantos_monitores_vinieron()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $id = $this->scp->set_entry('LIS_listas', array(
+            'estado' => 'pasada', 'ajmcm_tipo_c' => 'monitores',
+            'n_asistieron' => 11, 'n_faltaron' => 3,
+        ));
+        $this->scp->set_relationship('LIS_listas', $id, 'lis_listas_stic_sessions', array('s3'));
+        $this->scp->writes = array();
+        $this->scp->relationships = array();
+
+        $html = $this->render('single_stic_coordinacion');
+
+        $this->assertStringContainsString('pasada: 11 vinieron, 3 faltas', $html);
+    }
+
+    /** Toda la delegación: los cuatro grupos, y los que faltan con su nombre. */
+    public function test_coordinacion_de_toda_la_delegacion_cuenta_todos_los_grupos()
+    {
+        $this->scp->coordEtapa = '';
+        $html = $this->render('single_stic_coordinacion');
+
+        $this->assertStringContainsString('1 de 4 listas · faltan M1, C2, Ruah', $html);
+    }
+
+    /**
+     * QUIÉN LLEVA CADA GRUPO (plan 042, COO-7): del hueco al WhatsApp en dos
+     * toques. Coordinación tiene el nombre como enlace a la ficha; un monitor
+     * raso lo lee sin enlace, porque la ficha no es para él.
+     */
+    public function test_el_resumen_dice_quien_lleva_cada_grupo()
+    {
+        $this->scp->coordEtapa = '';
+        $html = $this->render('single_stic_pasar_lista_resumen');
+        $this->assertStringContainsString(
+            '<a class="pl-who-link" href="?internalpage=single_stic_pasar_lista_monitor&monitor=m1&vengo=resumen">David Soler</a>',
+            $html
+        );
+        // Sin relaciones de monitor, el texto del grupo en el CRM.
+        $this->assertStringContainsString('<span class="pl-who-name">Mercedes</span>', $html);
+    }
+
+    public function test_un_monitor_raso_lee_quien_lleva_el_grupo_sin_enlace()
+    {
+        $this->scp->coordEtapa = null;
+        $html = $this->render('single_stic_pasar_lista_resumen');
+        $this->assertStringContainsString('<span class="pl-who-name">David Soler</span>', $html);
+        $this->assertStringNotContainsString('class="pl-who-link"', $html);
+    }
+
+    /** Y de la ficha se vuelve al Resumen, a seguir repasando huecos. */
+    public function test_la_ficha_del_monitor_abierta_desde_el_resumen_vuelve_al_resumen()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_REQUEST = array('monitor' => 'm1', 'vengo' => 'resumen');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+        $this->assertStringContainsString('class="pl-back" href="?internalpage=single_stic_pasar_lista_resumen"', $html);
+        $this->assertStringContainsString('Volver al resumen de grupos', $html);
+    }
+
+    /**
+     * LAS TARJETAS DE ETAPA: LA SUMA, ENTERA O NADA, Y CON UNIDAD (plan 042,
+     * COO-4). En el doble, C1 tiene 11 chavales con recuento del 15/11 y C2
+     * un recuento viejo: la tarjeta COM decía «11» como si fuera el total.
+     */
+    public function test_la_tarjeta_de_etapa_no_da_una_suma_parcial_por_total()
+    {
+        $html = $this->render('single_stic_pasar_lista_resumen');
+
+        $cards = substr($html, strpos($html, 'pl-cards'));
+        $cards = substr($cards, 0, strpos($cards, 'pl-lasthero'));
+        $com = substr($cards, strpos($cards, '>COM<'));
+        $com = substr($com, 0, strpos($com, 'pl-card-head') ?: strlen($com));
+        // El número grande es el de grupos, con su unidad, y se dice por qué.
+        $this->assertStringContainsString('2<span class="pl-card-unit">grupos</span>', $com);
+        $this->assertStringContainsString('1 sin recuento', $com);
+        $this->assertStringNotContainsString('>11<', $com);
+        // Donde todos tienen recuento, el número lleva su unidad pegada y la
+        // línea de abajo no abrevia.
+        $this->assertStringContainsString('<span class="pl-card-unit">chavales</span>', $cards);
+        $this->assertStringContainsString('1 monitor', $cards);
+        $this->assertStringNotContainsString('mon.', $cards);
+    }
+
+    /**
+     * DÓNDE ESTOY Y CÓMO VUELVO (plan 042, COO-3). Al Resumen se llega desde
+     * Pasar lista y desde Coordinación, y se vuelve por donde se entró; lo
+     * que se abre desde el Resumen vuelve al Resumen.
+     */
+    public function test_el_resumen_abierto_desde_coordinacion_vuelve_a_coordinacion()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $html = $this->render('single_stic_coordinacion');
+        $this->assertStringContainsString('single_stic_pasar_lista_resumen&amp;desde=coordinacion', $html);
+
+        $_REQUEST = array('desde' => 'coordinacion');
+        $html = $this->render('single_stic_pasar_lista_resumen');
+        $this->assertStringContainsString('class="pl-back" href="?internalpage=single_stic_coordinacion"', $html);
+        $this->assertStringContainsString('Volver a coordinación', $html);
+        $this->assertStringContainsString('refrescar=1&desde=coordinacion', $html);
+        // Las listas que se abren desde aquí saben volver aquí, con el origen.
+        $this->assertStringContainsString('grupo=g2&sesion=s3&desde=resumen-coordinacion', $html);
+    }
+
+    public function test_el_resumen_sin_origen_vuelve_a_pasar_lista()
+    {
+        $_REQUEST = array('desde' => 'https://otro.sitio');   // fuera de la lista blanca
+        $html = $this->render('single_stic_pasar_lista_resumen');
+        $this->assertStringContainsString('class="pl-back" href="?internalpage=single_stic_pasar_lista"', $html);
+        $this->assertStringNotContainsString('otro.sitio', $html);
+        $this->assertStringContainsString('&desde=resumen"', $html);
+    }
+
+    public function test_una_lista_abierta_desde_el_resumen_vuelve_al_resumen()
+    {
+        $_REQUEST = array('grupo' => 'g1', 'desde' => 'resumen-coordinacion');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+        $this->assertStringContainsString(
+            'class="pl-back" href="?internalpage=single_stic_pasar_lista_resumen&amp;desde=coordinacion"',
+            $html
+        );
+        $this->assertStringContainsString('Volver al resumen de grupos', $html);
+
+        // `desde=coordinacion` no es un origen de marcar: vuelve al árbol.
+        $_REQUEST = array('grupo' => 'g1', 'desde' => 'coordinacion');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+        $this->assertStringContainsString('class="pl-back" href="?internalpage=single_stic_pasar_lista_grupos"', $html);
+    }
+
+    /** El menú resalta la sección de una subpantalla, por la puerta de entrada. */
+    public function test_el_menu_sabe_a_que_seccion_pertenece_una_subpantalla()
+    {
+        require_once __DIR__ . '/../menu.php';
+        $_REQUEST = array();
+        $this->assertSame('single_stic_pasar_lista', sticpa_menu_section_for('single_stic_pasar_lista_resumen'));
+        $this->assertSame('single_stic_coordinacion', sticpa_menu_section_for('single_stic_pasar_lista_monitor'));
+        $this->assertSame('single_stic_eventos', sticpa_menu_section_for('single_stic_eventos'));
+        $_REQUEST = array('desde' => 'coordinacion');
+        $this->assertSame('single_stic_coordinacion', sticpa_menu_section_for('single_stic_pasar_lista_resumen'));
+        $this->assertSame('single_stic_coordinacion', sticpa_menu_section_for('single_stic_pasar_lista_reuniones'));
+        $_REQUEST = array('desde' => 'resumen-coordinacion');
+        $this->assertSame('single_stic_coordinacion', sticpa_menu_section_for('single_stic_pasar_lista_marcar'));
+        $_REQUEST = array('vengo' => 'grupos');
+        $this->assertSame('single_stic_mis_grupos', sticpa_menu_section_for('single_stic_pasar_lista_monitor'));
+        $_REQUEST = array();
+    }
+
+    /**
+     * Y LAS FICHAS DE LAS DEMÁS SECCIONES (plan 042, CAR-3): la ficha de un
+     * evento, de una inscripción o de un pago marca la sección de su listado;
+     * lo que no es una ficha conocida se queda como está.
+     */
+    public function test_el_menu_marca_la_seccion_de_cada_ficha()
+    {
+        require_once __DIR__ . '/../menu.php';
+        $_REQUEST = array();
+        $this->assertSame('list_stic_events', sticpa_menu_section_for('single_stic_events'));
+        $this->assertSame('list_stic_registrations', sticpa_menu_section_for('single_stic_registrations'));
+        foreach (array('single_stic_payments', 'single_stic_payment_form', 'single_stic_payment_error', 'single_stic_payment_commitments', 'list_stic_payment_commitments') as $pago) {
+            $this->assertSame('list_stic_payments', sticpa_menu_section_for($pago), $pago);
+        }
+        $this->assertSame('list_stic_documents', sticpa_menu_section_for('single_stic_documents'));
+        $this->assertSame('single_stic_activities_calendar', sticpa_menu_section_for('single_stic_sessions'));
+        // Las secciones mismas y lo desconocido no se tocan.
+        $this->assertSame('list_stic_events', sticpa_menu_section_for('list_stic_events'));
+        $this->assertSame('single_stic_mis_grupos', sticpa_menu_section_for('single_stic_mis_grupos'));
+        $this->assertSame('single_stic_comunica_perfil', sticpa_menu_section_for('single_stic_comunica_perfil'));
+    }
+
+    /** «Hora» y «Horas» se confundían; la duración, de un desplegable (COO-9). */
+    public function test_nueva_reunion_dice_empieza_y_dura()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $html = $this->render('single_stic_pasar_lista_reuniones');
+        $this->assertStringContainsString('Reuniones de programación', $html);
+        $this->assertStringContainsString('>Empieza<', $html);
+        $this->assertStringContainsString('>Dura<', $html);
+        $this->assertStringContainsString('<option value="1.5" selected>1,5 h</option>', $html);
+        $this->assertStringNotContainsString('>Horas<', $html);
+    }
+
+    /**
+     * «1 de 3 · Las ha pasado siempre» se leía como que no había faltado
+     * ninguna (plan 042, COO-9). En el doble, David pasó la única lista del C1
+     * que hay, y faltan las otras dos.
+     */
+    public function test_la_ficha_del_monitor_no_dice_siempre_con_listas_que_faltan()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+        $this->assertStringContainsString('Faltan 2 · la que hay es suya', $html);
+        $this->assertStringNotContainsString('Las ha pasado siempre', $html);
     }
 
     public function test_resumen_lista_los_participantes_sin_grupo()
@@ -2936,7 +3559,10 @@ final class PasarListaRenderTest extends TestCase
         $html = $this->render('single_stic_pasar_lista_resumen');
         $this->assertStringContainsString('Sol Messeguer', $html);
         $this->assertStringNotContainsString('pl-review-select', $html);
-        $this->assertStringContainsString('no editarlo', $html);
+        // Se dice quién lo arregla y dónde; el «tú puedes verlo, pero no
+        // editarlo» era una frase de «por qué ves esto» (plan 042, COO-9).
+        $this->assertStringContainsString('A su grupo los vincula coordinación, desde Grupos y fichas.', $html);
+        $this->assertStringNotContainsString('no editarlo', $html);
     }
 
     /**
@@ -3749,17 +4375,46 @@ final class PasarListaRenderTest extends TestCase
      * consultas —que también importan— y este test cuenta TANDAS, que es lo que
      * nota un monitor el sábado.
      */
-    public function test_marcar_agrupa_sus_consultas_en_dos_tandas()
+    public function test_marcar_agrupa_sus_consultas_en_tres_tandas()
     {
         $_REQUEST = array('grupo' => 'g1');
         $this->render('single_stic_pasar_lista_marcar');
 
-        $this->assertCount(2, $this->scp->batches, 'dos tandas: lo independiente y lo que depende del evento');
+        // TRES desde el plan 042 (VEL-2): las asistencias de la sesión y las
+        // rachas iban en fila después de las dos primeras.
+        $this->assertCount(3, $this->scp->batches, 'tres tandas: lo independiente, lo que depende del evento y el estado');
         $this->assertSame(4, $this->scp->batches[0], 'grupos, relaciones, eventos y listas van juntos');
         $this->assertSame(2, $this->scp->batches[1], 'sesiones e inscripciones van juntas');
+        $this->assertSame(2, $this->scp->batches[2], 'asistencias de la sesión y rachas van juntas');
+        // Y nada suelto después: con los enlaces bien, todo va en tandas.
+        $this->assertSame(array_sum($this->scp->batches), count($this->scp->calls));
 
         // Y el total de consultas no ha subido por paralelizar.
         $this->assertLessThanOrEqual(10, count($this->scp->calls));
+    }
+
+    /**
+     * GUARDAR NO RELEE EN FILA (plan 042, VEL-2). Tras escribir se tira la
+     * caché de estado y la pantalla vuelve a leer asistencias, listas y rachas
+     * para comprobar el guardado (plan 033). Las tres van en UNA tanda: la
+     * comprobación sigue entera, solo se espera una vez.
+     */
+    public function test_guardar_relee_el_estado_en_una_sola_tanda()
+    {
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_REQUEST = array('grupo' => 'g1', 'sesion' => 's3');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_g1'),
+            'pl_marks' => json_encode(array('c1' => 'yes', 'c2' => 'no_unjustified')),
+        );
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertStringContainsString('data-pl-saved-ok', $html);
+        $this->assertSame(array(4, 2, 3), $this->scp->batches, 'la relectura: asistencias, rachas y listas, juntas');
+        // Lo único suelto es la lectura de antes de escribir (qué asistencias
+        // existen ya), que es la que decide crear o actualizar.
+        $this->assertLessThanOrEqual(1, count($this->scp->calls) - array_sum($this->scp->batches));
     }
 
     /** Lo mismo en la pantalla de monitores, que era la más lenta. */
@@ -4758,9 +5413,11 @@ final class PasarListaRenderTest extends TestCase
         // g3 es el grupo sin nadie del doble.
         $_REQUEST = array('grupo' => 'g3');
         $html = $this->render('single_stic_pasar_lista_marcar');
-        $this->assertStringContainsString('no tiene participantes', $html);
+        // Sin mandar a un monitor al CRM, que no tiene (plan 042, PL-10).
+        $this->assertStringContainsString('no tiene a nadie apuntado', $html);
+        $this->assertStringNotContainsString('CRM', $html);
         $this->assertStringContainsString('refrescar=1', $html);
-        $this->assertStringContainsString('Ya lo he arreglado', $html);
+        $this->assertStringContainsString('Volver a mirar', $html);
     }
 
     /** Las rachas se calculan sobre las asistencias: caducan con ellas. */
@@ -5856,10 +6513,32 @@ final class PasarListaRenderTest extends TestCase
         $html = $this->render('single_stic_pasar_lista_resumen');
 
         $this->assertMatchesRegularExpression(
-            '/<a class="pl-cell[^"]*" href="\?internalpage=single_stic_pasar_lista_marcar&grupo=g1&sesion=s\d+"/',
+            // (Con `&desde=` detrás desde COO-3: la lista sabe volver al Resumen.)
+            '/<a class="pl-cell[^"]*" href="\?internalpage=single_stic_pasar_lista_marcar&grupo=g1&sesion=s\d+(&desde=resumen)?"/',
             $html,
             'Cada celda tiene que enlazar a la lista de ESA sesión.'
         );
+    }
+
+    /**
+     * En el móvil las celdas no se distinguen con el dedo: la tira lleva
+     * además UN enlace al historial del grupo, hermano de las celdas (plan
+     * 042, PL-6). Y la pastilla no dice «Al día» si hay huecos: en el doble
+     * C1 tiene la última pasada y dos sin pasar.
+     */
+    public function test_la_tira_del_resumen_lleva_al_historial_y_la_pastilla_no_miente()
+    {
+        $html = $this->render('single_stic_pasar_lista_resumen');
+
+        $this->assertStringContainsString(
+            '<a class="pl-strip-link" href="?internalpage=single_stic_pasar_lista_grupos&grupo=g1&sesiones=1"',
+            $html
+        );
+        // La fila de C1: su enlace lleva `&desde=resumen` desde COO-3.
+        $fila = substr($html, strpos($html, 'grupo=g1&desde=resumen"'), 1500);
+        $this->assertStringContainsString('2 sin pasar', $fila);
+        $this->assertStringNotContainsString('Al día', $fila);
+        $this->assertStringContainsString('Pasada', $fila);
     }
 
     /**
@@ -5870,7 +6549,7 @@ final class PasarListaRenderTest extends TestCase
     {
         $html = $this->render('single_stic_pasar_lista_resumen');
 
-        $fila = substr($html, strpos($html, 'pl-grouprow'), 1400);
+        $fila = substr($html, strpos($html, '<div class="pl-grouprow">'), 1400);
         $this->assertStringContainsString('<div class="pl-grouprow">', $fila);
         $this->assertStringContainsString('<a class="pl-grouprow-top"', $fila);
         // Entre la apertura de la cabecera y la tira tiene que haber un cierre.
@@ -5932,5 +6611,359 @@ final class PasarListaRenderTest extends TestCase
         $html = $this->render('single_stic_mis_grupos');
 
         $this->assertStringNotContainsString('pl-hint--warn', $html);
+    }
+
+    // ---- COO-5: el escritorio de coordinación ------------------------------
+
+    /**
+     * EL RESUMEN, UNA COLUMNA POR ETAPA EN ESCRITORIO (plan 042, COO-5). La
+     * rejilla la pone el CSS a partir de 1024 px; lo que fija el HTML es que
+     * cada etapa vaya en su envoltorio con su título JUSTO antes de su lista
+     * (el buscador esconde los dos juntos) y en el orden MIC, COM, LC.
+     */
+    public function test_el_resumen_envuelve_cada_etapa_en_su_columna()
+    {
+        $this->scp->coordEtapa = '';
+        $html = $this->render('single_stic_pasar_lista_resumen');
+
+        $this->assertSame(1, substr_count($html, '<div class="pl-etapas">'));
+        preg_match_all(
+            '#<section class="pl-etapa-col"><div class="pl-etapa-title"><span class="pl-etapa-dot"[^>]*></span>([A-Z]+)</div><div class="pl-list">#',
+            $html,
+            $m
+        );
+        $this->assertSame(array('MIC', 'COM', 'LC'), $m[1]);
+        // Todas las filas de grupo siguen dentro de una columna.
+        $this->assertSame(substr_count($html, '<div class="pl-grouprow">'), substr_count(
+            substr($html, strpos($html, '<div class="pl-etapas">')),
+            '<div class="pl-grouprow">'
+        ));
+    }
+
+    /**
+     * «TU EQUIPO», IGUAL: una columna por etapa. Y las tres puertas de arriba
+     * no se marcan como solas; para quien solo acompaña, que tiene una, sí.
+     */
+    public function test_coordinacion_reparte_el_equipo_y_las_puertas()
+    {
+        $this->scp->coordEtapa = '';
+        $html = $this->render('single_stic_coordinacion');
+
+        $this->assertStringContainsString('<div class="pl-list pl-list--nav">', $html);
+        $this->assertStringNotContainsString('pl-list--nav-solo', $html);
+        $dir = substr($html, strpos($html, '<div class="pl-etapas">'));
+        $this->assertGreaterThanOrEqual(2, substr_count($dir, '<section class="pl-etapa-col">'));
+        $this->assertSame(substr_count($html, 'class="pl-rowwrap pl-rowlink"'), substr_count($dir, 'class="pl-rowwrap pl-rowlink"'));
+
+        $this->setUp();
+        $this->scp->isAcomp = true;
+        $html = $this->render('single_stic_coordinacion');
+        $this->assertStringContainsString('<div class="pl-list pl-list--nav pl-list--nav-solo">', $html);
+    }
+
+    /**
+     * LA FICHA DEL MONITOR, DOS COLUMNAS: el papeleo a la derecha en
+     * escritorio, pero DESPUÉS en el HTML, que es el orden del móvil y del
+     * lector de pantalla (PASAR-LISTA-COORDINACION.md §4).
+     */
+    public function test_la_ficha_del_monitor_deja_el_papeleo_en_su_columna()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_REQUEST = array('monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $layout = strpos($html, '<div class="pl-mon-layout"><div class="pl-mon-main">');
+        $aside = strpos($html, '<div class="pl-mon-aside">');
+        $this->assertNotFalse($layout);
+        $this->assertNotFalse($aside);
+        $main = substr($html, $layout, $aside - $layout);
+        $papeleo = substr($html, $aside);
+        foreach (array('pl-ident-name', 'Cómo va este curso', 'Sus grupos') as $aqui) {
+            $this->assertStringContainsString($aqui, $main);
+        }
+        foreach (array('En regla', 'Datos MCM', 'Formación') as $alli) {
+            $this->assertStringContainsString($alli, $papeleo);
+            $this->assertStringNotContainsString('>' . $alli . '<', $main);
+        }
+    }
+
+    // ---- Pasar lista en un EVENTO (el autobús) ---------------------------
+    // inc/stic-pasar-lista-eventos.php · pages/single_stic_pasar_lista_evento.php
+
+    /** Los eventos que se ofrecen: el de hoy primero; luego los próximos (el
+     *  más cercano arriba) y los pasados (el más reciente arriba); fuera los de
+     *  otro curso, los sin fecha y los que se excluyen (sesiones semanales,
+     *  reuniones). */
+    public function test_ev_clasificar_ordena_hoy_proximos_y_pasados()
+    {
+        $now = mktime(17, 0, 0, 11, 15, 2025);
+        $rows = array(
+            array('id' => 'lejos', 'name' => 'Campamento', 'start_date' => '2026-03-01 10:00:00', 'end_date' => '2026-03-03 10:00:00'),
+            array('id' => 'vuelta', 'name' => 'Vuelta hoy', 'start_date' => '2025-11-13 10:00:00', 'end_date' => '2025-11-15 19:00:00'),
+            array('id' => 'cerca', 'name' => 'Excursión', 'start_date' => '2025-11-22 10:00:00', 'end_date' => ''),
+            array('id' => 'ida', 'name' => 'Ida hoy', 'start_date' => '2025-11-15 09:00:00', 'end_date' => '2025-11-17 18:00:00'),
+            array('id' => 'enmarcha', 'name' => 'En marcha', 'start_date' => '2025-11-14 09:00:00', 'end_date' => '2025-11-16 18:00:00'),
+            array('id' => 'oct', 'name' => 'Octubre', 'start_date' => '2025-10-04 10:00:00', 'end_date' => '2025-10-04 13:00:00'),
+            array('id' => 'sep', 'name' => 'Septiembre', 'start_date' => '2025-09-13 10:00:00', 'end_date' => ''),
+            array('id' => 'viejo', 'name' => 'Curso pasado', 'start_date' => '2025-07-01 10:00:00', 'end_date' => '2025-07-10 10:00:00'),
+            array('id' => 'sinfecha', 'name' => 'Sin fecha', 'start_date' => '', 'end_date' => ''),
+            array('id' => 'semanal', 'name' => 'MIC | Sesiones', 'start_date' => '2025-09-15 10:00:00', 'end_date' => '2026-06-15 10:00:00'),
+            // Más de 50 días: es de todo el curso, no una salida (aunque no
+            // esté en la lista de excluidos). 50 justos sí entra.
+            array('id' => 'anual', 'name' => 'Catequesis anual', 'start_date' => '2025-10-01 10:00:00', 'end_date' => '2026-05-30 10:00:00'),
+            array('id' => 'cincuenta', 'name' => 'Cincuenta días', 'start_date' => '2025-12-01 10:00:00', 'end_date' => '2026-01-20 10:00:00'),
+        );
+        $out = sticpa_pl_ev_clasificar($rows, array('semanal'), $now);
+
+        $this->assertSame(array('ida', 'vuelta', 'enmarcha', 'cerca', 'cincuenta', 'lejos', 'oct', 'sep'), array_column($out, 'id'));
+        $porId = array_column($out, null, 'id');
+        $this->assertSame('start', $porId['ida']['dia']);
+        $this->assertSame('end', $porId['vuelta']['dia']);
+        $this->assertSame('during', $porId['enmarcha']['dia']);
+        $this->assertSame('hoy', $porId['enmarcha']['cuando']);
+        $this->assertSame('proximo', $porId['cerca']['cuando']);
+        $this->assertSame('pasado', $porId['oct']['cuando']);
+        // Sin fecha de fin, la de inicio.
+        $this->assertSame($porId['cerca']['start'], $porId['cerca']['end']);
+    }
+
+    /** La etapa: manda la ficha; si está vacía, se deduce del curso
+     *  (primaria → MIC; ESO, Bachillerato y FP → COM). Lo demás, sin etapa. */
+    public function test_ev_etapa_de_la_ficha_o_del_curso()
+    {
+        $this->assertSame('COM', sticpa_pl_ev_etapa('COM', '5_primaria'));
+        $this->assertSame('LC', sticpa_pl_ev_etapa('lc', ''));
+        $this->assertSame('MIC', sticpa_pl_ev_etapa('', '4_primaria'));
+        $this->assertSame('COM', sticpa_pl_ev_etapa('', '3_eso'));
+        $this->assertSame('COM', sticpa_pl_ev_etapa('', '1_bachillerato'));
+        $this->assertSame('COM', sticpa_pl_ev_etapa('', 'fp_gm'));
+        $this->assertSame('', sticpa_pl_ev_etapa('', 'universitario'));
+        $this->assertSame('', sticpa_pl_ev_etapa('', ''));
+        // `na` no es un curso.
+        $this->assertSame('', sticpa_pl_ev_curso_key('na'));
+        $this->assertSame('', sticpa_pl_ev_curso_key('inventado'));
+    }
+
+    /** El armado de la lista: las canceladas al final y fuera del mapa que se
+     *  puede escribir; una persona con una cancelada vieja y una confirmada
+     *  nueva sale UNA vez, activa; los cursos y etapas se cuentan con las
+     *  activas; orden por apellidos. */
+    public function test_ev_lista_separa_canceladas_y_no_duplica()
+    {
+        $ins = array(
+            array('reg_id' => 'r1', 'contact_id' => 'a', 'status' => 'confirmed', 'curso' => '1_eso'),
+            array('reg_id' => 'r2v', 'contact_id' => 'b', 'status' => 'cancelled', 'curso' => '2_eso'),
+            array('reg_id' => 'r2', 'contact_id' => 'b', 'status' => 'confirmed', 'curso' => '2_eso'),
+            array('reg_id' => 'r3', 'contact_id' => 'c', 'status' => 'cancelled', 'curso' => '1_eso'),
+            array('reg_id' => 'r4', 'contact_id' => 'd', 'status' => '', 'curso' => '5_primaria'),
+            array('reg_id' => 'r5', 'contact_id' => '', 'status' => 'confirmed', 'curso' => '1_eso'),
+        );
+        $per = array(
+            'a' => array('first' => 'Ana', 'last' => 'Zurita', 'full' => 'Ana Zurita', 'etapa' => 'COM'),
+            'b' => array('first' => 'Bea', 'last' => 'Alba', 'full' => 'Bea Alba', 'etapa' => ''),
+            'c' => array('first' => 'Ciro', 'last' => 'Mas', 'full' => 'Ciro Mas', 'etapa' => 'COM'),
+            'd' => array('first' => 'Dani', 'last' => 'Pons', 'full' => 'Dani Pons', 'etapa' => ''),
+        );
+        $l = sticpa_pl_ev_lista($ins, $per, array('a' => array('id' => 'g1', 'code' => 'C1')));
+
+        $this->assertSame(array('b', 'd', 'a'), array_column($l['activos'], 'id'));
+        $this->assertSame(array('c'), array_column($l['fuera'], 'id'));
+        $this->assertSame('Cancelada', $l['fuera'][0]['status_label']);
+        $this->assertSame(array('r1' => 'a', 'r2' => 'b', 'r4' => 'd'), $l['regMap']);
+        $this->assertSame(array('5_primaria' => 1, '1_eso' => 1, '2_eso' => 1), $l['cursos']);
+        $this->assertSame(array('MIC' => 1, 'COM' => 2), $l['etapas']);
+        $porId = array_column($l['activos'], null, 'id');
+        $this->assertSame('g1', $porId['a']['grupo_id']);
+        $this->assertSame('1º ESO', $porId['a']['curso_label']);
+    }
+
+    /** El selector: la convivencia que empieza HOY arriba y destacada, luego
+     *  los próximos y los pasados del curso. Fuera el del curso anterior, el
+     *  de las sesiones semanales y el de reuniones. */
+    public function test_ev_selector_pone_el_de_hoy_arriba()
+    {
+        $this->scp->conEventos = true;
+        $html = $this->render('single_stic_pasar_lista_evento');
+
+        $this->assertStringContainsString('pl-evhoy', $html);
+        $this->assertStringContainsString('Hoy empieza', $html);
+        $this->assertStringContainsString('evento=ev-bus', $html);
+        $this->assertLessThan(strpos($html, 'Próximos'), strpos($html, 'evento=ev-bus'));
+        $this->assertLessThan(strpos($html, 'Ya pasados este curso'), strpos($html, 'evento=ev-futuro'));
+        $this->assertGreaterThan(strpos($html, 'Ya pasados este curso'), strpos($html, 'evento=ev-pasado'));
+        $this->assertStringNotContainsString('ev-viejo', $html);
+        $this->assertStringNotContainsString('evento=ev-todo', $html);
+        $this->assertStringNotContainsString('evento=ev-reu', $html);
+    }
+
+    /** La lista: por etapa (MIC, COM), con los chips de curso y sus números,
+     *  NADA marcado de salida (una inscripción confirmada no es «está en el
+     *  autobús») y las canceladas al final, sin botón. */
+    public function test_ev_lista_por_etapa_sin_marcar_y_canceladas_al_final()
+    {
+        $this->scp->conEventos = true;
+        $_REQUEST = array('evento' => 'ev-bus');
+        $html = $this->render('single_stic_pasar_lista_evento');
+
+        $this->assertStringContainsString('data-pl-evento', $html);
+        // La sesión de hoy (la ida), no la vuelta.
+        $this->assertStringContainsString('data-session="sb1"', $html);
+        // Por etapa: MIC (Lucía, Marta por su curso) antes que COM.
+        $this->assertLessThan(strpos($html, '>COM<'), strpos($html, '>MIC<'));
+        $this->assertLessThan(strpos($html, '>COM<'), strpos($html, 'data-contact="c3"'));
+        $this->assertGreaterThan(strpos($html, '>COM<'), strpos($html, 'data-contact="c1"'));
+        // Cuatro que van: nadie marcado.
+        $this->assertSame(4, substr_count($html, 'class="pl-row"'));
+        $this->assertSame(4, substr_count($html, 'data-state=""'));
+        // Cada fila lleva su curso para el filtro, en su elemento de fuera
+        // (el envoltorio con la flecha de la ficha): es lo que se esconde.
+        $this->assertMatchesRegularExpression('/<div data-pl-ev-curso="2_eso" data-pl-ev-hay="[^"]*Jaume[^"]*" class="pl-rowwrap"><button type="button" class="pl-row" data-state="" data-contact="c2"/', $html);
+        $this->assertMatchesRegularExpression('/data-pl-ev-curso="-"[^>]*>(<button[^>]*)?[^<]*<?[^>]*data-contact="c5"/', $html);
+        // Jaume una sola vez, aunque tenga una cancelada vieja.
+        $this->assertSame(1, substr_count($html, 'data-contact="c2"'));
+        // Chips: todos (4) y cada curso con su número; «Sin curso» para el `na`.
+        $this->assertStringContainsString('data-pl-ev-curso="" aria-pressed="true">Todos<span class="pl-evchip-n">4</span>', $html);
+        $this->assertStringContainsString('1º ESO<span class="pl-evchip-n">1</span>', $html);
+        $this->assertStringContainsString('Sin curso<span class="pl-evchip-n">1</span>', $html);
+        // «Se Fue» canceló: al final, sin botón y con su chip.
+        $this->assertStringNotContainsString('data-contact="c9"', $html);
+        $this->assertStringContainsString('No van', $html);
+        $this->assertStringContainsString('Se Fue', $html);
+        $this->assertGreaterThan(strpos($html, 'data-contact="c1"'), strpos($html, 'Se Fue'));
+        $this->assertStringContainsString('Cancelada', $html);
+        // El formulario lleva su URL (la cola del móvil la usa) y el nonce del evento.
+        $this->assertMatchesRegularExpression('/<form method="post" action="\?internalpage=single_stic_pasar_lista_evento&(amp;|#038;)evento=ev-bus&(amp;|#038;)sesion=sb1"/', $html);
+        $this->assertStringContainsString(wp_create_nonce('pl_save_ev_ev-bus'), $html);
+        $this->assertStringContainsString('Están todos', $html);
+    }
+
+    /** Guardar: se escribe SOLO lo marcado de gente con plaza. Lo de una
+     *  cancelada o de alguien que no está inscrito no llega al CRM. Las
+     *  asistencias nacen en la sesión de hoy y atadas a SU inscripción, y la
+     *  pantalla confirma el guardado releyendo. */
+    public function test_ev_guardar_escribe_solo_lo_marcado_de_gente_con_plaza()
+    {
+        $this->scp->conEventos = true;
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_save_ev_ev-bus'),
+            'pl_marks' => json_encode(array(
+                'c1' => 'yes', 'c2' => 'no_unjustified', 'c3' => '',
+                'c9' => 'yes',            // canceló
+                'intruso' => 'yes',       // no está inscrito
+                'c5' => 'inventado',      // estado que no existe
+            )),
+        );
+        $_REQUEST = array_merge(array('evento' => 'ev-bus', 'sesion' => 'sb1'), $_POST);
+        $html = $this->render('single_stic_pasar_lista_evento');
+
+        $atts = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Attendances';
+        }));
+        $porReg = array();
+        foreach ($atts as $w) {
+            $porReg[$w['data']['stic_attendances_stic_registrationsstic_registrations_ida']] = $w['data'];
+        }
+        $this->assertSame(array('rb1', 'rb2'), array_keys($porReg));
+        $this->assertSame('yes', $porReg['rb1']['status']);
+        $this->assertSame('no_unjustified', $porReg['rb2']['status']);
+        $this->assertSame('sb1', $porReg['rb1']['stic_attendances_stic_sessionsstic_sessions_ida']);
+        $this->assertSame('2025-11-15 09:00:00', $porReg['rb1']['start_date']);
+        // Ni listas de grupo ni sesiones nuevas: la convivencia ya tiene días.
+        $this->assertCount(0, array_filter($this->scp->writes, function ($w) {
+            return in_array($w['module'], array('LIS_listas', 'stic_Sessions'), true);
+        }));
+        // Confirmado contra el CRM: la marca que le dice al móvil que puede
+        // tirar el borrador, y el resumen con las palabras del autobús.
+        $this->assertStringContainsString('data-pl-saved-ok', $html);
+        $this->assertStringContainsString('Lista guardada · 1 está, 1 falta', $html);
+    }
+
+    /** Un nonce caducado no escribe nada y deja la señal con la que la cola
+     *  del móvil reintenta con el nonce nuevo (plan 042, PL-9). */
+    public function test_ev_nonce_caducado_no_escribe()
+    {
+        $this->scp->conEventos = true;
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_POST = array('pl_action' => 'save', 'pl_nonce' => 'viejo', 'pl_marks' => json_encode(array('c1' => 'yes')));
+        $_REQUEST = array_merge(array('evento' => 'ev-bus'), $_POST);
+        $html = $this->render('single_stic_pasar_lista_evento');
+
+        $this->assertStringContainsString('data-pl-nonce-expired', $html);
+        $this->assertStringNotContainsString('data-pl-saved-ok', $html);
+        $this->assertCount(0, $this->scp->writes);
+    }
+
+    /** Un evento SIN días en el CRM: se dice, y al guardar se crea la sesión
+     *  del día que viaja en la URL (el de cuando se marcó, aunque el envío
+     *  llegue más tarde desde la cola), atada al evento y de la delegación, y
+     *  la asistencia nace en ella. */
+    public function test_ev_sin_sesiones_crea_la_del_dia_al_guardar()
+    {
+        $this->scp->conEventos = true;
+        $_REQUEST = array('evento' => 'ev-futuro');
+        $html = $this->render('single_stic_pasar_lista_evento');
+        $this->assertStringContainsString('no tiene días en el CRM', $html);
+        $this->assertStringContainsString('data-session="nueva-2025-11-15"', $html);
+        $this->assertMatchesRegularExpression('/action="[^"]*evento=ev-futuro&(amp;|#038;)dia=2025-11-15"/', $html);
+        $this->assertCount(0, $this->scp->writes);
+
+        $this->setUp();
+        $this->scp->conEventos = true;
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_POST = array('pl_action' => 'save', 'pl_nonce' => wp_create_nonce('pl_save_ev_ev-futuro'), 'pl_marks' => json_encode(array('c1' => 'yes')));
+        $_REQUEST = array_merge(array('evento' => 'ev-futuro', 'dia' => '2025-11-14'), $_POST);
+        $html = $this->render('single_stic_pasar_lista_evento');
+
+        $ses = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Sessions';
+        }));
+        $this->assertCount(1, $ses);
+        $this->assertSame('2025-11-14 09:00:00', $ses[0]['data']['start_date']);
+        $this->assertSame('deleg-castellon', $ses[0]['data']['assigned_user_id']);
+        $this->assertSame('ev-futuro', $ses[0]['data']['stic_sessions_stic_eventsstic_events_ida']);
+        $att = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Attendances';
+        }));
+        $this->assertCount(1, $att);
+        $this->assertSame('rf1', $att[0]['data']['stic_attendances_stic_registrationsstic_registrations_ida']);
+        $this->assertStringStartsWith('new-', $att[0]['data']['stic_attendances_stic_sessionsstic_sessions_ida']);
+    }
+
+    /** Un id que no es de los eventos de tu delegación de este curso (otro
+     *  curso, otra delegación, inventado) no enseña la lista. */
+    public function test_ev_evento_ajeno_no_se_enseña()
+    {
+        $this->scp->conEventos = true;
+        foreach (array('ev-viejo', 'ev-todo', 'no-existe') as $id) {
+            $this->setUp();
+            $this->scp->conEventos = true;
+            $_REQUEST = array('evento' => $id);
+            $html = $this->render('single_stic_pasar_lista_evento');
+            $this->assertStringContainsString('no está entre los de tu delegación', $html, $id);
+            $this->assertStringNotContainsString('data-pl-marcar', $html, $id);
+        }
+    }
+
+    /** La portada de Pasar Lista: la convivencia que empieza hoy, arriba y a
+     *  un toque, y la puerta a los demás eventos. SIN llamadas nuevas al CRM:
+     *  los eventos ya los ha leído la primera tanda. */
+    public function test_home_ofrece_el_evento_de_hoy_sin_llamadas_nuevas()
+    {
+        $this->render('single_stic_pasar_lista');
+        $antes = count($this->scp->calls);
+
+        $this->setUp();
+        $this->scp->conEventos = true;
+        $html = $this->render('single_stic_pasar_lista');
+
+        $this->assertSame($antes, count($this->scp->calls));
+        $this->assertStringContainsString('pl-evhoy', $html);
+        $this->assertStringContainsString('Convivencia MIC y COM', $html);
+        // Arriba: antes que la tarjeta del sábado.
+        $this->assertLessThan(strpos($html, 'pl-hero'), strpos($html, 'pl-evhoy'));
+        $this->assertStringContainsString('Pasar lista en un evento', $html);
+        $this->assertStringContainsString('3 este curso', $html);
     }
 }

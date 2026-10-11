@@ -140,10 +140,16 @@ function sticpa_documents_list_html($rows, $definition = array())
     }
 
     if (empty($models)) {
+        $viendoA = sticpa_viendo_a_nombre();
         return sticpa_record_empty_html(
             'file',
-            __('Todavía no tienes documentos', 'sticpa'),
-            __('Aquí guardas y descargas lo tuyo: autorizaciones, certificados, justificantes.', 'sticpa'),
+            ($viendoA !== '')
+                /* translators: %s: nombre de pila del participante */
+                ? sprintf(__('Todavía no hay documentos de %s', 'sticpa'), $viendoA)
+                : __('Todavía no tienes documentos', 'sticpa'),
+            ($viendoA !== '')
+                ? __('Aquí guardas y descargas lo suyo: autorizaciones, certificados, justificantes.', 'sticpa')
+                : __('Aquí guardas y descargas lo tuyo: autorizaciones, certificados, justificantes.', 'sticpa'),
             array('label' => __('Subir un documento', 'sticpa'), 'url' => '?internalpage=single_stic_documents&action=create', 'primary' => true)
         );
     }

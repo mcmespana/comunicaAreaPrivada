@@ -79,12 +79,19 @@
        porque en oscuro se aclara a #3f95d6 para leerse sobre oscuro, y ahí va
        sobre blanco: 3,2:1, por debajo del AA.
 
+       Y al revés: cuando la marca es el FONDO de un texto blanco (una pastilla,
+       un botón elegido, un hover que se rellena), el fondo es el fijo. En oscuro
+       `--primary-color` (#3f95d6) y `--accent-color` (#9a7ed6) dejan el blanco
+       en 3,2-3,3:1, y la letra de esas pastillas es pequeña (plan 042, A11Y-6).
+       `--accent-fixed` es la pareja violeta: 6,7:1 con blanco en los dos temas.
+
        Nacieron en pasar-lista.css (como `--pl-on-brand` / `--pl-brand-fixed`),
        pero el problema es general: ~40 reglas de esta hoja ya lo resolvían a
        mano con un #fff literal. Al escribir una regla nueva que pinte sobre
        marca, usa estos. */
     --on-brand: #fff;
     --brand-blue-fixed: #1c6fb3;
+    --accent-fixed: #6c4b9e;
 
     /* ---- Radios generosos ---- */
     --radius-sm: 0.55rem;
@@ -165,6 +172,30 @@
     --line-height-tight: 1.25;
     --line-height-normal: 1.5;
     --line-height-relaxed: 1.75;
+
+    /* ---- Zona segura (plan 042, CAR-2) — lo que se pega abajo ----
+       Todo lo que va `sticky`/`fixed` al pie (la botonera de los
+       formularios, «Inscribirme» de la ficha, la barra de guardar y la hoja
+       de Pasar Lista) reserva con ESTOS DOS y con nada más:
+         bottom: var(--stic-app-bottom);
+         padding-bottom: calc(<lo suyo> + var(--stic-safe-bottom));
+       En el navegador, `--stic-safe-bottom` es el indicador de inicio del
+       iPhone (vale algo porque el <head> lleva `viewport-fit=cover`) y
+       `--stic-app-bottom` es 0. En MCM App es al revés: ver justo debajo.
+       Así nadie suma las dos reservas y nada se sube dos veces. No cambian
+       con el tema, así que no tienen valor en §44.a. */
+    --stic-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --stic-app-bottom: 0px;
+}
+
+/* EN MCM APP la web va a pantalla completa por detrás de la tab bar flotante
+   (~73 pt) y de la píldora de atrás/adelante (empieza a ~168 pt del borde):
+   CONTRATO-APP-WEBVIEW.md §3. Lo pegado abajo se sube 10,5 rem, que salva las
+   dos, y el indicador de inicio ya cae DENTRO de la tab bar: sumarle el
+   `env()` lo subiría dos veces. */
+body.sticpa-app-mode {
+    --stic-safe-bottom: 0px;
+    --stic-app-bottom: 10.5rem;
 }
 
 /* ============================================================
@@ -277,8 +308,7 @@
 /* ============================================================
    4. TARJETA DE LOGIN / RECUPERAR — glassmorphism premium
    ============================================================ */
-.stic-login-form,
-.stic-forgotpas-form {
+.stic-login-form {
     position: relative;
     width: 100%;
     max-width: 400px;
@@ -298,8 +328,7 @@
    con filter: blur(64px): difuminar un elemento grande en cada composición es
    de lo más caro en GPU móvil. Un radial-gradient ya "nace" difuminado y no
    cuesta filtro — mismo efecto, coste de pintura mucho menor. */
-.stic-login-form::before,
-.stic-forgotpas-form::before {
+.stic-login-form::before {
     content: '';
     position: absolute;
     inset: -45% -30% auto -30%;
@@ -344,16 +373,7 @@
     50%      { transform: translateY(-6px); }
 }
 
-.stic-auth-kicker {
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--secondary-color);
-}
-
-.stic-login-form h3,
-.stic-forgotpas-form h3 {
+.stic-login-form h3 {
     margin: 0;
     font-size: clamp(1.35rem, 3.5vw, 1.6rem);
     font-weight: 800;
@@ -373,8 +393,7 @@
 }
 
 /* Lista de campos del formulario de login */
-.stic-login-form form ul,
-.stic-forgotpas-form form ul {
+.stic-login-form form ul {
     list-style: none;
     margin: 0;
     padding: 0;
@@ -383,16 +402,14 @@
     gap: 0.7rem;
 }
 
-.stic-login-form .input_login,
-.stic-forgotpas-form .field_signup {
+.stic-login-form .input_login {
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
     text-align: left;
 }
 
-.stic-login-form .input_login > label,
-.stic-forgotpas-form .field_signup > label {
+.stic-login-form .input_login > label {
     font-size: 0.82rem;
     font-weight: 600;
     color: var(--gray-700);
@@ -401,14 +418,12 @@
 
 /* Campo con icono incrustado (posicionamiento robusto, sin depender de flex) */
 .stic-login-form .stic-field,
-.stic-forgotpas-form .stic-field,
 span.stic-field {
     position: relative !important;
     display: block !important;
     width: 100%;
 }
 .stic-login-form .stic-field-icon,
-.stic-forgotpas-form .stic-field-icon,
 .stic-field .stic-field-icon {
     position: absolute;
     left: 0.95rem;
@@ -427,7 +442,6 @@ span.stic-field {
 
 .stic-login-form .input_login input.input-text,
 .stic-login-form .input_login span > input,
-.stic-forgotpas-form input.input-text,
 .stic-field input,
 /* Fuera de `.input_login` (el DNI del rescate, el correo de la pantalla del
    código) ganaba `.stic-form input[type="text"]` (§ «Inputs / selects») con
@@ -455,8 +469,7 @@ span.stic-field {
    `.entry-content button` (especificidad mayor) y, si no, el botón hereda
    padding/fondo del tema y se convierte en una caja enorme. */
 .stic-pass-toggle,
-.stic-login-form .stic-pass-toggle,
-.stic-forgotpas-form .stic-pass-toggle {
+.stic-login-form .stic-pass-toggle {
     position: absolute !important;
     right: 0.4rem !important;
     top: 50% !important;
@@ -479,19 +492,18 @@ span.stic-field {
 }
 .stic-pass-toggle::after,
 .stic-pass-toggle::before { display: none !important; content: none !important; }
-.stic-pass-toggle:hover { color: var(--primary-color) !important; background: rgba(28, 111, 179, 0.08) !important; transform: translateY(-50%) !important; }
+@media (hover: hover) {
+    .stic-pass-toggle:hover { color: var(--primary-color) !important; background: rgba(28, 111, 179, 0.08) !important; transform: translateY(-50%) !important; }
+}
 .stic-pass-toggle:active { transform: translateY(-50%) scale(0.9) !important; }
 .stic-pass-toggle svg { width: 20px !important; height: 20px !important; }
 
 /* Botón principal de submit */
-.stic-login-form .actions_login,
-.stic-forgotpas-form .stic-send {
+.stic-login-form .actions_login {
     list-style: none;
     margin-top: 0.4rem;
 }
-.stic-login-form .actions_login input[type="submit"],
-.stic-forgotpas-form .stic-send input[type="submit"],
-.stic-btn-primary {
+.stic-login-form .actions_login input[type="submit"] {
     width: 100%;
     padding: 1rem 1.25rem;
     font-size: 1.02rem;
@@ -501,26 +513,6 @@ span.stic-field {
     border: 0;
     border-radius: var(--radius-md);
     cursor: pointer;
-}
-
-/* Separador "o" entre login clásico y acceso por enlace */
-.stic-auth-divider {
-    display: flex;
-    align-items: center;
-    gap: 0.85rem;
-    margin: 1.3rem 0 1.1rem;
-    color: var(--gray-500); /* gray-400 daba ~2.5:1 sobre blanco: ilegible */
-    font-size: 0.78rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-}
-.stic-auth-divider::before,
-.stic-auth-divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--gray-200), transparent);
 }
 
 /* Enlaces secundarios (registro, acceso por enlace) */
@@ -539,8 +531,10 @@ span.stic-field {
     text-decoration: none;
     transition: color 0.18s ease;
 }
-.stic-login-form .actions_login .left a:hover,
-.stic-auth-links a:hover { color: var(--secondary-color); }
+@media (hover: hover) {
+    .stic-login-form .actions_login .left a:hover,
+    .stic-auth-links a:hover { color: var(--secondary-color); }
+}
 
 /* ---- Conmutador entre vista de enlace mágico y vista de contraseña ---- */
 .stic-auth-view {
@@ -548,25 +542,6 @@ span.stic-field {
 }
 .stic-auth[data-mode="magic"] .stic-auth-login { display: none; }
 .stic-auth[data-mode="password"] .stic-auth-magic { display: none; }
-
-.stic-auth-switch {
-    margin: 1.2rem 0 0;
-    text-align: center;
-}
-.stic-auth-switch a {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: var(--primary-color);
-    text-decoration: none;
-    padding: 0.55rem 0.9rem;
-    border-radius: var(--radius-full);
-    transition: color 0.18s ease, background 0.18s ease;
-}
-.stic-auth-switch a:hover { color: var(--secondary-color); background: var(--secondary-50); }
-.stic-inline-icon { width: 16px; height: 16px; flex-shrink: 0; }
 
 /* Los <select> dentro de un campo no llevan icono: padding normal a la izquierda. */
 .stic-field select { padding-left: 1rem !important; }
@@ -590,7 +565,9 @@ span.stic-field {
 .stic-btn-magic-icon { display: inline-grid; place-items: center; }
 .stic-btn-magic-icon svg { width: 20px; height: 20px; animation: stic-bob 2.6s ease-in-out infinite; }
 @keyframes stic-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
-.stic-btn-magic:hover .stic-btn-magic-icon { animation: stic-fly 0.75s var(--ease-spring); }
+@media (hover: hover) {
+    .stic-btn-magic:hover .stic-btn-magic-icon { animation: stic-fly 0.75s var(--ease-spring); }
+}
 @keyframes stic-fly {
     0%   { transform: translate(0, 0) rotate(0); }
     35%  { transform: translate(4px, -4px) rotate(10deg); }
@@ -598,41 +575,9 @@ span.stic-field {
     100% { transform: translate(0, 0) rotate(0); }
 }
 
-/* ---- Destello junto al texto de ayuda del enlace mágico ---- */
-.stic-sparkle { display: inline-grid; place-items: center; vertical-align: -4px; color: var(--secondary-color); margin-right: 0.15rem; }
-.stic-sparkle svg { width: 18px; height: 18px; animation: stic-twinkle 2.4s ease-in-out infinite; }
-@keyframes stic-twinkle {
-    0%, 100% { opacity: 0.55; transform: scale(0.9) rotate(0); }
-    50%      { opacity: 1; transform: scale(1.12) rotate(12deg); }
-}
-
 /* ---- Iconos de los desplegables de ayuda del acceso (.stic-code-reveal) ---- */
 .stic-hint-icon { width: 15px; height: 15px; flex-shrink: 0; }
 .stic-hint-chevron { width: 14px; height: 14px; flex-shrink: 0; transition: transform 0.25s var(--ease-spring); }
-
-/* CTA destacada de acceso por enlace mágico */
-.stic-magic-cta {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.6rem;
-    width: 100%;
-    padding: 0.9rem 1.2rem;
-    font-size: 0.96rem;
-    font-weight: 700;
-    color: var(--secondary-color) !important;
-    background: var(--secondary-50);
-    border: 1.5px solid rgba(157, 30, 116, 0.22);
-    border-radius: var(--radius-md);
-    text-decoration: none;
-    transition: transform 0.18s var(--ease-spring), box-shadow 0.2s ease, background 0.2s ease;
-}
-.stic-magic-cta svg { width: 20px; height: 20px; }
-.stic-magic-cta:hover {
-    transform: translateY(-2px);
-    background: var(--field-bg-focus);
-    box-shadow: var(--shadow-glow-pink);
-}
 
 .stic-auth-help {
     margin: 0.2rem 0 1rem;
@@ -729,14 +674,13 @@ span.stic-field {
     border-radius: 50%;
     transition: transform 0.2s var(--ease-spring);
 }
-.stic-avatar-link:hover { transform: scale(1.06); }
+@media (hover: hover) {
+    .stic-avatar-link:hover { transform: scale(1.06); }
+}
 .stic-avatar-link:active { transform: scale(0.94); }
 .stic-avatar-link:focus-visible {
     outline: none;
     box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.7);
-}
-@media (hover: none) {
-    .stic-avatar-link:hover { transform: none; }
 }
 .stic-avatar {
     flex-shrink: 0;
@@ -755,7 +699,9 @@ span.stic-field {
 }
 .stic-account-name a,
 .stic-account-name a:visited { color: #fff !important; text-decoration: none; }
-.stic-account-name a:hover { text-decoration: underline; }
+@media (hover: hover) {
+    .stic-account-name a:hover { text-decoration: underline; }
+}
 .stic-account-sub {
     display: flex; align-items: center; gap: 0.4rem; min-width: 0;
     font-size: 0.84rem; color: rgba(255, 255, 255, 0.88);
@@ -771,16 +717,9 @@ span.stic-field {
     color: #fff; font-weight: 600; text-decoration: none;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.stic-account-participant:hover { text-decoration: underline; }
-.stic-switch {
-    flex-shrink: 0;
-    display: inline-grid; place-items: center;
-    width: 30px; height: 30px; border-radius: 50%;
-    background: rgba(255, 255, 255, 0.2); color: #fff;
-    transition: background 0.2s ease, transform 0.4s var(--ease-spring);
+@media (hover: hover) {
+    .stic-account-participant:hover { text-decoration: underline; }
 }
-.stic-switch svg { width: 16px; height: 16px; }
-.stic-switch:hover { background: rgba(255, 255, 255, 0.34); transform: rotate(180deg); }
 
 /* ---- Acciones derechas (salir + hamburguesa) ---- */
 .stic-nav-actions { display: flex; align-items: center; gap: 0.4rem; margin-left: auto; flex-shrink: 0; }
@@ -798,8 +737,10 @@ span.stic-field {
 .stic-iconbtn,
 .stic-iconbtn:visited { color: #fff !important; }
 .stic-iconbtn svg { width: 18px; height: 18px; flex-shrink: 0; stroke: #fff !important; }
-.stic-iconbtn:hover { transform: translateY(-1px); }
-.stic-logout:hover { background: rgba(239, 68, 68, 0.9) !important; }
+@media (hover: hover) {
+    .stic-iconbtn:hover { transform: translateY(-1px); }
+    .stic-logout:hover { background: rgba(239, 68, 68, 0.9) !important; }
+}
 
 /* Botón hamburguesa (oculto en escritorio) */
 .stic-nav-toggle {
@@ -810,10 +751,11 @@ span.stic-field {
     background: rgba(255, 255, 255, 0.14) !important;
     border: 0; color: #fff; cursor: pointer;
     font: inherit; font-weight: 600;
-    -webkit-tap-highlight-color: transparent;
 }
 .stic-nav-toggle::after { display: none !important; }
-.stic-nav-toggle:hover { transform: none !important; box-shadow: none !important; background: rgba(255, 255, 255, 0.24) !important; }
+@media (hover: hover) {
+    .stic-nav-toggle:hover { transform: none !important; box-shadow: none !important; background: rgba(255, 255, 255, 0.24) !important; }
+}
 .stic-nav-toggle-bars { position: relative; width: 20px; height: 14px; flex-shrink: 0; }
 .stic-nav-toggle-bars i {
     position: absolute; left: 0; right: 0; height: 2.5px; border-radius: 2px; background: #fff;
@@ -826,11 +768,6 @@ span.stic-field {
 .stic-nav.is-open .stic-nav-toggle-bars i:nth-child(1) { transform: translateY(5.75px) rotate(45deg); }
 .stic-nav.is-open .stic-nav-toggle-bars i:nth-child(2) { opacity: 0; }
 .stic-nav.is-open .stic-nav-toggle-bars i:nth-child(3) { transform: translateY(-5.75px) rotate(-45deg); }
-.stic-nav-toggle-current {
-    max-width: 9rem;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    font-size: 0.9rem; opacity: 0.95;
-}
 
 /* ---- Lista de items (una sola línea en escritorio) ---- */
 .stic-nav-list {
@@ -844,11 +781,10 @@ span.stic-field {
 }
 /* Las cabeceras de grupo son solo del menú del móvil (ver §7 móvil). */
 .stic-nav-group { display: none; }
-/* El tema mete subrayado en los enlaces; lo quitamos en toda la barra. */
+/* El tema mete subrayado en los enlaces; lo quitamos en toda la barra. Sin
+   `:hover` en la lista: con !important, la regla vale en cualquier estado. */
 .stic-nav-link,
-.stic-nav-link:hover,
 .stic-account-name a,
-.stic-account-name a:hover,
 .stic-account-participant,
 .stic-iconbtn { text-decoration: none !important; }
 .stic-nav-item { margin: 0; }
@@ -869,7 +805,6 @@ span.stic-field {
 }
 .stic-nav-ico { display: inline-grid; place-items: center; width: 20px; height: 20px; flex-shrink: 0; opacity: 0.95; }
 .stic-nav-ico svg { width: 20px; height: 20px; }
-.stic-nav-link:hover,
 .stic-nav-link:focus,
 .stic-nav-link:active {
     background: rgba(255, 255, 255, 0.16) !important;
@@ -877,6 +812,15 @@ span.stic-field {
     color: #fff !important;
     outline: none !important;
     box-shadow: none !important;
+}
+@media (hover: hover) {
+    .stic-nav-link:hover {
+        background: rgba(255, 255, 255, 0.16) !important;
+        transform: translateY(-1px) !important;
+        color: #fff !important;
+        outline: none !important;
+        box-shadow: none !important;
+    }
 }
 /* Foco de teclado: anillo visible propio (WCAG 2.4.7); el hover no basta como indicador. */
 .stic-nav-link:focus-visible {
@@ -908,19 +852,27 @@ span.stic-field {
 
 /* "Salir": último item, empujado a la derecha en escritorio. */
 .stic-nav-logout .stic-nav-ico { opacity: 1; }
-.stic-nav-logout:hover { background: rgba(239, 68, 68, 0.9) !important; }
+@media (hover: hover) {
+    .stic-nav-logout:hover { background: rgba(239, 68, 68, 0.9) !important; }
+}
 
 /* ---- Botón "Más" (overflow) + su menú desplegable ---- */
 .stic-nav-more-wrap { position: relative; flex-shrink: 0; }
 .stic-nav-more {
     position: relative;
+    /* stic-base §(≥640px) da `min-width: 140px` a TODO <button> sin acotar:
+       «Más» medía 140 px con 32 de texto y, a 1024, se salía de la barra y
+       perdía las esquinas (plan 042, CAR-4). Una clase gana a `button`. */
+    min-width: 0;
     background: rgba(255, 255, 255, 0.14) !important;
     border: 0;
     cursor: pointer;
     font: inherit;
 }
 .stic-nav-more::after { display: none !important; }
-.stic-nav-more:hover { background: rgba(255, 255, 255, 0.26) !important; }
+@media (hover: hover) {
+    .stic-nav-more:hover { background: rgba(255, 255, 255, 0.26) !important; }
+}
 .stic-nav-more-wrap.is-open .stic-nav-more { background: rgba(255, 255, 255, 0.3) !important; }
 .stic-nav-more .stic-nav-ico svg { stroke-width: 2.6; }
 
@@ -971,7 +923,9 @@ span.stic-field {
     outline: none !important;
 }
 .stic-nav-more-menu .stic-nav-ico { color: var(--primary-color) !important; opacity: 1 !important; }
-.stic-nav-more-menu .stic-nav-link:hover { background: var(--primary-50) !important; color: var(--primary-color) !important; transform: none !important; }
+@media (hover: hover) {
+    .stic-nav-more-menu .stic-nav-link:hover { background: var(--primary-50) !important; color: var(--primary-color) !important; transform: none !important; }
+}
 /* Foco visible dentro del panel claro (el outline:none de arriba lo borraba). */
 .stic-nav-more-menu .stic-nav-link:focus-visible {
     outline: none !important;
@@ -1100,7 +1054,9 @@ span.stic-field {
     /* Item activo (página actual): texto siempre blanco legible. */
     .stic-nav.is-open .stic-nav-item.current-menu-item .stic-nav-link,
     .stic-nav.is-open .stic-nav-link { color: #fff !important; }
-    .stic-nav-link:hover { transform: none; }
+    @media (hover: hover) {
+        .stic-nav-link:hover { transform: none; }
+    }
     .stic-nav-link:active { transform: scale(0.97) !important; }
     /* EL ACTIVO SE VE: mosaico blanco con el texto e icono de la marca. */
     .stic-nav.is-open .stic-nav-item.current-menu-item .stic-nav-link {
@@ -1147,13 +1103,6 @@ span.stic-field {
 }
 .stic-welcome-hero > * { position: relative; z-index: 1; }
 
-.stic-welcome-kicker {
-    font-size: 0.78rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    opacity: 0.9;
-}
 .stic-container .stic-welcome-title,
 .stic-welcome-title {
     margin: 0.35rem 0 0.5rem;
@@ -1227,12 +1176,14 @@ span.stic-field {
     background: var(--grad-brand-soft);
     transition: opacity 0.3s ease;
 }
-.stic-dash-card:hover {
-    transform: translateY(-6px);
-    box-shadow: var(--shadow-lg);
-    border-color: transparent;
+@media (hover: hover) {
+    .stic-dash-card:hover {
+        transform: translateY(-6px);
+        box-shadow: var(--shadow-lg);
+        border-color: transparent;
+    }
+    .stic-dash-card:hover::before { opacity: 1; }
 }
-.stic-dash-card:hover::before { opacity: 1; }
 
 /* escalonado de aparición */
 .stic-dash-card:nth-child(1) { animation-delay: 0.04s; }
@@ -1256,7 +1207,9 @@ span.stic-field {
     transition: transform 0.28s var(--ease-spring);
 }
 .stic-dash-card:nth-child(even) .stic-dash-icon { background: var(--grad-brand-rev); }
-.stic-dash-card:hover .stic-dash-icon { transform: scale(1.08) rotate(-4deg); }
+@media (hover: hover) {
+    .stic-dash-card:hover .stic-dash-icon { transform: scale(1.08) rotate(-4deg); }
+}
 .stic-dash-icon svg { width: 28px; height: 28px; }
 
 .stic-dash-title {
@@ -1284,7 +1237,9 @@ span.stic-field {
 }
 .stic-dash-card:nth-child(even) .stic-dash-go { color: var(--secondary-color); }
 .stic-dash-go svg { width: 16px; height: 16px; transition: transform 0.25s var(--ease-spring); }
-.stic-dash-card:hover .stic-dash-go svg { transform: translateX(4px); }
+@media (hover: hover) {
+    .stic-dash-card:hover .stic-dash-go svg { transform: translateX(4px); }
+}
 
 /* ============================================================
    9. FORMULARIOS — superficie con tarjeta y respiración
@@ -1343,7 +1298,7 @@ span.stic-field {
    <button> genérico (rompería el menú del tema y FullCalendar).
    ============================================================ */
 :is(.stic-container, .stic-auth-shell) :is(input[type="submit"], .stic-button),
-.stic-btn-primary, .stic-btn-magic {
+.stic-btn-magic {
     position: relative;
     background: var(--grad-brand) !important;
     background-size: 160% 160% !important;
@@ -1357,7 +1312,7 @@ span.stic-field {
 }
 
 :is(.stic-container, .stic-auth-shell) :is(input[type="submit"], .stic-button)::after,
-.stic-btn-primary::after, .stic-btn-magic::after {
+.stic-btn-magic::after {
     content: '';
     position: absolute;
     inset: 0;
@@ -1367,22 +1322,24 @@ span.stic-field {
     pointer-events: none;
 }
 
-:is(.stic-container, .stic-auth-shell) :is(input[type="submit"], .stic-button):hover,
-.stic-btn-primary:hover, .stic-btn-magic:hover {
-    background-position: 100% 50% !important;
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg) !important;
+@media (hover: hover) {
+    :is(.stic-container, .stic-auth-shell) :is(input[type="submit"], .stic-button):hover,
+    .stic-btn-magic:hover {
+        background-position: 100% 50% !important;
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg) !important;
+    }
+
+    :is(.stic-container, .stic-auth-shell) :is(input[type="submit"], .stic-button):hover::after,
+    .stic-btn-magic:hover::after { transform: translateX(120%); }
 }
 
-:is(.stic-container, .stic-auth-shell) :is(input[type="submit"], .stic-button):hover::after,
-.stic-btn-primary:hover::after, .stic-btn-magic:hover::after { transform: translateX(120%); }
-
 :is(.stic-container, .stic-auth-shell) :is(input[type="submit"], .stic-button):active,
-.stic-btn-primary:active, .stic-btn-magic:active { transform: translateY(0) scale(0.99); }
+.stic-btn-magic:active { transform: translateY(0) scale(0.99); }
 
 /* el toggle de contraseña y enlaces no deben heredar el gradiente */
-.stic-pass-toggle, .stic-magic-cta, a.stic-button-ghost { background: transparent !important; }
-.stic-pass-toggle::after, .stic-magic-cta::after { display: none; }
+.stic-pass-toggle { background: transparent !important; }
+.stic-pass-toggle::after { display: none; }
 
 /* ============================================================
    12. TABLAS Y DATATABLES (acotadas al área privada)
@@ -1397,7 +1354,9 @@ span.stic-field {
 .stic-container thead th { color: #fff !important; }
 
 .stic-container tbody tr { transition: background-color 0.18s ease; }
-.stic-container tbody tr:hover { background-color: var(--primary-50) !important; }
+@media (hover: hover) {
+    .stic-container tbody tr:hover { background-color: var(--primary-50) !important; }
+}
 
 .dataTables_wrapper .dataTables_filter input:focus {
     border-color: var(--primary-color) !important;
@@ -1418,9 +1377,7 @@ span.stic-field {
     font-weight: 500;
 }
 .stic-login-form .error,
-.stic-login-form .success,
-.stic-forgotpas-form .error,
-.stic-forgotpas-form .success {
+.stic-login-form .success {
     display: block;
     margin-top: 1rem;
     padding: 0.85rem 1rem;
@@ -1428,10 +1385,8 @@ span.stic-field {
     font-weight: 600;
     text-align: center;
 }
-.stic-login-form .error,
-.stic-forgotpas-form .error { background: var(--danger-100); color: var(--danger-dark); }
-.stic-login-form .success,
-.stic-forgotpas-form .success { background: var(--success-50); color: var(--success-dark); }
+.stic-login-form .error { background: var(--danger-100); color: var(--danger-dark); }
+.stic-login-form .success { background: var(--success-50); color: var(--success-dark); }
 
 /* ============================================================
    14. TARJETAS GENÉRICAS + foto de perfil
@@ -1441,10 +1396,12 @@ span.stic-field {
     border-radius: var(--radius-lg);
     transition: transform 0.25s var(--ease-spring), box-shadow 0.25s ease;
 }
-.stic-container :is(.card, .stic-card):hover,
-.stic-auth-shell :is(.card, .stic-card):hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-lg);
+@media (hover: hover) {
+    .stic-container :is(.card, .stic-card):hover,
+    .stic-auth-shell :is(.card, .stic-card):hover {
+        transform: translateY(-4px);
+        box-shadow: var(--shadow-lg);
+    }
 }
 
 .stic-profile-picture {
@@ -1467,14 +1424,16 @@ span.stic-field {
 .stic-container ::-webkit-scrollbar { height: 10px; width: 10px; }
 .stic-container ::-webkit-scrollbar-track { background: transparent; }
 .stic-container ::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: var(--radius-full); }
-.stic-container ::-webkit-scrollbar-thumb:hover { background: var(--primary-light); }
+@media (hover: hover) {
+    .stic-container ::-webkit-scrollbar-thumb:hover { background: var(--primary-light); }
+}
 
 /* ============================================================
    16. RESPONSIVE
    ============================================================ */
 @media (max-width: 560px) {
     .stic-auth-shell { min-height: 100vh; min-height: 100dvh; padding: 1rem 0.75rem; }
-    .stic-login-form, .stic-forgotpas-form { padding: 1.75rem 1.4rem; }
+    .stic-login-form { padding: 1.75rem 1.4rem; }
     /* (La rejilla del dashboard en móvil se define en §48: 2 columnas
        compactas, no una sola columna de tarjetas altas.) */
 
@@ -1491,13 +1450,13 @@ span.stic-field {
    radio de blur sin perder legibilidad, y el blur es la operación cara. */
 @media (max-width: 600px) {
     :root { --glass-blur: 8px; }
-    .stic-login-form, .stic-forgotpas-form { background: color-mix(in srgb, var(--surface) 88%, transparent); }
+    .stic-login-form { background: color-mix(in srgb, var(--surface) 88%, transparent); }
 }
 
 /* (Plan 020) Fallback sin backdrop-filter: sin soporte, el fondo translúcido
    dejaba el texto sobre casi nada. Fondo sólido salvo que el blur exista. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    .stic-login-form, .stic-forgotpas-form { background: color-mix(in srgb, var(--surface) 92%, transparent); }
+    .stic-login-form { background: color-mix(in srgb, var(--surface) 92%, transparent); }
 }
 
 /* ============================================================
@@ -1518,12 +1477,10 @@ span.stic-field {
     .stic-nav,
     .stic-auth-shell::before,
     .stic-login-form::before,
-    .stic-forgotpas-form::before,
     .stic-auth-logo { animation: none !important; }
-    *, *::before, *::after {
-        animation-duration: 0.01ms !important;
-        transition-duration: 0.01ms !important;
-    }
+    /* El `*` que cortaba animaciones y transiciones vive en stic-base.css
+       («ACCESSIBILITY»), acotado al área: aquí lo repetía sin acotar y
+       alcanzaba al tema de WordPress (plan 042, A11Y-3). */
     /* El spinner de carga es información (algo está en marcha), no decoración:
        congelado parecía que la página se había colgado. Gira más lento. */
     .stic-spinner {
@@ -1539,8 +1496,10 @@ span.stic-field {
    <a>. Y en modo oscuro el degradado claro del hover dejaba el
    texto ilegible. Aquí lo normalizamos (carga la última, gana).
    ============================================================ */
+/* Sin `:hover` en la lista: el subrayado ya lo quita `.stic-dash-card` con
+   !important en cualquier estado, y su `box-shadow: none` dejaba la tarjeta
+   sin sombra al tocarla en el móvil (plan 042, A11Y-2). */
 .stic-dash-card,
-.stic-dash-card:hover,
 .stic-dash-card:focus,
 .stic-dash-card:visited,
 .stic-dash-card .stic-dash-title,
@@ -1550,11 +1509,15 @@ span.stic-field {
     box-shadow: none;
 }
 .stic-dash-card { box-shadow: var(--shadow-sm); }
-.stic-dash-card:hover { box-shadow: var(--shadow-lg); }
+@media (hover: hover) {
+    .stic-dash-card:hover { box-shadow: var(--shadow-lg); }
+}
 
 .stic-dash-card .stic-dash-title { color: var(--gray-800); }
 .stic-dash-card .stic-dash-desc  { color: var(--gray-500); }
-.stic-dash-card:hover .stic-dash-title { color: var(--gray-900); }
+@media (hover: hover) {
+    .stic-dash-card:hover .stic-dash-title { color: var(--gray-900); }
+}
 
 /* Más aire entre tarjeta e icono, y dentro de la tarjeta. */
 .stic-dash-card { padding: 1.6rem 1.5rem; gap: 0.7rem; }
@@ -1629,9 +1592,11 @@ span.stic-field {
     background-size: 18px 18px;
     transition: background-color 0.15s ease;
 }
-.stic-form input[type="date"]::-webkit-calendar-picker-indicator:hover,
-.stic-form input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
-    background-color: var(--secondary-50);
+@media (hover: hover) {
+    .stic-form input[type="date"]::-webkit-calendar-picker-indicator:hover,
+    .stic-form input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+        background-color: var(--secondary-50);
+    }
 }
 /* Texto editable de la fecha (dd/mm/aaaa) con la tipografía del formulario. */
 .stic-form input[type="date"]::-webkit-datetime-edit,
@@ -1795,9 +1760,11 @@ span.stic-field {
     }
     :root:not([data-stic-scheme="dark"]) .stic-form select option { color: var(--gray-800); background: var(--surface); }
     :root:not([data-stic-scheme="dark"]) .stic-dash-card::before { background: var(--grad-brand-soft); }
-    :root:not([data-stic-scheme="dark"]) .stic-dash-card:hover .stic-dash-title { color: var(--gray-900); }
-    :root:not([data-stic-scheme="dark"]) .stic-dash-card:hover .stic-dash-desc { color: var(--gray-500); }
-    :root:not([data-stic-scheme="dark"]) .stic-container tbody tr:hover { background-color: var(--gray-100) !important; }
+    @media (hover: hover) {
+        :root:not([data-stic-scheme="dark"]) .stic-dash-card:hover .stic-dash-title { color: var(--gray-900); }
+        :root:not([data-stic-scheme="dark"]) .stic-dash-card:hover .stic-dash-desc { color: var(--gray-500); }
+        :root:not([data-stic-scheme="dark"]) .stic-container tbody tr:hover { background-color: var(--gray-100) !important; }
+    }
 }
 
 /* ============================================================
@@ -1944,10 +1911,12 @@ span.stic-field {
 }
 .stic-cell-badge-day { font-size: 1.25rem; font-weight: 800; }
 .stic-cell-badge-mon { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.92; }
-.stic-table-responsive table.display tbody tr:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-2px);
-    background: var(--surface) !important;
+@media (hover: hover) {
+    .stic-table-responsive table.display tbody tr:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+        background: var(--surface) !important;
+    }
 }
 .stic-table-responsive table.display td {
     display: flex !important;
@@ -2011,17 +1980,20 @@ span.stic-field {
     color: #fff !important;
     box-shadow: var(--shadow-sm);
 }
-.stic-rowbtn--primary:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+@media (hover: hover) {
+    .stic-rowbtn--primary:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+}
 .stic-rowbtn--ghost,
 .stic-table-responsive td.stic-cell-actions a.stic-rowbtn--ghost {
     background: var(--surface);
     border: 1px solid var(--gray-200);
     color: var(--gray-700) !important;
 }
-.stic-rowbtn--ghost:hover { background: var(--gray-50); color: var(--gray-900) !important; }
+@media (hover: hover) {
+    .stic-rowbtn--ghost:hover { background: var(--gray-50); color: var(--gray-900) !important; }
+}
 .stic-rowbtn:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
 @media (hover: none) {
-    .stic-rowbtn--primary:hover { transform: none; box-shadow: var(--shadow-sm); }
     .stic-rowbtn:active { transform: scale(0.98); }
 }
 
@@ -2073,22 +2045,47 @@ span.stic-field {
 .stic-form li.stic-send {
     width: 100% !important;
 }
-.stic-send {
+/* OJO, ESPECIFICIDAD (plan 042, FAM-a6). Esto iba con `.stic-send` a secas
+   (0,1,0) y NUNCA se aplicó dentro de un formulario: perdía contra
+   `.stic-form li {display:block}` y, desde 640 px, contra
+   `.stic-form-two-col li {display:inline-block}` (stic-base.css, y todo
+   formulario del motor lleva stic-form-two-col). Resultado: dos botones a
+   1200 px apilados en escritorio y una barra pegajosa de 154 px en móvil.
+   Con `.stic-form li.stic-send` (0,2,1) gana a los dos sin !important. */
+.stic-send,
+.stic-form li.stic-send {
     display: flex;
     flex-wrap: wrap;
     gap: 0.7rem;
     align-items: center;
     justify-content: flex-end;   /* acciones agrupadas a la derecha en escritorio */
+    grid-column: 1 / -1;         /* en las tarjetas de 2 columnas, la fila entera */
+    margin-right: 0;             /* el de .stic-form-two-col li */
+    padding-bottom: 0;           /* el de .stic-form li: la barra ya lleva el suyo */
+    margin-bottom: 0;
 }
-/* En escritorio los botones se ajustan al contenido (no estirados a lo ancho). */
-.stic-send .stic-button {
+/* En escritorio los botones se ajustan al contenido (no estirados a lo ancho).
+   `width:auto` para ganar al `width:100%` de los botones en stic-base.css. */
+.stic-form li.stic-send .stic-button {
     flex: 0 0 auto;
+    width: auto;
     min-width: 148px;
-    padding-left: 1.5rem !important;
-    padding-right: 1.5rem !important;
 }
-/* "Atrás" queda a la izquierda, separado del grupo Guardar / Eliminar. */
-.stic-send .stic-back-button { margin-right: auto; }
+@media (min-width: 640px) {
+    .stic-form li.stic-send .stic-button {
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
+    }
+}
+/* "Atrás" queda a la izquierda, separado del grupo Guardar / Eliminar. Es el
+   .stic-back-button o, en los formularios que no le ponen la clase, el
+   `type="button"` (que ya se pinta como secundario, abajo). Solo el primero:
+   si hay dos secundarios, el segundo va con el grupo. */
+.stic-form li.stic-send :is(.stic-back-button, input.stic-button[type="button"]) { margin-right: auto; }
+.stic-form li.stic-send :is(.stic-back-button, input.stic-button[type="button"]) ~ :is(.stic-back-button, input.stic-button[type="button"]) { margin-right: 0; }
+/* El aviso «Subiendo archivo…» (lo mete el JS de subir documento) va en su
+   propia línea, no apretado entre los botones. */
+.stic-form li.stic-send > div { flex: 1 0 100%; order: 5; }
 
 /* "Atrás" y secundarios: aspecto sutil, no gradiente. */
 .stic-send input.stic-button[type="button"],
@@ -2098,10 +2095,12 @@ span.stic-field {
     border: 1.5px solid var(--gray-200) !important;
     box-shadow: none !important;
 }
-.stic-send input.stic-button[type="button"]:hover,
-.stic-back-button:hover {
-    background: var(--primary-50) !important;
-    border-color: var(--primary-color) !important;
+@media (hover: hover) {
+    .stic-send input.stic-button[type="button"]:hover,
+    .stic-back-button:hover {
+        background: var(--primary-50) !important;
+        border-color: var(--primary-color) !important;
+    }
 }
 .stic-back-button::after { display: none !important; }
 
@@ -2113,19 +2112,26 @@ span.stic-field {
     border: 1.5px solid var(--danger-border) !important;
     box-shadow: none !important;
 }
-.stic-send input.stic-button.stic-danger-button:hover,
-.stic-danger-button:hover {
-    background: var(--danger-soft) !important;
-    border-color: var(--danger-color) !important;
-    color: var(--danger-dark) !important;
+@media (hover: hover) {
+    .stic-send input.stic-button.stic-danger-button:hover,
+    .stic-danger-button:hover {
+        background: var(--danger-soft) !important;
+        border-color: var(--danger-color) !important;
+        color: var(--danger-dark) !important;
+    }
 }
 .stic-danger-button::after { display: none !important; }
 
-/* Móvil: botones a ancho completo y apilados, "Atrás" al final. */
+/* Móvil: UNA fila. «Volver» compacto a la izquierda y el principal ocupando
+   el resto; antes iban apilados (con «Atrás» encima, porque esto no se
+   aplicaba) y la barra pegajosa se comía 154 px de pantalla. Si no caben en
+   una fila (tres botones largos), bajan solos. */
 @media (max-width: 600px) {
-    .stic-send { justify-content: stretch; }
-    .stic-send .stic-button { flex: 1 1 100%; min-width: 0; }
-    .stic-send .stic-back-button { margin-right: 0; order: 3; }
+    .stic-form li.stic-send { justify-content: stretch; }
+    .stic-form li.stic-send .stic-button { flex: 1 1 auto; min-width: 0; }
+    .stic-form li.stic-send :is(.stic-back-button, input.stic-button[type="button"]) { flex: 0 0 auto; }
+    .stic-form li.stic-send > span.desc { flex: 1 1 auto; }
+    .stic-form li.stic-send > span.desc input[type="submit"] { width: 100%; }
 }
 
 /* --- 23.b Botón suelto (crear / certificado) sobre su propia línea --- */
@@ -2152,17 +2158,19 @@ span.stic-field {
     transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease !important;
 }
 .fc .fc-button::after { display: none !important; }
-.fc .fc-button:hover {
-    background: var(--primary-50) !important;
-    color: var(--primary-color) !important;
-    border-color: var(--primary-color) !important;
-    transform: none !important;
+@media (hover: hover) {
+    .fc .fc-button:hover {
+        background: var(--primary-50) !important;
+        color: var(--primary-color) !important;
+        border-color: var(--primary-color) !important;
+        transform: none !important;
+    }
 }
 .fc .fc-button-primary:not(:disabled).fc-button-active,
 .fc .fc-button-primary:not(:disabled):active {
-    background: var(--primary-color) !important;
-    color: #fff !important;
-    border-color: var(--primary-color) !important;
+    background: var(--brand-blue-fixed) !important;
+    color: var(--on-brand) !important;
+    border-color: var(--brand-blue-fixed) !important;
 }
 .fc .fc-button-primary:disabled { opacity: 0.45 !important; }
 .fc .fc-button .fc-icon { color: inherit; }
@@ -2171,23 +2179,27 @@ span.stic-field {
    24. PULIDO — chip destacado, dropzones, botón suave
    ============================================================ */
 
-/* Tarjeta de evento (cabecera de la pantalla de inscripción = "Ver" integrado) */
+/* Tarjeta de evento (cabecera de la pantalla de inscripción = "Ver" integrado).
+   UN RESUMEN NEUTRO, no un bloque de marca (plan 042, FAM-a5): era un
+   degradado dentro de la tarjeta blanca del formulario, y con la barra y el
+   botón principal salían tres degradados en una pantalla (design.md §3: uno,
+   dos como mucho). El degradado de esta pantalla es el botón «Apuntarme». */
 .stic-event-card {
     grid-column: 1 / -1 !important;
     list-style: none;
-    background: var(--grad-brand);
-    color: #fff;
+    background: var(--surface-2);
+    color: var(--gray-800);
+    border: 1px solid var(--gray-200);
     border-radius: var(--radius-lg);
-    padding: 1.25rem 1.4rem !important;
+    padding: 1.1rem 1.25rem !important;
     margin-bottom: 0.6rem;
-    box-shadow: var(--shadow-md);
 }
 .stic-event-card-kicker {
     font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    opacity: 0.85;
+    color: var(--gray-500);
 }
 .stic-event-card-title {
     font-size: clamp(1.2rem, 3vw, 1.45rem);
@@ -2195,17 +2207,20 @@ span.stic-field {
     letter-spacing: -0.01em;
     margin: 0.25rem 0 0.6rem;
     line-height: 1.2;
+    color: var(--gray-900);
 }
 .stic-event-card-meta {
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
     font-size: 0.9rem;
-    background: rgba(255, 255, 255, 0.18);
+    font-weight: 600;
+    background: var(--primary-50);
+    color: var(--primary-color);
     padding: 0.32rem 0.75rem;
     border-radius: var(--radius-full);
 }
-.stic-event-card-desc { margin: 0.75rem 0 0; font-size: 0.92rem; line-height: 1.5; opacity: 0.95; }
+.stic-event-card-desc { margin: 0.75rem 0 0; font-size: 0.92rem; line-height: 1.5; color: var(--gray-600); }
 
 /* Botón suave (descargar, acciones secundarias) */
 .stic-soft-btn {
@@ -2221,7 +2236,9 @@ span.stic-field {
     border: 1.5px solid color-mix(in srgb, var(--primary-color) 22%, transparent);
     transition: background 0.18s ease, color 0.18s ease, transform 0.12s var(--ease-spring);
 }
-.stic-soft-btn:hover { background: var(--primary-color); color: #fff !important; transform: translateY(-1px); }
+@media (hover: hover) {
+    .stic-soft-btn:hover { background: var(--brand-blue-fixed); color: var(--on-brand) !important; transform: translateY(-1px); }
+}
 .stic-soft-btn svg { width: 18px; height: 18px; }
 
 /* Chip "Perfil detectado" — pastilla blanca, marca dentro (más destacado) */
@@ -2248,7 +2265,9 @@ span.stic-field {
     cursor: pointer;
     transition: border-color 0.18s ease, background 0.18s ease;
 }
-.stic-form input[type="file"]:hover { border-color: var(--primary-color); background: var(--primary-50); }
+@media (hover: hover) {
+    .stic-form input[type="file"]:hover { border-color: var(--primary-color); background: var(--primary-50); }
+}
 .stic-form input[type="file"]::file-selector-button {
     margin-right: 0.85rem;
     padding: 0.5rem 0.95rem;
@@ -2311,11 +2330,15 @@ span.stic-field {
 .fc-theme-standard th,
 .fc-theme-standard .fc-scrollgrid { border-color: var(--gray-200) !important; }
 .fc .fc-daygrid-day.fc-day-today { background: var(--primary-50) !important; }
-.fc .fc-daygrid-day:hover { background: var(--surface-2); }
+@media (hover: hover) {
+    .fc .fc-daygrid-day:hover { background: var(--surface-2); }
+}
 /* El calendario es una <table>: el hover de fila de los listados (capa base,
    `.stic-tab-content tbody tr:hover`) pintaba una banda azul en toda la semana. */
-.fc tbody tr:hover,
-.stic-tab-content .fc tbody tr:hover { background: transparent !important; }
+@media (hover: hover) {
+    .fc tbody tr:hover,
+    .stic-tab-content .fc tbody tr:hover { background: transparent !important; }
+}
 .fc a { text-decoration: none !important; }
 .fc .fc-toolbar.fc-header-toolbar { margin-bottom: 1rem !important; flex-wrap: wrap; gap: 0.5rem; }
 
@@ -2342,8 +2365,7 @@ span.stic-field {
     }
     
     /* Eliminar el fondo, borde y sombra de la tarjeta interior para evitar el doble recuadro */
-    .stic-login-form,
-    .stic-forgotpas-form {
+    .stic-login-form {
         background: transparent !important;
         box-shadow: none !important;
         border: none !important;
@@ -2356,8 +2378,7 @@ span.stic-field {
     }
 
     /* Quitar el halo de color morado de la tarjeta pequeña (evita el rectángulo cortado en PC) */
-    .stic-login-form::before,
-    .stic-forgotpas-form::before {
+    .stic-login-form::before {
         display: none !important;
     }
 }
@@ -2422,9 +2443,11 @@ span.stic-field {
     outline: none !important;
 }
 
-.stic-form input[type="checkbox"]:hover {
-    border-color: var(--primary-color) !important;
-    background-color: var(--primary-50) !important;
+@media (hover: hover) {
+    .stic-form input[type="checkbox"]:hover {
+        border-color: var(--primary-color) !important;
+        background-color: var(--primary-50) !important;
+    }
 }
 
 .stic-form input[type="checkbox"]:focus-visible {
@@ -2504,9 +2527,11 @@ span.stic-field {
     transition: color 0.15s ease !important;
 }
 
-.selectize-input > .item .remove:hover {
-    background: transparent !important;
-    color: var(--secondary-dark) !important;
+@media (hover: hover) {
+    .selectize-input > .item .remove:hover {
+        background: transparent !important;
+        color: var(--secondary-dark) !important;
+    }
 }
 
 /* Selectize dropdown menu */
@@ -2557,9 +2582,11 @@ span.stic-field {
     box-shadow: var(--shadow-sm) !important;
     transition: 0.25s var(--ease-out) !important; transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter !important;
 }
-.stic-form > form > ul > li:has(input[type="file"]):hover,
-.stic-form > form > ul > li:has(.stic-profile-picture):hover {
-    box-shadow: var(--shadow-md) !important;
+@media (hover: hover) {
+    .stic-form > form > ul > li:has(input[type="file"]):hover,
+    .stic-form > form > ul > li:has(.stic-profile-picture):hover {
+        box-shadow: var(--shadow-md) !important;
+    }
 }
 
 /* --- 26.b El input[type="file"] como dropzone completo --- */
@@ -2581,10 +2608,12 @@ span.stic-field {
     position: relative !important;
     text-align: center !important;
 }
-.stic-form input[type="file"]:hover {
-    border-color: var(--primary-color) !important;
-    background-color: var(--primary-50) !important;
-    box-shadow: 0 0 0 3px rgba(28, 111, 179, 0.08) !important;
+@media (hover: hover) {
+    .stic-form input[type="file"]:hover {
+        border-color: var(--primary-color) !important;
+        background-color: var(--primary-50) !important;
+        box-shadow: 0 0 0 3px rgba(28, 111, 179, 0.08) !important;
+    }
 }
 .stic-form input[type="file"]:focus {
     outline: none !important;
@@ -2611,10 +2640,12 @@ span.stic-field {
     transition: filter 0.18s ease, transform 0.18s ease !important;
     box-shadow: 0 2px 8px rgba(28, 111, 179, 0.22) !important;
 }
-.stic-form input[type="file"]::file-selector-button:hover {
-    filter: brightness(1.1) !important;
-    transform: translateY(-1px) !important;
-    box-shadow: 0 4px 14px rgba(28, 111, 179, 0.3) !important;
+@media (hover: hover) {
+    .stic-form input[type="file"]::file-selector-button:hover {
+        filter: brightness(1.1) !important;
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 14px rgba(28, 111, 179, 0.3) !important;
+    }
 }
 .stic-form input[type="file"]::file-selector-button:active {
     transform: translateY(0) !important;
@@ -2651,8 +2682,10 @@ span.stic-field {
     background-color: var(--success-soft) !important;
     border-color: var(--success-light) !important;
 }
-.stic-form > form > ul > li:has(.stic-file-uploaded-badge):hover {
-    border-color: var(--success-color) !important;
+@media (hover: hover) {
+    .stic-form > form > ul > li:has(.stic-file-uploaded-badge):hover {
+        border-color: var(--success-color) !important;
+    }
 }
 
 /* ============================================================
@@ -2731,13 +2764,15 @@ span.stic-field {
     transition: 0.2s ease !important; transition-property: color, background-color, border-color, box-shadow, transform, opacity, filter !important;
     cursor: pointer !important;
 }
-.stic-soft-btn:hover {
-    background: var(--primary-color) !important;
-    color: #fff !important;
-    box-shadow: 0 4px 14px rgba(28, 111, 179, 0.25) !important;
-    transform: translateY(-1px) !important;
+@media (hover: hover) {
+    .stic-soft-btn:hover {
+        background: var(--brand-blue-fixed) !important;
+        color: var(--on-brand) !important;
+        box-shadow: 0 4px 14px color-mix(in srgb, var(--brand-blue-fixed) 25%, transparent) !important;
+        transform: translateY(-1px) !important;
+    }
+    .stic-soft-btn:hover svg { stroke: var(--on-brand) !important; }
 }
-.stic-soft-btn:hover svg { stroke: #fff !important; }
 .stic-soft-btn:active { transform: translateY(0) !important; }
 
 /* --- 26.f Mensaje de "Subiendo archivo..." (inyectado por JS) --- */
@@ -2871,9 +2906,11 @@ span.stic-field {
     color: var(--gray-600, #4b5563);
     border: 1.5px solid var(--gray-200, #e5e7eb);
 }
-.stic-modal-btn--cancel:hover {
-    background: var(--gray-100, #f3f4f6);
-    border-color: var(--gray-300, #d1d5db);
+@media (hover: hover) {
+    .stic-modal-btn--cancel:hover {
+        background: var(--gray-100, #f3f4f6);
+        border-color: var(--gray-300, #d1d5db);
+    }
 }
 
 /* Eliminar = rojo degradado */
@@ -2882,10 +2919,12 @@ span.stic-field {
     color: #fff;
     box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
 }
-.stic-modal-btn--delete:hover {
-    filter: brightness(1.08);
-    transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(239, 68, 68, 0.45);
+@media (hover: hover) {
+    .stic-modal-btn--delete:hover {
+        filter: brightness(1.08);
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(239, 68, 68, 0.45);
+    }
 }
 .stic-modal-btn--delete:active {
     transform: translateY(0);
@@ -2953,15 +2992,16 @@ span.stic-field {
 }
 
 /* Barra de acciones (Guardar / Atrás / Eliminar) PEGAJOSA al pie: en formularios
-   largos el botón Guardar queda siempre accesible sin scrollear hasta el final. */
+   largos el botón Guardar queda siempre accesible sin scrollear hasta el final.
+   La zona segura sale de los dos tokens de §1 (plan 042, CAR-2): en el
+   navegador crece lo que mide el indicador de inicio del iPhone; en MCM App
+   se sube por encima de la tab bar y de la píldora, sin crecer. */
 .stic-form > form > ul.stic-ctabs-list {
     position: sticky;
-    bottom: 0;
+    bottom: var(--stic-app-bottom);
     z-index: 20;
     margin-top: 0.8rem !important;
-    /* safe-area: en la WebView de la app (?app=1) el botón Guardar quedaba
-       bajo el indicador de inicio de los iPhone con notch. */
-    padding: 0.85rem 0 calc(0.65rem + env(safe-area-inset-bottom, 0px)) !important;
+    padding: 0.85rem 0 calc(0.65rem + var(--stic-safe-bottom)) !important;
     background: linear-gradient(to top, var(--surface-2) 70%, color-mix(in srgb, var(--surface-2) 40%, transparent));
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
@@ -3003,16 +3043,24 @@ span.stic-field {
     line-height: 1;
     cursor: help;
     user-select: none;
-    -webkit-tap-highlight-color: transparent;
     transition: background 0.18s ease, color 0.18s ease, transform 0.18s var(--ease-spring);
 }
-.stic-info:hover,
 .stic-info:focus-visible,
 .stic-info.is-open {
-    background: var(--primary-color);
-    color: #fff;
+    background: var(--brand-blue-fixed);
+    color: var(--on-brand);
     transform: scale(1.08);
     outline: none;
+}
+/* El hover, solo con ratón: en táctil se quedaba relleno y ampliado después
+   de cerrarlo, como si siguiera abierto (plan 042, A11Y-2). */
+@media (hover: hover) {
+    .stic-info:hover {
+        background: var(--brand-blue-fixed);
+        color: var(--on-brand);
+        transform: scale(1.08);
+        outline: none;
+    }
 }
 /* Área táctil ampliada a ~44px sin agrandar el icono (WCAG 2.5.8): el glifo
    sigue siendo de 18px, pero el dedo tiene margen alrededor. */
@@ -3112,23 +3160,12 @@ span.stic-field {
 }
 
 /* ============================================================
-   30. CONSENTIMIENTOS LEGALES — enlace "ver condiciones" + select
+   30. CONSENTIMIENTOS LEGALES — enlace "ver condiciones"
    ------------------------------------------------------------
-   Cada consentimiento = fila con botón-enlace al texto legal y su
-   desplegable Sí/No. Lo monta sticpa_legal_consent_fields() (pages).
+   La píldora que abre un texto legal o un trámite (la ficha del
+   monitor). La fila con su desplegable Sí/No (`.stic-legal-row`) ya no
+   la pinta nadie y se quitó (plan 042, A11Y-4).
    ============================================================ */
-.stic-form li.stic-legal-row {
-    grid-column: 1 / -1 !important;
-    display: flex !important;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.8rem 1.2rem;
-    padding: 1rem 1.1rem !important;
-    background: var(--surface-2);
-    border: 1px solid var(--gray-200);
-    border-radius: var(--radius-md);
-    margin-bottom: 0.55rem !important;
-}
 .stic-legal-link {
     display: inline-flex;
     align-items: center;
@@ -3150,31 +3187,11 @@ span.stic-field {
     transition: background 0.18s ease, color 0.18s ease;
 }
 .stic-legal-link svg { flex-shrink: 0; }
-.stic-legal-link:hover { background: var(--primary-color); color: #fff !important; }
+@media (hover: hover) {
+    .stic-legal-link:hover { background: var(--brand-blue-fixed); color: var(--on-brand) !important; }
+}
 .stic-legal-link svg { width: 14px; height: 14px; flex-shrink: 0; }
-.stic-legal-row .stic-legal-q {
-    flex: 1 1 260px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.9rem;
-}
-.stic-legal-row .stic-legal-q label {
-    margin: 0 !important;
-    font-size: 0.9rem !important;
-    font-weight: 600 !important;
-    color: var(--gray-700) !important;
-    line-height: 1.4;
-}
-.stic-legal-row .stic-legal-q select {
-    flex: 0 0 auto;
-    width: auto !important;
-    min-width: 96px;
-    min-height: 44px !important;
-    padding: 0.5rem 2.4rem 0.5rem 0.9rem !important;
-}
 @media (max-width: 600px) {
-    .stic-form li.stic-legal-row { align-items: stretch; flex-direction: column; }
     .stic-legal-link { align-self: flex-start; }
 }
 
@@ -3200,7 +3217,9 @@ span.stic-field {
     cursor: pointer;
     transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.15s var(--ease-spring);
 }
-.stic-option-card:hover { border-color: var(--primary-light); transform: translateY(-2px); }
+@media (hover: hover) {
+    .stic-option-card:hover { border-color: var(--primary-light); transform: translateY(-2px); }
+}
 .stic-option-card input[type="radio"] {
     position: absolute;
     opacity: 0;
@@ -3284,10 +3303,12 @@ span.stic-field {
 .stic-profile-card:nth-child(3) { animation-delay: 0.10s; }
 .stic-profile-card:nth-child(4) { animation-delay: 0.15s; }
 .stic-profile-card:nth-child(5) { animation-delay: 0.20s; }
-.stic-profile-card:hover {
-    transform: translateY(-5px);
-    border-color: var(--primary-color);
-    box-shadow: var(--shadow-lg);
+@media (hover: hover) {
+    .stic-profile-card:hover {
+        transform: translateY(-5px);
+        border-color: var(--primary-color);
+        box-shadow: var(--shadow-lg);
+    }
 }
 .stic-profile-avatar {
     display: grid;
@@ -3303,7 +3324,9 @@ span.stic-field {
     transition: transform 0.25s var(--ease-spring);
 }
 .stic-profile-card:nth-child(even) .stic-profile-avatar { background: var(--grad-brand-rev); }
-.stic-profile-card:hover .stic-profile-avatar { transform: scale(1.07); }
+@media (hover: hover) {
+    .stic-profile-card:hover .stic-profile-avatar { transform: scale(1.07); }
+}
 .stic-profile-name {
     font-size: 1.08rem;
     font-weight: 800;
@@ -3329,7 +3352,9 @@ span.stic-field {
     white-space: nowrap;   /* el CTA es corto: en 2 líneas descolocaba la flecha */
 }
 .stic-profile-go svg { width: 15px; height: 15px; transition: transform 0.22s var(--ease-spring); }
-.stic-profile-card:hover .stic-profile-go svg { transform: translateX(4px); }
+@media (hover: hover) {
+    .stic-profile-card:hover .stic-profile-go svg { transform: translateX(4px); }
+}
 /* Tarjeta del propio familiar ("mis datos"): diferenciada en magenta suave. */
 .stic-profile-card--self { border-style: dashed; }
 .stic-profile-card--self .stic-profile-avatar { background: var(--grad-brand-rev); }
@@ -3415,11 +3440,12 @@ span.stic-field {
     font-size: 0.84rem;
     font-weight: 700;
     cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
     transition: background 0.18s ease;
 }
 .stic-part-switch-btn::after { display: none !important; }
-.stic-part-switch-btn:hover { background: rgba(255, 255, 255, 0.28) !important; }
+@media (hover: hover) {
+    .stic-part-switch-btn:hover { background: rgba(255, 255, 255, 0.28) !important; }
+}
 .stic-part-switch-btn .stic-part-avatar {
     display: grid;
     place-items: center;
@@ -3479,7 +3505,9 @@ span.stic-field {
     text-decoration: none !important;
     transition: background 0.15s ease, color 0.15s ease;
 }
-.stic-part-option:hover { background: var(--primary-50); color: var(--primary-color) !important; }
+@media (hover: hover) {
+    .stic-part-option:hover { background: var(--primary-50); color: var(--primary-color) !important; }
+}
 .stic-part-option:focus-visible {
     outline: none;
     box-shadow: var(--shadow-glow);
@@ -3546,7 +3574,6 @@ span.stic-field {
     font-weight: 700;
     box-shadow: none !important;
     cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
     transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
 }
 .stic-auth-tab::after, .stic-auth-tab::before { display: none !important; }
@@ -3648,7 +3675,9 @@ span.stic-field {
     white-space: nowrap;
     transition: transform 0.15s var(--ease-spring), box-shadow 0.2s ease;
 }
-.stic-alert-cta:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+@media (hover: hover) {
+    .stic-alert-cta:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+}
 .stic-alert-cta svg { width: 15px; height: 15px; }
 
 .stic-alert--warning {
@@ -3677,7 +3706,6 @@ span.stic-field {
 .stic-form h5.stic-sec-toggle {
     cursor: pointer;
     user-select: none;
-    -webkit-tap-highlight-color: transparent;
     padding-right: 2.2rem !important;   /* hueco para el chevron */
     position: relative;
 }
@@ -3697,7 +3725,6 @@ span.stic-field {
     color: inherit !important;
     text-align: left !important;
     cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
 }
 .stic-form h5.stic-sec-toggle .stic-sec-btn::after,
 .stic-form h5.stic-sec-toggle .stic-sec-btn::before { display: none !important; }
@@ -3716,9 +3743,11 @@ span.stic-field {
     transition: transform 0.25s var(--ease-spring), background 0.18s ease, color 0.18s ease;
 }
 .stic-form h5.stic-sec-toggle .stic-sec-chevron svg { width: 15px; height: 15px; }
-.stic-form h5.stic-sec-toggle:hover .stic-sec-chevron {
-    background: var(--primary-50);
-    color: var(--primary-color);
+@media (hover: hover) {
+    .stic-form h5.stic-sec-toggle:hover .stic-sec-chevron {
+        background: var(--primary-50);
+        color: var(--primary-color);
+    }
 }
 .stic-form h5.stic-sec-toggle.is-collapsed .stic-sec-chevron {
     transform: translateY(-65%) rotate(-90deg);
@@ -3782,7 +3811,9 @@ span.stic-field {
     color: var(--primary-color) !important;
     text-decoration: none !important;
 }
-.stic-consent .stic-consent-link:hover { text-decoration: underline !important; }
+@media (hover: hover) {
+    .stic-consent .stic-consent-link:hover { text-decoration: underline !important; }
+}
 .stic-consent .stic-consent-link svg { width: 12px; height: 12px; flex-shrink: 0; }
 
 /* Enlace pequeñito junto al badge "Ya subido" → revisar en Documentos. */
@@ -3797,7 +3828,9 @@ span.stic-field {
     text-decoration: none !important;
     vertical-align: middle;
 }
-.stic-mini-link:hover { text-decoration: underline !important; }
+@media (hover: hover) {
+    .stic-mini-link:hover { text-decoration: underline !important; }
+}
 
 /* ============================================================
    39. CROPPER DE FOTOS — recorte pensado para móvil
@@ -3873,7 +3906,9 @@ span.stic-field {
     color: #fff;
     box-shadow: 0 4px 14px rgba(28, 111, 179, 0.35);
 }
-.stic-crop-btn-apply:hover { filter: brightness(1.08); transform: translateY(-1px); }
+@media (hover: hover) {
+    .stic-crop-btn-apply:hover { filter: brightness(1.08); transform: translateY(-1px); }
+}
 @media (max-width: 480px) {
     .stic-crop-card { padding: 1.1rem 0.9rem 1rem; }
 }
@@ -4112,12 +4147,19 @@ span.stic-field {
     font-weight: 600;
     transition: background 0.18s ease, color 0.18s ease;
 }
-.stic-container .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-    background: var(--primary-color);
-    border-color: transparent;
-    color: #fff !important;      /* ídem: gana al hover !important del vendorizado */
+@media (hover: hover) {
+    .stic-container .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+        background: var(--brand-blue-fixed);
+        border-color: transparent;
+        color: var(--on-brand) !important;      /* ídem: gana al hover !important del vendorizado */
+    }
 }
-/* El .current (fondo de marca) ya lo aporta §12. */
+/* El .current (fondo de marca) ya lo aporta §12, pero su letra blanca la pisa
+   el `color … !important` de arriba (misma especificidad y va después): la
+   página elegida salía en azul sobre el degradado. */
+.stic-container .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+    color: var(--on-brand) !important; /* ídem: gana al de arriba y al del vendorizado */
+}
 
 /* --- 43.d "Sin resultados" de búsqueda como estado vacío compacto ---
    DataTables pinta zeroRecords como una fila <tr><td class="dataTables_empty">;
@@ -4129,9 +4171,11 @@ span.stic-field {
     box-shadow: none;
     background: var(--surface) !important;          /* gana al hover de fila de §12 */
 }
-.stic-container .stic-table-responsive table.display tbody tr:has(> td.dataTables_empty):hover {
-    transform: none;
-    box-shadow: none;
+@media (hover: hover) {
+    .stic-container .stic-table-responsive table.display tbody tr:has(> td.dataTables_empty):hover {
+        transform: none;
+        box-shadow: none;
+    }
 }
 .stic-container .stic-table-responsive table.display td.dataTables_empty {
     display: block !important;                      /* gana al display:flex de celda de §22.b */
@@ -4218,8 +4262,10 @@ span.stic-field {
          · los TOKENS de color se aclaran → texto legible (≥4.5:1),
          · los DEGRADADOS se fijan con los hex de marca ORIGINALES → la barra de
            navegación y los botones siguen siendo exactamente los de la marca.
-       Sobre los rellenos de marca el texto blanco queda en 3.2–3.7:1, que es AA
-       para el texto grande/negrita que llevan encima (pastillas de hover). */
+       Sobre estos tokens aclarados el texto blanco se queda en 3,2-3,3:1 (y la
+       letra de las pastillas no es «grande» para WCAG), así que un relleno con
+       texto blanco encima usa `--brand-blue-fixed` / `--accent-fixed`, que no se
+       tocan aquí (§1, plan 042 A11Y-6). */
     --primary-color:  #3f95d6;
     --primary-light:  #74b6e8;
     --primary-dark:   #2a8cd1;
@@ -4443,7 +4489,8 @@ span.stic-field {
    hijo en flujo se colocaría al lado de la tarjeta, no debajo. Para que no se
    solape con la tarjeta en pantallas cortas, el shell reserva el hueco. */
 .stic-auth-shell:has(.stic-appearance) {
-    padding-bottom: calc(clamp(1.5rem, 5vw, 3.5rem) + 3.4rem);
+    /* + la zona segura: el control de abajo crece lo mismo (CAR-2). */
+    padding-bottom: calc(clamp(1.5rem, 5vw, 3.5rem) + 3.4rem + var(--stic-safe-bottom));
 }
 .stic-auth-shell .stic-appearance {
     position: absolute;
@@ -4452,7 +4499,7 @@ span.stic-field {
     bottom: 0;
     justify-content: center;
     margin: 0;
-    padding: 0.9rem 1rem calc(0.9rem + env(safe-area-inset-bottom));
+    padding: 0.9rem 1rem calc(0.9rem + var(--stic-safe-bottom));
     border-top: 0;
 }
 .stic-appearance-label {
@@ -4503,7 +4550,9 @@ span.stic-field {
     inset: -7px -2px;
 }
 .stic-appearance-btn svg { width: 14px; height: 14px; flex: none; }
-.stic-appearance-btn:hover { color: var(--gray-700) !important; background: var(--gray-100) !important; }
+@media (hover: hover) {
+    .stic-appearance-btn:hover { color: var(--gray-700) !important; background: var(--gray-100) !important; }
+}
 .stic-appearance-btn:focus-visible { outline: none; box-shadow: var(--shadow-glow) !important; }
 .stic-appearance-btn[aria-pressed="true"] {
     background: var(--surface) !important;
@@ -4549,7 +4598,9 @@ span.stic-field {
     padding: 1px 2px !important;
     transition: filter 0.14s var(--ease-out), background 0.14s var(--ease-out);
 }
-.fc .fc-daygrid-event:hover { background: var(--surface-2) !important; }
+@media (hover: hover) {
+    .fc .fc-daygrid-event:hover { background: var(--surface-2) !important; }
+}
 .fc .fc-daygrid-event:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
 .fc .fc-daygrid-event .fc-daygrid-event-dot { display: none !important; } /* usamos nuestro chip */
 .stic-fc-registered { opacity: 0.9; }
@@ -4607,7 +4658,9 @@ span.stic-field {
 .stic-cal-day-chev svg { width: 16px; height: 16px; display: block; }
 
 /* Vista Agenda (listMonth): filas con el punto de color del estado. */
-.fc .fc-list-event:hover td { background: var(--surface-2); }
+@media (hover: hover) {
+    .fc .fc-list-event:hover td { background: var(--surface-2); }
+}
 .fc .fc-list-event-dot { border-width: 6px; }
 .fc .fc-list-day-cushion { background: var(--surface-2) !important; }
 .fc .fc-list-empty { color: var(--gray-500); }
@@ -4631,7 +4684,11 @@ span.stic-field {
    ============================================================ */
 .stic-home-layout {
     display: grid;
-    grid-template-columns: 1fr;
+    /* minmax(0, 1fr) y no 1fr: con 1fr el mínimo de la columna es el de su
+       contenido, y el subtítulo de la agenda (nowrap, para cortarse con «…»)
+       la ensanchaba a 404 px con un nombre de evento real. Toda la portada
+       se iba por la derecha en móvil (plan 042, FAM-a3). */
+    grid-template-columns: minmax(0, 1fr);
     gap: clamp(1.1rem, 2.5vw, 1.8rem);
     align-items: start;
 }
@@ -4644,7 +4701,8 @@ span.stic-field {
         top: 1rem;
     }
 }
-.stic-home-main { min-width: 0; }
+.stic-home-main,
+.stic-home-aside { min-width: 0; }
 
 /* --- Panel de la agenda --- */
 .stic-agenda {
@@ -4691,7 +4749,9 @@ span.stic-field {
     color: inherit;
     transition: background 0.15s var(--ease-out), transform 0.15s var(--ease-out);
 }
-.stic-agenda-link:hover { background: var(--surface-2); transform: translateX(2px); }
+@media (hover: hover) {
+    .stic-agenda-link:hover { background: var(--surface-2); transform: translateX(2px); }
+}
 .stic-agenda-link:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
 
 /* Chip de fecha (día de la semana + número + mes) */
@@ -4742,23 +4802,27 @@ span.stic-field {
     font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.03em;
-    color: #fff;
-    background: var(--accent-color);
+    color: var(--on-brand);
+    background: var(--accent-fixed);
     border-radius: var(--radius-full);
     padding: 0.22rem 0.55rem;
 }
 
-/* CTA "Ver calendario" */
+/* CTA "Ver calendario". SECUNDARIO, como .stic-rec-btn--ghost (plan 042,
+   FAM-a13): era el único botón de marca de la portada y lleva al calendario,
+   que no es a lo que viene nadie. 44 px de alto (medía 42). */
 .stic-agenda-cta {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 0.45rem;
+    min-height: 44px;
     margin-top: 0.1rem;
     padding: 0.6rem 1rem;
     border-radius: var(--radius-md);
-    background: var(--grad-brand);
-    color: #fff !important;
+    background: var(--surface);
+    border: 1px solid var(--gray-200);
+    color: var(--gray-700) !important;
     font-weight: 700;
     font-size: 0.9rem;
     text-decoration: none !important;
@@ -4766,7 +4830,9 @@ span.stic-field {
     transition: transform 0.15s var(--ease-out), box-shadow 0.15s var(--ease-out);
 }
 .stic-agenda-cta svg { width: 17px; height: 17px; }
-.stic-agenda-cta:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+@media (hover: hover) {
+    .stic-agenda-cta:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+}
 .stic-agenda-cta:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
 
 /* ============================================================
@@ -4942,25 +5008,13 @@ span.stic-field {
    ============================================================ */
 
 /* --- 48.a Interacción táctil honesta --- */
-.stic-dash-card,
-.stic-agenda-link,
-.stic-agenda-cta { -webkit-tap-highlight-color: transparent; }
+/* (El destello de WebKit lo quita §66.b para toda el área.) */
 
 @media (hover: none) {
     /* Sin puntero fino no hay hover real: el navegador lo simula al tocar y
-       la tarjeta se quedaba elevada hasta tocar en otro sitio. */
-    .stic-dash-card:hover {
-        transform: none;
-        box-shadow: var(--shadow-sm);
-        border-color: var(--gray-200);
-    }
-    .stic-dash-card:hover::before { opacity: 0; }
-    .stic-dash-card:hover .stic-dash-icon { transform: none; }
-    .stic-dash-card:hover .stic-dash-go svg { transform: none; }
-    .stic-agenda-link:hover { transform: none; background: transparent; }
-    .stic-agenda-cta:hover { transform: none; box-shadow: var(--shadow-sm); }
-
-    /* El feedback pasa a la pulsación, que sí es real. */
+       la tarjeta se quedaba elevada hasta tocar en otro sitio. Los :hover ya
+       van todos en @media (hover: hover) (§67), así que en táctil no hay nada
+       que deshacer: el feedback pasa a la pulsación, que sí es real. */
     .stic-dash-card:active { transform: scale(0.97); }
     .stic-dash-card:active::before { opacity: 1; }
     .stic-agenda-link:active { background: var(--surface-2); }
@@ -5079,7 +5133,9 @@ span.stic-field {
 .stic-dashboard-grid--mini .stic-dash-title { font-size: 0.92rem; }
 .stic-dashboard-grid--mini .stic-dash-desc,
 .stic-dashboard-grid--mini .stic-dash-go { display: none; }
-.stic-dashboard-grid--mini .stic-dash-card:hover { transform: translateY(-2px); }
+@media (hover: hover) {
+    .stic-dashboard-grid--mini .stic-dash-card:hover { transform: translateY(-2px); }
+}
 
 @media (max-width: 640px) {
     .stic-section-label--mini { margin-top: 1.15rem; }
@@ -5155,8 +5211,9 @@ span.stic-field {
     transition: box-shadow 0.2s ease, transform 0.15s var(--ease-spring), border-color 0.2s ease;
     animation: stic-fade-up 0.45s var(--ease-out) backwards;
 }
-.stic-rec-card:hover { box-shadow: var(--shadow-md); border-color: color-mix(in srgb, var(--primary-color) 35%, transparent); }
-@media (hover: none) { .stic-rec-card:hover { box-shadow: var(--shadow-xs); transform: none; } }
+@media (hover: hover) {
+    .stic-rec-card:hover { box-shadow: var(--shadow-md); border-color: color-mix(in srgb, var(--primary-color) 35%, transparent); }
+}
 /* Ya celebrado: presente pero apagado (sigue siendo consultable). */
 .stic-rec-card.is-past { opacity: 0.78; }
 
@@ -5172,7 +5229,6 @@ span.stic-field {
     padding: 0.9rem 1rem;
     text-decoration: none !important;
     color: inherit !important;
-    -webkit-tap-highlight-color: transparent;
 }
 .stic-rec-main:active { background: var(--surface-2); }
 
@@ -5204,7 +5260,6 @@ span.stic-field {
     letter-spacing: -0.01em;
     color: var(--gray-900);
 }
-.stic-rec-when,
 .stic-rec-where {
     display: flex;
     align-items: center;
@@ -5213,7 +5268,6 @@ span.stic-field {
     color: var(--gray-600);
     min-width: 0;
 }
-.stic-rec-when svg,
 .stic-rec-where svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--primary-color); }
 .stic-rec-where span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .stic-rec-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.15rem; }
@@ -5267,16 +5321,19 @@ span.stic-field {
     border: 1px solid var(--gray-200);
     color: var(--gray-700) !important;
 }
-.stic-rec-btn--ghost:hover { background: var(--gray-50); color: var(--gray-900) !important; }
+@media (hover: hover) {
+    .stic-rec-btn--ghost:hover { background: var(--gray-50); color: var(--gray-900) !important; }
+}
 .stic-rec-btn--primary {
     background: var(--grad-brand);
     color: #fff !important;
     box-shadow: var(--shadow-sm);
 }
-.stic-rec-btn--primary:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+@media (hover: hover) {
+    .stic-rec-btn--primary:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+}
 .stic-rec-btn:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
 @media (hover: none) {
-    .stic-rec-btn--primary:hover { transform: none; box-shadow: var(--shadow-sm); }
     .stic-rec-btn:active { transform: scale(0.98); }
 }
 
@@ -5320,7 +5377,9 @@ span.stic-field {
 }
 .stic-rec-back::after { display: none !important; }
 .stic-rec-back svg { width: 15px; height: 15px; }
-.stic-rec-back:hover { background: rgba(255, 255, 255, 0.3); }
+@media (hover: hover) {
+    .stic-rec-back:hover { background: rgba(255, 255, 255, 0.3); }
+}
 .stic-container .stic-rec-hero-title,
 .stic-rec-hero-title {
     margin: 0 0 0.5rem;
@@ -5726,16 +5785,16 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     letter-spacing: normal !important;
     text-transform: none !important;
     cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
     transition: background 0.18s ease, transform 0.18s var(--ease-spring);
 }
 .stic-hero-close::after,
 .stic-hero-close::before { display: none !important; content: none !important; }
 .stic-hero-close svg { width: 16px !important; height: 16px !important; }
-.stic-hero-close:hover { background: rgba(255, 255, 255, 0.32) !important; transform: rotate(90deg); }
+@media (hover: hover) {
+    .stic-hero-close:hover { background: rgba(255, 255, 255, 0.32) !important; transform: rotate(90deg); }
+}
 .stic-hero-close:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.7) !important; }
 @media (hover: none) {
-    .stic-hero-close:hover { transform: none; background: rgba(255, 255, 255, 0.18) !important; }
     .stic-hero-close:active { transform: scale(0.9); }
 }
 
@@ -5846,13 +5905,6 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     75% { transform: translateX(6px); }
 }
 
-.stic-code-hint {
-    margin: 0;
-    text-align: center;
-    font-size: var(--font-size-xs);
-    color: var(--gray-500);
-}
-
 /* ---- La pantalla del código: el campo manda (02/10/2026) ----
    Es lo único que hay que hacer aquí, así que va grande, con la etiqueta
    centrada encima. El enlace del correo queda como frase pequeña debajo. */
@@ -5900,7 +5952,9 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 
 .stic-code-reveal > summary::-webkit-details-marker { display: none; }
 
-.stic-code-reveal > summary:hover { color: var(--primary-color); }
+@media (hover: hover) {
+    .stic-code-reveal > summary:hover { color: var(--primary-color); }
+}
 
 .stic-code-reveal > summary:focus-visible {
     outline: 2px solid var(--primary-color);
@@ -5959,7 +6013,9 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 .stic-code-resend button::before,
 .stic-code-resend button::after { content: none !important; display: none !important; }
 
-.stic-code-resend button:hover { color: var(--primary-dark) !important; background: none !important; }
+@media (hover: hover) {
+    .stic-code-resend button:hover { color: var(--primary-dark) !important; background: none !important; }
+}
 
 .stic-code-resend button:focus-visible {
     outline: 2px solid var(--primary-color) !important;
@@ -6545,11 +6601,6 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     overflow-wrap: anywhere;
 }
 
-.stic-dni-form .stic-code-hint {
-    text-align: left;
-    margin-bottom: var(--space-3);
-}
-
 /* ============================================================
    59. EVENTOS — la información de la web, dentro de la ficha
    ------------------------------------------------------------
@@ -6861,16 +6912,17 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     .stic-reg-cancel { flex: 1 1 100%; }
 }
 
-/* «Ver toda la información de la actividad», dentro de la tarjeta de marca del
-   formulario de inscripción: texto blanco subrayado, como un enlace, no un
-   segundo botón (el botón de la pantalla es «Inscribirme»). */
+/* «Ver toda la información de la actividad», dentro de la tarjeta del
+   formulario de inscripción: un enlace subrayado, no un segundo botón (el
+   botón de la pantalla es «Apuntarme»). En azul desde que la tarjeta es
+   neutra (FAM-a5). */
 .stic-event-card-link {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
     min-height: 44px;
     margin-top: 0.35rem;
-    color: var(--on-brand) !important;        /* el tema pinta los enlaces de su color */
+    color: var(--primary-color) !important;   /* el tema pinta los enlaces de su color */
     font-size: 0.9rem;
     font-weight: 700;
     text-decoration: underline !important;    /* ídem: el tema quita el subrayado */
@@ -7140,3 +7192,192 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 }
 .stic-pay-cta .stic-rec-btn--ghost { min-height: 48px; }
 .stic-pay-submit.stic-rec-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ============================================================
+   64. FAMILIAS — pulido del plan 042 (lote L1, 09/10/2026)
+   ------------------------------------------------------------
+   Lo que cambió en las pantallas de familias tras la auditoría
+   de plans/042-pulido-integral/auditoria-familias.md. Cada
+   subsección dice de qué hallazgo sale.
+   ============================================================ */
+
+/* --- 64.a La acción de la ficha del evento, pegada abajo (FAM-a2) ---
+   Con el cartel y «Toda la información», «Inscribirme» quedaba a 2.183 px
+   en un móvil y a 1.411 en escritorio. Pegada al pie de su columna, se ve
+   desde la primera pantalla. Mismo patrón que la botonera de los
+   formularios (§28): su fondo en degradado, que se funde por arriba (un
+   bloque macizo de --surface-2 era una losa gris en oscuro, revisión 042),
+   y la zona segura de §1 (CAR-2). */
+.stic-rec-detail--cta-sticky .stic-rec-cta-row {
+    position: sticky;
+    bottom: var(--stic-app-bottom);
+    z-index: 5;
+    background: linear-gradient(to top, var(--surface-2) 70%, color-mix(in srgb, var(--surface-2) 40%, transparent));
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    padding: 0.6rem 0 calc(0.6rem + var(--stic-safe-bottom));
+}
+@media (prefers-reduced-motion: reduce) {
+    .stic-rec-detail--cta-sticky .stic-rec-cta-row { backdrop-filter: none; }
+}
+/* Con cartel, en móvil la fila va dentro de .stic-rec-split-main, que
+   empieza DEBAJO del cartel, y un sticky no sube por encima de su
+   contenedor: el botón no salía en la primera pantalla, justo el caso de
+   esto (revisión 042). Por debajo de 768 las dos cajas no tienen estilo
+   propio (la rejilla es de §59), así que quitarlas no mueve nada y el
+   contenedor pasa a ser la ficha entera, que empieza en la cabecera. */
+@media (max-width: 767px) {
+    .stic-rec-detail--cta-sticky :is(.stic-rec-split, .stic-rec-split-main) { display: contents; }
+}
+/* La nota (p. ej. «la inscripción se hace en el formulario de la
+   actividad») va encima del botón y sin caja: pegada abajo, una caja más
+   sería ruido. */
+.stic-rec-detail--cta-sticky .stic-rec-cta-row .stic-rec-cta-note {
+    order: -1;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: 0.82rem;
+}
+
+/* --- 64.b El selector de participante, con 44 px de dedo (FAM-a11) ---
+   Es EL control de una familia y medía 172×31. Subirlo a 44 de alto
+   agrandaba la barra de identidad 13 px en cada pantalla; en su lugar se
+   amplía el área táctil alrededor, sin cambiar lo que se ve (el mismo
+   patrón que .stic-info y .stic-appearance-btn, WCAG 2.5.8). */
+.stic-part-switch-btn { position: relative; }
+.stic-part-switch-btn::before {
+    content: '';
+    position: absolute;
+    inset: -7px -2px;
+}
+
+/* --- 64.c Tarjeta de persona sin etiqueta (FAM-a11) ---
+   Los hijos ya no llevan «Participante» (lo llevaban todos y no distinguía
+   nada). En móvil la tarjeta es una rejilla de dos filas, nombre y etiqueta:
+   sin etiqueta, el nombre ocupa las dos y queda centrado con el avatar. */
+@media (max-width: 640px) {
+    .stic-profile-card:not(:has(.stic-profile-tag)) .stic-profile-name { grid-row: 1 / 3; }
+}
+/* En la portada del familiar, las mismas tarjetas que en la selección: aire
+   antes del bloque siguiente, como el que tenía la lista a la que sustituyen. */
+.stic-section-label--mini + .stic-profiles-grid { margin-bottom: 1.5rem; }
+
+
+/* ============================================================
+   65. ZONA SEGURA — `viewport-fit=cover` y lo que se pega abajo
+       (plan 042, CAR-2, 10/10/2026)
+   ------------------------------------------------------------
+   Desde CAR-2 el área imprime su propio `meta viewport` con
+   `viewport-fit=cover` (inc/stic-theme.php), y con él
+   `env(safe-area-inset-*)` deja de valer siempre 0. Las reservas
+   de lo que se pega abajo salen de los dos tokens de §1; aquí va
+   lo que no tenía regla donde engancharse.
+   ============================================================ */
+
+/* --- 65.a El hueco de debajo, en MCM App ---
+   En la app, la botonera de los formularios e «Inscribirme» se
+   pegan 10,5 rem más arriba. Al final del scroll seguirían subidos y
+   taparían el último campo, que ya no tendría adónde subir: el mismo
+   hueco DEBAJO lo evita (como `[data-pl-form]` en Pasar Lista). Con
+   margen y no con relleno, para no alargar la tarjeta en blanco. */
+body.sticpa-app-mode .stic-form:has(> form > ul.stic-ctabs-list),
+body.sticpa-app-mode .stic-rec-detail--cta-sticky {
+    margin-bottom: var(--stic-app-bottom);
+}
+
+/* --- 65.b En apaisado, la muesca ---
+   Con `cover` el contenido llega a los bordes también a lo ancho. En
+   vertical los insets laterales valen 0 y esto no hace nada; en un
+   iPhone con muesca en apaisado valen ~47 px y el relleno del tema
+   (30 px) se quedaba corto: el área entraba debajo de la muesca. Es
+   lo que hacía el navegador sin `cover`, apartar la página de los
+   lados, pero sin perder la reserva de abajo. `html[data-stic-theme]`
+   lo lleva solo una página del área (sticpa_theme_html_attrs). */
+html[data-stic-theme] {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+}
+
+
+/* ============================================================
+   66. CARCASA — la barra y el toque (plan 042, 10/10/2026)
+   ------------------------------------------------------------
+   Lo de la auditoría de la carcasa
+   (plans/042-pulido-integral/auditoria-carcasa.md) que no
+   cambiaba una regla existente. Cada subsección, su hallazgo.
+   ============================================================ */
+
+/* --- 66.a «Salir» y «Menú», a 44 px y separados (CAR-5) ---
+   En el móvil iban dos cuadrados translúcidos pegados arriba a la
+   derecha: «Salir» de 36×36 y la hamburguesa de 38×32, a 6 px uno
+   del otro. La hamburguesa es lo que más se toca del móvil y no
+   llegaba a los 44 px (design.md §2), y un toque que se desviaba
+   7 px cerraba la sesión. Entre 640 y 767 la hamburguesa medía
+   además 140 px de ancho, por la regla global de stic-base. */
+@media (max-width: 767px) {
+    .stic-nav-actions { gap: 0.75rem; }
+    .stic-nav-actions :is(.stic-iconbtn, .stic-nav-toggle) {
+        justify-content: center;
+        min-width: 44px;
+        min-height: 44px;
+    }
+}
+
+/* --- 66.b La regla del toque (CAR-7) ---
+   design.md §8: «`-webkit-tap-highlight-color: transparent` en todo lo
+   pulsable». Se ponía a mano, componente a componente (veinte
+   declaraciones sueltas entre las dos hojas), y lo que se quedaba fuera
+   daba el destello gris de WebKit —el que delata «página web» dentro de la
+   app—: los mosaicos del menú, «Salir», el avatar, los dos «volver»,
+   «Inscribirme», las filas del árbol de grupos… La propiedad se HEREDA, así
+   que una sola regla en los contenedores del área la quita de todo lo de
+   dentro, y se van las sueltas. `.stic-modal-overlay` cuelga de <body>. */
+:is(.stic-container, .stic-auth-shell, .stic-modal-overlay) {
+    -webkit-tap-highlight-color: transparent;
+}
+/* Y lo que no tenía ninguna respuesta al dedo, que sin el destello se
+   quedaría mudo: medido con :active forzado en la portada, la ficha de un
+   evento y el acceso. Las filas se aclaran, los botones encogen; con
+   movimiento reducido, en vez de encoger se apagan un poco. */
+@media (hover: none) {
+    .stic-rec-fact-a:active,
+    .stic-evweb-doc:active { background: var(--gray-50); }
+    .stic-iconbtn:active,
+    .stic-rec-back:active,
+    .stic-auth-tab:active,
+    .stic-appearance-btn:active { transform: scale(0.97); }
+    /* La hamburguesa anula el transform en su regla de pasar el ratón (§7),
+       pero esa regla va ya dentro de @media (hover: hover) (§67): en táctil
+       no está puesta y el encogido no tiene que ganarle a nada. */
+    .stic-nav-toggle:active { transform: scale(0.97); }
+}
+@media (hover: none) and (prefers-reduced-motion: reduce) {
+    .stic-iconbtn:active,
+    .stic-rec-back:active,
+    .stic-auth-tab:active,
+    .stic-appearance-btn:active { transform: none; opacity: 0.72; }
+    .stic-nav-toggle:active { transform: none; opacity: 0.72; }
+}
+
+
+/* ============================================================
+   67. ACCESIBILIDAD — el :hover, solo con ratón (plan 042, A11Y-2)
+   ------------------------------------------------------------
+   Todos los :hover de esta hoja van dentro de @media (hover: hover): en
+   táctil el navegador lo simula al tocar y se quedaba pegado (el «?» de
+   ayuda relleno y ampliado, «Descargar» azul y levantado…).
+
+   Queda el tema: Astra pinta `a:hover, a:focus { color: … }` sin ese
+   @media, y en táctil el enlace tocado tiene los dos. Gana a un color de
+   reposo escrito con una clase suelta (0,1,0 contra 0,1,1), así que estas
+   piezas lo devuelven, solo en táctil y con 0,2,0. La regla general (los
+   enlaces azules) está en stic-base.css, junto a `a:hover`.
+   ============================================================ */
+@media (hover: none) {
+    :is(.stic-dash-card, .stic-agenda-link, .stic-rec-fact-a):is(:hover, :focus) { color: inherit; }
+    .stic-account-participant:is(:hover, :focus) { color: var(--on-brand); }
+    /* §19 le quita la sombra a la tarjeta con foco, y en Android el dedo
+       también enfoca: que se quede la de reposo (antes lo hacía §48.a). */
+    .stic-dash-card:focus { box-shadow: var(--shadow-sm); }
+}

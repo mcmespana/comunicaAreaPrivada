@@ -104,6 +104,15 @@ contexto**. Reglas:
 
 ---
 
+## «Sigue con el área privada»
+
+Si el propietario dice eso (o algo parecido) sin más: es
+**[`plans/043-decisiones-del-10-10.md`](plans/043-decisiones-del-10-10.md)**.
+Ahí están sus decisiones del 10/10/2026 ordenadas, fila a fila, con cómo
+hacerlas y verificarlas. No vuelvas a preguntar lo que ya está decidido allí.
+
+---
+
 ## Si vas a tocar Pasar Lista
 
 Lee **[`docs/comunica/PASAR-LISTA-ESTADO.md`](docs/comunica/PASAR-LISTA-ESTADO.md)**
@@ -125,6 +134,7 @@ El mapa de los demás documentos está en
 | **Cuerpo de los eventos** (renderizador compartido con la web; original aquí, copia en formularios) | `inc/eventos-cuerpo.php` + `EVENTOS.md` §9 |
 | **Pasar Lista — índice de todo** | `docs/comunica/PASAR-LISTA-README.md` |
 | **Mis Grupos** (leer fichas sin pasar lista) | `docs/comunica/MIS-GRUPOS.md` |
+| **Pasar lista en un evento** (el autobús) | `docs/comunica/PASAR-LISTA-EVENTOS.md` |
 | **Pasar Lista — parte de estado: qué funciona, qué está roto** | `docs/comunica/PASAR-LISTA-ESTADO.md` |
 | Pasar Lista — diseño funcional | `docs/comunica/PASAR-LISTA.md` |
 | Pasar Lista — campos del CRM | `docs/comunica/PASAR-LISTA-CAMPOS-CRM.md` |

@@ -68,8 +68,20 @@ function prefix_admin_single_stic_profile_selection()
     // acabas de decir "quiero ver a X" y lo primero que quieres es el panel de X,
     // no una sección cualquiera. El parámetro `default_page` ya no se usa (se
     // acepta en la URL por compatibilidad con enlaces antiguos, pero se ignora).
+    //
+    // LA EXCEPCIÓN (FAM-a1): si la selección se pintó en lugar de la página de
+    // un enlace profundo, la tarjeta trae ese destino en `dest` y se vuelve a
+    // él. Pasa por la misma lista blanca que el login —una página de `pages/`
+    // y `action`/`id`/`from` con su forma—, nada de URLs, y solo con una
+    // elección válida. La página de destino hace sus comprobaciones de siempre.
+    $destino = array();
+    if (isset($perfil) && $perfil !== null && isset($_REQUEST['dest']) && is_string($_REQUEST['dest'])) {
+        $destino = sticpa_family_deep_link_destination(wp_unslash($_REQUEST['dest']));
+    }
     if (!isset($_SESSION['scp_tutor_user_id'])) {
         $redirectUrl = sticpa_return_path() . "?internalpage=single_stic_profile_selection";
+    } elseif (!empty($destino)) {
+        $redirectUrl = sticpa_url_with_destination(sticpa_return_path(), $destino);
     } else {
         $redirectUrl = sticpa_return_path() . "?internalpage=single_stic_home";
     }
@@ -335,7 +347,7 @@ add_action('admin_post_nopriv_single_stic_registrations', 'prefix_admin_single_s
  */
 function prefix_user_active_event_ids($objSCP, $fresh = false)
 {
-    static $memo = null;
+    $memo = &sticpa_registration_memo('ids');
     if (!$fresh && $memo !== null) {
         return $memo;
     }
@@ -352,8 +364,46 @@ function prefix_user_active_event_ids($objSCP, $fresh = false)
         }
     }
 
-    $memo = array_keys(prefix_user_active_registration_map($objSCP, $fresh));
-    return $memo;
+    $ids = array_keys(prefix_user_active_registration_map($objSCP, $fresh));
+    // En la RECOLECTA de una tanda (sticpa_pl_prime) el CRM no contesta y esto
+    // sale vacío: memorizarlo dejaría «no tienes plaza en nada» para el resto
+    // de la petición. Se devuelve, pero no se guarda (plan 042, VEL-5).
+    if (!sticpa_registration_memo_frozen()) {
+        $memo = $ids;
+    }
+    return $ids;
+}
+
+/**
+ * ¿Estamos en la recolecta de una tanda? Entonces los memos de las
+ * inscripciones no se tocan: lo que se calcula ahí es vacío por construcción
+ * (el CRM no contesta mientras se recolecta).
+ */
+function sticpa_registration_memo_frozen()
+{
+    return function_exists('sticpa_pl_collecting') && sticpa_pl_collecting();
+}
+
+/**
+ * El memo POR PETICIÓN de tus inscripciones activas ('ids' y 'map'), en un
+ * sitio que se puede vaciar. Eran dos `static $memo` y nadie podía vaciarlos:
+ * los tests que pintan varias pantallas en el mismo proceso arrastraban el de
+ * la anterior y medían cada pantalla más barata de lo que es (y una tanda que
+ * sí existe salía o no según el orden de la suite).
+ */
+function &sticpa_registration_memo($cual)
+{
+    static $memos = array('ids' => null, 'map' => null);
+    return $memos[$cual];
+}
+
+function sticpa_registration_memo_reset()
+{
+    foreach (array('ids', 'map') as $cual) {
+        $m = &sticpa_registration_memo($cual);
+        $m = null;
+        unset($m);
+    }
 }
 
 /**
@@ -366,7 +416,7 @@ function prefix_user_active_event_ids($objSCP, $fresh = false)
  */
 function prefix_user_active_registration_map($objSCP, $fresh = false)
 {
-    static $memo = null;
+    $memo = &sticpa_registration_memo('map');
     if (!$fresh && $memo !== null) {
         return $memo;
     }
@@ -411,7 +461,9 @@ function prefix_user_active_registration_map($objSCP, $fresh = false)
         'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
     ));
     if (!is_array($myRegs)) {
-        $memo = $map;
+        if (!sticpa_registration_memo_frozen()) {
+            $memo = $map;
+        }
         return $map;
     }
     // El evento de cada inscripción, EN UNA TANDA (plan 011): eran 1+N
@@ -450,8 +502,10 @@ function prefix_user_active_registration_map($objSCP, $fresh = false)
             }
         }
     }
-    $memo = $map;
-    return $memo;
+    if (!sticpa_registration_memo_frozen()) {
+        $memo = $map;
+    }
+    return $map;
 }
 
 function prefix_user_has_active_registration($objSCP, $eventId)
@@ -604,10 +658,25 @@ function prefix_admin_single_stic_registrations()
         $eventId = (string) ($moduleData['stic_registrations_stic_eventsstic_events_ida'] ?? '');
         $formUrl = sticpa_return_path()
             . "?internalpage=single_stic_registrations&action=create&from=stic_events&id=" . urlencode($eventId);
+        // EN UNA TANDA (plan 042, VEL-9): el evento y tus inscripciones (el
+        // guard de abajo, que pregunta al CRM sin caché) no dependen uno de
+        // otro e iban en fila. Son los mismos cargadores de abajo, que
+        // encuentran su respuesta ya traída: una espera menos antes de
+        // guardar. El guard sigue preguntando al CRM en esta petición, no a una
+        // caché: la tanda sale justo aquí. Los campos, FUERA de la recolecta
+        // (revisión 042): con la definición fría, dentro salen solo los base y
+        // el evento se pide dos veces.
+        $camposEvento = $eventId !== '' ? sticpa_event_fields_to_request($objSCP) : array();
+        if ($eventId !== '' && function_exists('sticpa_pl_prime')) {
+            sticpa_pl_prime($objSCP, function () use ($objSCP, $eventId, $camposEvento) {
+                $objSCP->getRecordDetail($eventId, 'stic_Events', $camposEvento);
+                prefix_user_active_event_ids($objSCP, true);
+            });
+        }
         if ($eventId !== '') {
             // El evento se lee UNA vez: lo usan la audiencia, el plazo, las
             // preguntas y el precio.
-            $ev = $objSCP->getRecordDetail($eventId, 'stic_Events', sticpa_event_fields_to_request($objSCP));
+            $ev = $objSCP->getRecordDetail($eventId, 'stic_Events', $camposEvento);
             $eventNvl = $ev->entry_list[0]->name_value_list ?? null;
         }
         // $fresh = true a propósito: este guard decide si se CREA un registro,
@@ -913,6 +982,11 @@ function sticpa_magic_email_html($name, $link, $portalName, $code = '')
         $minutos
     );
 
+    // La letra gris (la «o», la letra pequeña y el pie) es #6b7280, 4,8:1 sobre
+    // blanco. Era #9ca3af, 2,5:1, justo en la frase que importa («Caduca en…
+    // Si no lo has pedido tú…»). El correo no lee los tokens del área: los
+    // colores van a pelo, y este es el --gray-500 de allí (plan 042, A11Y-6).
+    //
     // El código y el botón, uno debajo del otro y con una «o» en medio.
     // Tablas y px porque es lo único que respetan Outlook y Gmail. El espacio
     // de «123 456» es literal (letter-spacing solo, sin el espacio, se pierde
@@ -926,7 +1000,7 @@ function sticpa_magic_email_html($name, $link, $portalName, $code = '')
                 . esc_html(sticpa_otp_format_code($code)) . '</div>
             </td></tr>
           </table>
-          <div style="text-align:center;color:#9ca3af;font-size:14px;margin:14px 0;">' . esc_html__('o', 'sticpa') . '</div>';
+          <div style="text-align:center;color:#6b7280;font-size:14px;margin:14px 0;">' . esc_html__('o', 'sticpa') . '</div>';
     }
 
     $btnBlock = '
@@ -961,11 +1035,11 @@ function sticpa_magic_email_html($name, $link, $portalName, $code = '')
           <p style="margin:0 0 6px;">' . $saludo . '</p>
           <p style="margin:0 0 18px;color:#4b5563;">' . esc_html($intro) . '</p>
           ' . $codeBlock . $btnBlock . '
-          <p style="margin:24px 0 22px;color:#9ca3af;font-size:13px;line-height:1.5;text-align:center;">' . esc_html($letraPequena) . '</p>
+          <p style="margin:24px 0 22px;color:#6b7280;font-size:13px;line-height:1.5;text-align:center;">' . esc_html($letraPequena) . '</p>
         </td></tr>
         <tr><td align="center" style="padding:4px 28px 26px;">'
           . $footerBadge . '
-          <div style="color:#9ca3af;font-size:12px;">comunica@movimientoconsolacion.com</div>
+          <div style="color:#6b7280;font-size:12px;">comunica@movimientoconsolacion.com</div>
         </td></tr>
       </table>
     </td></tr>

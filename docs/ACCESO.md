@@ -174,10 +174,26 @@ abierta: el destino dice a dónde ir, no qué se puede ver. Código:
 Por la URL y no por la sesión, a propósito: el enlace del correo se abre muchas
 veces en otro navegador —o en la app— que el que lo pidió.
 
-> Una familia con hijos que entra por el enlace de un evento lo ve **como ella
-> misma** (igual que si ya tuviera la sesión abierta): para apuntar a un hijo
-> tiene que cambiar de participante antes. No es nuevo, pero ahora se llegará
-> más a menudo por aquí.
+### Una familia con varios hijos que entra por un enlace (09/10/2026, plan 042 FAM-a1)
+
+Hasta el 09/10/2026 esta nota decía que la familia veía el evento «como ella
+misma». Era peor: una madre que **solo es familiar** y tiene **dos o más
+hijos** quedaba con `scp_user_id` = ella pero tratada como «participante» (menú
+entero, «Datos de Marta») y **«Inscribirme» la apuntaba A ELLA**, o le decía
+que su ficha no tenía el perfil del evento. El camino más corriente de una
+familia nueva.
+
+Ahora, mientras no haya elegido a quién ve (`scp_tutor_is_user` sin poner), la
+página pedida se cambia por **«¿A quién quieres apuntar?»** (o «¿A quién
+quieres ver?» si el destino no es un evento) y, al elegir, se va **al destino**
+y no a la portada. El destino viaja en la tarjeta como un solo parámetro `dest`
+y el handler lo pasa por la **misma lista blanca del login**
+(`sticpa_family_deep_link_destination()`, que usa
+`sticpa_login_destination_args()`). La selección se pinta en el sitio, sin
+redirigir, y una vez elegido (un hijo o ella misma) los enlaces pasan: no hay
+bucle. Con un hijo (se elige solo), sin hijos o siendo además miembro del MCM,
+todo sigue como antes. Código: `sticpa_family_must_choose_first()` en
+`inc/stic-family.php`; pruebas en `tests/FamilyContextTest.php`.
 
 ---
 

@@ -23,6 +23,7 @@ que se rompa en móvil se rompe en la app.
 | Qué tiene que pasar y cómo son las pantallas | [`PASAR-LISTA.md`](PASAR-LISTA.md) |
 | Nombres exactos de campos y módulos del CRM | [`PASAR-LISTA-CAMPOS-CRM.md`](PASAR-LISTA-CAMPOS-CRM.md) |
 | **«Mis grupos»** — la sección para leer fichas sin pasar lista | [`MIS-GRUPOS.md`](MIS-GRUPOS.md) |
+| **Pasar lista en un evento** (el autobús de una salida) | [`PASAR-LISTA-EVENTOS.md`](PASAR-LISTA-EVENTOS.md) |
 | Fases y melones pendientes | [`PASAR-LISTA-ROADMAP.md`](PASAR-LISTA-ROADMAP.md) |
 | Coordinación, monitores y quién ve qué | [`PASAR-LISTA-COORDINACION.md`](PASAR-LISTA-COORDINACION.md) |
 | Los recuentos que lleva el grupo en su ficha | [`PASAR-LISTA-RECUENTOS.md`](PASAR-LISTA-RECUENTOS.md) |

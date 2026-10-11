@@ -771,7 +771,12 @@ class EventAudienceTest extends TestCase
         $this->assertStringContainsString('Inscripción cerrada', $html);
         $this->assertStringNotContainsString('Inscripción abierta', $html);
         $this->assertStringNotContainsString('Cerrada el', $html);
-        $this->assertStringContainsString('Ver detalle', $html);
+        // Y sin «Ver detalle» (plan 042, FAM-a7): la tarjeta entera ya lleva a
+        // la ficha, y un botón que hace lo mismo es lo que design.md §6.1
+        // prohíbe. Sin acciones, sin barra.
+        $this->assertStringNotContainsString('Ver detalle', $html);
+        $this->assertStringContainsString("href='?internalpage=single_stic_events&amp;action=detail&amp;id=e1'", $html);
+        $this->assertStringNotContainsString('stic-rec-actions', $html);
     }
 
     /**
@@ -804,7 +809,8 @@ class EventAudienceTest extends TestCase
         $this->assertLessThan($apuntado, strpos($html, 'Pascua 2027'));
         // Lo tuyo lleva a TU inscripción y no ofrece apuntarse otra vez.
         $this->assertStringContainsString('single_stic_registrations&amp;action=detail&amp;id=reg-1', $html);
-        $this->assertStringContainsString('Inscrito', $html);
+        // El chip de lo tuyo: «Con plaza», sin género (FAM-a4; antes «Inscrito»).
+        $this->assertStringContainsString('Con plaza', $html);
         $this->assertSame(1, substr_count($html, 'Inscribirme'));
         // Lo ya celebrado, fuera: tuyo o no.
         $this->assertStringNotContainsString('Campamento 2026', $html);

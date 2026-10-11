@@ -129,7 +129,22 @@ class CalendarParallelTest extends TestCase
                 $this->calls[] = $sig;
                 return $this->datos[$sig] ?? array();
             }
-            public function getRecordsModule($m, $q = '', $f = array()) { $this->calls[] = 'records:' . $m; return array(); }
+            public function getRecordsModule($m, $q = '', $f = array())
+            {
+                // Como el de verdad: también se recolecta y se trae en tanda.
+                $sig = 'records:' . $m;
+                if ($this->recolectando) {
+                    $this->recolectado[$sig] = $sig;
+                    return null;
+                }
+                if (array_key_exists($sig, $this->traido)) {
+                    $d = $this->traido[$sig];
+                    unset($this->traido[$sig]);
+                    return $d;
+                }
+                $this->calls[] = $sig;
+                return $this->datos[$sig] ?? array();
+            }
             public function getFieldDefinition($m, $f) { return (object) array('module_fields' => array()); }
             public function collectRequests(callable $fn)
             {
@@ -176,11 +191,15 @@ class CalendarParallelTest extends TestCase
         $crm = $this->crm(true);
         sticpa_gather_calendar_data($crm);
 
+        // Tanda 0: tus inscripciones y los eventos de la ventana, que no
+        // dependen de ellas (plan 042, VEL-3: los eventos iban solos al final).
         // Tanda 1: eventos + asistencias de r1 y r2 (4). Tanda 2: sesiones de e1 y e2 (2).
-        $this->assertSame(array(4, 2), $crm->batches);
-        // En serie solo quedan la lista de inscripciones y los eventos de la ventana.
+        $this->assertSame(array(2, 4, 2), $crm->batches);
+        $this->assertSame(array('tanda:Contacts:yo:stic_registrations_contacts', 'tanda:records:stic_Events'),
+            array_slice($crm->calls, 0, 2));
+        // Y nada en serie.
         $sueltas = array_values(array_filter($crm->calls, function ($c) { return strpos($c, 'tanda:') !== 0; }));
-        $this->assertSame(array('Contacts:yo:stic_registrations_contacts', 'records:stic_Events'), $sueltas);
+        $this->assertSame(array(), $sueltas);
     }
 
     public function test_un_evento_repetido_ya_no_se_consulta_dos_veces()

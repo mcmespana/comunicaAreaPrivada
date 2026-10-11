@@ -36,6 +36,19 @@ $fields = sticpa_event_fields_to_request($objSCP);
 // CRM para mostrar los pocos a los que uno puede apuntarse.
 $filterParam = function_exists('sticpa_events_window_filter') ? sticpa_events_window_filter() : '';
 $listSettings['fileName'] = basename(__FILE__, ".php"); //The list name, from the filename. Don't touch.
+
+// EN UNA TANDA (plan 042, VEL-5): los eventos de la ventana y tus
+// inscripciones no dependen unos de otras; iban en fila. Con el calendario
+// frío, 3 esperas → 2 (la segunda, la tanda del evento de cada inscripción).
+// Los cargadores son los mismos de abajo, que encuentran su respuesta ya
+// traída; con el calendario caliente tus inscripciones no recolectan nada y
+// la consulta de eventos sale sola, como antes.
+if (function_exists('sticpa_pl_prime') && function_exists('prefix_user_active_registration_map')) {
+    sticpa_pl_prime($objSCP, function () use ($objSCP, $listSettings, $filterParam, $fields) {
+        $objSCP->getRecordsModule($listSettings['moduleName'], $filterParam, $fields);
+        prefix_user_active_registration_map($objSCP);
+    });
+}
 $getElements = $objSCP->getRecordsModule($listSettings['moduleName'], $filterParam, $fields);
 
 // TUS INSCRIPCIONES (evento => inscripción). Van ANTES de la audiencia: a lo

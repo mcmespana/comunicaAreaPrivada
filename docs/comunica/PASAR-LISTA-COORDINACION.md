@@ -376,14 +376,32 @@ Decisiones:
 
 - **La Lista de monitores y las Reuniones tienen dos puertas** (Pasar lista y
   Coordinación). Es la misma pantalla, no dos: se vuelve por la que se entró
-  (`&desde=coordinacion`, lista blanca de un valor).
+  (`&desde=coordinacion`, lista blanca de un valor). Desde el plan 042 (COO-3)
+  el **Resumen de grupos** también: entra con `desde=coordinacion` y vuelve a
+  Coordinación; y una lista o una ficha de monitor abierta desde el Resumen
+  vuelve al Resumen (`desde=resumen` / `resumen-coordinacion`, `vengo=resumen`).
+  La lista blanca de `desde` está en `sticpa_pl_desde()`. El menú resalta la
+  sección de la subpantalla (`sticpa_menu_section_for()`, `menu.php`), por la
+  puerta de entrada: lo abierto desde Coordinación es de Coordinación.
 - **La ficha del monitor vuelve a Coordinación** (antes a la lista del sábado,
   que no es de donde se viene a leer una ficha). Desde Mis grupos sigue
   volviendo a Mis grupos.
 - **El aviso de la reunión sin pasar** sale en las dos portadas con la misma
   regla: `sticpa_pl_reunion_pendiente()` (`inc/stic-pasar-lista-ui.php`).
 - **Coste**: sin cargador propio. 7 llamadas en 3 viajes con la caché fría
-  (`CosteLlamadasTest`), lo que ya pedían sus piezas por separado.
+  (`CosteLlamadasTest`), lo que ya pedían sus piezas por separado. Desde el
+  plan 042 (COO-2), 9 en los mismos 3 viajes: ver abajo.
+- **Cada fila dice lo que hay, no lo que es** (plan 042, COO-2, 09/10/2026). La
+  portada era un índice: para saber si se pasó lista el sábado había que entrar
+  en el Resumen. Ahora «Resumen de grupos» dice «sáb 15 nov · 1 de 2 listas ·
+  falta C2» (o «todas pasadas»), con el alcance de quien mira y la misma cuenta
+  que la tarjeta del Resumen (`sticpa_pl_ultima_sesion_estado()`); y «Lista de
+  monitores», la última sesión celebrada: «pasada: 11 vinieron, 3 faltas»,
+  «sin registro» o «sin pasar», **en gris**: la regla de §5 ter (la lista
+  semanal de monitores no avisa) se mantiene. La reunión sin pasar lleva su
+  cabecera («Falta 1 lista»), como en la portada de Pasar lista. Cuesta las
+  sesiones de los eventos de etapa (1-2 llamadas), que viajan en la tanda de
+  las de reuniones.
 
 ## 6. Campos y valores que hay que crear
 
