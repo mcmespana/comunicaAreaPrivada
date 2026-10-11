@@ -501,21 +501,27 @@ function menu()
     }
     $account .= "</span></div>";
 
-    // Item de "Salir" reutilizable (icono + texto), con estilo de item de menú.
+    // "Salir" como un elemento más del menú (icono + texto): es el último del
+    // desplegable del móvil (ver abajo).
     $logoutItem = "<a class='stic-nav-link stic-nav-logout' href='?logout=true'>
                         <span class='stic-nav-ico'>" . ($iconFn ? sticpa_icon('logout') : '') . "</span>
                         <span class='stic-nav-text'>" . __('Salir', 'sticpa') . "</span>
                    </a>";
 
     // ---- Acciones de la barra superior ----
-    // "Salir" SIEMPRE arriba a la derecha (icono + texto en escritorio, solo
-    // icono en móvil) y, con menú, la hamburguesa a su lado en el móvil: los
-    // dos a 44 px y separados (custom-style §66.a, plan 042 CAR-5).
-    // `$logoutItem` no se pinta hoy: queda para llevar "Salir" al final del
-    // menú del móvil si se decide (CAR-5, punto 2). El tema claro/oscuro se
-    // elige en el pie (sticpa_appearance_switch_html), no aquí.
+    // "Salir" va arriba a la derecha EN ESCRITORIO (icono + texto). EN EL
+    // MÓVIL, con menú, va DENTRO del desplegable, el último y separado por una
+    // raya (plan 043, CAR-5 punto 2, decidido el 10/10/2026): al lado de la
+    // hamburguesa, un toque desviado cerraba la sesión, y en la app eso es
+    // volver a pedir el código por correo. Salir es lo que menos se hace y lo
+    // que más cuesta deshacer. La barra del móvil se queda con la identidad y
+    // un solo botón grande, el del menú (custom-style §66.a).
+    // Sin menú (no hay hamburguesa) "Salir" sigue en la barra también en el
+    // móvil: si no, no habría forma de salir. El tema claro/oscuro se elige
+    // en el pie (sticpa_appearance_switch_html), no aquí.
+    $logoutBarClass = $showItems ? ' stic-logout--escritorio' : '';
     $actions = "<div class='stic-nav-actions'>";
-    $actions .= "<a class='stic-iconbtn stic-logout' href='?logout=true' title='" . esc_attr__('Cerrar sesión', 'sticpa') . "' aria-label='" . esc_attr__('Cerrar sesión', 'sticpa') . "'>"
+    $actions .= "<a class='stic-iconbtn stic-logout{$logoutBarClass}' href='?logout=true' title='" . esc_attr__('Cerrar sesión', 'sticpa') . "' aria-label='" . esc_attr__('Cerrar sesión', 'sticpa') . "'>"
         . ($iconFn ? sticpa_icon('logout') : '') . "<span class='stic-logout-text'>" . __('Salir', 'sticpa') . "</span></a>";
     if ($showItems) {
         // Botón hamburguesa SOLO icono: el nombre de la sección ya lo pone el
@@ -567,6 +573,10 @@ function menu()
                     </button>
                     <div class='stic-nav-more-menu' id='stic-nav-more-menu'><ul></ul></div>
                   </li>";
+        // "Salir", el último del desplegable del móvil (CAR-5), a lo ancho y
+        // en una fila como los mosaicos sueltos. En escritorio no se ve (está
+        // en la barra) y el reparto de «Más» lo salta.
+        $menu .= "<li class='stic-nav-item stic-nav-item--wide stic-nav-logout-item' style='--stic-order:9999'>" . $logoutItem . "</li>";
         $menu .= "</ul>";
     }
     $menu .= "</nav>";

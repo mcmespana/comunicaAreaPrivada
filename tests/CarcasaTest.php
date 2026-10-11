@@ -74,12 +74,83 @@ class CarcasaTest extends TestCase
         );
     }
 
+    /** La barra de verdad (menu()) de alguien con sesión. */
+    private function barra($conMenu)
+    {
+        require_once dirname(__DIR__) . '/menu.php';
+        $_SESSION = array(
+            'scp_user_id' => 'm1',
+            'scp_user_contact_name' => 'Soler, David',
+            'scp_role' => 'laico',
+            'scp_role_resolved' => true,
+            'scp_relationship_raw' => '^grupo^',
+        );
+        // Sin `scp_user_adult` ni sesión de familiar no hay menú (ni hamburguesa).
+        if ($conMenu) {
+            $_SESSION['scp_user_adult'] = true;
+        }
+        $_REQUEST = array();
+        $_SERVER['REQUEST_URI'] = '/ap/';
+        $html = menu();
+        $_SESSION = array();
+        return $html;
+    }
+
+    /**
+     * CAR-5, punto 2 (plan 043). En el móvil «Salir» va dentro del menú, el
+     * último: el de la barra lleva la clase que lo esconde por debajo de 768
+     * y el desplegable lleva su elemento, después de todo lo demás.
+     */
+    public function test_con_menu_salir_va_el_ultimo_del_desplegable()
+    {
+        $html = $this->barra(true);
+        $this->assertMatchesRegularExpression("/class='stic-iconbtn stic-logout stic-logout--escritorio' href='\?logout=true'/", $html);
+        $ultimo = strrpos($html, '<li ');
+        $this->assertNotFalse($ultimo);
+        $li = substr($html, $ultimo);
+        $this->assertStringStartsWith("<li class='stic-nav-item stic-nav-item--wide stic-nav-logout-item' style='--stic-order:9999'>", $li);
+        $this->assertStringContainsString("href='?logout=true'", $li);
+        $this->assertStringContainsString('Salir', $li);
+    }
+
+    /** Sin menú no hay hamburguesa: «Salir» se queda en la barra, también en el móvil. */
+    public function test_sin_menu_salir_se_queda_en_la_barra()
+    {
+        $html = $this->barra(false);
+        $this->assertStringContainsString("class='stic-iconbtn stic-logout' href='?logout=true'", $html);
+        $this->assertStringNotContainsString('stic-logout--escritorio', $html);
+        $this->assertStringNotContainsString('stic-nav-logout-item', $html);
+        $this->assertStringNotContainsString('stic-nav-toggle', $html);
+    }
+
+    /**
+     * CAR-5, punto 2: el CSS que lo hace. En escritorio el elemento del menú
+     * no se pinta; en el móvil se pinta y el de la barra se esconde.
+     */
+    public function test_el_css_lleva_salir_al_menu_solo_en_el_movil()
+    {
+        $css = preg_replace('#/\*.*?\*/#s', '', $this->css('custom-style.css'));
+        $this->assertSame('display: none;', trim($this->rule($css, '.stic-nav-logout-item')));
+        $ini = strpos($css, '.stic-nav-actions .stic-logout--escritorio { display: none; }');
+        $this->assertNotFalse($ini, 'Falta esconder el «Salir» de la barra en el móvil.');
+        $media = substr($css, strrpos(substr($css, 0, $ini), '@media'), 40);
+        $this->assertStringStartsWith('@media (max-width: 767px)', $media);
+        // Y dentro del bloque del móvil (que lleva un @media anidado, así que
+        // se mira cuál de los dos breakpoints abre más cerca).
+        $pos = strpos($css, '.stic-nav-logout-item { display: block;');
+        $this->assertNotFalse($pos);
+        $antes = substr($css, 0, $pos);
+        $this->assertGreaterThan((int) strrpos($antes, '@media (min-width'), (int) strrpos($antes, '@media (max-width: 767px)'));
+    }
+
     /** CAR-5, punto 3: el comentario de «de momento todo claro» era falso. */
     public function test_el_menu_no_dice_que_el_modo_oscuro_esta_aparcado()
     {
         $menu = file_get_contents(dirname(__DIR__) . '/menu.php');
         $this->assertStringNotContainsString('De momento todo claro', $menu);
         $this->assertStringNotContainsString('El "Salir" va como último item', $menu);
+        // Y desde el plan 043 (CAR-5, punto 2) tampoco va SIEMPRE arriba.
+        $this->assertStringNotContainsString('"Salir" SIEMPRE arriba a la derecha', $menu);
     }
 
     /**

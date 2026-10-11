@@ -850,7 +850,9 @@ span.stic-field {
     outline-offset: 2px;
 }
 
-/* "Salir": último item, empujado a la derecha en escritorio. */
+/* "Salir" como elemento del menú: el último del desplegable del MÓVIL (plan
+   043, CAR-5). En escritorio no se pinta: allí "Salir" va en la barra. */
+.stic-nav-logout-item { display: none; }
 .stic-nav-logout .stic-nav-ico { opacity: 1; }
 @media (hover: hover) {
     .stic-nav-logout:hover { background: rgba(239, 68, 68, 0.9) !important; }
@@ -1071,7 +1073,7 @@ span.stic-field {
     /* En móvil se ven todas las secciones en el drawer: "Más" no aplica */
     .stic-nav-more-wrap { display: none !important; }
     /* "Salir" separado al final del desplegable */
-    .stic-nav-logout-item { grid-column: 1 / -1; order: 9999; margin-top: 0.35rem; padding-top: 0.45rem; border-top: 1px solid rgba(255, 255, 255, 0.16); }
+    .stic-nav-logout-item { display: block; grid-column: 1 / -1; order: 9999; margin-top: 0.35rem; padding-top: 0.45rem; border-top: 1px solid rgba(255, 255, 255, 0.16); }
 }
 
 /* ============================================================
@@ -7327,6 +7329,11 @@ html[data-stic-theme] {
         min-width: 44px;
         min-height: 44px;
     }
+    /* Y con menú, «Salir» ni siquiera está al lado: va el último del
+       desplegable (plan 043, CAR-5 punto 2). La barra se queda con la
+       identidad y un solo botón grande. Sin menú no lleva la clase y se
+       queda, que si no no habría forma de salir. */
+    .stic-nav-actions .stic-logout--escritorio { display: none; }
 }
 
 /* --- 66.b La regla del toque (CAR-7) ---
