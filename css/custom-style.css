@@ -5368,21 +5368,19 @@ span.stic-field {
 
 .stic-rec-hero {
     position: relative;
-    overflow: hidden;
     padding: clamp(1.1rem, 3vw, 1.75rem);
     border-radius: var(--radius-xl);
-    background: var(--grad-brand);
-    color: var(--on-brand);
-    box-shadow: var(--shadow-md);
+    /* Superficie neutra, no el degradado de marca (plan 043, fila 6: CAR-6).
+       Venía justo debajo de la barra, que ya lo es: dos bloques de marca
+       seguidos que no se pueden cerrar, lo que design.md §3 prohíbe, y con
+       «Inscribirme» eran tres en una pantalla. Ahora la cabecera va en tinta
+       sobre la tarjeta, como la de los listados y la de Pasar Lista, y el
+       degradado queda para la barra y la acción principal. */
+    background: var(--surface);
+    color: var(--gray-900);
+    border: 1px solid var(--gray-200);
+    box-shadow: var(--shadow-xs);
 }
-.stic-rec-hero::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(60% 80% at 100% 0%, rgba(255, 255, 255, 0.2), transparent 60%);
-    pointer-events: none;
-}
-.stic-rec-hero > * { position: relative; z-index: 1; }
 /* 44px de alto, no 25. Medido en el render offline: era el único pulsable de
    la ficha por debajo del mínimo táctil, y es la SALIDA de todas las fichas —
    lo que más se toca después de la acción principal. design.md §2 regla 1: el
@@ -5395,8 +5393,8 @@ span.stic-field {
     margin-bottom: 0.7rem;
     padding: 0 0.9rem 0 0.75rem;
     border-radius: var(--radius-full);
-    background: rgba(255, 255, 255, 0.18);
-    color: var(--on-brand) !important;
+    background: var(--surface-2);
+    color: var(--gray-700) !important;
     font-size: 0.82rem;
     font-weight: 700;
     text-decoration: none !important;
@@ -5404,7 +5402,7 @@ span.stic-field {
 .stic-rec-back::after { display: none !important; }
 .stic-rec-back svg { width: 15px; height: 15px; }
 @media (hover: hover) {
-    .stic-rec-back:hover { background: rgba(255, 255, 255, 0.3); }
+    .stic-rec-back:hover { background: var(--gray-200); }
 }
 .stic-container .stic-rec-hero-title,
 .stic-rec-hero-title {
@@ -5413,17 +5411,15 @@ span.stic-field {
     font-weight: 800;
     line-height: 1.15;
     letter-spacing: -0.02em;
-    color: #fff !important;
+    color: var(--gray-900) !important;
     background: none !important;
-    -webkit-text-fill-color: #fff !important;
+    -webkit-text-fill-color: var(--gray-900) !important;
 }
 .stic-rec-hero-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.8rem; }
-.stic-rec-hero-when { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.95rem; font-weight: 600; }
-.stic-rec-hero-when svg { width: 16px; height: 16px; }
-/* Encima del degradado de marca el texto es --on-brand, nunca --white
-   (que en oscuro vale #16171a y deja letras negras sobre el degradado). */
-.stic-rec-hero-meta .stic-rec-chip { background: rgba(255, 255, 255, 0.22); color: var(--on-brand); }
-.stic-rec-hero-meta .stic-rec-chip--past { background: rgba(0, 0, 0, 0.22); color: var(--on-brand); }
+.stic-rec-hero-when { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.95rem; font-weight: 600; color: var(--gray-700); }
+.stic-rec-hero-when svg { width: 16px; height: 16px; color: var(--primary-color); }
+/* Los chips de la cabecera llevan su tono de siempre, el de las tarjetas del
+   listado (§56.a): ya no van sobre la marca y no necesitan vestirse de cristal. */
 
 /* Datos clave: solo salen los que el CRM tenga rellenos. */
 .stic-rec-facts {
@@ -6104,18 +6100,6 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 .stic-rec-chip--danger { background: var(--danger-soft);  color: var(--danger-dark); }
 .stic-rec-chip--info   { background: var(--info-light);   color: var(--info-dark); }
 
-/* Sobre el degradado de la cabecera los tonos no se leen (fondo claro sobre
-   fondo de marca): allí todos los chips se visten de cristal, como el neutro.
-   Lo hace la §49 con .stic-rec-hero-meta .stic-rec-chip; esto solo evita que
-   los modificadores le ganen por especificidad. */
-.stic-rec-hero-meta .stic-rec-chip--ok,
-.stic-rec-hero-meta .stic-rec-chip--warn,
-.stic-rec-hero-meta .stic-rec-chip--danger,
-.stic-rec-hero-meta .stic-rec-chip--info {
-    background: rgba(255, 255, 255, 0.22);
-    color: var(--on-brand);
-}
-
 /* --- 56.b  El dato que manda en la ficha ---------------------------- */
 .stic-rec-headline {
     display: flex;
@@ -6641,14 +6625,13 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
    y la sección su <h4> (ver `titulo_base` en inc/stic-event-web.php).
    ============================================================ */
 
-/* El lema, encima del degradado del hero: texto --on-brand, como el título. */
+/* El lema, debajo del título de la cabecera, en tinta secundaria. */
 .stic-rec-hero-sub {
     margin: -0.15rem 0 0.6rem;
     font-size: 1rem;
     font-style: italic;
     font-weight: 500;
-    color: var(--on-brand);
-    opacity: 0.92;
+    color: var(--gray-600);
 }
 
 /* El cartel: entero y a su tamaño. Un cartel de imprenta es vertical, y a todo

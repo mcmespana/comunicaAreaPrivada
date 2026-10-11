@@ -195,4 +195,26 @@ class CarcasaTest extends TestCase
             );
         }
     }
+
+    /**
+     * CAR-6 (plan 043, fila 6). La cabecera de las fichas (evento, pago,
+     * inscripción) iba en el degradado de marca justo debajo de la barra, que
+     * también lo es: dos bloques de marca seguidos que no se cierran (design.md
+     * §3). Va en superficie neutra, el título en tinta y los chips con el tono
+     * de las tarjetas del listado, sin la versión de cristal.
+     */
+    public function test_la_cabecera_de_la_ficha_no_lleva_el_degradado()
+    {
+        $css = preg_replace('#/\*.*?\*/#s', '', $this->css('custom-style.css'));
+        $hero = $this->rule($css, '.stic-rec-hero');
+        $this->assertStringContainsString('background: var(--surface);', $hero);
+        $this->assertStringNotContainsString('grad-brand', $hero);
+        $this->assertStringNotContainsString('.stic-rec-hero::after', $css);
+        $this->assertStringNotContainsString('.stic-rec-hero-meta .stic-rec-chip', $css, 'Los chips, con su tono normal.');
+        $titulo = $this->rule($css, '.stic-container .stic-rec-hero-title,
+.stic-rec-hero-title');
+        $this->assertStringContainsString('-webkit-text-fill-color: var(--gray-900) !important;', $titulo);
+        $this->assertStringNotContainsString('on-brand', $this->rule($css, '.stic-rec-back'));
+        $this->assertStringNotContainsString('on-brand', $this->rule($css, '.stic-rec-hero-sub'));
+    }
 }
