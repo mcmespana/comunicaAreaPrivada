@@ -64,6 +64,15 @@
     --shadow-xl: 0 32px 70px rgba(21, 36, 71, 0.20);
     --shadow-glow: 0 0 0 4px color-mix(in srgb, var(--primary-color) 16%, transparent);
     --shadow-glow-pink: 0 0 0 4px color-mix(in srgb, var(--secondary-color) 16%, transparent);
+    /* El anillo del FOCO DE TECLADO (`:focus-visible`), que no es el halo de
+       arriba. El halo al 16 % se quedaba en 1,25:1 sobre blanco (2,04:1 en
+       oscuro), y WCAG 1.4.11 pide 3:1 para lo que marca un estado: quien
+       coordina con el teclado no sabía dónde estaba (plan 042, A11Y-1). Este
+       es sólido, con un hueco del color de la superficie para que se separe
+       también de un botón de marca: --primary-color da 5,3:1 sobre blanco y
+       5,5:1 sobre el oscuro. `--shadow-glow` se queda para el `:focus` de los
+       campos, donde acompaña a un cambio de borde y ahí sí se ve. */
+    --focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary-color);
 
     /* ---- Encima de un relleno de MARCA (§44 NO los toca a propósito) ----
        Los degradados de marca se fijan con los hex originales en los dos temas,
@@ -929,7 +938,7 @@ span.stic-field {
 /* Foco visible dentro del panel claro (el outline:none de arriba lo borraba). */
 .stic-nav-more-menu .stic-nav-link:focus-visible {
     outline: none !important;
-    box-shadow: var(--shadow-glow) !important;
+    box-shadow: var(--focus-ring) !important;
     background: var(--primary-50) !important;
 }
 .stic-nav-more-menu .stic-nav-item.current-menu-item .stic-nav-link,
@@ -1992,7 +2001,7 @@ span.stic-field {
 @media (hover: hover) {
     .stic-rowbtn--ghost:hover { background: var(--gray-50); color: var(--gray-900) !important; }
 }
-.stic-rowbtn:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+.stic-rowbtn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 @media (hover: none) {
     .stic-rowbtn:active { transform: scale(0.98); }
 }
@@ -2451,7 +2460,7 @@ span.stic-field {
 }
 
 .stic-form input[type="checkbox"]:focus-visible {
-    box-shadow: var(--shadow-glow) !important;
+    box-shadow: var(--focus-ring) !important;
 }
 
 .stic-form input[type="checkbox"]:checked {
@@ -3258,7 +3267,7 @@ span.stic-field {
     font-size: 0.8rem;
     font-weight: 800;
 }
-.stic-option-card:has(input:focus-visible) { box-shadow: var(--shadow-glow); }
+.stic-option-card:has(input:focus-visible) { box-shadow: var(--focus-ring); }
 
 /* ============================================================
    32. SELECCIÓN DE PARTICIPANTE (familias) — tarjetas grandes
@@ -3510,7 +3519,7 @@ span.stic-field {
 }
 .stic-part-option:focus-visible {
     outline: none;
-    box-shadow: var(--shadow-glow);
+    box-shadow: var(--focus-ring);
     background: var(--primary-50);
 }
 .stic-part-option .stic-part-avatar {
@@ -3584,9 +3593,14 @@ span.stic-field {
     color: var(--primary-color) !important;
     box-shadow: var(--shadow-sm) !important;
 }
-.stic-auth-tab:focus-visible {
+/* La pestaña ELEGIDA lleva su sombra con más especificidad (0,4,0) que la
+   regla de foco, y se comía el anillo: «Por correo» no cambiaba nada al
+   tabular (plan 042, A11Y-1). Por eso la elegida tiene su propio :focus-visible. */
+.stic-auth-tab:focus-visible,
+.stic-auth[data-mode="magic"] .stic-auth-tab[data-auth-toggle="magic"]:focus-visible,
+.stic-auth[data-mode="password"] .stic-auth-tab[data-auth-toggle="password"]:focus-visible {
     outline: none;
-    box-shadow: var(--shadow-glow) !important;
+    box-shadow: var(--focus-ring) !important;
 }
 /* En móvil estrecho, que "Enlace mágico" no parta en dos líneas. */
 @media (max-width: 480px) {
@@ -3755,7 +3769,7 @@ span.stic-field {
 .stic-form h5.stic-sec-toggle .stic-sec-btn:focus-visible {
     outline: none !important;
     border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-glow) !important;
+    box-shadow: var(--focus-ring) !important;
 }
 /* La tarjeta plegada desaparece del flujo (los campos required dentro los
    desactiva el JS mientras están ocultos, como en los condicionales). */
@@ -4002,20 +4016,25 @@ span.stic-field {
     animation: stic-msg-in 0.25s var(--ease-out) both;
 }
 
-/* --- 42.b Foco visible en botones de acción y modales --- */
+/* --- 42.b Foco visible en botones de acción y modales ---
+   «Volver» y «Eliminar» de los formularios pierden su sombra con
+   `.stic-send input.stic-button[…]` (0,3,1, §23), que pesa más que
+   `.stic-container .stic-back-button:focus-visible` (0,3,0): al tabular no se
+   veía nada. Van aquí con ese mismo selector. Y «Eliminar» lleva el mismo
+   anillo que los demás: su halo rojo al 22 % tenía el problema del azul al
+   16 % (plan 042, A11Y-1), y el botón ya dice que es rojo. */
 .stic-container .stic-button:focus-visible,
 .stic-container .stic-back-button:focus-visible,
 .stic-container .stic-soft-btn:focus-visible,
+.stic-container .stic-danger-button:focus-visible,
+.stic-send input.stic-button[type="button"]:focus-visible,
+.stic-send input.stic-button.stic-danger-button:focus-visible,
 .stic-auth-shell .stic-btn-magic:focus-visible,
 .stic-auth-shell input[type="submit"]:focus-visible,
-.stic-modal-btn:focus-visible {
-    outline: none !important;
-    box-shadow: var(--shadow-glow) !important;
-}
-.stic-container .stic-danger-button:focus-visible,
+.stic-modal-btn:focus-visible,
 .stic-modal-btn--delete:focus-visible {
     outline: none !important;
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--danger-color) 22%, transparent) !important;
+    box-shadow: var(--focus-ring) !important;
 }
 
 /* --- 42.c Placeholders con contraste suficiente --- */
@@ -4295,6 +4314,10 @@ span.stic-field {
     --shadow-xl: 0 32px 70px rgba(0, 0, 0, 0.62);
     --shadow-glow: 0 0 0 4px color-mix(in srgb, var(--primary-light) 34%, transparent);
     --shadow-glow-pink: 0 0 0 4px color-mix(in srgb, var(--secondary-light) 34%, transparent);
+    /* El mismo valor que en §1, repetido a propósito: una propiedad que lee
+       otras se resuelve donde se declara, y la de :root leería la superficie
+       y el azul CLAROS. Aquí lee los de este bloque. */
+    --focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary-color);
 
     /* Colores de estado: el ACENTO se aclara (para que se vea sobre oscuro),
        el fondo suave se oscurece y el "-dark" pasa a ser el texto CLARO que
@@ -4553,12 +4576,15 @@ span.stic-field {
 @media (hover: hover) {
     .stic-appearance-btn:hover { color: var(--gray-700) !important; background: var(--gray-100) !important; }
 }
-.stic-appearance-btn:focus-visible { outline: none; box-shadow: var(--shadow-glow) !important; }
+.stic-appearance-btn:focus-visible { outline: none; box-shadow: var(--focus-ring) !important; }
 .stic-appearance-btn[aria-pressed="true"] {
     background: var(--surface) !important;
     color: var(--primary-color) !important;
     box-shadow: var(--shadow-xs) !important;
 }
+/* El elegido va después y con la misma especificidad: sin esto su sombra se
+   comía el anillo y «Auto» no cambiaba nada al tabular (plan 042, A11Y-1). */
+.stic-appearance-btn[aria-pressed="true"]:focus-visible { box-shadow: var(--focus-ring) !important; }
 /* En claro el segmento activo destaca por ser BLANCO sobre la pista gris. En
    oscuro eso se invierte (el activo saldría más oscuro que la pista y no se
    leería como "seleccionado"), así que aquí sube de nivel y toma color de marca. */
@@ -4601,7 +4627,7 @@ span.stic-field {
 @media (hover: hover) {
     .fc .fc-daygrid-event:hover { background: var(--surface-2) !important; }
 }
-.fc .fc-daygrid-event:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+.fc .fc-daygrid-event:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .fc .fc-daygrid-event .fc-daygrid-event-dot { display: none !important; } /* usamos nuestro chip */
 .stic-fc-registered { opacity: 0.9; }
 
@@ -4649,7 +4675,7 @@ span.stic-field {
     text-decoration: none !important;
     color: inherit !important;
 }
-.stic-cal-day-item:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+.stic-cal-day-item:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .stic-cal-day-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--primary-color); }
 .stic-cal-day-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
 .stic-cal-day-name { font-weight: 700; font-size: 0.92rem; color: var(--gray-900); line-height: 1.3; }
@@ -4752,7 +4778,7 @@ span.stic-field {
 @media (hover: hover) {
     .stic-agenda-link:hover { background: var(--surface-2); transform: translateX(2px); }
 }
-.stic-agenda-link:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+.stic-agenda-link:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
 /* Chip de fecha (día de la semana + número + mes) */
 .stic-agenda-date {
@@ -4833,7 +4859,7 @@ span.stic-field {
 @media (hover: hover) {
     .stic-agenda-cta:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
 }
-.stic-agenda-cta:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+.stic-agenda-cta:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
 /* ============================================================
    54. CALENDARIO EN MÓVIL — el sitio principal es la app (?app=1)   [antes §45, duplicado]
@@ -5332,7 +5358,7 @@ span.stic-field {
 @media (hover: hover) {
     .stic-rec-btn--primary:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
 }
-.stic-rec-btn:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+.stic-rec-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 @media (hover: none) {
     .stic-rec-btn:active { transform: scale(0.98); }
 }
@@ -6443,7 +6469,7 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 .stic-rec-quick::after { display: none !important; }
 .stic-rec-quick svg { width: 20px; height: 20px; }
 .stic-rec-quick:active { transform: scale(0.94); }
-.stic-rec-quick:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
+.stic-rec-quick:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 
 @media (hover: hover) {
     .stic-rec-quick:hover { background: var(--surface); }
