@@ -1210,12 +1210,14 @@ span.stic-field {
     width: 54px;
     height: 54px;
     border-radius: var(--radius-md);
-    background: var(--grad-brand);
-    color: #fff;
-    box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    /* En tinta suave, como el icono de los datos de la ficha (.stic-rec-fact-ico),
+       y no en el degradado (plan 043, fila 7: FAM-a13). Eran siete u ocho
+       pastillas de marca en la portada, además de la barra y el saludo, y el
+       degradado deja de firmar nada (design.md §3 y §8). */
+    background: var(--primary-50);
+    color: var(--primary-color);
     transition: transform 0.28s var(--ease-spring);
 }
-.stic-dash-card:nth-child(even) .stic-dash-icon { background: var(--grad-brand-rev); }
 @media (hover: hover) {
     .stic-dash-card:hover .stic-dash-icon { transform: scale(1.08) rotate(-4deg); }
 }

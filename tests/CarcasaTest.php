@@ -217,4 +217,19 @@ class CarcasaTest extends TestCase
         $this->assertStringNotContainsString('on-brand', $this->rule($css, '.stic-rec-back'));
         $this->assertStringNotContainsString('on-brand', $this->rule($css, '.stic-rec-hero-sub'));
     }
+
+    /**
+     * FAM-a13 (plan 043, fila 7). Los iconos de acceso de la portada iban en
+     * el degradado, siete u ocho más la barra y el saludo: «degradado en todas
+     * partes» (design.md §8). Van en tinta suave, el mismo par que el icono de
+     * los datos de una ficha, que en oscuro se recalcula solo (§44.a).
+     */
+    public function test_los_iconos_de_la_portada_van_en_tinta_suave()
+    {
+        $css = preg_replace('#/\*.*?\*/#s', '', $this->css('custom-style.css'));
+        $icono = $this->rule($css, '.stic-dash-icon');
+        $this->assertStringContainsString('background: var(--primary-50);', $icono);
+        $this->assertStringContainsString('color: var(--primary-color);', $icono);
+        $this->assertDoesNotMatchRegularExpression('/\.stic-dash-icon\s*\{[^}]*grad-brand/', $css);
+    }
 }
