@@ -3,6 +3,8 @@
     "FLAG por delegación: pon \"activa\": true y ya recibe el correo de cumpleaños.",
     "Nada más que tocar: el workflow recorre todas las que estén activas.",
     "  clave         -> valor del campo ajmcm_delegacion_c en Relaciones con Personas.",
+    "  alias         -> opcional; otras claves del CRM para la misma delegación",
+    "                   (p.ej. la errata histórica 'madird' de Madrid).",
     "  usuario_crm   -> nombre del usuario asignado en el CRM (assigned_user_name).",
     "                   Se acepta cualquiera de los dos, así que un desajuste de",
     "                   claves (p.ej. 'madird' o 'vilareal') no rompe nada.",
@@ -94,11 +96,14 @@
       "felicitar_a_la_persona": true
     },
     {
-      "clave": "madird",
+      "clave": "madrid",
+      "alias": ["madird"],
       "activa": true,
       "nombre": "MCM Madrid",
       "usuario_crm": "MCM Madrid",
-      "destinatarios": [],
+      "destinatarios": [
+        "madrid@movimientoconsolacion.com"
+      ],
       "tipos": ["monitor", "grupo"],
       "felicitar_a_la_persona": true
     },

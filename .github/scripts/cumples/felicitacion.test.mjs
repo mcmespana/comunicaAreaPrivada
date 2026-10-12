@@ -480,11 +480,12 @@ test('textoPersona: lleva firma y agradecimiento', () => {
 // ── Tipos de relación (monitor / grupo) ──────────────────────────────────────
 
 const MADRID = {
-  clave: 'madird',
+  clave: 'madrid',
+  alias: ['madird'],
   activa: true,
   nombre: 'MCM Madrid',
   usuario_crm: 'MCM Madrid',
-  destinatarios: ['madrid@ejemplo.invalid'],
+  destinatarios: ['madrid@movimientoconsolacion.com'],
   tipos: ['monitor', 'grupo'],
 };
 
@@ -551,4 +552,10 @@ test('miembro de grupo: textos sin «monitor» en ningún sitio', () => {
   assert.match(todo, /miembro de un grupo de MCM Madrid/);
   assert.match(todo, /monitor\/a o miembro de grupo activa/);
   assert.doesNotMatch(todo, /monitora|Monitora/);
+});
+
+test('relacionEsDe: el alias recoge la errata "madird" aunque no cuadre el usuario', () => {
+  assert.ok(relacionEsDe({ ajmcm_delegacion_c: 'madird', assigned_user_name: 'Otro' }, MADRID));
+  assert.ok(relacionEsDe({ ajmcm_delegacion_c: 'madrid' }, MADRID));
+  assert.ok(!relacionEsDe({ ajmcm_delegacion_c: 'madird' }, { ...MADRID, alias: [] }));
 });

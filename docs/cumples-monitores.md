@@ -18,7 +18,7 @@ Los días que no cumple nadie **no se envía nada** (ni un correo diciendo que n
 hay cumpleaños).
 
 Ahora mismo está activo para **MCM Castellón** (monitores y grupos con LC) y
-**MCM Madrid** (ídem, pendiente de poner su correo en `destinatarios`). Si alguien no tiene correo
+**MCM Madrid** (ídem; aviso a `madrid@movimientoconsolacion.com`). Si alguien no tiene correo
 en el CRM, se le salta la felicitación directa (queda anotado en el log) y el
 aviso a la delegación sale igual.
 
@@ -61,6 +61,8 @@ Las 18 delegaciones ya están listadas; para sumar una solo hay que ponerle
 ```
 
 - `clave` — el valor del campo `ajmcm_delegacion_c` en Relaciones con Personas.
+- `alias` (opcional) — otras claves con las que el CRM conoce a la delegación.
+  Madrid es `madrid` con alias `madird`, la errata histórica de datos antiguos.
 - `usuario_crm` — el `assigned_user_name` del CRM.
 - Vale con que cuadre **uno de los dos**. Se hace así porque en el CRM conviven
   claves con erratas históricas (`madird`) y variantes (`vilareal` frente a

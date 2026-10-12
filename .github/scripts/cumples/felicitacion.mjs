@@ -216,14 +216,18 @@ export function normaliza(texto) {
 /**
  * ¿Esta relación pertenece a la delegación indicada?
  *
- * Vale con que cuadre el campo propio de la relación (ajmcm_delegacion_c) o el
- * usuario asignado. Se aceptan los dos porque en el CRM conviven claves con
+ * Vale con que cuadre el campo propio de la relación (ajmcm_delegacion_c, contra
+ * `clave` o `alias`) o el usuario asignado. Se aceptan los dos porque en el CRM conviven claves con
  * erratas históricas ("madird") y variantes ("vilareal" / "MCM Vila-real"), y
  * con un solo criterio se quedaría gente fuera sin que nos enterásemos.
  */
 export function relacionEsDe(relacion, delegacion) {
   const clave = normaliza(relacion?.ajmcm_delegacion_c);
-  if (clave && clave === normaliza(delegacion.clave)) return true;
+  // `alias`: otras claves con las que el CRM conoce a la delegación (erratas
+  // históricas como "madird"), para no tener que copiarlas en `clave`.
+  const validas = [delegacion.clave, ...(Array.isArray(delegacion.alias) ? delegacion.alias : [])]
+    .map(normaliza);
+  if (clave && validas.includes(clave)) return true;
 
   const usuario = normaliza(relacion?.assigned_user_name);
   const esperado = normaliza(delegacion.usuario_crm);
