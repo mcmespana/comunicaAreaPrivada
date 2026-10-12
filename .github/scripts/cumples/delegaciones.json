@@ -10,6 +10,9 @@
     "  felicitar_a_la_persona -> si es true (por defecto), además se le manda una",
     "                   felicitación directa a quien cumple, a su email1 del CRM.",
     "                   Ponlo en false para que solo se avise a la delegación.",
+    "  tipos         -> a QUIÉN se felicita, por tipo de relación con persona activa:",
+    "                   \"monitor\" (monitores/as) y/o \"grupo\" (miembros +18 de un grupo con LC).",
+    "                   Si falta, solo \"monitor\". NO existe el de niños: no se felicitan.",
     "  remite        -> opcional; si falta se usa el secreto CUMPLES_FROM.",
     "Para una prueba puntual sin tocar este fichero:",
     "  Actions > Cumpleaños de monitores > Run workflow > delegaciones: castellon (o 'todas')."
@@ -23,6 +26,7 @@
       "destinatarios": [
         "Castellon@movimientoconsolacion.com"
       ],
+      "tipos": ["monitor", "grupo"],
       "felicitar_a_la_persona": true
     },
     {
@@ -91,10 +95,11 @@
     },
     {
       "clave": "madird",
-      "activa": false,
+      "activa": true,
       "nombre": "MCM Madrid",
       "usuario_crm": "MCM Madrid",
       "destinatarios": [],
+      "tipos": ["monitor", "grupo"],
       "felicitar_a_la_persona": true
     },
     {

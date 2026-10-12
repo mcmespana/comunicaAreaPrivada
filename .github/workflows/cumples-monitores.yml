@@ -3,8 +3,8 @@ name: Cumpleaños de monitores
 # Cada mañana mira en SinergiaCRM qué monitores cumplen años hoy y, si hay
 # alguno, manda un correo con Resend al buzón de su delegación.
 #
-# Delegaciones: se controla con el flag "activa" de
-# .github/scripts/cumples/delegaciones.json. Ahora mismo solo Castellón.
+# Delegaciones y a quién se felicita (tipos: monitor, grupo): flag "activa" y "tipos" de
+# .github/scripts/cumples/delegaciones.json. Ahora: Castellón y Madrid.
 # Para sumar otra: pon "activa": true y su correo en "destinatarios".
 #
 # ── UN solo cron, y por qué ──────────────────────────────────────────────────

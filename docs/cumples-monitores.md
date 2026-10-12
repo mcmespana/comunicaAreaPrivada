@@ -1,4 +1,4 @@
-# Felicitación automática de cumpleaños de monitores
+# Felicitación automática de cumpleaños (monitores y grupos con LC)
 
 Cada mañana a las **7:00 (hora de Madrid)** un workflow de GitHub Actions mira en
 SinergiaCRM qué monitores cumplen años hoy. Si hay alguno manda **dos correos**
@@ -17,7 +17,8 @@ que no queremos perder es precisamente el mensaje a quien cumple.
 Los días que no cumple nadie **no se envía nada** (ni un correo diciendo que no
 hay cumpleaños).
 
-Ahora mismo está activo solo para **MCM Castellón**. Si alguien no tiene correo
+Ahora mismo está activo para **MCM Castellón** (monitores y grupos con LC) y
+**MCM Madrid** (ídem, pendiente de poner su correo en `destinatarios`). Si alguien no tiene correo
 en el CRM, se le salta la felicitación directa (queda anotado en el log) y el
 aviso a la delegación sale igual.
 
@@ -54,6 +55,7 @@ Las 18 delegaciones ya están listadas; para sumar una solo hay que ponerle
   "nombre": "MCM Onda",
   "usuario_crm": "MCM Onda",
   "destinatarios": ["onda@movimientoconsolacion.com"],
+  "tipos": ["monitor", "grupo"],
   "felicitar_a_la_persona": true
 }
 ```
@@ -64,6 +66,12 @@ Las 18 delegaciones ya están listadas; para sumar una solo hay que ponerle
   claves con erratas históricas (`madird`) y variantes (`vilareal` frente a
   `MCM Vila-real`): con un solo criterio se quedaría gente fuera en silencio.
 - Sin `destinatarios` la delegación se salta, aunque esté activa.
+- `tipos` — **a quién se felicita**, por tipo de relación con persona activa:
+  `"monitor"` (monitores/as) y/o `"grupo"` (los +18 de un grupo con LC; la clave
+  de `relationship_type` es `grupo`, ver `CAMPOS.md`). Si falta, solo `monitor`.
+  **No hay tipo para niños** (`participante_mic_com`): no se felicitan. Quien es
+  las dos cosas sale una vez, como monitor/a. Para otro tipo (p. ej. coordinación)
+  se añade en `TIPOS_RELACION` de `felicitacion.mjs` y se pide aquí.
 - `felicitar_a_la_persona` — a `false` deja de escribir a los monitores y solo
   avisa a la delegación. Por defecto está a `true`.
 - `remite` (opcional) permite un remitente distinto por delegación.
@@ -71,8 +79,10 @@ Las 18 delegaciones ya están listadas; para sumar una solo hay que ponerle
 ## Cómo se decide quién cumple
 
 1. **Relaciones con Personas** (`stic_Contacts_Relationships`), filtrando
-   `relationship_type = monitor` y `active = 1`. Son ~165 registros en todo el
-   CRM, así que se traen de una vez y se reparten por delegación aquí.
+   `relationship_type` (una consulta por cada tipo que pida alguna delegación
+   activa: `monitor`, `grupo`) y `active = 1`. Son ~165 monitores y ~240 de
+   grupo en todo el CRM, así que se traen de una vez y se reparten por
+   delegación aquí.
    No se filtra por delegación en la API porque `assigned_user_name` es un campo
    *relate* y la consulta revienta con error de base de datos.
 2. **Personas** (`Contacts`), filtrando `birthdate LIKE '%-MM-DD'`. Devuelve

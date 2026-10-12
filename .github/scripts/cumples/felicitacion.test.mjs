@@ -15,9 +15,9 @@ import { readFileSync } from 'node:fs';
 import {
   asunto, asuntoPersona, correoHtml, correoPersonaHtml, cumpleanosDeHoy,
   delegacionesActivas, edad, elegir, elegirRemitente, fechaLarga,
-  indiceMonitores, listaNatural, MENSAJES_POR_DEFECTO, movilInternacional,
+  indiceMonitores, indiceRelaciones, listaNatural, MENSAJES_POR_DEFECTO, movilInternacional,
   normaliza, palabraMonitor, plantilla, relacionEsDe, repartoGifs,
-  textoPersona, textoPlano, urlFicha,
+  textoPersona, textoPlano, tiposNecesarios, urlFicha,
 } from './felicitacion.mjs';
 
 // Los textos de verdad, los mismos que usa el workflow.
@@ -299,7 +299,7 @@ test('cumpleanosDeHoy: cruza, filtra por día y ordena', () => {
   assert.equal(cumples.length, 1);
   assert.equal(cumples[0].nombre, 'Mercedes Martí París');
   assert.equal(cumples[0].edad, 20);
-  assert.equal(cumples[0].monitorDesde, '2019-09-01');
+  assert.equal(cumples[0].desde, '2019-09-01');
   assert.equal(cumples[0].nombreCorto, 'Mercedes');
 });
 
@@ -384,7 +384,7 @@ test('correoHtml: monta el correo con GIF, datos y botones', () => {
 test('correoHtml: sin móvil no aparece el botón de WhatsApp', () => {
   const cumples = [{
     id: 'x', nombre: 'Sin Móvil', nombreCorto: 'Sin', nacimiento: '2000-08-18',
-    edad: 26, genero: 'male', movil: '', email: '', etapa: '', grupo: '', monitorDesde: null,
+    edad: 26, genero: 'male', movil: '', email: '', etapa: '', grupo: '', desde: null,
   }];
   const html = correoHtml(cumples, CASTELLON, '2026-08-18', GIFS);
   assert.ok(!html.includes('wa.me'));
@@ -395,7 +395,7 @@ test('correoHtml: sin móvil no aparece el botón de WhatsApp', () => {
 test('correoHtml: escapa el HTML que venga del CRM', () => {
   const cumples = [{
     id: 'x', nombre: '<script>ups</script>', nombreCorto: 'ups', nacimiento: '2000-08-18',
-    edad: 26, genero: '', movil: '', email: '', etapa: '', grupo: '', monitorDesde: null,
+    edad: 26, genero: '', movil: '', email: '', etapa: '', grupo: '', desde: null,
   }];
   const html = correoHtml(cumples, CASTELLON, '2026-08-18', GIFS);
   assert.ok(!html.includes('<script>ups'));
@@ -475,4 +475,80 @@ test('textoPersona: lleva firma y agradecimiento', () => {
   assert.match(texto, /Mercedes/);
   assert.match(texto, /MCM Castellón/);
   assert.match(texto, /Gracias/);
+});
+
+// ── Tipos de relación (monitor / grupo) ──────────────────────────────────────
+
+const MADRID = {
+  clave: 'madird',
+  activa: true,
+  nombre: 'MCM Madrid',
+  usuario_crm: 'MCM Madrid',
+  destinatarios: ['madrid@ejemplo.invalid'],
+  tipos: ['monitor', 'grupo'],
+};
+
+const rel = (tipo, id, extra = {}) => ({
+  relationship_type: tipo,
+  active: '1',
+  assigned_user_name: 'MCM Madrid',
+  ajmcm_delegacion_c: 'madird',
+  stic_contacts_relationships_contactscontacts_ida: id,
+  ...extra,
+});
+
+test('indiceRelaciones: sin `tipos` solo entran los monitores', () => {
+  const relaciones = [rel('monitor', 'm'), rel('grupo', 'g')];
+  const { tipos, ...sinTipos } = MADRID;
+  assert.deepEqual([...indiceRelaciones(relaciones, sinTipos).keys()], ['m']);
+});
+
+test('indiceRelaciones: con tipos monitor+grupo entran los dos, y los niños no', () => {
+  const relaciones = [
+    rel('monitor', 'm'), rel('grupo', 'g'), rel('participante_mic_com', 'nino'),
+    rel('grupo', 'baja', { active: '0' }),
+  ];
+  const indice = indiceRelaciones(relaciones, MADRID);
+  assert.deepEqual([...indice.keys()].sort(), ['g', 'm']);
+  assert.equal(indice.get('g').tipo, 'grupo');
+});
+
+test('indiceRelaciones: monitor y grupo a la vez sale como monitor', () => {
+  const relaciones = [
+    rel('grupo', 'x', { start_date: '2015-09-01' }),
+    rel('monitor', 'x', { start_date: '2021-09-01' }),
+  ];
+  const e = indiceRelaciones(relaciones, MADRID).get('x');
+  assert.equal(e.tipo, 'monitor');
+  assert.equal(e.desde, '2021-09-01');
+  // y da igual el orden en que lleguen
+  assert.equal(indiceRelaciones([...relaciones].reverse(), MADRID).get('x').tipo, 'monitor');
+});
+
+test('indiceRelaciones: ignora tipos desconocidos en `tipos`', () => {
+  const d = { ...MADRID, tipos: ['monitores', 'grupo'] };
+  assert.deepEqual([...indiceRelaciones([rel('monitor', 'm'), rel('grupo', 'g')], d).keys()], ['g']);
+});
+
+test('tiposNecesarios: une los tipos de las delegaciones de la ejecución', () => {
+  assert.deepEqual(tiposNecesarios([CASTELLON]), ['monitor']);
+  assert.deepEqual(tiposNecesarios([CASTELLON, MADRID]).sort(), ['grupo', 'monitor']);
+});
+
+test('miembro de grupo: textos sin «monitor» en ningún sitio', () => {
+  const indice = indiceRelaciones([rel('grupo', 'g', { start_date: '2021-09-01' })], MADRID);
+  const cumples = cumpleanosDeHoy(
+    [{ id: 'g', first_name: 'Lucía', last_name: 'Pérez', birthdate: '1999-08-18', email1: 'l@ejemplo.invalid' }],
+    indice, '2026-08-18',
+  );
+  assert.equal(cumples[0].tipo, 'grupo');
+  const todo = [
+    textoPlano(cumples, MADRID, '2026-08-18', MENSAJES),
+    correoHtml(cumples, MADRID, '2026-08-18', GIFS, MENSAJES),
+    correoPersonaHtml(cumples[0], MADRID, '2026-08-18', GIFS, MENSAJES),
+  ].join('\n');
+  assert.match(todo, /En el grupo desde 2021/);
+  assert.match(todo, /miembro de un grupo de MCM Madrid/);
+  assert.match(todo, /monitor\/a o miembro de grupo activa/);
+  assert.doesNotMatch(todo, /monitora|Monitora/);
 });

@@ -231,17 +231,85 @@ export function relacionEsDe(relacion, delegacion) {
 }
 
 /**
- * Índice "id de persona" -> { desde } con sus relaciones de monitor/a activas.
+ * Tipos de relación (`relationship_type` de Relaciones con Personas) por los que
+ * se puede felicitar, con cómo se llama cada uno en los correos.
  *
- * Una misma persona puede tener varias relaciones de monitor/a (en el CRM hay
- * altas repetidas por curso), así que se deduplica y se guarda la start_date
- * más antigua, que es la que responde a "monitor/a desde...".
+ *   monitor -> monitores/as.
+ *   grupo   -> el papel de los +18 en su grupo («grupo con LC»). OJO: NO es
+ *              `participante_mic_com`, que son los niños y no se felicitan.
+ *
+ * Para sumar otro tipo (p. ej. `coordinacion_mic_com`) basta con añadirlo aquí;
+ * la delegación lo pide en su `tipos` de delegaciones.json.
  */
-export function indiceMonitores(relaciones, delegacion) {
+export const TIPOS_RELACION = {
+  monitor: { orden: 0 },
+  grupo: { orden: 1 },
+};
+
+/** Si una delegación no dice `tipos`, se felicita solo a monitores (lo de siempre). */
+export const TIPOS_POR_DEFECTO = ['monitor'];
+
+/** Tipos que pide una delegación, filtrando los desconocidos. */
+export function tiposDe(delegacion) {
+  const pedidos = Array.isArray(delegacion?.tipos) && delegacion.tipos.length > 0
+    ? delegacion.tipos
+    : TIPOS_POR_DEFECTO;
+  return pedidos.map((t) => String(t).trim()).filter((t) => t in TIPOS_RELACION);
+}
+
+/** Tipos que hay que bajar del CRM para las delegaciones de esta ejecución. */
+export function tiposNecesarios(delegaciones) {
+  const set = new Set();
+  for (const d of delegaciones ?? []) for (const t of tiposDe(d)) set.add(t);
+  return [...set];
+}
+
+/** Cómo se llama a la persona en una frase: «monitora», «miembro de grupo». */
+export function rolCorto(c) {
+  return c?.tipo === 'grupo' ? 'miembro de grupo' : palabraMonitor(c?.genero);
+}
+
+/** «Monitora desde 2019» / «En el grupo desde 2021»; null si no hay fecha. */
+export function desdeTexto(c) {
+  if (!c?.desde) return null;
+  const anio = String(c.desde).slice(0, 4);
+  if (c.tipo === 'grupo') return `En el grupo desde ${anio}`;
+  const palabra = palabraMonitor(c.genero);
+  return `${palabra[0].toUpperCase()}${palabra.slice(1)} desde ${anio}`;
+}
+
+/** «monitora de MCM Madrid» / «miembro de un grupo de MCM Madrid». */
+function rolDe(c, nombreDelegacion) {
+  return c?.tipo === 'grupo'
+    ? `miembro de un grupo de ${nombreDelegacion}`
+    : `${palabraMonitor(c?.genero)} de ${nombreDelegacion}`;
+}
+
+/** Para el pie del aviso: «monitor/a» o «monitor/a o miembro de grupo». */
+function tiposEnPalabras(delegacion) {
+  const t = tiposDe(delegacion);
+  const partes = [];
+  if (t.includes('monitor')) partes.push('monitor/a');
+  if (t.includes('grupo')) partes.push('miembro de grupo');
+  return partes.join(' o ') || 'monitor/a';
+}
+
+/**
+ * Índice "id de persona" -> { desde, tipo } con sus relaciones activas de los
+ * tipos que pide la delegación (`tipos`; por defecto solo monitor).
+ *
+ * Una misma persona puede tener varias relaciones (en el CRM hay altas repetidas
+ * por curso), así que se deduplica y se guarda la start_date más antigua del
+ * tipo que se muestra. Si es monitor/a Y además miembro de un grupo, sale como
+ * monitor/a (el primero de TIPOS_RELACION), con la fecha de esa relación.
+ */
+export function indiceRelaciones(relaciones, delegacion) {
+  const tipos = tiposDe(delegacion);
   const indice = new Map();
 
   for (const r of relaciones ?? []) {
-    if (r?.relationship_type !== 'monitor') continue;
+    const tipo = r?.relationship_type;
+    if (!tipos.includes(tipo)) continue;
     // La API devuelve el booleano como "1"/"0"; hay que cubrir ambas formas.
     const activa = r.active === true || r.active === 1 || r.active === '1';
     if (!activa) continue;
@@ -253,14 +321,19 @@ export function indiceMonitores(relaciones, delegacion) {
     const desde = r.start_date ? String(r.start_date) : null;
     const previo = indice.get(id);
     if (!previo) {
-      indice.set(id, { desde });
-    } else if (desde && (!previo.desde || desde < previo.desde)) {
+      indice.set(id, { desde, tipo });
+    } else if (TIPOS_RELACION[tipo].orden < TIPOS_RELACION[previo.tipo].orden) {
+      indice.set(id, { desde, tipo });
+    } else if (tipo === previo.tipo && desde && (!previo.desde || desde < previo.desde)) {
       previo.desde = desde;
     }
   }
 
   return indice;
 }
+
+/** Nombre de siempre, por si algo externo lo sigue usando. */
+export const indiceMonitores = indiceRelaciones;
 
 /**
  * Cruza los contactos que cumplen hoy con el índice de monitores.
@@ -296,7 +369,8 @@ export function cumpleanosDeHoy(contactos, indice, hoy) {
       email: String(c.email1 ?? ''),
       etapa: String(c.ajmcm_etapa_c ?? ''),
       grupo: String(c.ajmcm_grupotemp_c ?? ''),
-      monitorDesde: indice.get(id).desde,
+      tipo: indice.get(id).tipo ?? 'monitor',
+      desde: indice.get(id).desde,
     });
   }
 
@@ -361,12 +435,9 @@ export function textoPlano(cumples, delegacion, hoy, mensajes = MENSAJES_POR_DEF
   const lineas = [`¡Hoy hay cumpleaños en ${delegacion.nombre}!`, ''];
 
   for (const c of cumples) {
-    const palabra = palabraMonitor(c.genero);
-    lineas.push(`• ${c.nombre} ${c.edad !== null ? `cumple ${c.edad} años` : 'cumple años'} (${palabra})`);
+    lineas.push(`• ${c.nombre} ${c.edad !== null ? `cumple ${c.edad} años` : 'cumple años'} (${rolCorto(c)})`);
     lineas.push(`  Nació el ${fechaLarga(c.nacimiento)}.`);
-    if (c.monitorDesde) {
-      lineas.push(`  ${palabra[0].toUpperCase()}${palabra.slice(1)} desde ${c.monitorDesde.slice(0, 4)}.`);
-    }
+    if (desdeTexto(c)) lineas.push(`  ${desdeTexto(c)}.`);
     if (c.movil) lineas.push(`  Móvil: ${c.movil}`);
     if (c.email) lineas.push(`  Correo: ${c.email}`);
     lineas.push(`  Ficha: ${urlFicha(c.id)}`);
@@ -402,9 +473,8 @@ function tarjeta(c, gif) {
     ? `cumple <strong style="color:${MAGENTA};">${c.edad} años</strong>`
     : 'cumple años';
 
-  const palabra = palabraMonitor(c.genero);
   const chips = [
-    c.monitorDesde ? `${palabra[0].toUpperCase()}${palabra.slice(1)} desde ${c.monitorDesde.slice(0, 4)}` : null,
+    desdeTexto(c),
     c.etapa ? `Etapa ${c.etapa}` : null,
     c.grupo ? `Grupo ${c.grupo}` : null,
   ].filter(Boolean);
@@ -476,7 +546,7 @@ export function correoHtml(cumples, delegacion, hoy, gifs = [], mensajes = MENSA
   const titular = n === 1 ? '¡Hoy hay cumpleaños!' : `¡Hoy hay ${n} cumpleaños!`;
   const preheader = n === 1
     ? `${cumples[0].nombre} cumple años hoy. ¡A felicitar!`
-    : `Hoy cumplen años ${n} monitores de ${delegacion.nombre}.`;
+    : `Hoy cumplen años ${n} personas de ${delegacion.nombre}.`;
 
   // Uno para la cabecera y uno por persona, sin repetirse dentro del correo.
   const reparto = repartoGifs(gifs, `${hoy}|${delegacion.clave}`, n + 1);
@@ -546,7 +616,7 @@ export function correoHtml(cumples, delegacion, hoy, gifs = [], mensajes = MENSA
   <tr><td bgcolor="#f9fafb" class="cp-pad" align="center" style="background-color:#f9fafb;padding:18px 30px 22px 30px;border-top:1px solid #e5e7eb;">
     <div style="font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:19px;color:#6b7280;">
       Aviso automático del <strong style="color:#374151;">área privada</strong>.
-      Salen aquí las personas con relación de <strong style="color:#374151;">monitor/a activa</strong>
+      Salen aquí las personas con relación de <strong style="color:#374151;">${esc(tiposEnPalabras(delegacion))} activa</strong>
       en ${esc(delegacion.nombre)} según SinergiaCRM.<br />
       Si alguna fecha de nacimiento está mal, corrígela en el CRM y mañana sale bien.
     </div>
@@ -666,7 +736,7 @@ export function correoPersonaHtml(cumple, delegacion, hoy, gifs = [], mensajes =
   <!-- Pie -->
   <tr><td bgcolor="#f9fafb" class="cp-pad" align="center" style="background-color:#f9fafb;padding:16px 30px 20px 30px;border-top:1px solid #e5e7eb;">
     <div style="font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:19px;color:#9ca3af;">
-      Te llega este correo porque estás en SinergiaCRM como ${esc(palabraMonitor(cumple.genero))} de ${esc(delegacion.nombre)}.
+      Te llega este correo porque estás en SinergiaCRM como ${esc(rolDe(cumple, delegacion.nombre))}.
     </div>
   </td></tr>
 
