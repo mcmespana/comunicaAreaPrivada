@@ -16,6 +16,7 @@ gente que está inscrita.
 | Filtro, «Están todos» y la cola sin cobertura | [`js/stic-pasar-lista.js`](../../js/stic-pasar-lista.js) (lo de marcar, más el bloque «Lista de un evento») |
 | Estilos | [`css/pasar-lista.css`](../../css/pasar-lista.css), sección «042 · Pasar lista en un EVENTO» |
 | Pruebas | `tests/PasarListaRenderTest.php`, las `test_ev_*` y `test_home_ofrece_el_evento_de_hoy_*` |
+| Grupos de actividad (pestañas «Patrullas», «Habitaciones»… y lista por grupos) | [`GRUPOS-ACTIVIDAD.md`](GRUPOS-ACTIVIDAD.md) |
 
 ---
 

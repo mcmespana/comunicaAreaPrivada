@@ -4007,3 +4007,109 @@ a.pl-group .pl-name { display: block; }
     .pl-evhoy:active,
     .pl-evchip:active { transform: none; opacity: 0.8; }
 }
+
+/* ==========================================================================
+   Grupos de ACTIVIDAD de un evento (patrullas, habitaciones, dinámica…)
+   ==========================================================================
+   inc/stic-grupos-actividad.php, en la pantalla del evento. Las pestañas son
+   las de «Grupos y fichas» (`.pl-tabs`), las filas las de siempre
+   (`.pl-rowlink` / `.pl-rowstatic`) y el buscador el del árbol: aquí solo va
+   lo nuevo. Docs: docs/comunica/GRUPOS-ACTIVIDAD.md */
+
+.pl-gac-tabs { margin-top: 0.1rem; }
+.pl-gac-tab-n {
+    margin-left: 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 800;
+    opacity: 0.75;
+}
+
+.pl-gac-resumen {
+    margin: 0.2rem 0.25rem 0.6rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--gray-500);
+}
+
+/* «Pasar lista por patrullas»: la acción de la pestaña, en la pastilla verde
+   de «Están todos» (es lo mismo: ir a marcar). */
+.stic-container .pl-gac-pasar,
+.pl-gac-pasar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 46px;
+    margin-bottom: 0.4rem;
+    border-radius: var(--radius-lg);
+    background: var(--success-50);
+    border: 1px solid var(--success-border);
+    color: var(--success-dark) !important;
+    font-size: 0.88rem;
+    font-weight: 700;
+    text-decoration: none !important;
+}
+.pl-gac-pasar svg { width: 17px; height: 17px; stroke: currentColor; fill: none; }
+.pl-gac-pasar:active { transform: scale(0.98); }
+
+/* La cabecera de cada grupo: el nombre a la izquierda, en su tamaño de título
+   (no en versalitas, que es la etiqueta de sección: aquí el nombre ES el dato
+   que se busca), y cuántos a la derecha. */
+.pl-gac-sec {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-top: 1.35rem;
+    text-transform: none;
+    letter-spacing: 0;
+}
+.pl-gac-sec-name {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--gray-900);
+    overflow-wrap: anywhere;
+}
+.pl-gac-sec-n {
+    flex-shrink: 0;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--gray-500);
+    font-variant-numeric: tabular-nums;
+}
+/* Más gente que plazas: se dice, no se bloquea. */
+.pl-gac-sec-n.is-over { color: var(--warning-dark); }
+
+.pl-gac-vacio .pl-rowsub { font-style: italic; }
+
+/* «Pasar lista de este grupo»: al pie de su lista, discreto. 44 px de alto. */
+.stic-container .pl-gac-grupo-lista,
+.pl-gac-grupo-lista {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 0.85rem;
+    border-top: 1px solid var(--gray-100);
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--primary-color) !important;
+    text-decoration: none !important;
+}
+
+/* La lista POR GRUPOS: qué se está viendo y cómo volver a cursos; y quien no
+   se marca (monitores sin inscripción), en la cabecera de su grupo. */
+.pl-gac-por {
+    margin: 0 0.25rem 0.5rem;
+    font-size: 0.82rem;
+    color: var(--gray-600);
+}
+.stic-container .pl-gac-por a { color: var(--primary-color) !important; font-weight: 700; }
+.pl-gac-nomarca {
+    margin: -0.3rem 0.3rem 0.45rem;
+    font-size: 0.78rem;
+    color: var(--gray-500);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pl-gac-pasar:active { transform: none; opacity: 0.8; }
+}

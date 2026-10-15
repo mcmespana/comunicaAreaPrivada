@@ -89,6 +89,8 @@ include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-crm.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-ui.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-eventos.php';
+// Grupos de actividad de un evento (patrullas, habitaciones…), de Comunica Tools.
+include plugin_dir_path(__FILE__) . 'inc/stic-grupos-actividad.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-sw.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-warm.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-diag.php';

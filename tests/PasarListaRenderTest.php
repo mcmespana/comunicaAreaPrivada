@@ -98,6 +98,13 @@ class FakeSCP
      *  defecto para no mover ninguna otra prueba. */
     public $conEventos = false;
 
+    /** Grupos de actividad (GAC_*) en la convivencia `ev-bus`: dos patrullas
+     *  («Patrulla 1» y «Patrulla 10», para el orden natural), una habitación
+     *  de dos plazas con tres dentro, una patrulla anulada y una de otra
+     *  delegación. `$gacAusente`: el CRM dice que el módulo no existe. */
+    public $conGac = false;
+    public $gacAusente = false;
+
     /** `set_entries`: 'ok' (la forma real, `{ids: [...]}`), 'no_soportado' (el
      *  CRM contesta un error sin ids y no escribe nada), 'sin_respuesta' (escribe
      *  pero la respuesta se pierde, como un timeout) o 'ids_incompletos'. */
@@ -171,6 +178,59 @@ class FakeSCP
         }
 
         return SugarRestApiCall::flattenRelationshipFields($entries, $relationshipList, $relationshipFields);
+    }
+
+    /** Los grupos de actividad, con la forma real: los miembros traen el grupo
+     *  y la persona unas veces por el campo plano y otras solo por el enlace. */
+    private function datosGac($module, $query, $rel)
+    {
+        if ($this->gacAusente) {
+            $this->lastError = 'Module Does Not Exist — #20';
+            return array();
+        }
+        if (!$this->conGac || strpos((string) $query, "evento_id = 'ev-bus'") === false) {
+            return array();
+        }
+        if ($module === 'GAC_grupos') {
+            $g = function ($id, $name, $tipo, $extra = array()) {
+                return $this->nvl(array_merge(array(
+                    'id' => $id, 'name' => $name, 'tipo' => $tipo, 'agrupacion' => '',
+                    'con_monitor' => '1', 'plazas' => '', 'activo' => '1',
+                    'evento_id' => 'ev-bus', 'assigned_user_id' => 'deleg-castellon',
+                ), $extra));
+            };
+            return array(
+                $g('gp10', 'Patrulla 10', 'patrulla'),
+                $g('gp1', 'Patrulla 1', 'patrulla'),
+                $g('gh1', 'Habitación chicas', 'habitacion', array('plazas' => '2')),
+                $g('gpx', 'Patrulla anulada', 'patrulla', array('activo' => '0')),
+                $g('gpb', 'Patrulla de Burriana', 'patrulla', array('assigned_user_id' => 'deleg-burriana')),
+            );
+        }
+        $m = function ($id, $name, $papel, $tipo, $grupo, $persona, $plano = true) {
+            $f = array(
+                'id' => $id, 'name' => $name, 'papel' => $papel, 'tipo' => $tipo, 'agrupacion' => '',
+                'evento_id' => 'ev-bus', 'assigned_user_id' => 'deleg-castellon',
+            );
+            if ($plano) {
+                $f['gac_grupos_gac_miembrosgac_grupos_ida'] = $grupo;
+                $f['contacts_gac_miembroscontacts_ida'] = $persona;
+            }
+            return array('fields' => $f, 'gac_grupo' => array('id' => $grupo), 'gac_persona' => array('id' => $persona));
+        };
+        return $this->entryListShape(array(
+            $m('mb1', 'Solete Vilarroya', 'participante', 'patrulla', 'gp1', 'c1'),
+            // Solo por el enlace: el campo plano llega vacío.
+            $m('mb2', 'Jaume Pascual', 'participante', 'patrulla', 'gp1', 'c2', false),
+            // Monitor NO inscrito en la convivencia.
+            $m('mb3', 'David Soler', 'monitor', 'patrulla', 'gp1', 'm1'),
+            $m('mb4', 'Marta Adulta', 'participante', 'patrulla', 'gp10', 'c3'),
+            // Canceló después de que la colocaran.
+            $m('mb5', 'Se Fue', 'participante', 'patrulla', 'gp10', 'c9'),
+            $m('mb6', 'Solete Vilarroya', 'participante', 'habitacion', 'gh1', 'c1'),
+            $m('mb7', 'Lucía Gil', 'participante', 'habitacion', 'gh1', 'c5'),
+            $m('mb8', 'Marta Adulta', 'participante', 'habitacion', 'gh1', 'c3'),
+        ), $rel);
     }
 
     /**
@@ -328,6 +388,8 @@ class FakeSCP
 
     /** Cuántas peticiones ha llevado cada tanda paralela. */
     public $batches = array();
+    /** Y cuáles: lo que va aquí no es una espera más. */
+    public $enTandas = array();
     /** Las escrituras que han salido SOLAS, fuera de una tanda: cada una es
      *  una espera entera. Es lo que hay que mirar para saber si un guardado
      *  va en tandas o en fila. */
@@ -366,6 +428,7 @@ class FakeSCP
             foreach ((array) $requests as $req) {
                 // La tanda SÍ llama: se apunta la llamada, como en producción.
                 $this->calls[] = $req['label'];
+                $this->enTandas[] = $req['label'];
                 $this->traido[$req['sig']] = call_user_func($req['producer']);
                 $listas++;
             }
@@ -416,6 +479,9 @@ class FakeSCP
 
     public function datosDeModulo($module, $query = '', $fields = array(), $rel = null)
     {
+        if ($module === 'GAC_grupos' || $module === 'GAC_miembros') {
+            return $this->datosGac($module, $query, $rel);
+        }
         if ($module === 'ajmcm_GRUPOS') {
             $marcar = function ($fila) {
                 if (!is_array($this->gruposActivos)) {
@@ -7219,5 +7285,163 @@ final class PasarListaRenderTest extends TestCase
         $this->assertLessThan(strpos($html, 'pl-hero'), strpos($html, 'pl-evhoy'));
         $this->assertStringContainsString('Pasar lista en un evento', $html);
         $this->assertStringContainsString('3 este curso', $html);
+    }
+
+    // ---- Grupos de actividad (patrullas, habitaciones…) ---------------------
+
+    /** Sin grupos de actividad la lista del autobús sale como siempre: sin
+     *  pestañas, y los miembros ni se piden. */
+    public function test_gac_sin_grupos_no_hay_pestanas()
+    {
+        $this->scp->conEventos = true;
+        $_REQUEST = array('evento' => 'ev-bus');
+        $html = $this->render('single_stic_pasar_lista_evento');
+
+        $this->assertStringContainsString('data-pl-marcar', $html);
+        $this->assertStringNotContainsString('pl-gac-tabs', $html);
+        $this->assertNotContains('getRecordsModule:GAC_miembros', $this->scp->calls);
+    }
+
+    /** Con grupos: «Lista» y una pestaña por agrupación, en el orden de los
+     *  tipos y con cuántos grupos tiene. Sin la anulada ni la de otra
+     *  delegación. La lista sigue siendo la de marcar y sin pedir miembros. */
+    public function test_gac_pestanas_en_la_lista()
+    {
+        $this->scp->conEventos = true;
+        $this->scp->conGac = true;
+        $_REQUEST = array('evento' => 'ev-bus');
+        $html = $this->render('single_stic_pasar_lista_evento');
+
+        $this->assertStringContainsString('pl-gac-tabs', $html);
+        $this->assertMatchesRegularExpression('/aria-current="page" href="\?internalpage=single_stic_pasar_lista_evento&(amp;|#038;)evento=ev-bus">Lista<\/a>/', $html);
+        $this->assertStringContainsString('Patrullas<span class="pl-gac-tab-n">2</span>', $html);
+        $this->assertStringContainsString('Habitaciones<span class="pl-gac-tab-n">1</span>', $html);
+        $this->assertLessThan(strpos($html, 'Habitaciones<'), strpos($html, 'Patrullas<'));
+        $this->assertStringContainsString('data-pl-marcar', $html);
+        $this->assertSame(1, count(array_keys($this->scp->calls, 'getRecordsModule:GAC_grupos', true)));
+        $this->assertNotContains('getRecordsModule:GAC_miembros', $this->scp->calls);
+        // En la primera tanda, con las inscripciones: ni una espera más.
+        $this->assertContains('getRecordsModule:GAC_grupos', $this->scp->enTandas);
+    }
+
+    /** La pestaña de patrullas: para mirar. Cada patrulla con su gente
+     *  (monitores primero, también el que no se inscribió), en orden natural;
+     *  quien canceló, con su estado; y quien va y no tiene patrulla, al final.
+     *  Nada se marca aquí y no se piden las sesiones. */
+    public function test_gac_vista_de_patrullas()
+    {
+        $this->scp->conEventos = true;
+        $this->scp->conGac = true;
+        $_REQUEST = array('evento' => 'ev-bus', 'grupos' => 'patrulla|');
+        $html = $this->render('single_stic_pasar_lista_evento');
+
+        $this->assertStringNotContainsString('data-pl-marcar', $html);
+        $this->assertStringContainsString('class="pl-tab is-active" aria-current="page"', $html);
+        $this->assertStringContainsString('Patrullas<span class="pl-gac-tab-n">2</span></a>', $html);
+        // «Patrulla 1» antes que «Patrulla 10».
+        $p1 = strpos($html, '<span class="pl-gac-sec-name">Patrulla 1</span>');
+        $p10 = strpos($html, '<span class="pl-gac-sec-name">Patrulla 10</span>');
+        $this->assertNotFalse($p1);
+        $this->assertLessThan($p10, $p1);
+        // En la 1: el monitor (no inscrito) primero, Solete y Jaume (este, solo
+        // por el enlace).
+        $bloque1 = substr($html, $p1, $p10 - $p1);
+        $this->assertStringContainsString('David Soler', $bloque1);
+        $this->assertStringContainsString('Monitor/a', $bloque1);
+        $this->assertLessThan(strpos($bloque1, 'Solete'), strpos($bloque1, 'David Soler'));
+        $this->assertStringContainsString('Jaume', $bloque1);
+        $this->assertStringContainsString('<span class="pl-gac-sec-n">3</span>', $bloque1);
+        // Con grupo de los sábados: enlace a su ficha.
+        $this->assertMatchesRegularExpression('/single_stic_pasar_lista_ficha&(amp;|#038;)participante=c1&(amp;|#038;)grupo=g1/', $bloque1);
+        // En la 10: Marta, y Se Fue con su cancelación.
+        $resto = substr($html, $p10);
+        $this->assertStringContainsString('Marta', $resto);
+        $this->assertStringContainsString('Cancelada', $resto);
+        // Lucía va y no tiene patrulla.
+        $this->assertStringContainsString('<span class="pl-gac-sec-name">Sin patrulla</span>', $html);
+        $this->assertGreaterThan($p10, strpos($html, 'Sin patrulla'));
+        $this->assertGreaterThan(strpos($html, 'Sin patrulla'), strpos($html, 'Lucía'));
+        // Ni la anulada ni la de otra delegación.
+        $this->assertStringNotContainsString('Patrulla anulada', $html);
+        $this->assertStringNotContainsString('Burriana', $html);
+        // A un toque de pasar lista por patrullas, o de una sola.
+        $this->assertStringContainsString('Pasar lista por patrullas', $html);
+        $this->assertMatchesRegularExpression('/por=patrulla%7C&(amp;|#038;)grupo=gp1/', $html);
+        $this->assertNotContains('stic_Events:stic_sessions_stic_events', $this->scp->calls);
+        $this->assertContains('getRecordsModule:GAC_grupos', $this->scp->enTandas);
+        $this->assertContains('getRecordsModule:GAC_miembros', $this->scp->enTandas);
+    }
+
+    /** Una habitación con más gente que plazas se avisa en su cabecera. */
+    public function test_gac_habitacion_con_plazas_pasadas()
+    {
+        $this->scp->conEventos = true;
+        $this->scp->conGac = true;
+        $_REQUEST = array('evento' => 'ev-bus', 'grupos' => 'habitacion|');
+        $html = $this->render('single_stic_pasar_lista_evento');
+
+        $this->assertStringContainsString('Habitación chicas', $html);
+        $this->assertStringContainsString('<span class="pl-gac-sec-n is-over">3/2 plazas</span>', $html);
+        // Jaume no tiene habitación.
+        $this->assertStringContainsString('Sin habitación', $html);
+    }
+
+    /** Pasar lista POR PATRULLAS, empezando por la 1: la lista de marcar de
+     *  siempre, partida por patrullas, con el chip de la 1 apretado. El
+     *  monitor sin inscripción sale en la cabecera y no se marca; quien
+     *  canceló, tampoco. Al guardar se vuelve a la misma vista. */
+    public function test_gac_lista_por_patrullas()
+    {
+        $this->scp->conEventos = true;
+        $this->scp->conGac = true;
+        $_REQUEST = array('evento' => 'ev-bus', 'por' => 'patrulla|', 'grupo' => 'gp1');
+        $html = $this->render('single_stic_pasar_lista_evento');
+
+        $this->assertStringContainsString('data-pl-marcar', $html);
+        $this->assertStringContainsString('Lista por patrullas.', $html);
+        $this->assertStringContainsString('data-pl-ev-curso="gp1" aria-pressed="true">Patrulla 1<span class="pl-evchip-n">2</span>', $html);
+        $this->assertStringContainsString('data-pl-ev-curso="" aria-pressed="false">Todos', $html);
+        $this->assertStringContainsString('Sin inscripción, no se marca: David Soler', $html);
+        // Quien canceló no es «sin inscripción»: sale en «No van».
+        $this->assertStringNotContainsString('no se marca: Se Fue', $html);
+        $this->assertStringNotContainsString('data-contact="m1"', $html);
+        $this->assertMatchesRegularExpression('/data-pl-ev-curso="gp1"[^>]*>(<button[^>]*)?[^<]*<?[^>]*data-contact="c1"/', $html);
+        $this->assertMatchesRegularExpression('/data-pl-ev-curso="sin"[^>]*>(<button[^>]*)?[^<]*<?[^>]*data-contact="c5"/', $html);
+        // Cuatro que van, cada uno una vez.
+        $this->assertSame(4, substr_count($html, 'class="pl-row"'));
+        $this->assertMatchesRegularExpression('/<form method="post" action="[^"]*sesion=sb1&(amp;|#038;)por=patrulla%7C"/', $html);
+    }
+
+    /** Una pestaña que no existe (o un enlace viejo) cae en la lista. */
+    public function test_gac_pestana_inventada_cae_en_la_lista()
+    {
+        $this->scp->conEventos = true;
+        $this->scp->conGac = true;
+        $_REQUEST = array('evento' => 'ev-bus', 'grupos' => 'autobus|');
+        $html = $this->render('single_stic_pasar_lista_evento');
+        $this->assertStringContainsString('data-pl-marcar', $html);
+    }
+
+    /** Mientras el módulo no exista en el CRM, se pregunta UNA vez y el «no
+     *  existe» se recuerda: la pantalla del evento no paga una llamada fallida
+     *  cada vez. */
+    public function test_gac_modulo_ausente_se_recuerda()
+    {
+        $this->scp->gacAusente = true;
+        $this->assertSame(array(), sticpa_gac_grupos($this->scp, 'ev-bus'));
+        $antes = count($this->scp->calls);
+        $this->assertSame(array(), sticpa_gac_grupos($this->scp, 'ev-bus'));
+        $this->assertSame(array(), sticpa_gac_miembros($this->scp, 'ev-bus'));
+        $this->assertSame($antes, count($this->scp->calls));
+    }
+
+    /** La portada de Pasar lista no pregunta por grupos de actividad. */
+    public function test_gac_la_portada_no_los_pide()
+    {
+        $this->scp->conEventos = true;
+        $this->scp->conGac = true;
+        $this->render('single_stic_pasar_lista');
+        $this->assertNotContains('getRecordsModule:GAC_grupos', $this->scp->calls);
+        $this->assertNotContains('getRecordsModule:GAC_miembros', $this->scp->calls);
     }
 }

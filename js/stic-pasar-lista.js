@@ -786,6 +786,13 @@
             var evChips = Array.prototype.slice.call(root.querySelectorAll('[data-pl-ev-curso].pl-evchip'));
             var evItems = Array.prototype.slice.call(root.querySelectorAll('[data-pl-ev-list] > [data-pl-ev-curso]'));
             var evCurso = '';
+            // Un chip que llega ya apretado (venir de «Pasar lista de este
+            // grupo» en la vista de grupos de actividad): se empieza filtrado.
+            evChips.forEach(function (c) {
+                if (c.getAttribute('aria-pressed') === 'true') {
+                    evCurso = c.getAttribute('data-pl-ev-curso') || '';
+                }
+            });
             var evNorm = function (str) {
                 str = String(str || '').toLowerCase();
                 if (str.normalize) {
@@ -871,6 +878,9 @@
                         evBuscar.blur();
                     }
                 });
+            }
+            if (evCurso !== '') {
+                evApply();
             }
         }
 
