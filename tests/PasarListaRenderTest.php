@@ -786,6 +786,7 @@ class FakeSCP
                     // SUS relaciones, que no salen en el mapa de Castellón.
                     $fam['cb1'] = array('id' => 'cb1', 'first_name' => 'Pau', 'last_name' => 'Ribes', 'name' => 'Pau Ribes',
                         'ajmcm_etapa_c' => 'COM', 'assigned_user_id' => 'deleg-burriana', 'assigned_user_name' => 'MCM Burriana');
+                    $fam['cm1'] = array('id' => 'cm1', 'first_name' => 'Mónica', 'last_name' => 'Monitora', 'name' => 'Mónica Monitora', 'ajmcm_etapa_c' => 'COM');
                 }
             }
             $out = array();
@@ -952,6 +953,9 @@ class FakeSCP
                     // relación SÍ lo tiene (el caso de Ana Ayora, 16/10/2026).
                     $rels[] = $this->nvl(array('id' => 'rl1', 'relationship_type' => 'participante_mic_com', 'start_date' => '2025-09-25', 'end_date' => '', 'active' => '1', 'ajmcm_curso_escolar_c' => '4_primaria'));
                 }
+                if ($this->conBurriana && $p['module_id'] === 'cm1') {
+                    $rels[] = $this->nvl(array('id' => 'rmo1', 'relationship_type' => 'monitor', 'start_date' => '2025-09-01', 'end_date' => '', 'active' => '1', 'ajmcm_curso_escolar_c' => '1_eso'));
+                }
                 if ($this->conBurriana && $p['module_id'] === 'cb1') {
                     // La del curso pasado sin cerrar y la de este: gana esta.
                     $rels[] = $this->nvl(array('id' => 'rbu1', 'relationship_type' => 'participante_mic_com', 'start_date' => '2024-09-01', 'end_date' => '', 'active' => '1', 'ajmcm_curso_escolar_c' => '6_primaria'));
@@ -1048,6 +1052,7 @@ class FakeSCP
                         $this->nvl(array('id' => 'rb5', 'status' => 'confirmed', 'ajmcm_curso_escolar_c' => 'na', 'stic_registrations_contactscontacts_ida' => 'c5')),
                     ), $this->conBurriana ? array(
                         $this->nvl(array('id' => 'rb6', 'status' => 'confirmed', 'ajmcm_curso_escolar_c' => '', 'stic_registrations_contactscontacts_ida' => 'cb1')),
+                        $this->nvl(array('id' => 'rb7', 'status' => 'confirmed', 'ajmcm_curso_escolar_c' => '')),
                     ) : array()));
                 }
                 if ($this->conEventos && $evento === 'ev-futuro') {
@@ -1111,6 +1116,15 @@ class FakeSCP
                     );
                 }
                 return $this->apiShape($out);
+
+            // La persona de una inscripción, preguntada a la inscripción: rb7
+            // no la dice ni por el campo plano ni por el enlace (la de un
+            // monitor apuntado tarde).
+            case 'stic_Registrations:stic_registrations_contacts':
+                if ($this->conBurriana && isset($p['module_id']) && $p['module_id'] === 'rb7') {
+                    return $this->apiShape(array($this->nvl(array('id' => 'cm1'))));
+                }
+                return $this->apiShape(array());
 
             // Histórico de un participante: todas sus asistencias del curso.
             case 'stic_Registrations:stic_attendances_stic_registrations':
@@ -7082,7 +7096,13 @@ final class PasarListaRenderTest extends TestCase
         $html = $this->render('single_stic_pasar_lista_evento');
 
         $this->assertStringContainsString('<span>COM · Burriana</span>', $html);
-        $this->assertSame(5, substr_count($html, 'class="pl-row"'));
+        $this->assertSame(6, substr_count($html, 'class="pl-row"'));
+        // La inscripción que no dice de quién es se pregunta a sí misma: es de
+        // una monitora, que va en «Monitores», al final, sin curso ni chip.
+        $this->assertStringContainsString('<span>Monitores</span>', $html);
+        $this->assertGreaterThan(strpos($html, 'data-contact="cb1"'), strpos($html, 'data-contact="cm1"'));
+        $this->assertLessThan(strpos($html, '<span>No van</span>'), strpos($html, 'data-contact="cm1"'));
+        $this->assertMatchesRegularExpression('/data-pl-ev-curso="monitor"[^>]*>(<button[^>]*)?[^<]*<?[^>]*data-contact="cm1"/', $html);
         // Detrás de los de casa y antes de «No van».
         $this->assertGreaterThan(strpos($html, 'data-contact="c1"'), strpos($html, 'COM · Burriana'));
         $this->assertLessThan(strpos($html, '<span>No van</span>'), strpos($html, 'data-contact="cb1"'));
@@ -7110,6 +7130,10 @@ final class PasarListaRenderTest extends TestCase
             $fila(array('relationship_type' => 'participante_mic_com', 'start_date' => '2026-10-01', 'end_date' => '2026-10-02', 'active' => '1', 'ajmcm_curso_escolar_c' => '3_eso')),
         );
         $this->assertSame('1_eso', sticpa_pl_ev_curso_de_rels($rows, $hoy));
+        // Con una de participante vigente, no es monitor; solo con la de monitor, sí.
+        $this->assertFalse(sticpa_pl_ev_es_monitor_de_rels($rows, $hoy));
+        $this->assertTrue(sticpa_pl_ev_es_monitor_de_rels(array($rows[2]), $hoy));
+        $this->assertFalse(sticpa_pl_ev_es_monitor_de_rels(array(), $hoy));
         $this->assertSame('', sticpa_pl_ev_curso_de_rels(array(), $hoy));
         $this->assertSame('Burriana', sticpa_pl_ev_deleg_nombre('MCM Burriana'));
         $this->assertSame('Otra delegación', sticpa_pl_ev_deleg_nombre(''));
