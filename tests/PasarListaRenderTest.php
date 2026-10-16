@@ -955,6 +955,9 @@ class FakeSCP
                 }
                 if ($this->conBurriana && $p['module_id'] === 'cm1') {
                     $rels[] = $this->nvl(array('id' => 'rmo1', 'relationship_type' => 'monitor', 'start_date' => '2025-09-01', 'end_date' => '', 'active' => '1', 'ajmcm_curso_escolar_c' => '1_eso'));
+                    // Y una de participante creada de más (pasó el 16/10/2026 con
+                    // los organizadores): manda la inscripción, que dice organizer.
+                    $rels[] = $this->nvl(array('id' => 'rmo2', 'relationship_type' => 'participante_mic_com', 'start_date' => '2026-10-16', 'end_date' => '', 'active' => '1'));
                 }
                 if ($this->conBurriana && $p['module_id'] === 'cb1') {
                     // La del curso pasado sin cerrar y la de este: gana esta.
@@ -1052,7 +1055,7 @@ class FakeSCP
                         $this->nvl(array('id' => 'rb5', 'status' => 'confirmed', 'ajmcm_curso_escolar_c' => 'na', 'stic_registrations_contactscontacts_ida' => 'c5')),
                     ), $this->conBurriana ? array(
                         $this->nvl(array('id' => 'rb6', 'status' => 'confirmed', 'ajmcm_curso_escolar_c' => '', 'stic_registrations_contactscontacts_ida' => 'cb1')),
-                        $this->nvl(array('id' => 'rb7', 'status' => 'confirmed', 'ajmcm_curso_escolar_c' => '')),
+                        $this->nvl(array('id' => 'rb7', 'status' => 'confirmed', 'ajmcm_curso_escolar_c' => '', 'participation_type' => 'organizer')),
                     ) : array()));
                 }
                 if ($this->conEventos && $evento === 'ev-futuro') {
@@ -7099,7 +7102,10 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame(6, substr_count($html, 'class="pl-row"'));
         // La inscripción que no dice de quién es se pregunta a sí misma: es de
         // una monitora, que va en «Monitores», al final, sin curso ni chip.
-        $this->assertStringContainsString('<span>Monitores</span>', $html);
+        $this->assertStringContainsString('<summary class="pl-fold-sum pl-evmon-sum"><span class="pl-evmon-tit">Monitores</span>', $html);
+        $this->assertStringContainsString('class="pl-avatar pl-avatar--mon"', $html);
+        // Y la de otra delegación lleva su pastilla.
+        $this->assertStringContainsString('<span class="pl-marca pl-marca--deleg">Burriana</span>', $html);
         $this->assertGreaterThan(strpos($html, 'data-contact="cb1"'), strpos($html, 'data-contact="cm1"'));
         $this->assertLessThan(strpos($html, '<span>No van</span>'), strpos($html, 'data-contact="cm1"'));
         $this->assertMatchesRegularExpression('/data-pl-ev-curso="monitor"[^>]*>(<button[^>]*)?[^<]*<?[^>]*data-contact="cm1"/', $html);

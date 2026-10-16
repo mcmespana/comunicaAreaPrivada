@@ -440,7 +440,9 @@
            marcas se guardan igual. En la lista de los sábados no se esconde
            nada, así que ahí es siempre «todas». */
         function isVisible(row) {
-            return !row.hidden && !(row.closest && row.closest('[hidden]'));
+            // Plegado (los monitores de un evento, en su `<details>`) no es
+            // «a la vista»: «Están todos» no los marca sin verlos.
+            return !row.hidden && !(row.closest && (row.closest('[hidden]') || row.closest('details:not([open])')));
         }
 
         function collect() {
@@ -834,9 +836,20 @@
                     box.hidden = (n === 0);
                     evCount(box, n);
                 });
+                // Buscando, lo plegado que tenga a alguien se abre: «¿y Marta?»
+                // tiene que encontrarla aunque sea monitora.
+                if (q !== '') {
+                    Array.prototype.forEach.call(root.querySelectorAll('details[data-pl-ev-etapa]'), function (d) {
+                        if (!d.hidden) { d.open = true; }
+                    });
+                }
                 if (evVacio) { evVacio.hidden = (shown > 0); }
                 refresh();
             };
+            // Abrir o cerrar el pliegue cambia lo que está «a la vista».
+            Array.prototype.forEach.call(root.querySelectorAll('details[data-pl-ev-etapa]'), function (d) {
+                d.addEventListener('toggle', refresh);
+            });
 
             /* Tocar un chip con la lista ya bajada vuelve ARRIBA DE LA LISTA
                (a «Están todos», justo bajo los chips, que van pegados): el

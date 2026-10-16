@@ -105,9 +105,15 @@ decidir de quién son las asistencias. Pendiente de decisión.
   está) dan la persona, se pregunta a la propia inscripción
   (`sticpa_pl_ev_contacto_de_inscripcion()`, una por inscripción, en una tanda
   y cacheada). Faltaban así los tres de Burriana y los monitores.
-- **Monitores**, aparte y al final (antes de «No van»): quien tiene una
-  relación de monitor vigente y ninguna de participante, según SUS relaciones.
-  No cuentan en los chips de curso; con un curso elegido no salen.
+- **Monitores (y equipo)**, plegados al final (antes de «No van»), en un
+  desplegable «Monitores · N»: se marcan igual, pero no llenan la lista, y
+  «Están todos» no los toca mientras estén plegados. Monitor/a es quien se
+  inscribió con `participation_type` = `organizer` (o `equipo`, «Equipo»
+  debajo del nombre). Si la inscripción no lo dice, sus relaciones: una de
+  monitor vigente y ninguna de participante. Avatar en azul; no cuentan en
+  los chips de curso; buscando su nombre, el desplegable se abre.
+- **De otra delegación**: pastilla magenta con el nombre de la suya
+  («Burriana») debajo del nombre, para verlo de lejos.
 - **Nombres de curso cortos**, como se dicen en la casa: «4 EP», «1 ESO»,
   «1 Bach» (chips, subtítulos y debajo del nombre).
 - **Estados que no van** (`sticpa_pl_ev_estados_fuera()`, con filtro):
