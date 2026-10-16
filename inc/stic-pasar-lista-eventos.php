@@ -234,17 +234,17 @@ function sticpa_pl_ev_curso_de_rels($rows, $nowTs = null)
 }
 
 /**
- * ¿Es MONITOR en este curso, según sus propias relaciones? Sí si tiene una
- * relación de monitor vigente y ninguna de participante vigente. Los
- * monitores también van a la convivencia y también se inscriben, pero en la
- * lista van aparte, al final: no son chavales de ningún curso.
+ * ¿Es del EQUIPO (monitor/a o acompañamiento) según sus propias relaciones?
+ * Sí si tiene una relación vigente de monitor o de acompañamiento, AUNQUE
+ * tenga también una de participante: esas MANDAN por encima (decidido por el
+ * propietario el 16/10/2026, cuando a los organizadores de las convivencias
+ * de Castellón se les crearon relaciones de participante sin querer).
  *
  * PURA.
  */
 function sticpa_pl_ev_es_monitor_de_rels($rows, $nowTs = null)
 {
     $hoy = date('Y-m-d', ($nowTs === null) ? sticpa_pl_now() : (int) $nowTs);
-    $monitor = false;
     foreach ((array) $rows as $row) {
         $v = isset($row->name_value_list) ? $row->name_value_list : null;
         if (!$v) {
@@ -255,15 +255,12 @@ function sticpa_pl_ev_es_monitor_de_rels($rows, $nowTs = null)
         if (($fin !== '' && $fin < $hoy) || $activa === '0') {
             continue;
         }
-        $rol = sticpa_pl_rel_role(isset($v->relationship_type->value) ? $v->relationship_type->value : '');
-        if ($rol === 'participante') {
-            return false;
-        }
-        if ($rol === 'monitor') {
-            $monitor = true;
+        $tipo = isset($v->relationship_type->value) ? strtolower((string) $v->relationship_type->value) : '';
+        if (sticpa_pl_rel_role($tipo) === 'monitor' || strpos($tipo, 'acompanamiento') !== false) {
+            return true;
         }
     }
-    return $monitor;
+    return false;
 }
 
 /**
@@ -775,10 +772,10 @@ function sticpa_pl_ev_personas($objSCP, $ids)
  * @param string $miDeleg  la delegación del evento: quien es de OTRA lleva en
  *                         'deleg' el nombre de la suya («Burriana») y la
  *                         pantalla lo pinta aparte, al final. '' = de casa.
- * @param array  $monitores contactId => true, por sus relaciones: el RESPALDO
- *                         de `participation_type` de la inscripción, que es
- *                         lo que manda. Van en «Monitores», plegados al final,
- *                         y no cuentan en los chips de curso.
+ * @param array  $monitores contactId => true: relación vigente de monitor o
+ *                         de acompañamiento. Con eso, o con `organizer`/`equipo`
+ *                         en la inscripción, van en «Monitores», plegados al
+ *                         final, y no cuentan en los chips de curso.
  */
 function sticpa_pl_ev_lista($inscripciones, $personas, $grupos = array(), $cursosRel = array(), $miDeleg = '', $monitores = array())
 {
@@ -811,13 +808,13 @@ function sticpa_pl_ev_lista($inscripciones, $personas, $grupos = array(), $curso
         $persona['etapa'] = sticpa_pl_ev_etapa($curso, isset($g['etapa']) ? $g['etapa'] : '', $p['etapa']);
         $persona['grupo_id'] = isset($g['id']) ? (string) $g['id'] : '';
         $persona['grupo_code'] = isset($g['code']) ? (string) $g['code'] : '';
-        // MONITOR/A: lo dice su inscripción (`participation_type` =
-        // `organizer`, o `equipo`). Solo si la inscripción no dice nada, sus relaciones
-        // (`$monitores`): una relación de participante creada de más —pasó el
-        // 16/10/2026 con los organizadores— no la convierte en chaval.
+        // MONITOR/A (o equipo): lo dice su inscripción (`participation_type`
+        // = `organizer` o `equipo`) O una relación vigente de monitor o de
+        // acompañamiento (`$monitores`), que manda por encima de una de
+        // participante creada de más (pasó el 16/10/2026 con los organizadores).
         $papel = isset($r['papel']) ? (string) $r['papel'] : '';
         $persona['papel'] = $papel;
-        $persona['monitor'] = ($papel !== '') ? in_array($papel, sticpa_pl_ev_papeles_equipo(), true) : isset($monitores[$cid]);
+        $persona['monitor'] = in_array($papel, sticpa_pl_ev_papeles_equipo(), true) || isset($monitores[$cid]);
         if ($persona['monitor']) {
             $persona['curso'] = '';
             $persona['curso_label'] = '';

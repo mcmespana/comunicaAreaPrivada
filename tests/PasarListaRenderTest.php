@@ -7136,10 +7136,13 @@ final class PasarListaRenderTest extends TestCase
             $fila(array('relationship_type' => 'participante_mic_com', 'start_date' => '2026-10-01', 'end_date' => '2026-10-02', 'active' => '1', 'ajmcm_curso_escolar_c' => '3_eso')),
         );
         $this->assertSame('1_eso', sticpa_pl_ev_curso_de_rels($rows, $hoy));
-        // Con una de participante vigente, no es monitor; solo con la de monitor, sí.
-        $this->assertFalse(sticpa_pl_ev_es_monitor_de_rels($rows, $hoy));
+        // Una de monitor vigente manda por encima de una de participante.
+        $this->assertTrue(sticpa_pl_ev_es_monitor_de_rels($rows, $hoy));
         $this->assertTrue(sticpa_pl_ev_es_monitor_de_rels(array($rows[2]), $hoy));
+        $this->assertFalse(sticpa_pl_ev_es_monitor_de_rels(array($rows[0], $rows[1]), $hoy));
         $this->assertFalse(sticpa_pl_ev_es_monitor_de_rels(array(), $hoy));
+        // Y una de acompañamiento, igual.
+        $this->assertTrue(sticpa_pl_ev_es_monitor_de_rels(array($rows[1], $fila(array('relationship_type' => 'acompanamiento_mic_com', 'end_date' => '', 'active' => '1'))), $hoy));
         $this->assertSame('', sticpa_pl_ev_curso_de_rels(array(), $hoy));
         $this->assertSame('Burriana', sticpa_pl_ev_deleg_nombre('MCM Burriana'));
         $this->assertSame('Otra delegación', sticpa_pl_ev_deleg_nombre(''));
