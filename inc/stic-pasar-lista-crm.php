@@ -4837,7 +4837,10 @@ function sticpa_pl_mis_rels($objSCP, $userId)
     // caché escrita por la versión anterior no los trae. Con la clave vieja, el
     // filtro de cursos se quedaría 24 h sin datos sin que nada fallara —la misma
     // trampa que obligó a renombrar 'relshist'—.
-    $cacheKey = sticpa_pl_cache_key('misrels2', $objSCP, $userId);
+    // Y 'misrels3' (16/10/2026): lleva `start_date`, con el que la lista de
+    // un evento elige la relación de participante más reciente de quien
+    // viene de OTRA delegación (sticpa_pl_ev_curso_de_rels()).
+    $cacheKey = sticpa_pl_cache_key('misrels3', $objSCP, $userId);
     $ttl = sticpa_pl_ttl_structure();
     if ($ttl > 0) {
         $cached = get_transient($cacheKey);
@@ -4847,6 +4850,11 @@ function sticpa_pl_mis_rels($objSCP, $userId)
     }
 
     $rows = $objSCP->getRelatedElementsForLoggedUser(sticpa_pl_mis_rels_params($userId));
+    // En la recolecta de una tanda (sticpa_pl_prime) no hay respuesta: no se
+    // cachea un vacío que no es de verdad.
+    if (sticpa_pl_collecting()) {
+        return array();
+    }
     $rows = is_array($rows) ? $rows : array();
 
     sticpa_pl_cache_put($cacheKey, $rows, $ttl);
@@ -4860,7 +4868,7 @@ function sticpa_pl_mis_rels_params($userId)
         'module_id' => $userId,
         'link_field_name' => 'stic_contacts_relationships_contacts',
         'related_fields' => array(
-            'id', 'relationship_type', 'end_date', 'ajmcm_etapa_relacion_c',
+            'id', 'relationship_type', 'start_date', 'end_date', 'ajmcm_etapa_relacion_c',
             'ajmcm_grupos_stic_contacts_relationshipsajmcm_grupos_ida',
             // `active` y `ajmcm_curso_escolar_c` los usa la AUDIENCIA de los
             // eventos (inc/stic-event-audience.php): con ellos aquí, saber a
