@@ -109,8 +109,10 @@ decidir de quién son las asistencias. Pendiente de decisión.
   desplegable «Monitores · N»: se marcan igual, pero no llenan la lista, y
   «Están todos» no los toca mientras estén plegados. Monitor/a es quien se
   inscribió con `participation_type` = `organizer` (o `equipo`, «Equipo»
-  debajo del nombre). Si la inscripción no lo dice, sus relaciones: una de
-  monitor vigente y ninguna de participante. Avatar en azul; no cuentan en
+  debajo del nombre), **o** quien tiene una relación vigente de monitor o de
+  acompañamiento, que manda por encima de una de participante (decidido el
+  16/10/2026: a los organizadores se les crearon relaciones de participante
+  sin querer). Avatar en azul; no cuentan en
   los chips de curso; buscando su nombre, el desplegable se abre.
 - **De otra delegación**: pastilla magenta con el nombre de la suya
   («Burriana») debajo del nombre, para verlo de lejos.
