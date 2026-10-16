@@ -82,6 +82,58 @@ function sticpa_pl_ev_cursos()
     );
 }
 
+/**
+ * Un texto de curso que entiende `sticpa_pl_curso_rank()` para una clave
+ * (`4_primaria` → «4 Primaria»). Lo usan el ORDEN y el COLOR de la vista por
+ * curso de Grupos y fichas, que salen del mismo rank (MIS-GRUPOS.md §5): la
+ * etiqueta corta («4 EP») no dice «primaria» y caería al final.
+ */
+function sticpa_pl_curso_key_texto($key)
+{
+    $key = sticpa_pl_ev_curso_key($key);
+    if ($key === '' || $key === 'otros') {
+        return '';
+    }
+    if (preg_match('/^(\d)_(primaria|eso|bachillerato)$/', $key, $m)) {
+        return $m[1] . ' ' . ucfirst($m[2]);
+    }
+    $fijos = array('fp_gm' => 'FP 1', 'fp_gs' => 'FP 2', 'universitario' => 'Universitario');
+    return isset($fijos[$key]) ? $fijos[$key] : '';
+}
+
+/**
+ * Lo contrario: la clave de `ajmcm_curso_escolar_c_list` que corresponde al
+ * texto libre del grupo (`cursos_c`: «3 ESO», «1º BACHILLER», «4º Primaria»).
+ * '' si no se reconoce. Sirve para que en la vista por curso el de la relación
+ * y el del grupo caigan bajo la MISMA cabecera, y no en dos «3 ESO».
+ */
+function sticpa_pl_curso_key_de_texto($txt)
+{
+    $txt = trim((string) $txt);
+    if ($txt === '') {
+        return '';
+    }
+    if (sticpa_pl_ev_curso_key($txt) !== '') {
+        return $txt;   // ya es una clave
+    }
+    $rank = sticpa_pl_curso_rank($txt);
+    $n = $rank % 50;
+    $key = '';
+    if ($rank >= 100 && $rank < 200) {
+        $key = $n . '_primaria';
+    } elseif ($rank >= 200 && $rank < 300) {
+        $key = $n . '_eso';
+    } elseif ($rank >= 300 && $rank < 350) {
+        $key = $n . '_bachillerato';
+    } elseif ($rank >= 350 && $rank < 400) {
+        $low = function_exists('mb_strtolower') ? mb_strtolower($txt, 'UTF-8') : strtolower($txt);
+        $key = (strpos($low, 'gs') !== false || strpos($low, 'superior') !== false) ? 'fp_gs' : 'fp_gm';
+    } elseif ($rank >= 400 && $rank < 500) {
+        $key = 'universitario';
+    }
+    return sticpa_pl_ev_curso_key($key);
+}
+
 /** La clave de curso tal cual se usa aquí: '' si no hay o es «no aplica». */
 function sticpa_pl_ev_curso_key($raw)
 {
@@ -965,6 +1017,53 @@ function sticpa_pl_ev_sesion_del_dia($objSCP, $event, $dia)
         delete_transient(sticpa_pl_cache_key('sessions', $objSCP, $event['id']));
     }
     return array('id' => (string) $id, 'name' => $name, 'start' => $start, 'end' => $end);
+}
+
+/**
+ * «CREAR LA SESIÓN DE HOY» en un evento de sesiones semanales (o de reuniones)
+ * que todavía no tiene ninguna (16/10/2026, lo pidió coordinación).
+ *
+ * El curso empieza con el evento creado y sin sesiones —las del sábado las
+ * carga la oficina—, y mientras tanto la lista de monitores y la de un grupo
+ * decían «Este evento aún no tiene sesiones» y no había nada que hacer. Ahora
+ * se puede anotar una asistencia rápida: la sesión de hoy, de una hora desde
+ * la hora en punto, con el MISMO creador que la lista de un evento
+ * (`sticpa_pl_ev_sesion_del_dia()`), que relee antes de crear para no
+ * duplicarla si dos personas lo pulsan a la vez o se reenvía el formulario.
+ *
+ * Solo atiende su propio POST, con su nonce. Devuelve la sesión creada (o la
+ * que ya había hoy), o null si no tocaba o no se ha podido.
+ */
+function sticpa_pl_crear_sesion_hoy_post($objSCP, $event, $nonceAction)
+{
+    if (empty($_POST['pl_crear_sesion_hoy']) || empty($event['id'])) {
+        return null;
+    }
+    if (!isset($_POST['pl_nonce']) || !wp_verify_nonce($_POST['pl_nonce'], $nonceAction)) {
+        return null;
+    }
+    $now = sticpa_pl_now();
+    $start = $now - ($now % HOUR_IN_SECONDS);
+    $hoy = array(
+        'id' => (string) $event['id'],
+        'name' => isset($event['name']) ? (string) $event['name'] : '',
+        'start' => $start,
+        'end' => $start + HOUR_IN_SECONDS,
+    );
+    return sticpa_pl_ev_sesion_del_dia($objSCP, $hoy, date('Y-m-d', $start));
+}
+
+/** El botón que lo pide, con su formulario. */
+function sticpa_pl_crear_sesion_hoy_html($nonceAction)
+{
+    return '<form method="post" class="pl-crear-sesion">'
+        . wp_nonce_field($nonceAction, 'pl_nonce', true, false)
+        . '<button type="submit" name="pl_crear_sesion_hoy" value="1" class="pl-save">'
+        . esc_html__('Crear la sesión de hoy', 'sticpa') . '</button>'
+        . '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
+        . esc_html__('Para anotar una asistencia rápida: se crea una sesión de hoy en este evento. Las de los sábados las carga la oficina.', 'sticpa')
+        . '</span></p>'
+        . '</form>';
 }
 
 /**

@@ -468,6 +468,20 @@ que recordar en septiembre.
 
 Y de hecho **ya está creado** en el CRM con ese nombre exacto (10/09/2026).
 
+> ⚠️ **16/10/2026: el nombre ya no tiene que ser exacto.** El de 2026-2027 de
+> Castellón se creó como `Monitores | Reuniones de programación CS 2026-2027`
+> (con el código de la delegación) y la pantalla de Reuniones salía vacía con
+> dos reuniones con su lista pasada (Segart y Soñación). Ahora vale el prefijo
+> `Monitores | Reuniones de programación` más el curso, con lo que haya en
+> medio (`sticpa_pl_es_evento_reuniones()`); si hay uno con el nombre exacto,
+> gana ese. Así tampoco se abre un segundo evento al crear una reunión.
+
+> **16/10/2026: «Crear la sesión de hoy».** Cuando el evento de la lista de
+> monitores (o el de un grupo) no tiene ninguna sesión todavía, la pantalla ya
+> no se queda en «Este evento aún no tiene sesiones»: ofrece crear la de hoy
+> (una hora desde la hora en punto, con el mismo creador que «Pasar lista en un
+> evento», que relee antes para no duplicar) y abre la lista sobre ella.
+
 ### ✅ Depende de lo ya pedido
 
 - `ajmcm_GRUPOS.ajmcm_segmento_com_c` — **ya existe** (enum, con `com_1`,

@@ -217,6 +217,86 @@ class TransportLinkListTest extends TestCase
         $this->assertCount(45, $rows);
     }
 
+    /** 450 ids x1 … x450, como las relaciones de una delegación a principio de curso. */
+    private function cuatrocientas($scp)
+    {
+        $scp->todos = array();
+        for ($i = 1; $i <= 450; $i++) {
+            $scp->todos[] = 'x' . $i;
+        }
+        $scp->topePagina = 200;
+    }
+
+    /**
+     * LA DE 16/10/2026: con `disable_count_query` el CRM manda
+     * `total_count = -1`, y `$offset >= $total` cortaba tras la PRIMERA
+     * página. Castellón veía 4 chavales de 210 y 2 monitores de 32. Una
+     * página llena siempre pide la siguiente.
+     */
+    public function testUnTotalCountNegativoNoCortaEnLaPrimeraPagina()
+    {
+        $scp = new FakeTransport();
+        $this->cuatrocientas($scp);
+        $scp->totalFalso = -1;
+
+        $this->assertCount(450, $scp->getRecordsModule('stic_Contacts_Relationships', '', array('id')));
+        $this->assertTrue(SugarRestApiCall::lastWalkComplete());
+    }
+
+    /** Ni uno que dice «lo que llevas» en vez del total. */
+    public function testUnTotalCountQueMienteNoCortaUnaPaginaLlena()
+    {
+        $scp = new FakeTransport();
+        $this->cuatrocientas($scp);
+        $scp->totalFalso = 200;
+
+        $this->assertCount(450, $scp->getRecordsModule('stic_Contacts_Relationships', '', array('id')));
+    }
+
+    /** Lo mismo por get_relationships. */
+    public function testGetRelationshipsConTotalNegativoTambienPagina()
+    {
+        $scp = new FakeTransport();
+        $this->cuatrocientas($scp);
+        $scp->totalFalso = -1;
+
+        $rows = $scp->getRelatedElementsForLoggedUser(array(
+            'module_name' => 'ajmcm_GRUPOS', 'module_id' => 'g1',
+            'link_field_name' => 'ajmcm_grupos_stic_contacts_relationships',
+            'related_fields' => array('id'),
+            'related_module_link_name_to_fields_array' => array(),
+            'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
+        ));
+        $this->assertCount(450, $rows);
+    }
+
+    /** Una página que falla a mitad se reintenta una vez, y el resultado va entero. */
+    public function testUnaPaginaQueFallaUnaVezSeReintenta()
+    {
+        $scp = new FakeTransport();
+        $this->cuatrocientas($scp);
+        $scp->fallos = array(200 => 1);
+
+        $this->assertCount(450, $scp->getRecordsModule('stic_Contacts_Relationships', '', array('id')));
+        $this->assertTrue(SugarRestApiCall::lastWalkComplete());
+    }
+
+    /** Y si sigue fallando, lo traído se devuelve, pero se dice que va a medias. */
+    public function testUnaPaginaQueSigueFallandoMarcaElRecorridoIncompleto()
+    {
+        $scp = new FakeTransport();
+        $this->cuatrocientas($scp);
+        $scp->fallos = array(200 => 5);
+
+        $this->assertCount(200, $scp->getRecordsModule('stic_Contacts_Relationships', '', array('id')));
+        $this->assertFalse(SugarRestApiCall::lastWalkComplete());
+
+        // El siguiente recorrido empieza de cero.
+        $scp->fallos = array();
+        $scp->getRecordsModule('stic_Contacts_Relationships', '', array('id'));
+        $this->assertTrue(SugarRestApiCall::lastWalkComplete());
+    }
+
     /**
      * Sin `total_count` también funciona: se para cuando llega una página
      * vacía. Hay instancias que no lo mandan.
@@ -496,6 +576,10 @@ class FakeTransport extends SugarRestApiCall
     public $topePagina = 20;   // lo que el servidor da como mucho
     public $conTotal = true;   // ¿manda `total_count`?
     public $llamadas = array();
+    /** Un `total_count` que miente (con `disable_count_query` el CRM manda -1). */
+    public $totalFalso = null;
+    /** offset => cuántas veces falla esa página (null, como un tiempo agotado). */
+    public $fallos = array();
 
     public function __construct()
     {
@@ -517,6 +601,10 @@ class FakeTransport extends SugarRestApiCall
         }
 
         $offset = isset($parameters['offset']) ? (int) $parameters['offset'] : 0;
+        if (!empty($this->fallos[$offset])) {
+            $this->fallos[$offset]--;
+            return null;
+        }
         $pide = isset($parameters['max_results'])
             ? (int) $parameters['max_results']
             : (isset($parameters['limit']) ? (int) $parameters['limit'] : 0);
@@ -535,7 +623,7 @@ class FakeTransport extends SugarRestApiCall
             $res->relationship_list[] = new stdClass();
         }
         if ($this->conTotal) {
-            $res->total_count = count($this->todos);
+            $res->total_count = ($this->totalFalso !== null) ? $this->totalFalso : count($this->todos);
         }
         return $res;
     }

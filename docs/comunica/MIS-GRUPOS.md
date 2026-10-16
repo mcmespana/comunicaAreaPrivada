@@ -53,6 +53,18 @@ poblaciones:
 Más un buscador que filtra lo ya pintado, sin acentos ni mayúsculas, y sin ir
 al servidor.
 
+> **16/10/2026 — «Cursos» y «A-Z» enseñan a TODOS los participantes MIC-COM.**
+> Quien tiene una relación vigente de `participante_mic_com` con la delegación
+> sale, tenga grupo o no (antes solo quien colgaba de un grupo de Pasar Lista:
+> a principio de curso, casi nadie). **El curso es el de la relación**
+> (`ajmcm_curso_escolar_c`, la más reciente que lo tenga); el `cursos_c` del
+> grupo solo cubre a quien no lo tiene, y los dos caen bajo la misma cabecera
+> (`sticpa_pl_curso_key_de_texto()`). Quien no tiene grupo sale con «Sin
+> grupo» en ámbar, su ficha se abre igual (sin `grupo` en la URL basta con que
+> tenga una relación de participante vigente con la delegación) y, a
+> coordinación, lleva su «Vincular» en la fila, con los grupos de su curso
+> primero (`sticpa_pl_grupos_para_curso()`).
+
 De cada ficha se sale con la flecha de atrás **al sitio del que viniste**, y
 desde el pie de la ficha se pasa a la siguiente persona del grupo sin volver al
 índice: es lo que permite leerse un grupo entero de una sentada.

@@ -669,6 +669,35 @@ caduca a las 12 h, por si bajan el tope en el CRM. Forzable con el filtro
 > entera, no puede detectar un truncado. El de `TransportLinkListTest` simula un
 > servidor que pagina Y que ignora un `max_results` mayor que su tope.
 
+### 3.5-bis Y `total_count` tampoco es siempre el total (16/10/2026)
+
+**La segunda parte de la misma trampa.** El paginador paraba cuando
+`$offset >= total_count`. Pero con `disable_count_query` en la configuración
+del CRM, SuiteCRM devuelve `total_count = -1` (o lo que lleva traído), y esa
+comparación cortaba tras la **primera página**: 200 filas de las ~2.000
+relaciones de Castellón, las de id más bajo. Con 109 relaciones (agosto) todo
+cabía en una página y no se vio hasta que se dieron de alta los participantes
+del curso 2026-2027.
+
+Lo que se veía: **4 chavales** en «Cursos» y «A-Z» de Grupos y fichas (de 210
+vigentes) y **2 monitores** en Coordinación (de 32). Siempre los mismos, y la
+pista fue esa: todos con ids `00000000…`–`000001a…` (Juan Pablo Cubertorer,
+Mar Guallar, Alejandra Saera, Paco Sangüesa, Sara Arias, Jesús Segarra).
+
+**La regla, completada** (`pedirOtraPagina()` en `stic-class-6.php`): una
+página **llena** siempre pide la siguiente, diga lo que diga `total_count` (cuesta
+como mucho una llamada vacía cuando el total es múltiplo exacto de la página);
+un `total_count` ≤ 0 es «no se sabe». Y una página que **falla a mitad** ya no
+es el final: se reintenta una vez y, si sigue fallando, el recorrido queda
+marcado como incompleto (`SugarRestApiCall::lastWalkComplete()`) y el mapa de
+relaciones se cachea dos minutos en vez de doce horas. Lo cubren los tests
+`testUnTotalCount…` y `testUnaPagina…` de `TransportLinkListTest`.
+
+De paso, el mapa de relaciones (`relshist3`) pide **solo los tipos que se usan**
+(`participante_mic_com`, `grupo`, `monitor`): las de familia y coordinación se
+tiraban al leerlas pero viajaban con su persona enlazada. Si el CRM rechazara
+el filtro, se repite sin él.
+
 ### 3.6 El tema de WordPress pinta tus `<button>`… y tus `<label>` y tus `<input>`
 
 **Ampliada el 28/08/2026: no eran solo los botones.** Son tres selectores del
