@@ -179,6 +179,13 @@ con `abajo: true` y poner en `<html>` la clase `sticpa-app-sin-flechas` y
   primero qué hace ya la app; si se hace aquí, solo el botón suelto por evento
   (S), no la suscripción.
 - **F2 — Inscritos de mi actividad, para quien la organiza.**
+- **Fotos en las listas de un evento** (pedido el 16/10/2026): en las pestañas
+  de grupos de actividad (patrullas, habitaciones…) y en la lista del autobús,
+  la foto de cada uno en el avatar, **cargando en segundo plano** (que la lista
+  salga al momento con las iniciales y la foto llegue después: `loading="lazy"`
+  o pedirla por JS al pintar). `sticpa_pl_person_link_html()` ya sabe pintar la
+  foto (`$conFoto`, la usa Mis grupos): mirar de dónde la saca y su coste
+  antes de activarla aquí.
 
 ## Decidido que NO
 
