@@ -114,6 +114,12 @@ decidir de quién son las asistencias. Pendiente de decisión.
   16/10/2026: a los organizadores se les crearon relaciones de participante
   sin querer). Avatar en azul; no cuentan en
   los chips de curso; buscando su nombre, el desplegable se abre.
+- **Chip «Monitores N»** al final de los chips de curso: deja solo a los
+  monitores y abre su pliegue.
+- **El grupo del evento** de cada uno (patrulla, habitación, clan…), corto y
+  detrás del curso: «4 EP · M4.1 · Patrulla 3 · Hab. 12». Sale de los grupos de
+  actividad (`GRUPOS-ACTIVIDAD.md`, `sticpa_gac_de_cada_uno()`); los miembros
+  se piden en la primera tanda, en paralelo, así que no alarga la espera.
 - **De otra delegación**: pastilla magenta con el nombre de la suya
   («Burriana») debajo del nombre, para verlo de lejos.
 - **Nombres de curso cortos**, como se dicen en la casa: «4 EP», «1 ESO»,
