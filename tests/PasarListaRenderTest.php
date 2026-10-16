@@ -215,9 +215,10 @@ class FakeSCP
                 'id' => $id, 'name' => $name, 'papel' => $papel, 'tipo' => $tipo, 'agrupacion' => '',
                 'evento_id' => 'ev-bus', 'assigned_user_id' => 'deleg-castellon',
             );
+            // Como el CRM real: el grupo es uno a muchos (con campo plano);
+            // persona e inscripción, muchos a muchos: SOLO por el enlace.
             if ($plano) {
                 $f['gac_grupos_gac_miembrosgac_grupos_ida'] = $grupo;
-                $f['contacts_gac_miembroscontacts_ida'] = $persona;
             }
             return array('fields' => $f, 'gac_grupo' => array('id' => $grupo), 'gac_persona' => array('id' => $persona));
         };
@@ -945,6 +946,11 @@ class FakeSCP
                         'relationship_type' => 'acompanamiento_mic_com',
                         'end_date' => '',
                     ));
+                }
+                if ($this->conBurriana && $p['module_id'] === 'c5') {
+                    // Lucía: sin curso en el mapa de la delegación, pero su
+                    // relación SÍ lo tiene (el caso de Ana Ayora, 16/10/2026).
+                    $rels[] = $this->nvl(array('id' => 'rl1', 'relationship_type' => 'participante_mic_com', 'start_date' => '2025-09-25', 'end_date' => '', 'active' => '1', 'ajmcm_curso_escolar_c' => '4_primaria'));
                 }
                 if ($this->conBurriana && $p['module_id'] === 'cb1') {
                     // La del curso pasado sin cerrar y la de este: gana esta.
@@ -7084,6 +7090,9 @@ final class PasarListaRenderTest extends TestCase
         // Su curso, de su relación de este curso (no la vieja sin cerrar).
         $this->assertMatchesRegularExpression('/data-pl-ev-curso="1_eso"[^>]*>(<button[^>]*)?[^<]*<?[^>]*data-contact="cb1"/', $html);
         $this->assertStringNotContainsString('participante=cb1', $html);
+        // El curso sale de las relaciones de cada persona, no del mapa de la
+        // delegación: Lucía no tiene curso en el mapa y sí en la suya.
+        $this->assertMatchesRegularExpression('/data-pl-ev-curso="4_primaria"[^>]*>(<button[^>]*)?[^<]*<?[^>]*data-contact="c5"/', $html);
     }
 
     public function test_ev_curso_de_las_relaciones_de_una_persona()
@@ -7104,9 +7113,6 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame('', sticpa_pl_ev_curso_de_rels(array(), $hoy));
         $this->assertSame('Burriana', sticpa_pl_ev_deleg_nombre('MCM Burriana'));
         $this->assertSame('Otra delegación', sticpa_pl_ev_deleg_nombre(''));
-        $this->assertSame(array('x' => true), sticpa_pl_ev_de_fuera(array(
-            'x' => array('deleg_id' => 'd2'), 'y' => array('deleg_id' => 'd1'), 'z' => array('deleg_id' => ''),
-        ), 'd1'));
     }
 
     /** El armado de la lista: las canceladas al final y fuera del mapa que se

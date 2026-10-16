@@ -1,8 +1,8 @@
 # Grupos de actividad en el área privada — patrullas, habitaciones, dinámica…
 
-> **Estado (15/10/2026):** 🟡 hecho en el plugin y probado con el CRM falso. **El módulo aún no existe en el CRM**: mientras
-> no exista, la pantalla del evento sale como siempre (sin pestañas) y el «no existe» se recuerda una hora para no
-> preguntar en cada visita. Nombres de campos: [`CAMPOS.md`](CAMPOS.md) §«Grupos de actividad» (previstos).
+> **Estado (16/10/2026):** 🟡 hecho en el plugin. **El módulo ya existe en el CRM** y los nombres están comprobados
+> ([`CAMPOS.md`](CAMPOS.md) §«Grupos de actividad»): persona e inscripción son relaciones muchos a muchos y se leen solo por
+> el enlace. Falta verlo con grupos de verdad, cuando Comunica Tools suba los primeros.
 
 Los grupos de una actividad (patrullas, habitaciones, grupos de dinámica, olimpiadas…) **se crean y se reparten en Comunica
 Tools**, en escritorio y arrastrando (su `docs/GRUPOS-ACTIVIDAD.md`). El área privada es **donde se consultan**, en el
@@ -81,9 +81,7 @@ por curso. «Ver por cursos» vuelve a la de siempre.
 
 ## Lo que falta
 
-1. **Crear el módulo en el CRM** (lista para marcar: <https://claude.ai/artifact/DuP2KHj2tNRET1dR3eyvpm>; detalle en
-   `docs/GRUPOS-ACTIVIDAD.md` de Comunica Tools) y comprobar los nombres con `get_module_fields`. Si alguno sale distinto,
-   se cambia en `sticpa_gac_nombres()` y en `CAMPOS.md`.
+1. ✅ Módulo creado y nombres comprobados (16/10/2026).
 2. Probarlo en producción con un evento de pruebas: que el campo plano del grupo o su enlace llegan en `get_entry_list`
    (si no llegara ninguno, los miembros no sabrían su grupo: §3.1 de `PASAR-LISTA-ESTADO.md`).
 3. **Eventos nacionales**: como la lista del autobús, no salen (son de ECE). Misma decisión pendiente (plan 043).
