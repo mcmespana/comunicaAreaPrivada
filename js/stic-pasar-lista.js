@@ -1570,7 +1570,10 @@
             document.querySelectorAll(PL_FILTRABLE),
             function (el) {
                 var copia = el.cloneNode(true);
-                Array.prototype.forEach.call(copia.querySelectorAll('.pl-marcas'), function (m) {
+                // Ni los desplegables de «Vincular» (Grupos y fichas, sin
+                // grupo): sus opciones son TODOS los grupos, y buscar «C3»
+                // sacaría a todo el que no tiene grupo.
+                Array.prototype.forEach.call(copia.querySelectorAll('.pl-marcas, select'), function (m) {
                     m.parentNode.removeChild(m);
                 });
                 rows.push({ el: el, hay: norm(copia.textContent) });

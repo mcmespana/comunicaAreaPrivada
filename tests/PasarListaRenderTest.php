@@ -31,6 +31,14 @@ class FakeSCP
     public $cursoCerrado = false;
     /** Cuando es true, el usuario acompaña. */
     public $isAcomp = false;
+    /** El evento de reuniones con el código de la delegación en el nombre,
+     *  como el de Castellón: «… programación CS 2026-2027» (16/10/2026). */
+    public $reunionesConCodigo = false;
+    /** Cuando es true, los eventos de los sábados no tienen ninguna sesión
+     *  (el principio de curso), salvo las que se creen. */
+    public $sinSesiones = false;
+    /** Curso escolar de la relación de Sol Messeguer (sin grupo). */
+    public $cursoSuelto = '';
     /** Seguimientos que devuelve el CRM (claves ya del CRM: mcm_*). */
     public $seguimientos = array();
     /** Campos de más de la ficha de cada persona (id de contacto => campos):
@@ -592,7 +600,7 @@ class FakeSCP
                 ),
                 // Sin grupo: son los de "datos por revisar".
                 array(
-                    'fields' => array('id' => 'r7', 'relationship_type' => 'participante_mic_com', 'end_date' => ''),
+                    'fields' => array('id' => 'r7', 'relationship_type' => 'participante_mic_com', 'end_date' => '', 'ajmcm_curso_escolar_c' => $this->cursoSuelto),
                     'persona' => array('id' => 'c7', 'name' => 'Sol Messeguer', 'first_name' => 'Sol', 'last_name' => 'Messeguer'),
                 ),
                 array(
@@ -823,7 +831,9 @@ class FakeSCP
                 // El evento de reuniones de programación. El nombre tiene que
                 // ser EXACTAMENTE el que compone `sticpa_pl_reuniones_event_name()`:
                 // así es como lo encuentra el plugin, por nombre y no por id.
-                $this->nvl(array('id' => 'ev-reu', 'name' => 'Monitores | Reuniones de programación 2025-2026', 'ajmcm_etapa_c' => '')),
+                $this->nvl(array('id' => 'ev-reu', 'name' => $this->reunionesConCodigo
+                    ? 'Monitores | Reuniones de programación CS 2025-2026'
+                    : 'Monitores | Reuniones de programación 2025-2026', 'ajmcm_etapa_c' => '')),
             ), $this->conEventos ? array(
                 $this->nvl(array('id' => 'ev-bus', 'name' => 'Convivencia MIC y COM', 'start_date' => '2025-11-15 09:00:00', 'end_date' => '2025-11-16 18:00:00', 'ajmcm_etapa_c' => '')),
                 $this->nvl(array('id' => 'ev-pasado', 'name' => 'Salida al parque', 'start_date' => '2025-10-04 10:00:00', 'end_date' => '2025-10-04 13:00:00', 'ajmcm_etapa_c' => '')),
@@ -987,6 +997,16 @@ class FakeSCP
                     : array();
 
             case 'stic_Events:stic_sessions_stic_events':
+                if ($this->sinSesiones && isset($p['module_id']) && $p['module_id'] !== 'ev-reu') {
+                    $creadas = array();
+                    foreach ($this->writes as $w) {
+                        if ($w['module'] === 'stic_Sessions' && !empty($w['data']['name'])) {
+                            $creadas[] = $this->nvl(array('id' => 'nueva-' . count($creadas), 'name' => $w['data']['name'],
+                                'start_date' => $w['data']['start_date'], 'end_date' => $w['data']['end_date']));
+                        }
+                    }
+                    return $this->apiShape($creadas);
+                }
                 // Los eventos de salida (`$conEventos`): la convivencia tiene
                 // ida (hoy) y vuelta; el campamento futuro, NINGUNA sesión.
                 if ($this->conEventos && isset($p['module_id']) && in_array($p['module_id'], array('ev-bus', 'ev-pasado', 'ev-futuro'), true)) {
@@ -6150,9 +6170,165 @@ final class PasarListaRenderTest extends TestCase
         $this->assertLessThan(strpos($html, 'Solete Vilarroya'), strpos($html, 'Jaume Pascual'));
         // Una sola ficha por persona, aunque tenga dos relaciones vigentes.
         $this->assertSame(1, substr_count($html, 'Solete Vilarroya'));
-        // Los que no están en ningún grupo de Pasar Lista no salen aquí: esta
-        // pantalla es «mis grupos», y para esos está el resumen.
-        $this->assertStringNotContainsString('Sol Messeguer', $html);
+        // QUIEN NO TIENE GRUPO TAMBIÉN SALE (16/10/2026): a principio de curso
+        // es casi todo el mundo, y esta vista es la que sirve para repartirlos.
+        // Hasta ese día no salía, y Castellón veía 4 chavales de 210.
+        $this->assertStringContainsString('Sol Messeguer', $html);
+        $this->assertStringContainsString('Lucia Ripolles', $html);
+        $this->assertStringContainsString('<span class="pl-singrupo">Sin grupo</span>', $html);
+        // Su ficha se abre sin grupo en la URL.
+        $this->assertStringContainsString('participante=c7&amp;vengo=az', $html);
+        // A un monitor raso no se le ofrece vincular.
+        $this->assertStringNotContainsString('pl_assign_group[r7]', $html);
+    }
+
+    /** A coordinación, cada uno sin grupo lleva su «Vincular», con los de su curso primero. */
+    public function test_mis_grupos_az_coordinacion_vincula_a_los_sin_grupo()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $this->scp->cursoSuelto = '1_eso';
+        $_REQUEST = array('ver' => 'az');
+        $html = $this->render('single_stic_mis_grupos');
+
+        $this->assertStringContainsString('name="pl_assign_group[r7]"', $html);
+        $this->assertStringContainsString('name="pl_assign_group[r8]"', $html);
+        $this->assertStringContainsString('<form method="post">', $html);
+        // g1 es el de 1.º de ESO: va el primero en el desplegable de Sol.
+        $select = substr($html, strpos($html, 'pl_assign_group[r7]'));
+        $select = substr($select, 0, strpos($select, '</select>'));
+        $this->assertMatchesRegularExpression('/Elegir grupo…<\/option><option value="g1"/u', $select);
+    }
+
+    /**
+     * EL CURSO VIVE EN LA RELACIÓN: quien no tiene grupo sale bajo el curso de
+     * su relación, y en la MISMA cabecera que los del grupo de ese curso.
+     */
+    public function test_mis_grupos_por_curso_usa_el_curso_de_la_relacion()
+    {
+        $this->scp->cursoSuelto = '1_eso';
+        $_REQUEST = array('ver' => 'cursos');
+        $html = $this->render('single_stic_mis_grupos');
+
+        $this->assertStringContainsString('Sol Messeguer', $html);
+        // c1, c2 y c3 del grupo de 1.º de ESO, más Sol por su relación.
+        $this->assertStringContainsString('4 chavalines', $html);
+        // Lucía no tiene curso en ningún sitio: «Sin curso», al final.
+        $this->assertStringContainsString('Sin curso', $html);
+        $this->assertLessThan(strpos($html, 'Sin curso'), strpos($html, 'Sol Messeguer'));
+    }
+
+    /** La ficha de alguien sin grupo se abre desde Grupos y fichas. */
+    public function test_la_ficha_se_abre_sin_grupo()
+    {
+        $_REQUEST = array('participante' => 'c7', 'vengo' => 'az');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringNotContainsString('no está en el grupo indicado', $html);
+        $this->assertStringContainsString('Sin grupo', $html);
+    }
+
+    /** Con un grupo que no es el suyo se sigue cortando, como siempre. */
+    public function test_la_ficha_sin_grupo_no_se_abre_con_un_grupo_ajeno()
+    {
+        $_REQUEST = array('participante' => 'c7', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringContainsString('no está en el grupo indicado', $html);
+    }
+
+    /** Y la de alguien que no es de la delegación, sin grupo, tampoco. */
+    public function test_la_ficha_sin_grupo_no_abre_a_cualquiera()
+    {
+        $_REQUEST = array('participante' => 'zz-de-fuera');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringContainsString('no está en el grupo indicado', $html);
+    }
+
+    /**
+     * EL EVENTO DE REUNIONES CON EL CÓDIGO DE LA DELEGACIÓN (16/10/2026). El de
+     * Castellón se llama «… programación CS 2026-2027» y el nombre exacto no
+     * casaba: Reuniones salía vacía, y crear una abría un segundo evento.
+     */
+    public function test_reuniones_encuentra_el_evento_con_el_codigo_de_la_delegacion()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $this->scp->reunionesConCodigo = true;
+        $_POST = array(
+            'pl_nonce' => wp_create_nonce('pl_reuniones'),
+            'pl_reunion_name' => 'Programación 2.º trimestre',
+            'pl_reunion_date' => '2026-01-17',
+            'pl_reunion_time' => '19:00',
+            'pl_reunion_hours' => '2',
+        );
+        $html = $this->render('single_stic_pasar_lista_reuniones');
+
+        $this->assertStringContainsString('Reunión creada', $html);
+        $events = array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Events';
+        });
+        $this->assertSame(array(), array_values($events), 'no se abre un segundo evento');
+    }
+
+    public function test_es_evento_reuniones_acepta_el_codigo_y_no_otro_curso()
+    {
+        $this->assertTrue(sticpa_pl_es_evento_reuniones('Monitores | Reuniones de programación 2025-2026'));
+        $this->assertTrue(sticpa_pl_es_evento_reuniones('Monitores | Reuniones de programación CS 2025-2026'));
+        $this->assertTrue(sticpa_pl_es_evento_reuniones('monitores | reuniones de programacion 2025-2026 · CS'));
+        $this->assertFalse(sticpa_pl_es_evento_reuniones('Monitores | Reuniones de programación CS 2024-2025'));
+        $this->assertFalse(sticpa_pl_es_evento_reuniones('COM | Curso 2025-2026 · CS'));
+    }
+
+    /**
+     * «CREAR LA SESIÓN DE HOY» (16/10/2026): un evento sin sesiones ya no es un
+     * callejón sin salida en la lista de monitores.
+     */
+    public function test_monitores_sin_sesiones_ofrece_crear_la_de_hoy()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $this->scp->sinSesiones = true;
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        $this->assertStringContainsString('Este evento aún no tiene sesiones', $html);
+        $this->assertStringContainsString('name="pl_crear_sesion_hoy"', $html);
+        $this->assertStringContainsString('class="pl-back"', $html);
+    }
+
+    public function test_monitores_crea_la_sesion_de_hoy_y_abre_la_lista()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $this->scp->sinSesiones = true;
+        $_POST = array('pl_nonce' => wp_create_nonce('pl_monitores_hoy'), 'pl_crear_sesion_hoy' => '1');
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        $sessions = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Sessions';
+        }));
+        $this->assertCount(1, $sessions);
+        $this->assertStringContainsString('lista del', $sessions[0]['data']['name']);
+        $this->assertStringNotContainsString('Este evento aún no tiene sesiones', $html);
+    }
+
+    public function test_marcar_sin_sesiones_ofrece_crear_la_de_hoy()
+    {
+        $this->scp->sinSesiones = true;
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertStringContainsString('name="pl_crear_sesion_hoy"', $html);
+    }
+
+    /** Sin su nonce no se crea nada. */
+    public function test_crear_sesion_de_hoy_sin_nonce_no_escribe()
+    {
+        $this->scp->sinSesiones = true;
+        $_REQUEST = array('grupo' => 'g1');
+        $_POST = array('pl_crear_sesion_hoy' => '1', 'pl_nonce' => 'malo');
+        $this->render('single_stic_pasar_lista_marcar');
+
+        $this->assertSame(array(), array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Sessions';
+        })));
     }
 
     /** La vista por curso, que cruza los grupos: era lo que faltaba. */

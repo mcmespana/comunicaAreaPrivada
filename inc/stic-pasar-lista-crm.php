@@ -654,7 +654,12 @@ function sticpa_pl_all_relationships_raw($objSCP)
     // autobús): el NIVEL escolar de la relación de participante. Va en la
     // misma 'relshist2', que aún no se ha desplegado: si llega a producción
     // por separado de la fila 9, aquí haría falta otra clave por lo mismo.
-    $cacheKey = sticpa_pl_cache_key('relshist2', $objSCP);
+    //
+    // Y 'relshist3' (16/10/2026): las cachés escritas antes de esta fecha
+    // llevan SOLO la primera página de relaciones (ver pedirOtraPagina() en
+    // stic-class-6.php). Con la clave vieja se seguirían viendo 4 chavales y 2
+    // monitores hasta que caducaran.
+    $cacheKey = sticpa_pl_cache_key('relshist3', $objSCP);
     $ttl = sticpa_pl_ttl_structure();
     if ($ttl > 0) {
         $cached = get_transient($cacheKey);
@@ -689,26 +694,49 @@ function sticpa_pl_all_relationships_raw($objSCP)
     // la consulta no le gusta al CRM la respuesta vuelve VACIA y la pantalla
     // dice "no hay nadie" sin distinguirlo de que de verdad no haya nadie. Un
     // filtro que puede fallar en silencio no vale para esto.
-    $rows = $objSCP->getRecordsModule(
-        'stic_Contacts_Relationships',
-        "stic_contacts_relationships.assigned_user_id = '" . sticpa_pl_safe_id($deleg) . "'",
-        $fields,
-        array(
-            'grupo' => array(
-                'relationshipName' => 'ajmcm_grupos_stic_contacts_relationships',
-                'fields' => array('id', 'name'),
+    // SOLO LOS TIPOS QUE SE USAN (16/10/2026). Las de familia, coordinación y
+    // acompañamiento se tiraban al leerlas (sticpa_pl_rel_role() no les da
+    // papel), pero viajaban con su persona enlazada: en Castellón son cientos
+    // de filas y alguna página más en cada carga en frío. Es un IN sobre un
+    // campo del propio módulo con las claves de CAMPOS.md, no un filtro que
+    // pueda fallar en silencio.
+    $tipos = array();
+    foreach (sticpa_pl_rel_types() as $needles) {
+        foreach ((array) $needles as $needle) {
+            $needle = preg_replace('/[^a-z0-9_]/i', '', (string) $needle);
+            if ($needle !== '') {
+                $tipos[] = "'" . $needle . "'";
+            }
+        }
+    }
+    $base = "stic_contacts_relationships.assigned_user_id = '" . sticpa_pl_safe_id($deleg) . "'";
+    $query = $base;
+    if (!empty($tipos)) {
+        $query .= ' AND stic_contacts_relationships.relationship_type IN (' . implode(', ', array_unique($tipos)) . ')';
+    }
+
+    $links = array(
+        'grupo' => array(
+            'relationshipName' => 'ajmcm_grupos_stic_contacts_relationships',
+            'fields' => array('id', 'name'),
+        ),
+        'persona' => array(
+            'relationshipName' => 'stic_contacts_relationships_contacts',
+            // Las marcas de la lista viajan en la MISMA llamada: ni una
+            // consulta más (plan 043, fila 9).
+            'fields' => array_merge(
+                array('id', 'name', 'first_name', 'last_name', 'birthdate', 'stic_age_c', 'phone_mobile'),
+                sticpa_pl_marcas_campos()
             ),
-            'persona' => array(
-                'relationshipName' => 'stic_contacts_relationships_contacts',
-                // Las marcas de la lista viajan en la MISMA llamada: ni una
-                // consulta más (plan 043, fila 9).
-                'fields' => array_merge(
-                    array('id', 'name', 'first_name', 'last_name', 'birthdate', 'stic_age_c', 'phone_mobile'),
-                    sticpa_pl_marcas_campos()
-                ),
-            ),
-        )
+        ),
     );
+    $rows = $objSCP->getRecordsModule('stic_Contacts_Relationships', $query, $fields, $links);
+    // Seguro del filtro por tipo: si el CRM lo rechazara (vacío CON error, no
+    // un vacío de verdad), se pide como antes, sin él. Mejor lento que nadie.
+    if (empty($rows) && $query !== $base && !sticpa_pl_collecting()
+        && class_exists('SugarRestApiCall') && !SugarRestApiCall::lastWalkComplete()) {
+        $rows = $objSCP->getRecordsModule('stic_Contacts_Relationships', $base, $fields, $links);
+    }
 
     $out = array();
     $now = sticpa_pl_now();
@@ -795,6 +823,13 @@ function sticpa_pl_all_relationships_raw($objSCP)
         }
     }
 
+    // A MEDIAS NO SE GUARDA COMO ENTERO: si una página ha fallado, lo que hay
+    // vale para pintar ahora, pero se vuelve a pedir en un par de minutos en
+    // vez de dejar a media delegación fuera de las listas doce horas.
+    if (class_exists('SugarRestApiCall') && !SugarRestApiCall::lastWalkComplete()) {
+        $corto = sticpa_pl_ttl_empty();
+        $ttl = ($corto > 0 && $corto < $ttl) ? $corto : $ttl;
+    }
     sticpa_pl_cache_put($cacheKey, $out, $ttl);
     return $out;
 }
@@ -5104,6 +5139,13 @@ function sticpa_pl_monitors_of($objSCP, $groups, $sinGrupo = false)
                 // La relación que hay que colgar de un grupo: la usa «Vincular»
                 // en la ficha y en Mis grupos, sin fiarse de un id del POST.
                 $out[$id]['rel_sin_grupo'] = $rel['rel_id'];
+                // El grupo de verdad que NO entra en Pasar Lista («Monitores
+                // Apoyo», con la casilla apagada): se dice cuál, en vez de un
+                // «Sin grupo asignado» que no es verdad. El comodín «POR
+                // DEFINIR» sí es no tener grupo.
+                $fuera = (string) $rel['group_name'];
+                $out[$id]['grupo_fuera'] = ($gid !== '' && $fuera !== '' && stripos($fuera, 'por definir') === false)
+                    ? trim(preg_replace('/\s+/', ' ', $fuera)) : '';
             }
             continue;
         }
@@ -5291,6 +5333,31 @@ function sticpa_pl_reuniones_event_name()
 }
 
 /**
+ * ¿Es este nombre el del evento de reuniones de ESTE curso?
+ *
+ * No se compara el nombre exacto (16/10/2026). El de Castellón se creó a mano
+ * como «Monitores | Reuniones de programación CS 2026-2027» —con el código de
+ * la delegación, como el resto de sus eventos («COM | Curso 2026-2027 · CS»)—
+ * y el exacto no casaba: Reuniones salía vacía con dos reuniones con lista
+ * pasada, y crear una habría abierto un segundo evento. Vale el prefijo y el
+ * curso, con lo que haya en medio (o detrás). Sin acentos ni mayúsculas.
+ */
+function sticpa_pl_es_evento_reuniones($nombre)
+{
+    $norm = function ($t) {
+        $t = function_exists('mb_strtolower') ? mb_strtolower((string) $t, 'UTF-8') : strtolower((string) $t);
+        $t = strtr($t, array('á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u'));
+        return preg_replace('/\s+/', ' ', trim($t));
+    };
+    $n = $norm($nombre);
+    $prefijo = $norm(sprintf(__('Monitores | Reuniones de programación %s', 'sticpa'), ''));
+    $course = sticpa_pl_course_for();
+    return $n !== ''
+        && strpos($n, $prefijo) === 0
+        && strpos($n, $norm($course['label'])) !== false;
+}
+
+/**
  * El evento de reuniones de la delegación, creándolo si no existe.
  *
  * Se crea desde aquí a propósito: son 3-4 reuniones al año y crear el evento a
@@ -5318,9 +5385,14 @@ function sticpa_pl_reuniones_event($objSCP, $create = false)
     // `stic_Events` otra vez, con dos columnas menos, para leer la misma tabla.
     $found = null;
     foreach (sticpa_pl_events_raw($objSCP) as $ev) {
-        if ($ev['id'] !== '' && $ev['name'] === $name) {
-            $found = array('id' => $ev['id'], 'name' => $name);
-            break;
+        if ($ev['id'] !== '' && sticpa_pl_es_evento_reuniones($ev['name'])) {
+            // El exacto gana; uno con el código de la delegación también vale.
+            if ($found === null || $ev['name'] === $name) {
+                $found = array('id' => $ev['id'], 'name' => (string) $ev['name']);
+            }
+            if ($ev['name'] === $name) {
+                break;
+            }
         }
     }
 

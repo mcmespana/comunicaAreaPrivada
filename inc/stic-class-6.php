@@ -54,6 +54,16 @@ class SugarRestApiCall
     /** Respuestas ya traídas, por firma de peticion. De un solo uso. */
     private static $memo = array();
 
+    /**
+     * ¿Se quedó a medias el último recorrido por páginas? (16/10/2026)
+     *
+     * Una página que falla a mitad de camino (un tiempo de espera, un error
+     * del CRM) cortaba el bucle como si fuera el final, y lo que se había
+     * traído hasta ahí se cacheaba doce horas como si fuera TODO. Con esto,
+     * quien cachea puede preguntarlo y guardarlo poco tiempo.
+     */
+    private static $walkIncomplete = false;
+
     /** Handle compartido para que las tandas paralelas reutilicen conexiones. */
     private static $shareHandle = null;
 
@@ -487,6 +497,46 @@ class SugarRestApiCall
     public static function forgetMemo()
     {
         self::$memo = array();
+    }
+
+    /** ¿El último getRecordsModule()/get_relationships por páginas llegó entero? */
+    public static function lastWalkComplete()
+    {
+        return !self::$walkIncomplete;
+    }
+
+    /**
+     * ¿Hay que pedir la página siguiente? La regla de las dos colecciones.
+     *
+     * ⚠️ `total_count` NO SIEMPRE ES EL TOTAL (16/10/2026). Con
+     * `disable_count_query` en la configuración del CRM, SuiteCRM devuelve
+     * `-1` (o lo que lleva traído), y `$offset >= $total` cortaba tras la
+     * PRIMERA página: 200 filas de las ~2.000 relaciones de Castellón, las de
+     * id más bajo. Así salían 4 chavales en «Cursos» y 2 monitores en
+     * Coordinación, siempre los mismos y siempre de ids `0000000…`–`000001a…`.
+     * Con 109 relaciones (agosto) cabía todo en una página y no se veía.
+     *
+     * Por eso: una página LLENA siempre pide la siguiente, diga lo que diga
+     * `total_count` (cuesta, como mucho, una llamada vacía cuando el total es
+     * múltiplo exacto de la página). Una página corta para si `total_count`
+     * (positivo) ya está alcanzado o el tope aprendido del CRM lo dice.
+     */
+    private static function pedirOtraPagina($recibidas, $pedidas, $offset, $total)
+    {
+        if ($recibidas >= $pedidas) {
+            return true;
+        }
+        if ($total !== null && $total > 0) {
+            return $offset < $total;
+        }
+        $cap = self::knownPageCap();
+        return !($cap > 0 && $recibidas < $cap);
+    }
+
+    /** ¿Ha fallado esta respuesta (red o error del CRM), y no es un vacío de verdad? */
+    private static function respuestaFallida($res)
+    {
+        return !is_object($res) || self::errorFrom($res) !== '';
     }
 
     /**
@@ -1123,10 +1173,25 @@ class SugarRestApiCall
         $total = null;
         $prevCount = null; // filas de la página anterior (para aprender el tope)
 
+        self::$walkIncomplete = false;
         while (true) {
             $get_relationship_params['offset'] = $offset;
             $get_relationship_params['limit'] = $pagina;
             $res = $this->call("get_relationships", $get_relationship_params, $this->url);
+            if (self::$collecting) {
+                break;   // recolecta: la primera página se ha apuntado y basta
+            }
+            // Una página que falla a mitad NO es el final: se reintenta una vez
+            // y, si sigue fallando, se dice que el recorrido va a medias.
+            if (self::respuestaFallida($res) && $offset > 0) {
+                $res = $this->call("get_relationships", $get_relationship_params, $this->url);
+            }
+            if (self::respuestaFallida($res)) {
+                self::$walkIncomplete = true;
+                error_log('[sticpa] ' . $params['module_name'] . ':' . $params['link_field_name']
+                    . ': página en ' . $offset . ' fallida; el resultado va incompleto.');
+                break;
+            }
 
             $entries = isset($res->entry_list) && is_array($res->entry_list) ? $res->entry_list : array();
             if (empty($entries)) {
@@ -1151,25 +1216,17 @@ class SugarRestApiCall
             }
             $prevCount = count($entries);
 
-            if ($total === null && isset($res->total_count)) {
-                $total = (int) $res->total_count;
+            if ($total === null && isset($res->total_count) && (int) $res->total_count > 0) {
+                $total = (int) $res->total_count;   // -1 / 0: no se sabe (ver pedirOtraPagina)
             }
             $offset += count($entries);
 
-            if ($total !== null && $offset >= $total) {
-                break;
-            }
-            // Menos filas que el tope aprendido: no hay más, sin preguntar.
-            $cap = self::knownPageCap();
-            if ($cap > 0 && count($entries) < $cap) {
+            if (!self::pedirOtraPagina(count($entries), $pagina, $offset, $total)) {
                 break;
             }
             if ($offset >= $techo) {
                 error_log('[sticpa] ' . $params['module_name'] . ':' . $params['link_field_name']
                     . ': cortado en ' . $offset . ' filas (tope sticpa_crm_max_rows).');
-                break;
-            }
-            if (self::$collecting) {
                 break;
             }
         }
@@ -1275,6 +1332,7 @@ class SugarRestApiCall
         $total = null;
         $prevCount = null; // filas de la página anterior (para aprender el tope)
 
+        self::$walkIncomplete = false;
         while (true) {
             $getEntryList = array(
                 'session' => $this->session_id,
@@ -1288,10 +1346,29 @@ class SugarRestApiCall
                 'max_results' => $pagina,
             );
             $res = $this->call("get_entry_list", $getEntryList, $this->url);
+            if (self::$collecting) {
+                // En modo recolecta la primera «página» no existe: se ha
+                // apuntado la consulta y se ha devuelto null. No hay que pedir más.
+                break;
+            }
+            // Una página que falla a mitad NO es el final (16/10/2026): antes
+            // se cortaba aquí en silencio y lo traído se cacheaba como si fuera
+            // todo. Se reintenta una vez; si sigue mal, el recorrido va a medias.
+            if (self::respuestaFallida($res) && $offset > 0) {
+                $res = $this->call("get_entry_list", $getEntryList, $this->url);
+            }
+            if (self::respuestaFallida($res)) {
+                self::$walkIncomplete = true;
+                if ($offset > 0) {
+                    error_log('[sticpa] ' . $moduleName . ': página en ' . $offset
+                        . ' fallida; el resultado va incompleto.');
+                }
+                break;
+            }
 
             $entries = isset($res->entry_list) && is_array($res->entry_list) ? $res->entry_list : array();
             if (empty($entries)) {
-                break;   // sin filas: se acabó (o la llamada falló, y quien llame ya lo trata)
+                break;   // sin filas: se acabó
             }
 
             // El aplanado empareja `entry_list` con `relationship_list` POR
@@ -1312,32 +1389,20 @@ class SugarRestApiCall
             }
             $prevCount = count($entries);
 
-            if ($total === null && isset($res->total_count)) {
-                $total = (int) $res->total_count;
+            if ($total === null && isset($res->total_count) && (int) $res->total_count > 0) {
+                $total = (int) $res->total_count;   // -1 / 0: no se sabe (ver pedirOtraPagina)
             }
             $offset += count($entries);
 
-            if ($total !== null && $offset >= $total) {
+            // Sin `total_count` fiable no hay forma de saber cuántas quedan: se
+            // sigue mientras las páginas vengan llenas, y una corta para solo
+            // si el total o el tope APRENDIDO del CRM (knownPageCap) lo dicen.
+            if (!self::pedirOtraPagina(count($entries), $pagina, $offset, $total)) {
                 break;
             }
             if ($offset >= $techo) {
                 error_log('[sticpa] ' . $moduleName . ': cortado en ' . $offset
                     . ' filas (tope sticpa_crm_max_rows). Hay ' . ($total === null ? '¿?' : $total) . '.');
-                break;
-            }
-            // Sin `total_count` no hay forma de saber cuántas quedan: se sigue
-            // hasta que una página venga vacía… o traiga menos filas que el
-            // tope APRENDIDO del CRM (knownPageCap), que es lo mismo.
-            if ($total === null && count($entries) < 1) {
-                break;
-            }
-            $cap = self::knownPageCap();
-            if ($total === null && $cap > 0 && count($entries) < $cap) {
-                break;
-            }
-            // En modo recolecta la primera «página» no existe: se ha apuntado
-            // la consulta y se ha devuelto null. No hay que pedir más.
-            if (self::$collecting) {
                 break;
             }
         }
