@@ -370,7 +370,10 @@ Lo que hay ahora — **un verbo por sección**:
 mezclarse): **Actividades** (Eventos, Inscripciones, Calendario, Pagos,
 Documentos — lo de miembro del MCM) · **Equipo de monitores** (Pasar lista,
 Grupos y fichas, Coordinación) · **Tu perfil** (Mis datos, Mis datos de
-monitor, Usuario y contraseña).
+monitor, Usuario y contraseña). **Para quien es del equipo, «Equipo de
+monitores» va el primero**, delante de Actividades, en los tres sitios a la vez
+(plan 043, CAR-1, 10/10/2026): pasa lista todos los sábados y se apunta a algo
+tres o cuatro veces al curso. Para los demás, el orden de arriba.
 
 Decisiones:
 

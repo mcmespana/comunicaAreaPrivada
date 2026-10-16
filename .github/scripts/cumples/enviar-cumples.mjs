@@ -4,7 +4,8 @@
  *
  * Qué hace, por orden:
  *   1. Pide un token al API V8 de SinergiaCRM (OAuth2 client_credentials).
- *   2. Baja las relaciones de tipo "monitor" activas de Relaciones con Personas.
+ *   2. Baja las relaciones activas de Relaciones con Personas de los tipos que
+ *      piden las delegaciones (`tipos` en delegaciones.json: monitor, grupo).
  *   3. Baja las personas cuya fecha de nacimiento cae hoy (filtro LIKE '%-MM-DD').
  *   4. Cruza ambas listas por delegación y manda un correo con Resend.
  *
@@ -44,7 +45,7 @@ import { dirname, join } from 'node:path';
 import {
   ahoraEnMadrid, asunto, asuntoPersona, correoHtml, correoPersonaHtml,
   cumpleanosDeHoy, delegacionesActivas, elegirRemitente, fechaLarga,
-  indiceMonitores, textoPersona, textoPlano,
+  indiceRelaciones, textoPersona, textoPlano, tiposNecesarios,
 } from './felicitacion.mjs';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
@@ -254,7 +255,8 @@ function datosDemo() {
       email: 'fulanita@ejemplo.invalid',
       etapa: 'COM',
       grupo: 'COMser',
-      monitorDesde: '2022-09-01',
+      tipo: 'monitor',
+      desde: '2022-09-01',
     },
     {
       id: 'demo-2',
@@ -267,7 +269,8 @@ function datosDemo() {
       email: 'menganito@ejemplo.invalid',
       etapa: 'LC',
       grupo: '',
-      monitorDesde: '2019-09-01',
+      tipo: 'grupo',
+      desde: '2019-09-01',
     },
   ];
 }
@@ -311,6 +314,15 @@ async function principal() {
     valores.delegaciones ?? process.env.CUMPLES_DELEGACIONES ?? null,
   );
 
+  // Una delegación marcada "activa" pero sin correo se salta en silencio; mejor
+  // que al menos quede dicho en el log y en el resumen del job.
+  for (const d of config.delegaciones ?? []) {
+    if (d?.activa && !(Array.isArray(d.destinatarios) && d.destinatarios.length > 0)) {
+      aviso(`${d.nombre ?? d.clave} está activa pero SIN destinatarios: no se manda nada. Pon su correo en delegaciones.json.`);
+      await resumen(`⚠️ **${d.nombre ?? d.clave}** está activa pero sin destinatarios en delegaciones.json.`);
+    }
+  }
+
   if (delegaciones.length === 0) {
     aviso('Ninguna delegación activa con destinatarios. Revisa delegaciones.json.');
     return 0;
@@ -334,15 +346,21 @@ async function principal() {
     const token = await tokenCrm({ url, clientId, clientSecret });
     const crm = { url, token };
 
-    // Una sola consulta para todas las delegaciones: son ~165 relaciones en
-    // total, así que sale más barato traerlas y filtrar aquí que preguntar por
-    // delegación. Además el campo del usuario asignado no se puede filtrar en
+    // Una sola consulta por tipo para todas las delegaciones (~165 monitores y
+    // ~240 de grupo), así que sale más barato traerlas y filtrar aquí que
+    // preguntar por delegación. Además el campo del usuario asignado no se puede filtrar en
     // la API (es un campo "relate" y la consulta revienta con error de BD).
-    relaciones = await listarModulo(crm, 'stic_Contacts_Relationships', {
-      relationship_type: ['eq', 'monitor'],
-      active: ['eq', 1],
-    });
-    log(`Relaciones de monitor/a activas en todo el CRM: ${relaciones.length}`);
+    // Una consulta POR TIPO (monitor, grupo…), no un `or`: el conector del CRM
+    // pisa las condiciones repetidas sobre el mismo campo. Solo se bajan los
+    // tipos que piden las delegaciones de esta ejecución.
+    for (const tipo of tiposNecesarios(delegaciones)) {
+      const delTipo = await listarModulo(crm, 'stic_Contacts_Relationships', {
+        relationship_type: ['eq', tipo],
+        active: ['eq', 1],
+      });
+      log(`Relaciones «${tipo}» activas en todo el CRM: ${delTipo.length}`);
+      relaciones.push(...delTipo);
+    }
 
     // Cumpleaños de hoy: LIKE '%-MM-DD' sobre birthdate. Devuelve pocas filas.
     contactosDeHoy = await listarModulo(crm, 'Contacts', {
@@ -358,7 +376,7 @@ async function principal() {
   for (const delegacion of delegaciones) {
     const cumples = modoDemo
       ? datosDemo()
-      : cumpleanosDeHoy(contactosDeHoy, indiceMonitores(relaciones, delegacion), hoy);
+      : cumpleanosDeHoy(contactosDeHoy, indiceRelaciones(relaciones, delegacion), hoy);
 
     if (cumples.length === 0) {
       log(`· ${delegacion.nombre}: hoy nadie. No se manda nada.`);

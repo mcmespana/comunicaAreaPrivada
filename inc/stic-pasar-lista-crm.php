@@ -628,9 +628,11 @@ function sticpa_pl_all_relationships($objSCP)
  * que la de arriba tira. Una relación terminada no es un dato de hoy, pero sí
  * es el dato de entonces.
  *
- * Cada fila lleva `vigente`, `start`, `end` y `cursos` (los cursos escolares
- * que cubre, calculados de las fechas). El CRM no guarda el curso escolar de
- * una relación en ningún campo, así que se deduce: septiembre manda.
+ * Cada fila lleva `vigente`, `start`, `end` y `cursos` (los AÑOS académicos
+ * que cubre, calculados de las fechas). El CRM no guarda el año académico de
+ * una relación en ningún campo, así que se deduce: septiembre manda. Y lleva
+ * `curso_escolar`, que es otra cosa: el NIVEL (`5_primaria`) del campo
+ * `ajmcm_curso_escolar_c`, solo en las de participante ('' en las demás).
  */
 function sticpa_pl_all_relationships_raw($objSCP)
 {
@@ -643,7 +645,16 @@ function sticpa_pl_all_relationships_raw($objSCP)
     // TAMBIÉN las relaciones terminadas, y una caché escrita por la versión
     // anterior tiene solo las vigentes. Colarla daría un histórico vacío sin
     // que nada fallara, que es la peor forma de fallar.
-    $cacheKey = sticpa_pl_cache_key('relshist', $objSCP);
+    //
+    // Y 'relshist2' por lo mismo (plan 043, fila 9): cada persona lleva ahora
+    // sus marcas («no se va solo/a», «sin fotos», «salud»), y una caché vieja
+    // las daría por vacías hasta caducar — un día entero sin avisar de nada.
+    //
+    // Y cada fila lleva también `curso_escolar` (11/10/2026, la lista del
+    // autobús): el NIVEL escolar de la relación de participante. Va en la
+    // misma 'relshist2', que aún no se ha desplegado: si llega a producción
+    // por separado de la fila 9, aquí haría falta otra clave por lo mismo.
+    $cacheKey = sticpa_pl_cache_key('relshist2', $objSCP);
     $ttl = sticpa_pl_ttl_structure();
     if ($ttl > 0) {
         $cached = get_transient($cacheKey);
@@ -668,6 +679,10 @@ function sticpa_pl_all_relationships_raw($objSCP)
         'stic_contacts_relationships_contacts_name',
         'ajmcm_grupos_stic_contacts_relationshipsajmcm_grupos_ida',
         'ajmcm_grupos_stic_contacts_relationships_name',
+        // El NIVEL escolar de la persona (`4_primaria`, `1_eso`…): de aquí
+        // sale el curso en la lista de un evento, porque el de la inscripción
+        // llega vacío (CAMPOS.md). Una columna más, ni una llamada más.
+        'ajmcm_curso_escolar_c',
     );
 
     // La vigencia se filtra en PHP y NO en SQL. En SQL era mas barato, pero si
@@ -685,7 +700,12 @@ function sticpa_pl_all_relationships_raw($objSCP)
             ),
             'persona' => array(
                 'relationshipName' => 'stic_contacts_relationships_contacts',
-                'fields' => array('id', 'name', 'first_name', 'last_name', 'birthdate', 'stic_age_c', 'phone_mobile'),
+                // Las marcas de la lista viajan en la MISMA llamada: ni una
+                // consulta más (plan 043, fila 9).
+                'fields' => array_merge(
+                    array('id', 'name', 'first_name', 'last_name', 'birthdate', 'stic_age_c', 'phone_mobile'),
+                    sticpa_pl_marcas_campos()
+                ),
             ),
         )
     );
@@ -737,6 +757,7 @@ function sticpa_pl_all_relationships_raw($objSCP)
                     'full' => $persona['full'],
                     'sort' => $persona['sort'],
                     'initials' => $persona['initials'],
+                    'marcas' => array(),
                 );
             }
 
@@ -752,6 +773,15 @@ function sticpa_pl_all_relationships_raw($objSCP)
                 'start' => $startTs,
                 'end' => $endTs,
                 'cursos' => sticpa_pl_rel_cursos($startTs, $endTs, $now),
+                // OJO, DOS EJES: `cursos` son los AÑOS académicos que cubre la
+                // relación (de sus fechas); `curso_escolar` es el NIVEL
+                // (`5_primaria`), del campo. Solo en las de PARTICIPANTE: en
+                // una de monitor el campo lleva el curso del grupo que lleva,
+                // no el suyo (CAMPOS.md), y aquí no se guarda para que nadie
+                // lo lea como «el curso de esta persona».
+                'curso_escolar' => ($role === 'participante')
+                    ? sticpa_pl_ev_curso_key(isset($v->ajmcm_curso_escolar_c->value) ? $v->ajmcm_curso_escolar_c->value : '')
+                    : '',
                 'group_id' => sticpa_pl_nvl_first($v, array(
                     'grupo_id',
                     'ajmcm_grupos_stic_contacts_relationshipsajmcm_grupos_ida',
@@ -841,7 +871,66 @@ function sticpa_pl_person_from_rel_row($v)
         'age' => ($lv && isset($lv->stic_age_c->value)) ? (string) $lv->stic_age_c->value : '',
         'birthdate' => ($lv && isset($lv->birthdate->value)) ? (string) $lv->birthdate->value : '',
         'mobile' => ($lv && isset($lv->phone_mobile->value)) ? (string) $lv->phone_mobile->value : '',
+        'marcas' => sticpa_pl_marcas_de($lv),
     );
+}
+
+/**
+ * Los campos de la ficha que hacen falta para las MARCAS de la lista.
+ *
+ * Plan 043, fila 9 (F3, «lo importante del grupo, de un vistazo»). Nombres y
+ * tipos de CAMPOS.md: los tres primeros son desplegables 1 (Sí) / 0 (No); los
+ * tres de salud, texto libre. El doble guion bajo de las alergias es de verdad.
+ */
+function sticpa_pl_marcas_campos()
+{
+    return array(
+        'ajmcm_soloacasa_c', 'ajmcm_cesionimagenes_interne_c', 'ajmcm_datossalud_c',
+        'ajmcm_descripcion_allergies__c', 'ajmcm_descripcion_intoler_c', 'ajmcm_descripcion_tratam_c',
+    );
+}
+
+/**
+ * Las marcas de una persona: lo que un monitor tiene que saber de un vistazo,
+ * sin abrir doce fichas un sábado. Como mucho tres, y en este orden:
+ *
+ *   - 'no_solo'   — `ajmcm_soloacasa_c` es «0»: no se va solo/a a casa.
+ *   - 'sin_fotos' — `ajmcm_cesionimagenes_interne_c` es «0»: no sale en fotos.
+ *   - 'salud'     — tiene algo escrito en alergias, intolerancias o
+ *                   tratamientos. NO dice cuál ni qué: la lista se guarda en el
+ *                   móvil para usarla sin conexión, y el detalle está en la
+ *                   ficha. Y si `ajmcm_datossalud_c` es «0» (no autoriza el uso
+ *                   de sus datos de salud), no se marca.
+ *
+ * UN VACÍO NO ES UN «NO». Una ficha migrada llega con estos campos sin
+ * contestar (CAMPOS.md, «Llegó VACÍO»), y marcar a media delegación como «sin
+ * fotos» por eso sería ruido que enseña a no mirar las marcas. Solo «0».
+ *
+ * Devuelve solo las claves: el texto de salud no sale de aquí, ni a la caché
+ * ni al HTML.
+ *
+ * @param object|null $nvl una fila con la forma de la API (`->campo->value`).
+ */
+function sticpa_pl_marcas_de($nvl)
+{
+    $val = function ($campo) use ($nvl) {
+        return ($nvl && isset($nvl->$campo->value)) ? trim((string) $nvl->$campo->value) : '';
+    };
+
+    $marcas = array();
+    if ($val('ajmcm_soloacasa_c') === '0') {
+        $marcas[] = 'no_solo';
+    }
+    if ($val('ajmcm_cesionimagenes_interne_c') === '0') {
+        $marcas[] = 'sin_fotos';
+    }
+    if ($val('ajmcm_datossalud_c') !== '0'
+        && ($val('ajmcm_descripcion_allergies__c') !== ''
+            || $val('ajmcm_descripcion_intoler_c') !== ''
+            || $val('ajmcm_descripcion_tratam_c') !== '')) {
+        $marcas[] = 'salud';
+    }
+    return $marcas;
 }
 
 /**
@@ -1047,7 +1136,8 @@ function sticpa_pl_group_people_direct($objSCP, $groupId)
                 ($cut !== false) ? trim(substr($relName, 0, $cut)) : $relName,
                 $person['age'],
                 $person['birthdate'],
-                $person['mobile']
+                $person['mobile'],
+                $person['marcas']
             );
         }
         $bucket = ($p['role'] === 'monitor') ? 'monitors' : 'participants';
@@ -1077,7 +1167,10 @@ function sticpa_pl_contacts_bulk($objSCP, $ids)
     $rows = $objSCP->getRecordsModule(
         'Contacts',
         'contacts.id IN (' . implode(',', $lista) . ')',
-        array('id', 'name', 'first_name', 'last_name', 'birthdate', 'stic_age_c', 'phone_mobile')
+        array_merge(
+            array('id', 'name', 'first_name', 'last_name', 'birthdate', 'stic_age_c', 'phone_mobile'),
+            sticpa_pl_marcas_campos()
+        )
     );
 
     $out = array();
@@ -1102,14 +1195,15 @@ function sticpa_pl_contacts_bulk($objSCP, $ids)
             $full,
             isset($v->stic_age_c->value) ? (string) $v->stic_age_c->value : '',
             isset($v->birthdate->value) ? (string) $v->birthdate->value : '',
-            isset($v->phone_mobile->value) ? (string) $v->phone_mobile->value : ''
+            isset($v->phone_mobile->value) ? (string) $v->phone_mobile->value : '',
+            sticpa_pl_marcas_de($v)
         );
     }
     return $out;
 }
 
 /** La forma de una persona de lista, en UN sitio: la arman tres funciones. */
-function sticpa_pl_person_array($id, $first, $last, $full, $age = '', $birthdate = '', $mobile = '')
+function sticpa_pl_person_array($id, $first, $last, $full, $age = '', $birthdate = '', $mobile = '', $marcas = array())
 {
     return array(
         'id' => (string) $id,
@@ -1124,6 +1218,7 @@ function sticpa_pl_person_array($id, $first, $last, $full, $age = '', $birthdate
         'age' => (string) $age,
         'birthdate' => (string) $birthdate,
         'mobile' => (string) $mobile,
+        'marcas' => (array) $marcas,
     );
 }
 
@@ -1140,7 +1235,10 @@ function sticpa_pl_contact_of_relationship($objSCP, $relId, $relRow = null)
         'module_name' => 'stic_Contacts_Relationships',
         'module_id' => sticpa_pl_safe_id($relId),
         'link_field_name' => 'stic_contacts_relationships_contacts',
-        'related_fields' => array('id', 'name', 'first_name', 'last_name', 'birthdate', 'stic_age_c', 'phone_mobile'),
+        'related_fields' => array_merge(
+            array('id', 'name', 'first_name', 'last_name', 'birthdate', 'stic_age_c', 'phone_mobile'),
+            sticpa_pl_marcas_campos()
+        ),
         'related_module_link_name_to_fields_array' => array(),
         'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
     ));
@@ -1178,6 +1276,7 @@ function sticpa_pl_contact_of_relationship($objSCP, $relId, $relRow = null)
             'age' => isset($c->stic_age_c->value) ? (string) $c->stic_age_c->value : '',
             'birthdate' => isset($c->birthdate->value) ? (string) $c->birthdate->value : '',
             'mobile' => isset($c->phone_mobile->value) ? (string) $c->phone_mobile->value : '',
+            'marcas' => sticpa_pl_marcas_de($c),
         );
     }
     return null;

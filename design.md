@@ -147,7 +147,11 @@ inventar uno nuevo):
 ```
 Radios      --radius-sm .55rem · md .85rem · lg 1.1rem · xl 1.4rem · 2xl 1.9rem · full 9999px
 Elevación   --shadow-xs/sm/md/lg/xl   (tintadas de azul marino, nunca negro puro)
-Foco        --shadow-glow  = anillo de 4px del color de marca al 16%
+Foco        --focus-ring   = anillo sólido de 2px de --primary-color tras un hueco de 2px
+                             de --surface. Es el de :focus-visible (teclado), ≥3:1 en
+                             los dos temas. Solo en el área privada (plan 042, A11Y-1)
+            --shadow-glow  = halo de 4px de la marca al 16%. Solo el :focus de los
+                             CAMPOS, que además cambian de borde: solo, no se ve (1,25:1)
 Curvas      --ease-out    cubic-bezier(0.16, 1, 0.3, 1)
             --ease-spring cubic-bezier(0.34, 1.56, 0.64, 1)
 Tipografía  Inter + system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif
@@ -169,7 +173,8 @@ y funcionan en las dos superficies.
 | Magenta Consolación | `--secondary-color` | `--mcm-brand-magenta` |
 | Superficie / alterna | `--surface` / `--surface-2` | `--mcm-surface` / `--mcm-surface-alt` |
 | Tooltip oscuro | `--tip-bg` / `--tip-fg` | `--mcm-tip-bg` / `--mcm-tip-fg` |
-| Anillo de foco | `--shadow-glow` | sale de `--form-ring` (el acento del formulario) |
+| Anillo de foco (teclado) | `--focus-ring` | — (aún no existe en formularios) |
+| Halo del campo con foco | `--shadow-glow` | sale de `--form-ring` (el acento del formulario) |
 | Texto sobre marca | `--on-brand` | — |
 
 Manda el semántico porque deja **recolorear sin renombrar**, que es lo que

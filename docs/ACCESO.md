@@ -195,6 +195,21 @@ bucle. Con un hijo (se elige solo), sin hijos o siendo además miembro del MCM,
 todo sigue como antes. Código: `sticpa_family_must_choose_first()` en
 `inc/stic-family.php`; pruebas en `tests/FamilyContextTest.php`.
 
+### Cambiar de hijo sin volver a la portada (11/10/2026, plan 043 FAM-a8)
+
+Cambiar de hijo en el selector de la barra llevaba SIEMPRE a la portada, y
+apuntar a dos hermanos a la misma convivencia costaba siete toques. Ahora el
+selector manda la página en la que se está en un parámetro `volver` (como
+`dest`, una query en un solo parámetro) y el handler vuelve a ella **solo si no
+es de nadie**: la lista de eventos, la ficha de un evento (`action=detail` y su
+`id`) y el calendario. Pasa por `sticpa_login_destination_args()` y luego por
+una lista más corta, `sticpa_family_switch_destination()`
+(`inc/stic-family.php`), que además mira que esa sección se le enseñe a quien
+se ve ahora: quien se elige a sí misma y solo es familiar no tiene Eventos ni
+Calendario, así que va a la portada. Cualquier otra página (un pago, una
+inscripción, sus datos) o algo raro, a la portada como antes. `dest` (FAM-a1)
+manda sobre `volver`, y los dos solo se siguen con una elección válida.
+
 ---
 
 ## 5. Cosas que estaban y ya no

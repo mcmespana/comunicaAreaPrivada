@@ -33,6 +33,11 @@ class FakeSCP
     public $isAcomp = false;
     /** Seguimientos que devuelve el CRM (claves ya del CRM: mcm_*). */
     public $seguimientos = array();
+    /** Campos de más de la ficha de cada persona (id de contacto => campos):
+     *  los permisos y la salud de las marcas de la lista (plan 043, fila 9).
+     *  Solo llegan si se PIDEN, como en el CRM: un doble que los devolviera
+     *  siempre daría por buena una consulta que se olvidó de pedirlos. */
+    public $personaExtra = array();
 
     /**
      * ESTE DOBLE GUARDA. Lo que se escribe con set_entry se ve al volver a
@@ -92,6 +97,13 @@ class FakeSCP
      *  campamento futuro SIN sesiones y uno del curso anterior. Apagado por
      *  defecto para no mover ninguna otra prueba. */
     public $conEventos = false;
+
+    /** Grupos de actividad (GAC_*) en la convivencia `ev-bus`: dos patrullas
+     *  («Patrulla 1» y «Patrulla 10», para el orden natural), una habitación
+     *  de dos plazas con tres dentro, una patrulla anulada y una de otra
+     *  delegación. `$gacAusente`: el CRM dice que el módulo no existe. */
+    public $conGac = false;
+    public $gacAusente = false;
 
     /** `set_entries`: 'ok' (la forma real, `{ids: [...]}`), 'no_soportado' (el
      *  CRM contesta un error sin ids y no escribe nada), 'sin_respuesta' (escribe
@@ -166,6 +178,80 @@ class FakeSCP
         }
 
         return SugarRestApiCall::flattenRelationshipFields($entries, $relationshipList, $relationshipFields);
+    }
+
+    /** Los grupos de actividad, con la forma real: los miembros traen el grupo
+     *  y la persona unas veces por el campo plano y otras solo por el enlace. */
+    private function datosGac($module, $query, $rel)
+    {
+        if ($this->gacAusente) {
+            $this->lastError = 'Module Does Not Exist — #20';
+            return array();
+        }
+        if (!$this->conGac || strpos((string) $query, "evento_id = 'ev-bus'") === false) {
+            return array();
+        }
+        if ($module === 'GAC_grupos') {
+            $g = function ($id, $name, $tipo, $extra = array()) {
+                return $this->nvl(array_merge(array(
+                    'id' => $id, 'name' => $name, 'tipo' => $tipo, 'agrupacion' => '',
+                    'con_monitor' => '1', 'plazas' => '', 'activo' => '1',
+                    'evento_id' => 'ev-bus', 'assigned_user_id' => 'deleg-castellon',
+                ), $extra));
+            };
+            return array(
+                $g('gp10', 'Patrulla 10', 'patrulla'),
+                $g('gp1', 'Patrulla 1', 'patrulla'),
+                $g('gh1', 'Habitación chicas', 'habitacion', array('plazas' => '2')),
+                $g('gpx', 'Patrulla anulada', 'patrulla', array('activo' => '0')),
+                $g('gpb', 'Patrulla de Burriana', 'patrulla', array('assigned_user_id' => 'deleg-burriana')),
+            );
+        }
+        $m = function ($id, $name, $papel, $tipo, $grupo, $persona, $plano = true) {
+            $f = array(
+                'id' => $id, 'name' => $name, 'papel' => $papel, 'tipo' => $tipo, 'agrupacion' => '',
+                'evento_id' => 'ev-bus', 'assigned_user_id' => 'deleg-castellon',
+            );
+            if ($plano) {
+                $f['gac_grupos_gac_miembrosgac_grupos_ida'] = $grupo;
+                $f['contacts_gac_miembroscontacts_ida'] = $persona;
+            }
+            return array('fields' => $f, 'gac_grupo' => array('id' => $grupo), 'gac_persona' => array('id' => $persona));
+        };
+        return $this->entryListShape(array(
+            $m('mb1', 'Solete Vilarroya', 'participante', 'patrulla', 'gp1', 'c1'),
+            // Solo por el enlace: el campo plano llega vacío.
+            $m('mb2', 'Jaume Pascual', 'participante', 'patrulla', 'gp1', 'c2', false),
+            // Monitor NO inscrito en la convivencia.
+            $m('mb3', 'David Soler', 'monitor', 'patrulla', 'gp1', 'm1'),
+            $m('mb4', 'Marta Adulta', 'participante', 'patrulla', 'gp10', 'c3'),
+            // Canceló después de que la colocaran.
+            $m('mb5', 'Se Fue', 'participante', 'patrulla', 'gp10', 'c9'),
+            $m('mb6', 'Solete Vilarroya', 'participante', 'habitacion', 'gh1', 'c1'),
+            $m('mb7', 'Lucía Gil', 'participante', 'habitacion', 'gh1', 'c5'),
+            $m('mb8', 'Marta Adulta', 'participante', 'habitacion', 'gh1', 'c3'),
+        ), $rel);
+    }
+
+    /**
+     * Añade a la persona de cada fila los campos de `$personaExtra`, pero
+     * SOLO los que la consulta pide en el enlace 'persona': el CRM devuelve lo
+     * que se le pide y nada más (trampa §3.2 del parte de estado).
+     */
+    private function conPersonaExtra($rows, $rel)
+    {
+        $pedidos = (is_array($rel) && isset($rel['persona']['fields'])) ? (array) $rel['persona']['fields'] : array();
+        foreach ($rows as $i => $row) {
+            if (!is_array($row) || empty($row['persona']['id']) || !isset($this->personaExtra[$row['persona']['id']])) {
+                continue;
+            }
+            foreach ($this->personaExtra[$row['persona']['id']] as $k => $v) {
+                if (in_array($k, $pedidos, true)) {
+                    $rows[$i]['persona'][$k] = $v;
+                }
+            }
+        }
+        return $rows;
     }
 
     /**
@@ -302,6 +388,8 @@ class FakeSCP
 
     /** Cuántas peticiones ha llevado cada tanda paralela. */
     public $batches = array();
+    /** Y cuáles: lo que va aquí no es una espera más. */
+    public $enTandas = array();
     /** Las escrituras que han salido SOLAS, fuera de una tanda: cada una es
      *  una espera entera. Es lo que hay que mirar para saber si un guardado
      *  va en tandas o en fila. */
@@ -340,6 +428,7 @@ class FakeSCP
             foreach ((array) $requests as $req) {
                 // La tanda SÍ llama: se apunta la llamada, como en producción.
                 $this->calls[] = $req['label'];
+                $this->enTandas[] = $req['label'];
                 $this->traido[$req['sig']] = call_user_func($req['producer']);
                 $listas++;
             }
@@ -390,6 +479,9 @@ class FakeSCP
 
     public function datosDeModulo($module, $query = '', $fields = array(), $rel = null)
     {
+        if ($module === 'GAC_grupos' || $module === 'GAC_miembros') {
+            return $this->datosGac($module, $query, $rel);
+        }
         if ($module === 'ajmcm_GRUPOS') {
             $marcar = function ($fila) {
                 if (!is_array($this->gruposActivos)) {
@@ -409,7 +501,7 @@ class FakeSCP
             return array(
                 $this->nvl($marcar(array(
                     'id' => 'g1', 'name' => 'Los Peques', 'code' => 'C1', 'level' => 'COM',
-                    'cursos_c' => '1º ESO',
+                    'cursos_c' => '1 ESO',
                     'ajmcm_n_participantes_c' => '11', 'ajmcm_n_monitores_c' => '2',
                     'ajmcm_monitores_c' => 'David Soler', 'ajmcm_recuento_al_c' => '2025-11-15 01:30:00',
                 ))),
@@ -450,7 +542,7 @@ class FakeSCP
             }
             // El curso cerrado: las de participante caducan, las de monitor no.
             $fin = $this->cursoCerrado ? '2026-08-31' : '';
-            return $this->entryListShape(array(
+            return $this->entryListShape($this->conPersonaExtra(array(
                 array(
                     'fields' => array('id' => 'r1', 'relationship_type' => 'participante_mic_com', 'start_date' => '2025-09-01', 'end_date' => $fin),
                     'grupo' => array('id' => 'g1', 'name' => 'Los Peques'),
@@ -528,7 +620,7 @@ class FakeSCP
                     'grupo' => array('id' => 'g9', 'name' => 'Ruah'),
                     'persona' => array('id' => 'm1', 'name' => 'David Soler', 'first_name' => 'David', 'last_name' => 'Soler'),
                 ),
-            ), $rel);
+            ), $rel), $rel);
         }
         // La comprobación de los enlaces de lo recién creado: por id, con los
         // campos planos tal como han quedado (ver `sticpa_pl_enlaces_pendientes`).
@@ -689,6 +781,14 @@ class FakeSCP
             $out = array();
             foreach ($fam as $id => $datos) {
                 if (strpos((string) $query, "'" . $id . "'") !== false) {
+                    // Los campos de las marcas, solo si se piden (como arriba).
+                    if (isset($this->personaExtra[$id])) {
+                        foreach ($this->personaExtra[$id] as $k => $v) {
+                            if (in_array($k, (array) $fields, true)) {
+                                $datos[$k] = $v;
+                            }
+                        }
+                    }
                     $out[] = $this->nvl($datos);
                 }
             }
@@ -1446,6 +1546,33 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('pl-hero--done', $html);
     }
 
+    /**
+     * «CHAVALINES», Y SIEMPRE CON SU UNIDAD (plan 043, fila 4; auditoría
+     * PL-10 punto 5). Las pastillas de «Pasar lista de otro grupo» decían «9»
+     * al lado de «1 gr.», y la diferencia solo estaba en un `title`, que en el
+     * móvil no existe. En el doble, MIC y COM tienen recuento fresco y LC no.
+     */
+    public function test_portada_las_pastillas_dicen_chavalines_y_grupos()
+    {
+        $html = $this->render('single_stic_pasar_lista');
+
+        $this->assertStringContainsString('<span class="pl-bucket-count">9 chavalines</span>', $html);
+        $this->assertStringContainsString('<span class="pl-bucket-count">11 chavalines</span>', $html);
+        $this->assertStringContainsString('<span class="pl-bucket-count pl-bucket-count--groups">1 grupo</span>', $html);
+        $this->assertStringNotContainsString(' gr.', $html);
+        $this->assertStringNotContainsString('participantes', $html);
+    }
+
+    /** Con la lista aún por pasar, el atajo cuenta la gente del grupo igual. */
+    public function test_portada_el_atajo_cuenta_chavalines()
+    {
+        $this->scp->listas['l1'] = array('estado' => '');
+        $html = $this->render('single_stic_pasar_lista');
+
+        $this->assertStringNotContainsString('pl-hero--done', $html);
+        $this->assertStringContainsString('16:30 – 18:00 · 3 chavalines', $html);
+    }
+
     public function test_arbol_pone_tu_grupo_primero_y_agrupa_por_etapa()
     {
         $html = $this->render('single_stic_pasar_lista_grupos');
@@ -1502,7 +1629,7 @@ final class PasarListaRenderTest extends TestCase
     public function test_arbol_enseña_el_curso_escolar_del_grupo()
     {
         $html = $this->render('single_stic_pasar_lista_grupos');
-        $this->assertStringContainsString('1º ESO', $html);
+        $this->assertStringContainsString('1 ESO', $html);
         $this->assertStringContainsString('5º Primaria', $html);
     }
 
@@ -3420,7 +3547,7 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringNotContainsString('>11<', $com);
         // Donde todos tienen recuento, el número lleva su unidad pegada y la
         // línea de abajo no abrevia.
-        $this->assertStringContainsString('<span class="pl-card-unit">chavales</span>', $cards);
+        $this->assertStringContainsString('<span class="pl-card-unit">chavalines</span>', $cards);
         $this->assertStringContainsString('1 monitor', $cards);
         $this->assertStringNotContainsString('mon.', $cards);
     }
@@ -4253,7 +4380,7 @@ final class PasarListaRenderTest extends TestCase
 
         // Primaria antes que ESO, y dentro por número.
         $this->assertLessThan($r('5º Primaria'), $r('4º Primaria'));
-        $this->assertLessThan($r('1º ESO'), $r('6º Primaria'));
+        $this->assertLessThan($r('1 ESO'), $r('6º Primaria'));
         $this->assertLessThan($r('1º Bachillerato'), $r('4º ESO'));
         // Valenciano y castellano, lo mismo.
         $this->assertSame($r('6º Primaria'), $r('6é Primària'));
@@ -4740,9 +4867,9 @@ final class PasarListaRenderTest extends TestCase
 
         $this->assertStringContainsString('Sus grupos', $html);
         // El que lleva, con enlace a su lista y los recuentos del mapa de
-        // relaciones (3 participantes en g1: c1, c2 y la del rol `grupo`).
+        // relaciones (3 chavalines en g1: c1, c2 y la del rol `grupo`).
         $this->assertStringContainsString('pl-grp-role--lleva', $html);
-        $this->assertStringContainsString('3 participantes', $html);
+        $this->assertStringContainsString('3 chavalines', $html);
         $this->assertStringContainsString('single_stic_pasar_lista_marcar&amp;grupo=g1', $html);
         // Y el suyo, el COM-LC, que en el CRM está en otra pestaña y aquí no.
         $this->assertStringContainsString('pl-grp-role--suyo', $html);
@@ -5268,10 +5395,10 @@ final class PasarListaRenderTest extends TestCase
         $html = $this->render('single_stic_pasar_lista_grupos');
 
         $this->assertStringContainsString('David Soler', $html);
-        $this->assertStringContainsString('11 participantes', $html);
+        $this->assertStringContainsString('11 chavalines', $html);
         // g2 tiene el recuento VIEJO: su numero no se pinta, su monitor si.
         $this->assertStringContainsString('Mercedes', $html);
-        $this->assertStringNotContainsString('10 participantes', $html);
+        $this->assertStringNotContainsString('10 chavalines', $html);
     }
 
     /**
@@ -5756,7 +5883,7 @@ final class PasarListaRenderTest extends TestCase
 
         // g1 tiene tres participantes vigentes (c1, c2 y la adulta c3) y un
         // monitor (m1). Se cuentan del mapa, no del recuento nocturno.
-        $this->assertStringContainsString('3 chavales', $html);
+        $this->assertStringContainsString('3 chavalines', $html);
         $this->assertStringContainsString('1 monitor', $html);
     }
 
@@ -5776,9 +5903,9 @@ final class PasarListaRenderTest extends TestCase
     {
         $html = $this->render('single_stic_mis_grupos');
 
-        $this->assertStringNotContainsString('0 chavales', $html);
+        $this->assertStringNotContainsString('0 chavalines', $html);
         // Sale el recuento del Guardián, que es el que sabe cuántos había.
-        $this->assertStringContainsString('9 chavales', $html);
+        $this->assertStringContainsString('9 chavalines', $html);
         // Y los monitores contados de verdad, que es el dato de hoy.
         $this->assertStringContainsString('1 monitor', $html);
     }
@@ -5793,10 +5920,10 @@ final class PasarListaRenderTest extends TestCase
         $this->scp->sinEnlaces = true;
         $html = $this->render('single_stic_mis_grupos');
 
-        $this->assertStringNotContainsString('0 chavales', $html);
+        $this->assertStringNotContainsString('0 chavalines', $html);
         // g2 lleva `ajmcm_n_participantes_c = 10` con recuento del 1/9, que a
         // 15/11 ya no es fresco; g3 lo tiene del 14/11, o sea de anoche.
-        $this->assertStringContainsString('9 chavales', $html);
+        $this->assertStringContainsString('9 chavalines', $html);
     }
 
     /** La ficha de un grupo: su gente, en dos secciones y sin marcar nada. */
@@ -5813,6 +5940,150 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('pl-rowlink', $html);
         $this->assertStringContainsString('single_stic_pasar_lista_ficha', $html);
         $this->assertStringNotContainsString('pl-mark', $html);
+    }
+
+    // ---- Lo importante del grupo, de un vistazo (plan 043, fila 9; F3) -----
+
+    /**
+     * Las fichas del doble para las marcas. c1 lo tiene todo; c2 tiene «Sí»
+     * en los permisos y un tratamiento, pero NO autoriza el uso de sus datos
+     * de salud; c3 no ha contestado nada (una ficha migrada, CAMPOS.md); y el
+     * monitor m1 dice «No» a dos.
+     */
+    private function conMarcas()
+    {
+        $this->scp->personaExtra = array(
+            'c1' => array(
+                'ajmcm_soloacasa_c' => '0',
+                'ajmcm_cesionimagenes_interne_c' => '0',
+                'ajmcm_datossalud_c' => '1',
+                'ajmcm_descripcion_allergies__c' => 'Frutos secos',
+            ),
+            'c2' => array(
+                'ajmcm_soloacasa_c' => '1',
+                'ajmcm_cesionimagenes_interne_c' => '1',
+                'ajmcm_datossalud_c' => '0',
+                'ajmcm_descripcion_tratam_c' => 'Ventolin antes de correr',
+            ),
+            'c3' => array(
+                'ajmcm_soloacasa_c' => '',
+                'ajmcm_cesionimagenes_interne_c' => '',
+                'ajmcm_datossalud_c' => '',
+            ),
+            // El monitor también tiene su «No»: las marcas son de la lista de
+            // los chavales y no le tienen que salir.
+            'm1' => array('ajmcm_cesionimagenes_interne_c' => '0', 'ajmcm_soloacasa_c' => '0'),
+        );
+    }
+
+    /** El trozo de HTML de la fila de una persona, para mirar SUS marcas. */
+    private function filaDe($html, $nombre, $abre, $cierra)
+    {
+        $pos = strpos($html, $nombre);
+        $this->assertNotFalse($pos, $nombre . ' no sale en la lista');
+        $ini = strrpos(substr($html, 0, $pos), $abre);
+        $fin = strpos($html, $cierra, $pos);
+        return substr($html, $ini, $fin - $ini);
+    }
+
+    /**
+     * Mis grupos: una pastilla por marca bajo el nombre, en el orden fijo y
+     * como mucho tres; el «Sí» y el vacío no marcan, y la salud con el uso de
+     * sus datos denegado tampoco. El texto de salud NO sale en el HTML.
+     */
+    public function test_mis_grupos_marca_lo_importante_junto_al_nombre()
+    {
+        $this->conMarcas();
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_mis_grupos');
+
+        $solete = $this->filaDe($html, 'Solete Vilarroya', '<a class="pl-rowwrap', '</a>');
+        $this->assertStringContainsString(
+            '<span class="pl-marcas">'
+            . '<span class="pl-marca pl-marca--no_solo" title="No tiene autorización para irse solo/a a casa">No se va solo/a</span>'
+            . '<span class="pl-marca pl-marca--sin_fotos" title="No autoriza la cesión de imágenes">Sin fotos</span>'
+            . '<span class="pl-marca pl-marca--salud" title="Tiene alergias, intolerancias o tratamientos: el detalle está en su ficha">Alergia o tratamiento</span>'
+            . '</span>',
+            $solete
+        );
+
+        // c2: «Sí» en los dos permisos, y el tratamiento no se marca porque no
+        // autoriza el uso de sus datos de salud (`ajmcm_datossalud_c` = 0).
+        $this->assertStringNotContainsString('pl-marca', $this->filaDe($html, 'Jaume Pascual', '<a class="pl-rowwrap', '</a>'));
+        // c3: sin contestar. Un vacío no es un «no».
+        $this->assertStringNotContainsString('pl-marca', $this->filaDe($html, 'Marta Adulta', '<a class="pl-rowwrap', '</a>'));
+        // Los monitores no llevan marcas: son de la lista de los chavales.
+        $this->assertStringNotContainsString('pl-marca', $this->filaDe($html, 'David Soler', '<div class="pl-rowwrap', '</div>'));
+
+        // Lo de salud, NUNCA en el HTML: ni el texto ni en un atributo.
+        $this->assertStringNotContainsString('Frutos secos', $html);
+        $this->assertStringNotContainsString('Ventolin', $html);
+    }
+
+    /** Sin marcas en las fichas, ni pastillas ni filtro: nada que decir. */
+    public function test_mis_grupos_sin_marcas_no_pinta_nada()
+    {
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_mis_grupos');
+
+        $this->assertStringNotContainsString('pl-marca', $html);
+        $this->assertStringNotContainsString('data-pl-filtro-fotos', $html);
+        $this->assertStringNotContainsString('data-pl-sin-fotos', $html);
+    }
+
+    /**
+     * «¿Quién no puede salir en fotos?»: el chip de filtro de la lista de un
+     * evento, con cuántos son, y la marca que mira el JS solo en sus filas.
+     */
+    public function test_mis_grupos_filtra_quien_no_puede_salir_en_fotos()
+    {
+        $this->conMarcas();
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_mis_grupos');
+
+        $this->assertStringContainsString(
+            '<button type="button" class="pl-evchip" data-pl-filtro-fotos aria-pressed="false">'
+            . '¿Quién no puede salir en fotos?<span class="pl-evchip-n">1</span></button>',
+            $html
+        );
+        $this->assertSame(1, substr_count($html, 'data-pl-sin-fotos'));
+        $this->assertStringContainsString('data-pl-sin-fotos', $this->filaDe($html, 'Solete Vilarroya', '<a class="pl-rowwrap', '</a>'));
+        // Va con el buscador, que es quien lo aplica.
+        $this->assertLessThan(strpos($html, 'data-pl-filtro-fotos'), strpos($html, 'data-pl-filter'));
+    }
+
+    /**
+     * Con el mapa inservible, la gente sale del respaldo por grupo (una
+     * consulta de contactos para todos): las marcas viajan también ahí.
+     */
+    public function test_mis_grupos_las_marcas_salen_tambien_por_el_respaldo()
+    {
+        $this->conMarcas();
+        $this->scp->sinEnlaces = true;
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_mis_grupos');
+
+        $solete = $this->filaDe($html, 'Solete Vilarroya', '<a class="pl-rowwrap', '</a>');
+        $this->assertStringContainsString('pl-marca--no_solo', $solete);
+        $this->assertStringContainsString('pl-marca--salud', $solete);
+        $this->assertStringNotContainsString('Frutos secos', $html);
+    }
+
+    /** La pantalla de marcar lleva las mismas marcas, dentro de la fila. */
+    public function test_marcar_lleva_las_marcas_del_grupo()
+    {
+        $this->conMarcas();
+        $_REQUEST = array('grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_marcar');
+
+        $solete = $this->filaDe($html, 'Solete Vilarroya</span>', '<div class="pl-rowwrap">', '</button>');
+        $this->assertStringContainsString('pl-marca--no_solo', $solete);
+        $this->assertStringContainsString('pl-marca--sin_fotos', $solete);
+        $this->assertStringContainsString('pl-marca--salud', $solete);
+        $this->assertStringNotContainsString('pl-marca', $this->filaDe($html, 'Jaume Pascual</span>', '<div class="pl-rowwrap">', '</button>'));
+        $this->assertStringNotContainsString('Frutos secos', $html);
+        // El filtro es de Mis grupos: aquí se marca, no se esconde a nadie.
+        $this->assertStringNotContainsString('data-pl-filtro-fotos', $html);
     }
 
     /** La foto, que es lo que se pidió: en el avatar y por el endpoint propio. */
@@ -5852,10 +6123,10 @@ final class PasarListaRenderTest extends TestCase
 
         // g1 es «1º ESO» en el doble: su gente sale bajo ese título, junta,
         // aunque estuvieran repartidos en varios grupos.
-        $this->assertStringContainsString('1º ESO', $html);
+        $this->assertStringContainsString('1 ESO', $html);
         $this->assertStringContainsString('Solete Vilarroya', $html);
-        // Y el título lleva su recuento.
-        $this->assertStringContainsString('participantes', $html);
+        // Y el título lleva su recuento: c1, c2 y c3 (plan 043, fila 4).
+        $this->assertStringContainsString('3 chavalines', $html);
     }
 
     /** El buscador: solo se pinta una vez y con su mensaje de «nada coincide». */
@@ -6054,7 +6325,7 @@ final class PasarListaRenderTest extends TestCase
      */
     public function test_intensidad_de_curso_crece_con_la_edad()
     {
-        $escalera = array('Infantil 3', '1º Primaria', '6º Primaria', '1º ESO',
+        $escalera = array('Infantil 3', '1º Primaria', '6º Primaria', '1 ESO',
             '4º ESO', '1º Bachillerato', 'FP', 'Universidad', 'Adultos');
 
         $previo = -1.0;
@@ -6208,7 +6479,7 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('pl_assign_rel', $html);
         $this->assertStringContainsString('pl_assign_group', $html);
         // El curso va en la opción: sin él no se puede decidir a dónde va nadie.
-        $this->assertStringContainsString('1º ESO', $html);
+        $this->assertStringContainsString('1 ESO', $html);
     }
 
     /** Sin nonce válido no se escribe nada, aunque coordines. */
@@ -6727,27 +6998,60 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame($porId['cerca']['start'], $porId['cerca']['end']);
     }
 
-    /** La etapa: manda la ficha; si está vacía, se deduce del curso
-     *  (primaria → MIC; ESO, Bachillerato y FP → COM). Lo demás, sin etapa. */
-    public function test_ev_etapa_de_la_ficha_o_del_curso()
+    /** La etapa: manda el CURSO (primaria → MIC; ESO, Bachillerato y FP →
+     *  COM); si no dice nada, la del grupo y, al final, la de la ficha, que
+     *  se queda vieja (Castellón, 11/10/2026: 20 de 47 de primaria con COM). */
+    public function test_ev_etapa_del_curso_luego_grupo_luego_ficha()
     {
-        $this->assertSame('COM', sticpa_pl_ev_etapa('COM', '5_primaria'));
-        $this->assertSame('LC', sticpa_pl_ev_etapa('lc', ''));
-        $this->assertSame('MIC', sticpa_pl_ev_etapa('', '4_primaria'));
-        $this->assertSame('COM', sticpa_pl_ev_etapa('', '3_eso'));
-        $this->assertSame('COM', sticpa_pl_ev_etapa('', '1_bachillerato'));
-        $this->assertSame('COM', sticpa_pl_ev_etapa('', 'fp_gm'));
-        $this->assertSame('', sticpa_pl_ev_etapa('', 'universitario'));
-        $this->assertSame('', sticpa_pl_ev_etapa('', ''));
+        // El caso real: ficha COM, relación de 5.º de primaria → MIC.
+        $this->assertSame('MIC', sticpa_pl_ev_etapa('5_primaria', '', 'COM'));
+        $this->assertSame('MIC', sticpa_pl_ev_etapa('4_primaria', 'COM', 'COM'));
+        $this->assertSame('COM', sticpa_pl_ev_etapa('3_eso'));
+        $this->assertSame('COM', sticpa_pl_ev_etapa('1_bachillerato'));
+        $this->assertSame('COM', sticpa_pl_ev_etapa('fp_gm'));
+        // Sin curso que diga algo: el grupo antes que la ficha.
+        $this->assertSame('LC', sticpa_pl_ev_etapa('universitario', 'LC', 'COM'));
+        $this->assertSame('MIC', sticpa_pl_ev_etapa('', 'MIC', 'COM'));
+        $this->assertSame('LC', sticpa_pl_ev_etapa('', '', 'lc'));
+        $this->assertSame('', sticpa_pl_ev_etapa('universitario'));
+        $this->assertSame('', sticpa_pl_ev_etapa(''));
         // `na` no es un curso.
         $this->assertSame('', sticpa_pl_ev_curso_key('na'));
         $this->assertSame('', sticpa_pl_ev_curso_key('inventado'));
     }
 
+    /** El curso sale de la relación de PARTICIPANTE vigente más reciente que
+     *  lo tenga: la tanda vieja sin cerrar (6 EP) pierde contra la de este
+     *  curso (1 ESO); las de monitor no cuentan; las terminadas tampoco. Y el
+     *  grupo, con la misma elección. */
+    public function test_ev_curso_y_grupo_de_la_relacion_mas_reciente()
+    {
+        $rel = function ($cid, $role, $start, $curso, $gid = '', $vigente = true) {
+            return array('role' => $role, 'vigente' => $vigente, 'start' => $start,
+                'curso_escolar' => $curso, 'group_id' => $gid, 'person' => array('id' => $cid));
+        };
+        $rels = array(
+            $rel('p1', 'participante', 100, '6_primaria', 'gv'),
+            $rel('p1', 'participante', 200, '1_eso', 'gn'),
+            $rel('p2', 'monitor', 300, '5_primaria', 'gv'),
+            $rel('p3', 'participante', 300, '4_eso', 'gn', false),
+            $rel('p4', 'participante', 300, '', 'gn'),
+            $rel('p4', 'participante', 100, '2_eso', 'gv'),
+        );
+        $this->assertSame(array('p1' => '1_eso', 'p4' => '2_eso'), sticpa_pl_ev_cursos_de($rels));
+        $groups = array('gv' => array('code' => 'M6', 'etapa' => 'MIC'), 'gn' => array('code' => 'C1', 'etapa' => 'COM'));
+        $g = sticpa_pl_ev_grupos_de($rels, $groups);
+        $this->assertSame(array('id' => 'gn', 'code' => 'C1', 'etapa' => 'COM'), $g['p1']);
+        $this->assertSame('gn', $g['p4']['id']);
+        $this->assertArrayNotHasKey('p2', $g);
+        $this->assertArrayNotHasKey('p3', $g);
+    }
+
     /** El armado de la lista: las canceladas al final y fuera del mapa que se
      *  puede escribir; una persona con una cancelada vieja y una confirmada
      *  nueva sale UNA vez, activa; los cursos y etapas se cuentan con las
-     *  activas; orden por apellidos. */
+     *  activas; orden por CURSO y, dentro, por apellidos (sin acentos). El
+     *  curso de la inscripción manda; si falta, el de la relación. */
     public function test_ev_lista_separa_canceladas_y_no_duplica()
     {
         $ins = array(
@@ -6764,9 +7068,20 @@ final class PasarListaRenderTest extends TestCase
             'c' => array('first' => 'Ciro', 'last' => 'Mas', 'full' => 'Ciro Mas', 'etapa' => 'COM'),
             'd' => array('first' => 'Dani', 'last' => 'Pons', 'full' => 'Dani Pons', 'etapa' => ''),
         );
-        $l = sticpa_pl_ev_lista($ins, $per, array('a' => array('id' => 'g1', 'code' => 'C1')));
+        $ins[] = array('reg_id' => 'r6', 'contact_id' => 'e', 'status' => 'confirmed', 'curso' => '');
+        $ins[] = array('reg_id' => 'r7', 'contact_id' => 'f', 'status' => 'confirmed', 'curso' => '');
+        $per['e'] = array('first' => 'Eva', 'last' => 'Álvarez', 'full' => 'Eva Álvarez', 'etapa' => 'COM');
+        $per['f'] = array('first' => 'Fran', 'last' => 'Beltrán', 'full' => 'Fran Beltrán', 'etapa' => 'COM');
+        $l = sticpa_pl_ev_lista($ins, $per, array('a' => array('id' => 'g1', 'code' => 'C1')),
+            array('e' => '5_primaria', 'f' => '5_primaria', 'a' => '4_primaria'));
 
-        $this->assertSame(array('b', 'd', 'a'), array_column($l['activos'], 'id'));
+        // 5 EP (Álvarez, Beltrán, Pons) · 1 ESO (Zurita: manda su inscripción) · 2 ESO.
+        $this->assertSame(array('e', 'f', 'd', 'a', 'b'), array_column($l['activos'], 'id'));
+        $this->assertSame('MIC', $l['activos'][0]['etapa']);   // ficha COM, curso de primaria
+        $this->assertSame('5 EP', $l['activos'][0]['curso_label']);
+        unset($l['activos']);
+        $ins = array_slice($ins, 0, 6);
+        $l = sticpa_pl_ev_lista($ins, $per, array('a' => array('id' => 'g1', 'code' => 'C1')));
         $this->assertSame(array('c'), array_column($l['fuera'], 'id'));
         $this->assertSame('Cancelada', $l['fuera'][0]['status_label']);
         $this->assertSame(array('r1' => 'a', 'r2' => 'b', 'r4' => 'd'), $l['regMap']);
@@ -6774,7 +7089,7 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame(array('MIC' => 1, 'COM' => 2), $l['etapas']);
         $porId = array_column($l['activos'], null, 'id');
         $this->assertSame('g1', $porId['a']['grupo_id']);
-        $this->assertSame('1º ESO', $porId['a']['curso_label']);
+        $this->assertSame('1 ESO', $porId['a']['curso_label']);
     }
 
     /** El selector: la convivencia que empieza HOY arriba y destacada, luego
@@ -6823,7 +7138,12 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame(1, substr_count($html, 'data-contact="c2"'));
         // Chips: todos (4) y cada curso con su número; «Sin curso» para el `na`.
         $this->assertStringContainsString('data-pl-ev-curso="" aria-pressed="true">Todos<span class="pl-evchip-n">4</span>', $html);
-        $this->assertStringContainsString('1º ESO<span class="pl-evchip-n">1</span>', $html);
+        $this->assertStringContainsString('1 ESO<span class="pl-evchip-n">1</span>', $html);
+        // Por etapa y, dentro, por curso con su subtítulo y su número; debajo
+        // del nombre, el curso corto y el grupo.
+        $this->assertStringContainsString('<span>5 EP</span><span class="pl-evcurso-n" aria-hidden="true">·</span><span class="pl-evcurso-n" data-pl-ev-n>1</span>', $html);
+        $this->assertStringContainsString('<span class="pl-rowsub">2 ESO · C1</span>', $html);
+        $this->assertLessThan(strpos($html, '<span>2 ESO</span>'), strpos($html, '<span>1 ESO</span>'));
         $this->assertStringContainsString('Sin curso<span class="pl-evchip-n">1</span>', $html);
         // «Se Fue» canceló: al final, sin botón y con su chip.
         $this->assertStringNotContainsString('data-contact="c9"', $html);
@@ -6965,5 +7285,163 @@ final class PasarListaRenderTest extends TestCase
         $this->assertLessThan(strpos($html, 'pl-hero'), strpos($html, 'pl-evhoy'));
         $this->assertStringContainsString('Pasar lista en un evento', $html);
         $this->assertStringContainsString('3 este curso', $html);
+    }
+
+    // ---- Grupos de actividad (patrullas, habitaciones…) ---------------------
+
+    /** Sin grupos de actividad la lista del autobús sale como siempre: sin
+     *  pestañas, y los miembros ni se piden. */
+    public function test_gac_sin_grupos_no_hay_pestanas()
+    {
+        $this->scp->conEventos = true;
+        $_REQUEST = array('evento' => 'ev-bus');
+        $html = $this->render('single_stic_pasar_lista_evento');
+
+        $this->assertStringContainsString('data-pl-marcar', $html);
+        $this->assertStringNotContainsString('pl-gac-tabs', $html);
+        $this->assertNotContains('getRecordsModule:GAC_miembros', $this->scp->calls);
+    }
+
+    /** Con grupos: «Lista» y una pestaña por agrupación, en el orden de los
+     *  tipos y con cuántos grupos tiene. Sin la anulada ni la de otra
+     *  delegación. La lista sigue siendo la de marcar y sin pedir miembros. */
+    public function test_gac_pestanas_en_la_lista()
+    {
+        $this->scp->conEventos = true;
+        $this->scp->conGac = true;
+        $_REQUEST = array('evento' => 'ev-bus');
+        $html = $this->render('single_stic_pasar_lista_evento');
+
+        $this->assertStringContainsString('pl-gac-tabs', $html);
+        $this->assertMatchesRegularExpression('/aria-current="page" href="\?internalpage=single_stic_pasar_lista_evento&(amp;|#038;)evento=ev-bus">Lista<\/a>/', $html);
+        $this->assertStringContainsString('Patrullas<span class="pl-gac-tab-n">2</span>', $html);
+        $this->assertStringContainsString('Habitaciones<span class="pl-gac-tab-n">1</span>', $html);
+        $this->assertLessThan(strpos($html, 'Habitaciones<'), strpos($html, 'Patrullas<'));
+        $this->assertStringContainsString('data-pl-marcar', $html);
+        $this->assertSame(1, count(array_keys($this->scp->calls, 'getRecordsModule:GAC_grupos', true)));
+        $this->assertNotContains('getRecordsModule:GAC_miembros', $this->scp->calls);
+        // En la primera tanda, con las inscripciones: ni una espera más.
+        $this->assertContains('getRecordsModule:GAC_grupos', $this->scp->enTandas);
+    }
+
+    /** La pestaña de patrullas: para mirar. Cada patrulla con su gente
+     *  (monitores primero, también el que no se inscribió), en orden natural;
+     *  quien canceló, con su estado; y quien va y no tiene patrulla, al final.
+     *  Nada se marca aquí y no se piden las sesiones. */
+    public function test_gac_vista_de_patrullas()
+    {
+        $this->scp->conEventos = true;
+        $this->scp->conGac = true;
+        $_REQUEST = array('evento' => 'ev-bus', 'grupos' => 'patrulla|');
+        $html = $this->render('single_stic_pasar_lista_evento');
+
+        $this->assertStringNotContainsString('data-pl-marcar', $html);
+        $this->assertStringContainsString('class="pl-tab is-active" aria-current="page"', $html);
+        $this->assertStringContainsString('Patrullas<span class="pl-gac-tab-n">2</span></a>', $html);
+        // «Patrulla 1» antes que «Patrulla 10».
+        $p1 = strpos($html, '<span class="pl-gac-sec-name">Patrulla 1</span>');
+        $p10 = strpos($html, '<span class="pl-gac-sec-name">Patrulla 10</span>');
+        $this->assertNotFalse($p1);
+        $this->assertLessThan($p10, $p1);
+        // En la 1: el monitor (no inscrito) primero, Solete y Jaume (este, solo
+        // por el enlace).
+        $bloque1 = substr($html, $p1, $p10 - $p1);
+        $this->assertStringContainsString('David Soler', $bloque1);
+        $this->assertStringContainsString('Monitor/a', $bloque1);
+        $this->assertLessThan(strpos($bloque1, 'Solete'), strpos($bloque1, 'David Soler'));
+        $this->assertStringContainsString('Jaume', $bloque1);
+        $this->assertStringContainsString('<span class="pl-gac-sec-n">3</span>', $bloque1);
+        // Con grupo de los sábados: enlace a su ficha.
+        $this->assertMatchesRegularExpression('/single_stic_pasar_lista_ficha&(amp;|#038;)participante=c1&(amp;|#038;)grupo=g1/', $bloque1);
+        // En la 10: Marta, y Se Fue con su cancelación.
+        $resto = substr($html, $p10);
+        $this->assertStringContainsString('Marta', $resto);
+        $this->assertStringContainsString('Cancelada', $resto);
+        // Lucía va y no tiene patrulla.
+        $this->assertStringContainsString('<span class="pl-gac-sec-name">Sin patrulla</span>', $html);
+        $this->assertGreaterThan($p10, strpos($html, 'Sin patrulla'));
+        $this->assertGreaterThan(strpos($html, 'Sin patrulla'), strpos($html, 'Lucía'));
+        // Ni la anulada ni la de otra delegación.
+        $this->assertStringNotContainsString('Patrulla anulada', $html);
+        $this->assertStringNotContainsString('Burriana', $html);
+        // A un toque de pasar lista por patrullas, o de una sola.
+        $this->assertStringContainsString('Pasar lista por patrullas', $html);
+        $this->assertMatchesRegularExpression('/por=patrulla%7C&(amp;|#038;)grupo=gp1/', $html);
+        $this->assertNotContains('stic_Events:stic_sessions_stic_events', $this->scp->calls);
+        $this->assertContains('getRecordsModule:GAC_grupos', $this->scp->enTandas);
+        $this->assertContains('getRecordsModule:GAC_miembros', $this->scp->enTandas);
+    }
+
+    /** Una habitación con más gente que plazas se avisa en su cabecera. */
+    public function test_gac_habitacion_con_plazas_pasadas()
+    {
+        $this->scp->conEventos = true;
+        $this->scp->conGac = true;
+        $_REQUEST = array('evento' => 'ev-bus', 'grupos' => 'habitacion|');
+        $html = $this->render('single_stic_pasar_lista_evento');
+
+        $this->assertStringContainsString('Habitación chicas', $html);
+        $this->assertStringContainsString('<span class="pl-gac-sec-n is-over">3/2 plazas</span>', $html);
+        // Jaume no tiene habitación.
+        $this->assertStringContainsString('Sin habitación', $html);
+    }
+
+    /** Pasar lista POR PATRULLAS, empezando por la 1: la lista de marcar de
+     *  siempre, partida por patrullas, con el chip de la 1 apretado. El
+     *  monitor sin inscripción sale en la cabecera y no se marca; quien
+     *  canceló, tampoco. Al guardar se vuelve a la misma vista. */
+    public function test_gac_lista_por_patrullas()
+    {
+        $this->scp->conEventos = true;
+        $this->scp->conGac = true;
+        $_REQUEST = array('evento' => 'ev-bus', 'por' => 'patrulla|', 'grupo' => 'gp1');
+        $html = $this->render('single_stic_pasar_lista_evento');
+
+        $this->assertStringContainsString('data-pl-marcar', $html);
+        $this->assertStringContainsString('Lista por patrullas.', $html);
+        $this->assertStringContainsString('data-pl-ev-curso="gp1" aria-pressed="true">Patrulla 1<span class="pl-evchip-n">2</span>', $html);
+        $this->assertStringContainsString('data-pl-ev-curso="" aria-pressed="false">Todos', $html);
+        $this->assertStringContainsString('Sin inscripción, no se marca: David Soler', $html);
+        // Quien canceló no es «sin inscripción»: sale en «No van».
+        $this->assertStringNotContainsString('no se marca: Se Fue', $html);
+        $this->assertStringNotContainsString('data-contact="m1"', $html);
+        $this->assertMatchesRegularExpression('/data-pl-ev-curso="gp1"[^>]*>(<button[^>]*)?[^<]*<?[^>]*data-contact="c1"/', $html);
+        $this->assertMatchesRegularExpression('/data-pl-ev-curso="sin"[^>]*>(<button[^>]*)?[^<]*<?[^>]*data-contact="c5"/', $html);
+        // Cuatro que van, cada uno una vez.
+        $this->assertSame(4, substr_count($html, 'class="pl-row"'));
+        $this->assertMatchesRegularExpression('/<form method="post" action="[^"]*sesion=sb1&(amp;|#038;)por=patrulla%7C"/', $html);
+    }
+
+    /** Una pestaña que no existe (o un enlace viejo) cae en la lista. */
+    public function test_gac_pestana_inventada_cae_en_la_lista()
+    {
+        $this->scp->conEventos = true;
+        $this->scp->conGac = true;
+        $_REQUEST = array('evento' => 'ev-bus', 'grupos' => 'autobus|');
+        $html = $this->render('single_stic_pasar_lista_evento');
+        $this->assertStringContainsString('data-pl-marcar', $html);
+    }
+
+    /** Mientras el módulo no exista en el CRM, se pregunta UNA vez y el «no
+     *  existe» se recuerda: la pantalla del evento no paga una llamada fallida
+     *  cada vez. */
+    public function test_gac_modulo_ausente_se_recuerda()
+    {
+        $this->scp->gacAusente = true;
+        $this->assertSame(array(), sticpa_gac_grupos($this->scp, 'ev-bus'));
+        $antes = count($this->scp->calls);
+        $this->assertSame(array(), sticpa_gac_grupos($this->scp, 'ev-bus'));
+        $this->assertSame(array(), sticpa_gac_miembros($this->scp, 'ev-bus'));
+        $this->assertSame($antes, count($this->scp->calls));
+    }
+
+    /** La portada de Pasar lista no pregunta por grupos de actividad. */
+    public function test_gac_la_portada_no_los_pide()
+    {
+        $this->scp->conEventos = true;
+        $this->scp->conGac = true;
+        $this->render('single_stic_pasar_lista');
+        $this->assertNotContains('getRecordsModule:GAC_grupos', $this->scp->calls);
+        $this->assertNotContains('getRecordsModule:GAC_miembros', $this->scp->calls);
     }
 }

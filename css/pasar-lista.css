@@ -451,6 +451,27 @@ html.pl-holding body * {
 }
 .pl-row[data-motive-note] .pl-note:not([style]) { color: var(--gray-500); }
 
+/* Las marcas de «lo importante del grupo» (plan 043, fila 9): pastillas de
+   texto pequeñas en su propia línea bajo el nombre, para no partirlo ni
+   empujar el círculo de marcar en 375 px. Si no caben, bajan a otra línea.
+   Grises, como un dato; la de salud en ámbar suave porque es la que se mira
+   antes de repartir la merienda. No son pulsables: el toque sigue siendo de
+   la fila entera. */
+.pl-marcas { display: flex; flex-wrap: wrap; gap: 0.25rem; margin: 0.1rem 0 0.05rem; }
+.pl-marca {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.08rem 0.45rem;
+    border-radius: var(--radius-full);
+    background: var(--gray-100);
+    color: var(--gray-700);
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1.35;
+    white-space: nowrap;
+}
+.pl-marca--salud { background: var(--warning-soft); color: var(--warning-dark); }
+
 /* El círculo de estado. Vacío y punteado = por marcar, y así se lee como un
    control que espera un toque; lleno = marcado, con glifo y color propios,
    que es lo que hace innecesaria la etiqueta en cada fila. */
@@ -3891,16 +3912,31 @@ a.pl-group .pl-name { display: block; }
    móvil (doce cursos no caben a 375 px y partirlos en tres líneas empuja la
    lista fuera de la pantalla). 44 px, como todo lo que se toca. El elegido va
    en el azul FIJO de la marca con texto blanco fijo: con el azul de los
-   tokens, en oscuro, el blanco se queda en 3,2:1 (plan 042, A11Y-6). */
+   tokens, en oscuro, el blanco se queda en 3,2:1 (plan 042, A11Y-6).
+
+   PEGADA ARRIBA al bajar por la lista (11/10/2026): en el autobús se salta de
+   curso en curso con la lista ya bajada. Precedente: el buscador del árbol
+   (`.pl-search`, `top: 0`), que ya va así dentro de MCM App. La fila sangra
+   hasta el borde, como la barra de guardar, y lleva el fondo de la página
+   para que la lista pase por debajo sin verse a través. Solo la fila: en esta
+   pantalla el buscador NO se pega (abajo), porque dos barras pegadas son
+   ~110 px de los ~580 que deja la app entre su barra y su tab bar. */
 .pl-evchips {
+    position: sticky;
+    top: 0;
+    z-index: 4;
     display: flex;
     gap: 0.45rem;
     overflow-x: auto;
-    margin: 0.1rem 0 0.35rem;
-    padding: 0.15rem 0.1rem 0.5rem;
+    margin: 0.1rem -1rem 0.35rem;
+    padding: 0.4rem 1rem 0.5rem;
+    background: var(--surface-2);
+    box-shadow: 0 6px 8px -8px rgba(15, 23, 42, 0.18);
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
 }
+[data-pl-evento] .pl-search { position: relative; top: auto; }
 .pl-evchips::-webkit-scrollbar { display: none; }
 .pl-evchip {
     display: inline-flex !important;
@@ -3933,6 +3969,21 @@ a.pl-group .pl-name { display: block; }
     .pl-evchip[aria-pressed="false"]:hover { border-color: var(--gray-300) !important; }
 }
 
+/* El subtítulo de cada CURSO dentro de su etapa: «4.º primaria · 19». Más
+   pequeño que el de la etapa (que va en versalitas) y en minúscula, para que
+   se lea como un nivel por debajo; el número en gris, como el de la etapa. */
+.pl-evcurso {
+    display: flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    padding: 0.75rem 0.3rem 0.4rem;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--gray-700);
+}
+.pl-etapa-title + .pl-evcurso { padding-top: 0.1rem; }
+.pl-evcurso-n { font-weight: 700; color: var(--gray-500); }
+
 /* Quien NO va (inscripción cancelada o parecida): al final, sin botón —no se
    marca— y con su chip. El nombre en gris de texto secundario, no apagado con
    opacidad: tiene que poder leerse igual. */
@@ -3955,4 +4006,110 @@ a.pl-group .pl-name { display: block; }
     .pl-evchip { transition: none; }
     .pl-evhoy:active,
     .pl-evchip:active { transform: none; opacity: 0.8; }
+}
+
+/* ==========================================================================
+   Grupos de ACTIVIDAD de un evento (patrullas, habitaciones, dinámica…)
+   ==========================================================================
+   inc/stic-grupos-actividad.php, en la pantalla del evento. Las pestañas son
+   las de «Grupos y fichas» (`.pl-tabs`), las filas las de siempre
+   (`.pl-rowlink` / `.pl-rowstatic`) y el buscador el del árbol: aquí solo va
+   lo nuevo. Docs: docs/comunica/GRUPOS-ACTIVIDAD.md */
+
+.pl-gac-tabs { margin-top: 0.1rem; }
+.pl-gac-tab-n {
+    margin-left: 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 800;
+    opacity: 0.75;
+}
+
+.pl-gac-resumen {
+    margin: 0.2rem 0.25rem 0.6rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--gray-500);
+}
+
+/* «Pasar lista por patrullas»: la acción de la pestaña, en la pastilla verde
+   de «Están todos» (es lo mismo: ir a marcar). */
+.stic-container .pl-gac-pasar,
+.pl-gac-pasar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 46px;
+    margin-bottom: 0.4rem;
+    border-radius: var(--radius-lg);
+    background: var(--success-50);
+    border: 1px solid var(--success-border);
+    color: var(--success-dark) !important;
+    font-size: 0.88rem;
+    font-weight: 700;
+    text-decoration: none !important;
+}
+.pl-gac-pasar svg { width: 17px; height: 17px; stroke: currentColor; fill: none; }
+.pl-gac-pasar:active { transform: scale(0.98); }
+
+/* La cabecera de cada grupo: el nombre a la izquierda, en su tamaño de título
+   (no en versalitas, que es la etiqueta de sección: aquí el nombre ES el dato
+   que se busca), y cuántos a la derecha. */
+.pl-gac-sec {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-top: 1.35rem;
+    text-transform: none;
+    letter-spacing: 0;
+}
+.pl-gac-sec-name {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--gray-900);
+    overflow-wrap: anywhere;
+}
+.pl-gac-sec-n {
+    flex-shrink: 0;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--gray-500);
+    font-variant-numeric: tabular-nums;
+}
+/* Más gente que plazas: se dice, no se bloquea. */
+.pl-gac-sec-n.is-over { color: var(--warning-dark); }
+
+.pl-gac-vacio .pl-rowsub { font-style: italic; }
+
+/* «Pasar lista de este grupo»: al pie de su lista, discreto. 44 px de alto. */
+.stic-container .pl-gac-grupo-lista,
+.pl-gac-grupo-lista {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 0.85rem;
+    border-top: 1px solid var(--gray-100);
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--primary-color) !important;
+    text-decoration: none !important;
+}
+
+/* La lista POR GRUPOS: qué se está viendo y cómo volver a cursos; y quien no
+   se marca (monitores sin inscripción), en la cabecera de su grupo. */
+.pl-gac-por {
+    margin: 0 0.25rem 0.5rem;
+    font-size: 0.82rem;
+    color: var(--gray-600);
+}
+.stic-container .pl-gac-por a { color: var(--primary-color) !important; font-weight: 700; }
+.pl-gac-nomarca {
+    margin: -0.3rem 0.3rem 0.45rem;
+    font-size: 0.78rem;
+    color: var(--gray-500);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pl-gac-pasar:active { transform: none; opacity: 0.8; }
 }

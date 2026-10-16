@@ -10,7 +10,12 @@
  * hereda el borrador en el móvil, la cola sin cobertura y la comprobación del
  * guardado contra el CRM. La lógica está en inc/stic-pasar-lista-eventos.php.
  *
- * Diseño: docs/comunica/PASAR-LISTA-EVENTOS.md
+ * Con GRUPOS DE ACTIVIDAD (patrullas, habitaciones… hechos en Comunica Tools),
+ * pestañas: «Lista» (esta) y una por agrupación (`&grupos=<clave>`), para
+ * consultarlos. Y la lista se puede pasar por grupos (`&por=<clave>`, y
+ * `&grupo=<id>` para empezar con uno). inc/stic-grupos-actividad.php.
+ *
+ * Diseño: docs/comunica/PASAR-LISTA-EVENTOS.md y docs/comunica/GRUPOS-ACTIVIDAD.md
  */
 
 if (!defined('ABSPATH')) {
@@ -23,17 +28,33 @@ sticpa_pl_maybe_refresh($objSCP);
 
 $eventId = isset($_REQUEST['evento']) ? sticpa_pl_safe_id($_REQUEST['evento']) : '';
 $sessionId = isset($_REQUEST['sesion']) ? sticpa_pl_safe_id($_REQUEST['sesion']) : '';
+// La pestaña de grupos de actividad (`grupos`) o la lista por grupos (`por`).
+// Se comparan luego con las pestañas que existen: aquí solo se limpian.
+$gacLimpia = function ($k) {
+    return isset($_REQUEST[$k]) ? substr(sanitize_text_field(wp_unslash((string) $_REQUEST[$k])), 0, 120) : '';
+};
+$gacTab = $gacLimpia('grupos');
+$gacPor = ($gacTab === '') ? $gacLimpia('por') : '';
+$gacGrupo = isset($_REQUEST['grupo']) ? sticpa_pl_safe_id($_REQUEST['grupo']) : '';
 
 // TANDA 1: lo que no depende de nada. Los eventos ya los ha pedido la portada
 // de Pasar Lista (y están cacheados como estructura); los grupos y las
-// relaciones son para el enlace a la ficha de cada uno.
-sticpa_pl_prime($objSCP, function () use ($objSCP, $eventId) {
+// relaciones dan el curso, el grupo y la etapa de cada uno, y el enlace a su
+// ficha. Los grupos de actividad del evento van en esta misma tanda (sus
+// miembros, solo si se van a enseñar): no alargan la espera de la lista.
+sticpa_pl_prime($objSCP, function () use ($objSCP, $eventId, $gacTab, $gacPor) {
     sticpa_pl_etapa_events($objSCP);
     sticpa_pl_groups($objSCP);
     sticpa_pl_all_relationships($objSCP);
     if ($eventId !== '') {
-        sticpa_pl_event_sessions($objSCP, $eventId);
+        if ($gacTab === '') {
+            sticpa_pl_event_sessions($objSCP, $eventId);
+        }
         sticpa_pl_ev_inscripciones($objSCP, $eventId);
+        sticpa_gac_grupos($objSCP, $eventId);
+        if ($gacTab !== '' || $gacPor !== '') {
+            sticpa_gac_miembros($objSCP, $eventId);
+        }
     }
 });
 
@@ -125,6 +146,77 @@ if ($event === null) {
     return;
 }
 
+// ---------------------------------------------------------------------------
+// Grupos de actividad: las pestañas
+// ---------------------------------------------------------------------------
+
+$gacAcabado = ($event['cuando'] === 'pasado');
+$gacTodos = sticpa_gac_grupos($objSCP, $event['id']);
+// Los miembros hacen falta para enseñar una pestaña, para la lista por grupos
+// y, en un evento ya pasado, para saber qué grupos archivados tenían gente.
+$gacMiembros = (!empty($gacTodos) && ($gacTab !== '' || $gacPor !== '' || $gacAcabado))
+    ? sticpa_gac_miembros($objSCP, $event['id'])
+    : array();
+$gacGrupos = sticpa_gac_visibles($gacTodos, $gacMiembros, $gacAcabado);
+$gacPestanas = sticpa_gac_pestanas($gacGrupos);
+if (!isset($gacPestanas[$gacTab])) {
+    $gacTab = '';
+}
+if (!isset($gacPestanas[$gacPor])) {
+    $gacPor = '';
+}
+
+// La cabecera, la misma en todas las pestañas.
+$gacCabecera = function ($subtitulo, $derecha = '') use ($event) {
+    $h = '<div class="pl-head">';
+    $h .= '<a class="pl-back" href="' . esc_url(sticpa_pl_ev_url()) . '" aria-label="' . esc_attr__('Volver a los eventos', 'sticpa') . '">'
+        . sticpa_pl_icon('back') . '</a>';
+    $h .= '<div class="pl-head-titles">';
+    $h .= '<div class="pl-title"><span class="pl-title-code">' . esc_html($event['name']) . '</span></div>';
+    $h .= '<div class="pl-subtitle">' . esc_html($subtitulo) . '</div>';
+    $h .= '</div>';
+    $h .= $derecha;
+    $h .= '</div>';
+    return $h;
+};
+
+// ===========================================================================
+// UNA PESTAÑA DE GRUPOS: para mirar, no se marca nada aquí
+// ===========================================================================
+
+if ($gacTab !== '') {
+    $inscripciones = sticpa_pl_ev_inscripciones($objSCP, $event['id']);
+    $ids = array();
+    foreach ($inscripciones as $r) {
+        if ($r['contact_id'] !== '') {
+            $ids[] = $r['contact_id'];
+        }
+    }
+    $personas = sticpa_pl_ev_personas($objSCP, $ids);
+    $relaciones = sticpa_pl_all_relationships($objSCP);
+    $lista = sticpa_pl_ev_lista(
+        $inscripciones,
+        $personas,
+        sticpa_pl_ev_grupos_de($relaciones, sticpa_pl_groups($objSCP)),
+        sticpa_pl_ev_cursos_de($relaciones)
+    );
+    $tabInfo = $gacPestanas[$gacTab];
+    $armado = sticpa_gac_armar($gacTab, $gacGrupos, $gacMiembros, $lista, $inscripciones);
+
+    $html .= $gacCabecera(
+        sticpa_pl_ev_fechas($event),
+        '<a class="pl-session-pick" href="' . esc_url(sticpa_gac_url($event['id'], $gacTab, array('refrescar' => '1'))) . '"'
+            . ' aria-label="' . esc_attr__('Refrescar datos', 'sticpa') . '">' . sticpa_pl_icon('refresh') . '</a>'
+    );
+    $html .= sticpa_gac_tabs_html($event['id'], $gacPestanas, $gacTab);
+    if ($gacAcabado) {
+        $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
+            . esc_html__('El evento ya ha terminado: así quedaron los grupos.', 'sticpa') . '</span></p>';
+    }
+    $html .= '<div class="pl-gac">' . sticpa_gac_vista_html($event['id'], $tabInfo, $armado) . '</div>';
+    return;
+}
+
 $sessions = sticpa_pl_event_sessions($objSCP, $event['id']);
 $session = null;
 $pick = null;
@@ -173,7 +265,15 @@ sticpa_pl_prime($objSCP, function () use ($objSCP, $ids, $session, $regMapPrevio
     }
 });
 $personas = sticpa_pl_ev_personas($objSCP, $ids);
-$lista = sticpa_pl_ev_lista($inscripciones, $personas, sticpa_pl_ev_grupos_de($objSCP));
+// El curso y el grupo salen de la relación de participante vigente más
+// reciente de cada uno, del mapa de relaciones ya cacheado: cero llamadas.
+$relaciones = sticpa_pl_all_relationships($objSCP);
+$lista = sticpa_pl_ev_lista(
+    $inscripciones,
+    $personas,
+    sticpa_pl_ev_grupos_de($relaciones, sticpa_pl_groups($objSCP)),
+    sticpa_pl_ev_cursos_de($relaciones)
+);
 $regMap = $lista['regMap'];
 
 // ---------------------------------------------------------------------------
@@ -309,23 +409,29 @@ $html .= '<div data-pl-marcar data-pl-evento'
     . ' data-msg-stuck="' . esc_attr__('No se ha podido enviar lo que quedó pendiente. Vuelve a marcar y guardar.', 'sticpa') . '"'
     . '>';
 
-$html .= '<div class="pl-head">';
-$html .= '<a class="pl-back" href="' . esc_url(sticpa_pl_ev_url()) . '" aria-label="' . esc_attr__('Volver a los eventos', 'sticpa') . '">'
-    . sticpa_pl_icon('back') . '</a>';
-$html .= '<div class="pl-head-titles">';
-$html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html($event['name']) . '</span></div>';
 $sub = array(sticpa_pl_ev_fechas($event));
 $sub[] = sprintf(
     /* translators: %d: personas con plaza en el evento */
     _n('%d persona', '%d personas', $nActivos, 'sticpa'),
     $nActivos
 );
-$html .= '<div class="pl-subtitle">' . esc_html(implode(' · ', $sub)) . '</div>';
-$html .= '</div>';
-$html .= ($session !== null)
-    ? sticpa_pl_ev_sesiones_html($event['id'], $sessions, $session['id'])
-    : '';
-$html .= '</div>';
+$html .= $gacCabecera(
+    implode(' · ', $sub),
+    ($session !== null) ? sticpa_pl_ev_sesiones_html($event['id'], $sessions, $session['id']) : ''
+);
+$html .= sticpa_gac_tabs_html($event['id'], $gacPestanas, '');
+
+// La lista por grupos de una pestaña (`&por=`): sus grupos armados.
+$gacArmado = null;
+if ($gacPor !== '') {
+    $gacArmado = sticpa_gac_armar($gacPor, $gacGrupos, $gacMiembros, $lista, $inscripciones);
+    $html .= '<p class="pl-gac-por">' . esc_html(sprintf(
+        /* translators: %s: la agrupación en minúscula, p. ej. «patrullas» */
+        __('Lista por %s.', 'sticpa'),
+        function_exists('mb_strtolower') ? mb_strtolower($gacPestanas[$gacPor]['label'], 'UTF-8') : strtolower($gacPestanas[$gacPor]['label'])
+    )) . ' <a href="' . esc_url(sticpa_pl_ev_url($event['id'], $session !== null ? $session['id'] : '')) . '">'
+        . esc_html__('Ver por cursos', 'sticpa') . '</a></p>';
+}
 
 // De qué día es la lista, cuando no es la obvia.
 if ($session === null) {
@@ -358,6 +464,10 @@ $formAction = sticpa_pl_ev_url($event['id'], $session !== null ? $session['id'] 
 if ($session === null) {
     $formAction .= '&dia=' . rawurlencode($dia);
 }
+if ($gacPor !== '') {
+    // Al guardar se vuelve a la misma lista por grupos.
+    $formAction .= '&por=' . rawurlencode($gacPor);
+}
 $html .= '<form method="post" action="' . esc_url($formAction) . '" class="stic-loading-form" data-pl-form'
     . ' data-loading-text="' . esc_attr__('Guardando la lista…', 'sticpa') . '"'
     . ' data-loading-sub="' . esc_attr__('Un momento', 'sticpa') . '">';
@@ -367,11 +477,14 @@ $html .= '<input type="hidden" name="pl_marks" value="" data-pl-marks>';
 $html .= '<input type="hidden" name="pl_notes" value="" data-pl-notes>';
 
 // Buscar a alguien («¿y Lucía?») y filtrar por curso. Todo en el navegador:
-// la lista ya está entera en la página.
+// la lista ya está entera en la página. Los chips se quedan pegados arriba al
+// bajar; el buscador no (dos barras pegadas se comen media pantalla del móvil).
 $html .= '<div class="pl-search">' . sticpa_pl_icon('search')
     . '<input type="search" data-pl-ev-buscar placeholder="' . esc_attr__('Buscar por nombre', 'sticpa') . '"'
     . ' aria-label="' . esc_attr__('Buscar por nombre', 'sticpa') . '" autocomplete="off" enterkeyhint="search"></div>';
-$html .= sticpa_pl_ev_chips_html($lista['cursos'], $nActivos);
+$html .= ($gacArmado !== null)
+    ? sticpa_gac_chips_html($gacArmado, $gacPestanas[$gacPor], $nActivos, $gacGrupo)
+    : sticpa_pl_ev_chips_html($lista['cursos'], $nActivos);
 
 // «Están todos»: rellena SOLO lo que está sin marcar y SOLO lo que se ve (con
 // un curso elegido, ese curso). Lo que ya está marcado no se toca.
@@ -381,30 +494,21 @@ $html .= '<button type="button" class="pl-all-present" data-pl-all-present'
     . ' data-label-rest="' . esc_attr__('El resto está ({n})', 'sticpa') . '">'
     . sticpa_pl_glyph('check') . '<span data-pl-all-label>' . esc_html__('Están todos', 'sticpa') . '</span></button>';
 
-// Por etapa: MIC, COM, LC y, si hay, «Sin etapa».
-$porEtapa = array('MIC' => array(), 'COM' => array(), 'LC' => array(), '' => array());
-foreach ($lista['activos'] as $p) {
-    $porEtapa[$p['etapa']][] = $p;
-}
-foreach ($porEtapa as $etapa => $gente) {
-    if (empty($gente)) {
-        continue;
+// Por etapa (MIC, COM, LC y, si hay, «Sin etapa») y, dentro, por curso; en
+// cada curso, por apellidos. O, con `&por=`, por los grupos de esa pestaña.
+$fila = function ($p) use ($attendances, $saved, $savedOk, $marks) {
+    $state = isset($attendances[$p['id']]['status']) ? $attendances[$p['id']]['status'] : '';
+    // Tras un guardado que NO se confirmó, lo que se pinta es lo marcado:
+    // el monitor no puede perder sus marcas por un fallo del CRM.
+    if (is_array($saved) && !$savedOk && isset($marks[$p['id']])) {
+        $state = $marks[$p['id']];
     }
-    $html .= '<div class="pl-etapa-title pl-evsec" data-pl-ev-sec><span>' . esc_html(sticpa_pl_ev_etapa_titulo($etapa)) . '</span>'
-        . '<span class="pl-etapa-count">' . count($gente) . '</span></div>';
-    $html .= '<div class="pl-list" data-pl-ev-list>';
-    foreach ($gente as $p) {
-        $state = isset($attendances[$p['id']]['status']) ? $attendances[$p['id']]['status'] : '';
-        // Tras un guardado que NO se confirmó, lo que se pinta es lo marcado:
-        // el monitor no puede perder sus marcas por un fallo del CRM.
-        if (is_array($saved) && !$savedOk && isset($marks[$p['id']])) {
-            $state = $marks[$p['id']];
-        }
-        $motive = isset($attendances[$p['id']]['description']) ? $attendances[$p['id']]['description'] : '';
-        $html .= sticpa_pl_ev_row_html($p, $state, $motive);
-    }
-    $html .= '</div>';
-}
+    $motive = isset($attendances[$p['id']]['description']) ? $attendances[$p['id']]['description'] : '';
+    return sticpa_pl_ev_row_html($p, $state, $motive);
+};
+$html .= ($gacArmado !== null)
+    ? sticpa_gac_secciones_html($gacArmado, $gacPestanas[$gacPor], $fila)
+    : sticpa_pl_ev_secciones_html($lista['activos'], $fila);
 $html .= '<p class="pl-search-empty" data-pl-ev-vacio hidden>' . esc_html__('Nadie coincide con lo que buscas.', 'sticpa') . '</p>';
 
 $html .= sticpa_pl_ev_fuera_html($lista['fuera']);

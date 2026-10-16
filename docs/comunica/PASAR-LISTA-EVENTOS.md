@@ -16,6 +16,7 @@ gente que está inscrita.
 | Filtro, «Están todos» y la cola sin cobertura | [`js/stic-pasar-lista.js`](../../js/stic-pasar-lista.js) (lo de marcar, más el bloque «Lista de un evento») |
 | Estilos | [`css/pasar-lista.css`](../../css/pasar-lista.css), sección «042 · Pasar lista en un EVENTO» |
 | Pruebas | `tests/PasarListaRenderTest.php`, las `test_ev_*` y `test_home_ofrece_el_evento_de_hoy_*` |
+| Grupos de actividad (pestañas «Patrullas», «Habitaciones»… y lista por grupos) | [`GRUPOS-ACTIVIDAD.md`](GRUPOS-ACTIVIDAD.md) |
 
 ---
 
@@ -28,9 +29,12 @@ gente que está inscrita.
 2. En la lista: **nadie está marcado**. Una inscripción confirmada no es «está
    en el autobús»: eso lo afirma quien pasa lista. Toque = está / no está;
    mantener pulsado = parcial o justificada (con motivo), igual que los sábados.
-3. **Por etapa** (MIC, COM, LC) y, arriba, **chips por curso** con cuántos hay
-   en cada uno («1º ESO 12»). Con un chip elegido se ve solo ese curso, y
-   **«Están todos»** marca solo lo que se ve y solo lo que está sin marcar.
+3. **Por etapa** (MIC, COM, LC) y, dentro, **por curso** («4 EP · 19») y por
+   apellidos. Debajo de cada nombre, en pequeño, su curso y su grupo
+   («4 EP · M4.1»). Arriba, **chips por curso** con cuántos hay («1 ESO 12»),
+   que se quedan pegados arriba al bajar: con uno elegido se ve solo ese curso
+   (y se vuelve arriba de la lista), y **«Están todos»** marca solo lo que se
+   ve y solo lo que está sin marcar.
 4. **Buscador** por nombre («¿y Lucía?»).
 5. Las inscripciones **canceladas** (o rechazadas…) salen al final, en
    «No van», apagadas y sin poder marcarse: contestan «¿y fulanito?» sin salir.
@@ -70,13 +74,24 @@ decidir de quién son las asistencias. Pendiente de decisión.
 | Dato | De dónde |
 |---|---|
 | Inscritos | `stic_Events` → `stic_registrations_stic_events`: `id`, `status`, `ajmcm_curso_escolar_c` y el contacto (`stic_registrations_contactscontacts_ida`, o el enlace anidado; si falta, el mapa de siempre con su respaldo) |
-| Nombre y etapa | `Contacts`: `first_name`, `last_name`, `ajmcm_etapa_c` (una consulta por id para todos) |
-| Curso | `stic_Registrations.ajmcm_curso_escolar_c` (lista `ajmcm_curso_escolar_c_list`, dominio completo en `CAMPOS.md`). `na` y vacío = «Sin curso» |
-| Grupo (para la ficha) | El mapa de relaciones de la delegación, ya cacheado |
+| Nombre y etapa de la ficha | `Contacts`: `first_name`, `last_name`, `ajmcm_etapa_c` (una consulta por id para todos) |
+| Curso | El de la inscripción si viene; si no —hoy, siempre—, el de la **relación de participante** vigente más reciente (`stic_Contacts_Relationships.ajmcm_curso_escolar_c`, del mapa de relaciones ya cacheado: cero llamadas). `na` y vacío = «Sin curso». Nunca el de una relación de monitor (lleva el curso del grupo que lleva) |
+| Grupo (ficha, código, etapa) | El mapa de relaciones de la delegación, ya cacheado, con la misma elección: la relación de participante vigente más reciente |
 
-- **Etapa**: la de la ficha. Si está vacía, se **deduce del curso**: primaria →
-  MIC; ESO, Bachillerato y FP → COM. Universitario y «otros» no se deducen
-  («Sin etapa»). Es una deducción, no un campo: si la ficha tiene etapa, manda.
+- **Por qué el curso no sale de la inscripción**: leído por MCP el 11/10/2026,
+  en las 90 inscripciones de las dos convivencias de Castellón no viene
+  (`CAMPOS.md`). El de la relación estaba en 83 de 90.
+- **La más reciente, no la primera**: hay relaciones de participante del curso
+  pasado sin `end_date` (148 en Castellón), y con la regla de vigencia una
+  persona puede tener dos. Gana la de inicio más reciente
+  (`sticpa_pl_ev_rel_reciente()`).
+- **Etapa**, por este orden (`sticpa_pl_ev_etapa()`): **deducida del curso**
+  (primaria → MIC; ESO, Bachillerato y FP → COM), la del **grupo**, la de la
+  **ficha**, y si no, «Sin etapa». La ficha va la última porque se queda vieja:
+  en la convivencia del MIC de Castellón 20 de 47 chavales de primaria tenían
+  COM en la ficha y salían en el COM.
+- **Nombres de curso cortos**, como se dicen en la casa: «4 EP», «1 ESO»,
+  «1 Bach» (chips, subtítulos y debajo del nombre).
 - **Estados que no van** (`sticpa_pl_ev_estados_fuera()`, con filtro):
   `cancelled` (lo escribe el área al cancelar), `rejected`, `uninvited`,
   `not_invited`, `didnt_take_part`. Todo lo demás —`confirmed`, vacío u otro— se

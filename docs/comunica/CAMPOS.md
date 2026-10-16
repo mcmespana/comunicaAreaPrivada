@@ -1039,6 +1039,31 @@ crear: varios estaban creados con otro nombre). Comprobado el 09/09/2026:
 | `attendees`, `total_hours`, `budget`, `actual_cost`… | varios | Gestión, no se usan en el área |
 | `stic_events_fp_event_locations` | relación | **El lugar es una relación a un módulo de ubicaciones**, no un texto: no existen `location`, `city` ni `address` |
 
+### Grupos de actividad (`GAC_grupos`, `GAC_miembros`) — paquete `GruposActividad`, clave `GAC`
+
+> ⏳ **PREVISTO, AÚN NO CREADO EN EL CRM (15/10/2026).** Son los nombres que dan por buenos Comunica Tools
+> (`api/_lib/fields.ts`, `docs/GRUPOS-ACTIVIDAD.md`) y este plugin (`sticpa_gac_nombres()` en
+> `inc/stic-grupos-actividad.php`). Cuando el módulo exista, se comprueban con `get_module_fields`; si algo sale distinto
+> (un `_c`, un `_1`), se corrige AQUÍ y en esos dos sitios, y se quita este aviso.
+
+Agrupaciones temporales dentro de un evento (patrullas, habitaciones, dinámica…). Las crea y mueve Comunica Tools; el área
+privada solo las lee (pantalla del evento de Pasar lista, `docs/comunica/GRUPOS-ACTIVIDAD.md`). No tienen nada que ver con
+`ajmcm_GRUPOS` ni con `stic_Contacts_Relationships`.
+
+- `GAC_grupos`: `name`, `tipo` (`gac_tipo_list`: `patrulla`, `dinamica`, `habitacion`, `olimpiadas`, `limpieza`,
+  `subgrupo`, `otros`), `agrupacion` (texto 100: nombre de la tanda si hay dos del mismo tipo), `con_monitor` (casilla,
+  por defecto 1), `plazas` (entero), `activo` (casilla, por defecto 1; lo apaga un flujo cuando pasa `fecha_fin`, o
+  «Anular» en Comunica Tools), `fecha_fin` (fecha, la del evento), `evento_id` (texto 36, técnico: el id del evento, para
+  poder filtrar), `assigned_user_id` = delegación dueña del evento.
+- `GAC_miembros`: una ficha por persona y grupo. `name` (nombre de la persona), `papel` (`gac_papel_list`: `participante`,
+  `monitor`), `tipo` y `agrupacion` (copiados del grupo: siguen diciendo la pestaña aunque se quede sin grupo),
+  `evento_id` (técnico), `assigned_user_id` = delegación del evento. Una persona está como mucho en un grupo por agrupación.
+- Relaciones (1:N): `gac_grupos_gac_miembros` (plano `gac_grupos_gac_miembrosgac_grupos_ida`), `stic_events_gac_grupos`
+  (plano `stic_events_gac_gruposstic_events_ida`), `contacts_gac_miembros` (plano `contacts_gac_miembroscontacts_ida`),
+  `stic_registrations_gac_miembros` (plano `stic_registrations_gac_miembrosstic_registrations_ida`).
+- ⚠️ No se puede filtrar por los campos planos de las relaciones: para encontrar lo de un evento se filtra por `evento_id`.
+- Nunca se borra nada: quitar a alguien deja su ficha sin grupo; un grupo de más se anula (`activo` = 0).
+
 ### Campos que existían y no estaban aquí (añadidos el 25/09/2026)
 
 Salen de comparar este documento con el CRM por MCP (`get_module_fields`) y con
@@ -1079,7 +1104,7 @@ nadie cree uno igual: `inc_*` (34, programa Incorpora / SEPE), `sepe_*` (4) y
 | Campo | Tipo | Qué es |
 |---|---|---|
 | `ajmcm_clase_c` | `enum` | Clase del/de la participante en la inscripción |
-| `ajmcm_curso_escolar_c` | `enum` | Curso escolar (misma lista que en las relaciones, ver abajo) |
+| `ajmcm_curso_escolar_c` | `enum` | Curso escolar (misma lista que en las relaciones, ver abajo). ⚠️ **11/10/2026**: leído por MCP en las 90 inscripciones de las dos convivencias de Castellón, **no viene** (ni con `fields` ni por la relación del evento). El curso de la persona sale de su relación de participante. Pendiente de mirar en Studio si el campo existe en esta instancia |
 | `ajmcm_registration_amount_c` | `decimal(6)` | Importe de la inscripción |
 | `ajmcm_convivencia_c` | `enum` | Si va a la convivencia |
 | `ajmcm_convivencia_fecha_c` | `date` | Fecha de la convivencia |

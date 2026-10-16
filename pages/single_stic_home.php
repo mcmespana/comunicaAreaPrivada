@@ -171,7 +171,9 @@ $portalName = get_option('sticpa_scp_name');
      * Los mismos tres bloques que el menú del móvil: primero lo que la
      * persona VIENE A HACER (apuntarse a algo, ver qué tiene), luego las
      * herramientas del equipo de monitores y aparte —más pequeño— lo de «tu
-     * cuenta», que se toca una vez cada muchos meses. Dentro de cada bloque,
+     * cuenta», que se toca una vez cada muchos meses. Para quien es del
+     * equipo, lo que viene a hacer es pasar lista: su bloque va el primero
+     * (plan 043, CAR-1). Dentro de cada bloque,
      * el orden del menú, así que añadir una sección nueva sigue funcionando
      * sin tocar esto.
      */
@@ -255,6 +257,31 @@ $portalName = get_option('sticpa_scp_name');
         <?php
     };
     ?>
+    <?php if ($equipoCards) : ?>
+        <?php /* LO PRIMERO, ANTES QUE «ACTIVIDADES» (plan 043, CAR-1, 10/10/2026).
+                 Iba entre «Actividades» y «Tu perfil», y un monitor pasa lista
+                 todos los sábados y se apunta a algo tres o cuatro veces al
+                 curso: a 375 «Pasar lista» quedaba bajo el pliegue, debajo de
+                 cinco tarjetas y de la agenda. Mismo orden que el menú
+                 (getSticMenuElements) y que el desplegable del móvil. Solo hay
+                 tarjetas aquí para quien es del equipo, así que a los demás no
+                 les cambia nada. El chip y la frase
+                 dicen POR QUÉ se ve, que es lo que no se podía saber antes:
+                 las pantallas de coordinación aparecían sin más. El alcance
+                 concreto («coordinas el COM») no se dice aquí porque saberlo
+                 cuesta una consulta al CRM y esto es la home; sí se dice
+                 dentro, en las pantallas de coordinación. */ ?>
+        <section class="stic-home-account stic-home-equipo">
+            <p class="stic-section-label stic-section-label--mini stic-section-label--conchips">
+                <?= esc_html__('Equipo de monitores', 'sticpa'); ?>
+                <?= function_exists('sticpa_equipo_chips_html') ? sticpa_equipo_chips_html() : ''; ?>
+            </p>
+            <div class="stic-dashboard-grid stic-dashboard-grid--mini">
+                <?php foreach ($equipoCards as $key => $label) { $renderCard($key, $label); } ?>
+            </div>
+        </section>
+    <?php endif; ?>
+
     <div class="stic-home-layout<?= $showAgenda ? '' : ' stic-home-layout--solo'; ?>">
         <div class="stic-home-main">
             <?php
@@ -278,25 +305,6 @@ $portalName = get_option('sticpa_scp_name');
             <aside class="stic-home-aside"><?= $agendaHtml; ?></aside>
         <?php endif; ?>
     </div>
-
-    <?php if ($equipoCards) : ?>
-        <?php /* Entre «Actividades» y «Tu perfil»: se usa más que los datos
-                 personales y menos que apuntarse a algo. El chip y la frase
-                 dicen POR QUÉ se ve, que es lo que no se podía saber antes:
-                 las pantallas de coordinación aparecían sin más. El alcance
-                 concreto («coordinas el COM») no se dice aquí porque saberlo
-                 cuesta una consulta al CRM y esto es la home; sí se dice
-                 dentro, en las pantallas de coordinación. */ ?>
-        <section class="stic-home-account stic-home-equipo">
-            <p class="stic-section-label stic-section-label--mini stic-section-label--conchips">
-                <?= esc_html__('Equipo de monitores', 'sticpa'); ?>
-                <?= function_exists('sticpa_equipo_chips_html') ? sticpa_equipo_chips_html() : ''; ?>
-            </p>
-            <div class="stic-dashboard-grid stic-dashboard-grid--mini">
-                <?php foreach ($equipoCards as $key => $label) { $renderCard($key, $label); } ?>
-            </div>
-        </section>
-    <?php endif; ?>
 
     <?php if ($accountCards) : ?>
         <?php // "Tu perfil" va FUERA de la rejilla de 2 columnas: es el cierre de

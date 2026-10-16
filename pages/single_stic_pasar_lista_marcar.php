@@ -341,7 +341,7 @@ if (!empty($monitorNames)) {
 }
 $sub[] = sprintf(
     /* translators: %d: número de participantes del grupo */
-    _n('%d participante', '%d participantes', count($people['participants']), 'sticpa'),
+    _n('%d chavalín', '%d chavalines', count($people['participants']), 'sticpa'),
     count($people['participants'])
 );
 $html .= '<div class="pl-subtitle">' . esc_html(implode(' · ', $sub)) . '</div>';
@@ -460,7 +460,10 @@ foreach ($people['participants'] as $p) {
     // El motivo que ya tenga la asistencia, para que la hoja lo enseñe en vez
     // de aparecer vacía sobre algo que ya estaba escrito.
     $motive = isset($attendances[$p['id']]['description']) ? $attendances[$p['id']]['description'] : '';
-    $html .= sticpa_pl_row_html($p, $state, $streak, $fichaUrl, '', $motive);
+    // Las marcas de «lo importante del grupo» (plan 043, fila 9): de la misma
+    // consulta que ya ha traído a la gente, sin una llamada más.
+    $html .= sticpa_pl_row_html($p, $state, $streak, $fichaUrl, '', $motive, '', null, false,
+        isset($p['marcas']) ? $p['marcas'] : array());
 }
 $html .= '</div>';
 

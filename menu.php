@@ -24,6 +24,15 @@ function getSticMenuElements()
      *   3. TU PERFIL — tus datos, tus datos de monitor, y tu usuario y
      *      contraseña. Se tocan una vez cada muchos meses: lo último.
      *
+     * PARA EL EQUIPO, SUS HERRAMIENTAS PRIMERO (plan 043, CAR-1, decidido el
+     * 10/10/2026). Un monitor pasa lista todos los sábados —unas 30 veces al
+     * curso— y se apunta a algo tres o cuatro veces: con el orden de arriba,
+     * lo que viene a hacer cada semana era lo más difícil de alcanzar (en el
+     * móvil, «Pasar lista» bajo el pliegue; en escritorio, «Coordinación»
+     * dentro de «Más»). Así que, para quien es del equipo, el bloque 2 va
+     * PRIMERO, en los tres sitios a la vez: aquí, en sticpa_nav_layout() y en
+     * la portada. Para todos los demás, el orden de siempre.
+     *
      * Quién ve cada cosa lo deciden otras dos funciones, no este orden:
      * sticpa_equipo_secciones() (inc/stic-equipo.php) para lo del equipo, y
      * sticpa_visible_sections() (inc/stic-family.php) para las familias.
@@ -52,6 +61,11 @@ function getSticMenuElements()
         $deCuenta['single_stic_comunica_monitor'] = __('Mis datos de monitor', 'sticpa');
     }
 
+    // --- 2. Equipo de monitores, todo junto y, si lo hay, lo primero (CAR-1) ---
+    foreach ($delEquipo as $clave => $etiqueta) {
+        $menuElements[$clave] = $etiqueta;
+    }
+
     // --- 1. Actividades ---
     $menuElements['list_stic_events'] = __('Eventos', 'sticpa');
     // «Mis inscripciones» (decidido el 10/10/2026). Viendo a un hijo no son
@@ -62,11 +76,6 @@ function getSticMenuElements()
     $menuElements['single_stic_activities_calendar'] = __('Calendario', 'sticpa');
     $menuElements['list_stic_payments'] = __('Pagos', 'sticpa');
     $menuElements['list_stic_documents'] = __('Documentos', 'sticpa');
-
-    // --- 2. Equipo de monitores, todo junto ---
-    foreach ($delEquipo as $clave => $etiqueta) {
-        $menuElements[$clave] = $etiqueta;
-    }
 
     // --- 3. Tu perfil, lo último ---
     $menuElements['single_stic_comunica_perfil'] = ($audience === 'participante')
@@ -116,7 +125,8 @@ function defaultMenuElement()
  * CÓMO SE AGRUPA EL MENÚ EN EL MÓVIL.
  *
  * Los mismos grupos que la portada, en su mismo orden: Inicio suelto arriba,
- * «Actividades», «Equipo de monitores» y «Tu perfil». Cada grupo va en
+ * «Actividades», «Equipo de monitores» y «Tu perfil» (para quien es del
+ * equipo, «Equipo de monitores» delante de «Actividades»). Cada grupo va en
  * mosaicos de dos en dos; si le toca un número impar, el último ocupa el
  * ancho entero, para que no quede un hueco a la derecha.
  *
@@ -151,6 +161,16 @@ function sticpa_nav_layout($keys)
             $g = 'dia';
         }
         $groups[$g]['keys'][] = $key;
+    }
+    // Para el equipo, sus herramientas primero, como en getSticMenuElements()
+    // y en la portada (plan 043, CAR-1). Sin claves del equipo, nada cambia.
+    if (!empty($groups['equipo']['keys'])) {
+        $groups = array(
+            'inicio' => $groups['inicio'],
+            'equipo' => $groups['equipo'],
+            'dia'    => $groups['dia'],
+            'cuenta' => $groups['cuenta'],
+        );
     }
 
     $items = array();
@@ -201,17 +221,27 @@ function sticpa_participant_switcher_html()
     $activeLabel = $isSelfActive ? $selfLabel : sticpa_short_name($activeName);
 
     $current_url = explode('?', $_SERVER['REQUEST_URI'], 2)[0];
-    // (Sin 'default_page': tras elegir participante el handler va SIEMPRE a la
-    // home — ver prefix_admin_single_stic_profile_selection en inc/stic-action.php.)
-    $selectUrl = function ($id, $name) use ($current_url, $familiarId, $familiarName) {
-        return esc_url(add_query_arg(array(
+    // (Sin 'default_page': tras elegir participante el handler va a la home.)
+    // SALVO SI SE ESTÁ EN UNA PÁGINA QUE NO ES DE NADIE (plan 043, FAM-a8): la
+    // lista de eventos, la ficha de un evento o el calendario viajan en
+    // `volver` y el handler vuelve a ellas con el otro hijo. La lista blanca es
+    // sticpa_family_switch_destination(), y el handler la vuelve a pasar.
+    $volver = function_exists('sticpa_family_switch_destination') ? sticpa_family_switch_destination($_GET) : array();
+    $selectUrl = function ($id, $name) use ($current_url, $familiarId, $familiarName, $volver) {
+        $args = array(
             'action' => 'single_stic_profile_selection',
             'profile_selected_id' => $id,
             'profile_selected_name' => rawurlencode($name),
             'scp_user_id' => $familiarId,
             'scp_user_contact_name' => rawurlencode($familiarName),
             'scp_current_url' => $current_url,
-        ), admin_url('admin-post.php')));
+        );
+        if (!empty($volver)) {
+            // En un solo parámetro, como `dest` (FAM-a1): `action` ya lo usa
+            // admin-post y add_query_arg() no codifica.
+            $args['volver'] = rawurlencode(http_build_query($volver, '', '&', PHP_QUERY_RFC3986));
+        }
+        return esc_url(add_query_arg($args, admin_url('admin-post.php')));
     };
 
     $chevron = "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><path d='m6 9 6 6 6-6'/></svg>";
@@ -481,21 +511,27 @@ function menu()
     }
     $account .= "</span></div>";
 
-    // Item de "Salir" reutilizable (icono + texto), con estilo de item de menú.
+    // "Salir" como un elemento más del menú (icono + texto): es el último del
+    // desplegable del móvil (ver abajo).
     $logoutItem = "<a class='stic-nav-link stic-nav-logout' href='?logout=true'>
                         <span class='stic-nav-ico'>" . ($iconFn ? sticpa_icon('logout') : '') . "</span>
                         <span class='stic-nav-text'>" . __('Salir', 'sticpa') . "</span>
                    </a>";
 
     // ---- Acciones de la barra superior ----
-    // "Salir" SIEMPRE arriba a la derecha (icono + texto en escritorio, solo
-    // icono en móvil) y, con menú, la hamburguesa a su lado en el móvil: los
-    // dos a 44 px y separados (custom-style §66.a, plan 042 CAR-5).
-    // `$logoutItem` no se pinta hoy: queda para llevar "Salir" al final del
-    // menú del móvil si se decide (CAR-5, punto 2). El tema claro/oscuro se
-    // elige en el pie (sticpa_appearance_switch_html), no aquí.
+    // "Salir" va arriba a la derecha EN ESCRITORIO (icono + texto). EN EL
+    // MÓVIL, con menú, va DENTRO del desplegable, el último y separado por una
+    // raya (plan 043, CAR-5 punto 2, decidido el 10/10/2026): al lado de la
+    // hamburguesa, un toque desviado cerraba la sesión, y en la app eso es
+    // volver a pedir el código por correo. Salir es lo que menos se hace y lo
+    // que más cuesta deshacer. La barra del móvil se queda con la identidad y
+    // un solo botón grande, el del menú (custom-style §66.a).
+    // Sin menú (no hay hamburguesa) "Salir" sigue en la barra también en el
+    // móvil: si no, no habría forma de salir. El tema claro/oscuro se elige
+    // en el pie (sticpa_appearance_switch_html), no aquí.
+    $logoutBarClass = $showItems ? ' stic-logout--escritorio' : '';
     $actions = "<div class='stic-nav-actions'>";
-    $actions .= "<a class='stic-iconbtn stic-logout' href='?logout=true' title='" . esc_attr__('Cerrar sesión', 'sticpa') . "' aria-label='" . esc_attr__('Cerrar sesión', 'sticpa') . "'>"
+    $actions .= "<a class='stic-iconbtn stic-logout{$logoutBarClass}' href='?logout=true' title='" . esc_attr__('Cerrar sesión', 'sticpa') . "' aria-label='" . esc_attr__('Cerrar sesión', 'sticpa') . "'>"
         . ($iconFn ? sticpa_icon('logout') : '') . "<span class='stic-logout-text'>" . __('Salir', 'sticpa') . "</span></a>";
     if ($showItems) {
         // Botón hamburguesa SOLO icono: el nombre de la sección ya lo pone el
@@ -547,6 +583,10 @@ function menu()
                     </button>
                     <div class='stic-nav-more-menu' id='stic-nav-more-menu'><ul></ul></div>
                   </li>";
+        // "Salir", el último del desplegable del móvil (CAR-5), a lo ancho y
+        // en una fila como los mosaicos sueltos. En escritorio no se ve (está
+        // en la barra) y el reparto de «Más» lo salta.
+        $menu .= "<li class='stic-nav-item stic-nav-item--wide stic-nav-logout-item' style='--stic-order:9999'>" . $logoutItem . "</li>";
         $menu .= "</ul>";
     }
     $menu .= "</nav>";
