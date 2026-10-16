@@ -52,9 +52,9 @@ sticpa_pl_prime($objSCP, function () use ($objSCP, $eventId, $gacTab, $gacPor) {
         }
         sticpa_pl_ev_inscripciones($objSCP, $eventId);
         sticpa_gac_grupos($objSCP, $eventId);
-        if ($gacTab !== '' || $gacPor !== '') {
-            sticpa_gac_miembros($objSCP, $eventId);
-        }
+        // Los miembros, siempre: también la lista del autobús dice la patrulla
+        // o la habitación de cada uno. En esta tanda, en paralelo: no alarga.
+        sticpa_gac_miembros($objSCP, $eventId);
     }
 });
 
@@ -152,11 +152,9 @@ if ($event === null) {
 
 $gacAcabado = ($event['cuando'] === 'pasado');
 $gacTodos = sticpa_gac_grupos($objSCP, $event['id']);
-// Los miembros hacen falta para enseñar una pestaña, para la lista por grupos
-// y, en un evento ya pasado, para saber qué grupos archivados tenían gente.
-$gacMiembros = (!empty($gacTodos) && ($gacTab !== '' || $gacPor !== '' || $gacAcabado))
-    ? sticpa_gac_miembros($objSCP, $event['id'])
-    : array();
+// Los miembros: para una pestaña, para la lista por grupos, para saber qué
+// grupos archivados tenían gente y para el grupo de cada uno en la lista.
+$gacMiembros = !empty($gacTodos) ? sticpa_gac_miembros($objSCP, $event['id']) : array();
 $gacGrupos = sticpa_gac_visibles($gacTodos, $gacMiembros, $gacAcabado);
 $gacPestanas = sticpa_gac_pestanas($gacGrupos);
 if (!isset($gacPestanas[$gacTab])) {
@@ -268,6 +266,16 @@ $personas = sticpa_pl_ev_personas($objSCP, $ids);
 // el grupo, del mapa de la delegación. Los de otra delegación, aparte, al final.
 $lista = sticpa_pl_ev_lista_completa($objSCP, $inscripciones, $personas);
 $regMap = $lista['regMap'];
+// El grupo del EVENTO de cada uno (patrulla, habitación…), corto, para la línea
+// pequeña bajo el nombre: «4 EP · M4.1 · Patrulla Halcones · Hab. 12».
+$gacDeCadaUno = sticpa_gac_de_cada_uno($gacGrupos, $gacMiembros, $inscripciones);
+$nMonitores = 0;
+foreach ($lista['activos'] as $i => $p) {
+    $lista['activos'][$i]['gac'] = isset($gacDeCadaUno[$p['id']]) ? $gacDeCadaUno[$p['id']] : array();
+    if (!empty($p['monitor'])) {
+        $nMonitores++;
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Guardado
@@ -477,7 +485,7 @@ $html .= '<div class="pl-search">' . sticpa_pl_icon('search')
     . ' aria-label="' . esc_attr__('Buscar por nombre', 'sticpa') . '" autocomplete="off" enterkeyhint="search"></div>';
 $html .= ($gacArmado !== null)
     ? sticpa_gac_chips_html($gacArmado, $gacPestanas[$gacPor], $nActivos, $gacGrupo)
-    : sticpa_pl_ev_chips_html($lista['cursos'], $nActivos);
+    : sticpa_pl_ev_chips_html($lista['cursos'], $nActivos, $nMonitores);
 
 // «Están todos»: rellena SOLO lo que está sin marcar y SOLO lo que se ve (con
 // un curso elegido, ese curso). Lo que ya está marcado no se toca.

@@ -7104,6 +7104,8 @@ final class PasarListaRenderTest extends TestCase
         // una monitora, que va en «Monitores», al final, sin curso ni chip.
         $this->assertStringContainsString('<summary class="pl-fold-sum pl-evmon-sum"><span class="pl-evmon-tit">Monitores</span>', $html);
         $this->assertStringContainsString('class="pl-avatar pl-avatar--mon"', $html);
+        // Y un chip «Monitores» al final de los de curso, para ubicarlos.
+        $this->assertStringContainsString('data-pl-ev-curso="monitor" aria-pressed="false">Monitores<span class="pl-evchip-n">1</span>', $html);
         // Y la de otra delegación lleva su pastilla.
         $this->assertStringContainsString('<span class="pl-marca pl-marca--deleg">Burriana</span>', $html);
         $this->assertGreaterThan(strpos($html, 'data-contact="cb1"'), strpos($html, 'data-contact="cm1"'));
@@ -7390,8 +7392,26 @@ final class PasarListaRenderTest extends TestCase
 
     // ---- Grupos de actividad (patrullas, habitaciones…) ---------------------
 
+    /** El grupo corto bajo el nombre: el nombre si ya dice el tipo; si no,
+     *  con el tipo delante; y los tipos nuevos (clan, casa, agrupación). */
+    public function test_gac_etiqueta_corta()
+    {
+        $this->assertSame('Patrulla 3', sticpa_gac_etiqueta_corta('patrulla', 'Patrulla 3'));
+        $this->assertSame('Patrulla Halcones', sticpa_gac_etiqueta_corta('patrulla', 'Halcones'));
+        $this->assertSame('Hab. 12', sticpa_gac_etiqueta_corta('habitacion', '12'));
+        $this->assertSame('Habitación chicas', sticpa_gac_etiqueta_corta('habitacion', 'Habitación chicas'));
+        $this->assertSame('Clan Norte', sticpa_gac_etiqueta_corta('clan', 'Norte'));
+        $this->assertSame('Los de arriba', sticpa_gac_etiqueta_corta('agrupacion', 'Los de arriba'));
+        $this->assertSame('Patrulla Los grandes explorado…', sticpa_gac_etiqueta_corta('patrulla', 'Los grandes exploradores del monte'));
+        $tipos = sticpa_gac_tipos();
+        $this->assertArrayHasKey('clan', $tipos);
+        $this->assertArrayHasKey('casa', $tipos);
+        $this->assertArrayHasKey('agrupacion', $tipos);
+    }
+
     /** Sin grupos de actividad la lista del autobús sale como siempre: sin
-     *  pestañas, y los miembros ni se piden. */
+     *  pestañas. Los miembros se piden (16/10/2026: la lista dice el grupo de
+     *  cada uno), pero en la primera tanda, en paralelo: ni una espera más. */
     public function test_gac_sin_grupos_no_hay_pestanas()
     {
         $this->scp->conEventos = true;
@@ -7400,12 +7420,13 @@ final class PasarListaRenderTest extends TestCase
 
         $this->assertStringContainsString('data-pl-marcar', $html);
         $this->assertStringNotContainsString('pl-gac-tabs', $html);
-        $this->assertNotContains('getRecordsModule:GAC_miembros', $this->scp->calls);
+        $this->assertContains('getRecordsModule:GAC_miembros', $this->scp->enTandas);
     }
 
     /** Con grupos: «Lista» y una pestaña por agrupación, en el orden de los
      *  tipos y con cuántos grupos tiene. Sin la anulada ni la de otra
-     *  delegación. La lista sigue siendo la de marcar y sin pedir miembros. */
+     *  delegación. La lista sigue siendo la de marcar, y dice debajo del
+     *  nombre el grupo del evento de cada uno (pedido el 16/10/2026). */
     public function test_gac_pestanas_en_la_lista()
     {
         $this->scp->conEventos = true;
@@ -7420,9 +7441,14 @@ final class PasarListaRenderTest extends TestCase
         $this->assertLessThan(strpos($html, 'Habitaciones<'), strpos($html, 'Patrullas<'));
         $this->assertStringContainsString('data-pl-marcar', $html);
         $this->assertSame(1, count(array_keys($this->scp->calls, 'getRecordsModule:GAC_grupos', true)));
-        $this->assertNotContains('getRecordsModule:GAC_miembros', $this->scp->calls);
+        $this->assertSame(1, count(array_keys($this->scp->calls, 'getRecordsModule:GAC_miembros', true)));
         // En la primera tanda, con las inscripciones: ni una espera más.
         $this->assertContains('getRecordsModule:GAC_grupos', $this->scp->enTandas);
+        $this->assertContains('getRecordsModule:GAC_miembros', $this->scp->enTandas);
+        // Debajo del nombre, tras el curso y el grupo de los sábados, su
+        // patrulla y su habitación DE ESTE EVENTO, en el orden de los tipos.
+        $this->assertStringContainsString('<span class="pl-rowsub">1 ESO · C1 · Patrulla 1 · Habitación chicas</span>', $html);
+        $this->assertStringContainsString('<span class="pl-rowsub">5 EP · C1 · Patrulla 10 · Habitación chicas</span>', $html);
     }
 
     /** La pestaña de patrullas: para mirar. Cada patrulla con su gente

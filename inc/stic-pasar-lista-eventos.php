@@ -1100,9 +1100,9 @@ function sticpa_pl_ev_hoy_card_html($ev)
  * «a ver los de primero, pam; los de segundo, pam».
  * Solo si hay más de un curso: con uno, filtrar no filtra nada.
  */
-function sticpa_pl_ev_chips_html($nCursos, $total)
+function sticpa_pl_ev_chips_html($nCursos, $total, $nMonitores = 0)
 {
-    if (count($nCursos) < 2) {
+    if (count($nCursos) + ($nMonitores > 0 ? 1 : 0) < 2) {
         return '';
     }
     $html = '<div class="pl-evchips" data-pl-ev-chips role="group" aria-label="' . esc_attr__('Filtrar por curso', 'sticpa') . '">';
@@ -1111,6 +1111,11 @@ function sticpa_pl_ev_chips_html($nCursos, $total)
     foreach ($nCursos as $k => $n) {
         $html .= '<button type="button" class="pl-evchip" data-pl-ev-curso="' . esc_attr($k === '' ? '-' : $k) . '" aria-pressed="false">'
             . esc_html(sticpa_pl_ev_curso_titulo($k)) . '<span class="pl-evchip-n">' . (int) $n . '</span></button>';
+    }
+    // Y los monitores, el último: para encontrarlos sin bajar hasta su pliegue.
+    if ($nMonitores > 0) {
+        $html .= '<button type="button" class="pl-evchip" data-pl-ev-curso="monitor" aria-pressed="false">'
+            . esc_html__('Monitores', 'sticpa') . '<span class="pl-evchip-n">' . (int) $nMonitores . '</span></button>';
     }
     $html .= '</div>';
     return $html;
@@ -1255,6 +1260,10 @@ function sticpa_pl_ev_row_html($p, $state, $motive)
     if (!empty($p['monitor'])) {
         array_unshift($sub, (isset($p['papel']) && $p['papel'] === 'equipo') ? __('Equipo', 'sticpa') : __('Monitor/a', 'sticpa'));
     }
+    // Su patrulla, habitación… DE ESTE EVENTO, detrás (como mucho tres).
+    foreach (array_slice(isset($p['gac']) ? (array) $p['gac'] : array(), 0, 3) as $g) {
+        $sub[] = $g;
+    }
     $row = sticpa_pl_row_html($p, $state, 0, $ficha, implode(' · ', $sub), $motive);
     // De OTRA delegación: una pastilla de color con el nombre de la suya, que
     // se vea de lejos («Burriana»). Monitor/a: el avatar en el azul de la
@@ -1271,7 +1280,8 @@ function sticpa_pl_ev_row_html($p, $state, $motive)
     if (!empty($p['monitor'])) {
         $row = preg_replace('/class="pl-avatar"/', 'class="pl-avatar pl-avatar--mon"', $row, 1);
     }
-    $hay = $p['full'] . ' ' . $p['name'] . ' ' . $p['curso_label'] . ' ' . $p['grupo_code'] . ' ' . $deleg;
+    $hay = $p['full'] . ' ' . $p['name'] . ' ' . $p['curso_label'] . ' ' . $p['grupo_code'] . ' ' . $deleg
+        . ' ' . implode(' ', isset($p['gac']) ? (array) $p['gac'] : array());
     // En la PRIMERA etiqueta, sea cual sea: con ficha, la fila llega envuelta
     // en `.pl-rowwrap` (el botón y la flecha), y es ese envoltorio lo que el
     // filtro tiene que esconder entero.
