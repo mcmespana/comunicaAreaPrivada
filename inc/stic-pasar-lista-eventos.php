@@ -241,49 +241,35 @@ function sticpa_pl_ev_deleg_nombre($name)
 }
 
 /**
- * Quiénes de la lista vienen de OTRA delegación: su contacto está asignado a
- * una que no es la del evento. Con delegación vacía cuentan como de casa.
- *
- * @return array contactId => true
- */
-function sticpa_pl_ev_de_fuera($personas, $miDeleg)
-{
-    $out = array();
-    foreach ((array) $personas as $cid => $p) {
-        $d = isset($p['deleg_id']) ? (string) $p['deleg_id'] : '';
-        if ($d !== '' && (string) $miDeleg !== '' && $d !== (string) $miDeleg) {
-            $out[(string) $cid] = true;
-        }
-    }
-    return $out;
-}
-
-/**
  * La lista del evento con todo lo que hace falta, para las dos pantallas que
  * la pintan (marcar y las pestañas de grupos de actividad).
  *
- * El curso y el grupo de los de casa salen del mapa de relaciones de la
- * delegación (cacheado: cero llamadas). El de quien viene de otra delegación
- * —pasa: tres de Burriana en una convivencia de Castellón—, de sus propias
- * relaciones: una consulta por persona, en UNA tanda y cacheada 24 h. Sin
- * nadie de fuera, ninguna.
+ * EL CURSO SALE SIEMPRE DE LAS RELACIONES DE CADA PERSONA (16/10/2026): las
+ * suyas, por el enlace del contacto (sticpa_pl_mis_rels(), la misma consulta
+ * que se hace al entrar al área), y no del mapa de la delegación. En
+ * producción el mapa dejó sin curso a gente que sí lo tenía en su relación
+ * vigente (Ana Ayora: 4.º ESO desde el 25/09, comprobado por MCP), y un curso
+ * que falta en la lista del autobús es un chaval en la sección equivocada.
+ * Una consulta por persona, en UNA tanda (la página ya las pide junto con los
+ * nombres) y cacheada 24 h. El mapa queda de respaldo si su consulta falla.
+ * Quien viene de otra delegación sale igual: sus relaciones son suyas.
  */
 function sticpa_pl_ev_lista_completa($objSCP, $inscripciones, $personas)
 {
     $miDeleg = (string) sticpa_pl_delegation($objSCP);
     $relaciones = sticpa_pl_all_relationships($objSCP);
-    $cursos = sticpa_pl_ev_cursos_de($relaciones);
-    $fuera = array_keys(sticpa_pl_ev_de_fuera($personas, $miDeleg));
-    if (!empty($fuera)) {
-        sticpa_pl_prime($objSCP, function () use ($objSCP, $fuera) {
-            foreach ($fuera as $cid) {
+    $cursos = sticpa_pl_ev_cursos_de($relaciones);   // respaldo
+    $ids = array_keys((array) $personas);
+    if (!empty($ids)) {
+        sticpa_pl_prime($objSCP, function () use ($objSCP, $ids) {
+            foreach ($ids as $cid) {
                 sticpa_pl_mis_rels($objSCP, $cid);
             }
         });
-        foreach ($fuera as $cid) {
+        foreach ($ids as $cid) {
             $c = sticpa_pl_ev_curso_de_rels(sticpa_pl_mis_rels($objSCP, $cid));
             if ($c !== '') {
-                $cursos[$cid] = $c;
+                $cursos[(string) $cid] = $c;
             }
         }
     }

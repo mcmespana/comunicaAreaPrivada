@@ -254,14 +254,18 @@ foreach ($inscripciones as $r) {
 }
 sticpa_pl_prime($objSCP, function () use ($objSCP, $ids, $session, $regMapPrevio) {
     sticpa_pl_ev_personas($objSCP, $ids);
+    // Las relaciones de cada inscrito, de donde sale su curso: en esta misma
+    // tanda y no en una después (sticpa_pl_ev_lista_completa()).
+    foreach (array_unique($ids) as $cid) {
+        sticpa_pl_mis_rels($objSCP, $cid);
+    }
     if ($session !== null) {
         sticpa_pl_session_attendances($objSCP, $session['id'], $regMapPrevio);
     }
 });
 $personas = sticpa_pl_ev_personas($objSCP, $ids);
-// El curso y el grupo salen de la relación de participante vigente más
-// reciente de cada uno (del mapa ya cacheado; quien viene de otra delegación,
-// de las suyas, en una tanda). Los de otra delegación van aparte, al final.
+// El curso sale de las relaciones de cada uno (pedidas arriba, en la tanda);
+// el grupo, del mapa de la delegación. Los de otra delegación, aparte, al final.
 $lista = sticpa_pl_ev_lista_completa($objSCP, $inscripciones, $personas);
 $regMap = $lista['regMap'];
 

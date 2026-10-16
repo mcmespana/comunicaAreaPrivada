@@ -75,7 +75,7 @@ decidir de quién son las asistencias. Pendiente de decisión.
 |---|---|
 | Inscritos | `stic_Events` → `stic_registrations_stic_events`: `id`, `status`, `ajmcm_curso_escolar_c` y el contacto (`stic_registrations_contactscontacts_ida`, o el enlace anidado; si falta, el mapa de siempre con su respaldo) |
 | Nombre y etapa de la ficha | `Contacts`: `first_name`, `last_name`, `ajmcm_etapa_c` (una consulta por id para todos) |
-| Curso | El de la inscripción si viene; si no —hoy, siempre—, el de la **relación de participante** vigente más reciente (`stic_Contacts_Relationships.ajmcm_curso_escolar_c`, del mapa de relaciones ya cacheado: cero llamadas). `na` y vacío = «Sin curso». Nunca el de una relación de monitor (lleva el curso del grupo que lleva) |
+| Curso | El de la inscripción si viene; si no —hoy, siempre—, el de la **relación de participante** vigente más reciente **de la propia persona** (`stic_Contacts_Relationships.ajmcm_curso_escolar_c`, por el enlace de su contacto: `sticpa_pl_mis_rels()`, una consulta por inscrito en la tanda de los nombres, cacheada 24 h). El mapa de la delegación solo de respaldo: el 16/10/2026 dejó sin curso a gente que sí lo tenía (Ana Ayora). `na` y vacío = «Sin curso». Nunca el de una relación de monitor (lleva el curso del grupo que lleva) |
 | Grupo (ficha, código, etapa) | El mapa de relaciones de la delegación, ya cacheado, con la misma elección: la relación de participante vigente más reciente |
 
 - **Por qué el curso no sale de la inscripción**: leído por MCP el 11/10/2026,
