@@ -7475,6 +7475,9 @@ final class PasarListaRenderTest extends TestCase
         $bloque1 = substr($html, $p1, $p10 - $p1);
         $this->assertStringContainsString('David Soler', $bloque1);
         $this->assertStringContainsString('Monitor/a', $bloque1);
+        // Y se distingue de un vistazo: avatar azul y fila tintada.
+        $this->assertStringContainsString('pl-avatar pl-avatar--mon', $bloque1);
+        $this->assertStringContainsString('pl-gac-monitor', $bloque1);
         $this->assertLessThan(strpos($bloque1, 'Solete'), strpos($bloque1, 'David Soler'));
         $this->assertStringContainsString('Jaume', $bloque1);
         $this->assertStringContainsString('<span class="pl-gac-sec-n">3</span>', $bloque1);
