@@ -2913,9 +2913,10 @@ final class PasarListaRenderTest extends TestCase
         // Es lo primero después de la cabecera: la ficha se abre para llamar.
         $this->assertLessThan(strpos($html, 'Asistencia'), strpos($html, 'Teléfonos'));
         $this->assertStringContainsString('tel:600111222', $html);
-        // La madre, marcada como referencia.
+        // La madre, sin «REF»: desde el 16/10/2026 no se marca referencia
+        // (el tutor 1 es el primero que se dio de alta, y va el primero).
         $this->assertStringContainsString('Solete Messeguer', $html);
-        $this->assertStringContainsString('REF', $html);
+        $this->assertStringNotContainsString('pl-phone-tag--ref', $html);
         $this->assertStringContainsString('wa.me/34600333444', $html);
     }
 
@@ -6294,7 +6295,8 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('12345678Z', $html);
         $this->assertStringContainsString('Consolación Castellón', $html);
         $this->assertStringContainsString('<summary class="pl-fold-sum">Autorizaciones', $html);
-        $this->assertStringContainsString('<summary class="pl-fold-sum">Familia', $html);
+        $this->assertStringNotContainsString('<summary class="pl-fold-sum">Familia', $html);
+        $this->assertStringNotContainsString('google.com/maps', $html);
         // Plegados AL FINAL: después del pañuelo.
         $this->assertLessThan(strpos($html, 'Datos personales'), strpos($html, 'pl-panuelo'));
     }
@@ -6332,61 +6334,90 @@ final class PasarListaRenderTest extends TestCase
     }
 
     /**
-     * LA MISMA MADRE DOS VECES (Jorge Flores, Castellón, 16/10/2026): dos
-     * contactos con el mismo nombre son una fila, con el móvil que haya. Y si
-     * el contacto no llega, el nombre sale del propio registro de familia.
+     * LA FAMILIA (16/10/2026): la consulta pide SOLO campos planos —la forma
+     * que funciona en producción—; la misma madre dos veces es una fila; el
+     * tutor 1 es el primero que se dio de alta; y una relación sin el id del
+     * familiar se resuelve preguntando al registro de familia.
      */
-    public function test_la_familia_junta_duplicados_y_usa_el_nombre_plano()
+    public function test_la_familia_ordena_por_alta_junta_duplicados_y_tiene_respaldo()
     {
-        $fila = function ($id, $fam, $nombre) {
+        $nvl = function ($campos) {
             $v = new stdClass();
-            foreach (array(
-                'id' => $id, 'relationship_type' => 'mother', 'reference_contact' => '1',
-                'authorized_signer' => '1', 'end_date' => '',
-                'stic_personal_environment_contactscontacts_ida' => 'kid',
-                'stic_personal_environment_contacts_1contacts_ida' => $fam,
-                'stic_personal_environment_contacts_name' => 'Jorge Flores Serrano',
-                'stic_personal_environment_contacts_1_name' => $nombre,
-            ) as $k => $val) {
+            foreach ($campos as $k => $val) {
                 $v->$k = (object) array('name' => $k, 'value' => $val);
             }
             return (object) array('name_value_list' => $v);
         };
-        $scp = new class($fila) {
-            private $fila;
-            public function __construct($fila) { $this->fila = $fila; }
+        $scp = new class($nvl) {
+            public $lastError = '';
+            public $pedidos = array();
+            private $nvl;
+            public function __construct($nvl) { $this->nvl = $nvl; }
             public function getRelatedElementsForLoggedUser($p)
             {
+                $this->pedidos[] = $p;
+                $n = $this->nvl;
+                if ($p['module_name'] === 'stic_Personal_Environment') {
+                    // El respaldo: desde el registro de familia, su contacto.
+                    if ($p['module_id'] === 'pe4' && $p['link_field_name'] === 'stic_personal_environment_contacts_1') {
+                        return array($n(array('id' => 'abuela', 'first_name' => 'Rosa', 'last_name' => 'Pi',
+                            'name' => 'Rosa Pi', 'phone_mobile' => '611', 'email1' => 'rosa@x.es')));
+                    }
+                    return array();
+                }
                 if ($p['link_field_name'] !== 'stic_personal_environment_contacts') {
                     return array();
                 }
-                $f = $this->fila;
+                $fila = function ($id, $fam, $alta) use ($n) {
+                    return $n(array('id' => $id, 'relationship_type' => 'mother', 'end_date' => '',
+                        'date_entered' => $alta,
+                        'stic_personal_environment_contactscontacts_ida' => 'kid',
+                        'stic_personal_environment_contacts_1contacts_ida' => $fam));
+                };
                 return array(
-                    $f('pe1', 'madre-vieja', 'Carmen Serrano Tello'),
-                    $f('pe2', 'madre-nueva', 'Carmen Serrano Tello'),
-                    $f('pe3', 'padre', 'Paco Flores'),
+                    // Padre y madre del mismo minuto: desempata la hora del id.
+                    $fila('00000002-0000-0000-0000-6ab5976c8184', 'madre-nueva', '2026-09-24 19:36:00'),
+                    $fila('00000001-0000-0000-0000-6ab5974effb2', 'padre', '2026-09-24 19:36:00'),
+                    $fila('pe3', 'madre-vieja', '2025-08-31 22:00:00'),
+                    $fila('pe4', '', '2026-10-01 10:00:00'),
                 );
             }
             public function getRecordsModule($m, $q, $f)
             {
-                // Solo contesta la madre nueva, con móvil; el padre no llega.
-                $v = new stdClass();
-                foreach (array('id' => 'madre-nueva', 'first_name' => 'Carmen', 'last_name' => 'Serrano Tello',
-                    'name' => 'Carmen Serrano Tello', 'phone_mobile' => '670425115', 'email1' => '') as $k => $val) {
-                    $v->$k = (object) array('name' => $k, 'value' => $val);
-                }
-                return array((object) array('name_value_list' => $v));
+                $n = $this->nvl;
+                return array(
+                    $n(array('id' => 'madre-nueva', 'first_name' => 'Carmen', 'last_name' => 'Serrano Tello',
+                        'name' => 'Carmen Serrano Tello', 'phone_mobile' => '670425115', 'email1' => '')),
+                    $n(array('id' => 'madre-vieja', 'first_name' => 'Carmen', 'last_name' => 'Serrano Tello',
+                        'name' => 'Carmen Serrano Tello', 'phone_mobile' => '', 'email1' => 'carmen@x.es')),
+                    $n(array('id' => 'padre', 'first_name' => 'Paco', 'last_name' => 'Flores',
+                        'name' => 'Paco Flores', 'phone_mobile' => '600', 'email1' => '')),
+                );
             }
         };
         $fam = sticpa_pl_family_fetch($scp, 'kid');
-        $nombres = array_column($fam, 'name');
-        $this->assertSame(1, count(array_keys($nombres, 'Carmen Serrano Tello')));
-        $this->assertContains('Paco Flores', $nombres);
-        foreach ($fam as $p) {
-            if ($p['name'] === 'Carmen Serrano Tello') {
-                $this->assertSame('670425115', $p['mobile']);
-            }
+
+        // Sin enlaces anidados: es lo que tumbaba la consulta entera.
+        foreach ($scp->pedidos as $p) {
+            $this->assertSame(array(), $p['related_module_link_name_to_fields_array']);
         }
+        // La madre repetida es UNA fila, con el móvil de una y el correo de la
+        // otra, y por ser la vieja (2025) es el tutor 1.
+        $this->assertSame(array('Carmen Serrano Tello', 'Paco Flores', 'Rosa Pi'), array_column($fam, 'name'));
+        $this->assertSame('670425115', $fam[0]['mobile']);
+        $this->assertSame('carmen@x.es', $fam[0]['email']);
+        // El respaldo trae a quien la relación no nombraba.
+        $this->assertSame('rosa@x.es', $fam[2]['email']);
+    }
+
+    /** El tutor 1 de dos altas del mismo minuto: el de la hora menor en el id. */
+    public function test_el_orden_de_alta_desempata_por_la_hora_del_id()
+    {
+        $padre = sticpa_pl_orden_alta('00000569-4eee-dbcc-855e-6ab5974effb2', '2026-09-24 19:36:00');
+        $madre = sticpa_pl_orden_alta('000002ae-4387-fb62-fe47-6ab5976c8184', '2026-09-24 19:36:00');
+        $this->assertLessThan($madre, $padre);
+        // Un id al azar no desempata, pero tampoco adelanta a nadie.
+        $this->assertGreaterThan($padre, sticpa_pl_orden_alta('83da138e-a55d-402e-898f-bf053d479361', '2026-09-24 19:36:00'));
     }
 
     /** La ficha de alguien sin grupo se abre desde Grupos y fichas. */

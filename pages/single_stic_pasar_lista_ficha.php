@@ -240,8 +240,7 @@ $html .= '</div>';
  * Autorizaciones, como «Sin contestar». */
 if (trim((string) $ficha['ajmcm_soloacasa_c']) === '0') {
     $html .= '<p class="pl-solo" role="note">' . sticpa_pl_icon('warn') . '<span>'
-        . '<strong>' . esc_html__('No puede irse solo/a a casa.', 'sticpa') . '</strong> '
-        . esc_html__('Su familia no lo ha autorizado: tiene que recogerle alguien.', 'sticpa')
+        . '<strong>' . esc_html__('No puede irse solo/a a casa.', 'sticpa') . '</strong>'
         . '</span></p>';
 }
 
@@ -270,8 +269,14 @@ if ($avisoMsg !== '') {
  * Amontonarlo todo en el nombre («Sol Meseguer · Madre · REF») obliga a leer
  * una frase para encontrar a quién llamas.
  */
-$phoneCard = function ($label, $rawPhone, $whatsapp = true, $sub = '', $tag = '', $tagKind = 'ref', $siempre = false) {
+$phoneCard = function ($label, $rawPhone, $whatsapp = true, $sub = '', $tag = '', $tagKind = 'ref', $siempre = false, $email = '') {
     $phone = sticpa_pl_phone($rawPhone);
+    /* EL CORREO, en la misma tarjeta (16/10/2026). Vivía en un pliegue
+     * «Familia» al fondo de la ficha, separado del resto de lo de esa persona;
+     * aquí está con su nombre y su teléfono, en una línea pequeña. */
+    $mail = (trim((string) $email) !== '')
+        ? '<a class="pl-phone-mail" href="mailto:' . esc_attr(trim($email)) . '">' . esc_html(trim($email)) . '</a>'
+        : '';
     // SIN TELÉFONO TAMBIÉN SE PINTA, cuando quien llama lo pide.
     //
     // La familia se caía de la ficha entera si no tenía número: la madre existe
@@ -292,7 +297,7 @@ $phoneCard = function ($label, $rawPhone, $whatsapp = true, $sub = '', $tag = ''
         $out .= '</span>';
         $out .= '<span class="pl-phone-num pl-phone-num--none">'
             . esc_html($sub !== '' ? $sub . ' · ' . __('sin teléfono', 'sticpa') : __('sin teléfono', 'sticpa'))
-            . '</span></div></div>';
+            . '</span>' . $mail . '</div></div>';
         return $out;
     }
     $numero = ($sub !== '') ? $sub . ' · ' . $phone['display'] : $phone['display'];
@@ -304,7 +309,7 @@ $phoneCard = function ($label, $rawPhone, $whatsapp = true, $sub = '', $tag = ''
             . esc_html($tag) . '</span>';
     }
     $out .= '</span>';
-    $out .= '<span class="pl-phone-num">' . esc_html($numero) . '</span></div>';
+    $out .= '<span class="pl-phone-num">' . esc_html($numero) . '</span>' . $mail . '</div>';
     $out .= '<div class="pl-phone-acts">';
     if ($whatsapp) {
         $out .= '<a class="pl-phone-btn pl-phone-btn--wa" href="https://wa.me/' . esc_attr($phone['wa']) . '"'
@@ -323,9 +328,10 @@ $phoneCard = function ($label, $rawPhone, $whatsapp = true, $sub = '', $tag = ''
 
 /* Contacto rápido. Los dos botones grandes ANTES de la lista de teléfonos,
  * porque la ficha se abre casi siempre para lo mismo: llamar a una casa ya. El
- * número al que apuntan es el de REFERENCIA de la familia —el que el CRM marca
- * como tal— y si no hay, el primero que haya. Elegir a quién llamar es la lista
- * de debajo; esto es el caso normal en un toque.
+ * número al que apuntan es el del TUTOR 1 —el primer familiar que se dio de
+ * alta, con teléfono (16/10/2026, antes el marcado como «referencia», que nadie
+ * mantenía)—. Elegir a quién llamar es la lista de debajo; esto es el caso
+ * normal en un toque.
  *
  * Si no hay ningún teléfono de familia, los botones no se pintan: un botón
  * grande que no hace nada es peor que no tenerlo. */
@@ -335,14 +341,9 @@ foreach ($family as $rel) {
     if ($p === null) {
         continue;
     }
-    $cand = array('phone' => $p, 'who' => $rel['name'], 'rel' => $rel);
-    if ($rel['reference']) {
-        $quick = $cand;
-        break;
-    }
-    if ($quick === null) {
-        $quick = $cand;
-    }
+    // La familia ya viene ordenada: el primero con teléfono es el tutor 1.
+    $quick = array('phone' => $p, 'who' => $rel['name'], 'rel' => $rel);
+    break;
 }
 
 if ($quick !== null) {
@@ -519,9 +520,10 @@ foreach ($family as $rel) {
         $rel['mobile'],
         true,
         sticpa_pl_parentesco_label($rel['relationship']),
-        $rel['reference'] ? __('REF', 'sticpa') : '',
+        '',
         'ref',
-        true
+        true,
+        isset($rel['email']) ? $rel['email'] : ''
     );
 }
 $emergency = sticpa_pl_phone($ficha['phone_other']);
@@ -869,11 +871,12 @@ $html .= '</form>';
 // Lo que se mira una vez al año: plegado, al final
 // ---------------------------------------------------------------------------
 
-/* AUTORIZACIONES, DATOS PERSONALES Y FAMILIA (16/10/2026). La ficha tenía la
- * mitad de lo que el CRM sabe de un chaval —ni dirección, ni DNI, ni colegio,
- * ni el correo de su madre— y lo que tenía iba suelto. Ahora va todo, en tres
- * pliegues `<details>` como los de la ficha del monitor: cerrados, al fondo, y
- * con lo que importa ya escrito en la solapa para no tener que abrirlos.
+/* AUTORIZACIONES Y DATOS PERSONALES (16/10/2026). La ficha tenía la mitad de
+ * lo que el CRM sabe de un chaval —ni dirección, ni DNI, ni colegio— y lo que
+ * tenía iba suelto. Ahora va todo, en dos pliegues `<details>` como los de la
+ * ficha del monitor: cerrados, al fondo, y con lo que importa ya escrito en la
+ * solapa para no tener que abrirlos. El correo de la familia va en su tarjeta
+ * de «Contacto», con su teléfono.
  *
  * Todo sale de la MISMA lectura de la ficha y de la familia que ya se ha hecho
  * arriba: ni una llamada más. */
@@ -955,15 +958,13 @@ if ($doc !== '') {
     $pers[($tipoDoc !== '') ? $tipoDoc : __('Documento', 'sticpa')] = esc_html($doc);
 }
 // Sin género: «Sexo no, no aporta nada aquí» (PASAR-LISTA.md §6.4).
-// La dirección en una línea, y que se pueda abrir en el mapa: es para lo que
-// se busca («¿dónde vive?, le acerco yo»).
+// La dirección en una línea.
 $direccion = implode(', ', array_filter(array(
     trim($ficha['primary_address_street']),
     trim($ficha['primary_address_postalcode'] . ' ' . $ficha['primary_address_city']),
 ), 'strlen'));
 if ($direccion !== '') {
-    $pers[__('Dirección', 'sticpa')] = '<a href="' . esc_url('https://www.google.com/maps/search/?api=1&query=' . rawurlencode($direccion)) . '"'
-        . ' target="_blank" rel="noopener">' . esc_html($direccion) . '</a>';
+    $pers[__('Dirección', 'sticpa')] = esc_html($direccion);
 }
 if (trim($ficha['ajmcm_centro_educativo_c']) !== '') {
     $pers[__('Centro educativo', 'sticpa')] = esc_html($ficha['ajmcm_centro_educativo_c']);
@@ -990,43 +991,6 @@ if (!empty($pers)) {
         __('Datos personales', 'sticpa'),
         trim($ficha['primary_address_city']),
         $kv($pers)
-    );
-}
-
-// --- Familia --------------------------------------------------------------------
-// Lo que no cabe en las filas de teléfono: el correo de cada uno y quién firma.
-if (!empty($family)) {
-    $filasFam = '<div class="pl-list pl-list--data">';
-    foreach ($family as $rel) {
-        $quien = array_filter(array(
-            sticpa_pl_parentesco_label($rel['relationship']),
-            $rel['reference'] ? __('referencia', 'sticpa') : '',
-            $rel['signer'] ? __('firma', 'sticpa') : '',
-        ));
-        $filasFam .= '<div class="pl-data">';
-        $filasFam .= '<span class="pl-data-label">' . esc_html($rel['name'])
-            . (!empty($quien) ? ' · ' . esc_html(implode(' · ', $quien)) : '') . '</span>';
-        $contacto = array();
-        $tel = sticpa_pl_phone($rel['mobile']);
-        if ($tel !== null) {
-            $contacto[] = '<a href="tel:' . esc_attr($tel['tel']) . '">' . esc_html($tel['display']) . '</a>';
-        }
-        if (!empty($rel['email'])) {
-            $contacto[] = '<a href="mailto:' . esc_attr($rel['email']) . '">' . esc_html($rel['email']) . '</a>';
-        }
-        $filasFam .= '<span class="pl-data-value">'
-            . (!empty($contacto) ? implode(' · ', $contacto) : esc_html__('Sin teléfono ni correo', 'sticpa'))
-            . '</span></div>';
-    }
-    $filasFam .= '</div>';
-    $html .= $pliegue(
-        __('Familia', 'sticpa'),
-        sprintf(
-            /* translators: %d: cuántos familiares */
-            _n('%d persona', '%d personas', count($family), 'sticpa'),
-            count($family)
-        ),
-        $filasFam
     );
 }
 

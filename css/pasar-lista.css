@@ -1684,6 +1684,17 @@ a.pl-group .pl-name { display: block; }
 .pl-phone-name { display: flex; align-items: center; gap: 0.44rem; min-width: 0; }
 .pl-phone-label { font-size: 0.95rem; font-weight: 700; }
 .pl-phone-num { font-size: 0.79rem; color: var(--gray-500); }
+/* Tercera línea, si lo tiene: el correo, pequeño y tocable (16/10/2026). */
+.stic-container .pl-phone-mail {
+    align-self: flex-start;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.79rem;
+    color: var(--primary-color);
+    text-decoration: none;
+}
 .pl-phone-tag {
     display: inline-flex;
     align-items: center;

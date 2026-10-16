@@ -390,34 +390,49 @@ es un `<button>` y no cabe otro dentro.
 
 **La ficha del chaval:**
 
-- «**No puede irse solo/a a casa**» arriba del todo, pegado al nombre y antes de
-  los botones de llamar (`.pl-solo`), solo con el «0» explícito.
-- Al final, **tres pliegues** (`.pl-fold`, como la ficha del monitor), con lo
-  que importa en la solapa: **Autorizaciones** (las siete del CRM, con «Sin
-  contestar» donde no hay respuesta; antes eran tres en «Permisos»), **Datos
-  personales** (nacimiento, documento, dirección con enlace al mapa,
-  centro educativo, correo, talla, etapa, nivel COM, nº de persona) y
-  **Familia** (correo de cada uno, quién es referencia y quién firma). Los
-  campos nuevos van en la MISMA lectura de la ficha (`sticpa_pl_ficha_fields()`),
-  todos comprobados en CAMPOS.md y contra el CRM.
+- «**No puede irse solo/a a casa.**» arriba del todo, pegado al nombre y antes
+  de los botones de llamar (`.pl-solo`), solo con el «0» explícito. La frase
+  sola, sin explicación detrás (lo pidió el propietario).
+- Al final, **dos pliegues** (`.pl-fold`, como la ficha del monitor), con lo que
+  importa en la solapa: **Autorizaciones** (las siete del CRM, con «Sin
+  contestar» donde no hay respuesta; antes eran tres en «Permisos») y **Datos
+  personales** (nacimiento, documento, dirección —texto, sin mapa—, centro
+  educativo, correo, talla, etapa, nivel COM, nº de persona). Los campos nuevos
+  van en la MISMA lectura de la ficha (`sticpa_pl_ficha_fields()`), todos
+  comprobados en CAMPOS.md y contra el CRM.
+- El **correo de cada familiar** va en su tarjeta de «Contacto», debajo de su
+  teléfono. Hubo un pliegue «Familia» al fondo y se quitó el mismo día: separaba
+  a cada persona de su teléfono.
+- **Ni «REF» ni «referencia» ni «firma»** (lo decidió el propietario: nadie lo
+  mantiene). **El tutor 1 es el primer familiar que se dio de alta**: va el
+  primero y a él llaman los botones grandes. Como el formulario de altas crea a
+  padre y madre en el mismo minuto, desempata la hora que llevan los ids de esta
+  instancia en su último bloque (`sticpa_pl_orden_alta()`).
 
-**La familia que «no salía»** (Castellón, 16/10/2026). Se miró en el CRM
-(Lucía Ramil, Jorge Flores, Clara Tubilla, Victoria Casas): los registros de
-entorno personal están bien —hijo/a en el lado A, familiar en el B, asignados a
-MCM Castellón, con `reference_contact` y `authorized_signer` puestos ese mismo
-día—. El código ahora no depende de que todo llegue a la primera:
+**La familia que no salía** (Castellón, 16/10/2026; Laia Aguilar como caso).
+En el CRM estaba todo bien —padre y madre en `stic_Personal_Environment`, el
+chaval en el lado A, asignados a MCM Castellón—, y la ficha decía «no tiene
+familia». La consulta de la ficha pedía, además de los campos planos, los
+**enlaces anidados** (`related_module_link_name_to_fields_array`); la que sí
+funciona en producción (la lista de hijos de una madre, `inc/stic-family.php`)
+no los pide. Si la API rechaza una parte, la respuesta entera vuelve como error
+y se leía como «sin familia», en silencio. Ahora `sticpa_pl_family_fetch()`:
 
-- pide también los `_name` planos de los dos lados (los `relate` que en SuiteCRM
-  traen poblado su `_ida`), y si la consulta de contactos no devuelve al
-  familiar, sale igual con ese nombre (sin teléfono, pero nombrado);
-- **junta a la misma persona repetida**: las altas de octubre crean a veces un
-  contacto nuevo para un familiar que ya estaba (Jorge Flores tiene a «Carmen
-  Serrano Tello» dos veces, con dos ids); se queda una fila con el móvil que haya.
+- pide con la forma probada: `id`, tipo, fechas y los dos `_ida`, nada anidado;
+- si una relación no trae el id del familiar, se lo pregunta **al registro de
+  familia** (`stic_Personal_Environment` → `stic_personal_environment_contacts_1`),
+  el mismo segundo paso que `inc/stic-family.php`, en una tanda;
+- escribe en el log del servidor cuando el CRM contesta con error, en vez de
+  callárselo;
+- **junta a la misma persona repetida** (las altas de octubre crean a veces un
+  contacto nuevo para un familiar que ya estaba: Jorge Flores tiene a «Carmen
+  Serrano Tello» dos veces); se queda una fila con el móvil y el correo que haya.
 
-Si una ficha concreta sigue sin familia, `&pl_diag=1` enseña la llamada.
+La caché de la familia es `familia2` (la `familia` del primer intento guardaba
+la forma vieja). Si una ficha sigue sin familia, `&pl_diag=1` enseña la llamada.
 
 **Caché de lo que cambia poco.** La ficha (`sticpa_pl_ficha()`, clave `ficha`) y
-la familia (`familia`) van ahora en la caché de estructura del servidor (24 h,
+la familia (`familia2`) van ahora en la caché de estructura del servidor (24 h,
 las tira «Refrescar»; el pañuelo borra la suya al guardar). Lo que cambia un
 sábado —asistencia y avisos— sigue sin cachearse aquí. Es caché del SERVIDOR:
 nada de salud se queda en el móvil.
