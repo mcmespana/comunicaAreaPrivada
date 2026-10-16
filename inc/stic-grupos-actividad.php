@@ -42,9 +42,10 @@ function sticpa_gac_nombres()
         // Miembro → grupo, persona e inscripción: campo plano y enlace.
         'm_grupo_ida' => 'gac_grupos_gac_miembrosgac_grupos_ida',
         'm_grupo_link' => 'gac_grupos_gac_miembros',
-        'm_persona_ida' => 'contacts_gac_miembroscontacts_ida',
-        'm_persona_link' => 'contacts_gac_miembros',
-        'm_insc_ida' => 'stic_registrations_gac_miembrosstic_registrations_ida',
+        // Persona e inscripción son MUCHOS A MUCHOS (comprobado el 16/10/2026):
+        // no tienen campo plano y solo llegan por el enlace.
+        'm_persona_link' => 'gac_miembros_contacts',
+        'm_insc_link' => 'gac_miembros_stic_registrations',
     ));
 }
 
@@ -251,10 +252,11 @@ function sticpa_gac_miembros($objSCP, $eventId)
         $n['mod_miembros'],
         $n['tabla_miembros'] . ".evento_id = '" . $eventId . "'",
         array('id', 'name', 'papel', 'tipo', 'agrupacion', 'evento_id', 'assigned_user_id',
-            $n['m_grupo_ida'], $n['m_persona_ida'], $n['m_insc_ida']),
+            $n['m_grupo_ida']),
         array(
             'gac_grupo' => array('relationshipName' => $n['m_grupo_link'], 'fields' => array('id')),
             'gac_persona' => array('relationshipName' => $n['m_persona_link'], 'fields' => array('id')),
+            'gac_insc' => array('relationshipName' => $n['m_insc_link'], 'fields' => array('id')),
         )
     );
     if (sticpa_pl_collecting()) {
@@ -282,8 +284,8 @@ function sticpa_gac_miembros($objSCP, $eventId)
             'papel' => (isset($v->papel->value) && (string) $v->papel->value === 'monitor') ? 'monitor' : 'participante',
             'tab' => sticpa_gac_tab_key($tipo, $agr),
             'grupo_id' => sticpa_pl_safe_id(sticpa_pl_nvl_first($v, array($n['m_grupo_ida'], 'gac_grupo_id'))),
-            'contact_id' => sticpa_pl_safe_id(sticpa_pl_nvl_first($v, array($n['m_persona_ida'], 'gac_persona_id'))),
-            'reg_id' => sticpa_pl_safe_id(sticpa_pl_nvl_first($v, array($n['m_insc_ida']))),
+            'contact_id' => sticpa_pl_safe_id(sticpa_pl_nvl_first($v, array('gac_persona_id'))),
+            'reg_id' => sticpa_pl_safe_id(sticpa_pl_nvl_first($v, array('gac_insc_id'))),
         );
     }
 

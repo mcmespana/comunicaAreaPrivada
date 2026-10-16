@@ -215,9 +215,10 @@ class FakeSCP
                 'id' => $id, 'name' => $name, 'papel' => $papel, 'tipo' => $tipo, 'agrupacion' => '',
                 'evento_id' => 'ev-bus', 'assigned_user_id' => 'deleg-castellon',
             );
+            // Como el CRM real: el grupo es uno a muchos (con campo plano);
+            // persona e inscripción, muchos a muchos: SOLO por el enlace.
             if ($plano) {
                 $f['gac_grupos_gac_miembrosgac_grupos_ida'] = $grupo;
-                $f['contacts_gac_miembroscontacts_ida'] = $persona;
             }
             return array('fields' => $f, 'gac_grupo' => array('id' => $grupo), 'gac_persona' => array('id' => $persona));
         };
