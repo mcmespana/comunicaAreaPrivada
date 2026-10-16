@@ -1048,8 +1048,9 @@ Agrupaciones temporales dentro de un evento (patrullas, habitaciones, dinámica�
 privada solo las lee (pantalla del evento de Pasar lista, `docs/comunica/GRUPOS-ACTIVIDAD.md`). No tienen nada que ver con
 `ajmcm_GRUPOS` ni con `stic_Contacts_Relationships`.
 
-- `GAC_grupos`: `name`, `tipo` (`gac_tipo_list`: `patrulla`, `dinamica`, `habitacion`, `olimpiadas`, `limpieza`,
-  `subgrupo`, `otros`), `agrupacion` (texto 100: nombre de la tanda si hay dos del mismo tipo), `con_monitor` (casilla,
+- `GAC_grupos`: `name`, `tipo` (`gac_tipo_list`: `patrulla` [Patrulla], `dinamica` [Grupo de Dinámica], `habitacion`
+  [Habitación], `olimpiadas` [Olimpiadas], `limpieza` [Limpieza], `subgrupo` [Subgrupo], `clan` [Clan], `casa` [Casa],
+  `agrupacion` [Agrupación Grande], `otros` [Otros] — lista completa del propietario, 16/10/2026), `agrupacion` (texto 100: nombre de la tanda si hay dos del mismo tipo), `con_monitor` (casilla,
   por defecto 1), `plazas` (entero), `activo` (casilla, por defecto 1; lo apaga un flujo cuando pasa `fecha_fin`, o
   «Anular» en Comunica Tools), `fecha_fin` (fecha, la del evento), `evento_id` (texto 36, técnico: el id del evento, para
   poder filtrar), `assigned_user_id` = delegación dueña del evento.

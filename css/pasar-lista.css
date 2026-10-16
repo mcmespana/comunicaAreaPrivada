@@ -4144,3 +4144,10 @@ a.pl-group .pl-name { display: block; }
 .pl-evmon-sum { display: flex; align-items: center; gap: 0.5rem; }
 .pl-evmon-tit { flex-grow: 1; font-weight: 800; }
 .pl-evmon .pl-list { margin: 0; border: 0; border-radius: 0; box-shadow: none; }
+
+/* Grupos de actividad: los MONITORES de cada grupo, arriba, con un tinte y el
+   avatar azul (`.pl-avatar--mon`), y una raya algo más marcada antes de los
+   chavales. */
+.pl-gac-monitor { background: color-mix(in srgb, var(--primary-50) 55%, transparent); }
+.pl-gac-monitor .pl-rowsub { color: var(--primary-color); font-weight: 700; }
+.pl-gac-list > .pl-gac-monitor + :not(.pl-gac-monitor) { border-top: 2px solid var(--gray-200); }

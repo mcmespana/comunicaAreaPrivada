@@ -33,9 +33,18 @@ Pasar lista (portada)  ──  sin cambios: ni una llamada más los sábados
 | Pantalla | Antes | Ahora |
 |---|---|---|
 | Portada de Pasar lista (la de todos los sábados) | — | **Igual. Cero llamadas nuevas** (lo fija `test_gac_la_portada_no_los_pide`). |
-| Lista del evento (el autobús) | 2 tandas paralelas | Igual: la consulta de grupos (`GAC_grupos`, para saber qué pestañas hay) va **dentro de la primera tanda**, en paralelo con las inscripciones. Los miembros no se piden. Caché de 5 minutos. |
+| Lista del evento (el autobús) | 2 tandas paralelas | Igual: grupos y miembros (`GAC_grupos`, `GAC_miembros`) van **dentro de la primera tanda**, en paralelo con las inscripciones. Caché de 5 minutos. |
 | Pestaña de grupos | — | 2 tandas: la primera con grupos y miembros (y sin sesiones ni asistencias, que aquí no hacen falta), la segunda con los nombres. |
 | Módulo aún no creado | — | Una consulta fallida y se recuerda una hora (familia de estructura: el botón de refrescar lo olvida). |
+
+## Y en la lista del autobús
+
+Desde el 16/10/2026 la pestaña «Lista» dice también, debajo del nombre y detrás
+del curso, el grupo del evento de cada uno, corto («Patrulla 3 · Hab. 12»), a
+chavales y monitores. Por eso los miembros se piden siempre, en la primera
+tanda (en paralelo con las inscripciones): ni una espera más. Tipos de la lista
+completa (`gac_tipo_list`): patrulla, dinámica, habitación, olimpiadas,
+limpieza, subgrupo, clan, casa, agrupación grande, otros.
 
 ## Qué se ve en una pestaña
 

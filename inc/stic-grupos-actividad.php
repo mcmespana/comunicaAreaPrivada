@@ -63,8 +63,100 @@ function sticpa_gac_tipos()
         'olimpiadas' => array(__('Olimpiadas', 'sticpa'), __('Olimpiadas', 'sticpa')),
         'limpieza' => array(__('Limpieza', 'sticpa'), __('Limpieza', 'sticpa')),
         'subgrupo' => array(__('Subgrupo', 'sticpa'), __('Subgrupos', 'sticpa')),
+        // Añadidos al desplegable el 16/10/2026 (`tipo_list`, el propietario).
+        'clan' => array(__('Clan', 'sticpa'), __('Clanes', 'sticpa')),
+        'casa' => array(__('Casa', 'sticpa'), __('Casas', 'sticpa')),
+        'agrupacion' => array(__('Agrupación grande', 'sticpa'), __('Agrupaciones', 'sticpa')),
         'otros' => array(__('Otros', 'sticpa'), __('Otros', 'sticpa')),
     );
+}
+
+/**
+ * El grupo de una persona, CORTO, para la línea pequeña bajo su nombre en la
+ * lista del evento: «Patrulla Halcones», «Hab. 12», «Clan Norte». Si el nombre
+ * ya dice el tipo («Patrulla 3»), tal cual; si no, con el tipo delante. Los
+ * nombres largos se cortan: es una pista, el grupo entero está en su pestaña.
+ */
+function sticpa_gac_etiqueta_corta($tipo, $name)
+{
+    $name = trim(preg_replace('/\s+/u', ' ', (string) $name));
+    $corto = array(
+        'patrulla' => __('Patrulla', 'sticpa'),
+        'dinamica' => __('Dinámica', 'sticpa'),
+        'habitacion' => __('Hab.', 'sticpa'),
+        'olimpiadas' => __('Olimp.', 'sticpa'),
+        'limpieza' => __('Limpieza', 'sticpa'),
+        'subgrupo' => __('Subgrupo', 'sticpa'),
+        'clan' => __('Clan', 'sticpa'),
+        'casa' => __('Casa', 'sticpa'),
+    );
+    $len = function ($t) {
+        return function_exists('mb_strlen') ? mb_strlen($t, 'UTF-8') : strlen($t);
+    };
+    if ($len($name) > 22) {
+        $name = rtrim(function_exists('mb_substr') ? mb_substr($name, 0, 21, 'UTF-8') : substr($name, 0, 21)) . '…';
+    }
+    if (!isset($corto[$tipo]) || $name === '') {
+        return $name;
+    }
+    $norm = function ($t) {
+        $t = function_exists('mb_strtolower') ? mb_strtolower($t, 'UTF-8') : strtolower($t);
+        return strtr($t, array('á' => 'a', 'é' => 'e', 'í' => 'i', 'ó' => 'o', 'ú' => 'u'));
+    };
+    // «Patrulla 3», «Habitación 12», «Hab 12»: ya lo dice.
+    $raiz = $norm(rtrim($corto[$tipo], '.'));
+    $raiz = substr($raiz, 0, max(3, min(5, strlen($raiz))));
+    if (strpos($norm($name), $raiz) === 0) {
+        return $name;
+    }
+    return $corto[$tipo] . ' ' . $name;
+}
+
+/**
+ * Los grupos del EVENTO de cada persona, cortos y en el orden de los tipos,
+ * para la lista del autobús: contactId => array('Patrulla Halcones', 'Hab. 12').
+ * Solo de los grupos que se enseñan. La persona sale por el enlace del miembro
+ * o, si no llegó, por su inscripción.
+ *
+ * PURA.
+ *
+ * @param array $grupos   sticpa_gac_visibles()
+ * @param array $miembros sticpa_gac_miembros()
+ * @param array $regs     sticpa_pl_ev_inscripciones() (reg_id → contact_id)
+ */
+function sticpa_gac_de_cada_uno($grupos, $miembros, $regs = array())
+{
+    $porId = array();
+    foreach ((array) $grupos as $g) {
+        $porId[$g['id']] = $g;
+    }
+    $regContacto = array();
+    foreach ((array) $regs as $r) {
+        if (!empty($r['reg_id']) && !empty($r['contact_id'])) {
+            $regContacto[$r['reg_id']] = $r['contact_id'];
+        }
+    }
+    $orden = array_flip(array_keys(sticpa_gac_tipos()));
+    $tmp = array();
+    foreach ((array) $miembros as $m) {
+        if (empty($m['grupo_id']) || !isset($porId[$m['grupo_id']])) {
+            continue;
+        }
+        $cid = !empty($m['contact_id']) ? $m['contact_id']
+            : ((!empty($m['reg_id']) && isset($regContacto[$m['reg_id']])) ? $regContacto[$m['reg_id']] : '');
+        if ($cid === '') {
+            continue;
+        }
+        $g = $porId[$m['grupo_id']];
+        $pos = isset($orden[$g['tipo']]) ? $orden[$g['tipo']] : 99;
+        $tmp[$cid][$pos . '|' . $g['tab'] . '|' . $g['id']] = sticpa_gac_etiqueta_corta($g['tipo'], $g['name']);
+    }
+    $out = array();
+    foreach ($tmp as $cid => $etiquetas) {
+        ksort($etiquetas, SORT_NATURAL);
+        $out[$cid] = array_values(array_unique($etiquetas));
+    }
+    return $out;
 }
 
 /** El nombre de la tanda, limpio: «Mitades». '' si no hay. */
@@ -548,19 +640,28 @@ function sticpa_gac_persona_html($p, $grupoNombre, $esMonitor)
         $sub = ($sub !== '') ? __('Monitor/a', 'sticpa') . ' · ' . $sub : __('Monitor/a', 'sticpa');
     }
     $oculto = '<span hidden>' . esc_html($grupoNombre) . '</span>';
+    // Monitor/a: el avatar en el azul de la marca y la fila con un tinte, como
+    // en la lista del autobús, para separarlos de un vistazo de los chavales.
+    $marcar = function ($html) use ($esMonitor) {
+        if (!$esMonitor) {
+            return $html;
+        }
+        $html = preg_replace('/class="pl-avatar"/', 'class="pl-avatar pl-avatar--mon"', $html, 1);
+        return preg_replace('/^<([a-z]+) class="/', '<$1 class="pl-gac-monitor ', $html, 1);
+    };
     if (!empty($p['grupo_id'])) {
         $href = '?internalpage=single_stic_pasar_lista_ficha&participante=' . rawurlencode($p['id'])
             . '&grupo=' . rawurlencode($p['grupo_id']);
         $row = sticpa_pl_person_link_html($p, $href, $sub);
-        return preg_replace('/<\/a>$/', $oculto . '</a>', $row);
+        return $marcar(preg_replace('/<\/a>$/', $oculto . '</a>', $row));
     }
-    $html = '<div class="pl-rowwrap pl-rowstatic' . ($esMonitor ? ' pl-gac-monitor' : '') . '">' . sticpa_pl_avatar_html($p);
+    $html = '<div class="pl-rowwrap pl-rowstatic">' . sticpa_pl_avatar_html($p);
     $html .= '<span class="pl-row-body"><span class="pl-name">' . esc_html($p['name']) . '</span>';
     if ($sub !== '') {
         $html .= '<span class="pl-rowsub">' . esc_html($sub) . '</span>';
     }
     $html .= $oculto . '</span></div>';
-    return $html;
+    return $marcar($html);
 }
 
 /**

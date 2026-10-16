@@ -877,6 +877,12 @@
                         c.setAttribute('aria-pressed', ((c.getAttribute('data-pl-ev-curso') || '') === evCurso) ? 'true' : 'false');
                     });
                     evApply();
+                    // El chip de Monitores abre su pliegue: si no, no se ve a nadie.
+                    if (evCurso === 'monitor') {
+                        Array.prototype.forEach.call(root.querySelectorAll('details[data-pl-ev-etapa]'), function (d) {
+                            d.open = true;
+                        });
+                    }
                     evToTop();
                     haptic(8);
                 });
