@@ -192,6 +192,111 @@ function sticpa_pl_ev_cursos_de($rels)
 }
 
 /**
+ * El curso de UNA persona a partir de SUS relaciones en crudo (las de
+ * sticpa_pl_mis_rels(): filas con `name_value_list`). Es para quien viene de
+ * OTRA delegación a un evento local: sus relaciones no están en el mapa de la
+ * delegación que organiza. Misma regla que sticpa_pl_ev_cursos_de(): solo de
+ * participante, vigentes, con curso, y la de inicio más reciente.
+ *
+ * PURA. @return string clave de curso o ''.
+ */
+function sticpa_pl_ev_curso_de_rels($rows, $nowTs = null)
+{
+    $hoy = date('Y-m-d', ($nowTs === null) ? sticpa_pl_now() : (int) $nowTs);
+    $mejor = '';
+    $mejorInicio = null;
+    foreach ((array) $rows as $row) {
+        $v = isset($row->name_value_list) ? $row->name_value_list : null;
+        if (!$v) {
+            continue;
+        }
+        $val = function ($k) use ($v) {
+            return isset($v->$k->value) ? trim((string) $v->$k->value) : '';
+        };
+        if (sticpa_pl_rel_role($val('relationship_type')) !== 'participante' || $val('active') === '0') {
+            continue;
+        }
+        $fin = $val('end_date');
+        if ($fin !== '' && $fin < $hoy) {
+            continue;
+        }
+        $curso = sticpa_pl_ev_curso_key($val('ajmcm_curso_escolar_c'));
+        if ($curso === '') {
+            continue;
+        }
+        $inicio = $val('start_date');
+        if ($mejorInicio === null || $inicio > $mejorInicio) {
+            $mejor = $curso;
+            $mejorInicio = $inicio;
+        }
+    }
+    return $mejor;
+}
+
+/** «MCM Burriana» → «Burriana». Sin nombre, «Otra delegación». */
+function sticpa_pl_ev_deleg_nombre($name)
+{
+    $n = trim(preg_replace('/^MCM\s+/i', '', trim((string) $name)));
+    return ($n !== '') ? $n : __('Otra delegación', 'sticpa');
+}
+
+/**
+ * Quiénes de la lista vienen de OTRA delegación: su contacto está asignado a
+ * una que no es la del evento. Con delegación vacía cuentan como de casa.
+ *
+ * @return array contactId => true
+ */
+function sticpa_pl_ev_de_fuera($personas, $miDeleg)
+{
+    $out = array();
+    foreach ((array) $personas as $cid => $p) {
+        $d = isset($p['deleg_id']) ? (string) $p['deleg_id'] : '';
+        if ($d !== '' && (string) $miDeleg !== '' && $d !== (string) $miDeleg) {
+            $out[(string) $cid] = true;
+        }
+    }
+    return $out;
+}
+
+/**
+ * La lista del evento con todo lo que hace falta, para las dos pantallas que
+ * la pintan (marcar y las pestañas de grupos de actividad).
+ *
+ * El curso y el grupo de los de casa salen del mapa de relaciones de la
+ * delegación (cacheado: cero llamadas). El de quien viene de otra delegación
+ * —pasa: tres de Burriana en una convivencia de Castellón—, de sus propias
+ * relaciones: una consulta por persona, en UNA tanda y cacheada 24 h. Sin
+ * nadie de fuera, ninguna.
+ */
+function sticpa_pl_ev_lista_completa($objSCP, $inscripciones, $personas)
+{
+    $miDeleg = (string) sticpa_pl_delegation($objSCP);
+    $relaciones = sticpa_pl_all_relationships($objSCP);
+    $cursos = sticpa_pl_ev_cursos_de($relaciones);
+    $fuera = array_keys(sticpa_pl_ev_de_fuera($personas, $miDeleg));
+    if (!empty($fuera)) {
+        sticpa_pl_prime($objSCP, function () use ($objSCP, $fuera) {
+            foreach ($fuera as $cid) {
+                sticpa_pl_mis_rels($objSCP, $cid);
+            }
+        });
+        foreach ($fuera as $cid) {
+            $c = sticpa_pl_ev_curso_de_rels(sticpa_pl_mis_rels($objSCP, $cid));
+            if ($c !== '') {
+                $cursos[$cid] = $c;
+            }
+        }
+    }
+    return sticpa_pl_ev_lista(
+        $inscripciones,
+        $personas,
+        sticpa_pl_ev_grupos_de($relaciones, sticpa_pl_groups($objSCP)),
+        $cursos,
+        $miDeleg
+    );
+}
+
+/**
  * El GRUPO de la delegación de cada persona, de su relación de participante
  * vigente más reciente con un grupo de la delegación: para el enlace a su
  * ficha (que es por grupo), su código debajo del nombre y su etapa.
@@ -487,7 +592,7 @@ function sticpa_pl_ev_inscripciones($objSCP, $eventId)
 /**
  * Nombre y etapa de las personas inscritas, en UNA consulta por id.
  *
- * @return array contactId => array('first', 'last', 'full', 'etapa')
+ * @return array contactId => array('first', 'last', 'full', 'etapa', 'deleg_id', 'deleg_name')
  */
 function sticpa_pl_ev_personas($objSCP, $ids)
 {
@@ -502,7 +607,7 @@ function sticpa_pl_ev_personas($objSCP, $ids)
     $rows = $objSCP->getRecordsModule(
         'Contacts',
         'contacts.id IN (' . implode(',', $lista) . ')',
-        array('id', 'name', 'first_name', 'last_name', 'ajmcm_etapa_c')
+        array('id', 'name', 'first_name', 'last_name', 'ajmcm_etapa_c', 'assigned_user_id', 'assigned_user_name')
     );
     $out = array();
     if (!is_array($rows)) {
@@ -524,6 +629,10 @@ function sticpa_pl_ev_personas($objSCP, $ids)
             'last' => $last,
             'full' => $full,
             'etapa' => isset($v->ajmcm_etapa_c->value) ? (string) $v->ajmcm_etapa_c->value : '',
+            // La delegación de la persona (su `assigned_user_id`, como todo en
+            // el CRM): a un evento local también va gente de otra.
+            'deleg_id' => isset($v->assigned_user_id->value) ? (string) $v->assigned_user_id->value : '',
+            'deleg_name' => isset($v->assigned_user_name->value) ? (string) $v->assigned_user_name->value : '',
         );
     }
     return $out;
@@ -559,8 +668,11 @@ function sticpa_pl_ev_personas($objSCP, $ids)
  * @param array $grupos    contactId => array('id', 'code', 'etapa') del grupo
  *                         de la delegación de cada persona (sticpa_pl_ev_grupos_de()).
  * @param array $cursosRel contactId => clave de curso (sticpa_pl_ev_cursos_de()).
+ * @param string $miDeleg  la delegación del evento: quien es de OTRA lleva en
+ *                         'deleg' el nombre de la suya («Burriana») y la
+ *                         pantalla lo pinta aparte, al final. '' = de casa.
  */
-function sticpa_pl_ev_lista($inscripciones, $personas, $grupos = array(), $cursosRel = array())
+function sticpa_pl_ev_lista($inscripciones, $personas, $grupos = array(), $cursosRel = array(), $miDeleg = '')
 {
     $fuera = sticpa_pl_ev_estados_fuera();
     $cursos = sticpa_pl_ev_cursos();
@@ -591,6 +703,11 @@ function sticpa_pl_ev_lista($inscripciones, $personas, $grupos = array(), $curso
         $persona['etapa'] = sticpa_pl_ev_etapa($curso, isset($g['etapa']) ? $g['etapa'] : '', $p['etapa']);
         $persona['grupo_id'] = isset($g['id']) ? (string) $g['id'] : '';
         $persona['grupo_code'] = isset($g['code']) ? (string) $g['code'] : '';
+        $persona['deleg'] = '';
+        $dId = isset($p['deleg_id']) ? (string) $p['deleg_id'] : '';
+        if ($dId !== '' && (string) $miDeleg !== '' && $dId !== (string) $miDeleg) {
+            $persona['deleg'] = sticpa_pl_ev_deleg_nombre(isset($p['deleg_name']) ? $p['deleg_name'] : '');
+        }
 
         if (!$esFuera) {
             if (isset($activos[$cid])) {
@@ -909,17 +1026,35 @@ function sticpa_pl_ev_etapa_titulo($etapa)
  */
 function sticpa_pl_ev_secciones_html($activos, $fila)
 {
-    $porEtapa = array('MIC' => array(), 'COM' => array(), 'LC' => array(), '' => array());
+    // Primero los de la delegación del evento; detrás, los de cada una de las
+    // otras (por nombre), cada una partida también por etapa: «COM · Burriana».
+    $vacia = array('MIC' => array(), 'COM' => array(), 'LC' => array(), '' => array());
+    $porDeleg = array('' => $vacia);
     foreach ((array) $activos as $p) {
-        $porEtapa[isset($porEtapa[$p['etapa']]) ? $p['etapa'] : ''][] = $p;
+        $d = isset($p['deleg']) ? (string) $p['deleg'] : '';
+        if (!isset($porDeleg[$d])) {
+            $porDeleg[$d] = $vacia;
+        }
+        $porDeleg[$d][isset($vacia[$p['etapa']]) ? $p['etapa'] : ''][] = $p;
+    }
+    $casa = $porDeleg[''];
+    unset($porDeleg['']);
+    ksort($porDeleg, SORT_STRING | SORT_FLAG_CASE);
+    $bloques = array();
+    foreach (array('' => $casa) + $porDeleg as $deleg => $etapas) {
+        foreach ($etapas as $etapa => $gente) {
+            if (!empty($gente)) {
+                $titulo = ($deleg === '') ? sticpa_pl_ev_etapa_titulo($etapa)
+                    : (($etapa === '') ? $deleg : $etapa . ' · ' . $deleg);
+                $bloques[] = array($titulo, $gente, $deleg !== '');
+            }
+        }
     }
     $html = '';
-    foreach ($porEtapa as $etapa => $gente) {
-        if (empty($gente)) {
-            continue;
-        }
-        $html .= '<div class="pl-evetapa" data-pl-ev-etapa>';
-        $html .= '<div class="pl-etapa-title pl-evsec" role="heading" aria-level="2"><span>' . esc_html(sticpa_pl_ev_etapa_titulo($etapa)) . '</span>'
+    foreach ($bloques as $b) {
+        list($titulo, $gente, $deFuera) = $b;
+        $html .= '<div class="pl-evetapa' . ($deFuera ? ' pl-evetapa--fuera' : '') . '" data-pl-ev-etapa>';
+        $html .= '<div class="pl-etapa-title pl-evsec" role="heading" aria-level="2"><span>' . esc_html($titulo) . '</span>'
             . '<span class="pl-etapa-count" data-pl-ev-n>' . count($gente) . '</span></div>';
         $porCurso = array();
         foreach ($gente as $p) {

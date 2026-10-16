@@ -90,6 +90,16 @@ decidir de quién son las asistencias. Pendiente de decisión.
   **ficha**, y si no, «Sin etapa». La ficha va la última porque se queda vieja:
   en la convivencia del MIC de Castellón 20 de 47 chavales de primaria tenían
   COM en la ficha y salían en el COM.
+- **Gente de otra delegación** (16/10/2026): a un evento local también va
+  gente de fuera (tres de Burriana en una convivencia de Castellón). Salen,
+  pero **aparte y al final**, antes de «No van», en su sección por etapa y
+  delegación: «COM · Burriana». La delegación de cada uno es el
+  `assigned_user_id` de su contacto (`assigned_user_name` para el nombre, sin
+  el «MCM »). Su curso sale de **sus** relaciones (`sticpa_pl_mis_rels()`, una
+  consulta por persona de fuera, en una tanda y cacheada 24 h; con nadie de
+  fuera, ninguna). Sin enlace a la ficha: no es de esta delegación. Se marcan
+  y se guardan como los demás: la inscripción es del evento, y lo de un
+  evento es de quien lo organiza.
 - **Nombres de curso cortos**, como se dicen en la casa: «4 EP», «1 ESO»,
   «1 Bach» (chips, subtítulos y debajo del nombre).
 - **Estados que no van** (`sticpa_pl_ev_estados_fuera()`, con filtro):
