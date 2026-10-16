@@ -640,19 +640,28 @@ function sticpa_gac_persona_html($p, $grupoNombre, $esMonitor)
         $sub = ($sub !== '') ? __('Monitor/a', 'sticpa') . ' · ' . $sub : __('Monitor/a', 'sticpa');
     }
     $oculto = '<span hidden>' . esc_html($grupoNombre) . '</span>';
+    // Monitor/a: el avatar en el azul de la marca y la fila con un tinte, como
+    // en la lista del autobús, para separarlos de un vistazo de los chavales.
+    $marcar = function ($html) use ($esMonitor) {
+        if (!$esMonitor) {
+            return $html;
+        }
+        $html = preg_replace('/class="pl-avatar"/', 'class="pl-avatar pl-avatar--mon"', $html, 1);
+        return preg_replace('/^<([a-z]+) class="/', '<$1 class="pl-gac-monitor ', $html, 1);
+    };
     if (!empty($p['grupo_id'])) {
         $href = '?internalpage=single_stic_pasar_lista_ficha&participante=' . rawurlencode($p['id'])
             . '&grupo=' . rawurlencode($p['grupo_id']);
         $row = sticpa_pl_person_link_html($p, $href, $sub);
-        return preg_replace('/<\/a>$/', $oculto . '</a>', $row);
+        return $marcar(preg_replace('/<\/a>$/', $oculto . '</a>', $row));
     }
-    $html = '<div class="pl-rowwrap pl-rowstatic' . ($esMonitor ? ' pl-gac-monitor' : '') . '">' . sticpa_pl_avatar_html($p);
+    $html = '<div class="pl-rowwrap pl-rowstatic">' . sticpa_pl_avatar_html($p);
     $html .= '<span class="pl-row-body"><span class="pl-name">' . esc_html($p['name']) . '</span>';
     if ($sub !== '') {
         $html .= '<span class="pl-rowsub">' . esc_html($sub) . '</span>';
     }
     $html .= $oculto . '</span></div>';
-    return $html;
+    return $marcar($html);
 }
 
 /**
