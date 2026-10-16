@@ -1560,6 +1560,11 @@
         // buscador sigue filtrando dentro de esas.
         var fotosChip = document.querySelector('[data-pl-filtro-fotos]');
         var soloSinFotos = false;
+        // Los chips de curso de Grupos y fichas (cursos y A-Z, 16/10/2026):
+        // '' = todos, 'sin-grupo' = quien no tiene grupo, o la clave de curso
+        // que lleva cada fila en `data-pl-curso`.
+        var cursoChips = Array.prototype.slice.call(document.querySelectorAll('[data-pl-curso-chip]'));
+        var cursoSel = '';
 
         // Se guardan las filas y su texto normalizado UNA vez: normalizar en
         // cada pulsación es trabajo repetido sobre algo que no cambia.
@@ -1594,7 +1599,11 @@
             var shown = 0;
             rows.forEach(function (row) {
                 var hit = (q === '' || row.hay.indexOf(q) !== -1)
-                    && (!soloSinFotos || row.el.hasAttribute('data-pl-sin-fotos'));
+                    && (!soloSinFotos || row.el.hasAttribute('data-pl-sin-fotos'))
+                    && (cursoSel === ''
+                        || (cursoSel === 'sin-grupo'
+                            ? row.el.hasAttribute('data-pl-sin-grupo')
+                            : row.el.getAttribute('data-pl-curso') === cursoSel));
                 // `hidden` y no display: así el CSS de la fila no compite.
                 row.el.hidden = !hit;
                 if (hit) { shown++; }
@@ -1627,6 +1636,38 @@
         }
 
         filterInput.addEventListener('input', apply);
+        /* Un chip de curso: filtra y vuelve AL PRINCIPIO de la lista (justo
+           bajo los chips, que van pegados). Si la lista ya se ve desde
+           arriba, no se mueve nada. Tocar el apretado lo suelta. */
+        var cursoBar = document.querySelector('[data-pl-gente-chips]');
+        cursoChips.forEach(function (chip) {
+            chip.addEventListener('click', function () {
+                var k = chip.getAttribute('data-pl-curso-chip') || '';
+                cursoSel = (k === cursoSel) ? '' : k;
+                cursoChips.forEach(function (c) {
+                    c.setAttribute('aria-pressed', ((c.getAttribute('data-pl-curso-chip') || '') === cursoSel) ? 'true' : 'false');
+                });
+                apply();
+                var first = null;
+                rows.some(function (r) {
+                    if (!r.el.hidden) { first = r.el.closest('.pl-list'); }
+                    return !!first;
+                });
+                if (first && cursoBar && first.getBoundingClientRect) {
+                    var title = first.previousElementSibling;
+                    var anchor = (title && !title.hidden && title.classList.contains('pl-etapa-title')) ? title : first;
+                    var now = window.pageYOffset || document.documentElement.scrollTop || 0;
+                    var y = anchor.getBoundingClientRect().top + now - cursoBar.getBoundingClientRect().height - 8;
+                    if (now > y) {
+                        try {
+                            window.scrollTo({ top: Math.max(0, y), behavior: REDUCED ? 'auto' : 'smooth' });
+                        } catch (e) {
+                            window.scrollTo(0, Math.max(0, y));
+                        }
+                    }
+                }
+            });
+        });
         if (fotosChip) {
             fotosChip.addEventListener('click', function () {
                 soloSinFotos = !soloSinFotos;
@@ -1643,5 +1684,164 @@
                 apply();
             }
         });
+    }
+
+    /* =====================================================================
+     * «Asignar grupos» (Grupos y fichas, cursos y A-Z, 16/10/2026)
+     * ---------------------------------------------------------------------
+     * Los desplegables de «Vincular» de cada fila sin grupo salen solo con el
+     * interruptor encendido, y el móvil lo recuerda mientras coordinación
+     * reparte. Elegir un grupo ya vincula, con una confirmación: el botón
+     * sobra. Sin JavaScript nada de esto pasa y todo sigue como antes.
+     * ===================================================================== */
+    var gente = document.querySelector('[data-pl-gente]');
+    var asignar = document.querySelector('[data-pl-asignar]');
+    if (gente && asignar) {
+        var CLAVE_ASIGNAR = 'sticpa-pl-asignar';
+        var wrapAsignar = document.querySelector('[data-pl-asignar-wrap]');
+        if (wrapAsignar) { wrapAsignar.hidden = false; }
+        gente.classList.add('is-asignable');
+        try {
+            if (window.localStorage && localStorage.getItem(CLAVE_ASIGNAR) === '1') {
+                asignar.checked = true;
+            }
+        } catch (e) { /* sin almacenamiento: se empieza apagado */ }
+        var pintarAsignar = function () {
+            gente.classList.toggle('is-asignando', asignar.checked);
+        };
+        pintarAsignar();
+        asignar.addEventListener('change', function () {
+            pintarAsignar();
+            try {
+                if (window.localStorage) {
+                    localStorage.setItem(CLAVE_ASIGNAR, asignar.checked ? '1' : '0');
+                }
+            } catch (e) { /* no pasa nada: solo no se recuerda */ }
+            haptic(8);
+        });
+
+        Array.prototype.forEach.call(gente.querySelectorAll('.pl-suelto-act'), function (act) {
+            var sel = act.querySelector('select');
+            var btn = act.querySelector('button[name="pl_assign_rel"]');
+            if (!sel || !btn) { return; }
+            sel.addEventListener('change', function () {
+                if (sel.value === '') { return; }
+                var row = act.closest('.pl-rowwrap');
+                var nombre = row ? (row.querySelector('.pl-name') || {}).textContent || '' : '';
+                var grupo = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+                if (!window.confirm('¿Vincular a ' + nombre.trim() + ' con ' + grupo.trim() + '?')) {
+                    sel.value = '';
+                    return;
+                }
+                act.classList.add('is-busy');
+                // `click()` y no `form.submit()`: así viaja el name/value del
+                // botón, que es la relación que se vincula.
+                btn.click();
+            });
+        });
+    }
+
+    /* =====================================================================
+     * El globo de salud (Grupos y fichas, 16/10/2026)
+     * ---------------------------------------------------------------------
+     * Tocar «Alergia o tratamiento» enseña qué, sin abrir la ficha. El texto
+     * se pide al tocar (`stic_pl_salud`, no-store) y se guarda SOLO en memoria
+     * mientras la pantalla está abierta: nada de salud en el HTML ni en el
+     * almacenamiento del móvil. La pastilla vive dentro del enlace de la fila,
+     * así que el toque no navega.
+     * ===================================================================== */
+    var saludTaps = document.querySelectorAll('[data-pl-salud]');
+    if (saludTaps.length) {
+        var saludMem = {};
+        var pop = null;
+        var popDe = null;
+        var cerrarPop = function () {
+            if (pop) { pop.hidden = true; }
+            if (popDe) { popDe.setAttribute('aria-expanded', 'false'); }
+            popDe = null;
+        };
+        var pintarPop = function (el, datos) {
+            if (!pop) {
+                pop = document.createElement('div');
+                pop.className = 'pl-salud-pop';
+                pop.setAttribute('role', 'dialog');
+                pop.hidden = true;
+                document.body.appendChild(pop);
+                pop.addEventListener('click', function (ev) { ev.stopPropagation(); });
+            }
+            pop.innerHTML = '';
+            var add = function (tag, cls, txt) {
+                var n = document.createElement(tag);
+                if (cls) { n.className = cls; }
+                if (txt !== undefined) { n.textContent = txt; }
+                pop.appendChild(n);
+                return n;
+            };
+            if (datos === null) {
+                add('p', 'pl-salud-pop-msg', 'Cargando…');
+            } else if (datos.error) {
+                add('p', 'pl-salud-pop-msg', datos.error);
+            } else if (!datos.items.length) {
+                add('p', 'pl-salud-pop-msg', 'Sin detalle en su ficha.');
+            } else {
+                datos.items.forEach(function (it) {
+                    add('span', 'pl-salud-pop-label', it.label);
+                    add('span', 'pl-salud-pop-text', it.text);
+                });
+            }
+            pop.setAttribute('aria-label', 'Salud');
+            pop.hidden = false;
+            // Debajo de la pastilla, sin salirse de la pantalla.
+            var r = el.getBoundingClientRect();
+            var sx = window.pageXOffset || 0;
+            var sy = window.pageYOffset || 0;
+            var ancho = Math.min(320, document.documentElement.clientWidth - 24);
+            pop.style.width = ancho + 'px';
+            var left = Math.max(12, Math.min(r.left, document.documentElement.clientWidth - ancho - 12));
+            pop.style.left = (left + sx) + 'px';
+            pop.style.top = (r.bottom + sy + 6) + 'px';
+        };
+        var abrir = function (el) {
+            if (popDe === el) { cerrarPop(); return; }
+            cerrarPop();
+            popDe = el;
+            el.setAttribute('aria-expanded', 'true');
+            var url = el.getAttribute('data-pl-salud');
+            if (saludMem[url]) { pintarPop(el, saludMem[url]); return; }
+            pintarPop(el, null);
+            fetch(url, { credentials: 'same-origin', cache: 'no-store' })
+                .then(function (res) { return res.json(); })
+                .then(function (json) {
+                    var datos = (json && json.success && json.data)
+                        ? { items: json.data.items || [] }
+                        : { error: 'No se ha podido cargar. Mira su ficha.' };
+                    if (!datos.error) { saludMem[url] = datos; }
+                    if (popDe === el) { pintarPop(el, datos); }
+                })
+                .catch(function () {
+                    if (popDe === el) { pintarPop(el, { error: 'Sin conexión: el detalle está en su ficha.' }); }
+                });
+            haptic(8);
+        };
+        Array.prototype.forEach.call(saludTaps, function (el) {
+            el.setAttribute('aria-expanded', 'false');
+            el.addEventListener('click', function (ev) {
+                ev.preventDefault();
+                ev.stopPropagation();
+                abrir(el);
+            });
+            el.addEventListener('keydown', function (ev) {
+                if (ev.key === 'Enter' || ev.key === ' ') {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    abrir(el);
+                }
+            });
+        });
+        document.addEventListener('click', cerrarPop);
+        document.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Escape') { cerrarPop(); }
+        });
+        window.addEventListener('resize', cerrarPop);
     }
 }());

@@ -724,8 +724,12 @@ function sticpa_pl_all_relationships_raw($objSCP)
             'relationshipName' => 'stic_contacts_relationships_contacts',
             // Las marcas de la lista viajan en la MISMA llamada: ni una
             // consulta más (plan 043, fila 9).
+            // Y `photo` (16/10/2026): el NOMBRE del archivo de la foto, no la
+            // foto. Dice quién tiene cara sin preguntarlo uno a uno, y con
+            // `date_modified` versiona la URL para cachearla un año.
             'fields' => array_merge(
-                array('id', 'name', 'first_name', 'last_name', 'birthdate', 'stic_age_c', 'phone_mobile'),
+                array('id', 'name', 'first_name', 'last_name', 'birthdate', 'stic_age_c', 'phone_mobile',
+                    'photo', 'date_modified'),
                 sticpa_pl_marcas_campos()
             ),
         ),
@@ -890,7 +894,7 @@ function sticpa_pl_person_from_rel_row($v)
         $full = ($cut !== false) ? trim(substr($relName, 0, $cut)) : $relName;
     }
 
-    return array(
+    $persona = array(
         'id' => $id,
         // El nombre de la lista es corto (nombre + primer apellido). El
         // completo se conserva en `full` para la ficha, donde sí cabe y sí
@@ -908,6 +912,16 @@ function sticpa_pl_person_from_rel_row($v)
         'mobile' => ($lv && isset($lv->phone_mobile->value)) ? (string) $lv->phone_mobile->value : '',
         'marcas' => sticpa_pl_marcas_de($lv),
     );
+    /* `foto`: '' = no tiene (no se pide), un hash corto = tiene, y esa es la
+     * versión de su URL. Solo si el enlace trae el campo: sin él (una caché
+     * de antes, el respaldo por contactos) la clave NO existe, y el avatar la
+     * pide como siempre — no saber no es «no tiene». */
+    if ($lv && isset($lv->photo)) {
+        $archivo = trim((string) (isset($lv->photo->value) ? $lv->photo->value : ''));
+        $persona['foto'] = ($archivo === '') ? '' : substr(md5($archivo . '|'
+            . (isset($lv->date_modified->value) ? (string) $lv->date_modified->value : '')), 0, 10);
+    }
+    return $persona;
 }
 
 /**
@@ -3710,6 +3724,14 @@ function sticpa_pl_ficha_fields()
         'ajmcm_descripcion_allergies__c', 'ajmcm_descripcion_intoler_c',
         'ajmcm_descripcion_tratam_c', 'ajmcm_descripcion_enfermed_c',
         'ajmcm_descripcion_otros_c',
+        // Datos personales y el resto de autorizaciones (16/10/2026), para los
+        // pliegues del final de la ficha. Misma llamada: lo caro es el viaje,
+        // no la columna. Los nombres, de CAMPOS.md; los de identidad y
+        // dirección son los mismos que ya lee la ficha del monitor.
+        'stic_identification_type_c', 'stic_identification_number_c',
+        'primary_address_street', 'primary_address_postalcode', 'primary_address_city',
+        'ajmcm_centro_educativo_c', 'ajmcm_numero_persona_c',
+        'ajmcm_actividadesout_c', 'ajmcm_aut_participar_c', 'ajmcm_acepta_lopd_c',
     );
 }
 
@@ -3727,12 +3749,29 @@ function sticpa_pl_panuelos()
     );
 }
 
-/** La ficha de un participante, en una llamada y solo con lo que se usa. */
+/**
+ * La ficha de un participante, en una llamada y solo con lo que se usa.
+ *
+ * CACHEADA (16/10/2026): los datos de un chaval —su familia, su salud, sus
+ * permisos— cambian a ritmo de curso, y la ficha los pedía en cada visita.
+ * Va en la familia 'struct' (la tira el botón de refrescar), la clave lleva la
+ * delegación y la generación como todas, y el pañuelo —la única escritura de
+ * la ficha— borra la suya al guardar. Lo que NO se cachea es lo que cambia un
+ * sábado: asistencia y avisos van por su lado.
+ *
+ * La caché vive en el SERVIDOR (transients), no en el móvil: la regla de no
+ * dejar datos de salud en el dispositivo sigue igual.
+ */
 function sticpa_pl_ficha($objSCP, $contactId)
 {
     $contactId = sticpa_pl_safe_id($contactId);
     if ($contactId === '') {
         return null;
+    }
+    $cacheKey = sticpa_pl_cache_key('ficha', $objSCP, $contactId);
+    $cached = get_transient($cacheKey);
+    if (is_array($cached) && isset($cached['id'])) {
+        return $cached;
     }
     $detail = $objSCP->getRecordDetail($contactId, 'Contacts', sticpa_pl_ficha_fields());
     if (empty($detail->entry_list[0]->name_value_list)) {
@@ -3747,6 +3786,9 @@ function sticpa_pl_ficha($objSCP, $contactId)
     $out['initials'] = sticpa_pl_initials($out['first_name'], $out['last_name'], $out['name']);
     if (trim($out['name']) === '') {
         $out['name'] = trim($out['first_name'] . ' ' . $out['last_name']);
+    }
+    if ($out['id'] !== '') {
+        sticpa_pl_cache_put($cacheKey, $out, sticpa_pl_ttl_structure());
     }
     return $out;
 }
@@ -4255,6 +4297,11 @@ function sticpa_pl_set_panuelo($objSCP, $contactId, $value)
         return false;
     }
     $ok = $objSCP->set_entry('Contacts', array('id' => $contactId, 'ajmcm_panuelo_c' => $value));
+    // La ficha está cacheada: sin esto, el pañuelo nuevo no se vería hasta
+    // mañana (o hasta refrescar), y parecería que no se ha guardado.
+    if (function_exists('delete_transient')) {
+        delete_transient(sticpa_pl_cache_key('ficha', $objSCP, $contactId));
+    }
     return (bool) $ok;
 }
 
@@ -4304,6 +4351,42 @@ function sticpa_pl_family($objSCP, $contactId)
         return array();
     }
 
+    /* CACHEADA (16/10/2026). La familia de un chaval cambia una vez al año y
+     * la ficha la pedía en cada visita: dos consultas al entorno personal y una
+     * a los contactos, cada vez que alguien miraba un teléfono. Va en la
+     * familia 'struct' —la tira el botón de refrescar y el TTL de la
+     * estructura—, y un vacío caduca en dos minutos (`sticpa_pl_cache_put`),
+     * así que un hipo del CRM no deja a nadie sin familia hasta mañana. */
+    $cacheKey = sticpa_pl_cache_key('familia', $objSCP, $contactId);
+    $cached = get_transient($cacheKey);
+    if (is_array($cached)) {
+        return $cached;
+    }
+    $people = sticpa_pl_family_fetch($objSCP, $contactId);
+    sticpa_pl_cache_put($cacheKey, $people, sticpa_pl_ttl_structure());
+    return $people;
+}
+
+/** Un nombre para comparar: sin acentos, sin mayúsculas, sin espacios dobles. */
+function sticpa_pl_norm_nombre($s)
+{
+    $s = trim((string) $s);
+    if (function_exists('remove_accents')) {
+        $s = remove_accents($s);
+    } elseif (function_exists('iconv')) {
+        $t = @iconv('UTF-8', 'ASCII//TRANSLIT', $s);
+        if ($t !== false) {
+            $s = $t;
+        }
+    }
+    $s = function_exists('mb_strtolower') ? mb_strtolower($s) : strtolower($s);
+    return preg_replace('/\s+/', ' ', $s);
+}
+
+/** La familia, leída del CRM (sin caché). Ver `sticpa_pl_family()`. */
+function sticpa_pl_family_fetch($objSCP, $contactId)
+{
+
     // LOS DOS CAMPOS PLANOS ACABAN EN `_ida`, Y ESO ERA EL BUG.
     //
     // El código pedía `stic_personal_environment_contacts_1contacts_idb`, que
@@ -4324,10 +4407,17 @@ function sticpa_pl_family($objSCP, $contactId)
             'module_name' => 'Contacts',
             'module_id' => $contactId,
             'link_field_name' => $link,
+            // Los `_name` de los dos lados TAMBIÉN (16/10/2026). Son los
+            // campos `relate` que en SuiteCRM traen de la mano su `_ida` —el
+            // id solo, sin su `_name`, no siempre llega poblado por la v4.1—,
+            // y son el nombre del familiar sin depender de la segunda
+            // consulta: si esa falla, la madre sale igual, con su nombre.
             'related_fields' => array(
                 'id', 'relationship_type', 'reference_contact', 'authorized_signer', 'end_date',
                 $ladoParticipante,
                 $ladoFamiliar,
+                'stic_personal_environment_contacts_name',
+                'stic_personal_environment_contacts_1_name',
             ),
             // Se piden igual: si algún día la instancia los puebla, sale gratis
             // el nombre y el teléfono sin la segunda consulta.
@@ -4362,13 +4452,21 @@ function sticpa_pl_family($objSCP, $contactId)
             );
 
             // Camino bueno: los campos planos. Los DOS lados, y se descarta el
-            // del propio participante — el otro es el familiar.
-            foreach (array($ladoParticipante, $ladoFamiliar) as $campo) {
+            // del propio participante — el otro es el familiar. Con su nombre
+            // plano de respaldo (`name_plano`), que solo se usa si la consulta
+            // de los contactos no lo trae.
+            $nombresPlanos = array(
+                $ladoParticipante => 'stic_personal_environment_contacts_name',
+                $ladoFamiliar => 'stic_personal_environment_contacts_1_name',
+            );
+            foreach ($nombresPlanos as $campo => $campoNombre) {
                 $id = isset($v->$campo->value) ? sticpa_pl_safe_id($v->$campo->value) : '';
                 if ($id === '' || $id === $contactId || isset($vinculos[$id])) {
                     continue;
                 }
-                $vinculos[$id] = $rel;
+                $vinculos[$id] = $rel + array(
+                    'name_plano' => isset($v->$campoNombre->value) ? trim((string) $v->$campoNombre->value) : '',
+                );
             }
 
             // Y si el enlace anidado SÍ vino, se aprovecha lo que trae.
@@ -4449,15 +4547,42 @@ function sticpa_pl_family($objSCP, $contactId)
     }
 
     $people = array();
+    $vistos = array();
     foreach ($vinculos as $id => $datos) {
         $first = isset($datos['first']) ? $datos['first'] : '';
         $last = isset($datos['last']) ? $datos['last'] : '';
         $full = isset($datos['name']) ? $datos['name'] : '';
+        if ($full === '' && !empty($datos['name_plano'])) {
+            // El nombre que trae el propio registro de familia: sin teléfono
+            // (no ha llegado el contacto), pero la madre existe y se nombra.
+            $full = $datos['name_plano'];
+        }
         // Sin nombre no se pinta: una fila con un teléfono y sin dueño no dice
         // a quién estás llamando.
         if ($full === '') {
             continue;
         }
+        /* LA MISMA PERSONA DOS VECES (16/10/2026). Las altas de octubre crean a
+         * veces un contacto nuevo para un familiar que ya estaba: Jorge Flores
+         * (Castellón) tiene a «Carmen Serrano Tello» dos veces, con dos ids y
+         * el mismo nombre. En la ficha eran dos filas idénticas. Se junta por
+         * nombre normalizado; si una de las dos no tiene móvil, se queda el
+         * que lo tiene. */
+        $clave = sticpa_pl_norm_nombre($full);
+        $mobile = isset($datos['mobile']) ? $datos['mobile'] : '';
+        if (isset($vistos[$clave])) {
+            $i = $vistos[$clave];
+            if ($people[$i]['mobile'] === '' && $mobile !== '') {
+                $people[$i]['mobile'] = $mobile;
+            }
+            if ($people[$i]['email'] === '' && !empty($datos['email'])) {
+                $people[$i]['email'] = $datos['email'];
+            }
+            $people[$i]['reference'] = $people[$i]['reference'] || !empty($datos['reference']);
+            $people[$i]['signer'] = $people[$i]['signer'] || !empty($datos['signer']);
+            continue;
+        }
+        $vistos[$clave] = count($people);
         $people[] = array(
             'id' => $id,
             'name' => $full,

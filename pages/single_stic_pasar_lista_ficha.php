@@ -229,6 +229,22 @@ if (!empty($bits)) {
 $html .= '</span>';
 $html .= '</div>';
 
+/* «NO SE PUEDE IR SOLO/A A CASA», ARRIBA DEL TODO (16/10/2026, lo pidió el
+ * propietario). Es la pregunta de las 18:00 y antes vivía en «Permisos», al
+ * fondo de la ficha: quien abría la ficha para llamar a casa no la veía. Va
+ * pegada al nombre, antes que los botones, en ámbar y con su frase entera.
+ *
+ * Solo con el «0» explícito: un permiso sin contestar no es un «no» (las
+ * fichas migradas llegan vacías, CAMPOS.md), y gritar «no se puede ir» de
+ * medio grupo enseñaría a no leer el aviso. El vacío se dice abajo, en
+ * Autorizaciones, como «Sin contestar». */
+if (trim((string) $ficha['ajmcm_soloacasa_c']) === '0') {
+    $html .= '<p class="pl-solo" role="note">' . sticpa_pl_icon('warn') . '<span>'
+        . '<strong>' . esc_html__('No puede irse solo/a a casa.', 'sticpa') . '</strong> '
+        . esc_html__('Su familia no lo ha autorizado: tiene que recogerle alguien.', 'sticpa')
+        . '</span></p>';
+}
+
 if ($panueloMsg !== '') {
     $html .= '<p class="pl-notice"><span>' . esc_html($panueloMsg) . '</span></p>';
 }
@@ -812,26 +828,6 @@ if ($health !== '') {
 }
 
 // ---------------------------------------------------------------------------
-// Permisos
-// ---------------------------------------------------------------------------
-
-$yesNo = function ($raw) {
-    $on = ($raw === '1' || $raw === 'on' || $raw === 'true');
-    return '<span class="pl-flag pl-flag--' . ($on ? 'yes' : 'no') . '">'
-        . ($on ? esc_html__('Sí', 'sticpa') : esc_html__('No', 'sticpa')) . '</span>';
-};
-
-$html .= '<div class="pl-sec">' . esc_html__('Permisos', 'sticpa') . '</div>';
-$html .= '<div class="pl-list pl-list--data">';
-$html .= '<div class="pl-flagrow"><span>' . esc_html__('Puede irse solo/a a casa', 'sticpa') . '</span>'
-    . $yesNo($ficha['ajmcm_soloacasa_c']) . '</div>';
-$html .= '<div class="pl-flagrow"><span>' . esc_html__('Cesión de imágenes', 'sticpa') . '</span>'
-    . $yesNo($ficha['ajmcm_cesionimagenes_interne_c']) . '</div>';
-$html .= '<div class="pl-flagrow"><span>' . esc_html__('WhatsApp del menor', 'sticpa') . '</span>'
-    . $yesNo($ficha['ajmcm_menorwhatsapp_c']) . '</div>';
-$html .= '</div>';
-
-// ---------------------------------------------------------------------------
 // Pañuelo: editable, con confirmación
 // ---------------------------------------------------------------------------
 
@@ -870,29 +866,168 @@ $html .= '</div>';
 $html .= '</form>';
 
 // ---------------------------------------------------------------------------
-// Datos
+// Lo que se mira una vez al año: plegado, al final
 // ---------------------------------------------------------------------------
 
-$dataRows = array();
-if ($ficha['ajmcm_etapa_c'] !== '') {
-    $dataRows[__('Etapa', 'sticpa')] = $ficha['ajmcm_etapa_c'];
+/* AUTORIZACIONES, DATOS PERSONALES Y FAMILIA (16/10/2026). La ficha tenía la
+ * mitad de lo que el CRM sabe de un chaval —ni dirección, ni DNI, ni colegio,
+ * ni el correo de su madre— y lo que tenía iba suelto. Ahora va todo, en tres
+ * pliegues `<details>` como los de la ficha del monitor: cerrados, al fondo, y
+ * con lo que importa ya escrito en la solapa para no tener que abrirlos.
+ *
+ * Todo sale de la MISMA lectura de la ficha y de la familia que ya se ha hecho
+ * arriba: ni una llamada más. */
+$sino = function ($raw) {
+    $raw = trim((string) $raw);
+    if ($raw === '1' || $raw === 'on' || $raw === 'true') {
+        return array('yes', __('Sí', 'sticpa'));
+    }
+    if ($raw === '0' || $raw === 'off' || $raw === 'false') {
+        return array('no', __('No', 'sticpa'));
+    }
+    // Un vacío no es un «no»: la ficha migrada llegó sin contestar.
+    return array('warn', __('Sin contestar', 'sticpa'));
+};
+$pliegue = function ($titulo, $solapa, $cuerpo, $clase = '') {
+    return '<details class="pl-fold' . ($clase !== '' ? ' ' . $clase : '') . '">'
+        . '<summary class="pl-fold-sum">' . esc_html($titulo)
+        . ($solapa !== '' ? '<span class="pl-fold-count">' . esc_html($solapa) . '</span>' : '')
+        . '</summary>' . $cuerpo . '</details>';
+};
+$kv = function ($filas) {
+    $out = '<div class="pl-list pl-list--data">';
+    foreach ($filas as $label => $value) {
+        $out .= '<div class="pl-kv"><span class="pl-kv-label">' . esc_html($label) . '</span>'
+            . '<span class="pl-kv-value">' . $value . '</span></div>';
+    }
+    return $out . '</div>';
+};
+
+// --- Autorizaciones ----------------------------------------------------------
+// Todas las que el CRM guarda de un menor, con «Sin contestar» donde no hay
+// respuesta. En la solapa, lo que falla: «Todo autorizado» o «2 sin autorizar».
+$autorizaciones = array(
+    'ajmcm_soloacasa_c' => __('Irse solo/a a casa', 'sticpa'),
+    'ajmcm_cesionimagenes_interne_c' => __('Cesión de imágenes', 'sticpa'),
+    'ajmcm_menorwhatsapp_c' => __('Grupos de WhatsApp', 'sticpa'),
+    'ajmcm_actividadesout_c' => __('Actividades fuera del centro', 'sticpa'),
+    'ajmcm_aut_participar_c' => __('Participar en las actividades', 'sticpa'),
+    'ajmcm_datossalud_c' => __('Uso de datos de salud', 'sticpa'),
+    'ajmcm_acepta_lopd_c' => __('Protección de datos (LOPD)', 'sticpa'),
+);
+$filasAut = '';
+$nNo = 0;
+$nSin = 0;
+foreach ($autorizaciones as $campo => $label) {
+    list($tipo, $texto) = $sino(isset($ficha[$campo]) ? $ficha[$campo] : '');
+    if ($tipo === 'no') {
+        $nNo++;
+    } elseif ($tipo === 'warn') {
+        $nSin++;
+    }
+    $filasAut .= '<div class="pl-flagrow"><span>' . esc_html($label) . '</span>'
+        . '<span class="pl-flag pl-flag--' . esc_attr($tipo) . '">' . esc_html($texto) . '</span></div>';
 }
+$solapaAut = array();
+if ($nNo > 0) {
+    /* translators: %d: autorizaciones denegadas */
+    $solapaAut[] = sprintf(_n('%d sin autorizar', '%d sin autorizar', $nNo, 'sticpa'), $nNo);
+}
+if ($nSin > 0) {
+    /* translators: %d: autorizaciones sin contestar */
+    $solapaAut[] = sprintf(_n('%d sin contestar', '%d sin contestar', $nSin, 'sticpa'), $nSin);
+}
+$html .= $pliegue(
+    __('Autorizaciones', 'sticpa'),
+    empty($solapaAut) ? __('Todo autorizado', 'sticpa') : implode(' · ', $solapaAut),
+    '<div class="pl-list pl-list--data">' . $filasAut . '</div>'
+);
+
+// --- Datos personales ---------------------------------------------------------
+$pers = array();
 if ($ficha['birthdate'] !== '') {
     $ts = strtotime($ficha['birthdate']);
-    $dataRows[__('Fecha de nacimiento', 'sticpa')] = $ts ? date_i18n('j F Y', $ts) : $ficha['birthdate'];
+    $pers[__('Nacimiento', 'sticpa')] = esc_html($ts ? date_i18n('j F Y', $ts) : $ficha['birthdate']);
+}
+$doc = trim($ficha['stic_identification_number_c']);
+if ($doc !== '') {
+    $tipoDoc = sticpa_pl_enum_label('stic_identification_type_c', $ficha['stic_identification_type_c']);
+    $pers[($tipoDoc !== '') ? $tipoDoc : __('Documento', 'sticpa')] = esc_html($doc);
+}
+// Sin género: «Sexo no, no aporta nada aquí» (PASAR-LISTA.md §6.4).
+// La dirección en una línea, y que se pueda abrir en el mapa: es para lo que
+// se busca («¿dónde vive?, le acerco yo»).
+$direccion = implode(', ', array_filter(array(
+    trim($ficha['primary_address_street']),
+    trim($ficha['primary_address_postalcode'] . ' ' . $ficha['primary_address_city']),
+), 'strlen'));
+if ($direccion !== '') {
+    $pers[__('Dirección', 'sticpa')] = '<a href="' . esc_url('https://www.google.com/maps/search/?api=1&query=' . rawurlencode($direccion)) . '"'
+        . ' target="_blank" rel="noopener">' . esc_html($direccion) . '</a>';
+}
+if (trim($ficha['ajmcm_centro_educativo_c']) !== '') {
+    $pers[__('Centro educativo', 'sticpa')] = esc_html($ficha['ajmcm_centro_educativo_c']);
+}
+if (trim($ficha['email1']) !== '') {
+    $pers[__('Correo', 'sticpa')] = '<a href="mailto:' . esc_attr($ficha['email1']) . '">' . esc_html($ficha['email1']) . '</a>';
 }
 if ($ficha['ajmcm_tallas_c'] !== '') {
-    $dataRows[__('Talla', 'sticpa')] = $ficha['ajmcm_tallas_c'];
+    $pers[__('Talla', 'sticpa')] = esc_html($ficha['ajmcm_tallas_c']);
+}
+$etapaFicha = sticpa_pl_enum_label('ajmcm_etapa_c', $ficha['ajmcm_etapa_c']);
+if ($etapaFicha !== '') {
+    $pers[__('Etapa', 'sticpa')] = esc_html($etapaFicha);
+}
+$nivel = sticpa_pl_enum_label('ajmcm_nivel_com_c', $ficha['ajmcm_nivel_com_c']);
+if ($nivel !== '') {
+    $pers[__('Nivel COM', 'sticpa')] = esc_html($nivel);
+}
+if (trim($ficha['ajmcm_numero_persona_c']) !== '') {
+    $pers[__('Nº de persona', 'sticpa')] = esc_html($ficha['ajmcm_numero_persona_c']);
+}
+if (!empty($pers)) {
+    $html .= $pliegue(
+        __('Datos personales', 'sticpa'),
+        trim($ficha['primary_address_city']),
+        $kv($pers)
+    );
 }
 
-if (!empty($dataRows)) {
-    $html .= '<div class="pl-sec">' . esc_html__('Datos', 'sticpa') . '</div>';
-    $html .= '<div class="pl-list pl-list--data">';
-    foreach ($dataRows as $label => $value) {
-        $html .= '<div class="pl-flagrow"><span>' . esc_html($label) . '</span>'
-            . '<strong>' . esc_html($value) . '</strong></div>';
+// --- Familia --------------------------------------------------------------------
+// Lo que no cabe en las filas de teléfono: el correo de cada uno y quién firma.
+if (!empty($family)) {
+    $filasFam = '<div class="pl-list pl-list--data">';
+    foreach ($family as $rel) {
+        $quien = array_filter(array(
+            sticpa_pl_parentesco_label($rel['relationship']),
+            $rel['reference'] ? __('referencia', 'sticpa') : '',
+            $rel['signer'] ? __('firma', 'sticpa') : '',
+        ));
+        $filasFam .= '<div class="pl-data">';
+        $filasFam .= '<span class="pl-data-label">' . esc_html($rel['name'])
+            . (!empty($quien) ? ' · ' . esc_html(implode(' · ', $quien)) : '') . '</span>';
+        $contacto = array();
+        $tel = sticpa_pl_phone($rel['mobile']);
+        if ($tel !== null) {
+            $contacto[] = '<a href="tel:' . esc_attr($tel['tel']) . '">' . esc_html($tel['display']) . '</a>';
+        }
+        if (!empty($rel['email'])) {
+            $contacto[] = '<a href="mailto:' . esc_attr($rel['email']) . '">' . esc_html($rel['email']) . '</a>';
+        }
+        $filasFam .= '<span class="pl-data-value">'
+            . (!empty($contacto) ? implode(' · ', $contacto) : esc_html__('Sin teléfono ni correo', 'sticpa'))
+            . '</span></div>';
     }
-    $html .= '</div>';
+    $filasFam .= '</div>';
+    $html .= $pliegue(
+        __('Familia', 'sticpa'),
+        sprintf(
+            /* translators: %d: cuántos familiares */
+            _n('%d persona', '%d personas', count($family), 'sticpa'),
+            count($family)
+        ),
+        $filasFam
+    );
 }
 
 // Los avisos de comportamiento llegan cuando exista el módulo AVI_avisos
