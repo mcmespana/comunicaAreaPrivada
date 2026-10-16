@@ -93,6 +93,13 @@ if ($event === null) {
     return;
 }
 
+// «Crear la sesión de hoy» (16/10/2026): ANTES de la tanda, que así ya lee la
+// sesión nueva. Solo sale cuando el evento no tiene ninguna (abajo).
+$creada = sticpa_pl_crear_sesion_hoy_post($objSCP, $event, 'pl_monitores_hoy');
+if ($creada !== null) {
+    $sessionId = $creada['id'];
+}
+
 // TANDA 2: sesiones e inscripciones del evento.
 sticpa_pl_prime($objSCP, function () use ($objSCP, $event) {
     sticpa_pl_event_sessions($objSCP, $event['id']);
@@ -116,8 +123,20 @@ if ($session === null) {
 }
 
 if ($session === null) {
+    // Con su cabecera y su vuelta atrás: antes era una línea suelta bajo el
+    // menú, sin decir de qué pantalla ni de qué evento.
+    $volverVacio = $isReunion
+        ? '?internalpage=single_stic_pasar_lista_reuniones'
+        : ((isset($_REQUEST['desde']) && $_REQUEST['desde'] === 'coordinacion')
+            ? '?internalpage=single_stic_coordinacion' : '?internalpage=single_stic_pasar_lista');
+    $html .= '<div class="pl-head"><a class="pl-back" href="' . esc_url($volverVacio) . '"'
+        . ' aria-label="' . esc_attr__('Volver', 'sticpa') . '">' . sticpa_pl_icon('back') . '</a>'
+        . '<div class="pl-head-titles"><div class="pl-title"><span class="pl-title-code">'
+        . esc_html__('Lista de monitores', 'sticpa') . '</span></div>'
+        . '<div class="pl-subtitle">' . esc_html($event['name']) . '</div></div></div>';
     $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
         . esc_html__('Este evento aún no tiene sesiones.', 'sticpa') . '</span></p>';
+    $html .= sticpa_pl_crear_sesion_hoy_html('pl_monitores_hoy');
     return;
 }
 

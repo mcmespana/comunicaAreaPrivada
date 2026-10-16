@@ -667,6 +667,33 @@ function sticpa_pl_legend_html($monitores = false)
  * El desplegable se llama `pl_assign_group[<relación>]` y no igual en todas las
  * filas: van varias en el mismo formulario y PHP se quedaba con el ÚLTIMO.
  */
+/**
+ * Los grupos de un «Vincular», con los del curso de la persona PRIMERO.
+ *
+ * En las vistas por curso y A-Z de Grupos y fichas hay un desplegable por
+ * chaval sin grupo; con dieciocho grupos, buscar el suyo en cada fila es la
+ * mitad del trabajo. Los de su curso (el `cursos_c` del grupo, leído como
+ * clave) van arriba; los demás siguen detrás, por si el curso está mal.
+ */
+function sticpa_pl_grupos_para_curso($groups, $cursoKey)
+{
+    $cursoKey = (string) $cursoKey;
+    if ($cursoKey === '') {
+        return (array) $groups;
+    }
+    $suyos = array();
+    $resto = array();
+    foreach ((array) $groups as $gid => $g) {
+        $k = sticpa_pl_curso_key_de_texto(isset($g['cursos']) ? $g['cursos'] : '');
+        if ($k === $cursoKey) {
+            $suyos[$gid] = $g;
+        } else {
+            $resto[$gid] = $g;
+        }
+    }
+    return $suyos + $resto;
+}
+
 function sticpa_pl_vincular_html($relId, $groups, $nombre)
 {
     $relId = sticpa_pl_safe_id($relId);
@@ -1657,7 +1684,13 @@ function sticpa_pl_directorio_monitores_html($monitors, $groups, $puedoVincular,
             $html .= sticpa_pl_avatar_html($m, true);
             $html .= '<span class="pl-row-body">';
             $html .= '<span class="pl-name">' . esc_html($m['name']) . '</span>';
-            $html .= '<span class="pl-rowsub">' . esc_html__('Sin grupo asignado', 'sticpa') . '</span>';
+            $html .= '<span class="pl-rowsub">' . esc_html(!empty($m['grupo_fuera'])
+                ? sprintf(
+                    /* translators: %s: nombre de un grupo que no entra en Pasar Lista */
+                    __('%s · no entra en Pasar Lista', 'sticpa'),
+                    $m['grupo_fuera']
+                )
+                : __('Sin grupo asignado', 'sticpa')) . '</span>';
             $html .= '</span>';
             if ($puedoVincular) {
                 $html .= sticpa_pl_vincular_html($m['rel_sin_grupo'], $groups, $m['name']);

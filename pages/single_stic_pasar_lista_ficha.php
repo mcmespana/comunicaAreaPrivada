@@ -67,6 +67,20 @@ foreach ($people['participants'] as $p) {
         break;
     }
 }
+/* SIN GRUPO (16/10/2026). Desde las vistas por curso y A-Z de Grupos y fichas
+ * se abre también la ficha de quien todavía no tiene grupo: a principio de
+ * curso es casi todo el mundo, y su teléfono hace falta igual. Sin `grupo` en
+ * la URL, basta con que tenga una relación de PARTICIPANTE vigente con la
+ * delegación (del mapa ya cargado: cero llamadas). Con un `grupo` que no es el
+ * suyo se sigue cortando, como siempre. */
+$relSinGrupo = null;
+if (!$inGroup && $groupId === '') {
+    $relSinGrupo = sticpa_pl_ev_rel_reciente(sticpa_pl_all_relationships($objSCP), function ($rel) use ($contactId) {
+        return $rel['person']['id'] === $contactId;
+    });
+    $relSinGrupo = isset($relSinGrupo[$contactId]) ? $relSinGrupo[$contactId] : null;
+    $inGroup = ($relSinGrupo !== null);
+}
 if (!$inGroup) {
     $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
         . esc_html__('Este participante no está en el grupo indicado.', 'sticpa') . '</span></p>';
@@ -172,6 +186,14 @@ $html .= '</div>';
 // nombre entero. Debajo, en una línea gris y sin etiquetas, lo que sitúa a la
 // persona: grupo, etapa, curso y edad.
 $bits = array();
+if ($group === null) {
+    $bits[] = __('Sin grupo', 'sticpa');
+    $cursoSinGrupo = sticpa_pl_ev_cursos_de(array($relSinGrupo));
+    $cursosTxt = sticpa_pl_ev_cursos();
+    if (isset($cursoSinGrupo[$contactId], $cursosTxt[$cursoSinGrupo[$contactId]])) {
+        $bits[] = $cursosTxt[$cursoSinGrupo[$contactId]];
+    }
+}
 if ($group !== null) {
     $bits[] = $group['code'] . ($group['name'] !== '' ? ' · ' . $group['name'] : '');
     $groupEtapa = sticpa_pl_group_etapa($group['level']);
@@ -364,7 +386,11 @@ if ($quick !== null) {
  *
  * La tanda va DESPUÉS de los manejadores del POST de arriba: si se leyera
  * antes, un aviso recién puesto no saldría hasta recargar. */
-$etapa = sticpa_pl_group_etapa($group['level']);
+// Sin grupo, la etapa sale del curso de su relación (primaria es MIC; ESO y
+// bachillerato, COM), la misma regla que la lista de un evento.
+$etapa = ($group !== null)
+    ? sticpa_pl_group_etapa($group['level'])
+    : sticpa_pl_ev_etapa(isset($relSinGrupo['curso_escolar']) ? $relSinGrupo['curso_escolar'] : '');
 $events = sticpa_pl_etapa_events($objSCP);
 
 $track = null;

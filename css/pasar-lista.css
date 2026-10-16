@@ -727,6 +727,9 @@ body.sticpa-app-mode [data-pl-form] { padding-bottom: var(--stic-app-bottom); }
 }
 .pl-save[disabled] { opacity: 0.55 !important; cursor: default; }
 
+/* «Crear la sesión de hoy», cuando el evento aún no tiene ninguna. */
+.pl-crear-sesion { display: flex; flex-direction: column; gap: 0.5rem; margin: 1rem 0; }
+
 /* ---- Hoja de los cuatro estados ---------------------------------------- */
 
 /* El velo se oscurece A LA PAR que sube la hoja, no con su propia transición:
@@ -3365,6 +3368,21 @@ a.pl-group .pl-name { display: block; }
     margin-left: auto;
 }
 .pl-suelto-act .pl-review-select { flex: 1 1 auto; min-width: 0; }
+
+/* Grupos y fichas, vistas por curso y A-Z (16/10/2026): quien no tiene grupo
+   sale en la lista con su ficha abrible y, a coordinación, su «Vincular». La
+   fila no puede ser un enlace entero (lleva un desplegable), así que el enlace
+   es la parte del nombre, con la misma pinta que una `.pl-rowlink`. */
+.pl-singrupo-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1 1 12rem;
+    min-width: 0;
+    color: inherit;
+    text-decoration: none;
+}
+.pl-singrupo { font-weight: 700; color: var(--warning-dark); }
 /* 640px es EL breakpoint móvil de la escala (plan 039, fila 2). Antes había
    aquí un `26rem` inventado: en cualquier móvil el desplegable y el botón se
    leen mejor bajo el nombre que apretados a su derecha, así que el ancho de

@@ -537,25 +537,51 @@ if ($ver === 'grupos') {
 // ---- Vistas CURSOS y A-Z: la gente, no los grupos -------------------------
 
 /* TODA la gente de la delegación, del mapa que ya está cargado. Ni una consulta
- * más: `sticpa_pl_all_relationships()` trae persona, grupo, papel y vigencia de
- * una vez, y es justo lo que hace falta aquí. */
+ * más: `sticpa_pl_all_relationships()` trae persona, grupo, papel, curso y
+ * vigencia de una vez, y es justo lo que hace falta aquí.
+ *
+ * QUIÉN SALE (16/10/2026, lo pidió coordinación): todo el que tiene una
+ * relación VIGENTE de «Participante MIC-COM» con la delegación, TENGA GRUPO O
+ * NO. Antes salía solo quien colgaba de un grupo de Pasar Lista, y a principio
+ * de curso eso es casi nadie: de 210 participantes de Castellón, 20 tenían
+ * grupo. Las vistas por curso y A-Z son justo las que sirven para repartirlos.
+ * Quien no tiene grupo sale marcado «Sin grupo» y, a coordinación, con su
+ * «Vincular» al lado — el mismo que en la vista de sueltos.
+ *
+ * EL CURSO ES EL DE LA RELACIÓN (`ajmcm_curso_escolar_c`, la de inicio más
+ * reciente que lo tenga): es donde vive el curso de una persona. El del grupo
+ * solo cubre a quien no lo tiene en su relación. */
+$relsVivas = sticpa_pl_all_relationships($objSCP);
+$cursoDe = sticpa_pl_ev_cursos_de($relsVivas);
+$conGrupo = sticpa_pl_ev_rel_reciente($relsVivas, function ($rel) use ($groups) {
+    return $rel['group_id'] !== '' && isset($groups[$rel['group_id']]);
+});
+$micCom = sticpa_pl_ev_rel_reciente($relsVivas, function ($rel) {
+    return isset($rel['tipo']) && strtolower((string) $rel['tipo']) === 'participante_mic_com';
+});
+$cursosTxt = sticpa_pl_ev_cursos();
+
 $personas = array();
-foreach (sticpa_pl_all_relationships($objSCP) as $rel) {
-    if ($rel['role'] === 'monitor' || $rel['person']['id'] === '') {
-        continue;
-    }
-    $gid = $rel['group_id'];
-    if ($gid === '' || !isset($groups[$gid])) {
-        continue;   // sin grupo, o de un grupo que no entra en Pasar Lista
-    }
-    $id = $rel['person']['id'];
+foreach (array_merge(array_keys($conGrupo), array_keys($micCom)) as $id) {
     if (isset($personas[$id])) {
         continue;   // dos relaciones vigentes: una sola ficha
     }
-    $personas[$id] = $rel['person'];
-    $personas[$id]['grupo'] = $groups[$gid]['code'];
-    $personas[$id]['grupo_id'] = $gid;
-    $personas[$id]['curso'] = isset($groups[$gid]['cursos']) ? (string) $groups[$gid]['cursos'] : '';
+    $rel = isset($conGrupo[$id]) ? $conGrupo[$id] : $micCom[$id];
+    $gid = isset($conGrupo[$id]) ? $rel['group_id'] : '';
+    $p = $rel['person'];
+    $p['grupo'] = ($gid !== '') ? $groups[$gid]['code'] : '';
+    $p['grupo_id'] = $gid;
+    // La relación que hay que colgar de un grupo, para «Vincular».
+    $p['rel_id'] = ($gid === '') ? $rel['rel_id'] : '';
+    $key = isset($cursoDe[$id]) ? $cursoDe[$id] : '';
+    if ($key === '' && $gid !== '') {
+        $key = sticpa_pl_curso_key_de_texto(isset($groups[$gid]['cursos']) ? $groups[$gid]['cursos'] : '');
+    }
+    $p['curso_key'] = $key;
+    $p['curso'] = ($key !== '' && isset($cursosTxt[$key]))
+        ? $cursosTxt[$key]
+        : (($gid !== '' && isset($groups[$gid]['cursos'])) ? (string) $groups[$gid]['cursos'] : '');
+    $personas[$id] = $p;
 }
 
 if (empty($personas)) {
@@ -564,12 +590,30 @@ if (empty($personas)) {
     $html .= ($avisoCursoCerrado !== '')
         ? $avisoCursoCerrado
         : '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
-            . esc_html__('No hay participantes con relación vigente en los grupos de tu delegación.', 'sticpa')
+            . esc_html__('No hay participantes con relación vigente en tu delegación.', 'sticpa')
             . '</span></p>';
     return;
 }
 
 $html .= $avisoCursoCerrado;
+
+$nSinGrupo = 0;
+foreach ($personas as $p) {
+    if ($p['grupo_id'] === '') {
+        $nSinGrupo++;
+    }
+}
+$puedoVincular = ($nSinGrupo > 0) && sticpa_pl_is_coordinator($objSCP);
+if ($nSinGrupo > 0) {
+    $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>' . esc_html(sprintf(
+        $puedoVincular
+            /* translators: %d: participantes sin grupo */
+            ? _n('%d sin grupo todavía: no sale en ninguna lista. Elige su grupo en su fila y queda vinculado.', '%d sin grupo todavía: no salen en ninguna lista. Elige su grupo en su fila y quedan vinculados.', $nSinGrupo, 'sticpa')
+            /* translators: %d: participantes sin grupo */
+            : _n('%d sin grupo todavía: no sale en ninguna lista. Vincularlo es cosa de coordinación.', '%d sin grupo todavía: no salen en ninguna lista. Vincularlos es cosa de coordinación.', $nSinGrupo, 'sticpa'),
+        $nSinGrupo
+    )) . '</span></p>';
+}
 
 /** La fila de una persona en las vistas de gente.
  *
@@ -577,33 +621,70 @@ $html .= $avisoCursoCerrado;
  * personas— y cada foto es una petición: con `loading="lazy"` solo bajan las
  * que se ven, pero bajando la lista entera son trescientos viajes en una
  * webview con datos móviles. Donde la lista la acota un grupo (veinte,
- * veinticinco) sí van, y en la ficha —que es donde se pidieron— también. */
-$fila = function ($p) use ($ver) {
-    $sub = implode(' · ', array_filter(array(
-        $p['grupo'],
-        $p['curso'],
-        ($p['age'] !== '') ? sprintf(
-            /* translators: %s: edad en años */
-            __('%s años', 'sticpa'),
-            $p['age']
-        ) : '',
-    )));
-    return sticpa_pl_person_link_html(
-        $p,
-        '?internalpage=single_stic_pasar_lista_ficha&participante=' . rawurlencode($p['id'])
-            . '&grupo=' . rawurlencode($p['grupo_id']) . '&vengo=' . rawurlencode($ver),
-        $sub
-    );
+ * veinticinco) sí van, y en la ficha —que es donde se pidieron— también.
+ *
+ * SIN GRUPO: la misma fila, con «Sin grupo» en ámbar donde iría el código, y
+ * a coordinación el desplegable para vincularlo. La fila entera ya no puede
+ * ser un enlace (un `<select>` dentro de un `<a>` no se puede tocar), así que
+ * el enlace a la ficha es el nombre y el desplegable va al lado, como en la
+ * vista de sueltos. La ficha se abre sin grupo. */
+$fila = function ($p) use ($ver, $groups, $puedoVincular) {
+    $edad = ($p['age'] !== '') ? sprintf(
+        /* translators: %s: edad en años */
+        __('%s años', 'sticpa'),
+        $p['age']
+    ) : '';
+    $href = '?internalpage=single_stic_pasar_lista_ficha&participante=' . rawurlencode($p['id'])
+        . ($p['grupo_id'] !== '' ? '&grupo=' . rawurlencode($p['grupo_id']) : '')
+        . '&vengo=' . rawurlencode($ver);
+    if ($p['grupo_id'] !== '') {
+        return sticpa_pl_person_link_html(
+            $p,
+            $href,
+            implode(' · ', array_filter(array($p['grupo'], $p['curso'], $edad))),
+            '',
+            false,
+            isset($p['marcas']) ? $p['marcas'] : array()
+        );
+    }
+    $out = '<div class="pl-rowwrap pl-rowstatic pl-suelto" data-pl-sin-grupo>';
+    $out .= '<a class="pl-singrupo-link" href="' . esc_url($href) . '">';
+    $out .= sticpa_pl_avatar_html($p, false);
+    $out .= '<span class="pl-row-body">';
+    $out .= '<span class="pl-name">' . esc_html($p['name']) . '</span>';
+    $out .= sticpa_pl_marcas_html(isset($p['marcas']) ? $p['marcas'] : array());
+    $out .= '<span class="pl-rowsub"><span class="pl-singrupo">' . esc_html__('Sin grupo', 'sticpa') . '</span>'
+        . esc_html(implode('', array_map(function ($b) { return ' · ' . $b; }, array_filter(array($p['curso'], $edad)))))
+        . '</span>';
+    $out .= '</span></a>';
+    if ($puedoVincular && $p['rel_id'] !== '') {
+        $out .= sticpa_pl_vincular_html($p['rel_id'], sticpa_pl_grupos_para_curso($groups, $p['curso_key']), $p['name']);
+    }
+    $out .= '</div>';
+    return $out;
+};
+
+// Con «Vincular» en las filas, la lista va dentro de su formulario: es el mismo
+// POST que la vista de sueltos, que se atiende arriba del todo.
+$abreLista = function () use ($puedoVincular) {
+    return $puedoVincular
+        ? '<form method="post">' . wp_nonce_field('pl_mis_grupos', 'pl_nonce', true, false)
+        : '';
+};
+$cierraLista = function () use ($puedoVincular) {
+    return $puedoVincular ? '</form>' : '';
 };
 
 if ($ver === 'az') {
     $todos = array_values($personas);
     usort($todos, 'sticpa_pl_cmp_person');
+    $html .= $abreLista();
     $html .= '<div class="pl-list">';
     foreach ($todos as $p) {
         $html .= $fila($p);
     }
     $html .= '</div>';
+    $html .= $cierraLista();
     $html .= sticpa_pl_buscador_vacio_html();
     return;
 }
@@ -613,14 +694,26 @@ if ($ver === 'az') {
 /* El curso CRUZA los grupos, que es justo la gracia: «todos los de 1.º de ESO»
  * son de C1 y de C2, y por grupo no se ven juntos nunca. El orden es el escolar
  * —4.º de primaria antes que 1.º de ESO—, que ya lo sabe `sticpa_pl_curso_rank()`. */
+// Por CLAVE de curso, para que el de la relación («3_eso») y el del grupo
+// («3 ESO») caigan bajo la misma cabecera. Lo que no tiene clave pero sí un
+// texto de grupo, bajo ese texto; lo demás, «Sin curso».
 $porCurso = array();
+$tituloCurso = array();
 foreach ($personas as $p) {
-    $curso = ($p['curso'] !== '') ? $p['curso'] : '?';
-    $porCurso[$curso][] = $p;
+    $k = ($p['curso_key'] !== '') ? $p['curso_key'] : (($p['curso'] !== '') ? 'txt:' . $p['curso'] : '?');
+    $porCurso[$k][] = $p;
+    $tituloCurso[$k] = ($k === '?') ? '' : $p['curso'];
 }
-uksort($porCurso, function ($a, $b) {
-    $ra = sticpa_pl_curso_rank($a === '?' ? '' : $a);
-    $rb = sticpa_pl_curso_rank($b === '?' ? '' : $b);
+/** El texto que entiende el rank, para ordenar Y colorear con la misma vara. */
+$textoRank = function ($k) {
+    if ($k === '?') {
+        return '';
+    }
+    return (strpos($k, 'txt:') === 0) ? substr($k, 4) : sticpa_pl_curso_key_texto($k);
+};
+uksort($porCurso, function ($a, $b) use ($textoRank) {
+    $ra = ($a === '?') ? 99999 : sticpa_pl_curso_rank($textoRank($a));
+    $rb = ($b === '?') ? 99999 : sticpa_pl_curso_rank($textoRank($b));
     if ($ra !== $rb) {
         return ($ra < $rb) ? -1 : 1;
     }
@@ -640,9 +733,10 @@ uksort($porCurso, function ($a, $b) {
  *
  * Un curso que no se reconoce NO se colorea: un color inventado sobre un dato
  * que no se entiende miente. */
+$html .= $abreLista();
 foreach ($porCurso as $curso => $gente) {
     usort($gente, 'sticpa_pl_cmp_person');
-    $intensidad = ($curso === '?') ? -1.0 : sticpa_pl_curso_intensidad($curso);
+    $intensidad = ($curso === '?') ? -1.0 : sticpa_pl_curso_intensidad($textoRank($curso));
     $html .= '<div class="pl-etapa-title">';
     if ($intensidad >= 0) {
         $html .= '<span class="pl-etapa-dot pl-curso-dot"'
@@ -651,7 +745,7 @@ foreach ($porCurso as $curso => $gente) {
     } else {
         $html .= '<span class="pl-etapa-dot" style="background:var(--gray-300)"></span>';
     }
-    $html .= esc_html(($curso === '?') ? __('Sin curso', 'sticpa') : $curso)
+    $html .= esc_html(($curso === '?') ? __('Sin curso', 'sticpa') : $tituloCurso[$curso])
         . '<span class="pl-etapa-count">' . esc_html(sprintf(
             /* translators: %d: cuántos participantes hay en el curso */
             _n('%d chavalín', '%d chavalines', count($gente), 'sticpa'),
@@ -663,5 +757,6 @@ foreach ($porCurso as $curso => $gente) {
     }
     $html .= '</div>';
 }
+$html .= $cierraLista();
 
 $html .= sticpa_pl_buscador_vacio_html();

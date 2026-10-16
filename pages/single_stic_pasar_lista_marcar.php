@@ -67,6 +67,13 @@ if ($event === null) {
     return;
 }
 
+// «Crear la sesión de hoy» (16/10/2026): antes de la tanda, que así ya lee la
+// sesión nueva. Solo se ofrece cuando el evento no tiene ninguna (abajo).
+$creada = sticpa_pl_crear_sesion_hoy_post($objSCP, $event, 'pl_marcar_hoy');
+if ($creada !== null) {
+    $sessionId = $creada['id'];
+}
+
 // TANDA 2: las dos que necesitaban saber de qué evento hablamos.
 sticpa_pl_prime($objSCP, function () use ($objSCP, $event) {
     sticpa_pl_event_sessions($objSCP, $event['id']);
@@ -95,6 +102,7 @@ if ($session === null) {
     $html .= '<div class="stic-entry-header"><h3>' . esc_html($group['code']) . '</h3></div>';
     $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
         . esc_html__('Este evento aún no tiene sesiones.', 'sticpa') . '</span></p>';
+    $html .= sticpa_pl_crear_sesion_hoy_html('pl_marcar_hoy');
     return;
 }
 
