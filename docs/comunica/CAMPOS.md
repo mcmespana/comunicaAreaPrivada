@@ -1041,10 +1041,8 @@ crear: varios estaban creados con otro nombre). Comprobado el 09/09/2026:
 
 ### Grupos de actividad (`GAC_grupos`, `GAC_miembros`) — paquete `GruposActividad`, clave `GAC`
 
-> ⏳ **PREVISTO, AÚN NO CREADO EN EL CRM (15/10/2026).** Son los nombres que dan por buenos Comunica Tools
-> (`api/_lib/fields.ts`, `docs/GRUPOS-ACTIVIDAD.md`) y este plugin (`sticpa_gac_nombres()` en
-> `inc/stic-grupos-actividad.php`). Cuando el módulo exista, se comprueban con `get_module_fields`; si algo sale distinto
-> (un `_c`, un `_1`), se corrige AQUÍ y en esos dos sitios, y se quita este aviso.
+> ✅ **Creado en el CRM y comprobado con `get_module_fields` el 16/10/2026.** Lo usan Comunica Tools (`api/_lib/fields.ts`)
+> y este plugin (`sticpa_gac_nombres()` en `inc/stic-grupos-actividad.php`).
 
 Agrupaciones temporales dentro de un evento (patrullas, habitaciones, dinámica…). Las crea y mueve Comunica Tools; el área
 privada solo las lee (pantalla del evento de Pasar lista, `docs/comunica/GRUPOS-ACTIVIDAD.md`). No tienen nada que ver con
@@ -1058,9 +1056,16 @@ privada solo las lee (pantalla del evento de Pasar lista, `docs/comunica/GRUPOS-
 - `GAC_miembros`: una ficha por persona y grupo. `name` (nombre de la persona), `papel` (`gac_papel_list`: `participante`,
   `monitor`), `tipo` y `agrupacion` (copiados del grupo: siguen diciendo la pestaña aunque se quede sin grupo),
   `evento_id` (técnico), `assigned_user_id` = delegación del evento. Una persona está como mucho en un grupo por agrupación.
-- Relaciones (1:N): `gac_grupos_gac_miembros` (plano `gac_grupos_gac_miembrosgac_grupos_ida`), `stic_events_gac_grupos`
-  (plano `stic_events_gac_gruposstic_events_ida`), `contacts_gac_miembros` (plano `contacts_gac_miembroscontacts_ida`),
-  `stic_registrations_gac_miembros` (plano `stic_registrations_gac_miembrosstic_registrations_ida`).
+- Relaciones:
+  - `gac_grupos_gac_miembros` — grupo → miembros, **uno a muchos**: campo plano `gac_grupos_gac_miembrosgac_grupos_ida` en el
+    miembro.
+  - `gac_grupos_stic_events` — grupo ↔ evento, **muchos a muchos** (enlace con el mismo nombre en `GAC_grupos` y `stic_Events`).
+  - `gac_miembros_contacts` — miembro ↔ persona, **muchos a muchos**.
+  - `gac_miembros_stic_registrations` — miembro ↔ inscripción, **muchos a muchos**.
+  - ⚠️ Las tres muchos a muchos **no tienen campo plano `…_ida`**: pedirlo hace fallar la consulta. Se escriben con
+    `set_relationship` y se leen por el enlace de `get_entry_list` (`link_name_to_fields_array`).
+- `tipo` es obligatorio en `GAC_grupos` y opcional en `GAC_miembros` (Comunica Tools lo escribe siempre). `agrupacion` mide 100 en
+  grupos y 255 en miembros; `evento_id`, 60.
 - ⚠️ No se puede filtrar por los campos planos de las relaciones: para encontrar lo de un evento se filtra por `evento_id`.
 - Nunca se borra nada: quitar a alguien deja su ficha sin grupo; un grupo de más se anula (`activo` = 0).
 
