@@ -193,13 +193,7 @@ if ($gacTab !== '') {
         }
     }
     $personas = sticpa_pl_ev_personas($objSCP, $ids);
-    $relaciones = sticpa_pl_all_relationships($objSCP);
-    $lista = sticpa_pl_ev_lista(
-        $inscripciones,
-        $personas,
-        sticpa_pl_ev_grupos_de($relaciones, sticpa_pl_groups($objSCP)),
-        sticpa_pl_ev_cursos_de($relaciones)
-    );
+    $lista = sticpa_pl_ev_lista_completa($objSCP, $inscripciones, $personas);
     $tabInfo = $gacPestanas[$gacTab];
     $armado = sticpa_gac_armar($gacTab, $gacGrupos, $gacMiembros, $lista, $inscripciones);
 
@@ -266,14 +260,9 @@ sticpa_pl_prime($objSCP, function () use ($objSCP, $ids, $session, $regMapPrevio
 });
 $personas = sticpa_pl_ev_personas($objSCP, $ids);
 // El curso y el grupo salen de la relación de participante vigente más
-// reciente de cada uno, del mapa de relaciones ya cacheado: cero llamadas.
-$relaciones = sticpa_pl_all_relationships($objSCP);
-$lista = sticpa_pl_ev_lista(
-    $inscripciones,
-    $personas,
-    sticpa_pl_ev_grupos_de($relaciones, sticpa_pl_groups($objSCP)),
-    sticpa_pl_ev_cursos_de($relaciones)
-);
+// reciente de cada uno (del mapa ya cacheado; quien viene de otra delegación,
+// de las suyas, en una tanda). Los de otra delegación van aparte, al final.
+$lista = sticpa_pl_ev_lista_completa($objSCP, $inscripciones, $personas);
 $regMap = $lista['regMap'];
 
 // ---------------------------------------------------------------------------

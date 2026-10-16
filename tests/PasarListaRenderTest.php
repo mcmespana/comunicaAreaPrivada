@@ -97,6 +97,9 @@ class FakeSCP
      *  campamento futuro SIN sesiones y uno del curso anterior. Apagado por
      *  defecto para no mover ninguna otra prueba. */
     public $conEventos = false;
+    /** Con `$conEventos`: una persona de OTRA delegación (Burriana) inscrita en
+     *  la convivencia, con su relación de participante en su delegación. */
+    public $conBurriana = false;
 
     /** Grupos de actividad (GAC_*) en la convivencia `ev-bus`: dos patrullas
      *  («Patrulla 1» y «Patrulla 10», para el orden natural), una habitación
@@ -777,6 +780,12 @@ class FakeSCP
                 $fam['c1']['ajmcm_etapa_c'] = 'COM';
                 $fam['c2']['ajmcm_etapa_c'] = 'COM';
                 $fam['c5'] = array('id' => 'c5', 'first_name' => 'Lucía', 'last_name' => 'Gil', 'name' => 'Lucía Gil', 'ajmcm_etapa_c' => 'MIC');
+                if ($this->conBurriana) {
+                    // Ficha de COM y de otra delegación; su curso solo está en
+                    // SUS relaciones, que no salen en el mapa de Castellón.
+                    $fam['cb1'] = array('id' => 'cb1', 'first_name' => 'Pau', 'last_name' => 'Ribes', 'name' => 'Pau Ribes',
+                        'ajmcm_etapa_c' => 'COM', 'assigned_user_id' => 'deleg-burriana', 'assigned_user_name' => 'MCM Burriana');
+                }
             }
             $out = array();
             foreach ($fam as $id => $datos) {
@@ -937,6 +946,11 @@ class FakeSCP
                         'end_date' => '',
                     ));
                 }
+                if ($this->conBurriana && $p['module_id'] === 'cb1') {
+                    // La del curso pasado sin cerrar y la de este: gana esta.
+                    $rels[] = $this->nvl(array('id' => 'rbu1', 'relationship_type' => 'participante_mic_com', 'start_date' => '2024-09-01', 'end_date' => '', 'active' => '1', 'ajmcm_curso_escolar_c' => '6_primaria'));
+                    $rels[] = $this->nvl(array('id' => 'rbu2', 'relationship_type' => 'participante_mic_com', 'start_date' => '2025-09-01', 'end_date' => '', 'active' => '1', 'ajmcm_curso_escolar_c' => '1_eso'));
+                }
                 return $this->apiShape($rels);
 
             // El respaldo: el contacto de una relacion, una llamada por
@@ -1013,19 +1027,22 @@ class FakeSCP
                     }
                 }
                 if ($this->conEventos && $evento === 'ev-bus') {
+                    // (array_merge: con `$conBurriana`, una inscripción más.)
                     // Confirmadas con su curso; Marta sin etapa en la ficha
                     // (5.º de primaria → MIC); «Se Fue» cancelada; Jaume con
                     // una cancelada vieja Y una confirmada nueva (sale una vez).
                     // El contacto, unas por el campo plano y otras por el
                     // enlace: las dos formas que devuelve la instancia.
-                    return $this->apiShape(array(
+                    return $this->apiShape(array_merge(array(
                         $this->nvl(array('id' => 'rb1', 'status' => 'confirmed', 'ajmcm_curso_escolar_c' => '1_eso', 'stic_registrations_contactscontacts_ida' => 'c1')),
                         $this->nvl(array('id' => 'rb2v', 'status' => 'cancelled', 'ajmcm_curso_escolar_c' => '2_eso'), array(array('id' => 'c2'))),
                         $this->nvl(array('id' => 'rb2', 'status' => 'confirmed', 'ajmcm_curso_escolar_c' => '2_eso'), array(array('id' => 'c2'))),
                         $this->nvl(array('id' => 'rb3', 'status' => '', 'ajmcm_curso_escolar_c' => '5_primaria', 'stic_registrations_contactscontacts_ida' => 'c3')),
                         $this->nvl(array('id' => 'rb4', 'status' => 'cancelled', 'ajmcm_curso_escolar_c' => '1_eso', 'stic_registrations_contactscontacts_ida' => 'c9')),
                         $this->nvl(array('id' => 'rb5', 'status' => 'confirmed', 'ajmcm_curso_escolar_c' => 'na', 'stic_registrations_contactscontacts_ida' => 'c5')),
-                    ));
+                    ), $this->conBurriana ? array(
+                        $this->nvl(array('id' => 'rb6', 'status' => 'confirmed', 'ajmcm_curso_escolar_c' => '', 'stic_registrations_contactscontacts_ida' => 'cb1')),
+                    ) : array()));
                 }
                 if ($this->conEventos && $evento === 'ev-futuro') {
                     return $this->apiShape(array(
@@ -7045,6 +7062,51 @@ final class PasarListaRenderTest extends TestCase
         $this->assertSame('gn', $g['p4']['id']);
         $this->assertArrayNotHasKey('p2', $g);
         $this->assertArrayNotHasKey('p3', $g);
+    }
+
+    /** Quien viene de OTRA delegación a un evento local sale, pero aparte y
+     *  al final («COM · Burriana»), con el curso de SUS relaciones (la más
+     *  reciente), sin enlace a una ficha que no es de esta delegación; y se
+     *  puede marcar como los demás. */
+    public function test_ev_los_de_otra_delegacion_salen_aparte()
+    {
+        $this->scp->conEventos = true;
+        $this->scp->conBurriana = true;
+        $_REQUEST = array('evento' => 'ev-bus');
+        $html = $this->render('single_stic_pasar_lista_evento');
+
+        $this->assertStringContainsString('<span>COM · Burriana</span>', $html);
+        $this->assertSame(5, substr_count($html, 'class="pl-row"'));
+        // Detrás de los de casa y antes de «No van».
+        $this->assertGreaterThan(strpos($html, 'data-contact="c1"'), strpos($html, 'COM · Burriana'));
+        $this->assertLessThan(strpos($html, '<span>No van</span>'), strpos($html, 'data-contact="cb1"'));
+        $this->assertGreaterThan(strpos($html, 'COM · Burriana'), strpos($html, 'data-contact="cb1"'));
+        // Su curso, de su relación de este curso (no la vieja sin cerrar).
+        $this->assertMatchesRegularExpression('/data-pl-ev-curso="1_eso"[^>]*>(<button[^>]*)?[^<]*<?[^>]*data-contact="cb1"/', $html);
+        $this->assertStringNotContainsString('participante=cb1', $html);
+    }
+
+    public function test_ev_curso_de_las_relaciones_de_una_persona()
+    {
+        $fila = function ($a) {
+            return (object) array('name_value_list' => (object) array_map(function ($v) {
+                return (object) array('value' => $v);
+            }, $a));
+        };
+        $hoy = mktime(12, 0, 0, 10, 16, 2026);
+        $rows = array(
+            $fila(array('relationship_type' => 'participante_mic_com', 'start_date' => '2025-09-01', 'end_date' => '', 'active' => '1', 'ajmcm_curso_escolar_c' => '6_primaria')),
+            $fila(array('relationship_type' => 'participante_mic_com', 'start_date' => '2026-09-01', 'end_date' => '', 'active' => '1', 'ajmcm_curso_escolar_c' => '1_eso')),
+            $fila(array('relationship_type' => 'monitor', 'start_date' => '2026-10-01', 'end_date' => '', 'active' => '1', 'ajmcm_curso_escolar_c' => '4_primaria')),
+            $fila(array('relationship_type' => 'participante_mic_com', 'start_date' => '2026-10-01', 'end_date' => '2026-10-02', 'active' => '1', 'ajmcm_curso_escolar_c' => '3_eso')),
+        );
+        $this->assertSame('1_eso', sticpa_pl_ev_curso_de_rels($rows, $hoy));
+        $this->assertSame('', sticpa_pl_ev_curso_de_rels(array(), $hoy));
+        $this->assertSame('Burriana', sticpa_pl_ev_deleg_nombre('MCM Burriana'));
+        $this->assertSame('Otra delegación', sticpa_pl_ev_deleg_nombre(''));
+        $this->assertSame(array('x' => true), sticpa_pl_ev_de_fuera(array(
+            'x' => array('deleg_id' => 'd2'), 'y' => array('deleg_id' => 'd1'), 'z' => array('deleg_id' => ''),
+        ), 'd1'));
     }
 
     /** El armado de la lista: las canceladas al final y fuera del mapa que se
