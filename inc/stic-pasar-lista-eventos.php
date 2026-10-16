@@ -266,6 +266,17 @@ function sticpa_pl_ev_es_monitor_de_rels($rows, $nowTs = null)
     return $monitor;
 }
 
+/**
+ * Los `participation_type` de una inscripción que NO son chavales: van en el
+ * pliegue de «Monitores» al final. `organizer` (monitores) visto en datos el
+ * 16/10/2026; `equipo` lo añadió el propietario ese mismo día al desplegable
+ * («por si me interesa meter ese tipo de gente»). `attendant`, el resto.
+ */
+function sticpa_pl_ev_papeles_equipo()
+{
+    return (array) apply_filters('sticpa_pl_ev_papeles_equipo', array('organizer', 'equipo'));
+}
+
 /** «MCM Burriana» → «Burriana». Sin nombre, «Otra delegación». */
 function sticpa_pl_ev_deleg_nombre($name)
 {
@@ -564,7 +575,9 @@ function sticpa_pl_ev_inscripciones($objSCP, $eventId)
         'module_name' => 'stic_Events',
         'module_id' => $eventId,
         'link_field_name' => 'stic_registrations_stic_events',
-        'related_fields' => array('id', 'status', 'ajmcm_curso_escolar_c', 'stic_registrations_contactscontacts_ida'),
+        // `participation_type`: `organizer` (monitores, coordinación…) o
+        // `attendant` (los chavales). Visto en datos el 16/10/2026 (CAMPOS.md).
+        'related_fields' => array('id', 'status', 'ajmcm_curso_escolar_c', 'stic_registrations_contactscontacts_ida', 'participation_type'),
         'related_module_link_name_to_fields_array' => array(
             array('name' => 'stic_registrations_contacts', 'value' => array('id')),
         ),
@@ -594,6 +607,7 @@ function sticpa_pl_ev_inscripciones($objSCP, $eventId)
                 'contact_id' => sticpa_pl_safe_id($contactId),
                 'status' => isset($v->status->value) ? (string) $v->status->value : '',
                 'curso' => sticpa_pl_ev_curso_key(isset($v->ajmcm_curso_escolar_c->value) ? $v->ajmcm_curso_escolar_c->value : ''),
+                'papel' => isset($v->participation_type->value) ? strtolower(trim((string) $v->participation_type->value)) : '',
             );
         }
     }
@@ -761,8 +775,10 @@ function sticpa_pl_ev_personas($objSCP, $ids)
  * @param string $miDeleg  la delegación del evento: quien es de OTRA lleva en
  *                         'deleg' el nombre de la suya («Burriana») y la
  *                         pantalla lo pinta aparte, al final. '' = de casa.
- * @param array  $monitores contactId => true: van en «Monitores», al final, y
- *                         no cuentan en los chips de curso.
+ * @param array  $monitores contactId => true, por sus relaciones: el RESPALDO
+ *                         de `participation_type` de la inscripción, que es
+ *                         lo que manda. Van en «Monitores», plegados al final,
+ *                         y no cuentan en los chips de curso.
  */
 function sticpa_pl_ev_lista($inscripciones, $personas, $grupos = array(), $cursosRel = array(), $miDeleg = '', $monitores = array())
 {
@@ -795,7 +811,13 @@ function sticpa_pl_ev_lista($inscripciones, $personas, $grupos = array(), $curso
         $persona['etapa'] = sticpa_pl_ev_etapa($curso, isset($g['etapa']) ? $g['etapa'] : '', $p['etapa']);
         $persona['grupo_id'] = isset($g['id']) ? (string) $g['id'] : '';
         $persona['grupo_code'] = isset($g['code']) ? (string) $g['code'] : '';
-        $persona['monitor'] = isset($monitores[$cid]);
+        // MONITOR/A: lo dice su inscripción (`participation_type` =
+        // `organizer`, o `equipo`). Solo si la inscripción no dice nada, sus relaciones
+        // (`$monitores`): una relación de participante creada de más —pasó el
+        // 16/10/2026 con los organizadores— no la convierte en chaval.
+        $papel = isset($r['papel']) ? (string) $r['papel'] : '';
+        $persona['papel'] = $papel;
+        $persona['monitor'] = ($papel !== '') ? in_array($papel, sticpa_pl_ev_papeles_equipo(), true) : isset($monitores[$cid]);
         if ($persona['monitor']) {
             $persona['curso'] = '';
             $persona['curso_label'] = '';
@@ -1162,12 +1184,33 @@ function sticpa_pl_ev_secciones_html($activos, $fila)
         usort($monitores, function ($a, $b) {
             return strcmp($a['orden'], $b['orden']);
         });
-        $bloques[] = array(__('Monitores', 'sticpa'), $monitores, false, true);
+        $hayEquipo = false;
+        foreach ($monitores as $m) {
+            if (isset($m['papel']) && $m['papel'] === 'equipo') {
+                $hayEquipo = true;
+            }
+        }
+        $bloques[] = array($hayEquipo ? __('Monitores y equipo', 'sticpa') : __('Monitores', 'sticpa'), $monitores, false, true);
     }
     $html = '';
     foreach ($bloques as $b) {
         list($titulo, $gente, $deFuera) = $b;
         $sinCursos = !empty($b[3]);
+        if ($sinCursos) {
+            // LOS MONITORES: plegados (`<details>`, nativo, sin JS). Se marcan
+            // igual, pero no llenan la lista de los chavales; «Están todos»
+            // no los toca mientras estén plegados (no se ven).
+            $html .= '<details class="pl-fold pl-evmon" data-pl-ev-etapa>'
+                . '<summary class="pl-fold-sum pl-evmon-sum">'
+                . '<span class="pl-evmon-tit">' . esc_html($titulo) . '</span>'
+                . '<span class="pl-etapa-count" data-pl-ev-n>' . count($gente) . '</span></summary>'
+                . '<div class="pl-list" data-pl-ev-list>';
+            foreach ($gente as $p) {
+                $html .= call_user_func($fila, $p);
+            }
+            $html .= '</div></details>';
+            continue;
+        }
         $html .= '<div class="pl-evetapa' . ($deFuera ? ' pl-evetapa--fuera' : '') . '" data-pl-ev-etapa>';
         $html .= '<div class="pl-etapa-title pl-evsec" role="heading" aria-level="2"><span>' . esc_html($titulo) . '</span>'
             . '<span class="pl-etapa-count" data-pl-ev-n>' . count($gente) . '</span></div>';
@@ -1175,18 +1218,7 @@ function sticpa_pl_ev_secciones_html($activos, $fila)
         foreach ($gente as $p) {
             $porCurso[$p['curso']][] = $p;   // ya vienen en el orden de los cursos
         }
-        if ($sinCursos) {
-            $porCurso = array('' => $gente);
-        }
         foreach ($porCurso as $curso => $deEse) {
-            if ($sinCursos) {
-                $html .= '<div class="pl-list" data-pl-ev-list>';
-                foreach ($deEse as $p) {
-                    $html .= call_user_func($fila, $p);
-                }
-                $html .= '</div>';
-                continue;
-            }
             $html .= '<div class="pl-evcurso" role="heading" aria-level="3" data-pl-ev-sec>'
                 . '<span>' . esc_html(sticpa_pl_ev_curso_titulo($curso)) . '</span>'
                 . '<span class="pl-evcurso-n" aria-hidden="true">·</span>'
@@ -1223,8 +1255,26 @@ function sticpa_pl_ev_row_html($p, $state, $motive)
         ? '?internalpage=single_stic_pasar_lista_ficha&participante=' . rawurlencode($p['id'])
             . '&grupo=' . rawurlencode($p['grupo_id'])
         : '';
+    if (!empty($p['monitor'])) {
+        array_unshift($sub, (isset($p['papel']) && $p['papel'] === 'equipo') ? __('Equipo', 'sticpa') : __('Monitor/a', 'sticpa'));
+    }
     $row = sticpa_pl_row_html($p, $state, 0, $ficha, implode(' · ', $sub), $motive);
-    $hay = $p['full'] . ' ' . $p['name'] . ' ' . $p['curso_label'] . ' ' . $p['grupo_code'];
+    // De OTRA delegación: una pastilla de color con el nombre de la suya, que
+    // se vea de lejos («Burriana»). Monitor/a: el avatar en el azul de la
+    // marca. Los dos, para distinguir de un vistazo sin leer la línea gris.
+    $deleg = isset($p['deleg']) ? (string) $p['deleg'] : '';
+    if ($deleg !== '') {
+        $row = preg_replace(
+            '/(<span class="pl-name">.*?<\/span>)/s',
+            '$1<span class="pl-marcas"><span class="pl-marca pl-marca--deleg">' . esc_html($deleg) . '</span></span>',
+            $row,
+            1
+        );
+    }
+    if (!empty($p['monitor'])) {
+        $row = preg_replace('/class="pl-avatar"/', 'class="pl-avatar pl-avatar--mon"', $row, 1);
+    }
+    $hay = $p['full'] . ' ' . $p['name'] . ' ' . $p['curso_label'] . ' ' . $p['grupo_code'] . ' ' . $deleg;
     // En la PRIMERA etiqueta, sea cual sea: con ficha, la fila llega envuelta
     // en `.pl-rowwrap` (el botón y la flecha), y es ese envoltorio lo que el
     // filtro tiene que esconder entero.

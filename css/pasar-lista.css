@@ -471,6 +471,11 @@ html.pl-holding body * {
     white-space: nowrap;
 }
 .pl-marca--salud { background: var(--warning-soft); color: var(--warning-dark); }
+/* Pasar lista en un evento: quien viene de OTRA delegación lleva el nombre de
+   la suya en una pastilla magenta («Burriana»), que se vea de lejos. */
+.pl-marca--deleg { background: var(--secondary-50); color: var(--secondary-dark); }
+/* Y el avatar de un monitor/a, en el azul de la marca. */
+.pl-avatar--mon { background: var(--primary-50); color: var(--primary-color); }
 
 /* El círculo de estado. Vacío y punteado = por marcar, y así se lee como un
    control que espera un toque; lleno = marcado, con glifo y color propios,
@@ -4113,3 +4118,11 @@ a.pl-group .pl-name { display: block; }
 @media (prefers-reduced-motion: reduce) {
     .pl-gac-pasar:active { transform: none; opacity: 0.8; }
 }
+
+
+/* Pasar lista en un evento: los MONITORES, plegados al final («Monitores 12»).
+   El pliegue es el de la ficha (`.pl-fold`); dentro, la lista de siempre. */
+.pl-evmon { margin-top: 1rem; }
+.pl-evmon-sum { display: flex; align-items: center; gap: 0.5rem; }
+.pl-evmon-tit { flex-grow: 1; font-weight: 800; }
+.pl-evmon .pl-list { margin: 0; border: 0; border-radius: 0; box-shadow: none; }
