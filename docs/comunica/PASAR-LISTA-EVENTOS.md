@@ -100,6 +100,14 @@ decidir de quién son las asistencias. Pendiente de decisión.
   fuera, ninguna). Sin enlace a la ficha: no es de esta delegación. Se marcan
   y se guardan como los demás: la inscripción es del evento, y lo de un
   evento es de quien lo organiza.
+- **Inscripciones que no dicen de quién son** (16/10/2026): si ni el campo
+  plano ni el mapa de inscripciones (cacheado 24 h: quien se apuntó después no
+  está) dan la persona, se pregunta a la propia inscripción
+  (`sticpa_pl_ev_contacto_de_inscripcion()`, una por inscripción, en una tanda
+  y cacheada). Faltaban así los tres de Burriana y los monitores.
+- **Monitores**, aparte y al final (antes de «No van»): quien tiene una
+  relación de monitor vigente y ninguna de participante, según SUS relaciones.
+  No cuentan en los chips de curso; con un curso elegido no salen.
 - **Nombres de curso cortos**, como se dicen en la casa: «4 EP», «1 ESO»,
   «1 Bach» (chips, subtítulos y debajo del nombre).
 - **Estados que no van** (`sticpa_pl_ev_estados_fuera()`, con filtro):

@@ -233,6 +233,39 @@ function sticpa_pl_ev_curso_de_rels($rows, $nowTs = null)
     return $mejor;
 }
 
+/**
+ * ¿Es MONITOR en este curso, según sus propias relaciones? Sí si tiene una
+ * relación de monitor vigente y ninguna de participante vigente. Los
+ * monitores también van a la convivencia y también se inscriben, pero en la
+ * lista van aparte, al final: no son chavales de ningún curso.
+ *
+ * PURA.
+ */
+function sticpa_pl_ev_es_monitor_de_rels($rows, $nowTs = null)
+{
+    $hoy = date('Y-m-d', ($nowTs === null) ? sticpa_pl_now() : (int) $nowTs);
+    $monitor = false;
+    foreach ((array) $rows as $row) {
+        $v = isset($row->name_value_list) ? $row->name_value_list : null;
+        if (!$v) {
+            continue;
+        }
+        $fin = isset($v->end_date->value) ? trim((string) $v->end_date->value) : '';
+        $activa = isset($v->active->value) ? trim((string) $v->active->value) : '';
+        if (($fin !== '' && $fin < $hoy) || $activa === '0') {
+            continue;
+        }
+        $rol = sticpa_pl_rel_role(isset($v->relationship_type->value) ? $v->relationship_type->value : '');
+        if ($rol === 'participante') {
+            return false;
+        }
+        if ($rol === 'monitor') {
+            $monitor = true;
+        }
+    }
+    return $monitor;
+}
+
 /** «MCM Burriana» → «Burriana». Sin nombre, «Otra delegación». */
 function sticpa_pl_ev_deleg_nombre($name)
 {
@@ -252,13 +285,15 @@ function sticpa_pl_ev_deleg_nombre($name)
  * que falta en la lista del autobús es un chaval en la sección equivocada.
  * Una consulta por persona, en UNA tanda (la página ya las pide junto con los
  * nombres) y cacheada 24 h. El mapa queda de respaldo si su consulta falla.
- * Quien viene de otra delegación sale igual: sus relaciones son suyas.
+ * Quien viene de otra delegación sale igual: sus relaciones son suyas. Y de
+ * ellas sale también quién es MONITOR, que va aparte, al final.
  */
 function sticpa_pl_ev_lista_completa($objSCP, $inscripciones, $personas)
 {
     $miDeleg = (string) sticpa_pl_delegation($objSCP);
     $relaciones = sticpa_pl_all_relationships($objSCP);
     $cursos = sticpa_pl_ev_cursos_de($relaciones);   // respaldo
+    $monitores = array();
     $ids = array_keys((array) $personas);
     if (!empty($ids)) {
         sticpa_pl_prime($objSCP, function () use ($objSCP, $ids) {
@@ -267,9 +302,13 @@ function sticpa_pl_ev_lista_completa($objSCP, $inscripciones, $personas)
             }
         });
         foreach ($ids as $cid) {
-            $c = sticpa_pl_ev_curso_de_rels(sticpa_pl_mis_rels($objSCP, $cid));
+            $rels = sticpa_pl_mis_rels($objSCP, $cid);
+            $c = sticpa_pl_ev_curso_de_rels($rels);
             if ($c !== '') {
                 $cursos[(string) $cid] = $c;
+            }
+            if (sticpa_pl_ev_es_monitor_de_rels($rels)) {
+                $monitores[(string) $cid] = true;
             }
         }
     }
@@ -278,7 +317,8 @@ function sticpa_pl_ev_lista_completa($objSCP, $inscripciones, $personas)
         $personas,
         sticpa_pl_ev_grupos_de($relaciones, sticpa_pl_groups($objSCP)),
         $cursos,
-        $miDeleg
+        $miDeleg,
+        $monitores
     );
 }
 
@@ -561,9 +601,29 @@ function sticpa_pl_ev_inscripciones($objSCP, $eventId)
     if ($sinContacto) {
         // El mapa de siempre (solo las no canceladas) con su respaldo.
         $map = sticpa_pl_event_registrations($objSCP, $eventId);
+        $faltan = array();
         foreach ($out as $i => $r) {
             if ($r['contact_id'] === '' && isset($map[$r['reg_id']])) {
                 $out[$i]['contact_id'] = sticpa_pl_safe_id($map[$r['reg_id']]);
+            }
+            if ($out[$i]['contact_id'] === '') {
+                $faltan[] = $r['reg_id'];
+            }
+        }
+        // Y lo que el mapa no sabe —está cacheado 24 h, y quien se apuntó
+        // después no está; o el CRM no lo dijo—, preguntado a cada inscripción
+        // (16/10/2026: en la convivencia de Castellón faltaban los tres de
+        // Burriana, apuntados del 8 al 11, y los monitores). En una tanda.
+        if (!empty($faltan)) {
+            sticpa_pl_prime($objSCP, function () use ($objSCP, $faltan) {
+                foreach ($faltan as $regId) {
+                    sticpa_pl_ev_contacto_de_inscripcion($objSCP, $regId);
+                }
+            });
+            foreach ($out as $i => $r) {
+                if ($r['contact_id'] === '') {
+                    $out[$i]['contact_id'] = sticpa_pl_ev_contacto_de_inscripcion($objSCP, $r['reg_id']);
+                }
             }
         }
     }
@@ -573,6 +633,50 @@ function sticpa_pl_ev_inscripciones($objSCP, $eventId)
         sticpa_pl_cache_put($cacheKey, $out, $ttl);
     }
     return $out;
+}
+
+/**
+ * La persona de UNA inscripción, preguntada a la propia inscripción
+ * (`stic_Registrations` → `stic_registrations_contacts`). Es la consulta
+ * primaria de un enlace, la que esta instancia sí contesta (PASAR-LISTA-ESTADO
+ * §3.1: lo que no devuelve son los enlaces ANIDADOS). Una inscripción no cambia
+ * de persona: se cachea como estructura (24 h), y solo lo que se encuentra.
+ *
+ * @return string id del contacto, o ''.
+ */
+function sticpa_pl_ev_contacto_de_inscripcion($objSCP, $regId)
+{
+    $regId = sticpa_pl_safe_id($regId);
+    if ($regId === '') {
+        return '';
+    }
+    $cacheKey = sticpa_pl_cache_key('evregc', $objSCP, $regId);
+    $ttl = sticpa_pl_ttl_structure();
+    if ($ttl > 0) {
+        $cached = get_transient($cacheKey);
+        if (is_string($cached) && $cached !== '') {
+            return $cached;
+        }
+    }
+    $rows = $objSCP->getRelatedElementsForLoggedUser(array(
+        'module_name' => 'stic_Registrations',
+        'module_id' => $regId,
+        'link_field_name' => 'stic_registrations_contacts',
+        'related_fields' => array('id'),
+        'related_module_link_name_to_fields_array' => array(),
+        'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
+    ));
+    if (sticpa_pl_collecting() || !is_array($rows)) {
+        return '';
+    }
+    foreach ($rows as $row) {
+        $id = isset($row->name_value_list->id->value) ? sticpa_pl_safe_id($row->name_value_list->id->value) : '';
+        if ($id !== '') {
+            sticpa_pl_cache_put($cacheKey, $id, $ttl);
+            return $id;
+        }
+    }
+    return '';
 }
 
 /**
@@ -657,8 +761,10 @@ function sticpa_pl_ev_personas($objSCP, $ids)
  * @param string $miDeleg  la delegación del evento: quien es de OTRA lleva en
  *                         'deleg' el nombre de la suya («Burriana») y la
  *                         pantalla lo pinta aparte, al final. '' = de casa.
+ * @param array  $monitores contactId => true: van en «Monitores», al final, y
+ *                         no cuentan en los chips de curso.
  */
-function sticpa_pl_ev_lista($inscripciones, $personas, $grupos = array(), $cursosRel = array(), $miDeleg = '')
+function sticpa_pl_ev_lista($inscripciones, $personas, $grupos = array(), $cursosRel = array(), $miDeleg = '', $monitores = array())
 {
     $fuera = sticpa_pl_ev_estados_fuera();
     $cursos = sticpa_pl_ev_cursos();
@@ -689,6 +795,11 @@ function sticpa_pl_ev_lista($inscripciones, $personas, $grupos = array(), $curso
         $persona['etapa'] = sticpa_pl_ev_etapa($curso, isset($g['etapa']) ? $g['etapa'] : '', $p['etapa']);
         $persona['grupo_id'] = isset($g['id']) ? (string) $g['id'] : '';
         $persona['grupo_code'] = isset($g['code']) ? (string) $g['code'] : '';
+        $persona['monitor'] = isset($monitores[$cid]);
+        if ($persona['monitor']) {
+            $persona['curso'] = '';
+            $persona['curso_label'] = '';
+        }
         $persona['deleg'] = '';
         $dId = isset($p['deleg_id']) ? (string) $p['deleg_id'] : '';
         if ($dId !== '' && (string) $miDeleg !== '' && $dId !== (string) $miDeleg) {
@@ -731,6 +842,9 @@ function sticpa_pl_ev_lista($inscripciones, $personas, $grupos = array(), $curso
     $nCursos[''] = 0;
     $nEtapas = array('MIC' => 0, 'COM' => 0, 'LC' => 0, '' => 0);
     foreach ($activos as $p) {
+        if (!empty($p['monitor'])) {
+            continue;   // los monitores no son de ningún curso ni etapa
+        }
         $nCursos[$p['curso']]++;
         $nEtapas[$p['etapa']]++;
     }
@@ -1013,10 +1127,16 @@ function sticpa_pl_ev_etapa_titulo($etapa)
 function sticpa_pl_ev_secciones_html($activos, $fila)
 {
     // Primero los de la delegación del evento; detrás, los de cada una de las
-    // otras (por nombre), cada una partida también por etapa: «COM · Burriana».
+    // otras (por nombre), cada una partida también por etapa: «COM · Burriana»;
+    // y al final, los monitores.
     $vacia = array('MIC' => array(), 'COM' => array(), 'LC' => array(), '' => array());
     $porDeleg = array('' => $vacia);
+    $monitores = array();
     foreach ((array) $activos as $p) {
+        if (!empty($p['monitor'])) {
+            $monitores[] = $p;
+            continue;
+        }
         $d = isset($p['deleg']) ? (string) $p['deleg'] : '';
         if (!isset($porDeleg[$d])) {
             $porDeleg[$d] = $vacia;
@@ -1036,9 +1156,18 @@ function sticpa_pl_ev_secciones_html($activos, $fila)
             }
         }
     }
+    // Y los monitores, todos juntos al final (vengan de donde vengan), por
+    // apellidos: no son de ningún curso.
+    if (!empty($monitores)) {
+        usort($monitores, function ($a, $b) {
+            return strcmp($a['orden'], $b['orden']);
+        });
+        $bloques[] = array(__('Monitores', 'sticpa'), $monitores, false, true);
+    }
     $html = '';
     foreach ($bloques as $b) {
         list($titulo, $gente, $deFuera) = $b;
+        $sinCursos = !empty($b[3]);
         $html .= '<div class="pl-evetapa' . ($deFuera ? ' pl-evetapa--fuera' : '') . '" data-pl-ev-etapa>';
         $html .= '<div class="pl-etapa-title pl-evsec" role="heading" aria-level="2"><span>' . esc_html($titulo) . '</span>'
             . '<span class="pl-etapa-count" data-pl-ev-n>' . count($gente) . '</span></div>';
@@ -1046,7 +1175,18 @@ function sticpa_pl_ev_secciones_html($activos, $fila)
         foreach ($gente as $p) {
             $porCurso[$p['curso']][] = $p;   // ya vienen en el orden de los cursos
         }
+        if ($sinCursos) {
+            $porCurso = array('' => $gente);
+        }
         foreach ($porCurso as $curso => $deEse) {
+            if ($sinCursos) {
+                $html .= '<div class="pl-list" data-pl-ev-list>';
+                foreach ($deEse as $p) {
+                    $html .= call_user_func($fila, $p);
+                }
+                $html .= '</div>';
+                continue;
+            }
             $html .= '<div class="pl-evcurso" role="heading" aria-level="3" data-pl-ev-sec>'
                 . '<span>' . esc_html(sticpa_pl_ev_curso_titulo($curso)) . '</span>'
                 . '<span class="pl-evcurso-n" aria-hidden="true">·</span>'
@@ -1090,7 +1230,7 @@ function sticpa_pl_ev_row_html($p, $state, $motive)
     // filtro tiene que esconder entero.
     return preg_replace(
         '/^<([a-z]+)/',
-        '<$1 data-pl-ev-curso="' . esc_attr($p['curso'] === '' ? '-' : $p['curso']) . '"'
+        '<$1 data-pl-ev-curso="' . esc_attr(!empty($p['monitor']) ? 'monitor' : ($p['curso'] === '' ? '-' : $p['curso'])) . '"'
             . ' data-pl-ev-hay="' . esc_attr($hay) . '"',
         $row,
         1
