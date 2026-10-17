@@ -372,6 +372,16 @@ foreach (array(
 }
 $html .= '</div>';
 
+/* Las vistas de GENTE (cursos y A-Z) van dentro de su caja: es la que
+ * engancha el JS de los chips y del interruptor de «Asignar grupos», y la que
+ * despega el buscador de arriba para que lo que se quede pegado al bajar sean
+ * los chips (dos barras pegadas se comen media pantalla de la app). */
+$cierraGente = '';
+if ($ver !== 'grupos') {
+    $html .= '<div class="pl-gente" data-pl-gente>';
+    $cierraGente = '</div>';
+}
+
 $html .= sticpa_pl_buscador_html(
     ($ver === 'grupos')
         ? __('Buscar grupo, monitor o curso…', 'sticpa')
@@ -592,6 +602,7 @@ if (empty($personas)) {
         : '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
             . esc_html__('No hay participantes con relación vigente en tu delegación.', 'sticpa')
             . '</span></p>';
+    $html .= $cierraGente;
     return;
 }
 
@@ -604,31 +615,105 @@ foreach ($personas as $p) {
     }
 }
 $puedoVincular = ($nSinGrupo > 0) && sticpa_pl_is_coordinator($objSCP);
+
+/* POR CURSO, para las dos vistas. La CLAVE de curso, para que el de la
+ * relación («3_eso») y el del grupo («3 ESO») caigan bajo la misma cabecera.
+ * Lo que no tiene clave pero sí un texto de grupo, bajo ese texto; lo demás,
+ * «Sin curso». La usa la vista por curso para sus secciones y las dos para los
+ * chips, así que se calcula una vez aquí arriba. */
+$claveCurso = function ($p) {
+    return ($p['curso_key'] !== '') ? $p['curso_key'] : (($p['curso'] !== '') ? 'txt:' . $p['curso'] : '?');
+};
+$porCurso = array();
+$tituloCurso = array();
+foreach ($personas as $p) {
+    $k = $claveCurso($p);
+    $porCurso[$k][] = $p;
+    $tituloCurso[$k] = ($k === '?') ? '' : $p['curso'];
+}
+/** El texto que entiende el rank, para ordenar Y colorear con la misma vara. */
+$textoRank = function ($k) {
+    if ($k === '?') {
+        return '';
+    }
+    return (strpos($k, 'txt:') === 0) ? substr($k, 4) : sticpa_pl_curso_key_texto($k);
+};
+uksort($porCurso, function ($a, $b) use ($textoRank) {
+    $ra = ($a === '?') ? 99999 : sticpa_pl_curso_rank($textoRank($a));
+    $rb = ($b === '?') ? 99999 : sticpa_pl_curso_rank($textoRank($b));
+    if ($ra !== $rb) {
+        return ($ra < $rb) ? -1 : 1;
+    }
+    return strcmp($a, $b);
+});
+
+/* LOS CHIPS, con su número (16/10/2026, lo pidió el propietario): los mismos
+ * que la lista de un evento de Pasar Lista (`.pl-evchip`), pegados arriba al
+ * bajar. Un toque y solo quedan los de ese curso, y la lista vuelve a su
+ * principio: «a ver los de 1.º de ESO, pam». Al final, «Sin grupo», que es lo
+ * que coordinación reparte a principio de curso. Filtran lo ya pintado, junto
+ * con el buscador, sin ir al servidor. Con un solo curso no se pintan: filtrar
+ * no filtraría nada. */
+if (count($porCurso) > 1 || ($nSinGrupo > 0 && $nSinGrupo < count($personas))) {
+    $html .= '<div class="pl-evchips" data-pl-gente-chips role="group" aria-label="'
+        . esc_attr__('Filtrar por curso', 'sticpa') . '">';
+    $html .= '<button type="button" class="pl-evchip" data-pl-curso-chip="" aria-pressed="true">'
+        . esc_html__('Todos', 'sticpa') . '<span class="pl-evchip-n">' . count($personas) . '</span></button>';
+    foreach ($porCurso as $k => $gente) {
+        $html .= '<button type="button" class="pl-evchip" data-pl-curso-chip="' . esc_attr($k) . '" aria-pressed="false">'
+            . esc_html(($k === '?') ? __('Sin curso', 'sticpa') : $tituloCurso[$k])
+            . '<span class="pl-evchip-n">' . count($gente) . '</span></button>';
+    }
+    if ($nSinGrupo > 0 && $nSinGrupo < count($personas)) {
+        $html .= '<button type="button" class="pl-evchip pl-evchip--warn" data-pl-curso-chip="sin-grupo" aria-pressed="false">'
+            . esc_html__('Sin grupo', 'sticpa') . '<span class="pl-evchip-n">' . $nSinGrupo . '</span></button>';
+    }
+    $html .= '</div>';
+}
+
+/* «ASIGNAR GRUPOS», UN INTERRUPTOR (16/10/2026). Con un desplegable y un botón
+ * «Vincular» en cada una de las ciento y pico filas sin grupo, la lista dejaba
+ * de ser una lista de gente: era un formulario. Ahora los controles salen
+ * cuando coordinación los pide, y se quedan pedidos (el móvil lo recuerda)
+ * mientras reparte. Elegir el grupo ya vincula —con una confirmación—, así que
+ * el botón sobra cuando hay JavaScript; sin él, todo sigue a la vista y con su
+ * botón, como antes. */
 if ($nSinGrupo > 0) {
+    $html .= '<div class="pl-asignar">';
     $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>' . esc_html(sprintf(
         $puedoVincular
             /* translators: %d: participantes sin grupo */
-            ? _n('%d sin grupo todavía: no sale en ninguna lista. Elige su grupo en su fila y queda vinculado.', '%d sin grupo todavía: no salen en ninguna lista. Elige su grupo en su fila y quedan vinculados.', $nSinGrupo, 'sticpa')
+            ? _n('%d sin grupo todavía: no sale en ninguna lista.', '%d sin grupo todavía: no salen en ninguna lista.', $nSinGrupo, 'sticpa')
             /* translators: %d: participantes sin grupo */
             : _n('%d sin grupo todavía: no sale en ninguna lista. Vincularlo es cosa de coordinación.', '%d sin grupo todavía: no salen en ninguna lista. Vincularlos es cosa de coordinación.', $nSinGrupo, 'sticpa'),
         $nSinGrupo
     )) . '</span></p>';
+    if ($puedoVincular) {
+        $html .= '<label class="pl-switch" data-pl-asignar-wrap hidden>'
+            . '<input type="checkbox" role="switch" data-pl-asignar'
+            . ($asignarMsg !== '' ? ' checked' : '') . '>'
+            . '<span class="pl-switch-track" aria-hidden="true"></span>'
+            . '<span class="pl-switch-label">' . esc_html__('Asignar grupos', 'sticpa') . '</span>'
+            . '</label>';
+    }
+    $html .= '</div>';
 }
 
 /** La fila de una persona en las vistas de gente.
  *
- * SIN FOTO, y a propósito. Aquí la lista es TODA la delegación —trescientas
- * personas— y cada foto es una petición: con `loading="lazy"` solo bajan las
- * que se ven, pero bajando la lista entera son trescientos viajes en una
- * webview con datos móviles. Donde la lista la acota un grupo (veinte,
- * veinticinco) sí van, y en la ficha —que es donde se pidieron— también.
+ * CON FOTO desde el 16/10/2026 (lo pidió el propietario). Antes no, porque
+ * eran trescientas peticiones; ahora es barato: el mapa dice quién TIENE foto
+ * (`foto`, del nombre del archivo en el CRM) y a quien no tiene no se le pide;
+ * las que se piden van en segundo plano (`lazy`, prioridad baja), con la
+ * versión en la URL, y el móvil las guarda un año (cabecera + service worker).
+ * La segunda visita no baja ni una. Ver MIS-GRUPOS.md §4.
  *
  * SIN GRUPO: la misma fila, con «Sin grupo» en ámbar donde iría el código, y
  * a coordinación el desplegable para vincularlo. La fila entera ya no puede
  * ser un enlace (un `<select>` dentro de un `<a>` no se puede tocar), así que
  * el enlace a la ficha es el nombre y el desplegable va al lado, como en la
  * vista de sueltos. La ficha se abre sin grupo. */
-$fila = function ($p) use ($ver, $groups, $puedoVincular) {
+$fila = function ($p) use ($ver, $groups, $puedoVincular, $claveCurso) {
     $edad = ($p['age'] !== '') ? sprintf(
         /* translators: %s: edad en años */
         __('%s años', 'sticpa'),
@@ -643,16 +728,18 @@ $fila = function ($p) use ($ver, $groups, $puedoVincular) {
             $href,
             implode(' · ', array_filter(array($p['grupo'], $p['curso'], $edad))),
             '',
-            false,
-            isset($p['marcas']) ? $p['marcas'] : array()
+            true,
+            isset($p['marcas']) ? $p['marcas'] : array(),
+            array('data-pl-curso' => $claveCurso($p))
         );
     }
-    $out = '<div class="pl-rowwrap pl-rowstatic pl-suelto" data-pl-sin-grupo>';
+    $out = '<div class="pl-rowwrap pl-rowstatic pl-suelto" data-pl-sin-grupo'
+        . sticpa_pl_attrs_html(array('data-pl-curso' => $claveCurso($p))) . '>';
     $out .= '<a class="pl-singrupo-link" href="' . esc_url($href) . '">';
-    $out .= sticpa_pl_avatar_html($p, false);
+    $out .= sticpa_pl_avatar_html($p, true);
     $out .= '<span class="pl-row-body">';
     $out .= '<span class="pl-name">' . esc_html($p['name']) . '</span>';
-    $out .= sticpa_pl_marcas_html(isset($p['marcas']) ? $p['marcas'] : array());
+    $out .= sticpa_pl_marcas_html(isset($p['marcas']) ? $p['marcas'] : array(), $p['id']);
     $out .= '<span class="pl-rowsub"><span class="pl-singrupo">' . esc_html__('Sin grupo', 'sticpa') . '</span>'
         . esc_html(implode('', array_map(function ($b) { return ' · ' . $b; }, array_filter(array($p['curso'], $edad)))))
         . '</span>';
@@ -686,6 +773,7 @@ if ($ver === 'az') {
     $html .= '</div>';
     $html .= $cierraLista();
     $html .= sticpa_pl_buscador_vacio_html();
+    $html .= $cierraGente;
     return;
 }
 
@@ -694,31 +782,8 @@ if ($ver === 'az') {
 /* El curso CRUZA los grupos, que es justo la gracia: «todos los de 1.º de ESO»
  * son de C1 y de C2, y por grupo no se ven juntos nunca. El orden es el escolar
  * —4.º de primaria antes que 1.º de ESO—, que ya lo sabe `sticpa_pl_curso_rank()`. */
-// Por CLAVE de curso, para que el de la relación («3_eso») y el del grupo
-// («3 ESO») caigan bajo la misma cabecera. Lo que no tiene clave pero sí un
-// texto de grupo, bajo ese texto; lo demás, «Sin curso».
-$porCurso = array();
-$tituloCurso = array();
-foreach ($personas as $p) {
-    $k = ($p['curso_key'] !== '') ? $p['curso_key'] : (($p['curso'] !== '') ? 'txt:' . $p['curso'] : '?');
-    $porCurso[$k][] = $p;
-    $tituloCurso[$k] = ($k === '?') ? '' : $p['curso'];
-}
-/** El texto que entiende el rank, para ordenar Y colorear con la misma vara. */
-$textoRank = function ($k) {
-    if ($k === '?') {
-        return '';
-    }
-    return (strpos($k, 'txt:') === 0) ? substr($k, 4) : sticpa_pl_curso_key_texto($k);
-};
-uksort($porCurso, function ($a, $b) use ($textoRank) {
-    $ra = ($a === '?') ? 99999 : sticpa_pl_curso_rank($textoRank($a));
-    $rb = ($b === '?') ? 99999 : sticpa_pl_curso_rank($textoRank($b));
-    if ($ra !== $rb) {
-        return ($ra < $rb) ? -1 : 1;
-    }
-    return strcmp($a, $b);
-});
+// Las secciones ya están hechas y ordenadas arriba (`$porCurso`), que es
+// de donde salen también los chips.
 
 /* EL COLOR DE CADA CURSO: más intenso cuanto más mayores.
  *
@@ -760,3 +825,4 @@ foreach ($porCurso as $curso => $gente) {
 $html .= $cierraLista();
 
 $html .= sticpa_pl_buscador_vacio_html();
+$html .= $cierraGente;

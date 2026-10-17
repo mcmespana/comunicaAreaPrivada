@@ -471,6 +471,50 @@ html.pl-holding body * {
     white-space: nowrap;
 }
 .pl-marca--salud { background: var(--warning-soft); color: var(--warning-dark); }
+/* En Grupos y fichas la de salud SÍ se toca (16/10/2026): abre un globo con el
+   detalle. Se dice con un borde y un «+» (sin icono que explicar), y el área
+   táctil crece por fuera hasta los 44 px de design.md §2 sin mover la línea. */
+.pl-marca--tap {
+    position: relative;
+    border: 1px solid var(--warning-border);
+    cursor: pointer;
+    touch-action: manipulation;
+}
+.pl-marca--tap::before { content: "+"; margin-right: 0.2rem; font-weight: 800; }
+.pl-marca--tap::after { content: ""; position: absolute; inset: -13px -6px; }
+.pl-marca--tap[aria-expanded="true"] { background: var(--warning-100); }
+.pl-marca--tap:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+
+/* El globo. Una tarjeta pequeña bajo la pastilla, con cada dato y su
+   etiqueta; fuera de él, un toque lo cierra. */
+.pl-salud-pop {
+    position: absolute;
+    z-index: 60;
+    box-sizing: border-box;
+    /* Cuelga del <body>, fuera de `.stic-container`: no hereda la letra. */
+    font-family: var(--font-family);
+    text-align: left;
+    display: grid;
+    gap: 0.15rem;
+    padding: 0.7rem 0.85rem 0.8rem;
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    border: 1px solid var(--warning-border);
+    box-shadow: var(--shadow-lg, 0 10px 24px -8px rgba(15, 23, 42, 0.3));
+    color: var(--gray-800);
+}
+.pl-salud-pop[hidden] { display: none; }
+.pl-salud-pop-label {
+    margin-top: 0.35rem;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--warning-dark);
+}
+.pl-salud-pop-label:first-child { margin-top: 0; }
+.pl-salud-pop-text { font-size: 0.9rem; line-height: 1.4; overflow-wrap: anywhere; }
+.pl-salud-pop-msg { margin: 0; font-size: 0.86rem; color: var(--gray-600); }
 /* Pasar lista en un evento: quien viene de OTRA delegación lleva el nombre de
    la suya en una pastilla magenta («Burriana»), que se vea de lejos. */
 .pl-marca--deleg { background: var(--secondary-50); color: var(--secondary-dark); }
@@ -1640,6 +1684,17 @@ a.pl-group .pl-name { display: block; }
 .pl-phone-name { display: flex; align-items: center; gap: 0.44rem; min-width: 0; }
 .pl-phone-label { font-size: 0.95rem; font-weight: 700; }
 .pl-phone-num { font-size: 0.79rem; color: var(--gray-500); }
+/* Tercera línea, si lo tiene: el correo, pequeño y tocable (16/10/2026). */
+.stic-container .pl-phone-mail {
+    align-self: flex-start;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.79rem;
+    color: var(--primary-color);
+    text-decoration: none;
+}
 .pl-phone-tag {
     display: inline-flex;
     align-items: center;
@@ -2546,6 +2601,7 @@ a.pl-group .pl-name { display: block; }
    móvil. Si un curso trae más, la fila envuelve por meses enteros, que es
    mejor que partir un mes por la mitad. */
 .pl-sq {
+    box-sizing: border-box;   /* los huecos con borde miden lo mismo que los llenos */
     width: 12px;
     height: 12px;
     border-radius: 3px;
@@ -2570,6 +2626,42 @@ a.pl-group .pl-name { display: block; }
     background: transparent;
     border: 1.5px dashed var(--gray-300);
 }
+
+/* UN EVENTO (convivencia, salida…), en la misma fila y en su fecha, pero
+   REDONDO (17/10/2026): se distingue de un sábado sin leer nada. El color es el
+   mismo código de asistencia. */
+.pl-sq--ev { border-radius: 50%; }
+.pl-sq--apuntado { background: transparent; border: 1.5px solid var(--primary-light); }
+.pl-sq--fuera { background: var(--gray-200); }
+
+/* La lista corta de eventos bajo los cuadraditos de la ficha. */
+.pl-att-evs {
+    display: flex;
+    flex-direction: column;
+    margin-top: 0.75rem;
+    border-top: 1px solid var(--gray-100);
+}
+.pl-att-ev {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0 0;
+}
+.pl-att-ev-body { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+.pl-att-ev-name { font-size: 0.86rem; font-weight: 700; color: var(--gray-800); overflow-wrap: anywhere; }
+.pl-att-ev-when { font-size: 0.74rem; color: var(--gray-500); overflow-wrap: anywhere; }
+.pl-att-ev-st {
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--gray-600);
+}
+.pl-att-ev-st--yes { color: var(--success-dark, var(--success-color)); }
+.pl-att-ev-st--partial { color: var(--gray-700); }
+.pl-att-ev-st--no_justified { color: var(--warning-dark); }
+.pl-att-ev-st--no_unjustified { color: var(--danger-dark); }
+.pl-att-ev-st--apuntado { color: var(--primary-color); }
+.pl-att-ev-st--fuera, .pl-att-ev-st--none { color: var(--gray-500); }
 
 .pl-sq--suya    { background: var(--success-color); }
 .pl-sq--otra    { background: var(--primary-light); }
@@ -3383,6 +3475,76 @@ a.pl-group .pl-name { display: block; }
     text-decoration: none;
 }
 .pl-singrupo { font-weight: 700; color: var(--warning-dark); }
+/* Las vistas de gente (cursos y A-Z, 16/10/2026): lo que se pega arriba al
+   bajar son los chips de curso, no el buscador — la misma decisión que la
+   lista de un evento (dos barras pegadas son media pantalla de la app). */
+.pl-gente .pl-search { position: relative; top: auto; }
+/* «Sin grupo» en ámbar también en su chip: es el mismo dato que la pastilla
+   de la fila, y apretado vuelve al azul de todos. */
+.pl-evchip--warn[aria-pressed="false"] .pl-evchip-n { color: var(--warning-dark); }
+
+/* «Asignar grupos»: el aviso de cuántos faltan y, a su lado, el interruptor.
+   Los controles de cada fila solo salen con él encendido; sin JavaScript
+   (`is-asignable` no llega) se ven siempre, como antes. */
+.pl-asignar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.75rem;
+}
+.pl-asignar .pl-hint { flex: 1 1 14rem; }
+.pl-gente.is-asignable:not(.is-asignando) .pl-suelto-act { display: none; }
+.pl-gente.is-asignable .pl-suelto-act .pl-review-btn { display: none; }
+.pl-suelto-act.is-busy { opacity: 0.55; pointer-events: none; }
+
+.pl-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-height: 44px;
+    padding: 0 0.15rem;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+}
+.pl-switch[hidden] { display: none; }
+.pl-switch input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    pointer-events: none;
+}
+.pl-switch-track {
+    position: relative;
+    flex-shrink: 0;
+    width: 44px;
+    height: 26px;
+    border-radius: var(--radius-full);
+    background: var(--gray-300);
+    transition: background 160ms var(--ease-out);
+}
+.pl-switch-track::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--surface);
+    box-shadow: var(--shadow-xs);
+    transition: transform 160ms var(--ease-out);
+}
+.pl-switch input:checked + .pl-switch-track { background: var(--brand-blue-fixed); }
+.pl-switch input:checked + .pl-switch-track::after { transform: translateX(18px); }
+.pl-switch input:focus-visible + .pl-switch-track { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+.pl-switch-label { font-size: 0.88rem; font-weight: 700; color: var(--gray-700); }
+@media (prefers-reduced-motion: reduce) {
+    .pl-switch-track, .pl-switch-track::after { transition: none; }
+}
+
 /* 640px es EL breakpoint móvil de la escala (plan 039, fila 2). Antes había
    aquí un `26rem` inventado: en cualquier móvil el desplegable y el botón se
    leen mejor bajo el nombre que apretados a su derecha, así que el ancho de
@@ -3431,6 +3593,26 @@ a.pl-group .pl-name { display: block; }
     color: var(--danger-dark);
     border: 1px solid var(--danger-border);
 }
+/* «No puede irse solo/a a casa», pegado al nombre en la ficha (16/10/2026).
+   No es una pastilla más de la tira: es UNA frase entera, porque a las 18:00
+   hay que leerla sin interpretar. Ámbar (pide atención, no una ambulancia),
+   con el mismo radio y borde que los avisos de la casa. */
+.pl-solo {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin: 0.1rem 0 0.7rem;
+    padding: 0.65rem 0.8rem;
+    border-radius: var(--radius-lg);
+    background: var(--warning-100);
+    border: 1px solid var(--warning-border);
+    color: var(--warning-darker);
+    font-size: 0.86rem;
+    line-height: 1.4;
+}
+.pl-solo svg { width: 18px; height: 18px; flex-shrink: 0; margin-top: 0.05rem; }
+.pl-solo strong { font-weight: 800; }
+
 /* Lo de comportamiento y asistencia: ámbar. Reclama una llamada, no una
    ambulancia, y mezclarlo con el rojo haría que el rojo dejara de significar
    algo. */

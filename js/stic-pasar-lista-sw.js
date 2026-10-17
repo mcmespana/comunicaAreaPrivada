@@ -51,6 +51,18 @@ function isPasarLista(url) {
     return page.indexOf('single_stic_pasar_lista') === 0 || PL_EXTRA.indexOf(page) !== -1;
 }
 
+/** Una foto VERSIONADA de una ficha (`stic_pl_photo` con `v=`).
+ *
+ * Con versión, la URL cambia si la foto cambia: se puede servir de la caché
+ * sin preguntar, para siempre. Sin versión no se toca (red, como siempre). Va
+ * en la caché DEL USUARIO, la que se borra al cerrar sesión o al entrar otro:
+ * es la cara de un menor, la misma regla que las pantallas. */
+function isFotoVersionada(url) {
+    return url.pathname.slice(-15) === '/admin-post.php'
+        && url.searchParams.get('action') === 'stic_pl_photo'
+        && !!url.searchParams.get('v');
+}
+
 /** Recursos estáticos del plugin: CSS, JS, tipografías, iconos. */
 function isAsset(url) {
     return /\.(css|js|woff2?|ttf|svg|png|jpg|jpeg|webp)$/i.test(url.pathname);
@@ -117,6 +129,26 @@ self.addEventListener('fetch', function (event) {
     var url;
     try { url = new URL(req.url); } catch (e) { return; }
     if (url.origin !== self.location.origin) { return; }
+
+    // --- Fotos versionadas: de la caché, y si no están, de la red y se guardan.
+    if (isFotoVersionada(url)) {
+        var fotos = pageCacheName();
+        if (!fotos) { return; }   // sin usuario conocido no se guarda nada
+        event.respondWith(
+            caches.open(fotos).then(function (cache) {
+                return cache.match(req).then(function (hit) {
+                    if (hit) { return hit; }
+                    return fetch(req).then(function (res) {
+                        // Solo las que existen: un 404 («no tiene foto») ya
+                        // lo recuerda el navegador un día por su cabecera.
+                        if (res && res.ok) { cache.put(req, res.clone()); }
+                        return res;
+                    });
+                });
+            })
+        );
+        return;
+    }
 
     // --- Recursos estáticos: de la caché primero, y se refrescan por detrás.
     if (isAsset(url)) {

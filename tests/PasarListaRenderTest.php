@@ -105,6 +105,8 @@ class FakeSCP
      *  campamento futuro SIN sesiones y uno del curso anterior. Apagado por
      *  defecto para no mover ninguna otra prueba. */
     public $conEventos = false;
+    /** c1 apuntada a eventos del curso (la ficha los enseña, 17/10/2026). */
+    public $evPersona = false;
     /** Con `$conEventos`: una persona de OTRA delegación (Burriana) inscrita en
      *  la convivencia, con su relación de participante en su delegación. */
     public $conBurriana = false;
@@ -890,6 +892,33 @@ class FakeSCP
     public function datosDeRelacion($p)
     {
         $key = $p['module_name'] . ':' . $p['link_field_name'];
+
+        // Los eventos de UNA persona (la ficha, 17/10/2026): sus inscripciones,
+        // el evento de cada una y sus asistencias, como las lee el calendario.
+        if ($this->evPersona) {
+            $evDe = array('evr-bus' => 'ev-bus', 'evr-pasado' => 'ev-pasado', 'evr-futuro' => 'ev-futuro',
+                'evr-sem' => 'ev-todo', 'evr-cancel' => 'ev-viejo');
+            if ($key === 'Contacts:stic_registrations_contacts' && $p['module_id'] === 'c1') {
+                return $this->apiShape(array(
+                    $this->nvl(array('id' => 'evr-bus', 'status' => 'confirmed')),
+                    $this->nvl(array('id' => 'evr-pasado', 'status' => 'confirmed')),
+                    $this->nvl(array('id' => 'evr-futuro', 'status' => 'confirmed')),
+                    $this->nvl(array('id' => 'evr-sem', 'status' => 'confirmed')),
+                ));
+            }
+            if ($key === 'stic_Registrations:stic_registrations_stic_events' && isset($evDe[$p['module_id']])) {
+                return $this->apiShape(array($this->nvl(array('id' => $evDe[$p['module_id']]))));
+            }
+            if ($key === 'stic_Registrations:stic_attendances_stic_registrations' && $p['module_id'] === 'evr-bus') {
+                return $this->apiShape(array(
+                    $this->nvl(array('id' => 'eva1', 'status' => 'no_unjustified', 'start_date' => '2025-11-15 09:00:00')),
+                    $this->nvl(array('id' => 'eva2', 'status' => 'yes', 'start_date' => '2025-11-16 09:00:00')),
+                ));
+            }
+            if ($key === 'stic_Registrations:stic_attendances_stic_registrations' && $p['module_id'] === 'evr-pasado') {
+                return array();
+            }
+        }
 
         switch ($key) {
             // Personas del grupo: participantes y monitor, en UNA llamada.
@@ -2913,9 +2942,10 @@ final class PasarListaRenderTest extends TestCase
         // Es lo primero después de la cabecera: la ficha se abre para llamar.
         $this->assertLessThan(strpos($html, 'Asistencia'), strpos($html, 'Teléfonos'));
         $this->assertStringContainsString('tel:600111222', $html);
-        // La madre, marcada como referencia.
+        // La madre, sin «REF»: desde el 16/10/2026 no se marca referencia
+        // (el tutor 1 es el primero que se dio de alta, y va el primero).
         $this->assertStringContainsString('Solete Messeguer', $html);
-        $this->assertStringContainsString('REF', $html);
+        $this->assertStringNotContainsString('pl-phone-tag--ref', $html);
         $this->assertStringContainsString('wa.me/34600333444', $html);
     }
 
@@ -6062,7 +6092,9 @@ final class PasarListaRenderTest extends TestCase
             '<span class="pl-marcas">'
             . '<span class="pl-marca pl-marca--no_solo" title="No tiene autorización para irse solo/a a casa">No se va solo/a</span>'
             . '<span class="pl-marca pl-marca--sin_fotos" title="No autoriza la cesión de imágenes">Sin fotos</span>'
-            . '<span class="pl-marca pl-marca--salud" title="Tiene alergias, intolerancias o tratamientos: el detalle está en su ficha">Alergia o tratamiento</span>'
+            . '<span class="pl-marca pl-marca--salud pl-marca--tap" role="button" tabindex="0" aria-haspopup="dialog"'
+            . ' data-pl-salud="/wp-admin/admin-post.php?action=stic_pl_salud&amp;persona=c1"'
+            . ' aria-label="Alergia o tratamiento: ver el detalle">Alergia o tratamiento</span>'
             . '</span>',
             $solete
         );
@@ -6214,7 +6246,234 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringContainsString('4 chavalines', $html);
         // Lucía no tiene curso en ningún sitio: «Sin curso», al final.
         $this->assertStringContainsString('Sin curso', $html);
-        $this->assertLessThan(strpos($html, 'Sin curso'), strpos($html, 'Sol Messeguer'));
+        // La CABECERA «Sin curso» (los chips de arriba también lo nombran).
+        $cabecera = strpos($html, 'Sin curso', strpos($html, 'pl-etapa-title'));
+        $this->assertLessThan($cabecera, strpos($html, 'Sol Messeguer'));
+    }
+
+    /**
+     * LOS CHIPS DE CURSO (16/10/2026): con su número, «Todos» apretado, y al
+     * final «Sin grupo». Cada fila lleva su curso para que el chip la filtre.
+     */
+    public function test_mis_grupos_az_lleva_chips_de_curso_con_numero()
+    {
+        $this->scp->cursoSuelto = '1_eso';
+        $_REQUEST = array('ver' => 'az');
+        $html = $this->render('single_stic_mis_grupos');
+
+        $this->assertStringContainsString('data-pl-gente-chips', $html);
+        $this->assertMatchesRegularExpression('/data-pl-curso-chip="" aria-pressed="true">Todos<span class="pl-evchip-n">\d+<\/span>/u', $html);
+        $this->assertMatchesRegularExpression('/data-pl-curso-chip="sin-grupo" aria-pressed="false">Sin grupo<span class="pl-evchip-n">2<\/span>/u', $html);
+        // La fila de Sol (sin grupo, 1.º ESO) lleva su curso y su «sin grupo».
+        $sol = $this->filaDe($html, 'Sol Messeguer', '<div class="pl-rowwrap', '</a>');
+        $this->assertStringContainsString('data-pl-sin-grupo data-pl-curso="1_eso"', $sol);
+        // Y todo va dentro de la caja de la gente, que es la que engancha el JS.
+        $this->assertStringContainsString('<div class="pl-gente" data-pl-gente>', $html);
+    }
+
+    /** «Asignar grupos» es un interruptor, y solo para coordinación. */
+    public function test_mis_grupos_asignar_grupos_es_un_interruptor_de_coordinacion()
+    {
+        $_REQUEST = array('ver' => 'az');
+        $html = $this->render('single_stic_mis_grupos');
+        $this->assertStringNotContainsString('data-pl-asignar', $html);
+
+        $this->scp->coordEtapa = 'COM';
+        $GLOBALS['__stic_transients'] = array();   // quién coordina va cacheado
+        $html = $this->render('single_stic_mis_grupos');
+        $this->assertStringContainsString('role="switch" data-pl-asignar', $html);
+        $this->assertStringContainsString('Asignar grupos', $html);
+        // Sin JavaScript los controles siguen ahí: el interruptor solo los pliega.
+        $this->assertStringContainsString('name="pl_assign_group[r7]"', $html);
+    }
+
+    /**
+     * «NO PUEDE IRSE SOLO/A A CASA», ARRIBA DEL TODO: antes que los botones de
+     * llamar. Solo con el «0»; un vacío no es un «no».
+     */
+    public function test_la_ficha_dice_arriba_que_no_se_puede_ir_solo()
+    {
+        $this->scp->fichaOverrides = array('ajmcm_soloacasa_c' => '0');
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+        $solo = strpos($html, 'No puede irse solo/a a casa.');
+        $this->assertNotFalse($solo);
+        $this->assertLessThan(strpos($html, 'pl-contact'), $solo);
+
+        $this->scp->fichaOverrides = array('ajmcm_soloacasa_c' => '');
+        $GLOBALS['__stic_transients'] = array();
+        $html = $this->render('single_stic_pasar_lista_ficha');
+        $this->assertStringNotContainsString('No puede irse solo/a a casa.', $html);
+        $this->assertStringContainsString('Sin contestar', $html);
+    }
+
+    /** Los datos personales, plegados al final y sin una llamada más. */
+    public function test_la_ficha_pliega_los_datos_personales_y_la_familia()
+    {
+        $this->scp->fichaOverrides = array(
+            'primary_address_street' => 'C/ Mayor 1', 'primary_address_postalcode' => '12001',
+            'primary_address_city' => 'Castelló de la Plana',
+            'stic_identification_type_c' => 'nif', 'stic_identification_number_c' => '12345678Z',
+            'ajmcm_centro_educativo_c' => 'Consolación Castellón',
+        );
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringContainsString('<summary class="pl-fold-sum">Datos personales<span class="pl-fold-count">Castelló de la Plana</span>', $html);
+        $this->assertStringContainsString('C/ Mayor 1, 12001 Castelló de la Plana', $html);
+        $this->assertStringContainsString('12345678Z', $html);
+        $this->assertStringContainsString('Consolación Castellón', $html);
+        $this->assertStringContainsString('<summary class="pl-fold-sum">Autorizaciones', $html);
+        $this->assertStringNotContainsString('<summary class="pl-fold-sum">Familia', $html);
+        $this->assertStringNotContainsString('google.com/maps', $html);
+        // Plegados AL FINAL: después del pañuelo.
+        $this->assertLessThan(strpos($html, 'Datos personales'), strpos($html, 'pl-panuelo'));
+    }
+
+    /** La ficha y la familia se cachean: la segunda visita no va al CRM a por ellas. */
+    public function test_la_ficha_y_la_familia_se_cachean()
+    {
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $this->render('single_stic_pasar_lista_ficha');
+        $antes = count($this->scp->calls);
+        $this->render('single_stic_pasar_lista_ficha');
+        $segunda = array_slice($this->scp->calls, $antes);
+        foreach ($segunda as $c) {
+            $this->assertStringNotContainsString('getRecordDetail:Contacts', (string) $c);
+            $this->assertStringNotContainsString('stic_personal_environment', (string) $c);
+        }
+    }
+
+    /**
+     * LA FOTO, SOLO DE QUIEN TIENE (16/10/2026): el mapa trae el nombre del
+     * archivo, así que quien no tiene no se pide, y quien tiene lleva la
+     * versión en la URL para cachearla un año. Sin el dato, como siempre.
+     */
+    public function test_el_avatar_pide_la_foto_solo_si_la_hay_y_versionada()
+    {
+        $sin = sticpa_pl_avatar_html(array('id' => 'c1', 'initials' => 'SV', 'foto' => ''), true);
+        $this->assertStringNotContainsString('<img', $sin);
+        $this->assertStringContainsString('SV', $sin);
+
+        $con = sticpa_pl_avatar_html(array('id' => 'c1', 'initials' => 'SV', 'foto' => 'abc1234567'), true);
+        $this->assertStringContainsString('persona=c1&amp;v=abc1234567', $con);
+
+        $nose = sticpa_pl_avatar_html(array('id' => 'c1', 'initials' => 'SV'), true);
+        $this->assertStringContainsString('persona=c1"', $nose);
+    }
+
+    /**
+     * LA FAMILIA (16/10/2026): la consulta pide SOLO campos planos —la forma
+     * que funciona en producción—; la misma madre dos veces es una fila; el
+     * tutor 1 es el primero que se dio de alta; y una relación sin el id del
+     * familiar se resuelve preguntando al registro de familia.
+     */
+    public function test_la_familia_ordena_por_alta_junta_duplicados_y_tiene_respaldo()
+    {
+        $nvl = function ($campos) {
+            $v = new stdClass();
+            foreach ($campos as $k => $val) {
+                $v->$k = (object) array('name' => $k, 'value' => $val);
+            }
+            return (object) array('name_value_list' => $v);
+        };
+        $scp = new class($nvl) {
+            public $lastError = '';
+            public $pedidos = array();
+            private $nvl;
+            public function __construct($nvl) { $this->nvl = $nvl; }
+            public function getRelatedElementsForLoggedUser($p)
+            {
+                $this->pedidos[] = $p;
+                $n = $this->nvl;
+                if ($p['module_name'] === 'stic_Personal_Environment') {
+                    // El respaldo: desde el registro de familia, su contacto.
+                    if ($p['module_id'] === 'pe4' && $p['link_field_name'] === 'stic_personal_environment_contacts_1') {
+                        return array($n(array('id' => 'abuela', 'first_name' => 'Rosa', 'last_name' => 'Pi',
+                            'name' => 'Rosa Pi', 'phone_mobile' => '611', 'email1' => 'rosa@x.es')));
+                    }
+                    return array();
+                }
+                if ($p['link_field_name'] !== 'stic_personal_environment_contacts') {
+                    return array();
+                }
+                $fila = function ($id, $fam, $alta) use ($n) {
+                    return $n(array('id' => $id, 'relationship_type' => 'mother', 'end_date' => '',
+                        'date_entered' => $alta,
+                        'stic_personal_environment_contactscontacts_ida' => 'kid',
+                        'stic_personal_environment_contacts_1contacts_ida' => $fam));
+                };
+                return array(
+                    // Padre y madre del mismo minuto: desempata la hora del id.
+                    $fila('00000002-0000-0000-0000-6ab5976c8184', 'madre-nueva', '2026-09-24 19:36:00'),
+                    $fila('00000001-0000-0000-0000-6ab5974effb2', 'padre', '2026-09-24 19:36:00'),
+                    $fila('pe3', 'madre-vieja', '2025-08-31 22:00:00'),
+                    $fila('pe4', '', '2026-10-01 10:00:00'),
+                );
+            }
+            public function getRecordsModule($m, $q, $f)
+            {
+                $n = $this->nvl;
+                return array(
+                    $n(array('id' => 'madre-nueva', 'first_name' => 'Carmen', 'last_name' => 'Serrano Tello',
+                        'name' => 'Carmen Serrano Tello', 'phone_mobile' => '670425115', 'email1' => '')),
+                    $n(array('id' => 'madre-vieja', 'first_name' => 'Carmen', 'last_name' => 'Serrano Tello',
+                        'name' => 'Carmen Serrano Tello', 'phone_mobile' => '', 'email1' => 'carmen@x.es')),
+                    $n(array('id' => 'padre', 'first_name' => 'Paco', 'last_name' => 'Flores',
+                        'name' => 'Paco Flores', 'phone_mobile' => '600', 'email1' => '')),
+                );
+            }
+        };
+        $fam = sticpa_pl_family_fetch($scp, 'kid');
+
+        // Sin enlaces anidados: es lo que tumbaba la consulta entera.
+        foreach ($scp->pedidos as $p) {
+            $this->assertSame(array(), $p['related_module_link_name_to_fields_array']);
+        }
+        // La madre repetida es UNA fila, con el móvil de una y el correo de la
+        // otra, y por ser la vieja (2025) es el tutor 1.
+        $this->assertSame(array('Carmen Serrano Tello', 'Paco Flores', 'Rosa Pi'), array_column($fam, 'name'));
+        $this->assertSame('670425115', $fam[0]['mobile']);
+        $this->assertSame('carmen@x.es', $fam[0]['email']);
+        // El respaldo trae a quien la relación no nombraba.
+        $this->assertSame('rosa@x.es', $fam[2]['email']);
+    }
+
+    /** El tutor 1 de dos altas del mismo minuto: el de la hora menor en el id. */
+    public function test_el_orden_de_alta_desempata_por_la_hora_del_id()
+    {
+        $padre = sticpa_pl_orden_alta('00000569-4eee-dbcc-855e-6ab5974effb2', '2026-09-24 19:36:00');
+        $madre = sticpa_pl_orden_alta('000002ae-4387-fb62-fe47-6ab5976c8184', '2026-09-24 19:36:00');
+        $this->assertLessThan($madre, $padre);
+        // Un id al azar no desempata, pero tampoco adelanta a nadie.
+        $this->assertGreaterThan($padre, sticpa_pl_orden_alta('83da138e-a55d-402e-898f-bf053d479361', '2026-09-24 19:36:00'));
+    }
+
+    /**
+     * LAS CONVIVENCIAS Y SALIDAS EN LA FICHA (17/10/2026): redondas en la
+     * fila de cuadraditos, en su fecha, y en una lista debajo. Dos días con
+     * «vino» uno = vino. Sin lista pasada, «Sin lista»; lo que aún no ha sido,
+     * «Apuntado/a» y sin cuadradito. El de los sábados no sale como evento.
+     */
+    public function test_la_ficha_enseña_los_eventos_del_curso()
+    {
+        $this->scp->conEventos = true;
+        $this->scp->evPersona = true;
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringContainsString('pl-sq pl-sq--yes pl-sq--ev', $html);
+        $this->assertMatchesRegularExpression('/title="15 Nov · Convivencia MIC y COM · Vino"/u', $html);
+        $evs = substr($html, strpos($html, 'pl-att-evs'));
+        $this->assertStringContainsString('Salida al parque', $evs);
+        $this->assertStringContainsString('Sin lista', $evs);
+        $this->assertStringContainsString('Campamento de Navidad', $evs);
+        $this->assertStringContainsString('Apuntado/a', $evs);
+        $this->assertStringNotContainsString('Sesiones semanales', $evs);
+        // Lo futuro no lleva cuadradito en la fila.
+        $this->assertStringNotContainsString('Campamento de Navidad · ', substr($html, 0, strpos($html, 'pl-att-evs')));
+        // Por orden de fecha: la salida (4 oct) antes que la convivencia.
+        $this->assertLessThan(strpos($evs, 'Convivencia MIC y COM'), strpos($evs, 'Salida al parque'));
     }
 
     /** La ficha de alguien sin grupo se abre desde Grupos y fichas. */
@@ -6859,7 +7118,7 @@ final class PasarListaRenderTest extends TestCase
         $this->assertNotFalse($salud, 'La ficha tiene que enseñar la cajita.');
 
         foreach (array('Contacto', 'Asistencia', 'Avisos de comportamiento',
-            'Permisos', 'Pañuelo') as $seccion) {
+            'Autorizaciones', 'Pañuelo') as $seccion) {
             $pos = strpos($html, $seccion);
             $this->assertNotFalse($pos);
             $this->assertLessThan(
