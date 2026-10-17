@@ -353,7 +353,7 @@ prisa. Luego asistencia, familia, salud y datos.
   pinta.
 - **Pañuelo editable con confirmación** — es un dato importante y el monitor es
   quien lo sabe. Editar pide confirmar antes de escribir. Va **abajo, después de
-  Permisos**: no es un dato de urgencia como el teléfono, y arriba competía con
+  la salud**: no es un dato de urgencia como el teléfono, y arriba competía con
   las acciones de contacto, que son el motivo real por el que se abre la ficha.
 - **Edad** visible (viene calculada en `stic_age_c`).
 - **Sexo no**, no aporta nada aquí.
@@ -363,6 +363,10 @@ prisa. Luego asistencia, familia, salud y datos.
 - **Permisos** en su bloque: solo a casa, cesión de imágenes
   (`ajmcm_cesionimagenes_interne_c`) y WhatsApp del menor. La cesión de imágenes
   hace falta aquí porque se decide en el momento de hacer la foto.
+  **16/10/2026:** el bloque es ahora el pliegue **Autorizaciones** del final
+  (las siete del CRM, con «Sin contestar»), junto a **Datos personales** y
+  **Familia**; y «No puede irse solo/a a casa» sube arriba del todo, pegado al
+  nombre. Detalle en `MIS-GRUPOS.md` §8 ter.
 - **Avisos de comportamiento** con fecha, quién lo puso y motivo, y el contador
   «2 de 3». El front se construye ya; los campos detrás son fase 3 y van en un
   módulo, no en casillas (ver `PASAR-LISTA-CAMPOS-CRM.md` §6).

@@ -1496,20 +1496,50 @@ function prefix_admin_stic_profile_photo()
  * OJO: esta función NO autoriza nada. Quien la llama tiene que haber decidido
  * ya que ese contacto se le puede enseñar a quien está pidiendo.
  */
-function sticpa_serve_contact_photo($userId)
+function sticpa_serve_contact_photo($userId, $maxAge = DAY_IN_SECONDS)
 {
     $cachePath = sticpa_profile_photo_cache_path($userId);
+    // Lo que dura en disco una miniatura (16/10/2026: de 24 h a una semana).
+    // Una foto de ficha no cambia, y cuando cambia desde el área (subida de
+    // foto) se borra a mano. Cada vuelta al CRM es una llamada por cara.
+    $ttlDisco = (int) apply_filters('sticpa_photo_disk_ttl', 7 * DAY_IN_SECONDS);
+    // «No tiene foto» también se recuerda: sin esto, una lista con cien
+    // chavales sin foto eran cien llamadas al CRM en CADA visita, para
+    // contestar cien veces el mismo 404.
+    $sinFotoPath = $cachePath . '.none';
+    $ttlSinFoto = (int) apply_filters('sticpa_photo_none_ttl', DAY_IN_SECONDS);
+    if (!is_file($cachePath) && is_file($sinFotoPath)
+        && (time() - (int) filemtime($sinFotoPath)) < $ttlSinFoto) {
+        if (ob_get_level()) {
+            ob_end_clean();
+        }
+        status_header(404);
+        header('Cache-Control: private, max-age=' . (int) min($ttlSinFoto, DAY_IN_SECONDS));
+        exit;
+    }
 
-    // Miniatura cacheada y fresca (< 24h) → se sirve directamente, sin CRM.
-    if (!is_file($cachePath) || (time() - (int) filemtime($cachePath)) >= DAY_IN_SECONDS) {
+    // Miniatura cacheada y fresca → se sirve directamente, sin CRM.
+    if (!is_file($cachePath) || (time() - (int) filemtime($cachePath)) >= $ttlDisco) {
         $objSCP = SugarRestApiCall::getObjSCP();
         $image = $objSCP->get_image(array('id' => $userId, 'field' => 'photo'));
         $binary = !empty($image->image_data->data) ? base64_decode($image->image_data->data) : false;
         if (empty($binary)) {
             // Sin foto en el CRM: el <img> mostrará el placeholder vía onerror.
+            // Solo se apunta el «no tiene» si el CRM HA CONTESTADO: un fallo de
+            // red no es una ausencia, y recordarlo dejaría a alguien sin cara
+            // un día entero.
+            if (is_object($image)) {
+                $dir = dirname($sinFotoPath);
+                if (!is_dir($dir)) {
+                    wp_mkdir_p($dir);
+                }
+                @touch($sinFotoPath);
+            }
             status_header(404);
+            header('Cache-Control: private, max-age=' . (is_object($image) ? (int) min($ttlSinFoto, DAY_IN_SECONDS) : 0));
             exit;
         }
+        @unlink($sinFotoPath);
 
         $cacheDir = dirname($cachePath);
         if (!is_dir($cacheDir)) {
@@ -1554,7 +1584,7 @@ function sticpa_serve_contact_photo($userId)
         ob_end_clean();
     }
     header('Content-Type: image/jpeg');
-    header('Cache-Control: private, max-age=86400');
+    header('Cache-Control: private, max-age=' . max(0, (int) $maxAge));
     header('Content-Length: ' . filesize($cachePath));
     readfile($cachePath);
     exit;
@@ -1613,7 +1643,84 @@ function sticpa_pl_photo_endpoint()
         session_write_close();
     }
 
-    sticpa_serve_contact_photo($id);
+    /* UNA URL VERSIONADA SE CACHEA UN AÑO (16/10/2026). Las listas piden la
+     * foto con `v=` (sale del nombre del archivo de la foto en el CRM, que
+     * viaja gratis en el mapa de relaciones): si la foto cambia, cambia la URL.
+     * Así el móvil no vuelve a preguntar nunca por una cara que ya tiene —el
+     * service worker la guarda además, a nombre del usuario—. Sin `v=`, el día
+     * de siempre. */
+    $versionada = isset($_REQUEST['v']) && preg_match('/^[a-f0-9]{6,32}$/', (string) $_REQUEST['v']);
+    sticpa_serve_contact_photo($id, $versionada ? YEAR_IN_SECONDS : DAY_IN_SECONDS);
+}
+
+/**
+ * LA SALUD DE UN CHAVAL, PARA EL GLOBO de la pastilla «Alergia o tratamiento»
+ * (Grupos y fichas, 16/10/2026).
+ *
+ * El texto de salud no va en el HTML de las listas —se guardan en el móvil
+ * para usarlas sin cobertura—, así que el globo lo pide aquí al tocarlo. Y por
+ * eso esto contesta `no-store`: ni el navegador ni el service worker se lo
+ * quedan (el service worker solo guarda pantallas y fotos versionadas).
+ *
+ * La autorización, la MISMA que la de las fotos: sesión, monitor mirando sus
+ * pantallas, y la persona en el mapa de relaciones de su delegación. Respeta
+ * además el permiso de datos de salud: con `ajmcm_datossalud_c` a «0» no se
+ * dice nada, igual que la pastilla no sale.
+ *
+ * Cuesta una llamada como mucho: la ficha está cacheada en el servidor
+ * (`sticpa_pl_ficha()`), y si alguien ya la abrió hoy, cero.
+ */
+add_action('admin_post_stic_pl_salud', 'sticpa_pl_salud_endpoint');
+add_action('admin_post_nopriv_stic_pl_salud', 'sticpa_pl_salud_endpoint');
+function sticpa_pl_salud_endpoint()
+{
+    if (empty($_SESSION['scp_user_id'])) {
+        status_header(403);
+        exit;
+    }
+    nocache_headers();
+    header('Cache-Control: no-store, private, max-age=0');
+    $role = function_exists('sticpa_get_comunica_role') ? sticpa_get_comunica_role() : '';
+    $audience = function_exists('sticpa_profile_audience') ? sticpa_profile_audience() : '';
+    if ($role !== 'monitor' || $audience === 'participante') {
+        status_header(403);
+        exit;
+    }
+    $id = isset($_REQUEST['persona']) ? sticpa_pl_safe_id($_REQUEST['persona']) : '';
+    if ($id === '') {
+        status_header(400);
+        exit;
+    }
+    $objSCP = SugarRestApiCall::getObjSCP();
+    if (!sticpa_pl_persona_de_mi_delegacion($objSCP, $id)) {
+        status_header(403);
+        exit;
+    }
+    if (session_id()) {
+        session_write_close();
+    }
+
+    $ficha = sticpa_pl_ficha($objSCP, $id);
+    if ($ficha === null) {
+        wp_send_json_error(array('msg' => __('No se han podido cargar los datos.', 'sticpa')), 502);
+    }
+    $items = array();
+    if (trim((string) $ficha['ajmcm_datossalud_c']) !== '0') {
+        $campos = array(
+            'ajmcm_descripcion_allergies__c' => __('Alergias', 'sticpa'),
+            'ajmcm_descripcion_intoler_c' => __('Intolerancias', 'sticpa'),
+            'ajmcm_descripcion_tratam_c' => __('Tratamientos', 'sticpa'),
+            'ajmcm_descripcion_enfermed_c' => __('Enfermedades', 'sticpa'),
+            'ajmcm_descripcion_otros_c' => __('Otras patologías', 'sticpa'),
+        );
+        foreach ($campos as $campo => $label) {
+            $texto = isset($ficha[$campo]) ? trim((string) $ficha[$campo]) : '';
+            if ($texto !== '') {
+                $items[] = array('label' => $label, 'text' => $texto);
+            }
+        }
+    }
+    wp_send_json_success(array('name' => $ficha['name'], 'items' => $items));
 }
 
 /**
@@ -1664,6 +1771,7 @@ function upload_file_to_record($fieldName, $moduleName, $id) {
                         )));
                         foreach ($staleIds as $staleId) {
                             @unlink(sticpa_profile_photo_cache_path($staleId));
+                            @unlink(sticpa_profile_photo_cache_path($staleId) . '.none');
                         }
                     }
                     return sticpa_return_url() . '&msg=true';

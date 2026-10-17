@@ -157,12 +157,26 @@ En pantalla, la foto va **dentro** del círculo de las iniciales y encima: si no
 hay foto, o el CRM tarda, o falla, debajo quedan las iniciales de siempre. Sin
 hueco, sin salto y sin JavaScript se ven las iniciales.
 
-**Dónde SÍ y dónde NO.** Cada foto es una petición. En las dos fichas y en las
-listas que acota un grupo (veinte o veinticinco personas) van. En las vistas
-A-Z y por curso **no**: ahí la lista es toda la delegación, y aunque
-`loading="lazy"` solo baje las que se ven, recorrerla entera serían trescientos
-viajes en una webview con datos móviles. El parámetro que lo decide es el
-`$conFoto` de `sticpa_pl_avatar_html()`.
+**Dónde SÍ y dónde NO.** ~~En las vistas A-Z y por curso no.~~ **Desde el
+16/10/2026 van en todas** (lo pidió el propietario: «cargando en segundo plano
+y bien cacheado, que eso nunca cambia»). Lo que lo hace barato:
+
+1. **Quien no tiene foto no se pide.** El enlace `persona` del mapa de
+   relaciones trae ahora `photo` (el NOMBRE del archivo, no la imagen) y
+   `date_modified`: ni una llamada más. `sticpa_pl_person_from_rel_row()` lo
+   deja en `foto`: `''` = no tiene (no se pinta `<img>`), un hash corto = tiene.
+   Sin la clave (una caché de antes, el respaldo por contactos) se pide como
+   siempre: no saber no es «no tiene».
+2. **La URL lleva la versión** (`&v=<hash>`): con ella el endpoint contesta
+   `max-age` de un año, y el service worker la guarda (caché de páginas DEL
+   USUARIO, la que se borra al cerrar sesión). Si la foto cambia, cambia la URL.
+3. **En segundo plano**: `loading="lazy"`, `decoding="async"`,
+   `fetchpriority="low"`.
+4. **En el servidor**: la miniatura dura una semana en disco
+   (`sticpa_photo_disk_ttl`) y el «no tiene foto» también se recuerda un día
+   (`<miniatura>.none`, `sticpa_photo_none_ttl`) — antes cada 404 era una
+   llamada al CRM en cada visita. Solo se apunta si el CRM ha contestado: un
+   fallo de red no es una ausencia. Subir foto desde el área borra las dos.
 
 ---
 
@@ -344,6 +358,84 @@ ir al servidor. Solo sale si hay alguien con «Sin fotos»: un «0» no querría
 «todos pueden salir», porque quien no ha contestado no lleva la marca.
 
 ---
+
+---
+
+## 8 ter. Lo del 16/10/2026: chips, «Asignar grupos», la ficha completa y la caché
+
+Pedido por el propietario mirando Cursos y A-Z.
+
+**Chips con su número** en Cursos y A-Z (`data-pl-gente-chips`): los
+`.pl-evchip` de la lista de un evento, pegados arriba al bajar —el buscador de
+estas dos vistas deja de pegarse, como en el evento—. «Todos», un chip por curso
+(las mismas claves y el mismo orden que las cabeceras de la vista por curso) y
+al final «Sin grupo» en ámbar. Filtran lo pintado junto con el buscador (cada
+fila lleva `data-pl-curso`) y devuelven la lista a su principio.
+
+**«Asignar grupos» es un interruptor** (solo coordinación, y solo si hay alguien
+sin grupo). Los desplegables de «Vincular» de cada fila salen con él encendido;
+el móvil lo recuerda (`localStorage`, `sticpa-pl-asignar`) y vuelve encendido
+tras vincular. Elegir un grupo ya vincula, con una confirmación: el botón
+«Vincular» se esconde. **Sin JavaScript todo está como antes**, a la vista y con
+su botón (la clase `is-asignable` la pone el JS).
+
+**La salud en un globo.** La pastilla «Alergia o tratamiento» de Grupos y fichas
+(cursos, A-Z y la lista de un grupo) se toca y abre un globo con alergias,
+intolerancias, tratamientos, enfermedades y otras. **La regla de §8 bis sigue en
+pie**: el texto no va en el HTML. Lo pide el globo al tocar a `stic_pl_salud`
+(`inc/stic-action.php`), con la autorización de las fotos, `Cache-Control:
+no-store`, y se guarda solo en memoria mientras la pantalla está abierta. Con
+`ajmcm_datossalud_c` a «0» no dice nada. En la lista de MARCAR no: allí la fila
+es un `<button>` y no cabe otro dentro.
+
+**La ficha del chaval:**
+
+- «**No puede irse solo/a a casa.**» arriba del todo, pegado al nombre y antes
+  de los botones de llamar (`.pl-solo`), solo con el «0» explícito. La frase
+  sola, sin explicación detrás (lo pidió el propietario).
+- Al final, **dos pliegues** (`.pl-fold`, como la ficha del monitor), con lo que
+  importa en la solapa: **Autorizaciones** (las siete del CRM, con «Sin
+  contestar» donde no hay respuesta; antes eran tres en «Permisos») y **Datos
+  personales** (nacimiento, documento, dirección —texto, sin mapa—, centro
+  educativo, correo, talla, etapa, nivel COM, nº de persona). Los campos nuevos
+  van en la MISMA lectura de la ficha (`sticpa_pl_ficha_fields()`), todos
+  comprobados en CAMPOS.md y contra el CRM.
+- El **correo de cada familiar** va en su tarjeta de «Contacto», debajo de su
+  teléfono. Hubo un pliegue «Familia» al fondo y se quitó el mismo día: separaba
+  a cada persona de su teléfono.
+- **Ni «REF» ni «referencia» ni «firma»** (lo decidió el propietario: nadie lo
+  mantiene). **El tutor 1 es el primer familiar que se dio de alta**: va el
+  primero y a él llaman los botones grandes. Como el formulario de altas crea a
+  padre y madre en el mismo minuto, desempata la hora que llevan los ids de esta
+  instancia en su último bloque (`sticpa_pl_orden_alta()`).
+
+**La familia que no salía** (Castellón, 16/10/2026; Laia Aguilar como caso).
+En el CRM estaba todo bien —padre y madre en `stic_Personal_Environment`, el
+chaval en el lado A, asignados a MCM Castellón—, y la ficha decía «no tiene
+familia». La consulta de la ficha pedía, además de los campos planos, los
+**enlaces anidados** (`related_module_link_name_to_fields_array`); la que sí
+funciona en producción (la lista de hijos de una madre, `inc/stic-family.php`)
+no los pide. Si la API rechaza una parte, la respuesta entera vuelve como error
+y se leía como «sin familia», en silencio. Ahora `sticpa_pl_family_fetch()`:
+
+- pide con la forma probada: `id`, tipo, fechas y los dos `_ida`, nada anidado;
+- si una relación no trae el id del familiar, se lo pregunta **al registro de
+  familia** (`stic_Personal_Environment` → `stic_personal_environment_contacts_1`),
+  el mismo segundo paso que `inc/stic-family.php`, en una tanda;
+- escribe en el log del servidor cuando el CRM contesta con error, en vez de
+  callárselo;
+- **junta a la misma persona repetida** (las altas de octubre crean a veces un
+  contacto nuevo para un familiar que ya estaba: Jorge Flores tiene a «Carmen
+  Serrano Tello» dos veces); se queda una fila con el móvil y el correo que haya.
+
+La caché de la familia es `familia2` (la `familia` del primer intento guardaba
+la forma vieja). Si una ficha sigue sin familia, `&pl_diag=1` enseña la llamada.
+
+**Caché de lo que cambia poco.** La ficha (`sticpa_pl_ficha()`, clave `ficha`) y
+la familia (`familia2`) van ahora en la caché de estructura del servidor (24 h,
+las tira «Refrescar»; el pañuelo borra la suya al guardar). Lo que cambia un
+sábado —asistencia y avisos— sigue sin cachearse aquí. Es caché del SERVIDOR:
+nada de salud se queda en el móvil.
 
 ## 9. Qué queda por decidir
 

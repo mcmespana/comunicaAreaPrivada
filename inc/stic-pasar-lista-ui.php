@@ -105,10 +105,18 @@ function sticpa_pl_avatar_html($person, $conFoto = false, $clase = 'pl-avatar')
     // lado, y un lector de pantalla que lea «ese ve» antes de «Solete
     // Vilarroya» solo estorba.
     $out = '<span class="' . esc_attr($clase) . '" aria-hidden="true">' . esc_html($ini);
-    if ($conFoto && !empty($person['id'])) {
-        $src = admin_url('admin-post.php?action=stic_pl_photo&persona=' . rawurlencode($person['id']));
+    // `foto` (del mapa de relaciones): '' = sabemos que no tiene, y no se pide
+    // — en una lista de doscientos son doscientas peticiones menos; un hash =
+    // tiene, y va en la URL para que el móvil la guarde un año; sin la clave
+    // = no se sabe, y se pide como siempre.
+    $foto = (is_array($person) && array_key_exists('foto', $person)) ? (string) $person['foto'] : null;
+    if ($conFoto && !empty($person['id']) && $foto !== '') {
+        $src = admin_url('admin-post.php?action=stic_pl_photo&persona=' . rawurlencode($person['id'])
+            . ($foto !== null ? '&v=' . rawurlencode($foto) : ''));
+        // En segundo plano: perezosa, decodificada fuera del hilo principal y
+        // con prioridad baja, para que nunca compita con la página.
         $out .= '<img class="pl-avatar-img" src="' . esc_url($src) . '" alt=""'
-            . ' loading="lazy" decoding="async"'
+            . ' loading="lazy" decoding="async" fetchpriority="low"'
             . ' onerror="this.remove()">';
     }
     $out .= '</span>';
@@ -208,7 +216,7 @@ function sticpa_pl_recuento_texto($nParticipantes, $nMonitores = 0)
  *
  * @param string[] $marcas claves de `sticpa_pl_marcas_de()`.
  */
-function sticpa_pl_marcas_html($marcas)
+function sticpa_pl_marcas_html($marcas, $personaId = '')
 {
     $textos = array(
         'no_solo' => array(__('No se va solo/a', 'sticpa'), __('No tiene autorización para irse solo/a a casa', 'sticpa')),
@@ -216,8 +224,25 @@ function sticpa_pl_marcas_html($marcas)
         'salud' => array(__('Alergia o tratamiento', 'sticpa'), __('Tiene alergias, intolerancias o tratamientos: el detalle está en su ficha', 'sticpa')),
     );
     $out = '';
+    $personaId = function_exists('sticpa_pl_safe_id') ? sticpa_pl_safe_id($personaId) : '';
     foreach ((array) $marcas as $m) {
         if (!isset($textos[$m])) {
+            continue;
+        }
+        /* LA DE SALUD SE PUEDE TOCAR (16/10/2026, lo pidió el propietario): un
+         * globo con las alergias y tratamientos, sin abrir la ficha. El texto
+         * NO va en el HTML —estas pantallas se guardan en el móvil—: lo pide
+         * el globo al tocar, a `stic_pl_salud`, que contesta `no-store` y con
+         * la misma autorización que las fotos. Aquí solo viaja a quién
+         * preguntar. Solo donde la fila es un enlace (Grupos y fichas): en la
+         * lista de marcar la fila es un botón, y un botón dentro de otro no se
+         * puede tocar. */
+        if ($m === 'salud' && $personaId !== '' && function_exists('admin_url')) {
+            $url = admin_url('admin-post.php?action=stic_pl_salud&persona=' . rawurlencode($personaId));
+            $out .= '<span class="pl-marca pl-marca--salud pl-marca--tap" role="button" tabindex="0"'
+                . ' aria-haspopup="dialog" data-pl-salud="' . esc_url($url) . '"'
+                . ' aria-label="' . esc_attr__('Alergia o tratamiento: ver el detalle', 'sticpa') . '">'
+                . esc_html($textos[$m][0]) . '</span>';
             continue;
         }
         $out .= '<span class="pl-marca pl-marca--' . esc_attr($m) . '" title="' . esc_attr($textos[$m][1]) . '">'
@@ -264,16 +289,19 @@ function sticpa_pl_grupos_ocultos_html($objSCP)
  * Lo que SÍ se reutiliza es todo lo visible: las mismas clases, el mismo
  * avatar, la misma tipografía, la misma flecha. Se ve igual porque ES igual.
  */
-function sticpa_pl_person_link_html($person, $href, $sub = '', $extra = '', $conFoto = false, $marcas = array())
+function sticpa_pl_person_link_html($person, $href, $sub = '', $extra = '', $conFoto = false, $marcas = array(), $attrs = array())
 {
     // `data-pl-sin-fotos` es lo que mira el filtro «¿Quién no puede salir en
     // fotos?» de Mis grupos. Solo esa marca: la de salud no se dice en el HTML.
+    // `$attrs`: atributos `data-*` de quien pinta la fila (el curso, para los
+    // chips de Grupos y fichas). Se escapan aquí.
     $html = '<a class="pl-rowwrap pl-rowlink" href="' . esc_url($href) . '"'
-        . (in_array('sin_fotos', (array) $marcas, true) ? ' data-pl-sin-fotos' : '') . '>';
+        . (in_array('sin_fotos', (array) $marcas, true) ? ' data-pl-sin-fotos' : '')
+        . sticpa_pl_attrs_html($attrs) . '>';
     $html .= sticpa_pl_avatar_html($person, $conFoto);
     $html .= '<span class="pl-row-body">';
     $html .= '<span class="pl-name">' . esc_html($person['name']) . '</span>';
-    $html .= sticpa_pl_marcas_html($marcas);
+    $html .= sticpa_pl_marcas_html($marcas, isset($person['id']) ? $person['id'] : '');
     if ($sub !== '') {
         $html .= '<span class="pl-rowsub">' . esc_html($sub) . '</span>';
     }
@@ -284,6 +312,20 @@ function sticpa_pl_person_link_html($person, $href, $sub = '', $extra = '', $con
     $html .= '<span class="pl-detail pl-detail--static">' . sticpa_pl_icon('next') . '</span>';
     $html .= '</a>';
     return $html;
+}
+
+/** Atributos sueltos (` data-x="y"`), escapados. Solo nombres `data-*`. */
+function sticpa_pl_attrs_html($attrs)
+{
+    $out = '';
+    foreach ((array) $attrs as $k => $v) {
+        $k = strtolower((string) $k);
+        if (!preg_match('/^data-[a-z0-9-]+$/', $k)) {
+            continue;
+        }
+        $out .= ($v === true) ? ' ' . $k : ' ' . $k . '="' . esc_attr((string) $v) . '"';
+    }
+    return $out;
 }
 
 /**
@@ -1306,6 +1348,12 @@ function sticpa_pl_squares_html($squares, $tipo = 'asistencia', $aria = '')
             $state = isset($sq['state']) ? (string) $sq['state'] : '';
             $m = isset($meta[$state]) ? $meta[$state] : $meta[''];
             $cuando = ($ts > 0) ? date_i18n('j M', $ts) : '';
+            // Un EVENTO (convivencia, salida…) va en la misma fila, en su
+            // fecha, pero redondo: «10 oct · Convivencia MIC · Vino».
+            $evento = isset($sq['evento']) ? trim((string) $sq['evento']) : '';
+            if ($evento !== '') {
+                $cuando = ($cuando !== '') ? $cuando . ' · ' . $evento : $evento;
+            }
             $titulo = ($cuando !== '') ? $cuando . ' · ' . $m['label'] : $m['label'];
             // Con motivo, el porqué va detrás: «12 sep · Justificada · Examen».
             if (!empty($sq['motivo'])) {
@@ -1317,7 +1365,7 @@ function sticpa_pl_squares_html($squares, $tipo = 'asistencia', $aria = '')
             // para saber dónde acaba el curso vivido.
             $ultima = ($i === $ultimo) ? ' pl-sq--last' : '';
 
-            $html .= '<span class="pl-sq ' . esc_attr($m['class']) . esc_attr($ultima) . '"'
+            $html .= '<span class="pl-sq ' . esc_attr($m['class']) . esc_attr($ultima) . ($evento !== '' ? ' pl-sq--ev' : '') . '"'
                 . ' title="' . esc_attr($titulo) . '" aria-hidden="true"></span>';
         }
         $html .= '</span>';
