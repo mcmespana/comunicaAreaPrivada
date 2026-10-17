@@ -214,7 +214,7 @@ function sticpa_pl_cache_family($what)
     // 'evins': las inscripciones de un evento para pasar lista en él
     // (inc/stic-pasar-lista-eventos.php). El día de la salida cambian, y el
     // guardado tiene que ver al momento a quien se acaba de apuntar.
-    $state = array('state', 'streaks', 'listas', 'attrange', 'marks', 'avisos', 'evins');
+    $state = array('state', 'streaks', 'listas', 'attrange', 'marks', 'avisos', 'evins', 'evpers');
     return in_array((string) $what, $state, true) ? 'state' : 'struct';
 }
 

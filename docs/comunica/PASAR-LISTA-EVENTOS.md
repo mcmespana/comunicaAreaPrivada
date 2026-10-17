@@ -197,3 +197,34 @@ borrador es la sesión o `nueva-<día>`, así que no se mezcla con otro día.
   marcar a unos, guardar, y mirar en el CRM las asistencias de esa sesión (y la
   sesión nueva en el segundo caso). Probar también en modo avión: marcar,
   guardar («Guardado en el móvil»), volver a tener red y abrir Pasar Lista.
+
+---
+
+## Los eventos en la ficha del chaval (17/10/2026)
+
+Lo pidió el propietario: la ficha enseñaba los sábados y no las convivencias ni
+las salidas. Ahora, en «Asistencia» de la ficha del participante:
+
+- **En la fila de cuadraditos**, en su fecha y **redondos** (`.pl-sq--ev`), con
+  el mismo color de asistencia. El título dice cuál: «15 nov · Convivencia MIC y
+  COM · Vino».
+- **Debajo, una lista corta** con cada evento, sus días y cómo fue: Vino /
+  Parcial / Justificada / No vino, «Sin lista» si pasó sin que nadie la pasara,
+  «Apuntado/a» si aún no ha sido (sin cuadradito: no es historia) y «No va» si
+  la inscripción está cancelada.
+- **No cuentan en el porcentaje**, que es el de los sábados: una convivencia de
+  dos días y una sesión de dos horas no pesan igual.
+- Un evento de varios días con «vino» en alguno = vino (si no, la mejor marca
+  que haya). Su motivo, si lo tiene, detrás de la fecha.
+- Sin grupo o sin inscripción en el evento de los sábados, sale igual, solo con
+  los eventos.
+
+**De dónde sale** (`sticpa_pl_ev_de_persona()`, en `inc/stic-pasar-lista-eventos.php`):
+las mismas consultas que el calendario de las familias (`inc/stic-calendar.php`),
+que funcionan en producción — inscripciones de la persona (`id`, `status`), el
+evento de cada una y sus asistencias (con su `start_date`) —, en dos tandas.
+Solo los eventos que ofrece esta pantalla (`sticpa_pl_ev_eventos()`: de la
+delegación, del curso, de menos de 50 días, sin el de los sábados ni el de
+reuniones). Nada interdelegacional. Cacheado como estado (`evpers`, 6 h; lo tira
+guardar una lista). En frío cuesta 1 + 2 llamadas por evento apuntado.
+

@@ -1454,3 +1454,172 @@ function sticpa_pl_ev_sesiones_html($eventId, $sessions, $currentId)
     $out .= '</span>';
     return $out;
 }
+
+// ---------------------------------------------------------------------------
+// Los eventos de UNA persona, para su ficha (17/10/2026)
+// ---------------------------------------------------------------------------
+
+/**
+ * LOS EVENTOS DEL CURSO A LOS QUE ESTÁ APUNTADO UN CHAVAL, CON SU ASISTENCIA.
+ *
+ * Lo pidió el propietario: la ficha enseñaba los sábados y no la convivencia
+ * ni las salidas, que también se pasan lista (el autobús, PASAR-LISTA-EVENTOS).
+ *
+ * El camino es el del calendario de las familias (`inc/stic-calendar.php`), que
+ * ya funciona en producción con estas mismas consultas: las inscripciones de la
+ * persona (`id`, `status`), el evento de cada una y sus asistencias (con su
+ * `start_date`, que es una columna de verdad: no hace falta la sesión). En dos
+ * tandas, y solo los eventos que ofrece «Pasar lista en un evento»
+ * (`sticpa_pl_ev_eventos()`): de la delegación, del curso, de menos de 50 días
+ * y sin el de los sábados ni el de reuniones. Nada interdelegacional.
+ *
+ * Cacheado como ESTADO (`evpers`): lo tira guardar una lista. Con TTL largo
+ * (seis horas) porque fuera del día de la salida no cambia.
+ *
+ * @return array de array('id', 'name', 'start', 'end', 'estado', 'motivo'),
+ *         por fecha. `estado`: el de asistencia (`yes`, `partial`,
+ *         `no_justified`, `no_unjustified`), '' si pasó sin lista, 'apuntado'
+ *         si aún no ha sido, o 'fuera' si la inscripción está cancelada.
+ */
+function sticpa_pl_ev_de_persona($objSCP, $contactId)
+{
+    $contactId = sticpa_pl_safe_id($contactId);
+    if ($contactId === '') {
+        return array();
+    }
+    $cacheKey = sticpa_pl_cache_key('evpers', $objSCP, $contactId);
+    $cached = get_transient($cacheKey);
+    if (is_array($cached) && isset($cached['v']) && (int) $cached['v'] === 1) {
+        return $cached['eventos'];
+    }
+
+    // Los eventos que cuentan, por id. Del cargador común: cero llamadas.
+    $delCurso = array();
+    foreach (sticpa_pl_ev_eventos($objSCP) as $ev) {
+        $delCurso[$ev['id']] = $ev;
+    }
+    if (empty($delCurso)) {
+        return array();
+    }
+
+    $regsParams = array(
+        'module_name' => 'Contacts',
+        'module_id' => $contactId,
+        'link_field_name' => 'stic_registrations_contacts',
+        'related_fields' => array('id', 'status'),
+        'related_module_link_name_to_fields_array' => array(),
+        'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
+    );
+    $evParams = function ($regId) {
+        return array(
+            'module_name' => 'stic_Registrations',
+            'module_id' => $regId,
+            'link_field_name' => 'stic_registrations_stic_events',
+            'related_fields' => array('id', 'name', 'start_date', 'end_date'),
+            'related_module_link_name_to_fields_array' => array(),
+            'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
+        );
+    };
+    $attParams = function ($regId) {
+        return array(
+            'module_name' => 'stic_Registrations',
+            'module_id' => $regId,
+            'link_field_name' => 'stic_attendances_stic_registrations',
+            'related_fields' => array('id', 'status', 'start_date', 'description'),
+            'related_module_link_name_to_fields_array' => array(),
+            'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
+        );
+    };
+
+    $regs = $objSCP->getRelatedElementsForLoggedUser($regsParams);
+    $estadoReg = array();
+    foreach ((is_array($regs) ? $regs : array()) as $reg) {
+        $id = isset($reg->name_value_list->id->value) ? sticpa_pl_safe_id($reg->name_value_list->id->value) : '';
+        if ($id !== '') {
+            $estadoReg[$id] = isset($reg->name_value_list->status->value) ? (string) $reg->name_value_list->status->value : '';
+        }
+    }
+    if (empty($estadoReg) || sticpa_pl_collecting()) {
+        // «No está apuntado a nada» se guarda; «el CRM no ha contestado», no.
+        if (!sticpa_pl_collecting() && is_array($regs)
+            && (!class_exists('SugarRestApiCall') || SugarRestApiCall::lastWalkComplete())) {
+            sticpa_pl_cache_put($cacheKey, array('v' => 1, 'eventos' => array()), 6 * HOUR_IN_SECONDS);
+        }
+        return array();
+    }
+
+    // Tanda 1: el evento de cada inscripción.
+    sticpa_pl_prime($objSCP, function () use ($objSCP, $estadoReg, $evParams) {
+        foreach (array_keys($estadoReg) as $regId) {
+            $objSCP->getRelatedElementsForLoggedUser($evParams($regId));
+        }
+    });
+    $suyos = array();   // regId => evento del curso
+    foreach (array_keys($estadoReg) as $regId) {
+        $res = $objSCP->getRelatedElementsForLoggedUser($evParams($regId));
+        $evId = isset($res[0]->name_value_list->id->value) ? sticpa_pl_safe_id($res[0]->name_value_list->id->value) : '';
+        if ($evId !== '' && isset($delCurso[$evId])) {
+            $suyos[$regId] = $delCurso[$evId];
+        }
+    }
+
+    // Tanda 2: las asistencias, solo de las inscripciones que cuentan y que no
+    // están canceladas.
+    $fuera = sticpa_pl_ev_estados_fuera();
+    $conLista = array();
+    foreach ($suyos as $regId => $ev) {
+        if (!isset($fuera[$estadoReg[$regId]]) && $ev['start'] <= sticpa_pl_now()) {
+            $conLista[] = $regId;
+        }
+    }
+    sticpa_pl_prime($objSCP, function () use ($objSCP, $conLista, $attParams) {
+        foreach ($conLista as $regId) {
+            $objSCP->getRelatedElementsForLoggedUser($attParams($regId));
+        }
+    });
+
+    // El estado de un evento de varios días: si vino alguno, vino; si no, el
+    // de la marca que haya, de la mejor a la peor.
+    $prioridad = array('yes' => 0, 'partial' => 1, 'no_justified' => 2, 'no_unjustified' => 3);
+    $eventos = array();
+    $vistos = array();
+    foreach ($suyos as $regId => $ev) {
+        if (isset($vistos[$ev['id']])) {
+            continue;   // dos inscripciones al mismo evento: una fila
+        }
+        $vistos[$ev['id']] = true;
+        $estado = '';
+        $motivo = '';
+        if (isset($fuera[$estadoReg[$regId]])) {
+            $estado = 'fuera';
+        } elseif ($ev['start'] > sticpa_pl_now()) {
+            $estado = 'apuntado';
+        } else {
+            $atts = $objSCP->getRelatedElementsForLoggedUser($attParams($regId));
+            foreach ((is_array($atts) ? $atts : array()) as $a) {
+                $st = isset($a->name_value_list->status->value) ? (string) $a->name_value_list->status->value : '';
+                if (!isset($prioridad[$st])) {
+                    continue;
+                }
+                if ($estado === '' || $prioridad[$st] < $prioridad[$estado]) {
+                    $estado = $st;
+                    $motivo = isset($a->name_value_list->description->value) ? trim((string) $a->name_value_list->description->value) : '';
+                }
+            }
+        }
+        $eventos[] = array(
+            'id' => $ev['id'],
+            'name' => $ev['name'],
+            'start' => (int) $ev['start'],
+            'end' => (int) $ev['end'],
+            'estado' => $estado,
+            'motivo' => $motivo,
+        );
+    }
+    usort($eventos, function ($a, $b) {
+        return $a['start'] - $b['start'];
+    });
+
+    sticpa_pl_cache_put($cacheKey, array('v' => 1, 'eventos' => $eventos), 6 * HOUR_IN_SECONDS);
+    return $eventos;
+}

@@ -137,6 +137,9 @@ sticpa_pl_prime($objSCP, function () use ($objSCP, $contactId) {
     sticpa_pl_ficha($objSCP, $contactId);
     sticpa_pl_family($objSCP, $contactId);
     sticpa_pl_etapa_events($objSCP);
+    // Las convivencias y salidas del curso (17/10/2026): su primera consulta,
+    // las inscripciones de la persona, viaja en esta tanda.
+    sticpa_pl_ev_de_persona($objSCP, $contactId);
     if (sticpa_pl_avisos_enabled()) {
         sticpa_pl_avisos($objSCP, $contactId);
     }
@@ -439,6 +442,66 @@ $avisos = sticpa_pl_avisos_enabled()
     ? sticpa_pl_avisos($objSCP, $contactId)
     : array();
 
+/* LOS EVENTOS DEL CURSO (17/10/2026, lo pidió el propietario): convivencias,
+ * salidas… lo que se pasa lista en «Pasar lista en un evento». Van en la MISMA
+ * fila de cuadraditos, en su fecha y REDONDOS, y debajo una lista corta con
+ * cada uno. No entran en el porcentaje: ese es el de los sábados, y mezclar
+ * una convivencia de dos días con una sesión de dos horas lo descuadraría. */
+$evPersona = sticpa_pl_ev_de_persona($objSCP, $contactId);
+$evSquares = array();
+foreach ($evPersona as $ev) {
+    if ($ev['estado'] === 'apuntado' || $ev['estado'] === 'fuera') {
+        continue;   // lo que no ha pasado (o no va) no es historia
+    }
+    $evSquares[] = array(
+        'start' => $ev['start'],
+        'state' => $ev['estado'],
+        'evento' => $ev['name'],
+        'motivo' => $ev['motivo'],
+    );
+}
+/** Los cuadraditos de los sábados con los eventos intercalados por fecha. */
+$conEventos = function ($squares) use ($evSquares) {
+    $todos = array_merge((array) $squares, $evSquares);
+    usort($todos, function ($a, $b) {
+        return (int) (isset($a['start']) ? $a['start'] : 0) - (int) (isset($b['start']) ? $b['start'] : 0);
+    });
+    return $todos;
+};
+/** La lista corta de eventos, bajo los cuadraditos. */
+$eventosHtml = function () use ($evPersona) {
+    if (empty($evPersona)) {
+        return '';
+    }
+    $estados = sticpa_pl_states();
+    $textos = array(
+        '' => array('none', __('Sin lista', 'sticpa')),
+        'apuntado' => array('apuntado', __('Apuntado/a', 'sticpa')),
+        'fuera' => array('fuera', __('No va', 'sticpa')),
+    );
+    $out = '<div class="pl-att-evs">';
+    foreach ($evPersona as $ev) {
+        if (isset($estados[$ev['estado']])) {
+            $clase = $ev['estado'];
+            $texto = $estados[$ev['estado']]['label'];
+        } else {
+            list($clase, $texto) = isset($textos[$ev['estado']]) ? $textos[$ev['estado']] : $textos[''];
+        }
+        $dias = date_i18n('j M', $ev['start']);
+        if (date('Y-m-d', $ev['end']) !== date('Y-m-d', $ev['start'])) {
+            $dias .= ' – ' . date_i18n('j M', $ev['end']);
+        }
+        $out .= '<div class="pl-att-ev">'
+            . '<span class="pl-sq pl-sq--ev pl-sq--' . esc_attr($clase) . '" aria-hidden="true"></span>'
+            . '<span class="pl-att-ev-body"><span class="pl-att-ev-name">' . esc_html($ev['name']) . '</span>'
+            . '<span class="pl-att-ev-when">' . esc_html($dias
+                . ($ev['motivo'] !== '' ? ' · ' . $ev['motivo'] : '')) . '</span></span>'
+            . '<span class="pl-att-ev-st pl-att-ev-st--' . esc_attr($clase) . '">' . esc_html($texto) . '</span>'
+            . '</div>';
+    }
+    return $out . '</div>';
+};
+
 // ---------------------------------------------------------------------------
 // LO IMPRESCINDIBLE: una cajita, arriba, y nada más
 // ---------------------------------------------------------------------------
@@ -620,7 +683,7 @@ if ($track !== null) {
     }
     $html .= '</div>';
     $html .= sticpa_pl_squares_html(
-        $track['squares'],
+        $conEventos($track['squares']),
         'asistencia',
         sprintf(
             /* translators: 1: a cuántas vino, 2: cuántas se contaron */
@@ -629,6 +692,7 @@ if ($track !== null) {
             $track['counted']
         )
     );
+    $html .= $eventosHtml();
     $html .= '</div>';
 
     if ($streak >= sticpa_pl_streak_threshold()) {
@@ -641,6 +705,14 @@ if ($track !== null) {
                 $streak
             )) . '</span></p>';
 }
+} elseif (!empty($evPersona)) {
+    // Sin sábados que contar (sin grupo, o sin inscripción en el evento de su
+    // etapa) pero con convivencias o salidas: se enseñan igual.
+    $html .= '<div class="pl-sec">' . esc_html__('Asistencia', 'sticpa') . '</div>';
+    $html .= '<div class="pl-att">';
+    $html .= sticpa_pl_squares_html($conEventos(array()), 'asistencia', __('Eventos del curso', 'sticpa'));
+    $html .= $eventosHtml();
+    $html .= '</div>';
 }
 
 // ---------------------------------------------------------------------------

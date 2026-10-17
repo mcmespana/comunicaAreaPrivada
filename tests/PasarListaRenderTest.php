@@ -105,6 +105,8 @@ class FakeSCP
      *  campamento futuro SIN sesiones y uno del curso anterior. Apagado por
      *  defecto para no mover ninguna otra prueba. */
     public $conEventos = false;
+    /** c1 apuntada a eventos del curso (la ficha los enseña, 17/10/2026). */
+    public $evPersona = false;
     /** Con `$conEventos`: una persona de OTRA delegación (Burriana) inscrita en
      *  la convivencia, con su relación de participante en su delegación. */
     public $conBurriana = false;
@@ -890,6 +892,33 @@ class FakeSCP
     public function datosDeRelacion($p)
     {
         $key = $p['module_name'] . ':' . $p['link_field_name'];
+
+        // Los eventos de UNA persona (la ficha, 17/10/2026): sus inscripciones,
+        // el evento de cada una y sus asistencias, como las lee el calendario.
+        if ($this->evPersona) {
+            $evDe = array('evr-bus' => 'ev-bus', 'evr-pasado' => 'ev-pasado', 'evr-futuro' => 'ev-futuro',
+                'evr-sem' => 'ev-todo', 'evr-cancel' => 'ev-viejo');
+            if ($key === 'Contacts:stic_registrations_contacts' && $p['module_id'] === 'c1') {
+                return $this->apiShape(array(
+                    $this->nvl(array('id' => 'evr-bus', 'status' => 'confirmed')),
+                    $this->nvl(array('id' => 'evr-pasado', 'status' => 'confirmed')),
+                    $this->nvl(array('id' => 'evr-futuro', 'status' => 'confirmed')),
+                    $this->nvl(array('id' => 'evr-sem', 'status' => 'confirmed')),
+                ));
+            }
+            if ($key === 'stic_Registrations:stic_registrations_stic_events' && isset($evDe[$p['module_id']])) {
+                return $this->apiShape(array($this->nvl(array('id' => $evDe[$p['module_id']]))));
+            }
+            if ($key === 'stic_Registrations:stic_attendances_stic_registrations' && $p['module_id'] === 'evr-bus') {
+                return $this->apiShape(array(
+                    $this->nvl(array('id' => 'eva1', 'status' => 'no_unjustified', 'start_date' => '2025-11-15 09:00:00')),
+                    $this->nvl(array('id' => 'eva2', 'status' => 'yes', 'start_date' => '2025-11-16 09:00:00')),
+                ));
+            }
+            if ($key === 'stic_Registrations:stic_attendances_stic_registrations' && $p['module_id'] === 'evr-pasado') {
+                return array();
+            }
+        }
 
         switch ($key) {
             // Personas del grupo: participantes y monitor, en UNA llamada.
@@ -6418,6 +6447,33 @@ final class PasarListaRenderTest extends TestCase
         $this->assertLessThan($madre, $padre);
         // Un id al azar no desempata, pero tampoco adelanta a nadie.
         $this->assertGreaterThan($padre, sticpa_pl_orden_alta('83da138e-a55d-402e-898f-bf053d479361', '2026-09-24 19:36:00'));
+    }
+
+    /**
+     * LAS CONVIVENCIAS Y SALIDAS EN LA FICHA (17/10/2026): redondas en la
+     * fila de cuadraditos, en su fecha, y en una lista debajo. Dos días con
+     * «vino» uno = vino. Sin lista pasada, «Sin lista»; lo que aún no ha sido,
+     * «Apuntado/a» y sin cuadradito. El de los sábados no sale como evento.
+     */
+    public function test_la_ficha_enseña_los_eventos_del_curso()
+    {
+        $this->scp->conEventos = true;
+        $this->scp->evPersona = true;
+        $_REQUEST = array('participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+
+        $this->assertStringContainsString('pl-sq pl-sq--yes pl-sq--ev', $html);
+        $this->assertMatchesRegularExpression('/title="15 Nov · Convivencia MIC y COM · Vino"/u', $html);
+        $evs = substr($html, strpos($html, 'pl-att-evs'));
+        $this->assertStringContainsString('Salida al parque', $evs);
+        $this->assertStringContainsString('Sin lista', $evs);
+        $this->assertStringContainsString('Campamento de Navidad', $evs);
+        $this->assertStringContainsString('Apuntado/a', $evs);
+        $this->assertStringNotContainsString('Sesiones semanales', $evs);
+        // Lo futuro no lleva cuadradito en la fila.
+        $this->assertStringNotContainsString('Campamento de Navidad · ', substr($html, 0, strpos($html, 'pl-att-evs')));
+        // Por orden de fecha: la salida (4 oct) antes que la convivencia.
+        $this->assertLessThan(strpos($evs, 'Convivencia MIC y COM'), strpos($evs, 'Salida al parque'));
     }
 
     /** La ficha de alguien sin grupo se abre desde Grupos y fichas. */

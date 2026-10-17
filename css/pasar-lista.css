@@ -2601,6 +2601,7 @@ a.pl-group .pl-name { display: block; }
    móvil. Si un curso trae más, la fila envuelve por meses enteros, que es
    mejor que partir un mes por la mitad. */
 .pl-sq {
+    box-sizing: border-box;   /* los huecos con borde miden lo mismo que los llenos */
     width: 12px;
     height: 12px;
     border-radius: 3px;
@@ -2625,6 +2626,42 @@ a.pl-group .pl-name { display: block; }
     background: transparent;
     border: 1.5px dashed var(--gray-300);
 }
+
+/* UN EVENTO (convivencia, salida…), en la misma fila y en su fecha, pero
+   REDONDO (17/10/2026): se distingue de un sábado sin leer nada. El color es el
+   mismo código de asistencia. */
+.pl-sq--ev { border-radius: 50%; }
+.pl-sq--apuntado { background: transparent; border: 1.5px solid var(--primary-light); }
+.pl-sq--fuera { background: var(--gray-200); }
+
+/* La lista corta de eventos bajo los cuadraditos de la ficha. */
+.pl-att-evs {
+    display: flex;
+    flex-direction: column;
+    margin-top: 0.75rem;
+    border-top: 1px solid var(--gray-100);
+}
+.pl-att-ev {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.55rem 0 0;
+}
+.pl-att-ev-body { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+.pl-att-ev-name { font-size: 0.86rem; font-weight: 700; color: var(--gray-800); overflow-wrap: anywhere; }
+.pl-att-ev-when { font-size: 0.74rem; color: var(--gray-500); overflow-wrap: anywhere; }
+.pl-att-ev-st {
+    flex-shrink: 0;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--gray-600);
+}
+.pl-att-ev-st--yes { color: var(--success-dark, var(--success-color)); }
+.pl-att-ev-st--partial { color: var(--gray-700); }
+.pl-att-ev-st--no_justified { color: var(--warning-dark); }
+.pl-att-ev-st--no_unjustified { color: var(--danger-dark); }
+.pl-att-ev-st--apuntado { color: var(--primary-color); }
+.pl-att-ev-st--fuera, .pl-att-ev-st--none { color: var(--gray-500); }
 
 .pl-sq--suya    { background: var(--success-color); }
 .pl-sq--otra    { background: var(--primary-light); }

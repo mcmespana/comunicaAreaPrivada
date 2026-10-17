@@ -1348,6 +1348,12 @@ function sticpa_pl_squares_html($squares, $tipo = 'asistencia', $aria = '')
             $state = isset($sq['state']) ? (string) $sq['state'] : '';
             $m = isset($meta[$state]) ? $meta[$state] : $meta[''];
             $cuando = ($ts > 0) ? date_i18n('j M', $ts) : '';
+            // Un EVENTO (convivencia, salida…) va en la misma fila, en su
+            // fecha, pero redondo: «10 oct · Convivencia MIC · Vino».
+            $evento = isset($sq['evento']) ? trim((string) $sq['evento']) : '';
+            if ($evento !== '') {
+                $cuando = ($cuando !== '') ? $cuando . ' · ' . $evento : $evento;
+            }
             $titulo = ($cuando !== '') ? $cuando . ' · ' . $m['label'] : $m['label'];
             // Con motivo, el porqué va detrás: «12 sep · Justificada · Examen».
             if (!empty($sq['motivo'])) {
@@ -1359,7 +1365,7 @@ function sticpa_pl_squares_html($squares, $tipo = 'asistencia', $aria = '')
             // para saber dónde acaba el curso vivido.
             $ultima = ($i === $ultimo) ? ' pl-sq--last' : '';
 
-            $html .= '<span class="pl-sq ' . esc_attr($m['class']) . esc_attr($ultima) . '"'
+            $html .= '<span class="pl-sq ' . esc_attr($m['class']) . esc_attr($ultima) . ($evento !== '' ? ' pl-sq--ev' : '') . '"'
                 . ' title="' . esc_attr($titulo) . '" aria-hidden="true"></span>';
         }
         $html .= '</span>';
