@@ -121,6 +121,13 @@ Diseño ya cerrado para no repensarlo:
   BBDD gestionada (Neon/Supabase — Supabase ya está en el ecosistema MCM) con
   API encima. Ese día se migra el diseño de la fase 3 casi tal cual.
 
+> **21/10/2026: se ha dado el segundo caso.** El propietario quiere el área
+> privada en nativo dentro de MCM App, con backend propio. El análisis
+> (`mcmapp/docs/planes/ANALISIS_AREA_PRIVADA_NATIVA.md`) parte de la fase 3 de
+> este documento, con el espejo en Postgres en vez de en `wpdb`, y propone
+> además pedir a SinergiaTIC el usuario de lectura del primer caso. Esta
+> decisión sigue valiendo para la web mientras exista el plugin.
+
 ## 4. Resumen para el propietario
 
 No montes Neon: el dato es pequeño, el enemigo es el RTT en serie y el fallo

@@ -149,3 +149,4 @@ El mapa de los demás documentos está en
 | **Ley de diseño (las dos superficies)** | `design.md` |
 | Sistema de diseño de este repo | `docs/design-system.md` |
 | Deuda de diseño y unificación entre repos | `plans/archive/039-unificar-el-lenguaje-visual-mcm.md` |
+| **Área privada nativa en MCM App** (análisis del 21/10/2026, sin plan; vive en el repo de la app) | `mcmapp/docs/planes/ANALISIS_AREA_PRIVADA_NATIVA.md` |
