@@ -123,10 +123,12 @@ Diseño ya cerrado para no repensarlo:
 
 > **21/10/2026: se ha dado el segundo caso.** El propietario quiere el área
 > privada en nativo dentro de MCM App, con backend propio. El análisis
-> (`mcmapp/docs/planes/ANALISIS_AREA_PRIVADA_NATIVA.md`) parte de la fase 3 de
-> este documento, con el espejo en Postgres en vez de en `wpdb`, y propone
-> además pedir a SinergiaTIC el usuario de lectura del primer caso. Esta
-> decisión sigue valiendo para la web mientras exista el plugin.
+> (`mcmapp/docs/planes/ANALISIS_AREA_PRIVADA_NATIVA.md`) se queda, por decisión
+> del propietario, **sin espejo en la primera versión**: un servidor propio que
+> lee la base de datos del CRM con el usuario de lectura del primer caso y
+> escribe por la API. La fase 3 de este documento queda como el espejo que se
+> pondría detrás si algún día hiciera falta. Esta decisión sigue valiendo para
+> la web mientras exista el plugin.
 
 ## 4. Resumen para el propietario
 
