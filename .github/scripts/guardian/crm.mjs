@@ -175,6 +175,17 @@ export async function abrirCrm({ url, clientId, clientSecret, avisar = () => {} 
       return registros;
     },
 
+    /**
+     * Un registro por su id. Para varios ids, uno a uno: un filtro «id = A o
+     * id = B» devuelve solo B (CLAUDE.md, §Consultas al CRM por MCP).
+     */
+    async obtener(modulo, id, campos = []) {
+      const params = new URLSearchParams();
+      if (campos.length) params.set(`fields[${modulo}]`, campos.join(','));
+      const datos = await pedir(`/Api/V8/module/${modulo}/${id}?${params}`);
+      return datos?.data ? aplanar(datos.data) : null;
+    },
+
     /** Actualiza campos de un registro. */
     async actualizar(modulo, id, atributos) {
       return pedir('/Api/V8/module', {
