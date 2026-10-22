@@ -19,6 +19,41 @@ Piloto: **MCM Castellón, curso 2025-2026**. Nada interdelegacional.
 Esto es lo único que hay que leer para saber por dónde va. Lo cerrado está más
 abajo, en §1-bis, y se conserva porque explica POR QUÉ el código es como es.
 
+### ✅ Las sesiones de los sábados del curso 2026-2027 de Castellón, creadas (22/10/2026)
+
+En el CRM, para fichar a los monitores desde el 24/10: **18 sesiones** en cada
+evento, de la delegación (`assigned_user_id` = MCM Castellón), **sábados
+16:30–18:00** como en el piloto del curso pasado.
+
+| Evento | Id |
+|---|---|
+| `MIC \| Curso 2026-2027 · CS` | `00000922-2f79-6b4b-26e8-6ab28d662a69` |
+| `COM \| Curso 2026-2027 · CS` | `000006b2-0a9d-3052-9c4c-6ab28d13aa82` |
+
+**Con sesión:** 24/10, 31/10, 7/11, 14/11, 21/11, 5/12, 9/1, 16/1, 23/1, 6/2,
+13/2, 20/2, 13/3, 20/3, 10/4, 24/4, 1/5 y 8/5. Del cronograma «MIC-COM 26-27»
+(el de COM II no cuenta) y de lo que dijo el propietario.
+
+**Sin sesión** (decidido el 22/10/2026): 28/11 (congreso de monitores), 12/12
+(Tortosa, evento aparte), 19/12 (Edificio Hucha), 26/12 (Navidad), 30/1
+(encuentro, evento aparte para todos), 27/2 y 6/3 (Magdalena), 27/3 y 3/4
+(Pascua), 17/4 (FV Samuel) y todo desde el 15/5. La cena de Navidad del COM
+también irá como evento aparte.
+
+- **6/2**: la sesión del MIC es solo de 6.º EP (4.º y 5.º tienen una actividad
+  especial con su propio evento); lo dice su `description`. El COM tiene
+  actividad normal.
+- **Pendiente de decidir**: el viernes 30/10 (fiesta Delwende, solo monitores).
+  No es una sesión de estos eventos; si se quiere fichar, evento aparte.
+- Los ids de las sesiones no se apuntan: se leen por el evento.
+- El `name` lo escribimos con la hora buena («16:30h»). Si el CRM lo regenera
+  solo (al cambiar las fechas lo hace, con la hora mal), da igual: la pantalla
+  no lo usa nunca.
+- Las dos primeras del COM (24/10 y 31/10) llevan **108 asistencias en blanco**
+  que generó el CRM al crearlas; las demás, ninguna. En blanco = sin marcar, no
+  cuenta como falta, y Pasar Lista crea las que falten al guardar. No hace falta
+  igualarlas.
+
 ### ✅ Monitores: el «error» al guardar, la lentitud y el motivo de las faltas (26/09/2026)
 
 **Lo que se veía.** Coordinación guardaba la lista de monitores (sobre todo la
