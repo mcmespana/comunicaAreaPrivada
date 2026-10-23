@@ -41,7 +41,7 @@ Montado en el CRM por MCP el 23/10/2026 (todo asignado a **MCM Burriana**,
 - **Equipo**: Jesús Segarra y David Soler coordinan toda la delegación
   (`coordinacion_mic_com` sin etapa); David es monitor del COM 1 y Ainhoa Cebrián, de
   prueba, monitora del MIC 1. David y Ainhoa, inscritos como monitores (`organizer`) en el
-  evento de su etapa. Jesús y David son de Castellón: ver «Varias delegaciones» en
+  evento de su etapa; Jesús, en el MIC, el COM y las reuniones de Burriana. Jesús y David son de Castellón: ver «Varias delegaciones» en
   [`PASAR-LISTA-COORDINACION.md`](PASAR-LISTA-COORDINACION.md) §2.
 - ⚠️ **Ainhoa Cebrián tiene DOS inscripciones en el COM de Burriana** (18/10, 14:34 y
   14:39), cada una con su compromiso de domiciliación de 5 €. Pendiente de que alguien
