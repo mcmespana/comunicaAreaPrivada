@@ -5089,6 +5089,14 @@ function sticpa_pl_participants_without_group($objSCP)
         if ($rel['role'] !== 'participante') {
             continue;
         }
+        // SOLO `participante_mic_com`, como dice la regla de arriba. `grupo` es
+        // «Grupo COM-LC», adultos de laicos colgados de grupos que no pasan
+        // lista (Ohana…): no son chavales sin grupo, y en Castellón eran casi
+        // todos los 148 «sin grupo asignado» del resumen (23/10/2026).
+        $tipo = isset($rel['tipo']) ? strtolower((string) $rel['tipo']) : '';
+        if ($tipo !== '' && strpos($tipo, 'participante') === false) {
+            continue;
+        }
         if ($rel['group_id'] !== '' && isset($grupos[$rel['group_id']])) {
             continue;   // en un grupo de la delegación
         }
