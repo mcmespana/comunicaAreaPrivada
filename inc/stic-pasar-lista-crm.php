@@ -142,11 +142,36 @@ function sticpa_pl_delegation_forced($set = null)
     return $forced;
 }
 
+/**
+ * La delegación CON LA QUE SE TRABAJA en Pasar Lista, Mis Grupos y
+ * Coordinación: la de la ficha (`sticpa_pl_home_delegation()`) o, si quien
+ * entra colabora con otra delegación y la ha elegido en el selector, esa
+ * (`sticpa_pl_active_delegation()`). Ver «Varias delegaciones» en
+ * docs/comunica/PASAR-LISTA-COORDINACION.md (23/10/2026).
+ *
+ * Lo PERSONAL (a qué eventos puede apuntarse, de quién es su inscripción o su
+ * pago) sigue con la de la ficha: eso llama a sticpa_pl_home_delegation().
+ */
 function sticpa_pl_delegation($objSCP)
 {
     // Puesta a mano (calentador de caché): manda sobre todo lo demás. Va
     // primero para que ni siquiera se mire la sesión, que en ese contexto es de
     // otro o no existe.
+    $forced = sticpa_pl_delegation_forced();
+    if ($forced !== '') {
+        return $forced;
+    }
+    $home = sticpa_pl_home_delegation($objSCP);
+    $active = sticpa_pl_active_delegation();
+    return ($active !== '' && $active !== $home) ? $active : $home;
+}
+
+/**
+ * La delegación de la FICHA de quien entra (`Contacts.assigned_user_id`). Es la
+ * suya de siempre, aunque colabore con otra.
+ */
+function sticpa_pl_home_delegation($objSCP)
+{
     $forced = sticpa_pl_delegation_forced();
     if ($forced !== '') {
         return $forced;
@@ -179,6 +204,198 @@ function sticpa_pl_delegation($objSCP)
  * Sin la delegación en la clave, dos delegaciones compartirían caché y el grupo
  * de seguridad del CRM no lo impediría: la caché vive en WordPress.
  */
+/**
+ * La otra delegación elegida en el selector, o '' si no hay ninguna.
+ *
+ * Va atada al perfil que la eligió (`scp_user_id`): si una madre pasa a ver a
+ * su hija, la hija no hereda la delegación de trabajo de la madre. Se comprueba
+ * al elegirla (sticpa_pl_set_active_delegation()) y otra vez cada vez que se
+ * pinta el selector.
+ */
+function sticpa_pl_active_delegation()
+{
+    $active = isset($_SESSION['scp_pl_deleg_activa']) ? (string) $_SESSION['scp_pl_deleg_activa'] : '';
+    $owner = isset($_SESSION['scp_pl_deleg_activa_de']) ? (string) $_SESSION['scp_pl_deleg_activa_de'] : '';
+    $userId = isset($_SESSION['scp_user_id']) ? (string) $_SESSION['scp_user_id'] : '';
+    if ($active === '' || $userId === '' || $owner !== $userId) {
+        return '';
+    }
+    return $active;
+}
+
+/** «MCM Burriana» → «Burriana». */
+function sticpa_pl_deleg_label($name)
+{
+    return trim((string) preg_replace('/^\s*MCM\s+/i', '', html_entity_decode((string) $name, ENT_QUOTES, 'UTF-8')));
+}
+
+/**
+ * Las delegaciones en las que trabaja quien entra: la de su ficha y cada una
+ * en la que tenga una relación VIGENTE de equipo (monitor, coordinación o
+ * acompañamiento) asignada a ella. Lo de participante no cuenta: un chaval no
+ * trabaja en ninguna delegación.
+ *
+ * Caso real (23/10/2026): David Soler y Jesús Segarra son de Castellón y
+ * coordinan Burriana; David además lleva un grupo allí. Con esto ven las dos.
+ *
+ * Devuelve array(id => nombre), la de la ficha primero. Sale de
+ * sticpa_pl_mis_rels(), la consulta que ya se hace al entrar: cero llamadas.
+ */
+function sticpa_pl_team_delegations($objSCP)
+{
+    $home = (string) sticpa_pl_home_delegation($objSCP);
+    $userId = isset($_SESSION['scp_user_id']) ? (string) $_SESSION['scp_user_id'] : '';
+    $out = array();
+    if ($home !== '') {
+        $out[$home] = '';
+    }
+    if ($userId === '' || sticpa_pl_delegation_forced() !== '') {
+        return $out;
+    }
+    $now = sticpa_pl_now();
+    foreach ((array) sticpa_pl_mis_rels($objSCP, $userId) as $rel) {
+        $v = isset($rel->name_value_list) ? $rel->name_value_list : null;
+        if (!$v) {
+            continue;
+        }
+        $type = isset($v->relationship_type->value) ? strtolower((string) $v->relationship_type->value) : '';
+        $equipo = ($type === 'monitor' || strpos($type, 'coordinaci') !== false || strpos($type, 'acompan') !== false);
+        if (!$equipo) {
+            continue;
+        }
+        $end = isset($v->end_date->value) ? trim((string) $v->end_date->value) : '';
+        if ($end !== '') {
+            $endTs = strtotime($end . ' 23:59:59');
+            if ($endTs && $endTs < $now) {
+                continue;
+            }
+        }
+        if (isset($v->active->value) && (string) $v->active->value === '0') {
+            continue;
+        }
+        $deleg = isset($v->assigned_user_id->value) ? trim((string) $v->assigned_user_id->value) : '';
+        if ($deleg === '') {
+            continue;
+        }
+        $name = isset($v->assigned_user_name->value) ? sticpa_pl_deleg_label($v->assigned_user_name->value) : '';
+        if (!isset($out[$deleg]) || ($out[$deleg] === '' && $name !== '')) {
+            $out[$deleg] = $name;
+        }
+    }
+    foreach ($out as $id => $name) {
+        if ($name === '') {
+            $out[$id] = ($id === $home) ? __('Tu delegación', 'sticpa') : __('Otra delegación', 'sticpa');
+        }
+    }
+    return $out;
+}
+
+/**
+ * Elige la delegación de trabajo. Solo una de sticpa_pl_team_delegations(): lo
+ * que llegue en la petición nunca abre otra delegación por sí solo. Elegir la
+ * de la ficha es volver a lo normal. Devuelve si se ha aceptado.
+ */
+function sticpa_pl_set_active_delegation($objSCP, $id)
+{
+    $id = sticpa_pl_safe_id($id);
+    $home = (string) sticpa_pl_home_delegation($objSCP);
+    if ($id === '' || $id === $home) {
+        unset($_SESSION['scp_pl_deleg_activa'], $_SESSION['scp_pl_deleg_activa_de']);
+        return $id !== '';
+    }
+    $allowed = sticpa_pl_team_delegations($objSCP);
+    if (!isset($allowed[$id])) {
+        return false;
+    }
+    $_SESSION['scp_pl_deleg_activa'] = $id;
+    $_SESSION['scp_pl_deleg_activa_de'] = isset($_SESSION['scp_user_id']) ? (string) $_SESSION['scp_user_id'] : '';
+    return true;
+}
+
+/**
+ * Un enlace a un grupo de OTRA de sus delegaciones (o una lista que se quedó en
+ * el móvil y se manda después de cambiar) se abre en la delegación del grupo,
+ * en vez de acabar en «Elige un grupo». Solo entre las suyas
+ * (sticpa_pl_team_delegations()); si no está en ninguna, se queda como estaba.
+ * Una consulta de grupos por delegación probada, y solo cuando no está en la
+ * actual. Devuelve si ha cambiado.
+ */
+function sticpa_pl_follow_group_delegation($objSCP, $groupId)
+{
+    $groupId = sticpa_pl_safe_id($groupId);
+    if ($groupId === '') {
+        return false;
+    }
+    $groups = sticpa_pl_groups($objSCP);
+    if (isset($groups[$groupId])) {
+        return false;
+    }
+    $delegs = sticpa_pl_team_delegations($objSCP);
+    if (count($delegs) < 2) {
+        return false;
+    }
+    $current = (string) sticpa_pl_delegation($objSCP);
+    foreach (array_keys($delegs) as $deleg) {
+        if ((string) $deleg === $current) {
+            continue;
+        }
+        sticpa_pl_set_active_delegation($objSCP, $deleg);
+        $other = sticpa_pl_groups($objSCP);
+        if (isset($other[$groupId])) {
+            return true;
+        }
+    }
+    sticpa_pl_set_active_delegation($objSCP, $current);
+    return false;
+}
+
+/**
+ * ¿Es de la delegación con la que se trabaja esta relación de quien entra?
+ * Una relación sin delegación cuenta solo en la de su ficha (las antiguas).
+ * Sin esto, una coordinación de Burriana hacía coordinador DE CASTELLÓN a
+ * quien es de Castellón (el alcance no miraba la delegación).
+ */
+function sticpa_pl_rel_en_mi_delegacion($objSCP, $v)
+{
+    $deleg = (string) sticpa_pl_delegation($objSCP);
+    $of = isset($v->assigned_user_id->value) ? trim((string) $v->assigned_user_id->value) : '';
+    if ($of === '') {
+        return $deleg === (string) sticpa_pl_home_delegation($objSCP);
+    }
+    return $of === $deleg;
+}
+
+/**
+ * El selector de delegación: «Castellón · Burriana», debajo de la cabecera de
+ * las pantallas de equipo. Solo sale a quien trabaja en más de una (cadena
+ * vacía para todos los demás). Cada pastilla vuelve a la misma pantalla con
+ * `delegacion=<id>`, que recoge sticpa_pl_maybe_refresh().
+ */
+function sticpa_pl_deleg_switch_html($objSCP, $page)
+{
+    $delegs = sticpa_pl_team_delegations($objSCP);
+    // La elegida ya no es de esta persona (se cerró su relación): vuelve a la suya.
+    $active = sticpa_pl_active_delegation();
+    if ($active !== '' && !isset($delegs[$active])) {
+        sticpa_pl_set_active_delegation($objSCP, '');
+    }
+    if (count($delegs) < 2) {
+        return '';
+    }
+    $current = (string) sticpa_pl_delegation($objSCP);
+    $page = preg_replace('/[^a-z0-9_]/', '', (string) $page);
+    // Las mismas pestañas de siempre (.pl-tabs): los nombres de las
+    // delegaciones ya dicen qué se elige.
+    $html = '<nav class="pl-tabs" aria-label="' . esc_attr__('Delegación', 'sticpa') . '">';
+    foreach ($delegs as $id => $name) {
+        $href = '?internalpage=' . $page . '&delegacion=' . rawurlencode($id);
+        $on = ($id === $current);
+        $html .= '<a class="pl-tab' . ($on ? ' is-active' : '') . '" href="' . esc_url($href) . '"'
+            . ($on ? ' aria-current="page"' : '') . '>' . esc_html($name) . '</a>';
+    }
+    return $html . '</nav>';
+}
+
 function sticpa_pl_cache_key($what, $objSCP = null, $extra = '')
 {
     $deleg = $objSCP ? sticpa_pl_delegation($objSCP) : (isset($_SESSION['scp_pl_delegation']) ? $_SESSION['scp_pl_delegation'] : 'nodeleg');
@@ -416,6 +633,11 @@ function sticpa_pl_flush($objSCP = null, $scope = 'state')
  */
 function sticpa_pl_maybe_refresh($objSCP)
 {
+    // El selector de delegación (sticpa_pl_deleg_switch_html()) llega aquí: lo
+    // llaman todas las pantallas de equipo antes de leer nada.
+    if (isset($_GET['delegacion']) && is_string($_GET['delegacion'])) {
+        sticpa_pl_set_active_delegation($objSCP, wp_unslash($_GET['delegacion']));
+    }
     if (empty($_REQUEST['refrescar'])) {
         return false;
     }
@@ -5031,7 +5253,10 @@ function sticpa_pl_mis_rels($objSCP, $userId)
     // Y 'misrels3' (16/10/2026): lleva `start_date`, con el que la lista de
     // un evento elige la relación de participante más reciente de quien
     // viene de OTRA delegación (sticpa_pl_ev_curso_de_rels()).
-    $cacheKey = sticpa_pl_cache_key('misrels3', $objSCP, $userId);
+    // Y 'misrels4' (23/10/2026): lleva la delegación de cada relación
+    // (`assigned_user_id` y su nombre), con la que se sabe en qué delegaciones
+    // trabaja alguien y qué coordinación vale en cada una.
+    $cacheKey = sticpa_pl_cache_key('misrels4', $objSCP, $userId);
     $ttl = sticpa_pl_ttl_structure();
     if ($ttl > 0) {
         $cached = get_transient($cacheKey);
@@ -5067,6 +5292,9 @@ function sticpa_pl_mis_rels_params($userId)
             // más, porque esta ya se hace y está cacheada. Dos campos más en
             // la MISMA llamada son gratis; una llamada nueva no.
             'active', 'ajmcm_curso_escolar_c',
+            // De qué delegación es cada relación: varias delegaciones
+            // (sticpa_pl_team_delegations()) y la coordinación de cada una.
+            'assigned_user_id', 'assigned_user_name',
         ),
         'related_module_link_name_to_fields_array' => array(
             array('name' => 'ajmcm_grupos_stic_contacts_relationships', 'value' => array('id')),
@@ -5082,7 +5310,8 @@ function sticpa_pl_coord_scope($objSCP)
         return null;
     }
 
-    $cacheKey = sticpa_pl_cache_key('coord', $objSCP, $userId);
+    // 'coord2' (23/10/2026): antes no se miraba la delegación de la relación.
+    $cacheKey = sticpa_pl_cache_key('coord2', $objSCP, $userId);
     $ttl = sticpa_pl_ttl_structure();
     if ($ttl > 0) {
         $cached = get_transient($cacheKey);
@@ -5112,6 +5341,10 @@ function sticpa_pl_coord_scope($objSCP)
                 continue;
             }
             unset($needle);
+            // Coordinar Burriana no te hace coordinador de Castellón.
+            if (!sticpa_pl_rel_en_mi_delegacion($objSCP, $v)) {
+                continue;
+            }
             $end = isset($v->end_date->value) ? trim((string) $v->end_date->value) : '';
             if ($end !== '') {
                 $endTs = strtotime($end . ' 23:59:59');
@@ -5891,7 +6124,7 @@ function sticpa_pl_is_acompanante($objSCP)
         return false;
     }
 
-    $cacheKey = sticpa_pl_cache_key('acomp', $objSCP, $userId);
+    $cacheKey = sticpa_pl_cache_key('acomp2', $objSCP, $userId);
     $ttl = sticpa_pl_ttl_structure();
     if ($ttl > 0) {
         $cached = get_transient($cacheKey);
@@ -5921,6 +6154,9 @@ function sticpa_pl_is_acompanante($objSCP)
             // Tolerante con la ñ y con los acentos, que en una clave interna
             // pueden estar de las dos formas.
             if ($type === '' || (strpos($type, 'acompan') === false && strpos($type, 'acompañ') === false)) {
+                continue;
+            }
+            if (!sticpa_pl_rel_en_mi_delegacion($objSCP, $v)) {
                 continue;
             }
             $end = isset($v->end_date->value) ? trim((string) $v->end_date->value) : '';

@@ -19,6 +19,34 @@ Piloto: **MCM Castellón, curso 2025-2026**. Nada interdelegacional.
 Esto es lo único que hay que leer para saber por dónde va. Lo cerrado está más
 abajo, en §1-bis, y se conserva porque explica POR QUÉ el código es como es.
 
+### ✅ Burriana arranca, y quien colabora con dos delegaciones (23/10/2026)
+
+Montado en el CRM por MCP el 23/10/2026 (todo asignado a **MCM Burriana**,
+`00000cf9-ba07-d57b-7c55-68cd2162ad76`):
+
+- **Grupos** (todos de edades mezcladas, pasar lista marcado): `MIC 1`…`MIC 5`
+  (códigos `M1`…`M5`) y `COM 1` (`C1`). Los chavales se reparten desde Comunica Tools.
+- **Eventos de etapa** (ya existían): `MIC | Curso 2026-2027 · BU`
+  (`00000a90-3bee-f50c-7017-6abe02022a78`) y `COM | Curso 2026-2027 · BU`
+  (`00000e4d-4ef1-e533-fccc-6abe02172914`), ahora del 23/10/2026 al 14/05/2027.
+- **Sesiones: los viernes, 17:30–19:00** (⚠️ hora puesta por nosotros, a confirmar).
+  23 en el MIC y 22 en el COM: 23/10, 30/10, 6/11, 13/11, 20/11, 27/11 (solo MIC: ese día
+  no hay COM), 4/12, 11/12, 8/1, 15/1, 22/1, 29/1, 5/2, 12/2, 19/2, 26/2, 5/3, 9/4, 16/4,
+  23/4, 30/4, 7/5 y 14/5. **Sin sesión**: 18/12 (último antes de Navidad), 25/12 y 1/1
+  (Navidad), 12/3 (pegado a Fallas), 19/3 (San José), 26/3 y 2/4 (Pascua) y desde el
+  tercer fin de semana de mayo.
+- **Reuniones de monitores**: `Monitores | Reuniones de programación BU 2026-2027`
+  (`00000b89-642b-6950-9e8d-6adbe79c1e33`), sin sesiones: las crea coordinación desde la
+  pantalla de reuniones.
+- **Equipo**: Jesús Segarra y David Soler coordinan toda la delegación
+  (`coordinacion_mic_com` sin etapa); David es monitor del COM 1 y Ainhoa Cebrián, de
+  prueba, monitora del MIC 1. David y Ainhoa, inscritos como monitores (`organizer`) en el
+  evento de su etapa. Jesús y David son de Castellón: ver «Varias delegaciones» en
+  [`PASAR-LISTA-COORDINACION.md`](PASAR-LISTA-COORDINACION.md) §2.
+- ⚠️ **Ainhoa Cebrián tiene DOS inscripciones en el COM de Burriana** (18/10, 14:34 y
+  14:39), cada una con su compromiso de domiciliación de 5 €. Pendiente de que alguien
+  decida cuál se cancela (y su compromiso) para no cobrarle dos veces.
+
 ### ✅ Monitores: el «error» al guardar, la lentitud y el motivo de las faltas (26/09/2026)
 
 **Lo que se veía.** Coordinación guardaba la lista de monitores (sobre todo la
