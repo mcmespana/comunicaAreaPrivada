@@ -101,6 +101,46 @@ que es justo lo que necesita alguien que mira el conjunto.
 Los monitores de un segmento salen de los **grupos** de ese segmento: no hace
 falta marcar la etapa en cada monitor.
 
+### Varias delegaciones (23/10/2026)
+
+**El caso.** David Soler y Jesús Segarra son de Castellón (su ficha, `Contacts.assigned_user_id`)
+y coordinan Burriana; David además lleva el COM 1 de Burriana. Antes la delegación era
+una sola (la de la ficha) y nunca habrían visto Burriana. Y peor: el alcance de
+coordinación no miraba de qué delegación era la relación, así que coordinar Burriana
+te hacía **coordinador de Castellón**.
+
+**Cómo queda** (`inc/stic-pasar-lista-crm.php`):
+
+- **Delegación de la ficha** (`sticpa_pl_home_delegation()`): la de siempre. Es la que
+  manda en lo PERSONAL: a qué eventos puede apuntarse (`sticpa_viewer_audience()`), de
+  quién es su inscripción o su pago si el evento no tiene dueño.
+- **Delegaciones del equipo** (`sticpa_pl_team_delegations()`): la de la ficha más cada
+  delegación donde tenga una relación **vigente** de monitor, coordinación o acompañamiento
+  asignada a ella (`assigned_user_id` de la relación). Ser participante no cuenta. Sale de
+  `sticpa_pl_mis_rels()`, que ahora trae también la delegación de cada relación: cero
+  consultas más.
+- **Delegación de trabajo** (`sticpa_pl_delegation()`): la de la ficha, o la que haya
+  elegido en el **selector** (pestañas «Castellón · Burriana» bajo la cabecera de Pasar
+  lista, Coordinación y Grupos y fichas; solo sale a quien tiene más de una). Todo Pasar
+  Lista, Mis Grupos, Coordinación, reuniones y sesiones trabajan con ella, igual que antes
+  con la única que había: grupos, monitores, eventos, cachés y lo que se escribe
+  (`assigned_user_id`) son de la delegación elegida.
+- El selector manda `?delegacion=<id>` y lo recoge `sticpa_pl_maybe_refresh()`;
+  `sticpa_pl_set_active_delegation()` solo acepta una de sus delegaciones del equipo. La
+  elegida va atada al perfil (`scp_user_id`): una madre que pasa a ver a su hija no se la
+  pasa. Se borra al cerrar sesión.
+- **La coordinación (y el acompañamiento) solo vale en su delegación**
+  (`sticpa_pl_rel_en_mi_delegacion()`): en Castellón cuentan las relaciones de Castellón y
+  en Burriana las de Burriana. Una relación sin delegación cuenta solo en la de la ficha.
+  Las 7 coordinaciones que había el 23/10/2026 tenían todas delegación.
+- Un enlace a un grupo de otra de sus delegaciones (pasar lista, ficha del grupo) se abre
+  en la delegación del grupo (`sticpa_pl_follow_group_delegation()`), solo cuando no está
+  en la actual.
+
+**Monitores del COM que llevan un grupo del MIC** (p. ej. Ainhoa Cebrián en Burriana): no
+hay doble inscripción en el mismo evento. Son dos eventos distintos: en el del COM está
+inscrita como participante (`attendant`) y en el del MIC como monitora (`organizer`).
+
 ---
 
 ## 3. La lista de monitores: el defecto es al revés, y a propósito

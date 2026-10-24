@@ -380,3 +380,63 @@ test('en seco no se llama al área privada', async () => {
     delete process.env.AREA_PRIVADA_CALENTAR_SECRET;
   }
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Entorno personal: la familia al derecho
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { planEntorno, ENTORNO_A, ENTORNO_B } from './logica.mjs';
+
+const rel = (id, a, b, tipo = 'mother', firma = '0', fecha = '2026-10-20') =>
+  ({ id, relationship_type: tipo, authorized_signer: firma, date_entered: fecha, [ENTORNO_A]: a, [ENTORNO_B]: b });
+const gente = new Map([
+  ['nino', { birthdate: '2016-03-01', nombre: 'Aday C' }],
+  ['madre', { birthdate: '1984-05-10', nombre: 'Deyanira A' }],
+  ['padre', { birthdate: '1982-01-01', nombre: 'David C' }],
+  ['hermana', { birthdate: '2014-01-01', nombre: 'H' }],
+]);
+const ops = (lista, op) => lista.filter((o) => o.op === op).map((o) => o.id);
+
+test('entorno: la madre en A y el crío en B se gira, con firmante y nombre bueno', () => {
+  const r = rel('r1', 'madre', 'nino');
+  const plan = planEntorno([r], [r], gente);
+  assert.deepEqual(ops(plan, 'girar'), ['r1']);
+  assert.equal(plan[0].campos[ENTORNO_A], 'nino');
+  assert.equal(plan[0].campos[ENTORNO_B], 'madre');
+  assert.equal(plan[0].campos.authorized_signer, 1);
+  assert.equal(plan[0].campos.name, 'Deyanira A - Madre - Aday C');
+});
+
+test('entorno: al revés y con la buena ya hecha (aunque sea vieja), se borra', () => {
+  const buena = rel('buena', 'nino', 'madre', 'mother', '1', '2025-08-31');
+  const mala = rel('mala', 'madre', 'nino');
+  assert.deepEqual(ops(planEntorno([buena, mala], [mala], gente), 'borrar'), ['mala']);
+});
+
+test('entorno: dos al revés iguales, una se gira y la otra se borra', () => {
+  const a = rel('a', 'padre', 'nino', 'father', '0', '2026-10-20 10:00');
+  const b = rel('b', 'padre', 'nino', 'father', '0', '2026-10-20 10:01');
+  const plan = planEntorno([a, b], [b, a], gente);
+  assert.deepEqual(ops(plan, 'girar'), ['a']);
+  assert.deepEqual(ops(plan, 'borrar'), ['b']);
+});
+
+test('entorno: una buena sin firmante se marca, y con firmante no se toca', () => {
+  const sin = rel('sin', 'nino', 'madre');
+  const con = rel('con', 'nino', 'padre', 'father', '1');
+  assert.deepEqual(planEntorno([sin, con], [sin, con], gente), [{ op: 'firmante', id: 'sin' }]);
+});
+
+test('entorno: sin fechas, consigo mismo o entre hermanos no se toca: se avisa', () => {
+  const sinFecha = rel('x', 'madre', 'desconocido');
+  const yo = rel('yo', 'nino', 'nino');
+  const hermanos = rel('h', 'hermana', 'nino');
+  const plan = planEntorno([sinFecha, yo, hermanos], [sinFecha, yo, hermanos], gente);
+  assert.deepEqual(ops(plan, 'dudosa'), ['x', 'yo', 'h']);
+  assert.equal(plan.length, 3);
+});
+
+test('entorno: lo que no es de tutor ni se mira', () => {
+  const r = rel('s', 'hermana', 'nino', 'sister');
+  assert.deepEqual(planEntorno([r], [r], gente), []);
+});

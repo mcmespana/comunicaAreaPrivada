@@ -74,6 +74,8 @@ if (!$isCoord && !$isAcomp) {
     $html .= '<div class="pl-head"><div class="pl-head-titles"><div class="pl-title">'
         . '<span class="pl-title-code pl-title-code--main">' . esc_html__('Coordinación', 'sticpa')
         . '</span></div></div></div>';
+    // Puede coordinar en OTRA de sus delegaciones (Burriana) y no en esta.
+    $html .= sticpa_pl_deleg_switch_html($objSCP, 'single_stic_coordinacion');
     $html .= '<p class="pl-hint">' . sticpa_pl_icon('info') . '<span>'
         . esc_html__('Esta pantalla es de coordinación y acompañamiento. Si crees que deberías verla, avisa a la oficina técnica.', 'sticpa')
         . '</span></p>';
@@ -119,6 +121,7 @@ $html .= '</div>';
 $html .= '<a class="pl-session-pick" href="?internalpage=single_stic_coordinacion&refrescar=1"'
     . ' aria-label="' . esc_attr__('Refrescar datos', 'sticpa') . '">' . sticpa_pl_icon('refresh') . '</a>';
 $html .= '</div>';
+$html .= sticpa_pl_deleg_switch_html($objSCP, 'single_stic_coordinacion');
 
 if ($asignarMsg !== '') {
     $html .= '<p class="pl-notice"><span>' . esc_html($asignarMsg) . '</span></p>';

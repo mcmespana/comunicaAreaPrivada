@@ -1253,6 +1253,9 @@ if (isset($_REQUEST['logout'])) // logout
             'scp_user_contact_name',
             'scp_user_securitygroups',
             'scp_user_assigned_user_id',
+            // La delegación de trabajo elegida en el selector (varias delegaciones).
+            'scp_pl_deleg_activa',
+            'scp_pl_deleg_activa_de',
             'scp_user_adult',
             'scp_tutor_is_user',
             'scp_module',

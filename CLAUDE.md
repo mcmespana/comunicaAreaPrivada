@@ -57,6 +57,17 @@ contexto**. Reglas:
   varios ids, `get_entry` uno a uno; para varios valores de un campo, una
   llamada por valor y se suman. Condiciones sobre campos DISTINTOS sí funcionan.
   El plugin no lo sufre: consulta por la API v4.1 con SQL, no por este conector.
+- ⚠️ **Las fechas se escriben como `YYYY-MM-DD HH:MM:SS` (hora de Madrid), nunca
+  en ISO con `T` y desfase.** Con `2026-10-24T16:30:00+02:00` el CRM no da error:
+  crea la sesión con la fecha de AHORA y reescribe el nombre; el `update_entry`
+  con ese formato no cambia nada. Con `2026-10-24 16:30:00` guarda bien (se
+  comprueba al leer: sale `…16:30:00+02:00`). Descubierto el 22/10/2026 creando
+  las sesiones del curso.
+- ⚠️ **Un timeout al escribir NO es un fallo: el CRM suele terminar la escritura
+  después.** Antes de reintentar un `create_entry`, mira si ya existe (y busca
+  también por la fecha de hoy, que es la que se queda cuando falla el formato de
+  arriba); si no, se duplica. Un duplicado no se borra: se reaprovecha con
+  `update_entry` (la sesión arrastra sus asistencias).
 
 ---
 
@@ -91,6 +102,13 @@ contexto**. Reglas:
   compara a mano (`assigned_user_id`, ver `sticpa_pl_delegation()`). Da por
   hecho lo contrario y dejarás una pantalla abierta a otras delegaciones —le
   pasó a «Eventos» hasta el 09/09/2026—.
+- **La delegación de TRABAJO no es siempre la de la ficha** (23/10/2026): quien
+  colabora con otra delegación (monitor, coordinación o acompañamiento vigente
+  asignado a ella) la elige en un selector, y `sticpa_pl_delegation()` devuelve
+  esa. Lo personal (eventos, inscripciones, pagos) usa
+  `sticpa_pl_home_delegation()`. Y la coordinación de una delegación no vale en
+  otra. Ver «Varias delegaciones» en
+  [`docs/comunica/PASAR-LISTA-COORDINACION.md`](docs/comunica/PASAR-LISTA-COORDINACION.md).
 - **Un handler nuevo pasa por [`inc/stic-security.php`](inc/stic-security.php)**
   (planes 001-005, 24/09/2026): `sticpa_require_session()` lo primero,
   `sticpa_user_owns_record()` para cualquier `id` que llegue en la petición,

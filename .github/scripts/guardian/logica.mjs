@@ -319,3 +319,91 @@ export function delegacionesDe(grupos) {
   }
   return [...vistas].sort();
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Entorno personal: la familia al derecho (21/10/2026)
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Al guardar una inscripción, el CRM ata al tutor con el crío por su cuenta y
+// desde el 25/09/2026 lo hace AL REVÉS: el tutor en `contacts` (A) y el crío en
+// `contacts_1` (B), o sea «el crío es el padre del tutor», y sin
+// `authorized_signer`, así que el módulo Firmas no encuentra quién firma por el
+// menor. comunicaFormularios lo endereza justo después del alta, pero si la
+// familia cierra la página se queda así: esta es la red de la noche.
+
+export const ENTORNO_A = 'stic_personal_environment_contactscontacts_ida';
+export const ENTORNO_B = 'stic_personal_environment_contacts_1contacts_ida';
+export const TIPOS_TUTOR = ['mother', 'father', 'legal'];
+export const ETIQUETA_TUTOR = { mother: 'Madre', father: 'Padre', legal: 'Tutor/a legal' };
+
+/** Años (aprox.) que B le saca a A. `null` si falta alguna fecha. */
+function anosDeDiferencia(nacA, nacB) {
+  const a = Date.parse(String(nacA ?? '').slice(0, 10));
+  const b = Date.parse(String(nacB ?? '').slice(0, 10));
+  if (Number.isNaN(a) || Number.isNaN(b)) return null;
+  return (a - b) / (365.25 * 86_400_000);
+}
+
+const esUno = (v) => v === true || String(v ?? '') === '1';
+
+/**
+ * Qué hacer con las relaciones de padre, madre o tutor/a de `revisar`.
+ *
+ * Quién es el crío lo dice la EDAD, no el nombre (el CRM compone el nombre igual
+ * en las buenas y en las malas): en una relación de tutor, la persona de B tiene
+ * que sacarle al menos `margen` años a la de A. Sin las dos fechas no se toca.
+ *
+ * `todos` son TODAS las relaciones (para saber si la buena ya existe, aunque sea
+ * vieja); `personas` es `Map(id → { birthdate, nombre })`.
+ *
+ * Devuelve operaciones: `girar` (con los campos a escribir), `borrar` (repite
+ * una buena), `firmante` (buena sin la casilla) y `dudosa` (no se toca, se avisa).
+ */
+export function planEntorno(todos, revisar, personas, { margen = 10 } = {}) {
+  const tutor = (r) => TIPOS_TUTOR.includes(r?.relationship_type);
+  const pares = new Set();
+  const clave = (a, b) => `${a}>${b}`;
+
+  // Las buenas que ya hay: crío en A, tutor en B, y el tutor el mayor.
+  for (const r of todos ?? []) {
+    const a = r?.[ENTORNO_A], b = r?.[ENTORNO_B];
+    if (!tutor(r) || !a || !b || a === b) continue;
+    const d = anosDeDiferencia(personas.get(a)?.birthdate, personas.get(b)?.birthdate);
+    if (d === null || d >= margen) pares.add(clave(a, b));
+  }
+
+  const ops = [];
+  const orden = [...(revisar ?? [])].sort((x, y) =>
+    String(x.date_entered ?? '').localeCompare(String(y.date_entered ?? '')));
+  for (const r of orden) {
+    if (!tutor(r)) continue;
+    const a = r[ENTORNO_A], b = r[ENTORNO_B];
+    if (!a || !b) { ops.push({ op: 'dudosa', id: r.id, motivo: 'le falta un lado' }); continue; }
+    if (a === b) { ops.push({ op: 'dudosa', id: r.id, motivo: 'la persona atada consigo misma' }); continue; }
+
+    const d = anosDeDiferencia(personas.get(a)?.birthdate, personas.get(b)?.birthdate);
+    if (d === null || Math.abs(d) < margen) {
+      ops.push({ op: 'dudosa', id: r.id, motivo: d === null ? 'sin las dos fechas de nacimiento' : 'edades que no dicen quién es el crío' });
+      continue;
+    }
+    if (d >= margen) {
+      // Al derecho. Solo le puede faltar la casilla.
+      if (!esUno(r.authorized_signer)) ops.push({ op: 'firmante', id: r.id });
+      continue;
+    }
+    // Al revés: A es el mayor. ¿Ya existe la buena (crío b, tutor a)?
+    if (pares.has(clave(b, a))) {
+      ops.push({ op: 'borrar', id: r.id });
+      continue;
+    }
+    pares.add(clave(b, a));
+    const nombreTutor = personas.get(a)?.nombre ?? '';
+    const nombreCrio = personas.get(b)?.nombre ?? '';
+    const campos = { [ENTORNO_A]: b, [ENTORNO_B]: a, authorized_signer: 1 };
+    if (nombreTutor && nombreCrio) {
+      campos.name = `${nombreTutor} - ${ETIQUETA_TUTOR[r.relationship_type]} - ${nombreCrio}`;
+    }
+    ops.push({ op: 'girar', id: r.id, campos });
+  }
+  return ops;
+}
