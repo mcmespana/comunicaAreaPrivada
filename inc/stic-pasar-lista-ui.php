@@ -1714,10 +1714,17 @@ function sticpa_pl_directorio_monitores_html($monitors, $groups, $puedoVincular,
     // al final (24/10/2026).
     $sinGrupo = array();
     $fueraDePl = array();
+    $apoyo = array();
     foreach ($monitors as $i => $m) {
         if (empty($m['groups']) && !empty($m['rel_sin_grupo'])) {
             if (!empty($m['grupo_fuera'])) {
-                $fueraDePl[] = $m;
+                // Apoyo se destaca: coordinación quiere tener su ficha a mano.
+                // Los demás (Jaire, Ruah, Ohana…) ya se gestionan solos.
+                if (stripos($m['grupo_fuera'], 'apoyo') !== false) {
+                    $apoyo[] = $m;
+                } else {
+                    $fueraDePl[] = $m;
+                }
             } else {
                 $sinGrupo[] = $m;
             }
@@ -1753,6 +1760,31 @@ function sticpa_pl_directorio_monitores_html($monitors, $groups, $puedoVincular,
             $html .= '</div>';
         }
         $html .= '</div></form>';
+    }
+
+    // Monitores de Apoyo: visibles, justo después de «Sin grupo», con su ficha.
+    if (!empty($apoyo)) {
+        usort($apoyo, function ($a, $b) {
+            return strcasecmp($a['name'], $b['name']);
+        });
+        $html .= '<div class="pl-sec-row"><div class="pl-sec">' . esc_html__('Apoyo', 'sticpa') . '</div>'
+            . '<span class="pl-etapa-count">' . esc_html(sprintf(
+                /* translators: %d: cuántos monitores de apoyo hay */
+                _n('%d monitor', '%d monitores', count($apoyo), 'sticpa'),
+                count($apoyo)
+            )) . '</span></div>';
+        $html .= '<div class="pl-list">';
+        foreach ($apoyo as $m) {
+            $html .= sticpa_pl_person_link_html(
+                $m,
+                '?internalpage=single_stic_pasar_lista_monitor&monitor=' . rawurlencode($m['id'])
+                    . '&vengo=monitores',
+                $m['grupo_fuera'],
+                '',
+                true
+            );
+        }
+        $html .= '</div>';
     }
 
     // Por etapa, con los mismos puntos de color que el árbol y que la lista de

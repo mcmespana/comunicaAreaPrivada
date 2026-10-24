@@ -685,7 +685,7 @@ function sticpa_calendar_fc_events($data)
         $endLocal = !empty($s['end']) ? sticpa_calendar_local_datetime($s['end']) : '';
         $events[] = array(
             'id' => $s['id'],
-            'title' => $s['title'],
+            'title' => sticpa_calendar_session_title($s['title']),
             'start' => str_replace(' ', 'T', $startLocal),
             'end' => $endLocal ? str_replace(' ', 'T', $endLocal) : null,
             'color' => $meta['color'],
@@ -694,7 +694,7 @@ function sticpa_calendar_fc_events($data)
             'extendedProps' => array(
                 'kind' => 'session',
                 'href' => '?internalpage=single_stic_sessions&action=detail&id=' . $s['id'],
-                'tooltip' => $s['title']
+                'tooltip' => sticpa_calendar_session_title($s['title'])
                     . ($s['event_name'] ? ' · ' . $s['event_name'] : '')
                     . ' · ' . $meta['label'],
             ),
@@ -716,6 +716,18 @@ function sticpa_calendar_fc_events($data)
 function sticpa_calendar_local_datetime($value)
 {
     return trim((string) $value);
+}
+
+/**
+ * El nombre de una sesión sin el « | 30/10/2026 17:30h» que le pone el CRM al
+ * final: en el calendario el día y la hora ya los dice el propio bloque, y
+ * repetirlos alargaba cada título a tres líneas («COM | Curso 2026-2027 · BU»
+ * dice lo mismo). Un nombre sin ese sufijo se queda como está.
+ */
+function sticpa_calendar_session_title($title)
+{
+    $short = preg_replace('~\s*\|\s*\d{1,2}/\d{1,2}/\d{4}(?:\s+\d{1,2}:\d{2}\s*h?)?\s*$~u', '', (string) $title);
+    return ($short === null || trim($short) === '') ? (string) $title : trim($short);
 }
 
 /**
