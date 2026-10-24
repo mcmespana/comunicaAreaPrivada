@@ -444,7 +444,8 @@ registros**: no lo usamos, y no hay que empezar a usarlo sin decidirlo antes).
 | `end_date` | `date` | Hasta cuándo. Vacío = sigue viva |
 | `name` | nombre | Se compone «Familiar - Etiqueta - Persona de referencia» |
 | `description` | texto | Libre |
-| `reference_contact`, `authorized_signer`, `coexistence_status` | varios | Existen, **sin usar y sin mirar**. Anotados para que nadie cree otro campo igual |
+| `authorized_signer` | bool | **Firmante autorizado.** El módulo Firmas del CRM busca quién firma por un menor SOLO entre sus relaciones donde el menor está en `contacts` (A) y con esta casilla a 1. Toda relación de padre, madre o tutor/a la lleva marcada (arreglo del 16/10/2026; la mantienen el proxy de comunicaFormularios y el Guardián, tarea `entorno-familias`) |
+| `reference_contact`, `coexistence_status` | varios | Existen, **sin usar y sin mirar**. Anotados para que nadie cree otro campo igual. El CRM pone `reference_contact = 1` en las relaciones que crea él solo al guardar una inscripción |
 
 #### ⚠️ La dirección de la relación, que es lo que se equivoca
 

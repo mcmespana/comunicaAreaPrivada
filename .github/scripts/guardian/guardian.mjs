@@ -9,6 +9,8 @@
  *   · recuentos-grupos  — lleva al grupo cuánta gente tiene y quiénes son sus
  *                         monitores (docs/comunica/PASAR-LISTA-RECUENTOS.md)
  *   · revision-datos    — mira y avisa de lo que rompe Pasar Lista
+ *   · entorno-familias  — endereza las relaciones de tutor que el CRM crea al
+ *                         revés al guardar una inscripción
  *   · calentar-cache    — deja hecha la caché del área privada, para que el
  *                         primero que entre el sábado no la pague
  *
@@ -55,12 +57,13 @@ import { aMarkdown, aTexto, aHtml, hayFallos, mereceAviso, titular } from './inf
 import * as recuentosGrupos from './tareas/recuentos-grupos.mjs';
 import * as revisionDatos from './tareas/revision-datos.mjs';
 import * as calentarCache from './tareas/calentar-cache.mjs';
+import * as entornoFamilias from './tareas/entorno-familias.mjs';
 import { appendFile, writeFile } from 'node:fs/promises';
 
 /** El registro de tareas. El orden importa: `revision-datos` usa lo que calcula
  * la primera, y `calentar-cache` va LA ÚLTIMA para que la caché del área privada
  * se rellene con los recuentos ya escritos y no con los de antes de la pasada. */
-const TAREAS = [recuentosGrupos, revisionDatos, calentarCache];
+const TAREAS = [recuentosGrupos, revisionDatos, entornoFamilias, calentarCache];
 
 const CAMPOS_GRUPO = ['id', 'name', 'code', 'level', 'cursos_c', 'assigned_user_id',
   'ajmcm_n_participantes_c', 'ajmcm_n_monitores_c', 'ajmcm_monitores_c', 'ajmcm_recuento_al_c'];

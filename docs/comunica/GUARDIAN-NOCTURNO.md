@@ -16,6 +16,7 @@ privada no puede permitirse en caliente, y **canta si algo va mal**.
 |---|---|---|---|
 | Recuentos y monitores de cada grupo | `recuentos-grupos` | sí | Lleva al grupo cuánta gente tiene y quiénes son sus monitores. El por qué, en [`PASAR-LISTA-RECUENTOS.md`](PASAR-LISTA-RECUENTOS.md) |
 | Datos que hacen falta revisar | `revision-datos` | no | Mira y avisa de lo que rompe una lista del sábado: grupos con chavales y sin monitor, grupos sin nadie, grupos sin código corto |
+| La familia al derecho | `entorno-familias` | sí | Gira las relaciones de padre, madre o tutor/a que el CRM crea al revés al guardar una inscripción (desde el 25/09/2026), borra las que repiten una buena y marca «Firmante autorizado». Quién es el crío lo dice la fecha de nacimiento; sin las dos fechas, o con alguien atado consigo mismo, solo avisa. Mira los últimos días (30 en el completo). Normalmente ya lo ha hecho comunicaFormularios tras el alta (`alta_entorno`): si aquí sale algo es que se escapó, y el informe lo canta |
 | Caché del área privada | `calentar-cache` | no (en el CRM) | Deja la caché de Pasar Lista hecha, para que el primero que entre el sábado no pague las llamadas. Ver §5 |
 
 Está pensado para crecer: la idea es que todo lo que sea «pasar por el CRM de
