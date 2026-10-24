@@ -40,6 +40,11 @@ sticpa_pl_prime($objSCP, function () use ($objSCP, $groupId) {
 });
 
 $groups = sticpa_pl_groups($objSCP);
+// Un grupo de otra de sus delegaciones (quien colabora con dos): se pasa a ella.
+// Solo cuando no está en esta, así que lo normal no cuesta ninguna consulta.
+if ($groupId !== '' && !isset($groups[$groupId]) && sticpa_pl_follow_group_delegation($objSCP, $groupId)) {
+    $groups = sticpa_pl_groups($objSCP);
+}
 
 if ($groupId === '' || !isset($groups[$groupId])) {
     // Sin grupo válido no se enseña una pantalla a medias: se manda al árbol.

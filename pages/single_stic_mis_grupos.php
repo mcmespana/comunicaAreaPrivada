@@ -82,6 +82,11 @@ if (!in_array($ver, array('grupos', 'cursos', 'az', 'sueltos'), true)) {
     $ver = 'grupos';
 }
 $groupId = isset($_REQUEST['grupo']) ? sticpa_pl_safe_id($_REQUEST['grupo']) : '';
+// La ficha de un grupo de otra de sus delegaciones (quien colabora con dos).
+if ($groupId !== '' && !isset($groups[$groupId]) && sticpa_pl_follow_group_delegation($objSCP, $groupId)) {
+    $groups = sticpa_pl_groups($objSCP);
+    $myGroups = sticpa_pl_my_groups($objSCP);
+}
 
 // ¿Puede abrir la FICHA de un monitor? Coordinación y acompañamiento, igual que
 // la propia ficha (pages/single_stic_pasar_lista_monitor.php). A un monitor sin
@@ -121,6 +126,10 @@ $html .= '</div>';
 $html .= '<a class="pl-session-pick" href="' . esc_url($url(array('refrescar' => '1'))) . '"'
     . ' aria-label="' . esc_attr__('Refrescar datos', 'sticpa') . '">' . sticpa_pl_icon('refresh') . '</a>';
 $html .= '</div>';
+// En la ficha de un grupo no: el grupo es de una delegación concreta.
+if ($groupId === '') {
+    $html .= sticpa_pl_deleg_switch_html($objSCP, 'single_stic_mis_grupos');
+}
 
 if ($asignarMsg !== '') {
     $html .= '<p class="pl-notice"><span>' . esc_html($asignarMsg) . '</span></p>';

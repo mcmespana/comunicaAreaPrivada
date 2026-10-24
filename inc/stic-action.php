@@ -744,8 +744,8 @@ function prefix_admin_single_stic_registrations()
         // la del evento. Sin evento con dueño, la delegación de quien se apunta.
         // Antes se quedaba a nombre del usuario técnico.
         $delegacion = trim((string) ($eventNvl->assigned_user_id->value ?? ''));
-        if ($delegacion === '' && function_exists('sticpa_pl_delegation')) {
-            $delegacion = (string) sticpa_pl_delegation($objSCP);
+        if ($delegacion === '' && function_exists('sticpa_pl_home_delegation')) {
+            $delegacion = (string) sticpa_pl_home_delegation($objSCP);
         }
         if ($delegacion !== '') {
             $moduleData['assigned_user_id'] = $delegacion;

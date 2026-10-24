@@ -98,6 +98,8 @@ class FakeSCP
      *  («⚠️ Grupo COM-LC - POR DEFINIR!»), que no es de la delegación: como
      *  llegaban Mencía Saiz y Ana Pardo el 26/09/2026. */
     public $conComodin = false;
+    /** Un adulto de COM-LC (`grupo`) colgado de un grupo de laicos que no pasa lista. */
+    public $conLaicoFuera = false;
 
     /** Cuando es true, la delegación tiene además EVENTOS de salida (pasar
      *  lista en el autobús, inc/stic-pasar-lista-eventos.php): una convivencia
@@ -589,8 +591,13 @@ class FakeSCP
                     'grupo' => array('id' => 'g3', 'name' => 'Los Micos'),
                     'persona' => array('id' => 'm1', 'name' => 'David Soler', 'first_name' => 'David', 'last_name' => 'Soler'),
                 ) : null,
+                $this->conLaicoFuera ? array(
+                    'fields' => array('id' => 'r31', 'relationship_type' => 'grupo', 'end_date' => ''),
+                    'grupo' => array('id' => 'g-ohana', 'name' => 'Ohana'),
+                    'persona' => array('id' => 'c31', 'name' => 'Sara Laica', 'first_name' => 'Sara', 'last_name' => 'Laica'),
+                ) : null,
                 $this->conComodin ? array(
-                    'fields' => array('id' => 'r30', 'relationship_type' => 'grupo', 'end_date' => ''),
+                    'fields' => array('id' => 'r30', 'relationship_type' => 'participante_mic_com', 'end_date' => ''),
                     'grupo' => array('id' => 'g-comodin', 'name' => '⚠️ Grupo COM-LC - POR DEFINIR!'),
                     'persona' => array('id' => 'c30', 'name' => 'Mencia Saiz', 'first_name' => 'Mencia', 'last_name' => 'Saiz'),
                 ) : null,
@@ -5719,6 +5726,21 @@ final class PasarListaRenderTest extends TestCase
         $this->assertNotContains('Un Monitor', $nombres);
         // Ni los que si tienen grupo.
         $this->assertNotContains('Solete Vilarroya', $nombres);
+    }
+
+    /**
+     * Un adulto de COM-LC (`grupo`) sin grupo de Pasar Lista NO es un
+     * participante sin grupo: cuelga de un grupo de laicos que no pasa lista.
+     * Eran casi todos los 148 «sin grupo asignado» de Castellón (23/10/2026).
+     */
+    public function testUnAdultoDeComLcNoEsUnParticipanteSinGrupo()
+    {
+        $this->scp->conComodin = true;
+        $this->scp->conLaicoFuera = true;
+        $nombres = array_column(sticpa_pl_participants_without_group($this->scp), 'name');
+        $this->assertNotContains('Sara Laica', $nombres);
+        // El comodín sigue contando para un participante MIC-COM.
+        $this->assertContains('Mencia Saiz', $nombres);
     }
 
     /**

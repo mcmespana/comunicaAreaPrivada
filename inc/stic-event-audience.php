@@ -368,8 +368,10 @@ function sticpa_event_audience_scope($audience)
 function sticpa_viewer_audience($objSCP = null, $conRelaciones = true)
 {
     $delegacion = '';
-    if ($objSCP !== null && function_exists('sticpa_pl_delegation')) {
-        $delegacion = (string) sticpa_pl_delegation($objSCP);
+    // La de la FICHA, no la de trabajo: quien colabora con otra delegación
+    // sigue viendo y apuntándose a los eventos de la suya.
+    if ($objSCP !== null && function_exists('sticpa_pl_home_delegation')) {
+        $delegacion = (string) sticpa_pl_home_delegation($objSCP);
     } elseif (!empty($_SESSION['scp_user_assigned_user_id'])) {
         $delegacion = (string) $_SESSION['scp_user_assigned_user_id'];
     }
