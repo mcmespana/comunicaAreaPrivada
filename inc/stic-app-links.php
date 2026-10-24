@@ -28,9 +28,17 @@
  *     petición sí llega: `sticpa_app_link_bridge()` redirige al área privada de
  *     siempre con el token intacto, y se entra por web como hasta ahora.
  *
- *  Se reclama SOLO `/app/acceso`, no el área entera: así ningún otro enlace del
- *  portal (uno que alguien comparta por WhatsApp, por ejemplo) se abre en la app
- *  por sorpresa.
+ *  Qué se reclama (cambiado el 24/10/2026, A PROPÓSITO, por decisión del
+ *  propietario para el área privada nativa de la app — plan 10 de
+ *  `mcmapp/docs/planes/area-nativa/`): **todo el dominio salvo WordPress por
+ *  dentro y los ficheros** (`/wp-admin/*`, `/wp-login.php`, `/wp-json/*`,
+ *  `/wp-content/*`, `/xmlrpc.php`, `/.well-known/*`, `*.pdf`). Cualquier enlace
+ *  de Comunica abre la app en la pantalla que toca: nativa si la hay, y si no
+ *  el área privada en su WebView con el mismo destino. Hasta esa fecha se
+ *  reclamaba solo `/app/acceso`, para que ningún otro enlace se abriera en la
+ *  app por sorpresa; con el área nativa, abrirse en la app ES lo que se quiere.
+ *  En Android no se pueden excluir rutas: la app declara prefijos (`/ap`,
+ *  `/app`, `/area-privada`, `/actividades` y `/`) en su `app.json`.
  *
  *  ⚠️ El fichero de Android necesita la huella SHA-256 del certificado de firma
  *  de la app. Se configura en Ajustes → SinergiaCRM Private Area. Sin ella,
@@ -202,6 +210,21 @@ function sticpa_serve_json($data)
     exit;
 }
 
+/**
+ * Las rutas que abren la app en iOS: todo el dominio salvo WordPress por dentro
+ * y los ficheros. El orden importa: Apple aplica la primera que encaja, así que
+ * las exclusiones van delante.
+ */
+function sticpa_ios_link_components()
+{
+    $components = array();
+    foreach (array('/wp-admin/*', '/wp-login.php', '/wp-json/*', '/wp-content/*', '/xmlrpc.php', '/.well-known/*', '*.pdf') as $excluded) {
+        $components[] = array('/' => $excluded, 'exclude' => true, 'comment' => 'WordPress por dentro o un fichero: navegador');
+    }
+    $components[] = array('/' => '*', 'comment' => 'Todo lo demas de Comunica abre la app');
+    return $components;
+}
+
 add_action('init', 'sticpa_serve_well_known', 0);
 function sticpa_serve_well_known()
 {
@@ -216,16 +239,7 @@ function sticpa_serve_well_known()
                 'details' => array(
                     array(
                         'appIDs' => array(STICPA_IOS_APP_ID),
-                        'components' => array(
-                            array(
-                                '/' => STICPA_APP_LINK_PATH,
-                                'comment' => 'Acceso al area privada desde el correo',
-                            ),
-                            array(
-                                '/' => STICPA_APP_LINK_PATH . '*',
-                                'comment' => 'Acceso al area privada desde el correo (con token)',
-                            ),
-                        ),
+                        'components' => sticpa_ios_link_components(),
                     ),
                 ),
             ),
