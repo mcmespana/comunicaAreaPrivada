@@ -654,12 +654,12 @@ function sticpa_calendar_fc_events($data)
         }
         $statusKey = $data['attendance_by_session'][$s['id']] ?? '';
         $cls = sticpa_classify_attendance($statusKey);
-        $startLocal = get_date_from_gmt($s['start']); // 'Y-m-d H:i:s' en hora local
+        $startLocal = sticpa_calendar_local_datetime($s['start']);
         $startTs = strtotime($startLocal);
         $bucket = sticpa_session_bucket($cls, $startTs, $now);
         $bucket = sticpa_calendar_effective_bucket($bucket); // colapsa estados desactivados
         $meta = $palette[$bucket];
-        $endLocal = !empty($s['end']) ? get_date_from_gmt($s['end']) : '';
+        $endLocal = !empty($s['end']) ? sticpa_calendar_local_datetime($s['end']) : '';
         $events[] = array(
             'id' => $s['id'],
             'title' => $s['title'],
@@ -679,6 +679,20 @@ function sticpa_calendar_fc_events($data)
     }
 
     return $events;
+}
+
+/**
+ * La hora de una sesión del CRM, tal cual sale de la API v4.1.
+ *
+ * La API devuelve `Y-m-d H:i:s` YA en hora local (la del usuario técnico, la
+ * misma con la que se escribió), no en UTC: Sesiones y Pasar Lista la leen así
+ * (ver sticpa_pl_ts()). Pasarla por get_date_from_gmt() sumaba otra vez el
+ * desfase de WordPress: «COM | Curso … 30/10/2026 17:30h» salía a las 18:30 en
+ * la home y en el calendario (24/10/2026).
+ */
+function sticpa_calendar_local_datetime($value)
+{
+    return trim((string) $value);
 }
 
 /**
@@ -762,7 +776,7 @@ function sticpa_home_agenda_items($data, $limit = 5)
         if (empty($s['start'])) {
             continue;
         }
-        $startLocal = get_date_from_gmt($s['start']);
+        $startLocal = sticpa_calendar_local_datetime($s['start']);
         $ts = strtotime($startLocal);
         if ($ts === false || $ts < $todayTs) {
             continue; // solo próximas
