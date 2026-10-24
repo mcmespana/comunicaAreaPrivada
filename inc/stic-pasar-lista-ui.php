@@ -1707,13 +1707,26 @@ function sticpa_pl_directorio_monitores_html($monitors, $groups, $puedoVincular,
             . '</span></p>';
     }
 
+    // Dos clases de «sin grupo de Pasar Lista». SIN GRUPO de verdad (vacío o el
+    // comodín «POR DEFINIR»): es lo que hay que arreglar, va arriba con su
+    // «Vincular». Con un grupo REAL que no pasa lista (Apoyo, Jaire, Ruah…): no
+    // hay nada que arreglar, no pasan lista, y no se les persigue; van plegados
+    // al final (24/10/2026).
     $sinGrupo = array();
+    $fueraDePl = array();
     foreach ($monitors as $i => $m) {
         if (empty($m['groups']) && !empty($m['rel_sin_grupo'])) {
-            $sinGrupo[] = $m;
+            if (!empty($m['grupo_fuera'])) {
+                $fueraDePl[] = $m;
+            } else {
+                $sinGrupo[] = $m;
+            }
             unset($monitors[$i]);
         }
     }
+    usort($fueraDePl, function ($a, $b) {
+        return strcasecmp($a['grupo_fuera'] . ' ' . $a['name'], $b['grupo_fuera'] . ' ' . $b['name']);
+    });
     if (!empty($sinGrupo)) {
         $html .= '<div class="pl-sec-row"><div class="pl-sec">' . esc_html__('Sin grupo', 'sticpa') . '</div>'
             . '<span class="pl-etapa-count">' . esc_html(sprintf(
@@ -1732,13 +1745,7 @@ function sticpa_pl_directorio_monitores_html($monitors, $groups, $puedoVincular,
             $html .= sticpa_pl_avatar_html($m, true);
             $html .= '<span class="pl-row-body">';
             $html .= '<span class="pl-name">' . esc_html($m['name']) . '</span>';
-            $html .= '<span class="pl-rowsub">' . esc_html(!empty($m['grupo_fuera'])
-                ? sprintf(
-                    /* translators: %s: nombre de un grupo que no entra en Pasar Lista */
-                    __('%s · no entra en Pasar Lista', 'sticpa'),
-                    $m['grupo_fuera']
-                )
-                : __('Sin grupo asignado', 'sticpa')) . '</span>';
+            $html .= '<span class="pl-rowsub">' . esc_html__('Sin grupo asignado', 'sticpa') . '</span>';
             $html .= '</span>';
             if ($puedoVincular) {
                 $html .= sticpa_pl_vincular_html($m['rel_sin_grupo'], $groups, $m['name']);
@@ -1801,6 +1808,24 @@ function sticpa_pl_directorio_monitores_html($monitors, $groups, $puedoVincular,
         $html .= '</section>';
     }
     $html .= '</div>';
+
+    // Los de grupos que no pasan lista: plegado y al final. Cerrado, el
+    // navegador ni pide sus fotos (son `loading="lazy"`).
+    if (!empty($fueraDePl)) {
+        $html .= '<details class="pl-fold pl-fold--resto"><summary class="pl-fold-sum">'
+            . esc_html__('Monitores de grupos que no pasan lista', 'sticpa')
+            . '<span class="pl-fold-count">' . esc_html(count($fueraDePl)) . '</span></summary>';
+        $html .= '<div class="pl-list">';
+        foreach ($fueraDePl as $m) {
+            $html .= '<div class="pl-rowwrap pl-suelto">'
+                . sticpa_pl_avatar_html($m, true)
+                . '<span class="pl-row-body">'
+                . '<span class="pl-name">' . esc_html($m['name']) . '</span>'
+                . '<span class="pl-rowsub">' . esc_html($m['grupo_fuera']) . '</span>'
+                . '</span></div>';
+        }
+        $html .= '</div></details>';
+    }
 
     $html .= sticpa_pl_buscador_vacio_html();
     return $html;
