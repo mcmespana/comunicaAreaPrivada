@@ -225,6 +225,23 @@ Lista completa (dada por el propietario el 30/09/2026, copiada de Studio; clave 
 
 **Resuelto el 30/09/2026:** la clave de tutor/a legal es `legal` [Tutor/a] (la lista de arriba la confirma).
 
+### 8. Claves de desplegables que necesita el área nativa — ⏳ hay que leerlas en Studio (24/10/2026)
+
+El área nativa de MCM App (`mcmapp/docs/planes/area-nativa/`, planes 14 y 16)
+y su servidor necesitan las claves de estos `enum`, que el MCP no devuelve:
+
+| Módulo | Campo | Para qué |
+|---|---|---|
+| `Documents` | `status_id` | El chip de estado de cada documento (color por clave) |
+| `Documents` | `category_id` / `subcategory_id` **o** `stic_category_c` / `stic_subcategory_c` | Cuál de los dos juegos se usa, y sus claves |
+| `stic_Registrations` | `special_needs` | Qué clave es «sí» (el código da por hecho `1`) |
+| `stic_Registrations` | `status` | La lista entera (hoy se conocen `confirmed`, `cancelled`, `uninvited` y se ha visto `rejected` en el código) |
+
+Mientras no estén, el servidor manda las opciones que tenga la definición y la
+app pinta neutro lo que no conoce. Este documento es el original y la copia de
+`comunicaFormularios` se sincroniza sola; el repo del servidor del área nativa
+(por crear) tendrá que traerse también esta copia.
+
 ### 5. `ajmcm_GRUPOS.ajmcm_segmento_com_c` — valores observados, no leídos
 
 `com_1`, `com_2` y `com_3` salen de **mirar los datos**, no el desplegable. El
@@ -270,8 +287,10 @@ ya está aquí**:
 
 - `ajmcm_numero_persona_c` — Nº Registro (uso interno) (`varchar`, 12)
 - `ajmcm_centro_educativo_c` — Centro educativo (texto libre)
-- `ajmcm_etapa_c` — Etapa (desplegable)
-  - Valores: `MIC` [MIC], `COM` [COM], `LC` [LC]
+- `ajmcm_etapa_c` — Etapa (desplegable, lista `ajmcm_etapa_c_list`; `required` en la definición, pero solo lo exige la interfaz)
+  - Valores: `MIC` [MIC], `COM` [COM], `LC` [LC], `lcincorporado` [LC Incorporado], `asesora` [Asesora], `apoyo` [Monitor/a Apoyo] (lista leída en Studio el 08/10/2026, pendiente 1). ⚠️ Ojo con la caja: las tres primeras en mayúsculas, las otras en minúsculas.
+  - Uso real (MCP, 24/10/2026, muestra de 50 personas): `COM`, `MIC`, `LC` y `lcincorporado`; **unas 17 de cada 50, vacío** pese a ser `required` (la API no lo exige). Quien lea la etapa tiene que tolerar el vacío.
+  - Antes aquí solo ponía `MIC`, `COM`, `LC`: contradecía al pendiente 1 (lo vio el plan 12 del área nativa, `mcmapp/docs/planes/area-nativa/12-mis-datos.md`).
 - `ajmcm_nivel_com_c` — Nivel COM (desplegable)
   - Valores: `conocimiento` [I - Conocimiento], `incorporacion` [II - Incorporación], `crecimiento` [III - Crecimiento], `opcion_responsable` [IV - Opción Responsable]
 - `ajmcm_panuelo_c` — Pañuelo (desplegable)
@@ -1127,6 +1146,34 @@ nadie cree uno igual: `inc_*` (34, programa Incorpora / SEPE), `sepe_*` (4) y
 | `ajmcm_tutor1_iban_c` | `varchar(40)` | IBAN (dato bancario: se enmascara al pintarlo) |
 | `ajmcm_tutor2_*` | ídem | Lo mismo para el tutor/a 2 (`firstname`, `lastname`, `relationship`, `phone`, `email`, `dni`), **sin IBAN**. `ajmcm_tutor2_dni_c` (`varchar(14)`) verificado por MCP el 30/09/2026 |
 
+**Inscripciones: necesidades especiales** (verificado por MCP el 24/10/2026)
+
+| Campo | Tipo | Qué es |
+|---|---|---|
+| `special_needs` | `enum` (de serie, len 100) | Necesidades especiales. **Claves sin leer** (el MCP no da opciones). El área trata `1` como «sí» (`inc/stic-registrations.php` l. 1686-1690) y pinta el desplegable que da la definición. Pendiente 8 |
+| `special_needs_description` | `varchar(255)` | Descripción de las necesidades especiales |
+
+No hay más campos con `special` o `need` en `stic_Registrations` (80 campos).
+`status` es `enum`, `required`, **valor por defecto `confirmed`**.
+
+**Documentos (`Documents`)** — los lista, sube y borra el área privada
+(`inc/stic-documents.php`, `pages/*_stic_documents.php`); verificado por MCP
+el 24/10/2026
+
+| Campo | Tipo | Qué es |
+|---|---|---|
+| `document_name` | `varchar`, **obligatorio** | Nombre del documento |
+| `active_date` | `date`, **obligatorio** | Fecha (la que enseña la tarjeta: «Del …») |
+| `exp_date` | de serie (el MCP no lo listó en esta lectura; lo lee el área, `inc/stic-documents.php` l. 36) | Caducidad (el área pinta «Caducado») |
+| `revision` | **obligatorio**, por defecto `1` | Revisión; un archivo nuevo es una revisión nueva |
+| `status_id` | `enum` (len 100) | Estado del documento. **Claves sin leer** (pendiente 8) |
+| `category_id` / `subcategory_id` | `enum` (len 100) | Categoría y subcategoría **de serie de SuiteCRM**. Claves sin leer |
+| `stic_category_c` / `stic_subcategory_c` | `enum` / `dynamicenum` (len 100) | Categoría y subcategoría **de SinergiaCRM**. ⚠️ Hay **dos juegos** de categoría: antes de usar uno, decidir cuál (pendiente 8) |
+| `stic_shared_document_link_c` | `url(255)` | Enlace compartido del documento (el área solo lo lee) |
+| `assigned_user_id` | `relate` | Delegación dueña. ⚠️ El área **no** la escribe al subir: `sticpa_forbidden_fields()` la quita (`inc/stic-security.php` l. 143-150), contra la regla del `CLAUDE.md` («todo lo que se cree en el CRM va asignado a su delegación»). Fallo conocido, 24/10/2026 |
+| `doc_type`, `template_type` | `enum` (`doc_type` por defecto `Sugar`) | De serie, sin uso en el área |
+| `status` | `varchar` | De serie (distinto de `status_id`), sin uso en el área |
+
 **Relaciones con personas (`stic_Contacts_Relationships`)** — la etapa también
 está en [`PASAR-LISTA-CAMPOS-CRM.md`](PASAR-LISTA-CAMPOS-CRM.md)
 
@@ -1340,7 +1387,7 @@ Fuente: https://wiki.sinergiatic.org/index.php?title=Estructura_de_datos:_m%C3%B
 - `stic_acquisition_channel_c` — Canal de adquisición (F2F / Mail / Postal / Web / Móvil / Telemarketing / Evento / Otros) — ⚠️ **NO EXISTE en esta instancia** (verificado el 25/09/2026)
 - `stic_preferred_contact_channel_c` — Canal de contacto favorito (Teléfono fijo / Teléfono móvil / Correo electrónico / Correo postal) — No
 - `stic_alt_address_region_c` — Dirección alternativa - Comunidad autónoma — ⚠️ **NO EXISTE en esta instancia** (verificado el 25/09/2026)
-- `stic_primary_address_region_c` — Dirección principal - Comunidad autónoma — No
+- `stic_primary_address_region_c` — Dirección principal - Comunidad autónoma — **Sí** (corregido el 24/10/2026: lo escribe «Mis datos», `pages/single_stic_comunica_perfil.php`, campo «Comunidad Autónoma»). `enum`, **valor por defecto `valencia`** en la definición: en el CRM unas 1.200 personas tienen valor, y muchas dirán `valencia` sin que nadie lo haya elegido. No sirve para estadísticas sin cruzarlo con la provincia
   - Valores (aplican a ambos campos anteriores): andalucia [Andalucía], aragon [Aragón], canarias [Canarias], cantabria [Cantabria], castilla_leon [Castilla y León], castilla_mancha [Castilla-La Mancha], catalunya [Cataluña], madrid [Comunidad de Madrid], navarra [Comunidad Foral de Navarra], valencia [Comunitat Valenciana], extremadura [Extremadura], galicia [Galicia], baleares [Illes Balears], rioja [La Rioja], pais_vasco [País Vasco], asturias [Principado de Asturias], murcia [Región de Murcia], ceuta [Ciudad Autónoma de Ceuta], melilla [Ciudad Autónoma de Melilla]
 - `stic_alt_address_county_c` — Dirección alternativa - Comarca (Alt Camp / Alt Empordà / Alt Penedès / Alt Urgell / Alta Ribagorça / …) — ⚠️ **NO EXISTE en esta instancia** (verificado el 25/09/2026)
 - `stic_primary_address_county_c` — Dirección principal - Comarca (mismo listado de ejemplo que el anterior) — ⚠️ **NO EXISTE en esta instancia** (verificado el 25/09/2026)
