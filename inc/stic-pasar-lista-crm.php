@@ -5476,6 +5476,44 @@ function sticpa_pl_curso_rank($cursos)
 }
 
 /**
+ * ¿Es un grupo de Apoyo? En el CRM hay dos —«Monitores Apoyo» y «Apoyo»
+ * (código `apoyo`)—, los dos con «pasar lista» apagado: comprobado por MCP el
+ * 25/10/2026. No existe ningún grupo de «refuerzo»: es este mismo concepto.
+ */
+function sticpa_pl_grupo_es_apoyo($nombre)
+{
+    return stripos((string) $nombre, 'apoyo') !== false;
+}
+
+/**
+ * ¿Es un monitor sin grupo de Pasar Lista? Los de Apoyo, los de grupos que no
+ * pasan lista (Najar, Ruah…) y los nuevos sin grupo. A ellos no se les pasa
+ * lista de grupo: la lista semanal los deja «sin marcar» (ver la pantalla de
+ * monitores) y se anota solo si han venido.
+ */
+function sticpa_pl_monitor_sin_grupo_pl($m)
+{
+    return empty($m['groups']) && !empty($m['rel_sin_grupo']);
+}
+
+/**
+ * De joven a mayor por fecha de nacimiento; quien no la tiene, al final y por
+ * apellido. Ya viene en el mapa de relaciones: ordenar no cuesta ni una llamada.
+ */
+function sticpa_pl_cmp_joven_a_mayor($a, $b)
+{
+    $fa = isset($a['birthdate']) ? trim((string) $a['birthdate']) : '';
+    $fb = isset($b['birthdate']) ? trim((string) $b['birthdate']) : '';
+    if ($fa !== '' && $fb !== '' && $fa !== $fb) {
+        return strcmp($fb, $fa);   // AAAA-MM-DD: la más reciente (más joven) primero
+    }
+    if (($fa === '') !== ($fb === '')) {
+        return ($fa === '') ? 1 : -1;
+    }
+    return sticpa_pl_cmp_person($a, $b);
+}
+
+/**
  * Los monitores que ve coordinación: la regla, en UN sitio (lista, ficha y
  * Mis grupos). Los de los grupos de su alcance y, si coordina TODA la
  * delegación, también los que tienen la relación de monitor sin un grupo de la
@@ -5483,6 +5521,9 @@ function sticpa_pl_curso_rank($cursos)
  */
 function sticpa_pl_coord_monitors($objSCP, $scope)
 {
+    // Los de Apoyo entran para CUALQUIER alcance (25/10/2026): son de todas las
+    // etapas, y cada coordinación quiere tenerlos a mano. Los demás sin grupo
+    // de Pasar Lista, solo para quien coordina toda la delegación (abajo).
     $todaLaDelegacion = is_array($scope)
         && (!isset($scope['etapa']) || $scope['etapa'] === '')
         && (!isset($scope['segmento']) || $scope['segmento'] === '');
@@ -5501,7 +5542,13 @@ function sticpa_pl_coord_monitors($objSCP, $scope)
  */
 function sticpa_pl_monitors_of($objSCP, $groups, $sinGrupo = false)
 {
-    $grupoDeLaDelegacion = $sinGrupo ? sticpa_pl_groups($objSCP) : array();
+    // Siempre: sin él no se distingue «Apoyo» (un grupo que no pasa lista) de un
+    // grupo real de otra etapa. Sin llamada nueva: `sticpa_pl_scoped_groups()`
+    // ya la ha pedido.
+    $grupoDeLaDelegacion = sticpa_pl_groups($objSCP);
+    // Quien tiene un grupo REAL fuera del alcance: no es «de Apoyo» para esta
+    // coordinación aunque además ayude en Apoyo.
+    $conGrupoReal = array();
     // UNA pasada por el mapa de relaciones, no una consulta por grupo.
     //
     // Antes esto llamaba a sticpa_pl_group_people() por cada grupo del alcance.
@@ -5525,7 +5572,17 @@ function sticpa_pl_monitors_of($objSCP, $groups, $sinGrupo = false)
             // la pantalla lo pone en «Sin grupo». Si luego aparece otra relación
             // suya con grupo, esa rellena la etapa y el curso.
             $id = $rel['person']['id'];
-            if ($sinGrupo && !isset($out[$id]) && ($gid === '' || !isset($grupoDeLaDelegacion[$gid]))) {
+            $sinGrupoPl = ($gid === '' || !isset($grupoDeLaDelegacion[$gid]));
+            if (!$sinGrupoPl) {
+                $conGrupoReal[$id] = true;
+            }
+            $esApoyo = ($sinGrupoPl && $gid !== '' && sticpa_pl_grupo_es_apoyo($rel['group_name']));
+            if ($sinGrupoPl && isset($out[$id]) && $esApoyo && empty($out[$id]['groups'])
+                && isset($out[$id]['rel_sin_grupo']) && !sticpa_pl_grupo_es_apoyo($out[$id]['grupo_fuera'])) {
+                // Ayuda en Apoyo Y tiene otro grupo que no pasa lista: manda Apoyo.
+                $out[$id]['grupo_fuera'] = trim(preg_replace('/\s+/', ' ', (string) $rel['group_name']));
+            }
+            if (($sinGrupo || $esApoyo) && !isset($out[$id]) && $sinGrupoPl) {
                 $out[$id] = $rel['person'];
                 $out[$id]['groups'] = array();
                 $out[$id]['etapa'] = '';
@@ -5583,6 +5640,16 @@ function sticpa_pl_monitors_of($objSCP, $groups, $sinGrupo = false)
             // del mismo grupo tienen que salir seguidos, que es como se piensan
             // («los de C1») y como se reparten las tareas de un sábado.
             $out[$id]['grupo'] = $code;
+        }
+    }
+
+    // Con un alcance menor que la delegación, quien solo estaba por Apoyo pero
+    // lleva un grupo real de OTRA etapa no es de esta coordinación.
+    if (!$sinGrupo) {
+        foreach ($out as $id => $m) {
+            if (empty($m['groups']) && isset($conGrupoReal[$id])) {
+                unset($out[$id]);
+            }
         }
     }
 
@@ -5899,7 +5966,14 @@ function sticpa_pl_save_monitors($objSCP, $sessionId, $monitors, $marks, &$regMa
     // es una afirmación y no un hueco.
     $efectivas = array();
     foreach ($monitors as $m) {
-        $key = (isset($marks[$m['id']]) && sticpa_pl_is_state($marks[$m['id']]))
+        $marcado = (isset($marks[$m['id']]) && sticpa_pl_is_state($marks[$m['id']]));
+        // Un monitor `opcional` (sin grupo de Pasar Lista: Apoyo, Najar, Ruah…)
+        // sin marca NO es «vino»: no se espera que venga, y la noticia es saber
+        // quién ha venido. Sin marca no se escribe nada ni cuenta en los números.
+        if (!$marcado && !empty($m['opcional'])) {
+            continue;
+        }
+        $key = $marcado
             ? $marks[$m['id']]
             : 'yes';                    // el defecto es verde, y se escribe
         $efectivas[$m['id']] = $key;

@@ -377,7 +377,17 @@
         // sticpa_pl_next_state_monitor() en PHP.
         var IS_MONITORS = root.hasAttribute('data-pl-monitores');
 
-        function nextState(current) {
+        function nextState(current, row) {
+            // Monitor sin grupo de Pasar Lista (`data-optional`): arranca sin
+            // marcar y SÍ existe el «sin marcar»: - → vino → no vino → -.
+            if (IS_MONITORS && row && row.hasAttribute('data-optional')) {
+                switch (current) {
+                    case '': return 'yes';
+                    case 'yes': return 'no_unjustified';
+                    case 'no_unjustified': return '';
+                    default: return 'yes';
+                }
+            }
             if (IS_MONITORS) {
                 return (current === 'no_unjustified') ? 'yes' : 'no_unjustified';
             }
@@ -763,14 +773,14 @@
                     consumed = false;
                     return;
                 }
-                setState(row, nextState(getState(row)));
+                setState(row, nextState(getState(row), row));
             });
 
             // Teclado: espacio y enter ciclan; la tecla de menú abre los cuatro.
             row.addEventListener('keydown', function (ev) {
                 if (ev.key === ' ' || ev.key === 'Enter') {
                     ev.preventDefault();
-                    setState(row, nextState(getState(row)));
+                    setState(row, nextState(getState(row), row));
                 } else if (ev.key === 'ContextMenu' || (ev.shiftKey && ev.key === 'F10')) {
                     ev.preventDefault();
                     openSheet(row);
@@ -1185,7 +1195,8 @@
                         if (motive) { motive.value = ''; }
                         // En monitores no existe «sin marcar»: quitar la marca
                         // es volver al verde, que es lo que se guardaría igual.
-                        setState(sheetRow, IS_MONITORS ? 'yes' : '');
+                        // (salvo en los sin grupo de Pasar Lista, que arrancan sin marcar).
+                        setState(sheetRow, (IS_MONITORS && !sheetRow.hasAttribute('data-optional')) ? 'yes' : '');
                         paintNote(sheetRow);
                     }
                     closeSheet(0);

@@ -499,7 +499,7 @@ function sticpa_pl_pager_html($vecinos, $href)
  * porqué tiene que verse sin abrir nada. En la de los chavales no, por ahora:
  * tiene su diseño medido y ahí el motivo pesa menos (26/09/2026).
  */
-function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub = '', $motive = '', $aviso = '', $track = null, $motiveEnNota = false, $marcas = array())
+function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub = '', $motive = '', $aviso = '', $track = null, $motiveEnNota = false, $marcas = array(), $opcional = false)
 {
     $states = sticpa_pl_states();
     $state = sticpa_pl_is_state($state) ? $state : '';
@@ -547,6 +547,9 @@ function sticpa_pl_row_html($person, $state, $streak = 0, $fichaUrl = '', $sub =
         . ' data-warn="' . esc_attr($warn) . '"'
         . ' data-motive="' . esc_attr($motive) . '"'
         . ($motiveEnNota ? ' data-motive-note' : '')
+        // Monitor sin grupo de Pasar Lista: arranca sin marcar y el toque solo
+        // anota si ha venido (el JS cicla «- → vino → no vino → -»).
+        . ($opcional ? ' data-optional' : '')
         . ' data-name="' . esc_attr($person['name']) . '"'
         . ' data-initials="' . esc_attr($person['initials']) . '"'
         . ' data-label-partial="' . esc_attr($states['partial']['label']) . '"'
@@ -1720,7 +1723,7 @@ function sticpa_pl_directorio_monitores_html($monitors, $groups, $puedoVincular,
             if (!empty($m['grupo_fuera'])) {
                 // Apoyo se destaca: coordinación quiere tener su ficha a mano.
                 // Los demás (Jaire, Ruah, Ohana…) ya se gestionan solos.
-                if (stripos($m['grupo_fuera'], 'apoyo') !== false) {
+                if (sticpa_pl_grupo_es_apoyo($m['grupo_fuera'])) {
                     $apoyo[] = $m;
                 } else {
                     $fueraDePl[] = $m;
