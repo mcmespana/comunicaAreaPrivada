@@ -98,6 +98,12 @@ class FakeSCP
      *  («⚠️ Grupo COM-LC - POR DEFINIR!»), que no es de la delegación: como
      *  llegaban Mencía Saiz y Ana Pardo el 26/09/2026. */
     public $conComodin = false;
+    /** Un adulto de COM-LC (`grupo`) colgado de un grupo de laicos que no pasa lista. */
+    public $conLaicoFuera = false;
+    /** Monitores que no van por grupos de Pasar Lista (25/10/2026): m20 y m21
+     *  de «Monitores Apoyo», m22 de «Najar» (no pasa lista) y m23 de Apoyo que
+     *  además lleva el grupo real g3 (MIC). Con fecha de nacimiento, salvo m21. */
+    public $conApoyo = false;
 
     /** Cuando es true, la delegación tiene además EVENTOS de salida (pasar
      *  lista en el autobús, inc/stic-pasar-lista-eventos.php): una convivencia
@@ -589,8 +595,38 @@ class FakeSCP
                     'grupo' => array('id' => 'g3', 'name' => 'Los Micos'),
                     'persona' => array('id' => 'm1', 'name' => 'David Soler', 'first_name' => 'David', 'last_name' => 'Soler'),
                 ) : null,
+                $this->conLaicoFuera ? array(
+                    'fields' => array('id' => 'r31', 'relationship_type' => 'grupo', 'end_date' => ''),
+                    'grupo' => array('id' => 'g-ohana', 'name' => 'Ohana'),
+                    'persona' => array('id' => 'c31', 'name' => 'Sara Laica', 'first_name' => 'Sara', 'last_name' => 'Laica'),
+                ) : null,
+                $this->conApoyo ? array(
+                    'fields' => array('id' => 'r40', 'relationship_type' => 'monitor', 'end_date' => ''),
+                    'grupo' => array('id' => 'g-apoyo', 'name' => 'Monitores Apoyo'),
+                    'persona' => array('id' => 'm20', 'name' => 'Ana Apoyo', 'first_name' => 'Ana', 'last_name' => 'Apoyo', 'birthdate' => '2000-05-01'),
+                ) : null,
+                $this->conApoyo ? array(
+                    'fields' => array('id' => 'r41', 'relationship_type' => 'monitor', 'end_date' => ''),
+                    'grupo' => array('id' => 'g-apoyo', 'name' => 'Monitores Apoyo'),
+                    'persona' => array('id' => 'm21', 'name' => 'Bea Sinfecha', 'first_name' => 'Bea', 'last_name' => 'Sinfecha'),
+                ) : null,
+                $this->conApoyo ? array(
+                    'fields' => array('id' => 'r42', 'relationship_type' => 'monitor', 'end_date' => ''),
+                    'grupo' => array('id' => 'g-apoyo', 'name' => 'Monitores Apoyo'),
+                    'persona' => array('id' => 'm23', 'name' => 'Cris Doble', 'first_name' => 'Cris', 'last_name' => 'Doble', 'birthdate' => '2004-03-02'),
+                ) : null,
+                $this->conApoyo ? array(
+                    'fields' => array('id' => 'r43', 'relationship_type' => 'monitor', 'end_date' => ''),
+                    'grupo' => array('id' => 'g3', 'name' => 'Los Micos'),
+                    'persona' => array('id' => 'm23', 'name' => 'Cris Doble', 'first_name' => 'Cris', 'last_name' => 'Doble', 'birthdate' => '2004-03-02'),
+                ) : null,
+                $this->conApoyo ? array(
+                    'fields' => array('id' => 'r44', 'relationship_type' => 'monitor', 'end_date' => ''),
+                    'grupo' => array('id' => 'g-najar', 'name' => 'Najar'),
+                    'persona' => array('id' => 'm22', 'name' => 'Dani Najar', 'first_name' => 'Dani', 'last_name' => 'Najar', 'birthdate' => '1995-01-10'),
+                ) : null,
                 $this->conComodin ? array(
-                    'fields' => array('id' => 'r30', 'relationship_type' => 'grupo', 'end_date' => ''),
+                    'fields' => array('id' => 'r30', 'relationship_type' => 'participante_mic_com', 'end_date' => ''),
                     'grupo' => array('id' => 'g-comodin', 'name' => '⚠️ Grupo COM-LC - POR DEFINIR!'),
                     'persona' => array('id' => 'c30', 'name' => 'Mencia Saiz', 'first_name' => 'Mencia', 'last_name' => 'Saiz'),
                 ) : null,
@@ -4099,7 +4135,9 @@ final class PasarListaRenderTest extends TestCase
         $_POST = array(
             'pl_action' => 'save',
             'pl_nonce' => wp_create_nonce('pl_monitores'),
-            'pl_marks' => json_encode(array()),
+            // m9 no tiene grupo de Pasar Lista: sin marca no se escribe (25/10/2026),
+            // así que se marca para que siga habiendo tres altas que agrupar.
+            'pl_marks' => json_encode(array('m9' => 'yes')),
         );
         $html = $this->render('single_stic_pasar_lista_monitores');
 
@@ -4242,6 +4280,110 @@ final class PasarListaRenderTest extends TestCase
         $this->scp->coordEtapa = 'COM';
         $html = $this->render('single_stic_pasar_lista_monitores');
         $this->assertStringNotContainsString('data-contact="m9"', $html);
+    }
+
+    /**
+     * Quien no va por grupos de Pasar Lista (Apoyo, Najar…) sale al final y SIN
+     * MARCAR, no en verde: no se espera que venga, y la noticia es saber si ha
+     * venido (25/10/2026). Apoyo, desplegado; los demás, plegados en «Otros
+     * monitores»; de joven a mayor, y sin fecha al final.
+     */
+    public function test_monitores_sin_grupo_de_pasar_lista_salen_sin_marcar_y_al_final()
+    {
+        $this->scp->coordEtapa = '';
+        $this->scp->conApoyo = true;
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        foreach (array('m20', 'm21', 'm22', 'm9') as $id) {
+            $this->assertMatchesRegularExpression(
+                '/<button[^>]*data-state=""[^>]*data-contact="' . $id . '"[^>]*data-optional|<button[^>]*data-contact="' . $id . '"[^>]*data-optional/',
+                $html,
+                $id . ' arranca sin marcar'
+            );
+            $this->assertDoesNotMatchRegularExpression('/data-state="yes"[^>]*data-contact="' . $id . '"/', $html);
+        }
+        // Los de un grupo de Pasar Lista siguen en verde, sin `data-optional`.
+        $this->assertMatchesRegularExpression('/data-state="yes"[^>]*data-contact="m1"/', $html);
+        $this->assertDoesNotMatchRegularExpression('/data-contact="m1"[^>]*data-optional/', $html);
+
+        // Ya no hay sección «Sin etapa».
+        $this->assertStringNotContainsString('Sin etapa', $html);
+        // Apoyo desplegado (no está dentro de ningún <details>) y m22, plegado.
+        $posApoyo = strpos($html, 'pl-etapa-title"><span class="pl-etapa-dot" style="background:var(--gray-300)"></span>Apoyo');
+        $posOtros = strpos($html, '<details class="pl-fold pl-evmon"><summary class="pl-fold-sum pl-evmon-sum"><span class="pl-evmon-tit">Otros monitores');
+        $this->assertNotFalse($posApoyo);
+        $this->assertNotFalse($posOtros);
+        $this->assertLessThan($posOtros, $posApoyo);
+        $this->assertGreaterThan(strpos($html, 'data-contact="m10"'), $posApoyo, 'Apoyo va después de las etapas');
+        $this->assertSame(0, substr_count(substr($html, $posApoyo, $posOtros - $posApoyo), '<details'));
+        $this->assertGreaterThan($posOtros, strpos($html, 'data-contact="m22"'));
+        $this->assertGreaterThan($posOtros, strpos($html, 'data-contact="m9"'));
+        // De joven a mayor: Cris (2004) no es de Apoyo aquí (lleva g3), Ana (2000)
+        // antes que Bea (sin fecha).
+        $this->assertLessThan(strpos($html, 'data-contact="m21"'), strpos($html, 'data-contact="m20"'));
+        // Y dicen de qué grupo son, no «Sin grupo asignado».
+        $this->assertStringContainsString('<span class="pl-rowsub">Monitores Apoyo</span>', $html);
+        $this->assertStringContainsString('<span class="pl-rowsub">Najar</span>', $html);
+    }
+
+    /** Sin marca no se escribe nada (ni «vino») ni cuentan en los números. */
+    public function test_guardar_no_escribe_a_los_monitores_sin_grupo_de_pasar_lista_sin_marca()
+    {
+        $this->scp->coordEtapa = '';
+        $this->scp->conApoyo = true;
+        $this->scp->monitorSinInscripcion = true;
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_monitores'),
+            'pl_marks' => json_encode(array('m20' => 'yes')),
+        );
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        $altas = array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Attendances' && !isset($w['data']['id']);
+        });
+        // m1, m10, m23 (los de grupo, en verde) + m20 (marcado). NO m21, m22, m9.
+        $this->assertCount(4, $altas);
+        $this->assertStringContainsString('data-pl-saved-ok', $html);
+        $listas = array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'LIS_listas';
+        });
+        $lista = array_values($listas);
+        $this->assertSame(4, (int) $lista[0]['data']['n_asistieron']);
+        $this->assertSame(0, (int) $lista[0]['data']['n_faltaron']);
+    }
+
+    /**
+     * Apoyo es de todas las etapas: lo ve también quien coordina solo una. Los
+     * demás sin grupo de Pasar Lista (Najar, comodín) no. Y quien lleva un
+     * grupo real de OTRA etapa no es «de Apoyo» para esa coordinación.
+     */
+    public function test_los_de_apoyo_salen_a_quien_coordina_una_etapa()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $this->scp->conApoyo = true;
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        $this->assertStringContainsString('data-contact="m20"', $html);
+        $this->assertStringContainsString('data-contact="m21"', $html);
+        $this->assertStringNotContainsString('data-contact="m22"', $html, 'Najar no pasa lista ni es Apoyo');
+        $this->assertStringNotContainsString('data-contact="m9"', $html);
+        $this->assertStringNotContainsString('data-contact="m23"', $html, 'lleva un grupo de MIC');
+        $this->assertStringNotContainsString('Otros monitores', $html);
+    }
+
+    /** En una reunión se espera a todos: nada cambia (siguen en verde). */
+    public function test_en_una_reunion_los_monitores_sin_grupo_siguen_en_verde()
+    {
+        $this->scp->coordEtapa = '';
+        $this->scp->conApoyo = true;
+        $_REQUEST = array('reunion' => '1', 'sesion' => 'ru2');
+        $html = $this->render('single_stic_pasar_lista_monitores');
+
+        $this->assertMatchesRegularExpression('/data-state="yes"[^>]*data-contact="m20"/', $html);
+        $this->assertStringNotContainsString('data-optional', $html);
+        $this->assertStringNotContainsString('Otros monitores', $html);
     }
 
     /** En una reunión, el título es la reunión. */
@@ -5719,6 +5861,21 @@ final class PasarListaRenderTest extends TestCase
         $this->assertNotContains('Un Monitor', $nombres);
         // Ni los que si tienen grupo.
         $this->assertNotContains('Solete Vilarroya', $nombres);
+    }
+
+    /**
+     * Un adulto de COM-LC (`grupo`) sin grupo de Pasar Lista NO es un
+     * participante sin grupo: cuelga de un grupo de laicos que no pasa lista.
+     * Eran casi todos los 148 «sin grupo asignado» de Castellón (23/10/2026).
+     */
+    public function testUnAdultoDeComLcNoEsUnParticipanteSinGrupo()
+    {
+        $this->scp->conComodin = true;
+        $this->scp->conLaicoFuera = true;
+        $nombres = array_column(sticpa_pl_participants_without_group($this->scp), 'name');
+        $this->assertNotContains('Sara Laica', $nombres);
+        // El comodín sigue contando para un participante MIC-COM.
+        $this->assertContains('Mencia Saiz', $nombres);
     }
 
     /**

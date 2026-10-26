@@ -51,6 +51,21 @@ $sessionId = isset($_REQUEST['sesion']) ? sticpa_pl_safe_id($_REQUEST['sesion'])
 
 $monitors = sticpa_pl_coord_monitors($objSCP, $scope);
 
+/* LOS QUE NO VAN POR GRUPOS (25/10/2026). Quien no cuelga de un grupo de Pasar
+ * Lista —Apoyo, Najar, Ruah… o un monitor nuevo sin grupo— salía en «Sin etapa»
+ * y en verde, como si fuera a venir. No: no se les pasa lista, y la noticia es
+ * saber si han venido. Así que arrancan SIN MARCAR («-») y no cuentan ni en los
+ * números ni en el guardado hasta que se toquen (`opcional`, ver
+ * sticpa_pl_save_monitors()). Solo en la lista semanal: a una reunión de
+ * programación se espera que vengan todos. */
+if (!$isReunion) {
+    foreach ($monitors as $i => $m) {
+        if (sticpa_pl_monitor_sin_grupo_pl($m)) {
+            $monitors[$i]['opcional'] = true;
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // De qué evento y qué sesión
 // ---------------------------------------------------------------------------
@@ -265,6 +280,9 @@ if ($seguimientoOn) {
         }
     }
     foreach ($monitors as $m) {
+        if (!empty($m['opcional'])) {
+            continue;   // sin grupo de Pasar Lista: ni porcentaje ni aviso rojo
+        }
         $marks = isset($porPersona[$m['id']]) ? $porPersona[$m['id']] : array();
         // El track entero, no solo el aviso: la fila enseña además el
         // porcentaje en pequeño, y calcularlo dos veces sería tirar el trabajo.
@@ -424,10 +442,24 @@ $html .= '<input type="hidden" name="pl_notes" value="" data-pl-notes>';
 $etapaDots = array('MIC' => 'var(--danger-color)', 'COM' => 'var(--success-color)', 'LC' => 'var(--primary-color)');
 
 $porEtapa = array();
+$deApoyo = array();
+$deOtros = array();
 foreach ($monitors as $m) {
+    if (!empty($m['opcional'])) {
+        // Aparte: Apoyo desplegado al final, y los demás plegados (abajo).
+        if (sticpa_pl_grupo_es_apoyo(isset($m['grupo_fuera']) ? $m['grupo_fuera'] : '')) {
+            $deApoyo[] = $m;
+        } else {
+            $deOtros[] = $m;
+        }
+        continue;
+    }
     $etapa = (isset($m['etapa']) && $m['etapa'] !== '') ? $m['etapa'] : '?';
     $porEtapa[$etapa][] = $m;
 }
+// De joven a mayor (la fecha ya viene con la relación: ni una llamada más).
+usort($deApoyo, 'sticpa_pl_cmp_joven_a_mayor');
+usort($deOtros, 'sticpa_pl_cmp_joven_a_mayor');
 
 /* QUIÉN FALTA DE CADA SECCIÓN, Y POR QUÉ.
  *
@@ -529,6 +561,53 @@ foreach ($conFilas as $etapa) {
         $html .= sticpa_pl_row_html($m, $state, 0, $fichaUrl, $sub, $motive, $aviso, $track, true);
     }
     $html .= '</div>';
+}
+
+/* APOYO Y OTROS MONITORES, AL FINAL. «-» por defecto: toca para anotar que
+ * han venido (- → vino → no vino → -). Apoyo va desplegado, para todas las
+ * coordinaciones; los de grupos que no pasan lista, plegados. */
+$filaOpcional = function ($m) use ($attendances) {
+    $state = isset($attendances[$m['id']]['status']) ? (string) $attendances[$m['id']]['status'] : '';
+    $fuera = isset($m['grupo_fuera']) ? (string) $m['grupo_fuera'] : '';
+    $sub = ($fuera !== '') ? $fuera : __('Sin grupo asignado', 'sticpa');
+    $motive = isset($attendances[$m['id']]['description']) ? (string) $attendances[$m['id']]['description'] : '';
+    return sticpa_pl_row_html(
+        $m, $state, 0,
+        '?internalpage=single_stic_pasar_lista_monitor&monitor=' . rawurlencode($m['id']),
+        $sub, $motive, '', null, true, array(), true
+    );
+};
+$pistaOpcional = '<p class="pl-hint pl-hint--rule"><span>'
+    . esc_html__('No se les pasa lista: salen con «-». Toca solo si han venido.', 'sticpa') . '</span></p>';
+
+if (!empty($deApoyo)) {
+    $html .= '<div class="pl-etapa-title">'
+        . '<span class="pl-etapa-dot" style="background:var(--gray-300)"></span>'
+        . esc_html__('Apoyo', 'sticpa')
+        . '<span class="pl-etapa-count">' . esc_html(sprintf(
+            /* translators: %d: cuántos monitores de apoyo hay */
+            _n('%d monitor', '%d monitores', count($deApoyo), 'sticpa'),
+            count($deApoyo)
+        )) . '</span></div>';
+    $html .= $pistaOpcional;
+    $html .= '<div class="pl-list">';
+    foreach ($deApoyo as $m) {
+        $html .= $filaOpcional($m);
+    }
+    $html .= '</div>';
+}
+
+if (!empty($deOtros)) {
+    $html .= '<details class="pl-fold pl-evmon">'
+        . '<summary class="pl-fold-sum pl-evmon-sum">'
+        . '<span class="pl-evmon-tit">' . esc_html__('Otros monitores', 'sticpa') . '</span>'
+        . '<span class="pl-etapa-count">' . esc_html(count($deOtros)) . '</span></summary>';
+    $html .= $pistaOpcional;
+    $html .= '<div class="pl-list">';
+    foreach ($deOtros as $m) {
+        $html .= $filaOpcional($m);
+    }
+    $html .= '</div></details>';
 }
 
 $html .= sticpa_pl_legend_html(true);

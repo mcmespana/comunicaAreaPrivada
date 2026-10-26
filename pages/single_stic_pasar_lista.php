@@ -104,6 +104,8 @@ $html .= '</div>';
 $html .= '<a class="pl-session-pick" href="?internalpage=single_stic_pasar_lista&refrescar=1"'
     . ' aria-label="' . esc_attr__('Refrescar datos', 'sticpa') . '">' . sticpa_pl_icon('refresh') . '</a>';
 $html .= '</div>';
+// Quien colabora con otra delegación elige aquí con cuál trabaja.
+$html .= sticpa_pl_deleg_switch_html($objSCP, 'single_stic_pasar_lista');
 
 // Lo que se quedó en el móvil sin enviar (plan 042, PL-9). Lo rellena el JS.
 $html .= sticpa_pl_queue_notice_html();

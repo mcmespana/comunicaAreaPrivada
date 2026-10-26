@@ -102,6 +102,13 @@ contexto**. Reglas:
   compara a mano (`assigned_user_id`, ver `sticpa_pl_delegation()`). Da por
   hecho lo contrario y dejarás una pantalla abierta a otras delegaciones —le
   pasó a «Eventos» hasta el 09/09/2026—.
+- **La delegación de TRABAJO no es siempre la de la ficha** (23/10/2026): quien
+  colabora con otra delegación (monitor, coordinación o acompañamiento vigente
+  asignado a ella) la elige en un selector, y `sticpa_pl_delegation()` devuelve
+  esa. Lo personal (eventos, inscripciones, pagos) usa
+  `sticpa_pl_home_delegation()`. Y la coordinación de una delegación no vale en
+  otra. Ver «Varias delegaciones» en
+  [`docs/comunica/PASAR-LISTA-COORDINACION.md`](docs/comunica/PASAR-LISTA-COORDINACION.md).
 - **Un handler nuevo pasa por [`inc/stic-security.php`](inc/stic-security.php)**
   (planes 001-005, 24/09/2026): `sticpa_require_session()` lo primero,
   `sticpa_user_owns_record()` para cualquier `id` que llegue en la petición,

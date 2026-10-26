@@ -157,8 +157,8 @@ if ($paymentId !== '') {
 // EL DUEÑO: el del pago o el del evento (quien organiza, plan 041 D-1). Si no
 // se sabe, la delegación de quien paga; y solo como último recurso el
 // «Administrador MCM».
-if ($assignedUserId === '' && function_exists('sticpa_pl_delegation')) {
-    $assignedUserId = (string) sticpa_pl_delegation($objSCP);
+if ($assignedUserId === '' && function_exists('sticpa_pl_home_delegation')) {
+    $assignedUserId = (string) sticpa_pl_home_delegation($objSCP);
 }
 if ($assignedUserId === '') {
     $assignedUserId = '1';
