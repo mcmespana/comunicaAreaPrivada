@@ -1084,6 +1084,12 @@ function sugar_crm_portal_index($html = "")
     $html .= menu();
 
     $pageFile = sticpa_resolve_page_file($currentPage);
+    // Las páginas del equipo de monitores comprueban el papel AQUÍ, en el
+    // servidor, y no solo en el menú (inc/stic-equipo.php).
+    if ($pageFile !== '' && function_exists('sticpa_equipo_puede_abrir') && !sticpa_equipo_puede_abrir($currentPage)) {
+        $html .= sticpa_equipo_puerta_cerrada_html();
+        $pageFile = '';
+    }
     if ($pageFile !== '') {
         ob_start();
         include $pageFile;
