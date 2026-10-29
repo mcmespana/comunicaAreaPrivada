@@ -426,4 +426,77 @@ class EquipoTest extends TestCase
         // Lo suyo sigue estando.
         $this->assertArrayHasKey('list_stic_events', $items);
     }
+
+    // -----------------------------------------------------------------
+    // La puerta del servidor (28/10/2026): no basta con esconder el menú
+    // -----------------------------------------------------------------
+
+    /** Todas las páginas del equipo que hay hoy en pages/. */
+    private function paginasDelEquipo(): array
+    {
+        $out = array();
+        foreach (glob(__DIR__ . '/../pages/*.php') as $f) {
+            $page = basename($f, '.php');
+            if (sticpa_equipo_es_pagina_del_equipo($page)) {
+                $out[] = $page;
+            }
+        }
+        return $out;
+    }
+
+    public function test_las_paginas_del_equipo_son_las_de_pasar_lista_grupos_y_coordinacion(): void
+    {
+        $paginas = $this->paginasDelEquipo();
+        foreach (array('single_stic_pasar_lista', 'single_stic_pasar_lista_marcar', 'single_stic_pasar_lista_ficha',
+            'single_stic_pasar_lista_evento', 'single_stic_pasar_lista_grupos', 'single_stic_mis_grupos',
+            'single_stic_coordinacion') as $page) {
+            $this->assertContains($page, $paginas);
+        }
+        // Lo de las familias y los datos propios de monitor quedan fuera.
+        foreach (array('single_stic_home', 'list_stic_events', 'single_stic_profile', 'single_stic_comunica_monitor') as $page) {
+            $this->assertFalse(sticpa_equipo_es_pagina_del_equipo($page), $page);
+        }
+    }
+
+    public function test_una_familia_no_abre_ninguna_pagina_del_equipo_aunque_escriba_la_url(): void
+    {
+        $this->conRelacion('^grupo^');
+        foreach ($this->paginasDelEquipo() as $page) {
+            $this->assertFalse(sticpa_equipo_puede_abrir($page), $page);
+        }
+        $this->assertTrue(sticpa_equipo_puede_abrir('single_stic_home'));
+        $this->assertTrue(sticpa_equipo_puede_abrir('list_stic_events'));
+    }
+
+    public function test_monitor_coordinacion_y_acompanamiento_abren_las_paginas_del_equipo(): void
+    {
+        foreach (array('^grupo^,^monitor^', '^coordinacion_mic_com^', '^acompanamiento_mic_com^') as $raw) {
+            $this->conRelacion($raw);
+            foreach ($this->paginasDelEquipo() as $page) {
+                $this->assertTrue(sticpa_equipo_puede_abrir($page), "{$raw} → {$page}");
+            }
+        }
+    }
+
+    public function test_un_monitor_viendo_a_su_hijo_tampoco_abre_y_se_le_dice_como_volver(): void
+    {
+        $this->conRelacion('^grupo^,^monitor^');
+        $GLOBALS['__stic_filters']['sticpa_profile_audience'] = 'participante';
+        $this->assertFalse(sticpa_equipo_puede_abrir('single_stic_pasar_lista_marcar'));
+        // Siempre con una salida: cambiar de perfil (viendo a un hijo) o el inicio.
+        $this->assertStringContainsString("<a href='?", sticpa_equipo_puerta_cerrada_html());
+    }
+
+    public function test_el_enrutador_pregunta_a_la_puerta_antes_de_incluir(): void
+    {
+        // El archivo principal no se puede cargar sin WordPress: se comprueba
+        // que la llamada sigue ahí, entre resolver la página y el include.
+        $src = file_get_contents(__DIR__ . '/../sinergiacrm-private-area.php');
+        $resolver = strpos($src, '$pageFile = sticpa_resolve_page_file($currentPage);');
+        $puerta = strpos($src, 'sticpa_equipo_puede_abrir($currentPage)');
+        $include = strpos($src, 'include $pageFile;');
+        $this->assertNotFalse($resolver);
+        $this->assertNotFalse($puerta, 'el enrutador ya no pregunta a sticpa_equipo_puede_abrir()');
+        $this->assertTrue($resolver < $puerta && $puerta < $include, 'la puerta tiene que ir antes del include');
+    }
 }
