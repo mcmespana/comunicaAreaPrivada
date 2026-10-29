@@ -465,13 +465,22 @@ function sticpa_pl_ttl_structure()
     // media tarde del sábado — justo cuando se usa. El calentado nocturno la
     // deja hecha cada madrugada, y el botón de refrescar sigue estando para
     // quien acaba de tocar el CRM y quiere verlo ya.
-    return (int) apply_filters('sticpa_pl_ttl_structure', 24 * HOUR_IN_SECONDS);
+    //
+    // Con el middleware (inc/stic-middleware.php), 1 h: la base contesta en
+    // décimas y así lo que se toca en el CRM se ve el mismo día sin pulsar
+    // refrescar (decisión `cache-plugin` del plan del middleware).
+    $ttl = (function_exists('sticpa_mw_on') && sticpa_mw_on()) ? HOUR_IN_SECONDS : 24 * HOUR_IN_SECONDS;
+    return (int) apply_filters('sticpa_pl_ttl_structure', $ttl);
 }
 
 /** TTL del estado: cambia cada sábado y se invalida al guardar. */
 function sticpa_pl_ttl_state()
 {
-    return (int) apply_filters('sticpa_pl_ttl_state', 5 * MINUTE_IN_SECONDS);
+    // Con el middleware, casi sin caché: 30 s, lo justo para no repetir la misma
+    // lectura varias veces al pintar UNA pantalla (sticpa_pl_lista() pide el
+    // índice de listas una vez por grupo). Guardar la tira igual.
+    $ttl = (function_exists('sticpa_mw_on') && sticpa_mw_on()) ? 30 : 5 * MINUTE_IN_SECONDS;
+    return (int) apply_filters('sticpa_pl_ttl_state', $ttl);
 }
 
 /**
@@ -484,6 +493,21 @@ function sticpa_pl_ttl_state()
 function sticpa_pl_collecting()
 {
     return class_exists('SugarRestApiCall') && SugarRestApiCall::isCollecting();
+}
+
+/**
+ * Las filas de un cargador por el middleware (inc/stic-middleware.php), con la
+ * forma de la API, o null si hay que leerlo por la API como siempre.
+ */
+function sticpa_pl_mw($objSCP, $recurso, $params = array())
+{
+    return function_exists('sticpa_mw_rows') ? sticpa_mw_rows($objSCP, $recurso, $params) : null;
+}
+
+/** ¿La última lectura de ese recurso salió del middleware? Entonces sobran los respaldos de la API. */
+function sticpa_pl_mw_ultimo($recurso)
+{
+    return function_exists('sticpa_mw_ultimo') && sticpa_mw_ultimo($recurso);
 }
 
 /**
@@ -514,14 +538,23 @@ function sticpa_pl_prime($objSCP, callable $cargadores)
         || !method_exists($objSCP, 'callMany')) {
         return 0;
     }
-    if (class_exists('SugarRestApiCall') && !SugarRestApiCall::supportsMulti()) {
-        return 0;
-    }
-    if (!apply_filters('sticpa_pl_paralelo', true)) {
+    // Lo que va por el middleware sale en UNA petición aunque el hosting no
+    // sepa paralelizar: la recolecta se hace igual.
+    $mw = function_exists('sticpa_mw_on') && sticpa_mw_on();
+    $multi = (!class_exists('SugarRestApiCall') || SugarRestApiCall::supportsMulti())
+        && apply_filters('sticpa_pl_paralelo', true);
+    if (!$mw && !$multi) {
         return 0;
     }
     $peticiones = $objSCP->collectRequests($cargadores);
-    if (count($peticiones) < 2) {
+    // Los cargadores que van por el middleware han apuntado su recurso en vez
+    // de una consulta a la API: va todo en un lote. Si el lote falla entero, se
+    // recolecta otra vez —ahora el middleware ya no se intenta— y la tanda sale
+    // por la API como siempre.
+    if ($mw && !sticpa_mw_flush_pending()) {
+        $peticiones = $objSCP->collectRequests($cargadores);
+    }
+    if (!$multi || count($peticiones) < 2) {
         return 0;   // una sola consulta no gana nada por ir «en paralelo»
     }
     return (int) $objSCP->callMany($peticiones);
@@ -597,6 +630,9 @@ function sticpa_pl_flush($objSCP = null, $scope = 'state')
     // con las 24 h por delante.
     if (class_exists('SugarRestApiCall')) {
         SugarRestApiCall::forgetMemo();
+    }
+    if (function_exists('sticpa_mw_forget')) {
+        sticpa_mw_forget();
     }
 
     // 'struct' también se entiende: se usaba (al crear una inscripción) y aquí
@@ -701,7 +737,12 @@ function sticpa_pl_groups($objSCP)
     if ($campoActivo !== '') {
         $fields[] = $campoActivo;
     }
-    $rows = $objSCP->getRecordsModule('ajmcm_GRUPOS', $query, $fields);
+    // Por el middleware (paso 1a) si la casilla es la de siempre: es la columna
+    // que lee la base. Si no contesta, por la API.
+    $rows = ($campoActivo === '' || $campoActivo === 'ajmcm_pasar_lista_c') ? sticpa_pl_mw($objSCP, 'groups') : null;
+    if ($rows === null) {
+        $rows = $objSCP->getRecordsModule('ajmcm_GRUPOS', $query, $fields);
+    }
 
     $groups = array();
     if (is_array($rows)) {
@@ -923,11 +964,13 @@ function sticpa_pl_all_relationships_raw($objSCP)
     // campo del propio módulo con las claves de CAMPOS.md, no un filtro que
     // pueda fallar en silencio.
     $tipos = array();
+    $tiposMw = array();
     foreach (sticpa_pl_rel_types() as $needles) {
         foreach ((array) $needles as $needle) {
             $needle = preg_replace('/[^a-z0-9_]/i', '', (string) $needle);
             if ($needle !== '') {
                 $tipos[] = "'" . $needle . "'";
+                $tiposMw[] = strtolower($needle);
             }
         }
     }
@@ -956,12 +999,19 @@ function sticpa_pl_all_relationships_raw($objSCP)
             ),
         ),
     );
-    $rows = $objSCP->getRecordsModule('stic_Contacts_Relationships', $query, $fields, $links);
-    // Seguro del filtro por tipo: si el CRM lo rechazara (vacío CON error, no
-    // un vacío de verdad), se pide como antes, sin él. Mejor lento que nadie.
-    if (empty($rows) && $query !== $base && !sticpa_pl_collecting()
-        && class_exists('SugarRestApiCall') && !SugarRestApiCall::lastWalkComplete()) {
-        $rows = $objSCP->getRecordsModule('stic_Contacts_Relationships', $base, $fields, $links);
+    // Por el middleware (paso 1a): la misma consulta, de una vez y sin páginas.
+    $rows = !empty($tiposMw)
+        ? sticpa_pl_mw($objSCP, 'relations', array('tipos' => array_values(array_unique($tiposMw))))
+        : null;
+    $porMw = is_array($rows);
+    if (!$porMw) {
+        $rows = $objSCP->getRecordsModule('stic_Contacts_Relationships', $query, $fields, $links);
+        // Seguro del filtro por tipo: si el CRM lo rechazara (vacío CON error, no
+        // un vacío de verdad), se pide como antes, sin él. Mejor lento que nadie.
+        if (empty($rows) && $query !== $base && !sticpa_pl_collecting()
+            && class_exists('SugarRestApiCall') && !SugarRestApiCall::lastWalkComplete()) {
+            $rows = $objSCP->getRecordsModule('stic_Contacts_Relationships', $base, $fields, $links);
+        }
     }
 
     $out = array();
@@ -1052,7 +1102,7 @@ function sticpa_pl_all_relationships_raw($objSCP)
     // A MEDIAS NO SE GUARDA COMO ENTERO: si una página ha fallado, lo que hay
     // vale para pintar ahora, pero se vuelve a pedir en un par de minutos en
     // vez de dejar a media delegación fuera de las listas doce horas.
-    if (class_exists('SugarRestApiCall') && !SugarRestApiCall::lastWalkComplete()) {
+    if (!$porMw && class_exists('SugarRestApiCall') && !SugarRestApiCall::lastWalkComplete()) {
         $corto = sticpa_pl_ttl_empty();
         $ttl = ($corto > 0 && $corto < $ttl) ? $corto : $ttl;
     }
@@ -1624,19 +1674,23 @@ function sticpa_pl_event_sessions($objSCP, $eventId)
         }
     }
 
-    $rows = $objSCP->getRelatedElementsForLoggedUser(array(
-        'module_name' => 'stic_Events',
-        'module_id' => $eventId,
-        'link_field_name' => 'stic_sessions_stic_events',
-        // `name` hace falta para las REUNIONES: son «Programación del 2.º
-        // trimestre», no «sábado 21». En las sesiones semanales el nombre no
-        // aporta (es la fecha lo que se lee) y por eso no se pedía; pero no
-        // pedirlo dejaba la pantalla de reuniones sin lo único que identifica
-        // a cada una. Viene en la misma consulta: no cuesta nada.
-        'related_fields' => array('id', 'name', 'start_date', 'end_date'),
-        'related_module_link_name_to_fields_array' => array(),
-        'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
-    ));
+    // Por el middleware (paso 1a), solo si el evento es de la delegación.
+    $rows = sticpa_pl_mw($objSCP, 'eventSessions', array('evento' => $eventId));
+    if ($rows === null) {
+        $rows = $objSCP->getRelatedElementsForLoggedUser(array(
+            'module_name' => 'stic_Events',
+            'module_id' => $eventId,
+            'link_field_name' => 'stic_sessions_stic_events',
+            // `name` hace falta para las REUNIONES: son «Programación del 2.º
+            // trimestre», no «sábado 21». En las sesiones semanales el nombre no
+            // aporta (es la fecha lo que se lee) y por eso no se pedía; pero no
+            // pedirlo dejaba la pantalla de reuniones sin lo único que identifica
+            // a cada una. Viene en la misma consulta: no cuesta nada.
+            'related_fields' => array('id', 'name', 'start_date', 'end_date'),
+            'related_module_link_name_to_fields_array' => array(),
+            'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
+        ));
+    }
 
     $sessions = array();
     if (is_array($rows)) {
@@ -1727,18 +1781,24 @@ function sticpa_pl_event_registrations($objSCP, $eventId)
     // de la inscripcion, no de la persona. Cuando este mapa venia vacio, el
     // guardado escribia una lista de «0 y 0» y ni una sola asistencia — la
     // pantalla decia "lista guardada" y en el CRM no habia nada.
-    $rows = $objSCP->getRelatedElementsForLoggedUser(array(
-        'module_name' => 'stic_Events',
-        'module_id' => $eventId,
-        'link_field_name' => 'stic_registrations_stic_events',
-        'related_fields' => array('id', 'status', 'stic_registrations_contactscontacts_ida'),
-        'related_module_link_name_to_fields_array' => array(
-            array('name' => 'stic_registrations_contacts', 'value' => array('id')),
-        ),
-        'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
-    ));
+    // Por el middleware (paso 1b), solo si el evento es de la delegación. Por la
+    // base no hace falta el respaldo de abajo: la inscripción trae su persona.
+    $rows = sticpa_pl_mw($objSCP, 'eventRegistrations', array('evento' => $eventId));
+    $porMw = is_array($rows);
+    if (!$porMw) {
+        $rows = $objSCP->getRelatedElementsForLoggedUser(array(
+            'module_name' => 'stic_Events',
+            'module_id' => $eventId,
+            'link_field_name' => 'stic_registrations_stic_events',
+            'related_fields' => array('id', 'status', 'stic_registrations_contactscontacts_ida'),
+            'related_module_link_name_to_fields_array' => array(
+                array('name' => 'stic_registrations_contacts', 'value' => array('id')),
+            ),
+            'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
+        ));
+    }
 
-    $fallo = (sticpa_pl_crm_error($objSCP) !== '');
+    $fallo = !$porMw && (sticpa_pl_crm_error($objSCP) !== '');
     $filas = 0;
     $conContacto = 0;
     $map = array();
@@ -1773,7 +1833,7 @@ function sticpa_pl_event_registrations($objSCP, $eventId)
     // la lista de una reunión se descargaba las ~180 inscripciones de la
     // delegación para concluir que ese evento no tiene ninguna. Sale si el CRM
     // ha fallado o si ha devuelto inscripciones sin decir de quién son.
-    if (empty($map) && !sticpa_pl_collecting() && ($fallo || ($filas > 0 && $conContacto === 0))) {
+    if (empty($map) && !$porMw && !sticpa_pl_collecting() && ($fallo || ($filas > 0 && $conContacto === 0))) {
         $map = sticpa_pl_event_registrations_direct($objSCP, $eventId);
     }
 
@@ -1931,26 +1991,32 @@ function sticpa_pl_session_attendances($objSCP, $sessionId, $regMap = array())
         return array();
     }
 
-    $rows = $objSCP->getRelatedElementsForLoggedUser(array(
-        'module_name' => 'stic_Sessions',
-        'module_id' => $sessionId,
-        'link_field_name' => 'stic_attendances_stic_sessions',
-        // `description` es donde vive el motivo de la ausencia: se trae con el
-        // estado para que la hoja lo enseñe al abrirse en vez de aparecer vacía
-        // sobre un motivo que ya estaba escrito.
-        'related_fields' => array(
-            'id', 'status', 'description',
-            'stic_attendances_stic_registrationsstic_registrations_ida',
-        ),
-        // La asistencia cuelga de la INSCRIPCIÓN: se trae su id y el contacto
-        // se resuelve con $regMap, porque la API no puebla dos niveles.
-        'related_module_link_name_to_fields_array' => array(
-            array('name' => 'stic_attendances_stic_registrations', 'value' => array('id')),
-        ),
-        'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
-    ));
+    // Por el middleware (paso 1b), sin caché: es también la relectura de después
+    // de guardar (decisión `relectura`). Solo si la sesión es de la delegación.
+    $rows = sticpa_pl_mw($objSCP, 'sessionAttendances', array('sesion' => $sessionId));
+    $porMw = is_array($rows);
+    if (!$porMw) {
+        $rows = $objSCP->getRelatedElementsForLoggedUser(array(
+            'module_name' => 'stic_Sessions',
+            'module_id' => $sessionId,
+            'link_field_name' => 'stic_attendances_stic_sessions',
+            // `description` es donde vive el motivo de la ausencia: se trae con el
+            // estado para que la hoja lo enseñe al abrirse en vez de aparecer vacía
+            // sobre un motivo que ya estaba escrito.
+            'related_fields' => array(
+                'id', 'status', 'description',
+                'stic_attendances_stic_registrationsstic_registrations_ida',
+            ),
+            // La asistencia cuelga de la INSCRIPCIÓN: se trae su id y el contacto
+            // se resuelve con $regMap, porque la API no puebla dos niveles.
+            'related_module_link_name_to_fields_array' => array(
+                array('name' => 'stic_attendances_stic_registrations', 'value' => array('id')),
+            ),
+            'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
+        ));
+    }
 
-    $fallo = (sticpa_pl_crm_error($objSCP) !== '');
+    $fallo = !$porMw && (sticpa_pl_crm_error($objSCP) !== '');
     $filas = 0;
     $conInscripcion = 0;
     $out = array();
@@ -1994,7 +2060,7 @@ function sticpa_pl_session_attendances($objSCP, $sessionId, $regMap = array())
     // pasaba en cada visita. Ahora el respaldo sale solo si el CRM ha fallado o
     // si ha devuelto asistencias sin decir de qué inscripción son, que es el
     // único caso en que el respaldo sabe algo que la consulta no.
-    if (empty($out) && !sticpa_pl_collecting() && ($fallo || ($filas > 0 && $conInscripcion === 0))) {
+    if (empty($out) && !$porMw && !sticpa_pl_collecting() && ($fallo || ($filas > 0 && $conInscripcion === 0))) {
         $out = sticpa_pl_session_attendances_direct($objSCP, $sessionId, $regMap);
     }
 
@@ -2762,6 +2828,9 @@ function sticpa_pl_attendance_days_sql($starts)
 
 function sticpa_pl_attendances_for_sessions($objSCP, $sessions, $regMap)
 {
+    if (function_exists('sticpa_mw_reset_ultimo')) {
+        sticpa_mw_reset_ultimo('attendancesForSessions');
+    }
     $deleg = sticpa_pl_delegation($objSCP);
     if (!$deleg || empty($sessions) || empty($regMap)) {
         return array();
@@ -2793,26 +2862,30 @@ function sticpa_pl_attendances_for_sessions($objSCP, $sessions, $regMap)
         }
     }
 
-    $rows = $objSCP->getRecordsModule(
-        'stic_Attendances',
-        "stic_attendances.assigned_user_id = '" . sticpa_pl_safe_id($deleg) . "'"
-        . ' AND ' . sticpa_pl_attendance_days_sql($starts),
-        array(
-            'id', 'status', 'description',
-            'stic_attendances_stic_sessionsstic_sessions_ida',
-            'stic_attendances_stic_registrationsstic_registrations_ida',
-        ),
-        array(
-            'sesion' => array(
-                'relationshipName' => 'stic_attendances_stic_sessions',
-                'fields' => array('id', 'name'),
+    // Por el middleware (paso 1b): por las sesiones, no por una ventana de fechas.
+    $rows = sticpa_pl_mw($objSCP, 'attendancesForSessions', array('sesiones' => array_map('strval', array_keys($ids))));
+    if ($rows === null) {
+        $rows = $objSCP->getRecordsModule(
+            'stic_Attendances',
+            "stic_attendances.assigned_user_id = '" . sticpa_pl_safe_id($deleg) . "'"
+            . ' AND ' . sticpa_pl_attendance_days_sql($starts),
+            array(
+                'id', 'status', 'description',
+                'stic_attendances_stic_sessionsstic_sessions_ida',
+                'stic_attendances_stic_registrationsstic_registrations_ida',
             ),
-            'inscripcion' => array(
-                'relationshipName' => 'stic_attendances_stic_registrations',
-                'fields' => array('id', 'name'),
-            ),
-        )
-    );
+            array(
+                'sesion' => array(
+                    'relationshipName' => 'stic_attendances_stic_sessions',
+                    'fields' => array('id', 'name'),
+                ),
+                'inscripcion' => array(
+                    'relationshipName' => 'stic_attendances_stic_registrations',
+                    'fields' => array('id', 'name'),
+                ),
+            )
+        );
+    }
 
     $out = array();
     if (is_array($rows)) {
@@ -2898,7 +2971,9 @@ function sticpa_pl_group_streaks($objSCP, $sessions, $currentSessionId, $regMap 
             // 034 para todo cargador que entre en una tanda): ahí `$porSesion`
             // sale vacío a propósito y se colaban en la tanda dos consultas
             // inútiles (plan 042, VEL-2: tanda de 4 en vez de 2).
-            : ((empty($porSesion) && !sticpa_pl_collecting())
+            // Ni cuando las asistencias han salido del middleware: allí un vacío
+            // es un vacío de verdad, no un filtro que el CRM no ha digerido.
+            : ((empty($porSesion) && !sticpa_pl_collecting() && !sticpa_pl_mw_ultimo('attendancesForSessions'))
                 ? sticpa_pl_session_attendances($objSCP, $s['id'], $regMap)
                 : array());
         foreach ((array) $regMap as $contactId) {
@@ -3007,31 +3082,35 @@ function sticpa_pl_listas_index($objSCP)
         }
     }
 
-    $rows = $objSCP->getRecordsModule(
-        'LIS_listas',
-        "lis_listas.assigned_user_id = '" . sticpa_pl_safe_id($deleg) . "'",
-        array(
-            'id', 'estado', 'pasada_el', 'n_asistieron', 'n_faltaron', 'ajmcm_tipo_c',
-            'lis_listas_stic_sessionsstic_sessions_ida',
-            'lis_listas_ajmcm_gruposajmcm_grupos_ida',
-            // QUIÉN la pasó. Es una columna más en la misma consulta, así que
-            // no cuesta nada, y es lo único que hace falta para la fila de
-            // «listas pasadas» de la ficha del monitor. Nombre verificado
-            // contra el CRM (`get_module_fields` de LIS_listas) y comprobado
-            // que viene poblado con un id, no vacío.
-            'lis_listas_contactscontacts_ida',
-        ),
-        array(
-            'sesion' => array(
-                'relationshipName' => 'lis_listas_stic_sessions',
-                'fields' => array('id', 'name'),
+    // Por el middleware (paso 1a).
+    $rows = sticpa_pl_mw($objSCP, 'listas');
+    if ($rows === null) {
+        $rows = $objSCP->getRecordsModule(
+            'LIS_listas',
+            "lis_listas.assigned_user_id = '" . sticpa_pl_safe_id($deleg) . "'",
+            array(
+                'id', 'estado', 'pasada_el', 'n_asistieron', 'n_faltaron', 'ajmcm_tipo_c',
+                'lis_listas_stic_sessionsstic_sessions_ida',
+                'lis_listas_ajmcm_gruposajmcm_grupos_ida',
+                // QUIÉN la pasó. Es una columna más en la misma consulta, así que
+                // no cuesta nada, y es lo único que hace falta para la fila de
+                // «listas pasadas» de la ficha del monitor. Nombre verificado
+                // contra el CRM (`get_module_fields` de LIS_listas) y comprobado
+                // que viene poblado con un id, no vacío.
+                'lis_listas_contactscontacts_ida',
             ),
-            'grupo' => array(
-                'relationshipName' => 'lis_listas_ajmcm_grupos',
-                'fields' => array('id', 'name'),
-            ),
-        )
-    );
+            array(
+                'sesion' => array(
+                    'relationshipName' => 'lis_listas_stic_sessions',
+                    'fields' => array('id', 'name'),
+                ),
+                'grupo' => array(
+                    'relationshipName' => 'lis_listas_ajmcm_grupos',
+                    'fields' => array('id', 'name'),
+                ),
+            )
+        );
+    }
 
     $tipos = sticpa_pl_lista_tipos();
     $out = $vacio;
@@ -3571,11 +3650,15 @@ function sticpa_pl_events_raw($objSCP)
     }
 
     $etapaField = sticpa_pl_event_etapa_field();
-    $rows = $objSCP->getRecordsModule(
-        'stic_Events',
-        "stic_events.assigned_user_id = '" . sticpa_pl_safe_id($deleg) . "'",
-        array('id', 'name', 'start_date', 'end_date', $etapaField)
-    );
+    // Por el middleware (paso 1a) si la etapa es el campo de siempre.
+    $rows = ($etapaField === 'ajmcm_etapa_c') ? sticpa_pl_mw($objSCP, 'events') : null;
+    if ($rows === null) {
+        $rows = $objSCP->getRecordsModule(
+            'stic_Events',
+            "stic_events.assigned_user_id = '" . sticpa_pl_safe_id($deleg) . "'",
+            array('id', 'name', 'start_date', 'end_date', $etapaField)
+        );
+    }
 
     $out = array();
     if (is_array($rows)) {
@@ -3872,7 +3955,7 @@ function sticpa_pl_my_groups_direct($objSCP, $userId)
         if ($gid === '') {
             $gid = sticpa_pl_link_id($rel);
         }
-        if ($gid === '' && $asked < $maxAsk) {
+        if ($gid === '' && $asked < $maxAsk && empty($rel->mw)) {
             $asked++;
             $gid = sticpa_pl_group_of_relationship($objSCP, (string) $v->id->value);
         }
@@ -5273,7 +5356,13 @@ function sticpa_pl_mis_rels($objSCP, $userId)
         }
     }
 
-    $rows = $objSCP->getRelatedElementsForLoggedUser(sticpa_pl_mis_rels_params($userId));
+    // Por el middleware (paso 1a) cuando son las de quien ha entrado: el
+    // middleware solo da las de la persona de la sesión.
+    $rows = (function_exists('sticpa_mw_persona') && $userId === sticpa_mw_persona())
+        ? sticpa_pl_mw($objSCP, 'myRels') : null;
+    if ($rows === null) {
+        $rows = $objSCP->getRelatedElementsForLoggedUser(sticpa_pl_mis_rels_params($userId));
+    }
     // En la recolecta de una tanda (sticpa_pl_prime) no hay respuesta: no se
     // cachea un vacío que no es de verdad.
     if (sticpa_pl_collecting()) {
@@ -5372,7 +5461,7 @@ function sticpa_pl_coord_scope($objSCP)
             if ($gid === '') {
                 $gid = sticpa_pl_nvl_first($v, array('ajmcm_grupos_stic_contacts_relationshipsajmcm_grupos_ida'));
             }
-            if ($gid === '') {
+            if ($gid === '' && empty($rel->mw)) {
                 $gid = sticpa_pl_group_of_relationship($objSCP, (string) $v->id->value);
             }
             if ($gid !== '') {

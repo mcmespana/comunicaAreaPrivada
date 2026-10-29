@@ -7412,3 +7412,32 @@ html[data-stic-theme] {
        también enfoca: que se quede la de reposo (antes lo hacía §48.a). */
     .stic-dash-card:focus { box-shadow: var(--shadow-sm); }
 }
+
+/* ============================================================
+   68. MIDDLEWARE — por dónde se ha leído la pantalla (solo administradores)
+   ------------------------------------------------------------
+   inc/stic-middleware.php, decisión `plan-b` del plan de
+   comunicaMiddleware: discreta si todo ha salido del middleware
+   (SQL), clara si algo ha vuelto a la API.
+   ============================================================ */
+.sticpa-mw-badge {
+    position: fixed;
+    left: 8px;
+    bottom: 8px;
+    z-index: 9999;
+    padding: 3px 8px;
+    border: 1px solid var(--gray-200);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--gray-500);
+    font-size: 12px;
+    line-height: 1.4;
+    pointer-events: none;
+}
+.sticpa-mw-badge--sql { color: var(--success-dark); opacity: .75; }
+.sticpa-mw-badge--cache { opacity: .55; }
+.sticpa-mw-badge--api {
+    background: var(--warning-soft);
+    color: var(--warning-dark);
+    font-weight: 600;
+}
