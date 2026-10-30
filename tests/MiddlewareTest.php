@@ -249,6 +249,14 @@ class MiddlewareTest extends TestCase
                     $out[] = $reg;
                 }
                 return $out;
+            // ---- Paso 1d: coordinación ----
+            case 'monitorFicha':
+                $det = $this->scp->detalleDeRegistro($p['monitor'], 'Contacts', sticpa_pl_monitor_fields());
+                return self::planas(isset($det->entry_list) ? $det->entry_list : array());
+            case 'seguimientos':
+                $map = sticpa_pl_seg_map();
+                return self::planas($rel('Contacts', $p['monitor'], $map['link_contacts'],
+                    array('id', $map['f_name'], $map['f_text'], $map['f_type'], $map['f_date'], 'assigned_user_name', 'date_entered')));
         }
         $this->fail('recurso desconocido: ' . $recurso);
     }
@@ -330,6 +338,9 @@ class MiddlewareTest extends TestCase
             // Paso 1c.
             'ficha' => array('single_stic_pasar_lista_ficha', array('participante' => 'c1', 'grupo' => 'g1')),
             'ficha con eventos' => array('single_stic_pasar_lista_ficha', array('participante' => 'c1', 'grupo' => 'g1', '__evPersona' => true)),
+            // Paso 1d: la ficha de un monitor vista por otra persona que coordina, con seguimientos de los tres tipos.
+            'ficha del monitor' => array('single_stic_pasar_lista_monitor', array('__coord' => 'COM', '__como' => 'coord1', '__seg' => true, 'monitor' => 'm1')),
+            'lista de monitores' => array('single_stic_pasar_lista_monitores', array('__coord' => 'COM')),
         );
     }
 
@@ -342,6 +353,18 @@ class MiddlewareTest extends TestCase
         if (isset($req['__coord'])) {
             $this->scp->coordEtapa = $req['__coord'];
             unset($req['__coord']);
+        }
+        if (isset($req['__como'])) {
+            $_SESSION['scp_user_id'] = $req['__como'];
+            unset($req['__como']);
+        }
+        if (isset($req['__seg'])) {
+            $this->scp->seguimientos = array(
+                array('type' => 'mcm_incidencia', 'texto' => 'Se fue antes sin avisar'),
+                array('type' => 'mcm_valoracion', 'texto' => 'Buen trimestre'),
+                array('type' => 'mcm_acompanamiento', 'texto' => 'ESTO ES PRIVADO'),
+            );
+            unset($req['__seg']);
         }
         if (isset($req['__evPersona'])) {
             $this->scp->conEventos = true;
@@ -425,7 +448,7 @@ class MiddlewareTest extends TestCase
             'portada' => 2, 'portada de coordinación' => 2, 'árbol de grupos' => 2, 'marcar' => 3,
             'resumen' => 2, 'mis grupos' => 1, 'mis grupos, un grupo' => 1, 'coordinación' => 2,
             // La ficha: lo sensible va en su propia petición dentro de la misma tanda.
-            'ficha' => 5, 'ficha con eventos' => 5,
+            'ficha' => 5, 'ficha con eventos' => 5, 'ficha del monitor' => 5, 'lista de monitores' => 3,
         );
         foreach (self::pantallas() as $nombre => $p) {
             $this->pintar($p[0], $p[1], true);
@@ -555,6 +578,21 @@ class MiddlewareTest extends TestCase
         $this->assertStringNotContainsString('no ha contestado', $html);
         // Y sin un solo dato de la persona en pantalla: solo ids y formas.
         $this->assertStringNotContainsString('Solete', $html);
+    }
+
+    /** Y con la ficha de un monitor vista por quien coordina. */
+    public function testElModoCompararIncluyeLaFichaDelMonitor()
+    {
+        $this->encender();
+        $this->scp->coordEtapa = 'COM';
+        $_SESSION['scp_user_id'] = 'coord1';
+        $this->scp->seguimientos = array(array('type' => 'mcm_incidencia', 'texto' => 'Se fue antes sin avisar'));
+        $_GET = array('monitor' => 'm1', 'mw_comparar' => '1');
+        $html = sticpa_mw_comparar_html($this->scp);
+        $this->assertStringContainsString('<code>monitorFicha</code>', $html);
+        $this->assertStringContainsString('<code>seguimientos</code>', $html);
+        $this->assertStringNotContainsString('diferencias', strip_tags($html), $html);
+        $this->assertStringNotContainsString('Se fue antes', $html);
     }
 
     public function testGuardarOlvidaLoTraido()

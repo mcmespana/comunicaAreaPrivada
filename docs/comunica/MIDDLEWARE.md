@@ -31,13 +31,21 @@ COM salen en décimas de segundo. Por la API, la portada eran ~9 llamadas en 5 e
 | `sticpa_pl_avisos` | `avisos` | 1c |
 | `sticpa_pl_contact_attendance` (también la de un monitor en su ficha) | `registrationAttendances` | 1c |
 | `sticpa_pl_ev_de_persona` (antes 1 + 2 consultas por inscripción) | `personEvents` | 1c |
+| `sticpa_pl_monitor_ficha` (**DNI**: por `/plugin/v1/sensible`) | `monitorFicha` | 1d |
+| `sticpa_pl_seguimientos` (el filtro por papel, en el middleware; el del plugin se aplica igual) | `seguimientos` | 1d |
 
 Lo de la ficha solo sale si la persona tiene una relación de participante o monitor con la delegación de trabajo (la
 regla de `sticpa_pl_persona_de_mi_delegacion()`); si no, el middleware dice 403 y el plugin lo lee por la API, que hace
 sus propias comprobaciones. **Los avisos, solo los de la delegación**: por la API salían también los de otra.
 
-Lo demás (lista y ficha de monitores, seguimientos, coordinación, eventos con autobús, grupos de actividad) sigue por la
-API hasta los pasos 1d y 1e.
+La lista de monitores de coordinación (`sticpa_pl_coord_monitors`) no tiene consulta propia: sale de los grupos y las
+relaciones. La ficha del monitor y sus seguimientos solo salen a quien **coordina o acompaña en la delegación por una
+relación vigente** (la marca de la ficha no basta, igual que en `sticpa_pl_coord_scope` y `sticpa_pl_is_acompanante`) y
+de un monitor de la delegación. De los seguimientos, solo los de la delegación y de los tipos que ese papel puede leer
+(los de acompañamiento, solo quien acompaña), y nunca los de uno mismo. Con las claves de tipo cambiadas por filtro
+(`sticpa_pl_seg_type_keys`), los seguimientos siguen por la API.
+
+Lo demás (pasar lista en un evento —el autobús— y los grupos de actividad) sigue por la API hasta el paso 1e.
 
 **Cómo encaja sin tocar las pantallas.** El middleware devuelve las filas de la MISMA consulta que hace cada cargador,
 con los nombres de campo de la API; `sticpa_mw_rows()` les da la forma de `getRecordsModule()` y el cargador sigue con su
@@ -92,7 +100,8 @@ caché igual que antes, y olvida las respuestas traídas en la petición (`sticp
 - **`?mw=0`** en cualquier pantalla: la misma pantalla por la API, para comparar a ojo.
 - **`?mw_comparar=1`**: al pie, cada lectura de la fase 1 hecha por los dos lados sin caché, con sus tiempos y las
   diferencias (rutas con ids y la **forma** de los valores: 9 = dígito, a = letra; nunca datos de personas). En la ficha
-  de un participante (`…&participante=<id>`) compara también su ficha, familia, avisos, eventos y asistencias. Es lento
+  de un participante (`…&participante=<id>`) compara también su ficha, familia, avisos, eventos y asistencias; en la de un
+monitor (`…&monitor=<id>`), su ficha y sus seguimientos. Es lento
   (lee todo por la API) y es temporal, como «Pruebas BBDD» de Comunica Tools.
 
 ## Plan para encenderlo
