@@ -44,6 +44,7 @@ function sticpa_mw_recursos()
         'groups', 'relations', 'myRels', 'events', 'eventSessions', 'listas',
         'eventRegistrations', 'sessionAttendances', 'attendancesForSessions',
         'ficha', 'familyRels', 'familyContacts', 'avisos', 'registrationAttendances', 'personEvents',
+        'monitorFicha', 'seguimientos',
     );
 }
 
@@ -54,7 +55,7 @@ function sticpa_mw_recursos()
  */
 function sticpa_mw_sensibles()
 {
-    return array('ficha');
+    return array('ficha', 'monitorFicha');
 }
 
 /** La ruta del middleware por la que va un recurso. */
@@ -649,6 +650,18 @@ function sticpa_mw_comparar_html($objSCP)
                     return sticpa_pl_contact_attendance($objSCP, $regId);
                 };
             }
+        }
+    }
+
+    // La ficha de un monitor (paso 1d), en su pantalla: `?monitor=`. Los seguimientos, con los papeles de quien mira.
+    $monitor = isset($_GET['monitor']) ? sticpa_pl_safe_id($_GET['monitor']) : '';
+    if ($monitor !== '') {
+        $casos['monitorFicha'] = function () use ($objSCP, $monitor) { return sticpa_pl_monitor_ficha($objSCP, $monitor); };
+        $segRoles = sticpa_pl_seg_roles(sticpa_pl_coord_scope($objSCP) !== null, sticpa_pl_is_acompanante($objSCP));
+        if (!empty($segRoles)) {
+            $casos['seguimientos'] = function () use ($objSCP, $monitor, $segRoles) {
+                return sticpa_pl_seguimientos($objSCP, $monitor, $segRoles);
+            };
         }
     }
 

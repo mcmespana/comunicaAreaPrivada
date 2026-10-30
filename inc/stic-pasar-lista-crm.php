@@ -5882,11 +5882,21 @@ function sticpa_pl_monitor_ficha($objSCP, $contactId)
     if ($contactId === '') {
         return null;
     }
-    $detail = $objSCP->getRecordDetail($contactId, 'Contacts', sticpa_pl_monitor_fields());
-    if (empty($detail->entry_list[0]->name_value_list)) {
-        return null;
+    // Por el middleware (paso 1d), por su ruta de lo sensible (lleva el DNI), y
+    // solo a quien coordina o acompaña en la delegación.
+    $rows = sticpa_pl_mw($objSCP, 'monitorFicha', array('monitor' => $contactId));
+    if (is_array($rows)) {
+        if (empty($rows)) {
+            return null;   // en la recolecta, o la persona no existe
+        }
+        $v = $rows[0]->name_value_list;
+    } else {
+        $detail = $objSCP->getRecordDetail($contactId, 'Contacts', sticpa_pl_monitor_fields());
+        if (empty($detail->entry_list[0]->name_value_list)) {
+            return null;
+        }
+        $v = $detail->entry_list[0]->name_value_list;
     }
-    $v = $detail->entry_list[0]->name_value_list;
 
     $out = array();
     foreach (sticpa_pl_monitor_fields() as $f) {
@@ -6398,14 +6408,23 @@ function sticpa_pl_seguimientos($objSCP, $monitorId, $roles)
     }
 
     $map = sticpa_pl_seg_map();
-    $rows = $objSCP->getRelatedElementsForLoggedUser(array(
-        'module_name' => 'Contacts',
-        'module_id' => $monitorId,
-        'link_field_name' => $map['link_contacts'],
-        'related_fields' => array('id', $map['f_name'], $map['f_text'], $map['f_type'], $map['f_date'], 'assigned_user_name', 'date_entered'),
-        'related_module_link_name_to_fields_array' => array(),
-        'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
+    // Por el middleware (paso 1d), que ya filtra por papel, delegación y tipo. El
+    // filtro de abajo se aplica igual: es la última puerta. Solo con las claves
+    // de siempre, que son las que conoce el middleware.
+    $deSiempre = ($map['module'] === 'stic_FollowUps' && sticpa_pl_seg_type_keys() === array(
+        'incidencia' => 'mcm_incidencia', 'valoracion' => 'mcm_valoracion', 'acompanamiento' => 'mcm_acompanamiento',
     ));
+    $rows = $deSiempre ? sticpa_pl_mw($objSCP, 'seguimientos', array('monitor' => $monitorId)) : null;
+    if (!is_array($rows)) {
+        $rows = $objSCP->getRelatedElementsForLoggedUser(array(
+            'module_name' => 'Contacts',
+            'module_id' => $monitorId,
+            'link_field_name' => $map['link_contacts'],
+            'related_fields' => array('id', $map['f_name'], $map['f_text'], $map['f_type'], $map['f_date'], 'assigned_user_name', 'date_entered'),
+            'related_module_link_name_to_fields_array' => array(),
+            'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
+        ));
+    }
 
     $out = array();
     if (is_array($rows)) {
