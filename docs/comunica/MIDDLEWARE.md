@@ -1,8 +1,8 @@
 # Pasar Lista por el middleware (comunicaMiddleware)
 
-> Escrito el 29/10/2026 (fase 1 del plan de `comunicaMiddleware`, pasos 1a y 1b; el 1c, la ficha, el 30/10). El código está en
-> [`inc/stic-middleware.php`](../../inc/stic-middleware.php); las consultas, en
-> `comunicaMiddleware:src/reads/pasar-lista.ts`.
+> Escrito el 29/10/2026 (fase 1 del plan de `comunicaMiddleware`, pasos 1a y 1b; del 1c al 1e, el 30/10: la fase entera,
+> en `main`). El código está en [`inc/stic-middleware.php`](../../inc/stic-middleware.php); las consultas, en
+> `comunicaMiddleware:src/reads/` (`pasar-lista.ts`, `ficha.ts`, `coordinacion.ts`, `eventos.ts`).
 
 ## Qué es
 
@@ -102,6 +102,11 @@ Decisión `cache-plugin` (la recomendada, pendiente de confirmar): con el middle
 personas, eventos, sesiones, inscripciones) se cachea **1 h** en vez de 24 h, y el **estado** (listas, asistencias,
 rachas) **30 s** en vez de 5 min: lo justo para no repetir la misma lectura al pintar una pantalla. Guardar tira la
 caché igual que antes, y olvida las respuestas traídas en la petición (`sticpa_mw_forget()`).
+
+**El botón de refrescar** (el icono a la derecha de la cabecera) tira la caché de la delegación antes de leer
+(`sticpa_pl_maybe_refresh()`). Está en todas las pantallas de monitores y coordinación (portada, árbol de grupos, Mis
+Grupos, las dos fichas, coordinación, resumen, reuniones) **menos en las dos donde se marca** (la lista de un grupo y la
+de monitores): ahí borraría lo marcado sin guardar, y su estado ya se relee a los 30 s.
 
 ## Para administradores
 
