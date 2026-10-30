@@ -5223,6 +5223,25 @@ final class PasarListaRenderTest extends TestCase
         $_GET = array();
     }
 
+    /**
+     * Y en Reuniones (fase 1 del middleware): una reunión creada en el CRM no
+     * salía hasta que caducaba la caché de estructura, una hora. Vuelve a la
+     * misma puerta por la que se entró (`desde`).
+     */
+    public function test_reuniones_tiene_boton_de_refrescar_que_tira_la_cache()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $_GET = $_REQUEST = array('internalpage' => 'single_stic_pasar_lista_reuniones', 'desde' => 'coordinacion');
+        $html = $this->render('single_stic_pasar_lista_reuniones');
+        $this->assertStringContainsString('href="?internalpage=single_stic_pasar_lista_reuniones&amp;desde=coordinacion&amp;refrescar=1"', $html);
+
+        $antes = sticpa_pl_cache_key('structure', $this->scp);
+        $_GET['refrescar'] = $_REQUEST['refrescar'] = '1';
+        $this->render('single_stic_pasar_lista_reuniones');
+        $this->assertNotSame($antes, sticpa_pl_cache_key('structure', $this->scp));
+        $_GET = array();
+    }
+
     public function test_ficha_del_monitor_seguimientos_solo_de_este_curso()
     {
         $this->asOtherPerson();

@@ -19,6 +19,10 @@ if (!defined('ABSPATH')) {
 
 $pageSettings['fileName'] = basename(__FILE__, ".php");
 
+// El botón de refrescar de la cabecera: antes de la primera lectura (una
+// reunión creada en el CRM no salía hasta que caducaba la caché, una hora).
+sticpa_pl_maybe_refresh($objSCP);
+
 // UNA TANDA para lo que no depende de nada: quién coordina, los eventos (de
 // ahí sale el de reuniones) y las listas de la delegación. Eran tres viajes en
 // fila antes de poder pintar nada. Las listas no se pedían: ahora dicen, en la
@@ -85,6 +89,7 @@ $html .= '<div class="pl-title"><span class="pl-title-code">' . esc_html__('Reun
     . '<span class="pl-title-name">' . esc_html(sticpa_pl_coord_scope_label($scope)) . '</span></div>';
 $html .= '<div class="pl-subtitle">' . esc_html($course['label']) . '</div>';
 $html .= '</div>';
+$html .= sticpa_pl_refresh_link_html();
 $html .= '</div>';
 
 if ($createMsg !== '') {
