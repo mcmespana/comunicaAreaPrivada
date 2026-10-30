@@ -45,6 +45,7 @@ function sticpa_mw_recursos()
         'eventRegistrations', 'sessionAttendances', 'attendancesForSessions',
         'ficha', 'familyRels', 'familyContacts', 'avisos', 'registrationAttendances', 'personEvents',
         'monitorFicha', 'seguimientos',
+        'evInscripciones', 'evPersonas', 'evRelaciones', 'gacGrupos', 'gacMiembros',
     );
 }
 
@@ -663,6 +664,26 @@ function sticpa_mw_comparar_html($objSCP)
                 return sticpa_pl_seguimientos($objSCP, $monitor, $segRoles);
             };
         }
+    }
+
+    // Un evento de pasar lista (paso 1e), en su pantalla: `?evento=`. Solo si es de los que se ofrecen (de la delegación).
+    $evento = isset($_GET['evento']) ? sticpa_pl_safe_id($_GET['evento']) : '';
+    if ($evento !== '' && function_exists('sticpa_pl_ev_evento') && sticpa_pl_ev_evento($objSCP, $evento) !== null) {
+        $casos['evInscripciones'] = function () use ($objSCP, $evento) { return sticpa_pl_ev_inscripciones($objSCP, $evento); };
+        $inscritos = function () use ($objSCP, $evento) {
+            return array_values(array_filter(array_column(sticpa_pl_ev_inscripciones($objSCP, $evento), 'contact_id')));
+        };
+        $casos['evPersonas'] = function () use ($objSCP, $evento, $inscritos) {
+            return sticpa_pl_ev_personas($objSCP, $inscritos(), $evento);
+        };
+        // La lista armada: curso y «es del equipo» salen de las relaciones de cada inscrito (evRelaciones).
+        $casos['evRelaciones'] = function () use ($objSCP, $evento, $inscritos) {
+            $ins = sticpa_pl_ev_inscripciones($objSCP, $evento);
+            $lista = sticpa_pl_ev_lista_completa($objSCP, $ins, sticpa_pl_ev_personas($objSCP, $inscritos(), $evento), $evento);
+            return array('activos' => $lista['activos'], 'cursos' => $lista['cursos']);
+        };
+        $casos['gacGrupos'] = function () use ($objSCP, $evento) { return sticpa_gac_grupos($objSCP, $evento); };
+        $casos['gacMiembros'] = function () use ($objSCP, $evento) { return sticpa_gac_miembros($objSCP, $evento); };
     }
 
     $html = '<details class="pl-hint" open><summary>' . esc_html__('Comparar API y middleware (SQL)', 'sticpa') . '</summary>';

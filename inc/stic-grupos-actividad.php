@@ -258,15 +258,21 @@ function sticpa_gac_grupos($objSCP, $eventId)
     }
 
     $n = sticpa_gac_nombres();
-    $rows = $objSCP->getRecordsModule(
-        $n['mod_grupos'],
-        $n['tabla_grupos'] . ".evento_id = '" . $eventId . "'",
-        array('id', 'name', 'tipo', 'agrupacion', 'con_monitor', 'plazas', 'activo', 'evento_id', 'assigned_user_id')
-    );
+    // Por el middleware (paso 1e): los del evento y de la delegación. Por la
+    // base el módulo existe siempre: un vacío es «no hay grupos», no un error.
+    $rows = sticpa_pl_mw($objSCP, 'gacGrupos', array('evento' => $eventId));
+    $porMw = is_array($rows);
+    if (!$porMw) {
+        $rows = $objSCP->getRecordsModule(
+            $n['mod_grupos'],
+            $n['tabla_grupos'] . ".evento_id = '" . $eventId . "'",
+            array('id', 'name', 'tipo', 'agrupacion', 'con_monitor', 'plazas', 'activo', 'evento_id', 'assigned_user_id')
+        );
+    }
     if (sticpa_pl_collecting()) {
         return array();
     }
-    $error = sticpa_pl_crm_error($objSCP);
+    $error = $porMw ? '' : sticpa_pl_crm_error($objSCP);
     if (empty($rows) && $error !== '' && sticpa_gac_error_es_ausencia($error)) {
         set_transient($ausenteKey, 1, sticpa_gac_ttl_ausente());
         return array();
@@ -340,21 +346,26 @@ function sticpa_gac_miembros($objSCP, $eventId)
     $n = sticpa_gac_nombres();
     // Los alias NO pueden llamarse como un campo del módulo: el aplanado
     // escribe `<alias>_id`, y `evento_id` es un campo de verdad de GAC_*.
-    $rows = $objSCP->getRecordsModule(
-        $n['mod_miembros'],
-        $n['tabla_miembros'] . ".evento_id = '" . $eventId . "'",
-        array('id', 'name', 'papel', 'tipo', 'agrupacion', 'evento_id', 'assigned_user_id',
-            $n['m_grupo_ida']),
-        array(
-            'gac_grupo' => array('relationshipName' => $n['m_grupo_link'], 'fields' => array('id')),
-            'gac_persona' => array('relationshipName' => $n['m_persona_link'], 'fields' => array('id')),
-            'gac_insc' => array('relationshipName' => $n['m_insc_link'], 'fields' => array('id')),
-        )
-    );
+    // Por el middleware (paso 1e), con los enlaces ya resueltos y las mismas claves.
+    $rows = sticpa_pl_mw($objSCP, 'gacMiembros', array('evento' => $eventId));
+    $porMw = is_array($rows);
+    if (!$porMw) {
+        $rows = $objSCP->getRecordsModule(
+            $n['mod_miembros'],
+            $n['tabla_miembros'] . ".evento_id = '" . $eventId . "'",
+            array('id', 'name', 'papel', 'tipo', 'agrupacion', 'evento_id', 'assigned_user_id',
+                $n['m_grupo_ida']),
+            array(
+                'gac_grupo' => array('relationshipName' => $n['m_grupo_link'], 'fields' => array('id')),
+                'gac_persona' => array('relationshipName' => $n['m_persona_link'], 'fields' => array('id')),
+                'gac_insc' => array('relationshipName' => $n['m_insc_link'], 'fields' => array('id')),
+            )
+        );
+    }
     if (sticpa_pl_collecting()) {
         return array();
     }
-    $error = sticpa_pl_crm_error($objSCP);
+    $error = $porMw ? '' : sticpa_pl_crm_error($objSCP);
 
     $tipos = sticpa_gac_tipos();
     $out = array();
