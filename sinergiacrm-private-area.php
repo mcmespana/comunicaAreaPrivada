@@ -87,6 +87,8 @@ include plugin_dir_path(__FILE__) . 'inc/stic-sessions.php';
 // porque las otras dos la usan.
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-crm.php';
+// Pasar Lista por el middleware (comunicaMiddleware), con la API detrás.
+include plugin_dir_path(__FILE__) . 'inc/stic-middleware.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-ui.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-eventos.php';
 // Grupos de actividad de un evento (patrullas, habitaciones…), de Comunica Tools.

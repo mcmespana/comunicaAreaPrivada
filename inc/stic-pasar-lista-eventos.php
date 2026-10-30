@@ -1493,6 +1493,14 @@ function sticpa_pl_ev_de_persona($objSCP, $contactId)
         return $cached['eventos'];
     }
 
+    // Por el middleware (paso 1c): las inscripciones de la persona a eventos de
+    // la delegación con el evento y las asistencias de cada una, en UNA lectura
+    // en vez de 1 + 2 por inscripción. Las filas se leen tal cual (no imitan una
+    // consulta de la API): `stic_registrations_stic_events…ida` y `asistencias`.
+    // Se pide ANTES de saber los eventos del curso: así, en la recolecta, viaja
+    // en la misma tanda que ellos.
+    $mw = function_exists('sticpa_mw_raw') ? sticpa_mw_raw($objSCP, 'personEvents', array('contacto' => $contactId)) : null;
+
     // Los eventos que cuentan, por id. Del cargador común: cero llamadas.
     $delCurso = array();
     foreach (sticpa_pl_ev_eventos($objSCP) as $ev) {
@@ -1531,7 +1539,8 @@ function sticpa_pl_ev_de_persona($objSCP, $contactId)
         );
     };
 
-    $regs = $objSCP->getRelatedElementsForLoggedUser($regsParams);
+    $mwAsistencias = array();   // regId => filas de asistencia (de la base)
+    $regs = is_array($mw) ? sticpa_mw_api_rows($mw) : $objSCP->getRelatedElementsForLoggedUser($regsParams);
     $estadoReg = array();
     foreach ((is_array($regs) ? $regs : array()) as $reg) {
         $id = isset($reg->name_value_list->id->value) ? sticpa_pl_safe_id($reg->name_value_list->id->value) : '';
@@ -1542,24 +1551,36 @@ function sticpa_pl_ev_de_persona($objSCP, $contactId)
     if (empty($estadoReg) || sticpa_pl_collecting()) {
         // «No está apuntado a nada» se guarda; «el CRM no ha contestado», no.
         if (!sticpa_pl_collecting() && is_array($regs)
-            && (!class_exists('SugarRestApiCall') || SugarRestApiCall::lastWalkComplete())) {
+            && (is_array($mw) || !class_exists('SugarRestApiCall') || SugarRestApiCall::lastWalkComplete())) {
             sticpa_pl_cache_put($cacheKey, array('v' => 1, 'eventos' => array()), 6 * HOUR_IN_SECONDS);
         }
         return array();
     }
 
-    // Tanda 1: el evento de cada inscripción.
-    sticpa_pl_prime($objSCP, function () use ($objSCP, $estadoReg, $evParams) {
-        foreach (array_keys($estadoReg) as $regId) {
-            $objSCP->getRelatedElementsForLoggedUser($evParams($regId));
-        }
-    });
     $suyos = array();   // regId => evento del curso
-    foreach (array_keys($estadoReg) as $regId) {
-        $res = $objSCP->getRelatedElementsForLoggedUser($evParams($regId));
-        $evId = isset($res[0]->name_value_list->id->value) ? sticpa_pl_safe_id($res[0]->name_value_list->id->value) : '';
-        if ($evId !== '' && isset($delCurso[$evId])) {
-            $suyos[$regId] = $delCurso[$evId];
+    if (is_array($mw)) {
+        foreach ($mw as $fila) {
+            $regId = isset($fila['id']) ? sticpa_pl_safe_id($fila['id']) : '';
+            $evId = isset($fila['stic_registrations_stic_eventsstic_events_ida'])
+                ? sticpa_pl_safe_id($fila['stic_registrations_stic_eventsstic_events_ida']) : '';
+            if ($regId !== '' && $evId !== '' && isset($delCurso[$evId])) {
+                $suyos[$regId] = $delCurso[$evId];
+                $mwAsistencias[$regId] = sticpa_mw_api_rows(isset($fila['asistencias']) ? $fila['asistencias'] : array());
+            }
+        }
+    } else {
+        // Tanda 1: el evento de cada inscripción.
+        sticpa_pl_prime($objSCP, function () use ($objSCP, $estadoReg, $evParams) {
+            foreach (array_keys($estadoReg) as $regId) {
+                $objSCP->getRelatedElementsForLoggedUser($evParams($regId));
+            }
+        });
+        foreach (array_keys($estadoReg) as $regId) {
+            $res = $objSCP->getRelatedElementsForLoggedUser($evParams($regId));
+            $evId = isset($res[0]->name_value_list->id->value) ? sticpa_pl_safe_id($res[0]->name_value_list->id->value) : '';
+            if ($evId !== '' && isset($delCurso[$evId])) {
+                $suyos[$regId] = $delCurso[$evId];
+            }
         }
     }
 
@@ -1572,11 +1593,13 @@ function sticpa_pl_ev_de_persona($objSCP, $contactId)
             $conLista[] = $regId;
         }
     }
-    sticpa_pl_prime($objSCP, function () use ($objSCP, $conLista, $attParams) {
-        foreach ($conLista as $regId) {
-            $objSCP->getRelatedElementsForLoggedUser($attParams($regId));
-        }
-    });
+    if (!is_array($mw)) {
+        sticpa_pl_prime($objSCP, function () use ($objSCP, $conLista, $attParams) {
+            foreach ($conLista as $regId) {
+                $objSCP->getRelatedElementsForLoggedUser($attParams($regId));
+            }
+        });
+    }
 
     // El estado de un evento de varios días: si vino alguno, vino; si no, el
     // de la marca que haya, de la mejor a la peor.
@@ -1595,7 +1618,9 @@ function sticpa_pl_ev_de_persona($objSCP, $contactId)
         } elseif ($ev['start'] > sticpa_pl_now()) {
             $estado = 'apuntado';
         } else {
-            $atts = $objSCP->getRelatedElementsForLoggedUser($attParams($regId));
+            $atts = is_array($mw)
+                ? (isset($mwAsistencias[$regId]) ? $mwAsistencias[$regId] : array())
+                : $objSCP->getRelatedElementsForLoggedUser($attParams($regId));
             foreach ((is_array($atts) ? $atts : array()) as $a) {
                 $st = isset($a->name_value_list->status->value) ? (string) $a->name_value_list->status->value : '';
                 if (!isset($prioridad[$st])) {

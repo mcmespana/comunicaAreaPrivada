@@ -256,6 +256,7 @@ require_once __DIR__ . '/../inc/stic-pasar-lista.php';
 // páginas contra un doble de $objSCP, que es la única forma de comprobar sin
 // WordPress que las pantallas se pintan enteras y sin avisos.
 require_once __DIR__ . '/../inc/stic-pasar-lista-crm.php';
+require_once __DIR__ . '/../inc/stic-middleware.php';
 require_once __DIR__ . '/../inc/stic-pasar-lista-ui.php';
 // Pasar lista en un evento (el autobús): lógica pura y lecturas del CRM.
 require_once __DIR__ . '/../inc/stic-pasar-lista-eventos.php';
