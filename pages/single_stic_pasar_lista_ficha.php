@@ -40,6 +40,10 @@ if ($contactId === '') {
     return;
 }
 
+// El botón de refrescar de la cabecera: antes de la primera lectura, o se pinta
+// con la caché vieja y hay que pulsarlo dos veces.
+sticpa_pl_maybe_refresh($objSCP);
+
 /* TANDAS, y hacían mucha falta: esta pantalla hacía TRECE viajes al CRM uno
  * detrás de otro, sin agrupar ni uno. En móvil, un sábado, eso son siete
  * segundos mirando una pantalla en blanco para ver un teléfono. La ficha del
@@ -183,6 +187,7 @@ $html .= '<a class="pl-back" href="' . esc_url($volver) . '"'
 $html .= '<div class="pl-head-titles">';
 $html .= '<div class="pl-subtitle">' . esc_html__('Ficha', 'sticpa') . '</div>';
 $html .= '</div>';
+$html .= sticpa_pl_refresh_link_html();
 $html .= '</div>';
 
 // Identidad: el avatar con el degradado de marca —la única "foto" que hay— y el

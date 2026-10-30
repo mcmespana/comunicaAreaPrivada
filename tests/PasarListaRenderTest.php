@@ -5199,6 +5199,30 @@ final class PasarListaRenderTest extends TestCase
      * El CRM los devuelve todos en la misma lectura, así que traer los de antes
      * no cuesta ninguna consulta: lo único que cambia es el filtro.
      */
+    /**
+     * EL BOTÓN DE REFRESCAR EN LAS DOS FICHAS (plan del middleware, fase 1:
+     * faltaba en la ficha). Lleva a la misma pantalla con `refrescar=1`, y eso
+     * tira la caché antes de leer nada.
+     */
+    public function test_las_dos_fichas_tienen_boton_de_refrescar_que_tira_la_cache()
+    {
+        $_GET = $_REQUEST = array('internalpage' => 'single_stic_pasar_lista_ficha', 'participante' => 'c1', 'grupo' => 'g1');
+        $html = $this->render('single_stic_pasar_lista_ficha');
+        $this->assertStringContainsString('href="?internalpage=single_stic_pasar_lista_ficha&amp;participante=c1&amp;grupo=g1&amp;refrescar=1"', $html);
+
+        $antes = sticpa_pl_cache_gen('struct', 'deleg-castellon');
+        $_GET['refrescar'] = $_REQUEST['refrescar'] = '1';
+        $this->render('single_stic_pasar_lista_ficha');
+        $this->assertSame($antes + 1, sticpa_pl_cache_gen('struct', 'deleg-castellon'));
+
+        $this->asOtherPerson();
+        $this->scp->coordEtapa = 'COM';
+        $_GET = $_REQUEST = array('internalpage' => 'single_stic_pasar_lista_monitor', 'monitor' => 'm1');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+        $this->assertStringContainsString('href="?internalpage=single_stic_pasar_lista_monitor&amp;monitor=m1&amp;refrescar=1"', $html);
+        $_GET = array();
+    }
+
     public function test_ficha_del_monitor_seguimientos_solo_de_este_curso()
     {
         $this->asOtherPerson();

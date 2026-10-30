@@ -1080,6 +1080,22 @@ function sticpa_pl_next_steps_html($groupId = '')
     return $html;
 }
 
+/** El botón de refrescar de la cabecera, para las pantallas que lo pintan desde aquí (las dos fichas). */
+function sticpa_pl_refresh_link_html()
+{
+    // La misma pantalla, con lo que lleve en la URL, y `refrescar=1`: lo recoge
+    // sticpa_pl_maybe_refresh(), que la pantalla llama antes de leer nada.
+    $q = array();
+    foreach ((array) $_GET as $k => $v) {
+        if (is_string($k) && is_scalar($v) && $k !== 'refrescar') {
+            $q[$k] = (string) $v;
+        }
+    }
+    $q['refrescar'] = '1';
+    return '<a class="pl-session-pick" href="' . esc_url('?' . http_build_query($q)) . '"'
+        . ' aria-label="' . esc_attr__('Refrescar datos', 'sticpa') . '">' . sticpa_pl_icon('refresh') . '</a>';
+}
+
 // ---------------------------------------------------------------------------
 // El resultado de un guardado, dicho sin mentir
 // ---------------------------------------------------------------------------
