@@ -1,6 +1,6 @@
 # Pasar Lista por el middleware (comunicaMiddleware)
 
-> Escrito el 29/10/2026 (fase 1 del plan de `comunicaMiddleware`, pasos 1a y 1b). El código está en
+> Escrito el 29/10/2026 (fase 1 del plan de `comunicaMiddleware`, pasos 1a y 1b; el 1c, la ficha, el 30/10). El código está en
 > [`inc/stic-middleware.php`](../../inc/stic-middleware.php); las consultas, en
 > `comunicaMiddleware:src/reads/pasar-lista.ts`.
 
@@ -26,9 +26,18 @@ COM salen en décimas de segundo. Por la API, la portada eran ~9 llamadas en 5 e
 | `sticpa_pl_event_registrations` | `eventRegistrations` | 1b |
 | `sticpa_pl_session_attendances` (también la relectura de después de guardar) | `sessionAttendances` | 1b |
 | `sticpa_pl_attendances_for_sessions` (y con ella las rachas) | `attendancesForSessions` | 1b |
+| `sticpa_pl_ficha` (**salud y DNI**: por `/plugin/v1/sensible`) | `ficha` | 1c |
+| `sticpa_pl_family_fetch` (los dos sentidos del entorno personal, y los familiares) | `familyRels`, `familyContacts` | 1c |
+| `sticpa_pl_avisos` | `avisos` | 1c |
+| `sticpa_pl_contact_attendance` (también la de un monitor en su ficha) | `registrationAttendances` | 1c |
+| `sticpa_pl_ev_de_persona` (antes 1 + 2 consultas por inscripción) | `personEvents` | 1c |
 
-Lo demás (fichas, familia, avisos, monitores, seguimientos, eventos con autobús, grupos de actividad) sigue por la API
-hasta los pasos 1c-1e.
+Lo de la ficha solo sale si la persona tiene una relación de participante o monitor con la delegación de trabajo (la
+regla de `sticpa_pl_persona_de_mi_delegacion()`); si no, el middleware dice 403 y el plugin lo lee por la API, que hace
+sus propias comprobaciones. **Los avisos, solo los de la delegación**: por la API salían también los de otra.
+
+Lo demás (lista y ficha de monitores, seguimientos, coordinación, eventos con autobús, grupos de actividad) sigue por la
+API hasta los pasos 1d y 1e.
 
 **Cómo encaja sin tocar las pantallas.** El middleware devuelve las filas de la MISMA consulta que hace cada cargador,
 con los nombres de campo de la API; `sticpa_mw_rows()` les da la forma de `getRecordsModule()` y el cargador sigue con su
@@ -41,7 +50,10 @@ CRM no ha digerido el filtro») no corren con filas de la base.
 vigila los topes). Si el lote falla entero, la tanda se recolecta otra vez para la API.
 
 **La salud** de las marcas de la lista (alergias, intolerancias, tratamientos) llega solo como «hay algo escrito»: el
-texto no sale de la base.
+texto no sale de la base. La ficha sí la lleva (es donde se enseña), y por eso va por su propia ruta,
+`POST /plugin/v1/sensible` (`sticpa_mw_sensibles()`), con `no-store, private`; el middleware rechaza la ficha por el
+lote de siempre y cualquier otra cosa por esa ruta. En la ficha, esa petición sale aparte dentro de la misma tanda: son
+5 peticiones al middleware y ninguna al CRM (antes, 13 viajes al CRM).
 
 ## Cómo se enciende
 
@@ -79,14 +91,17 @@ caché igual que antes, y olvida las respuestas traídas en la petición (`sticp
   middleware; «API · relations» (clara, en ámbar) si algo ha vuelto a la API, con qué; «caché» si no se ha leído nada.
 - **`?mw=0`** en cualquier pantalla: la misma pantalla por la API, para comparar a ojo.
 - **`?mw_comparar=1`**: al pie, cada lectura de la fase 1 hecha por los dos lados sin caché, con sus tiempos y las
-  diferencias (rutas con ids y la **forma** de los valores: 9 = dígito, a = letra; nunca datos de personas). Es lento
+  diferencias (rutas con ids y la **forma** de los valores: 9 = dígito, a = letra; nunca datos de personas). En la ficha
+  de un participante (`…&participante=<id>`) compara también su ficha, familia, avisos, eventos y asistencias. Es lento
   (lee todo por la API) y es temporal, como «Pruebas BBDD» de Comunica Tools.
 
 ## Plan para encenderlo
 
 1. Propietario: enlazar `CRM_BBDD_*` al proyecto `comunica-middleware` de Vercel, crear `MW_PLUGIN_SECRET` (Production) y
    poner las constantes de arriba con `STICPA_MIDDLEWARE_MODO = 'admins'`.
-2. Un administrador abre las pantallas con `?mw_comparar=1` en una o dos delegaciones. Diferencias esperables: ninguna en
-   ids; en formato, alguna fecha de un enlace sin la hora (`birthdate`), que el plugin no usa más que como día.
+2. Un administrador abre las pantallas con `?mw_comparar=1` en una o dos delegaciones, y la ficha de dos o tres chavales.
+   Diferencias esperables: ninguna en ids; en formato, alguna fecha de un enlace sin la hora (`birthdate`), que el plugin
+   no usa más que como día. Si salen avisos «solo por la API», son de otra delegación (por el middleware no salen, a
+   propósito) o de un enlace borrado: en Castellón, 7 de sus 8 avisos tienen el enlace a la persona borrado (30/10/2026).
 3. Si sale limpio, `STICPA_MIDDLEWARE_MODO = 'todos'`. Si algo va mal el sábado: `'off'` en `wp-config.php` o `MW_OFF=1`
    en Vercel, y todo vuelve a la API sin desplegar.

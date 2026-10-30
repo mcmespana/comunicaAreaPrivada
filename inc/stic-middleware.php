@@ -43,7 +43,24 @@ function sticpa_mw_recursos()
     return array(
         'groups', 'relations', 'myRels', 'events', 'eventSessions', 'listas',
         'eventRegistrations', 'sessionAttendances', 'attendancesForSessions',
+        'ficha', 'familyRels', 'familyContacts', 'avisos', 'registrationAttendances', 'personEvents',
     );
+}
+
+/**
+ * Los que llevan salud o DNI: van por su propia ruta (`/plugin/v1/sensible`),
+ * nunca mezclados en el lote de siempre. El middleware rechaza cada uno por la
+ * ruta que no es.
+ */
+function sticpa_mw_sensibles()
+{
+    return array('ficha');
+}
+
+/** La ruta del middleware por la que va un recurso. */
+function sticpa_mw_ruta($recurso)
+{
+    return in_array((string) $recurso, sticpa_mw_sensibles(), true) ? '/plugin/v1/sensible' : '/plugin/v1/lote';
 }
 
 function sticpa_mw_url()
@@ -181,6 +198,21 @@ function sticpa_mw_on($recurso = '')
  */
 function sticpa_mw_rows($objSCP, $recurso, $params = array())
 {
+    $rows = sticpa_mw_fetch($objSCP, $recurso, $params);
+    return is_array($rows) ? sticpa_mw_api_rows($rows) : null;
+}
+
+/**
+ * Lo mismo, pero las filas tal cual las manda el middleware (arrays), para un
+ * recurso que no imita una consulta de la API sino varias (`personEvents`).
+ */
+function sticpa_mw_raw($objSCP, $recurso, $params = array())
+{
+    return sticpa_mw_fetch($objSCP, $recurso, $params);
+}
+
+function sticpa_mw_fetch($objSCP, $recurso, $params)
+{
     $st = &sticpa_mw_state();
     $st['ultimo'][$recurso] = false;
     if (!sticpa_mw_on($recurso)) {
@@ -188,9 +220,10 @@ function sticpa_mw_rows($objSCP, $recurso, $params = array())
     }
     $deleg = function_exists('sticpa_pl_delegation') ? (string) sticpa_pl_delegation($objSCP) : '';
     $key = md5($deleg . '|' . $recurso . '|' . json_encode($params));
+    $ruta = sticpa_mw_ruta($recurso);
 
     if (function_exists('sticpa_pl_collecting') && sticpa_pl_collecting()) {
-        $st['pending'][$deleg][$key] = array('recurso' => $recurso, 'params' => $params);
+        $st['pending'][$ruta][$deleg][$key] = array('recurso' => $recurso, 'params' => $params);
         return array();
     }
 
@@ -198,7 +231,7 @@ function sticpa_mw_rows($objSCP, $recurso, $params = array())
         $res = $st['memo'][$key];
         unset($st['memo'][$key]);   // de un solo uso: una relectura después de guardar va a la base
     } else {
-        $out = sticpa_mw_send($deleg, array($key => array('recurso' => $recurso, 'params' => $params)));
+        $out = sticpa_mw_send($deleg, array($key => array('recurso' => $recurso, 'params' => $params)), $ruta);
         $res = (is_array($out) && isset($out[$key])) ? $out[$key] : null;
     }
 
@@ -208,7 +241,7 @@ function sticpa_mw_rows($objSCP, $recurso, $params = array())
     }
     $st['via'][$recurso] = isset($st['via'][$recurso]) && $st['via'][$recurso] === 'api' ? 'api' : 'mw';
     $st['ultimo'][$recurso] = true;
-    return sticpa_mw_api_rows($res['rows']);
+    return $res['rows'];
 }
 
 /** Olvida cómo salió la última lectura (quien la lea después de un acierto de caché no hereda la anterior). */
@@ -235,14 +268,16 @@ function sticpa_mw_flush_pending()
     $pending = $st['pending'];
     $st['pending'] = array();
     $ok = true;
-    foreach ($pending as $deleg => $peticiones) {
-        $out = sticpa_mw_send((string) $deleg, $peticiones);
-        if (!is_array($out)) {
-            $ok = false;
-            continue;
-        }
-        foreach ($out as $key => $res) {
-            $st['memo'][$key] = $res;
+    foreach ($pending as $ruta => $porDeleg) {
+        foreach ($porDeleg as $deleg => $peticiones) {
+            $out = sticpa_mw_send((string) $deleg, $peticiones, (string) $ruta);
+            if (!is_array($out)) {
+                $ok = false;
+                continue;
+            }
+            foreach ($out as $key => $res) {
+                $st['memo'][$key] = $res;
+            }
         }
     }
     return $ok;
@@ -265,7 +300,7 @@ function sticpa_mw_signature($secret, $ts, $method, $path, $body)
  * Una petición al lote. `$peticiones`: clave => array('recurso', 'params').
  * Devuelve clave => resultado, o null si no ha contestado bien.
  */
-function sticpa_mw_send($deleg, $peticiones)
+function sticpa_mw_send($deleg, $peticiones, $path = '/plugin/v1/lote')
 {
     if (empty($peticiones)) {
         return array();
@@ -284,7 +319,6 @@ function sticpa_mw_send($deleg, $peticiones)
         );
     }
     $raw = json_encode($body);
-    $path = '/plugin/v1/lote';
     $ts = (string) time();
 
     $started = microtime(true);
@@ -554,6 +588,11 @@ function sticpa_mw_comparar_html($objSCP)
                 foreach ((array) $r->name_value_list as $k => $v) {
                     $fila[$k] = isset($v->value) && is_scalar($v->value) ? (string) $v->value : '';
                 }
+                // El grupo, como lo leen los consumidores: el campo plano y, si no viene, el enlace.
+                $g = 'ajmcm_grupos_stic_contacts_relationshipsajmcm_grupos_ida';
+                if (!isset($fila[$g]) || $fila[$g] === '') {
+                    $fila[$g] = sticpa_pl_link_id($r);
+                }
                 $out[] = $fila;
             }
             return $out;
@@ -577,6 +616,39 @@ function sticpa_mw_comparar_html($objSCP)
             $casos['attendancesForSessions ' . $evId] = function () use ($objSCP, $ultimas, $regMap) {
                 return sticpa_pl_attendances_for_sessions($objSCP, $ultimas, $regMap);
             };
+        }
+    }
+
+    // La ficha de una persona (paso 1c), si la pantalla es la de una: `?participante=`. Estas cachés se leen sin mirar
+    // el TTL, así que se borran antes de cada lado.
+    $persona = isset($_GET['participante']) ? sticpa_pl_safe_id($_GET['participante']) : '';
+    if ($persona !== '' && sticpa_pl_persona_de_mi_delegacion($objSCP, $persona)) {
+        $limpia = function ($que) use ($objSCP, $persona) {
+            if (function_exists('delete_transient')) {
+                delete_transient(sticpa_pl_cache_key($que, $objSCP, $persona));
+            }
+        };
+        $casos['ficha'] = function () use ($objSCP, $persona, $limpia) {
+            $limpia('ficha');
+            return sticpa_pl_ficha($objSCP, $persona);
+        };
+        $casos['familyRels'] = function () use ($objSCP, $persona, $limpia) {
+            $limpia('familia2');
+            return sticpa_pl_family($objSCP, $persona);
+        };
+        $casos['avisos'] = function () use ($objSCP, $persona) { return sticpa_pl_avisos($objSCP, $persona); };
+        $casos['personEvents'] = function () use ($objSCP, $persona, $limpia) {
+            $limpia('evpers');
+            return sticpa_pl_ev_de_persona($objSCP, $persona);
+        };
+        foreach (array_unique(array_column((array) $events, 'id')) as $evId) {
+            $regMap = sticpa_mw_sin_cache(function () use ($objSCP, $evId) { return sticpa_pl_event_registrations($objSCP, $evId); }, 'api');
+            $regId = array_search($persona, (array) $regMap, true);
+            if ($regId !== false) {
+                $casos['registrationAttendances ' . $regId] = function () use ($objSCP, $regId) {
+                    return sticpa_pl_contact_attendance($objSCP, $regId);
+                };
+            }
         }
     }
 

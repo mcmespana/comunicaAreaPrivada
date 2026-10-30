@@ -4078,11 +4078,20 @@ function sticpa_pl_ficha($objSCP, $contactId)
     if (is_array($cached) && isset($cached['id'])) {
         return $cached;
     }
-    $detail = $objSCP->getRecordDetail($contactId, 'Contacts', sticpa_pl_ficha_fields());
-    if (empty($detail->entry_list[0]->name_value_list)) {
-        return null;
+    // Por el middleware (paso 1c), por su ruta de lo sensible: lleva salud y DNI.
+    $rows = sticpa_pl_mw($objSCP, 'ficha', array('contacto' => $contactId));
+    if (is_array($rows)) {
+        if (empty($rows)) {
+            return null;   // en la recolecta, o la persona no existe
+        }
+        $v = $rows[0]->name_value_list;
+    } else {
+        $detail = $objSCP->getRecordDetail($contactId, 'Contacts', sticpa_pl_ficha_fields());
+        if (empty($detail->entry_list[0]->name_value_list)) {
+            return null;
+        }
+        $v = $detail->entry_list[0]->name_value_list;
     }
-    $v = $detail->entry_list[0]->name_value_list;
 
     $out = array();
     foreach (sticpa_pl_ficha_fields() as $f) {
@@ -4141,20 +4150,26 @@ function sticpa_pl_contact_attendance($objSCP, $registrationId, $sessions = arra
         }
     }
 
-    $rows = $objSCP->getRelatedElementsForLoggedUser(array(
-        'module_name' => 'stic_Registrations',
-        'module_id' => $registrationId,
-        'link_field_name' => 'stic_attendances_stic_registrations',
-        // `description` es el motivo: va en la misma consulta, así que la
-        // ficha puede decir por qué faltó sin pedir nada más.
-        'related_fields' => array('id', 'status', 'description', 'stic_attendances_stic_sessionsstic_sessions_ida'),
-        'related_module_link_name_to_fields_array' => array(
-            array('name' => 'stic_attendances_stic_sessions', 'value' => array('id')),
-        ),
-        'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
-    ));
+    // Por el middleware (paso 1c), solo si la inscripción es de un evento de la
+    // delegación. Por la base cada asistencia trae su sesión: sobra el respaldo.
+    $rows = sticpa_pl_mw($objSCP, 'registrationAttendances', array('inscripcion' => $registrationId));
+    $porMw = is_array($rows);
+    if (!$porMw) {
+        $rows = $objSCP->getRelatedElementsForLoggedUser(array(
+            'module_name' => 'stic_Registrations',
+            'module_id' => $registrationId,
+            'link_field_name' => 'stic_attendances_stic_registrations',
+            // `description` es el motivo: va en la misma consulta, así que la
+            // ficha puede decir por qué faltó sin pedir nada más.
+            'related_fields' => array('id', 'status', 'description', 'stic_attendances_stic_sessionsstic_sessions_ida'),
+            'related_module_link_name_to_fields_array' => array(
+                array('name' => 'stic_attendances_stic_sessions', 'value' => array('id')),
+            ),
+            'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
+        ));
+    }
 
-    $fallo = (sticpa_pl_crm_error($objSCP) !== '');
+    $fallo = !$porMw && (sticpa_pl_crm_error($objSCP) !== '');
     $filas = 0;
     $out = $vacio;
     if (is_array($rows)) {
@@ -4197,7 +4212,7 @@ function sticpa_pl_contact_attendance($objSCP, $registrationId, $sessions = arra
     // asistencia —un monitor recién inscrito— el respaldo se bajaba las del
     // curso entero de la delegación para concluir lo mismo. Sale si el CRM ha
     // fallado o si ha devuelto asistencias sin decir de qué sesión son.
-    if (empty($out['marks']) && !sticpa_pl_collecting() && !empty($sessions) && !empty($regMap)
+    if (empty($out['marks']) && !$porMw && !sticpa_pl_collecting() && !empty($sessions) && !empty($regMap)
         && ($fallo || $filas > 0)) {
         $contactId = isset($regMap[$registrationId]) ? (string) $regMap[$registrationId] : '';
         if ($contactId !== '') {
@@ -4414,22 +4429,27 @@ function sticpa_pl_avisos($objSCP, $contactId)
     }
 
     $map = sticpa_pl_avi_map();
-    $rows = $objSCP->getRelatedElementsForLoggedUser(array(
-        'module_name' => 'Contacts',
-        'module_id' => $contactId,
-        'link_field_name' => $map['link_contacts'],
-        'related_fields' => array(
-            'id',
-            $map['f_name'],
-            $map['f_date'],
-            $map['f_motivo'],
-            $map['f_puesto_por'],
-            $map['f_notificado'],
-            'date_entered',
-        ),
-        'related_module_link_name_to_fields_array' => array(),
-        'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
-    ));
+    // Por el middleware (paso 1c): los de la persona y de la delegación.
+    $rows = sticpa_pl_mw($objSCP, 'avisos', array('contacto' => $contactId));
+    $porMw = is_array($rows);
+    if (!$porMw) {
+        $rows = $objSCP->getRelatedElementsForLoggedUser(array(
+            'module_name' => 'Contacts',
+            'module_id' => $contactId,
+            'link_field_name' => $map['link_contacts'],
+            'related_fields' => array(
+                'id',
+                $map['f_name'],
+                $map['f_date'],
+                $map['f_motivo'],
+                $map['f_puesto_por'],
+                $map['f_notificado'],
+                'date_entered',
+            ),
+            'related_module_link_name_to_fields_array' => array(),
+            'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
+        ));
+    }
 
     // RESPALDO, y hace falta. Los avisos de un contacto vistos «desde el
     // contacto» dependen de que la fila de la relación esté, y hubo cuatro
@@ -4437,7 +4457,7 @@ function sticpa_pl_avisos($objSCP, $contactId)
     // tres no existían para nadie. Por el módulo entero salen todos, porque el
     // campo plano de la persona sí está escrito. Es UNA llamada para toda la
     // delegación, cacheada, no una por persona.
-    if (empty($rows) && !sticpa_pl_collecting()) {
+    if (empty($rows) && !$porMw && !sticpa_pl_collecting()) {
         $rows = sticpa_pl_avisos_deleg($objSCP, $contactId);
     }
 
@@ -4718,10 +4738,17 @@ function sticpa_pl_family_fetch($objSCP, $contactId)
 
     $vinculos = array();   // id de contacto => datos de la relación
     $sinId = array();      // relaciones sin el id del familiar: se preguntan aparte
+    // Por el middleware (paso 1c): los registros de los dos sentidos en UNA
+    // lectura, con los dos lados ya resueltos, y los familiares en la misma
+    // tanda (se piden ya, aunque luego no hicieran falta).
+    $mwRels = sticpa_pl_mw($objSCP, 'familyRels', array('contacto' => $contactId));
+    $porMw = is_array($mwRels);
+    $mwContactos = $porMw ? sticpa_pl_mw($objSCP, 'familyContacts', array('contacto' => $contactId)) : null;
     // Se pregunta por los dos enlaces porque la relación puede estar creada en
     // cualquiera de los dos sentidos (la carga del 24/09 dejó la mitad al revés).
-    foreach (array('stic_personal_environment_contacts', 'stic_personal_environment_contacts_1') as $link) {
-        $rows = $objSCP->getRelatedElementsForLoggedUser(array(
+    $enlaces = $porMw ? array('middleware') : array('stic_personal_environment_contacts', 'stic_personal_environment_contacts_1');
+    foreach ($enlaces as $link) {
+        $rows = $porMw ? $mwRels : $objSCP->getRelatedElementsForLoggedUser(array(
             'module_name' => 'Contacts',
             'module_id' => $contactId,
             'link_field_name' => $link,
@@ -4736,7 +4763,7 @@ function sticpa_pl_family_fetch($objSCP, $contactId)
         if (!is_array($rows)) {
             continue;
         }
-        if (empty($rows) && !sticpa_pl_collecting() && isset($objSCP->lastError) && $objSCP->lastError !== '') {
+        if (empty($rows) && !$porMw && !sticpa_pl_collecting() && isset($objSCP->lastError) && $objSCP->lastError !== '') {
             // Un error no es «no tiene familia»: que quede escrito.
             error_log('[sticpa] familia de ' . $contactId . ' por ' . $link . ': ' . $objSCP->lastError);
         }
@@ -4782,7 +4809,7 @@ function sticpa_pl_family_fetch($objSCP, $contactId)
 
     // RESPALDO: al registro de familia, por su contacto. Los dos enlaces, y se
     // queda el que no es el chaval — igual que arriba.
-    if (!empty($sinId) && !sticpa_pl_collecting()) {
+    if (!empty($sinId) && !$porMw && !sticpa_pl_collecting()) {
         $params = function ($relId, $link) use ($camposContacto) {
             return array(
                 'module_name' => 'stic_Personal_Environment',
@@ -4832,7 +4859,9 @@ function sticpa_pl_family_fetch($objSCP, $contactId)
         }
     }
     if (!empty($faltan)) {
-        $rows = $objSCP->getRecordsModule('Contacts', 'contacts.id IN (' . implode(',', $faltan) . ')', $camposContacto);
+        $rows = is_array($mwContactos)
+            ? $mwContactos
+            : $objSCP->getRecordsModule('Contacts', 'contacts.id IN (' . implode(',', $faltan) . ')', $camposContacto);
         foreach ((is_array($rows) ? $rows : array()) as $row) {
             $datos = sticpa_pl_family_contacto($row);
             if ($datos !== null && isset($vinculos[$datos['id']])) {

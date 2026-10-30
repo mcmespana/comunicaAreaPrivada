@@ -82,17 +82,22 @@ class MiddlewareTest extends TestCase
 
     public function servir($url, $raw, $headers)
     {
-        $this->assertSame('https://mw.test/plugin/v1/lote', $url);
+        $this->assertContains($url, array('https://mw.test/plugin/v1/lote', 'https://mw.test/plugin/v1/sensible'));
+        $ruta = substr($url, strlen('https://mw.test'));
         $h = array();
         foreach ($headers as $line) {
             list($k, $v) = array_map('trim', explode(':', $line, 2));
             $h[strtolower($k)] = $v;
         }
         // La firma que comprueba el middleware (src/authz/plugin-signature.ts).
-        $this->assertSame(sticpa_mw_signature(self::SECRET, $h['x-mw-ts'], 'POST', '/plugin/v1/lote', $raw), $h['x-mw-sig']);
+        $this->assertSame(sticpa_mw_signature(self::SECRET, $h['x-mw-ts'], 'POST', $ruta, $raw), $h['x-mw-sig']);
         $body = json_decode($raw, true);
         $this->assertSame($_SESSION['scp_user_id'], $body['persona']);
         $this->lotes[] = array_column($body['peticiones'], 'recurso');
+        // Lo sensible, solo por su ruta; lo demás, nunca por ella.
+        foreach ($body['peticiones'] as $pet) {
+            $this->assertSame(in_array($pet['recurso'], sticpa_mw_sensibles(), true), $ruta === '/plugin/v1/sensible', $pet['recurso']);
+        }
 
         if ($this->modo === 'caido') {
             return array('status' => 0, 'body' => '', 'error' => 'Operation timed out');
@@ -190,6 +195,60 @@ class MiddlewareTest extends TestCase
                     'sesion' => 'lis_listas_stic_sessionsstic_sessions_ida',
                     'grupo' => 'lis_listas_ajmcm_gruposajmcm_grupos_ida',
                 ));
+            // ---- Paso 1c: la ficha del participante ----
+            case 'ficha':
+                $det = $this->scp->detalleDeRegistro($p['contacto'], 'Contacts', sticpa_pl_ficha_fields());
+                return self::planas(isset($det->entry_list) ? $det->entry_list : array());
+            case 'familyRels':
+            case 'familyContacts':
+                // Los dos sentidos, y cada lado resuelto por su tabla de enlace (lo que hace la base).
+                $rels = array();
+                foreach (array('stic_personal_environment_contacts', 'stic_personal_environment_contacts_1') as $link) {
+                    $filas = self::planas($rel('Contacts', $p['contacto'], $link, array('id', 'relationship_type', 'start_date', 'end_date',
+                        'date_entered', 'stic_personal_environment_contactscontacts_ida', 'stic_personal_environment_contacts_1contacts_ida')));
+                    foreach ($filas as $f) {
+                        foreach (array('stic_personal_environment_contacts_1' => 'stic_personal_environment_contacts_1contacts_ida',
+                            'stic_personal_environment_contacts' => 'stic_personal_environment_contactscontacts_ida') as $l => $campo) {
+                            if (empty($f[$campo])) {
+                                $c = $rel('stic_Personal_Environment', $f['id'], $l, array('id', 'first_name', 'last_name', 'name', 'phone_mobile', 'email1'));
+                                $f[$campo] = isset($c[0]->name_value_list->id->value) ? (string) $c[0]->name_value_list->id->value : '';
+                            }
+                        }
+                        $rels[$f['id']] = $f;
+                    }
+                }
+                if ($recurso === 'familyRels') {
+                    return array_values($rels);
+                }
+                $ids = array();
+                foreach ($rels as $f) {
+                    foreach (array('stic_personal_environment_contactscontacts_ida', 'stic_personal_environment_contacts_1contacts_ida') as $campo) {
+                        if ($f[$campo] !== '' && $f[$campo] !== $p['contacto']) {
+                            $ids[] = "'" . $f[$campo] . "'";
+                        }
+                    }
+                }
+                return empty($ids) ? array() : self::planas($this->scp->datosDeModulo('Contacts', 'contacts.id IN (' . implode(',', array_unique($ids)) . ')',
+                    array('id', 'first_name', 'last_name', 'name', 'phone_mobile', 'email1')));
+            case 'avisos':
+                $map = sticpa_pl_avi_map();
+                return self::planas($rel('Contacts', $p['contacto'], $map['link_contacts'], array('id', $map['f_name'], $map['f_date'],
+                    $map['f_motivo'], $map['f_puesto_por'], $map['f_notificado'], 'date_entered')));
+            case 'registrationAttendances':
+                return self::planas($rel('stic_Registrations', $p['inscripcion'], 'stic_attendances_stic_registrations',
+                    array('id', 'status', 'description', 'stic_attendances_stic_sessionsstic_sessions_ida'),
+                    array(array('name' => 'stic_attendances_stic_sessions', 'value' => array('id')))
+                ), array(), array('stic_attendances_stic_sessionsstic_sessions_ida'));
+            case 'personEvents':
+                $out = array();
+                foreach (self::planas($rel('Contacts', $p['contacto'], 'stic_registrations_contacts', array('id', 'status'))) as $reg) {
+                    $ev = $rel('stic_Registrations', $reg['id'], 'stic_registrations_stic_events', array('id', 'name', 'start_date', 'end_date'));
+                    $reg['stic_registrations_stic_eventsstic_events_ida'] = isset($ev[0]->name_value_list->id->value) ? (string) $ev[0]->name_value_list->id->value : '';
+                    $reg['asistencias'] = self::planas($rel('stic_Registrations', $reg['id'], 'stic_attendances_stic_registrations',
+                        array('id', 'status', 'start_date', 'description')));
+                    $out[] = $reg;
+                }
+                return $out;
         }
         $this->fail('recurso desconocido: ' . $recurso);
     }
@@ -268,6 +327,9 @@ class MiddlewareTest extends TestCase
             'mis grupos' => array('single_stic_mis_grupos', array()),
             'mis grupos, un grupo' => array('single_stic_mis_grupos', array('grupo' => 'g1')),
             'coordinación' => array('single_stic_coordinacion', array('__coord' => 'COM')),
+            // Paso 1c.
+            'ficha' => array('single_stic_pasar_lista_ficha', array('participante' => 'c1', 'grupo' => 'g1')),
+            'ficha con eventos' => array('single_stic_pasar_lista_ficha', array('participante' => 'c1', 'grupo' => 'g1', '__evPersona' => true)),
         );
     }
 
@@ -280,6 +342,11 @@ class MiddlewareTest extends TestCase
         if (isset($req['__coord'])) {
             $this->scp->coordEtapa = $req['__coord'];
             unset($req['__coord']);
+        }
+        if (isset($req['__evPersona'])) {
+            $this->scp->conEventos = true;
+            $this->scp->evPersona = true;
+            unset($req['__evPersona']);
         }
         $_REQUEST = $req;
         $_GET = $req;
@@ -357,6 +424,8 @@ class MiddlewareTest extends TestCase
         $topes = array(
             'portada' => 2, 'portada de coordinación' => 2, 'árbol de grupos' => 2, 'marcar' => 3,
             'resumen' => 2, 'mis grupos' => 1, 'mis grupos, un grupo' => 1, 'coordinación' => 2,
+            // La ficha: lo sensible va en su propia petición dentro de la misma tanda.
+            'ficha' => 5, 'ficha con eventos' => 5,
         );
         foreach (self::pantallas() as $nombre => $p) {
             $this->pintar($p[0], $p[1], true);
@@ -468,6 +537,24 @@ class MiddlewareTest extends TestCase
         $this->assertSame('', $v->persona->value);
         $this->assertNull($v->persona_link);
         $this->assertSame(array(), $rows[0]->link_list);
+    }
+
+    /** El modo comparar de los administradores, con la ficha de una persona: todo igual por los dos lados. */
+    public function testElModoCompararNoEncuentraDiferencias()
+    {
+        $this->encender();
+        $this->scp->conEventos = true;
+        $this->scp->evPersona = true;
+        $_GET = array('participante' => 'c1', 'mw_comparar' => '1');
+        $html = sticpa_mw_comparar_html($this->scp);
+        foreach (array('groups', 'relations', 'myRels', 'events', 'listas', 'ficha', 'familyRels', 'avisos', 'personEvents') as $caso) {
+            $this->assertStringContainsString('<code>' . $caso . '</code>', $html);
+        }
+        $this->assertStringContainsString('<code>registrationAttendances ', $html);
+        $this->assertStringNotContainsString('diferencias', strip_tags($html), $html);
+        $this->assertStringNotContainsString('no ha contestado', $html);
+        // Y sin un solo dato de la persona en pantalla: solo ids y formas.
+        $this->assertStringNotContainsString('Solete', $html);
     }
 
     public function testGuardarOlvidaLoTraido()
