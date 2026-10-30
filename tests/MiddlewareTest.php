@@ -257,6 +257,70 @@ class MiddlewareTest extends TestCase
                 $map = sticpa_pl_seg_map();
                 return self::planas($rel('Contacts', $p['monitor'], $map['link_contacts'],
                     array('id', $map['f_name'], $map['f_text'], $map['f_type'], $map['f_date'], 'assigned_user_name', 'date_entered')));
+            // ---- Paso 1e: pasar lista en un evento y grupos de actividad ----
+            case 'evInscripciones':
+            case 'evPersonas':
+            case 'evRelaciones':
+                // Cada inscripción con su persona resuelta por su tabla de enlace (lo que hace la base).
+                $ins = self::planas($rel('stic_Events', $p['evento'], 'stic_registrations_stic_events',
+                    array('id', 'status', 'ajmcm_curso_escolar_c', 'stic_registrations_contactscontacts_ida', 'participation_type'),
+                    array(array('name' => 'stic_registrations_contacts', 'value' => array('id')))
+                ), array(), array('stic_registrations_contactscontacts_ida'));
+                foreach ($ins as $i => $r) {
+                    if ($r['stic_registrations_contactscontacts_ida'] === '') {
+                        $c = $rel('stic_Registrations', $r['id'], 'stic_registrations_contacts', array('id'));
+                        $ins[$i]['stic_registrations_contactscontacts_ida'] = isset($c[0]->name_value_list->id->value) ? (string) $c[0]->name_value_list->id->value : '';
+                    }
+                }
+                if ($recurso === 'evInscripciones') {
+                    return $ins;
+                }
+                $ids = array_values(array_unique(array_filter(array_column($ins, 'stic_registrations_contactscontacts_ida'))));
+                if (empty($ids)) {
+                    return array();
+                }
+                if ($recurso === 'evPersonas') {
+                    return self::planas($this->scp->datosDeModulo('Contacts', "contacts.id IN ('" . implode("','", $ids) . "')",
+                        array('id', 'name', 'first_name', 'last_name', 'ajmcm_etapa_c', 'assigned_user_id', 'assigned_user_name')));
+                }
+                // Las de cada inscrito, de los tipos de la lista.
+                $out = array();
+                foreach ($ids as $cid) {
+                    foreach (self::planas($this->scp->datosDeRelacion(sticpa_pl_mis_rels_params($cid))) as $r) {
+                        $t = strtolower(isset($r['relationship_type']) ? $r['relationship_type'] : '');
+                        if (in_array($t, array('participante_mic_com', 'grupo', 'monitor'), true) || strpos($t, 'acompa') === 0) {
+                            $r['stic_contacts_relationships_contactscontacts_ida'] = $cid;
+                            $out[] = $r;
+                        }
+                    }
+                }
+                return $out;
+            case 'gacGrupos':
+            case 'gacMiembros':
+                $n = sticpa_gac_nombres();
+                $filas = ($recurso === 'gacGrupos')
+                    ? self::planas($this->scp->datosDeModulo($n['mod_grupos'], $n['tabla_grupos'] . ".evento_id = '" . $p['evento'] . "'",
+                        array('id', 'name', 'tipo', 'agrupacion', 'con_monitor', 'plazas', 'activo', 'evento_id', 'assigned_user_id')))
+                    : self::planas($this->scp->datosDeModulo($n['mod_miembros'], $n['tabla_miembros'] . ".evento_id = '" . $p['evento'] . "'",
+                        array('id', 'name', 'papel', 'tipo', 'agrupacion', 'evento_id', 'assigned_user_id', $n['m_grupo_ida']),
+                        array(
+                            'gac_grupo' => array('relationshipName' => $n['m_grupo_link'], 'fields' => array('id')),
+                            'gac_persona' => array('relationshipName' => $n['m_persona_link'], 'fields' => array('id')),
+                            'gac_insc' => array('relationshipName' => $n['m_insc_link'], 'fields' => array('id')),
+                        )
+                    ), array('gac_grupo', 'gac_persona', 'gac_insc'));
+                // Como la base: solo de la delegación y de ese evento, y el grupo también en su campo plano.
+                $out = array();
+                foreach ($filas as $f) {
+                    if ($f['assigned_user_id'] !== $d || $f['evento_id'] !== $p['evento']) {
+                        continue;
+                    }
+                    if ($recurso === 'gacMiembros' && empty($f[$n['m_grupo_ida']])) {
+                        $f[$n['m_grupo_ida']] = !empty($f['gac_grupo']['id']) ? $f['gac_grupo']['id'] : '';
+                    }
+                    $out[] = $f;
+                }
+                return $out;
         }
         $this->fail('recurso desconocido: ' . $recurso);
     }
@@ -341,6 +405,10 @@ class MiddlewareTest extends TestCase
             // Paso 1d: la ficha de un monitor vista por otra persona que coordina, con seguimientos de los tres tipos.
             'ficha del monitor' => array('single_stic_pasar_lista_monitor', array('__coord' => 'COM', '__como' => 'coord1', '__seg' => true, 'monitor' => 'm1')),
             'lista de monitores' => array('single_stic_pasar_lista_monitores', array('__coord' => 'COM')),
+            // Paso 1e: la lista del autobús (con alguien de Burriana), con grupos de actividad y su pestaña.
+            'evento' => array('single_stic_pasar_lista_evento', array('evento' => 'ev-bus', '__scp' => array('conEventos' => true, 'conBurriana' => true))),
+            'evento con grupos' => array('single_stic_pasar_lista_evento', array('evento' => 'ev-bus', '__scp' => array('conEventos' => true, 'conGac' => true))),
+            'pestaña de patrullas' => array('single_stic_pasar_lista_evento', array('evento' => 'ev-bus', 'grupos' => 'patrulla|', '__scp' => array('conEventos' => true, 'conGac' => true))),
         );
     }
 
@@ -353,6 +421,12 @@ class MiddlewareTest extends TestCase
         if (isset($req['__coord'])) {
             $this->scp->coordEtapa = $req['__coord'];
             unset($req['__coord']);
+        }
+        if (isset($req['__scp'])) {
+            foreach ($req['__scp'] as $prop => $valor) {
+                $this->scp->$prop = $valor;
+            }
+            unset($req['__scp']);
         }
         if (isset($req['__como'])) {
             $_SESSION['scp_user_id'] = $req['__como'];
@@ -449,6 +523,8 @@ class MiddlewareTest extends TestCase
             'resumen' => 2, 'mis grupos' => 1, 'mis grupos, un grupo' => 1, 'coordinación' => 2,
             // La ficha: lo sensible va en su propia petición dentro de la misma tanda.
             'ficha' => 5, 'ficha con eventos' => 5, 'ficha del monitor' => 5, 'lista de monitores' => 3,
+            // El evento: 2 peticiones (por la API, además, una consulta por inscrito para su curso).
+            'evento' => 2, 'evento con grupos' => 2, 'pestaña de patrullas' => 2,
         );
         foreach (self::pantallas() as $nombre => $p) {
             $this->pintar($p[0], $p[1], true);
@@ -593,6 +669,22 @@ class MiddlewareTest extends TestCase
         $this->assertStringContainsString('<code>seguimientos</code>', $html);
         $this->assertStringNotContainsString('diferencias', strip_tags($html), $html);
         $this->assertStringNotContainsString('Se fue antes', $html);
+    }
+
+    /** Y con un evento de pasar lista y sus grupos de actividad. */
+    public function testElModoCompararIncluyeElEvento()
+    {
+        $this->encender();
+        $this->scp->conEventos = true;
+        $this->scp->conBurriana = true;
+        $this->scp->conGac = true;
+        $_GET = array('evento' => 'ev-bus', 'mw_comparar' => '1');
+        $html = sticpa_mw_comparar_html($this->scp);
+        foreach (array('evInscripciones', 'evPersonas', 'evRelaciones', 'gacGrupos', 'gacMiembros') as $caso) {
+            $this->assertStringContainsString('<code>' . $caso . '</code>', $html);
+        }
+        $this->assertStringNotContainsString('diferencias', strip_tags($html), $html);
+        $this->assertStringNotContainsString('no ha contestado', $html);
     }
 
     public function testGuardarOlvidaLoTraido()

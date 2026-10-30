@@ -190,8 +190,14 @@ if ($gacTab !== '') {
             $ids[] = $r['contact_id'];
         }
     }
-    $personas = sticpa_pl_ev_personas($objSCP, $ids);
-    $lista = sticpa_pl_ev_lista_completa($objSCP, $inscripciones, $personas);
+    // Los nombres y las relaciones de los inscritos, en UNA tanda.
+    $evId = $event['id'];
+    sticpa_pl_prime($objSCP, function () use ($objSCP, $ids, $evId) {
+        sticpa_pl_ev_personas($objSCP, $ids, $evId);
+        sticpa_pl_ev_rels_de($objSCP, $ids, $evId);
+    });
+    $personas = sticpa_pl_ev_personas($objSCP, $ids, $evId);
+    $lista = sticpa_pl_ev_lista_completa($objSCP, $inscripciones, $personas, $evId);
     $tabInfo = $gacPestanas[$gacTab];
     $armado = sticpa_gac_armar($gacTab, $gacGrupos, $gacMiembros, $lista, $inscripciones);
 
@@ -250,21 +256,20 @@ foreach ($inscripciones as $r) {
         $regMapPrevio[$r['reg_id']] = $r['contact_id'];
     }
 }
-sticpa_pl_prime($objSCP, function () use ($objSCP, $ids, $session, $regMapPrevio) {
-    sticpa_pl_ev_personas($objSCP, $ids);
+$evId = $event['id'];
+sticpa_pl_prime($objSCP, function () use ($objSCP, $ids, $session, $regMapPrevio, $evId) {
+    sticpa_pl_ev_personas($objSCP, $ids, $evId);
     // Las relaciones de cada inscrito, de donde sale su curso: en esta misma
     // tanda y no en una después (sticpa_pl_ev_lista_completa()).
-    foreach (array_unique($ids) as $cid) {
-        sticpa_pl_mis_rels($objSCP, $cid);
-    }
+    sticpa_pl_ev_rels_de($objSCP, $ids, $evId);
     if ($session !== null) {
         sticpa_pl_session_attendances($objSCP, $session['id'], $regMapPrevio);
     }
 });
-$personas = sticpa_pl_ev_personas($objSCP, $ids);
+$personas = sticpa_pl_ev_personas($objSCP, $ids, $evId);
 // El curso sale de las relaciones de cada uno (pedidas arriba, en la tanda);
 // el grupo, del mapa de la delegación. Los de otra delegación, aparte, al final.
-$lista = sticpa_pl_ev_lista_completa($objSCP, $inscripciones, $personas);
+$lista = sticpa_pl_ev_lista_completa($objSCP, $inscripciones, $personas, $evId);
 $regMap = $lista['regMap'];
 // El grupo del EVENTO de cada uno (patrulla, habitación…), corto, para la línea
 // pequeña bajo el nombre: «4 EP · M4.1 · Patrulla Halcones · Hab. 12».

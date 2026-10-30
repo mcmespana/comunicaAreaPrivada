@@ -538,6 +538,11 @@ function sticpa_pl_prime($objSCP, callable $cargadores)
         || !method_exists($objSCP, 'callMany')) {
         return 0;
     }
+    // Una tanda dentro de otra no hace nada: la recolecta de fuera ya apunta lo
+    // que pidan sus cargadores (y mandar aquí el lote lo partiría en dos).
+    if (sticpa_pl_collecting()) {
+        return 0;
+    }
     // Lo que va por el middleware sale en UNA petición aunque el hosting no
     // sepa paralelizar: la recolecta se hace igual.
     $mw = function_exists('sticpa_mw_on') && sticpa_mw_on();
