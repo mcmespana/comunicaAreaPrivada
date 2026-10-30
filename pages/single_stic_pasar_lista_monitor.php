@@ -34,6 +34,9 @@ if (!defined('ABSPATH')) {
 
 $pageSettings['fileName'] = basename(__FILE__, ".php");
 
+// El botón de refrescar de la cabecera: antes de la primera lectura.
+sticpa_pl_maybe_refresh($objSCP);
+
 // TANDA 0: lo que decide si esta pantalla se puede ver siquiera. Va antes que
 // nada porque el alcance manda, y las cuatro consultas viajan juntas.
 sticpa_pl_prime($objSCP, function () use ($objSCP) {
@@ -261,6 +264,7 @@ $html .= '<a class="pl-back" href="' . esc_url($volver) . '"'
 $html .= '<div class="pl-head-titles">';
 $html .= '<div class="pl-subtitle">' . esc_html__('Ficha del monitor', 'sticpa') . '</div>';
 $html .= '</div>';
+$html .= sticpa_pl_refresh_link_html();
 $html .= '</div>';
 
 /* EN ESCRITORIO, DOS COLUMNAS (plan 042, COO-5): a la izquierda quién es, cómo
