@@ -120,6 +120,10 @@ contexto**. Reglas:
   va atada a la sesión y es la protección contra CSRF. `SecurityTest` falla si un
   `admin_post_nopriv_*` se olvida de la sesión.
 
+- **El acceso SÍ dice cuándo un correo no existe** (decidido por el propietario el 31/10/2026; antes se
+  respondía igual para todos y la gente se quedaba esperando un correo que no llegaba). Va con un freno por IP
+  a los correos que no existen y con la salida del DNI en la misma pantalla. No lo «arregles» devolviéndolo al
+  silencio sin preguntar: ver `docs/ACCESO.md` §2 y `tests/AccesoCorreoTest.php`.
 - **Pasar Lista lee por el middleware** (`inc/stic-middleware.php`, 29/10/2026) cuando está encendido: un cargador
   que entre en él pide su recurso con `sticpa_pl_mw()` y, si devuelve null, sigue por la API. El middleware da las
   filas de la MISMA consulta con los nombres de la API; no copies allí lo que el cargador hace después. Ver

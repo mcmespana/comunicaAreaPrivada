@@ -83,7 +83,15 @@ if (!function_exists('update_option')) {
 }
 if (!function_exists('add_query_arg')) {
     // Versión mínima suficiente para los tests: añade ?k=v (o &k=v) a la URL.
-    function add_query_arg($key, $value, $url) {
+    // Admite las dos formas de WordPress: (clave, valor, url) y (array, url).
+    function add_query_arg($key, $value = null, $url = null) {
+        if (is_array($key)) {
+            $url = (string) $value;
+            foreach ($key as $k => $v) {
+                $url = add_query_arg($k, $v, $url);
+            }
+            return $url;
+        }
         $sep = (strpos($url, '?') === false) ? '?' : '&';
         return $url . $sep . rawurlencode($key) . '=' . rawurlencode($value);
     }

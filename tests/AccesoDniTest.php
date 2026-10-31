@@ -5,11 +5,10 @@ use PHPUnit\Framework\TestCase;
 /**
  * ENTRAR CUANDO NO SABES CON QUÉ CORREO TE DISTE DE ALTA.
  * ----------------------------------------------------------------------------
- * El flujo de acceso NUNCA dice si un correo existe —y hace bien—, así que
- * quien escribe una dirección equivocada ve lo mismo que quien la escribe bien:
- * «mira tu correo». Y se queda esperando un correo que no va a llegar.
- *
- * La salida es el documento: se busca a la persona por su DNI y se le manda el
+ * Hasta el 31/10/2026 el flujo de acceso no decía si un correo existía, así que
+ * quien escribía una dirección equivocada veía lo mismo que quien la escribía
+ * bien («mira tu correo») y se quedaba esperando. Ahora se dice (ver
+ * `AccesoCorreoTest`), y la salida que se ofrece es el documento: se busca a la persona por su DNI y se le manda el
  * acceso al correo que ya tenemos, enseñándoselo TAPADO para que lo reconozca.
  *
  * Lo que se fija aquí es lo que no puede aflojarse nunca:
