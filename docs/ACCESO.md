@@ -50,23 +50,57 @@ serviría para entrar. Si ese DNI ya es el usuario de otra ficha, no se pisa
 pide si ya existe: la sesión es la prueba de quién es. Mínimo 6 caracteres.
 Tests: `tests/PasswordChangeTest.php`.
 
-## 2. La regla que no se toca: nunca decimos si un correo existe
+## 2. Si el correo no está, se dice (31/10/2026)
 
-Pidas el acceso con un correo registrado o con uno inventado, ves **exactamente
-la misma pantalla**. Y el cupo de envíos se apunta en los dos casos. Si no fuera
-así, probar direcciones sería una forma de leerse la base de datos del CRM.
+Hasta el 31/10/2026 la regla era la contraria —«nunca decimos si un correo
+existe»—: con un correo registrado o con uno inventado se veía **exactamente la
+misma pantalla**. Tenía un precio real: quien escribía mal su correo, o usaba
+uno que no era el del alta, se quedaba esperando un mensaje que no iba a llegar,
+sin nada que se lo dijera, y acababa llamando a la oficina técnica.
 
-Eso tiene un precio, y es real: quien escribe mal su correo se queda esperando
-un correo que no va a llegar, sin nada que se lo diga. Es lo que pasaba, y
-terminaba en una llamada a la oficina técnica.
+**Decisión del propietario:** si el correo no existe, se contesta la verdad, y
+en la misma pantalla se ofrece la salida (el DNI, §4, que ya contestaba con la
+verdad).
+
+| Qué pasa | A dónde va | Qué se ve |
+|---|---|---|
+| El correo existe | Pantalla del código | «Mira tu correo», como siempre |
+| **No existe** (`email_error=nohay`) | Login | Aviso rojo con el correo tecleado, el campo **relleno** para corregir la errata y debajo la **tarjeta del DNI abierta** («¿Te diste de alta con otro correo?», botón en contorno «Buscarme por mi DNI») |
+| No parece un correo (`formato`) | Login | Aviso corto; no se pregunta al CRM |
+| El CRM no contesta (`crm`) | Login | «Ahora mismo no podemos comprobar tu correo». **No** se dice que no existe: sin esto una caída del CRM mandaría a todo el mundo al DNI |
+| Demasiadas direcciones seguidas (`throttled`) | Login | «Espera unos minutos o escríbenos» |
+| Tope de envíos a ese correo agotado | Pantalla del código | Aviso de esperar (quien tiene un código en camino lo ve ahí) |
+
+El correo tecleado viaja en la **sesión** (`sticpa_email_miss`), no en la URL,
+que acaba en los logs del servidor. Se pinta escapado.
+
+### El freno que sustituye al silencio
+
+Decirlo regala una forma de comprobar si una persona concreta está en el CRM
+—de un movimiento católico, que en el RGPD es dato de categoría especial— y de
+barrer direcciones. Por eso, en lugar del silencio, hay un tope:
+
+- Cada correo que **no existe** se apunta **por IP** (`sticpa_otp_note_miss`):
+  **8 cada 30 minutos**, filtrable (`sticpa_otp_miss_max`,
+  `sticpa_otp_miss_window`). Pasado el tope **ni se mira en el CRM**, ni siquiera
+  un correo que sí existe: la respuesta no puede depender de la dirección.
+- Los aciertos y las caídas del CRM **no** cuentan.
+- Se mantienen los topes de envíos de siempre (por correo y por IP).
+- Equivocarse una o dos veces no lo nota nadie; 8 en media hora es un colegio
+  entero con una sola IP o un barrido.
+
+Si algún día hay que volver al silencio, es este bloque y el handler
+`sticpa_handle_send_access`; los tests de `tests/AccesoCorreoTest.php` dicen qué
+se rompe.
 
 ---
 
 ## 3. El rescate: «¿necesitas ayuda?»
 
-La solución **no** ha sido romper la regla de arriba, sino dar las salidas que
-tiene, en orden de probabilidad, dentro de un desplegable cerrado al final de la
-pantalla del código (`sticpa_access_rescue_html`):
+Antes de que el login dijera cuándo un correo no existía (§2), esto era la única
+ayuda: las salidas, en orden de probabilidad, dentro de un desplegable cerrado al
+final de la pantalla del código (`sticpa_access_rescue_html`). Sigue ahí, para
+quien llega con un correo que sí existe pero no ve el mensaje:
 
 1. Mirar la carpeta de spam.
 2. Comprobar que el correo esté bien escrito: se enseña **a cuál se mandó**,
@@ -84,7 +118,7 @@ botón y la ayuda plegada**. Una sola ayuda por pantalla
 
 | Pantalla | Lo que se ve | Lo plegado |
 |---|---|---|
-| Login | Correo · «Enviarme el acceso» | «¿Qué correo pongo?»: familias / miembros y el DNI |
+| Login | Correo · «Enviarme el acceso» | «¿Qué correo pongo?»: familias / miembros y el DNI. Tras un «ese correo no está», en su lugar, la tarjeta del DNI **abierta** (§2) |
 | Código | Código · «Entrar» · «O entra con el botón del correo» · «Reenviar código · Usar otro correo» | «¿Necesitas ayuda?»: lo de arriba |
 
 Antes el login tenía dos desplegables (uno metido entre el campo y el botón) y
@@ -113,10 +147,11 @@ trabajo»).
 3. **Mismo tope que la vía del correo**, por documento y por IP, y el intento se
    apunta acierte o falle.
 
-### Aquí sí se contesta con la verdad
+### Aquí también se contesta con la verdad
 
-Por documento sí decimos «no encontramos a nadie con ese documento», y es una
-decisión, no un descuido:
+Por documento decimos «no encontramos a nadie con ese documento» (y desde el
+31/10/2026 por correo también, §2). Aquí es una decisión de siempre, no un
+descuido:
 
 - Para probar un DNI hay que **tener** ese DNI, que ya es un dato de alguien
   concreto: no se puede barrer como se barren correos.

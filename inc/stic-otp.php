@@ -30,11 +30,21 @@
  *     Nadie se queda fuera del área por esto: el enlace del mismo correo sigue
  *     funcionando (también si alguien quema los intentos de otro a propósito).
  *   · Los ENVÍOS también están limitados, por email y por IP. Sin eso
- *     cualquiera podía bombardear el buzón de cualquier contacto del CRM, y
- *     además se podía enumerar la base de datos a base de probar direcciones.
+ *     cualquiera podía bombardear el buzón de cualquier contacto del CRM.
  *
- *  Nada de esto revela si un email existe o no: el flujo responde igual para
- *  una dirección registrada y para una inventada.
+ *  ────────────────────────────────────────────────────────────────────────
+ *  ¿SE DICE SI UN CORREO EXISTE? SÍ (31/10/2026) — antes no
+ *  ────────────────────────────────────────────────────────────────────────
+ *  Hasta el 31/10/2026 el flujo respondía igual para un correo registrado y
+ *  para uno inventado, para no regalar una forma de enumerar el CRM. El precio
+ *  era real: quien se equivocaba de correo se quedaba esperando un mensaje que
+ *  nunca iba a llegar, sin nada que se lo dijera. Decisión del propietario: si
+ *  el correo no existe, se dice, y en el mismo sitio se ofrece entrar por DNI
+ *  (que ya contestaba con la verdad).
+ *
+ *  Lo que NO se quita es el freno: cada correo que no existe se apunta por IP
+ *  (`sticpa_otp_note_miss`) y, pasado el tope, ni se mira (`…_miss_allowed`).
+ *  Quien se equivoca una o dos veces no lo nota; quien barre direcciones, sí.
  * ============================================================================
  */
 
@@ -88,6 +98,24 @@ function sticpa_otp_ip_send_max()
 function sticpa_otp_ip_send_window()
 {
     return (int) apply_filters('sticpa_otp_ip_send_window', HOUR_IN_SECONDS);
+}
+
+/**
+ * Correos que NO existen que se toleran desde una misma IP (31/10/2026).
+ *
+ * Es el freno de la decisión de decir «ese correo no está»: como ahora la
+ * respuesta distingue, probar direcciones al azar ya no es gratis. Ocho en
+ * media hora deja de sobra a quien se equivoca (se le ofrece el DNI a la
+ * segunda) y a un colegio entero con una sola IP, pero no a un barrido.
+ */
+function sticpa_otp_miss_max()
+{
+    return (int) apply_filters('sticpa_otp_miss_max', 8);
+}
+
+function sticpa_otp_miss_window()
+{
+    return (int) apply_filters('sticpa_otp_miss_window', 30 * MINUTE_IN_SECONDS);
 }
 
 /* ============================================================================
@@ -205,8 +233,8 @@ function sticpa_otp_send_allowed($email)
 
 /**
  * Apunta un envío. Se llama SIEMPRE que alguien pide un código, exista o no el
- * email: si solo contáramos los envíos reales, se podría enumerar la base de
- * datos probando direcciones sin gastar cupo.
+ * email: es el tope de quien bombardea un buzón, y no debe depender de si la
+ * dirección está en el CRM.
  *
  * Cada intento renueva la ventana a propósito: quien insiste se mantiene él
  * solo en el límite.
@@ -225,22 +253,47 @@ function sticpa_otp_note_send($email)
     }
 }
 
+/**
+ * ¿Se puede mirar en el CRM si existe otro correo desde esta IP? (31/10/2026)
+ * Va por IP y no por correo: lo que se frena es probar muchos distintos.
+ */
+function sticpa_otp_miss_allowed()
+{
+    $ip = sticpa_otp_client_ip();
+    return $ip === '' || (int) get_transient(sticpa_otp_key('ipmiss', $ip)) < sticpa_otp_miss_max();
+}
+
+/**
+ * Apunta un correo que no existe. Cada fallo renueva la ventana: quien insiste
+ * se mantiene él solo en el tope. Los aciertos no cuentan (el límite de envíos
+ * por correo ya se ocupa de ellos).
+ */
+function sticpa_otp_note_miss()
+{
+    $ip = sticpa_otp_client_ip();
+    if ($ip === '') {
+        return;
+    }
+    $key = sticpa_otp_key('ipmiss', $ip);
+    set_transient($key, ((int) get_transient($key)) + 1, sticpa_otp_miss_window());
+}
+
 /* ============================================================================
  *  ENTRAR CUANDO NO SABES CON QUÉ CORREO TE DISTE DE ALTA
  * ----------------------------------------------------------------------------
  *  El caso real: alguien escribe su correo, no le llega nada y no hay forma de
- *  saber por qué —porque el flujo NUNCA dice si un correo existe (y hace bien:
- *  decirlo es regalar una forma de enumerar el CRM)—. Resultado: la persona se
- *  queda fuera y llama a la oficina.
+ *  saber por qué. Hasta el 31/10/2026 era porque el flujo NUNCA decía si un
+ *  correo existía; ahora lo dice (ver la cabecera de este fichero) y, en la
+ *  misma pantalla, ofrece esta vía.
  *
  *  La salida es preguntar por el DNI. Tiene tres virtudes:
  *
- *   1. **Resuelve el caso sin romper la regla**: no hace falta decir «ese correo
- *      no existe» en ningún momento; simplemente hay otra puerta.
- *   2. **Es la que sabe la persona**: su DNI se lo sabe, el correo con el que
+ *   1. **Es la que sabe la persona**: su DNI se lo sabe, el correo con el que
  *      rellenó un formulario hace ocho meses, no.
- *   3. **Enseñar el correo enmascarado ayuda de verdad** —«ya, era el del
+ *   2. **Enseñar el correo enmascarado ayuda de verdad** —«ya, era el del
  *      trabajo»— y cuesta poco: hay que acertar un DNI para verlo.
+ *   3. **Sirve también cuando el correo no existe**: no hace falta recordarlo,
+ *      solo recordarse a uno mismo.
  *
  *  LO QUE ESTA VÍA NO HACE, Y ES LO IMPORTANTE: **no abre sesión**. Un DNI no
  *  es un secreto (está en cualquier formulario que hayas firmado), así que aquí
@@ -370,8 +423,14 @@ function sticpa_support_email()
  * El porqué de esta vía y lo que NO hace (no abre sesión) está en
  * `inc/stic-otp.php` y en `sticpa_handle_send_access_dni`.
  */
-function sticpa_dni_access_form_html($return_url)
+function sticpa_dni_access_form_html($return_url, $soft = false)
 {
+    // `$soft`: el botón va en contorno y no en degradado. Es para cuando el
+    // formulario comparte pantalla con otro botón de marca (el del correo, tras
+    // un «ese correo no existe»): design.md, una sola acción principal.
+    $button = $soft
+        ? array(__('Buscarme por mi DNI', 'sticpa'), ' stic-btn-soft')
+        : array(__('Enviarme el acceso', 'sticpa'), '');
     return "
         <form action='" . site_url() . "/wp-admin/admin-post.php' method='post' class='stic-loading-form stic-dni-form'
               data-loading-text='" . esc_attr__('Buscándote…', 'sticpa') . "'
@@ -385,9 +444,9 @@ function sticpa_dni_access_form_html($return_url)
             </span>
             <input type='hidden' name='action' value='sticpa_send_access_dni'>
             <input type='hidden' name='scp_current_url' value='" . esc_attr($return_url) . "'>
-            <button type='submit' class='stic-btn-magic'>
-                <span class='stic-btn-magic-icon'>" . sticpa_otp_icon('send') . "</span>
-                <span>" . esc_html__('Enviarme el acceso', 'sticpa') . "</span>
+            <button type='submit' class='stic-btn-magic" . $button[1] . "'>
+                <span class='stic-btn-magic-icon'>" . sticpa_otp_icon($soft ? 'arrow' : 'send') . "</span>
+                <span>" . esc_html($button[0]) . "</span>
             </button>
         </form>";
 }
@@ -430,12 +489,76 @@ function sticpa_login_help_html($return_url, $open = false)
 }
 
 /**
+ * LO QUE SE VE CUANDO EL CORREO NO ESTÁ (31/10/2026).
+ *
+ * Dos piezas que el login pinta en sitios distintos de la misma pantalla:
+ *
+ *   · el MENSAJE, arriba, con la dirección que se tecleó para que la errata se
+ *     vea (y se corrige en el propio campo, que vuelve relleno);
+ *   · la TARJETA del DNI, debajo del botón del correo, ya abierta y con el
+ *     botón en contorno: es la otra salida, no una segunda acción principal.
+ *
+ * La dirección sale escapada y en negrita; es la que acaba de escribir quien
+ * mira la pantalla, así que mostrarla no revela nada de nadie.
+ *
+ * @param string $email El correo tecleado ('' si la sesión lo perdió).
+ */
+function sticpa_email_miss_message_html($email)
+{
+    $head = $email !== ''
+        ? sprintf(
+            /* translators: %s: el correo que se escribió, ya escapado y en negrita */
+            esc_html__('No encontramos este correo: %s', 'sticpa'),
+            '<strong>' . esc_html($email) . '</strong>'
+        )
+        : esc_html__('No encontramos ese correo.', 'sticpa');
+
+    return "<span id='stic-email-miss' class='error stic-msg-long' role='alert'>" . $head . "</span>"
+        . "<p class='stic-auth-help'>"
+        . esc_html__('¿Una errata? Corrígela y vuelve a probar. Si eres familia de un participante, pon el correo del familiar.', 'sticpa')
+        . "</p>";
+}
+
+/** La tarjeta del DNI de debajo del botón del correo (ver arriba). */
+function sticpa_email_miss_dni_html($return_url)
+{
+    return "
+        <section class='stic-auth-alt' aria-labelledby='stic-auth-alt-title'>
+            <h4 id='stic-auth-alt-title' class='stic-auth-alt-title'>" . esc_html__('¿Te diste de alta con otro correo?', 'sticpa') . "</h4>
+            <p class='stic-auth-alt-sub'>" . esc_html__('Escribe tu DNI o NIE y te mandamos el acceso al que tenemos guardado.', 'sticpa') . "</p>"
+        . sticpa_dni_access_form_html($return_url, true) . "
+        </section>";
+}
+
+/**
+ * Los avisos de la vía del correo que no son «no está» (ese tiene su bloque).
+ * Cada uno dice qué hacer ahora; un error que no conocemos no inventa mensaje.
+ */
+function sticpa_email_error_message($error)
+{
+    switch ($error) {
+        case 'formato':
+            return __('Escribe el correo entero, con su @ y su dominio.', 'sticpa');
+        case 'throttled':
+            return sprintf(
+                /* translators: %s: dirección de correo de la oficina técnica */
+                __('Has probado varias direcciones seguidas. Espera unos minutos y vuelve a intentarlo, o escríbenos a %s.', 'sticpa'),
+                sticpa_support_email()
+            );
+        case 'crm':
+            return __('Ahora mismo no podemos comprobar tu correo. Prueba otra vez en un minuto.', 'sticpa');
+    }
+    return '';
+}
+
+/**
  * LA AYUDA de la pantalla del código: «¿necesitas ayuda?».
  *
- * El acceso nunca dice si un correo existe, así que quien escribe una
- * dirección equivocada ve lo mismo que quien la escribe bien y espera un correo
- * que no llega. Aquí están las salidas, en orden de probabilidad: spam, la
- * dirección mal escrita, buscarse por el DNI y, al final, la oficina técnica.
+ * Aquí se llega con un correo que SÍ existe (desde el 31/10/2026 el acceso dice
+ * cuando no), así que lo que queda por salir mal es lo de siempre: el correo en
+ * spam, que sea el de otra persona de la familia, o que quien lo pidió prefiera
+ * buscarse por el DNI. Las salidas, en orden de probabilidad: spam, el correo de
+ * arriba, buscarse por el DNI y, al final, la oficina técnica.
  *
  * @param string $masked     El correo al que se mandó, ya tapado (puede ir vacío).
  * @param string $return_url URL de vuelta al área, para el formulario.

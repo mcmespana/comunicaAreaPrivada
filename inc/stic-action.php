@@ -1066,6 +1066,10 @@ function sticpa_magic_email_html($name, $link, $portalName, $code = '')
  * contraseña por correo. Se entra por aquí y, una vez dentro, quien quiera
  * contraseña se la pone en su perfil (`single_stic_password_change`).
  *
+ * Si el correo no está en el CRM se dice (31/10/2026) y se ofrece entrar por el
+ * DNI en la misma pantalla; el porqué y el freno, en la cabecera de
+ * `inc/stic-otp.php`.
+ *
  * `stic_forgot_password` se mantiene registrado como alias del nombre nuevo
  * para que un formulario ya pintado en una pestaña abierta no se rompa al
  * desplegar. Se puede quitar dentro de unas semanas.
@@ -1079,12 +1083,32 @@ function sticpa_handle_send_access()
     $email = sanitize_email(stripslashes_deep($_REQUEST['forgot-password-email-address'] ?? ''));
     $returnUrl = sticpa_auth_return_url();
 
+    // Desde el 31/10/2026 un correo que no existe SE DICE (antes se respondía
+    // igual para todos y quien se equivocaba esperaba un mensaje que nunca
+    // llegaba). Se vuelve a la pantalla del login, con el motivo y con el DNI
+    // delante. El freno que sustituye al silencio: `sticpa_otp_miss_allowed()`.
+    $volver = function ($error) use ($returnUrl) {
+        wp_safe_redirect(add_query_arg(array('email_error' => $error), $returnUrl));
+        exit;
+    };
+
+    if (!is_email($email)) {
+        unset($_SESSION['sticpa_email_miss']);
+        $volver('formato');
+    }
+
     // Primero se pregunta y DESPUÉS se apunta: al revés, la petición que hace
     // de tope se contaría a sí misma y solo saldrían 4 de los 5 envíos.
-    // Se apunta siempre, exista o no el email: si solo contáramos los envíos
-    // reales, mirar qué direcciones gastan cupo sería una forma de enumerar el CRM.
+    // El envío se apunta siempre, exista o no el email: es el tope de quien
+    // bombardea un buzón, y no debe depender de si la dirección está en el CRM.
     $allowed = sticpa_otp_send_allowed($email);
     sticpa_otp_note_send($email);
+
+    // Demasiados correos que no existen desde esta IP: ni se mira. La respuesta
+    // no depende de la dirección, así que no dice nada de ella.
+    if (!sticpa_otp_miss_allowed()) {
+        $volver('throttled');
+    }
 
     // Base ABSOLUTA para el enlace (REQUEST_URI es solo la ruta, sin dominio:
     // daría un enlace relativo que el cliente de correo no puede abrir).
@@ -1095,30 +1119,49 @@ function sticpa_handle_send_access()
     // El enlace del correo lleva a donde iba la persona (EV-8), no a la portada.
     $areaUrl = sticpa_url_with_destination($areaUrl, sticpa_login_destination_args($returnUrl));
 
-    if ($allowed && is_email($email)) {
+    // Con el tope de envíos agotado no se mira en el CRM: se va a la pantalla
+    // del código con el aviso (el que ya tiene un código en camino lo ve ahí).
+    if ($allowed) {
         $objSCP = SugarRestApiCall::getObjSCP();
+        $found = false;
+        $crmFailed = false;
         foreach (sticpa_modules_to_try() as $module) {
             $contact = $objSCP->getContactByEmail($email, $module);
             if ($contact) {
                 sticpa_send_access_email($contact, $module, $email, $areaUrl);
+                $found = true;
                 break; // found in this module; stop
             }
+            // «No hay nadie» y «el CRM no ha contestado» devuelven lo mismo
+            // (null): sin mirar el error, una caída del CRM le diría a todo el
+            // mundo que su correo no existe.
+            if ($objSCP->lastError !== '') {
+                $crmFailed = true;
+            }
+        }
+
+        if (!$found) {
+            if ($crmFailed) {
+                $volver('crm');
+            }
+            sticpa_otp_note_miss();
+            // Para devolverle el campo relleno y enseñarle qué escribió. Es lo
+            // que tecleó quien lo va a mirar; solo viaja en su sesión.
+            $_SESSION['sticpa_email_miss'] = $email;
+            $volver('nohay');
         }
     }
 
     // Recordamos a quién se lo hemos mandado SOLO para poder pre-rellenar la
     // pantalla del código y enseñar el correo enmascarado. No autoriza nada.
-    if (is_email($email)) {
-        $_SESSION['sticpa_otp_email'] = $email;
-        // Se ha entrado por el correo, no por el documento: la pantalla del
-        // código vuelve a poder pintar la dirección (la ha escrito quien la
-        // está mirando). Sin esto, quedaba pegada la marca de la vía anterior.
-        unset($_SESSION['sticpa_otp_via']);
-    }
+    $_SESSION['sticpa_otp_email'] = $email;
+    // Se ha entrado por el correo, no por el documento: la pantalla del
+    // código vuelve a poder pintar la dirección (la ha escrito quien la
+    // está mirando). Sin esto, quedaba pegada la marca de la vía anterior.
+    unset($_SESSION['sticpa_otp_via'], $_SESSION['sticpa_email_miss']);
 
-    // Redirección genérica pase lo que pase: nunca se revela si el email existe
-    // en el CRM. `wp_safe_redirect` porque `scp_current_url` viene del cliente
-    // y con `wp_redirect` se podía saltar a un host externo (plan 005).
+    // `wp_safe_redirect` porque `scp_current_url` viene del cliente y con
+    // `wp_redirect` se podía saltar a un host externo (plan 005).
     $args = array('sticpa_code' => '1');
     if (!$allowed) {
         $args['otp_error'] = 'throttled';
@@ -1195,7 +1238,8 @@ function sticpa_send_access_email($contact, $module, $email, $areaUrl)
  * Aquí SÍ se contesta con la verdad («no encontramos ese documento»), y es una
  * decisión: para saber si un DNI está dado de alta hay que tener el DNI, que ya
  * es un dato personal de alguien; y sin respuesta clara esta puerta no sirve
- * para lo único que existe, que es sacar a alguien de un atasco.
+ * para lo único que existe, que es sacar a alguien de un atasco. Desde el
+ * 31/10/2026 la vía del correo también dice cuando no está, y manda aquí.
  */
 add_action('admin_post_sticpa_send_access_dni', 'sticpa_handle_send_access_dni');
 add_action('admin_post_nopriv_sticpa_send_access_dni', 'sticpa_handle_send_access_dni');
@@ -1248,6 +1292,8 @@ function sticpa_handle_send_access_dni()
         // Para enmascarar y para verificar el código. No autoriza nada.
         $_SESSION['sticpa_otp_email'] = $email;
         $_SESSION['sticpa_otp_via'] = 'dni';
+        // Ya no hay «ese correo no existe» que recordar: se pasó a la otra puerta.
+        unset($_SESSION['sticpa_email_miss']);
 
         wp_safe_redirect(add_query_arg(array('sticpa_code' => '1'), $returnUrl));
         exit;
@@ -1306,8 +1352,8 @@ function sticpa_handle_verify_code()
         exit;
     }
 
-    // Mismo mensaje para código incorrecto, caducado o email que no existe: si
-    // se distinguieran, el formulario diría qué correos están registrados.
+    // Mismo mensaje para código incorrecto, caducado o sin código emitido: a
+    // quien teclea no le aporta nada distinguirlos, y a quien prueba, sí.
     wp_safe_redirect(add_query_arg(array(
         'sticpa_code' => '1',
         'otp_error' => $locked || sticpa_otp_is_locked($email) ? 'locked' : 'bad',
