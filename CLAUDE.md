@@ -120,6 +120,12 @@ contexto**. Reglas:
   va atada a la sesión y es la protección contra CSRF. `SecurityTest` falla si un
   `admin_post_nopriv_*` se olvida de la sesión.
 
+- **Pasar Lista lee por el middleware** (`inc/stic-middleware.php`, 29/10/2026) cuando está encendido: un cargador
+  que entre en él pide su recurso con `sticpa_pl_mw()` y, si devuelve null, sigue por la API. El middleware da las
+  filas de la MISMA consulta con los nombres de la API; no copies allí lo que el cargador hace después. Ver
+  [`docs/comunica/MIDDLEWARE.md`](docs/comunica/MIDDLEWARE.md) y `tests/MiddlewareTest.php` (cada pantalla sale igual
+  por los dos caminos).
+
 ---
 
 ## «Sigue con el área privada»
@@ -151,6 +157,7 @@ El mapa de los demás documentos está en
 | Eventos e inscripciones | `docs/comunica/EVENTOS.md` |
 | **Cuerpo de los eventos** (renderizador compartido con la web; original aquí, copia en formularios) | `inc/eventos-cuerpo.php` + `EVENTOS.md` §9 |
 | **Pasar Lista — índice de todo** | `docs/comunica/PASAR-LISTA-README.md` |
+| **Pasar Lista por el middleware** (lecturas por SQL vía comunicaMiddleware, con la API detrás; cómo se enciende) | `docs/comunica/MIDDLEWARE.md` |
 | **Mis Grupos** (leer fichas sin pasar lista) | `docs/comunica/MIS-GRUPOS.md` |
 | **Pasar lista en un evento** (el autobús) | `docs/comunica/PASAR-LISTA-EVENTOS.md` |
 | **Grupos de actividad** (patrullas, habitaciones… de Comunica Tools; pestañas del evento) | `docs/comunica/GRUPOS-ACTIVIDAD.md` |
@@ -167,3 +174,4 @@ El mapa de los demás documentos está en
 | **Ley de diseño (las dos superficies)** | `design.md` |
 | Sistema de diseño de este repo | `docs/design-system.md` |
 | Deuda de diseño y unificación entre repos | `plans/archive/039-unificar-el-lenguaje-visual-mcm.md` |
+| **Área privada nativa en MCM App** (análisis del 21/10/2026, sin plan; vive en el repo de la app) | `mcmapp/docs/planes/ANALISIS_AREA_PRIVADA_NATIVA.md` |

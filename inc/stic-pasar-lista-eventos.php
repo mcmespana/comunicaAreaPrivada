@@ -348,7 +348,7 @@ function sticpa_pl_ev_deleg_nombre($name)
  * Quien viene de otra delegación sale igual: sus relaciones son suyas. Y de
  * ellas sale también quién es MONITOR, que va aparte, al final.
  */
-function sticpa_pl_ev_lista_completa($objSCP, $inscripciones, $personas)
+function sticpa_pl_ev_lista_completa($objSCP, $inscripciones, $personas, $eventId = '')
 {
     $miDeleg = (string) sticpa_pl_delegation($objSCP);
     $relaciones = sticpa_pl_all_relationships($objSCP);
@@ -356,13 +356,9 @@ function sticpa_pl_ev_lista_completa($objSCP, $inscripciones, $personas)
     $monitores = array();
     $ids = array_keys((array) $personas);
     if (!empty($ids)) {
-        sticpa_pl_prime($objSCP, function () use ($objSCP, $ids) {
-            foreach ($ids as $cid) {
-                sticpa_pl_mis_rels($objSCP, $cid);
-            }
-        });
+        $porPersona = sticpa_pl_ev_rels_de($objSCP, $ids, $eventId);
         foreach ($ids as $cid) {
-            $rels = sticpa_pl_mis_rels($objSCP, $cid);
+            $rels = isset($porPersona[(string) $cid]) ? $porPersona[(string) $cid] : array();
             $c = sticpa_pl_ev_curso_de_rels($rels);
             if ($c !== '') {
                 $cursos[(string) $cid] = $c;
@@ -380,6 +376,41 @@ function sticpa_pl_ev_lista_completa($objSCP, $inscripciones, $personas)
         $miDeleg,
         $monitores
     );
+}
+
+/**
+ * Las relaciones de cada inscrito, en filas de la API (contactId => filas): de
+ * ellas salen su curso y si es del equipo.
+ *
+ * Por el middleware (paso 1e), con el evento: las de TODOS los inscritos en una
+ * lectura (`evRelaciones`), solo de los tipos que usa la lista. Si no, una
+ * consulta por persona (`sticpa_pl_mis_rels()`), en una tanda. La página la
+ * llama también dentro de su tanda 2, para que viaje con lo demás.
+ */
+function sticpa_pl_ev_rels_de($objSCP, $ids, $eventId = '')
+{
+    $ids = array_values(array_unique(array_map('strval', (array) $ids)));
+    $rows = ($eventId !== '') ? sticpa_pl_mw($objSCP, 'evRelaciones', array('evento' => sticpa_pl_safe_id($eventId))) : null;
+    if (is_array($rows)) {
+        $out = array();
+        foreach ($rows as $row) {
+            $cid = sticpa_pl_nvl_first($row->name_value_list, array('stic_contacts_relationships_contactscontacts_ida'));
+            if ($cid !== '') {
+                $out[$cid][] = $row;
+            }
+        }
+        return $out;
+    }
+    sticpa_pl_prime($objSCP, function () use ($objSCP, $ids) {
+        foreach ($ids as $cid) {
+            sticpa_pl_mis_rels($objSCP, $cid);
+        }
+    });
+    $out = array();
+    foreach ($ids as $cid) {
+        $out[$cid] = sticpa_pl_mis_rels($objSCP, $cid);
+    }
+    return $out;
 }
 
 /**
@@ -620,18 +651,24 @@ function sticpa_pl_ev_inscripciones($objSCP, $eventId)
         }
     }
 
-    $rows = $objSCP->getRelatedElementsForLoggedUser(array(
-        'module_name' => 'stic_Events',
-        'module_id' => $eventId,
-        'link_field_name' => 'stic_registrations_stic_events',
-        // `participation_type`: `organizer` (monitores, coordinación…) o
-        // `attendant` (los chavales). Visto en datos el 16/10/2026 (CAMPOS.md).
-        'related_fields' => array('id', 'status', 'ajmcm_curso_escolar_c', 'stic_registrations_contactscontacts_ida', 'participation_type'),
-        'related_module_link_name_to_fields_array' => array(
-            array('name' => 'stic_registrations_contacts', 'value' => array('id')),
-        ),
-        'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
-    ));
+    // Por el middleware (paso 1e): cada inscripción con su persona ya resuelta,
+    // así que sobran los respaldos de abajo.
+    $rows = sticpa_pl_mw($objSCP, 'evInscripciones', array('evento' => $eventId));
+    $porMw = is_array($rows);
+    if (!$porMw) {
+        $rows = $objSCP->getRelatedElementsForLoggedUser(array(
+            'module_name' => 'stic_Events',
+            'module_id' => $eventId,
+            'link_field_name' => 'stic_registrations_stic_events',
+            // `participation_type`: `organizer` (monitores, coordinación…) o
+            // `attendant` (los chavales). Visto en datos el 16/10/2026 (CAMPOS.md).
+            'related_fields' => array('id', 'status', 'ajmcm_curso_escolar_c', 'stic_registrations_contactscontacts_ida', 'participation_type'),
+            'related_module_link_name_to_fields_array' => array(
+                array('name' => 'stic_registrations_contacts', 'value' => array('id')),
+            ),
+            'deleted' => 0, 'order_by' => '', 'offset' => 0, 'limit' => 0,
+        ));
+    }
     if (sticpa_pl_collecting()) {
         return array();
     }
@@ -661,7 +698,7 @@ function sticpa_pl_ev_inscripciones($objSCP, $eventId)
         }
     }
 
-    if ($sinContacto) {
+    if ($sinContacto && !$porMw) {
         // El mapa de siempre (solo las no canceladas) con su respaldo.
         $map = sticpa_pl_event_registrations($objSCP, $eventId);
         $faltan = array();
@@ -692,7 +729,7 @@ function sticpa_pl_ev_inscripciones($objSCP, $eventId)
     }
 
     // Un fallo del CRM no se cachea como «no hay nadie inscrito».
-    if (!empty($out) || sticpa_pl_crm_error($objSCP) === '') {
+    if (!empty($out) || $porMw || sticpa_pl_crm_error($objSCP) === '') {
         sticpa_pl_cache_put($cacheKey, $out, $ttl);
     }
     return $out;
@@ -747,21 +784,31 @@ function sticpa_pl_ev_contacto_de_inscripcion($objSCP, $regId)
  *
  * @return array contactId => array('first', 'last', 'full', 'etapa', 'deleg_id', 'deleg_name')
  */
-function sticpa_pl_ev_personas($objSCP, $ids)
+function sticpa_pl_ev_personas($objSCP, $ids, $eventId = '')
 {
     $ids = array_values(array_unique(array_filter(array_map('sticpa_pl_safe_id', (array) $ids))));
     if (empty($ids)) {
         return array();
     }
-    $lista = array();
-    foreach ($ids as $id) {
-        $lista[] = "'" . $id . "'";
+    // Por el middleware (paso 1e), con el evento: el middleware da las personas
+    // inscritas en él (nunca otras), y aquí se quedan las pedidas.
+    $rows = ($eventId !== '') ? sticpa_pl_mw($objSCP, 'evPersonas', array('evento' => sticpa_pl_safe_id($eventId))) : null;
+    if (is_array($rows)) {
+        $pedidas = array_flip($ids);
+        $rows = array_values(array_filter($rows, function ($row) use ($pedidas) {
+            return isset($row->name_value_list->id->value, $pedidas[(string) $row->name_value_list->id->value]);
+        }));
+    } else {
+        $lista = array();
+        foreach ($ids as $id) {
+            $lista[] = "'" . $id . "'";
+        }
+        $rows = $objSCP->getRecordsModule(
+            'Contacts',
+            'contacts.id IN (' . implode(',', $lista) . ')',
+            array('id', 'name', 'first_name', 'last_name', 'ajmcm_etapa_c', 'assigned_user_id', 'assigned_user_name')
+        );
     }
-    $rows = $objSCP->getRecordsModule(
-        'Contacts',
-        'contacts.id IN (' . implode(',', $lista) . ')',
-        array('id', 'name', 'first_name', 'last_name', 'ajmcm_etapa_c', 'assigned_user_id', 'assigned_user_name')
-    );
     $out = array();
     if (!is_array($rows)) {
         return $out;
@@ -1493,6 +1540,14 @@ function sticpa_pl_ev_de_persona($objSCP, $contactId)
         return $cached['eventos'];
     }
 
+    // Por el middleware (paso 1c): las inscripciones de la persona a eventos de
+    // la delegación con el evento y las asistencias de cada una, en UNA lectura
+    // en vez de 1 + 2 por inscripción. Las filas se leen tal cual (no imitan una
+    // consulta de la API): `stic_registrations_stic_events…ida` y `asistencias`.
+    // Se pide ANTES de saber los eventos del curso: así, en la recolecta, viaja
+    // en la misma tanda que ellos.
+    $mw = function_exists('sticpa_mw_raw') ? sticpa_mw_raw($objSCP, 'personEvents', array('contacto' => $contactId)) : null;
+
     // Los eventos que cuentan, por id. Del cargador común: cero llamadas.
     $delCurso = array();
     foreach (sticpa_pl_ev_eventos($objSCP) as $ev) {
@@ -1531,7 +1586,8 @@ function sticpa_pl_ev_de_persona($objSCP, $contactId)
         );
     };
 
-    $regs = $objSCP->getRelatedElementsForLoggedUser($regsParams);
+    $mwAsistencias = array();   // regId => filas de asistencia (de la base)
+    $regs = is_array($mw) ? sticpa_mw_api_rows($mw) : $objSCP->getRelatedElementsForLoggedUser($regsParams);
     $estadoReg = array();
     foreach ((is_array($regs) ? $regs : array()) as $reg) {
         $id = isset($reg->name_value_list->id->value) ? sticpa_pl_safe_id($reg->name_value_list->id->value) : '';
@@ -1542,24 +1598,36 @@ function sticpa_pl_ev_de_persona($objSCP, $contactId)
     if (empty($estadoReg) || sticpa_pl_collecting()) {
         // «No está apuntado a nada» se guarda; «el CRM no ha contestado», no.
         if (!sticpa_pl_collecting() && is_array($regs)
-            && (!class_exists('SugarRestApiCall') || SugarRestApiCall::lastWalkComplete())) {
+            && (is_array($mw) || !class_exists('SugarRestApiCall') || SugarRestApiCall::lastWalkComplete())) {
             sticpa_pl_cache_put($cacheKey, array('v' => 1, 'eventos' => array()), 6 * HOUR_IN_SECONDS);
         }
         return array();
     }
 
-    // Tanda 1: el evento de cada inscripción.
-    sticpa_pl_prime($objSCP, function () use ($objSCP, $estadoReg, $evParams) {
-        foreach (array_keys($estadoReg) as $regId) {
-            $objSCP->getRelatedElementsForLoggedUser($evParams($regId));
-        }
-    });
     $suyos = array();   // regId => evento del curso
-    foreach (array_keys($estadoReg) as $regId) {
-        $res = $objSCP->getRelatedElementsForLoggedUser($evParams($regId));
-        $evId = isset($res[0]->name_value_list->id->value) ? sticpa_pl_safe_id($res[0]->name_value_list->id->value) : '';
-        if ($evId !== '' && isset($delCurso[$evId])) {
-            $suyos[$regId] = $delCurso[$evId];
+    if (is_array($mw)) {
+        foreach ($mw as $fila) {
+            $regId = isset($fila['id']) ? sticpa_pl_safe_id($fila['id']) : '';
+            $evId = isset($fila['stic_registrations_stic_eventsstic_events_ida'])
+                ? sticpa_pl_safe_id($fila['stic_registrations_stic_eventsstic_events_ida']) : '';
+            if ($regId !== '' && $evId !== '' && isset($delCurso[$evId])) {
+                $suyos[$regId] = $delCurso[$evId];
+                $mwAsistencias[$regId] = sticpa_mw_api_rows(isset($fila['asistencias']) ? $fila['asistencias'] : array());
+            }
+        }
+    } else {
+        // Tanda 1: el evento de cada inscripción.
+        sticpa_pl_prime($objSCP, function () use ($objSCP, $estadoReg, $evParams) {
+            foreach (array_keys($estadoReg) as $regId) {
+                $objSCP->getRelatedElementsForLoggedUser($evParams($regId));
+            }
+        });
+        foreach (array_keys($estadoReg) as $regId) {
+            $res = $objSCP->getRelatedElementsForLoggedUser($evParams($regId));
+            $evId = isset($res[0]->name_value_list->id->value) ? sticpa_pl_safe_id($res[0]->name_value_list->id->value) : '';
+            if ($evId !== '' && isset($delCurso[$evId])) {
+                $suyos[$regId] = $delCurso[$evId];
+            }
         }
     }
 
@@ -1572,11 +1640,13 @@ function sticpa_pl_ev_de_persona($objSCP, $contactId)
             $conLista[] = $regId;
         }
     }
-    sticpa_pl_prime($objSCP, function () use ($objSCP, $conLista, $attParams) {
-        foreach ($conLista as $regId) {
-            $objSCP->getRelatedElementsForLoggedUser($attParams($regId));
-        }
-    });
+    if (!is_array($mw)) {
+        sticpa_pl_prime($objSCP, function () use ($objSCP, $conLista, $attParams) {
+            foreach ($conLista as $regId) {
+                $objSCP->getRelatedElementsForLoggedUser($attParams($regId));
+            }
+        });
+    }
 
     // El estado de un evento de varios días: si vino alguno, vino; si no, el
     // de la marca que haya, de la mejor a la peor.
@@ -1595,7 +1665,9 @@ function sticpa_pl_ev_de_persona($objSCP, $contactId)
         } elseif ($ev['start'] > sticpa_pl_now()) {
             $estado = 'apuntado';
         } else {
-            $atts = $objSCP->getRelatedElementsForLoggedUser($attParams($regId));
+            $atts = is_array($mw)
+                ? (isset($mwAsistencias[$regId]) ? $mwAsistencias[$regId] : array())
+                : $objSCP->getRelatedElementsForLoggedUser($attParams($regId));
             foreach ((is_array($atts) ? $atts : array()) as $a) {
                 $st = isset($a->name_value_list->status->value) ? (string) $a->name_value_list->status->value : '';
                 if (!isset($prioridad[$st])) {

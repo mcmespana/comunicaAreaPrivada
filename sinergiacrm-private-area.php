@@ -87,6 +87,8 @@ include plugin_dir_path(__FILE__) . 'inc/stic-sessions.php';
 // porque las otras dos la usan.
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-crm.php';
+// Pasar Lista por el middleware (comunicaMiddleware), con la API detrás.
+include plugin_dir_path(__FILE__) . 'inc/stic-middleware.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-ui.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-pasar-lista-eventos.php';
 // Grupos de actividad de un evento (patrullas, habitaciones…), de Comunica Tools.
@@ -1084,6 +1086,12 @@ function sugar_crm_portal_index($html = "")
     $html .= menu();
 
     $pageFile = sticpa_resolve_page_file($currentPage);
+    // Las páginas del equipo de monitores comprueban el papel AQUÍ, en el
+    // servidor, y no solo en el menú (inc/stic-equipo.php).
+    if ($pageFile !== '' && function_exists('sticpa_equipo_puede_abrir') && !sticpa_equipo_puede_abrir($currentPage)) {
+        $html .= sticpa_equipo_puerta_cerrada_html();
+        $pageFile = '';
+    }
     if ($pageFile !== '') {
         ob_start();
         include $pageFile;

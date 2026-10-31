@@ -202,6 +202,30 @@ class CalendarParallelTest extends TestCase
         $this->assertSame(array(), $sueltas);
     }
 
+    public function test_el_titulo_de_la_sesion_pierde_la_fecha_y_la_hora_que_pone_el_crm()
+    {
+        $this->assertSame('COM | Curso 2026-2027 · BU', sticpa_calendar_session_title('COM | Curso 2026-2027 · BU | 30/10/2026 17:30h'));
+        $this->assertSame('Sábado 1', sticpa_calendar_session_title('Sábado 1'));
+        $this->assertSame('30/10/2026 17:30h', sticpa_calendar_session_title('30/10/2026 17:30h'));
+    }
+
+    public function test_la_home_solo_lista_eventos_abiertos_y_el_calendario_calla_las_sesiones_del_monitor()
+    {
+        $data = array(
+            'available_events' => array(array('id' => 'a', 'name' => 'Convivencia', 'start' => '2099-11-20', 'end' => '2099-11-21')),
+            'registered_events' => array(),
+            'attendance_by_session' => array(),
+            'sessions' => array(
+                array('id' => 's1', 'title' => 'Chavales', 'event_id' => 'e1', 'event_name' => 'E', 'start' => '2099-10-30 17:30:00', 'end' => '', 'as_monitor' => false),
+                array('id' => 's2', 'title' => 'Del monitor', 'event_id' => 'e2', 'event_name' => 'E2', 'start' => '2099-10-30 17:30:00', 'end' => '', 'as_monitor' => true),
+            ),
+        );
+        $items = sticpa_home_agenda_items($data, 5);
+        $this->assertSame(array('Convivencia'), array_column($items, 'title'));
+        $fc = sticpa_calendar_fc_events($data);
+        $this->assertSame(array('Chavales'), array_column(array_filter($fc, function ($e) { return $e['extendedProps']['kind'] === 'session'; }), 'title'));
+    }
+
     public function test_un_evento_repetido_ya_no_se_consulta_dos_veces()
     {
         $crm = $this->crm(false);

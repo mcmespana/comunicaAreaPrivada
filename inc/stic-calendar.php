@@ -301,7 +301,7 @@ function sticpa_gather_calendar_data($objSCP)
         'module_name' => $module,
         'module_id' => $userId,
         'link_field_name' => $regRel,
-        'related_fields' => array('id', 'status'),
+        'related_fields' => array('id', 'status', 'participation_type'),
         'related_module_link_name_to_fields_array' => array(),
         'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
     );
@@ -360,13 +360,21 @@ function sticpa_gather_calendar_data($objSCP)
     };
     // Las inscripciones que cuentan (las canceladas no), en su orden.
     $activeRegIds = array();
+    $monitorRegIds = array(); // regId => true: inscrita como monitor/a o equipo
+    $monitorRoles = function_exists('sticpa_pl_ev_papeles_equipo') ? sticpa_pl_ev_papeles_equipo() : array('organizer', 'equipo');
     foreach ((is_array($regs) ? $regs : array()) as $reg) {
         $regId = $reg->name_value_list->id->value ?? ($reg->id ?? null);
         $regStatus = $reg->name_value_list->status->value ?? '';
         if ($regId && $regStatus !== 'cancelled') {
             $activeRegIds[] = $regId;
+            $papel = strtolower(trim((string) ($reg->name_value_list->participation_type->value ?? '')));
+            if ($papel !== '' && in_array($papel, $monitorRoles, true)) {
+                $monitorRegIds[$regId] = true;
+            }
         }
     }
+    $eventAsMonitor = array();     // evId => true: lo llevas tú
+    $eventAsParticipant = array(); // evId => true: vas a él como participante
 
     // Tanda 1: eventos y asistencias de todas las inscripciones.
     $prime(function () use ($objSCP, $activeRegIds, $eventsParams, $attsParams) {
@@ -406,6 +414,11 @@ function sticpa_gather_calendar_data($objSCP)
             $evId = $evData->id->value ?? null;
             if (!$evId) {
                 continue;
+            }
+            if (isset($monitorRegIds[$regId])) {
+                $eventAsMonitor[$evId] = true;
+            } else {
+                $eventAsParticipant[$evId] = true;
             }
             if (!isset($registeredEvents[$evId])) {
                 $registeredEvents[$evId] = array(
@@ -500,6 +513,16 @@ function sticpa_gather_calendar_data($objSCP)
                 'end' => $evData->end_date->value ?? '',
             );
         }
+    }
+
+    // Las sesiones de un evento que LLEVAS (monitor/a, equipo) no son tus
+    // citas: son las de los chavales, y tú entras por Pasar Lista. Siguen en
+    // `sessions` (cuentan para saber que el evento tiene sesiones y no se pinta
+    // su banda de curso entero), pero marcadas para que la home y el calendario
+    // no las listen. Si además vas al mismo evento de participante, sí salen.
+    foreach ($sessions as $sid => $s) {
+        $ev = $s['event_id'];
+        $sessions[$sid]['as_monitor'] = !empty($eventAsMonitor[$ev]) && empty($eventAsParticipant[$ev]);
     }
 
     $data = array(
@@ -649,20 +672,20 @@ function sticpa_calendar_fc_events($data)
 
     // --- Sesiones de mis eventos, coloreadas por asistencia ---
     foreach ($data['sessions'] as $s) {
-        if (empty($s['start'])) {
+        if (empty($s['start']) || !empty($s['as_monitor'])) {
             continue;
         }
-        $statusKey = $data['attendance_by_session'][$s['id']] ?? '';
+        $statusKey =$data['attendance_by_session'][$s['id']] ?? '';
         $cls = sticpa_classify_attendance($statusKey);
-        $startLocal = get_date_from_gmt($s['start']); // 'Y-m-d H:i:s' en hora local
+        $startLocal = sticpa_calendar_local_datetime($s['start']);
         $startTs = strtotime($startLocal);
         $bucket = sticpa_session_bucket($cls, $startTs, $now);
         $bucket = sticpa_calendar_effective_bucket($bucket); // colapsa estados desactivados
         $meta = $palette[$bucket];
-        $endLocal = !empty($s['end']) ? get_date_from_gmt($s['end']) : '';
+        $endLocal = !empty($s['end']) ? sticpa_calendar_local_datetime($s['end']) : '';
         $events[] = array(
             'id' => $s['id'],
-            'title' => $s['title'],
+            'title' => sticpa_calendar_session_title($s['title']),
             'start' => str_replace(' ', 'T', $startLocal),
             'end' => $endLocal ? str_replace(' ', 'T', $endLocal) : null,
             'color' => $meta['color'],
@@ -671,7 +694,7 @@ function sticpa_calendar_fc_events($data)
             'extendedProps' => array(
                 'kind' => 'session',
                 'href' => '?internalpage=single_stic_sessions&action=detail&id=' . $s['id'],
-                'tooltip' => $s['title']
+                'tooltip' => sticpa_calendar_session_title($s['title'])
                     . ($s['event_name'] ? ' · ' . $s['event_name'] : '')
                     . ' · ' . $meta['label'],
             ),
@@ -679,6 +702,32 @@ function sticpa_calendar_fc_events($data)
     }
 
     return $events;
+}
+
+/**
+ * La hora de una sesión del CRM, tal cual sale de la API v4.1.
+ *
+ * La API devuelve `Y-m-d H:i:s` YA en hora local (la del usuario técnico, la
+ * misma con la que se escribió), no en UTC: Sesiones y Pasar Lista la leen así
+ * (ver sticpa_pl_ts()). Pasarla por get_date_from_gmt() sumaba otra vez el
+ * desfase de WordPress: «COM | Curso … 30/10/2026 17:30h» salía a las 18:30 en
+ * la home y en el calendario (24/10/2026).
+ */
+function sticpa_calendar_local_datetime($value)
+{
+    return trim((string) $value);
+}
+
+/**
+ * El nombre de una sesión sin el « | 30/10/2026 17:30h» que le pone el CRM al
+ * final: en el calendario el día y la hora ya los dice el propio bloque, y
+ * repetirlos alargaba cada título a tres líneas («COM | Curso 2026-2027 · BU»
+ * dice lo mismo). Un nombre sin ese sufijo se queda como está.
+ */
+function sticpa_calendar_session_title($title)
+{
+    $short = preg_replace('~\s*\|\s*\d{1,2}/\d{1,2}/\d{4}(?:\s+\d{1,2}:\d{2}\s*h?)?\s*$~u', '', (string) $title);
+    return ($short === null || trim($short) === '') ? (string) $title : trim($short);
 }
 
 /**
@@ -721,19 +770,21 @@ function sticpa_calendar_legend_html($buckets = null)
 }
 
 /**
- * Elementos "próximos" para el widget de la home: fusiona sesiones futuras (de
- * hoy en adelante) y eventos abiertos a inscripción, ordenados por fecha.
- * Devuelve como mucho $limit elementos.
+ * Elementos "próximos" para el widget de la home: los eventos abiertos a
+ * inscripción, de hoy en adelante y por fecha. Devuelve como mucho $limit.
+ *
+ * LAS SESIONES NO SALEN (24/10/2026). Te apuntas al evento, no a sus sesiones:
+ * estás en todas por defecto, así que listarlas era ruido —las 22 de un curso
+ * semanal, con su título largo— y a un monitor, además, le enseñaba las de los
+ * chavales. Para mirar las sesiones está el calendario.
  */
 function sticpa_home_agenda_items($data, $limit = 5)
 {
     $palette = sticpa_calendar_palette();
     $todayTs = strtotime('today');
 
-    // Dos grupos separados: primero los eventos ABIERTOS A INSCRIPCIÓN (acción
-    // inmediata, suelen ser pocos) y debajo las próximas SESIONES de eventos en
-    // los que ya estás inscrito (p. ej. las sesiones semanales de un curso).
-    // (Van a la ficha del evento, como en la agenda: ver arriba.)
+    // Eventos ABIERTOS A INSCRIPCIÓN (acción inmediata, suelen ser pocos).
+    // Van a la ficha del evento, como en la agenda: ver arriba.
     $available = array();
     foreach ($data['available_events'] as $ev) {
         if (empty($ev['start'])) {
@@ -757,36 +808,12 @@ function sticpa_home_agenda_items($data, $limit = 5)
         );
     }
 
-    $sessions = array();
-    foreach ($data['sessions'] as $s) {
-        if (empty($s['start'])) {
-            continue;
-        }
-        $startLocal = get_date_from_gmt($s['start']);
-        $ts = strtotime($startLocal);
-        if ($ts === false || $ts < $todayTs) {
-            continue; // solo próximas
-        }
-        $sessions[] = array(
-            'ts' => $ts,
-            'has_time' => (strpos($s['start'], ' ') !== false && substr($startLocal, 11, 5) !== '00:00'),
-            'type' => 'session',
-            'title' => $s['title'],
-            'subtitle' => $s['event_name'],
-            'bucket' => 'upcoming',
-            'href' => '?internalpage=single_stic_sessions&action=detail&id=' . $s['id'],
-        );
-    }
-
     $byTs = function ($a, $b) {
         return $a['ts'] <=> $b['ts'];
     };
     usort($available, $byTs);
-    usort($sessions, $byTs);
 
-    // Disponibles primero, luego sesiones (cada grupo por fecha).
-    $items = array_merge($available, $sessions);
-    return array_slice($items, 0, max(1, (int) $limit));
+    return array_slice($available, 0, max(1, (int) $limit));
 }
 
 /**

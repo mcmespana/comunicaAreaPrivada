@@ -234,3 +234,59 @@ function sticpa_equipo_papel_principal()
     }
     return '';
 }
+
+/**
+ * ¿Es esta página de las del equipo de monitores?
+ *
+ * Todas las de Pasar Lista (`single_stic_pasar_lista*`: portada, árbol, marcar,
+ * ficha, evento, monitores, reuniones, resumen), «Grupos y fichas» y
+ * «Coordinación». «Mis datos de monitor» no entra: solo enseña y guarda los
+ * datos de quien mira.
+ */
+function sticpa_equipo_es_pagina_del_equipo($page)
+{
+    $page = (string) $page;
+    return $page === 'single_stic_mis_grupos'
+        || $page === 'single_stic_coordinacion'
+        || strpos($page, 'single_stic_pasar_lista') === 0;
+}
+
+/**
+ * LA PUERTA DEL SERVIDOR (28/10/2026). Hasta hoy solo el menú escondía estas
+ * páginas: el enrutador incluía cualquier `pages/*.php` y los datos solo se
+ * acotaban por la delegación de la sesión, así que una familia con sesión que
+ * escribiera `?internalpage=single_stic_pasar_lista` veía los grupos de su
+ * delegación. Ahora el enrutador pregunta aquí antes de incluir la página, con
+ * la MISMA regla que el menú (sticpa_equipo_es_del_equipo): quien no ve la
+ * puerta, no entra. Los guardados son un POST a la propia página, así que
+ * quedan detrás de la misma puerta.
+ */
+function sticpa_equipo_puede_abrir($page)
+{
+    if (!sticpa_equipo_es_pagina_del_equipo($page)) {
+        return true;
+    }
+    return (bool) apply_filters('sticpa_equipo_puede_abrir', sticpa_equipo_es_del_equipo(), $page);
+}
+
+/**
+ * Lo que se enseña en vez de la página cuando la puerta está cerrada. Viendo a
+ * un hijo, se dice por qué y cómo volver: un monitor que mira la ficha de su
+ * hija sigue siendo monitor, solo tiene que volver a la suya.
+ */
+function sticpa_equipo_puerta_cerrada_html()
+{
+    $viendoA = function_exists('sticpa_viendo_a_nombre') ? sticpa_viendo_a_nombre() : '';
+    if ($viendoA !== '') {
+        $texto = sprintf(
+            /* translators: %s: nombre de la persona cuya ficha se está viendo */
+            __('Estás viendo a %s. Pasar lista y las fichas de los grupos son de tu perfil: vuelve a él para entrar.', 'sticpa'),
+            $viendoA
+        );
+        $enlace = "<a href='?internalpage=single_stic_profile_selection'>" . esc_html__('Cambiar de perfil', 'sticpa') . '</a>';
+    } else {
+        $texto = __('Esta sección es del equipo de monitores.', 'sticpa');
+        $enlace = "<a href='?'>" . esc_html__('Ir al inicio', 'sticpa') . '</a>';
+    }
+    return "<p class='pl-hint'><span>" . esc_html($texto) . ' ' . $enlace . '</span></p>';
+}

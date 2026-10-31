@@ -19,6 +19,32 @@ Piloto: **MCM Castellón, curso 2025-2026**. Nada interdelegacional.
 Esto es lo único que hay que leer para saber por dónde va. Lo cerrado está más
 abajo, en §1-bis, y se conserva porque explica POR QUÉ el código es como es.
 
+### ✅ Lista de monitores: los que no van por grupos salen «sin marcar» (25/10/2026)
+
+«Sin etapa» no era una etapa: eran los monitores **sin grupo de Pasar Lista** —los
+de Apoyo, los de grupos que no pasan lista (Najar, Ruah…) y los nuevos sin
+grupo—, y salían en verde como si fueran a venir. En la **lista semanal**
+(no en las reuniones, donde se espera a todos):
+
+- Arrancan **«-» (sin marcar)** y el toque cicla `- → vino → no vino → -`
+  (`data-optional` en la fila). Sin marca **no se escribe nada** y no cuentan en
+  «N vinieron» ni en `n_asistieron` de la lista (`opcional` en
+  `sticpa_pl_save_monitors()`). Sin porcentaje ni aviso rojo.
+- **Apoyo** va desplegado al final, con su cabecera, y lo ven **todas las
+  coordinaciones** (también las de una etapa). En el CRM no hay «refuerzo»: son
+  los grupos **«Monitores Apoyo»** y **«Apoyo»** (código `apoyo`), con la casilla
+  de pasar lista a 0 (mirado por MCP el 25/10/2026). Quien además lleva un grupo
+  real de otra etapa no es de Apoyo para esa coordinación.
+- **Otros monitores** (Najar, Ruah, sin grupo…): plegados al final, solo para
+  quien coordina toda la delegación, diciendo su grupo en vez de «Sin grupo
+  asignado».
+- Los dos bloques, **de joven a mayor** por fecha de nacimiento (ya viene con el
+  mapa de relaciones: cero llamadas nuevas); sin fecha, al final y por apellido
+  (`sticpa_pl_cmp_joven_a_mayor()`).
+
+**Sin probar en el móvil**: el ciclo del toque es JS nuevo (`nextState(current, row)`);
+los tests cubren el HTML y el guardado, no el gesto.
+
 ### ✅ Burriana arranca, y quien colabora con dos delegaciones (23/10/2026)
 
 Montado en el CRM por MCP el 23/10/2026 (todo asignado a **MCM Burriana**,
