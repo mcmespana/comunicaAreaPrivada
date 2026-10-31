@@ -492,10 +492,14 @@ El flujo vive en `sticpa_handle_send_access` (`inc/stic-action.php`):
 - La persona introduce **solo su email** → WordPress busca el contacto (`getContactByEmail`) y le
   manda **un correo con las dos formas de entrar**: un **código de 6 cifras** (§8.7) y el enlace
   mágico de siempre.
-- La respuesta es **genérica siempre** ("si tu email está registrado, recibirás el acceso"), para
-  no revelar qué emails existen (anti-enumeración).
+- Si el email **no está en el CRM se dice** (desde el 31/10/2026): se vuelve al login con el correo
+  tecleado a la vista y, debajo, la tarjeta para entrar por DNI. Antes la respuesta era idéntica
+  para todos y quien se equivocaba esperaba un correo que nunca llegaba. Si el CRM no contesta, se
+  dice eso, no «no existe».
 - Los **envíos están limitados** (5 por email cada 20 min, 30 por IP cada hora). Sin eso, cualquiera
-  podía llenar el buzón de cualquier contacto del CRM y, de paso, enumerar direcciones.
+  podía llenar el buzón de cualquier contacto del CRM.
+- Los **correos que no existen** también: 8 por IP cada 30 min; pasado el tope ni se mira en el CRM
+  (frena el barrido de direcciones que la respuesta clara hace posible).
 
 ### 8.4 Panel de administración (ajustes del plugin)
 

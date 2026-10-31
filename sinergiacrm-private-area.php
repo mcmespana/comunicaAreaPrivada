@@ -642,6 +642,24 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
     if ($dniMsg !== '') {
         $magicMsg .= "<span class='error stic-msg-long' role='alert'>" . esc_html($dniMsg) . "</span>";
     }
+    // El de la vía del correo (31/10/2026): si el correo no está, se dice, con
+    // lo que se tecleó y el DNI debajo del botón. Lo tecleado vive en la sesión
+    // y no en la URL: un correo en la query acaba en los logs del servidor.
+    $emailError = isset($_REQUEST['email_error']) ? sanitize_key($_REQUEST['email_error']) : '';
+    $emailMiss = ($emailError === 'nohay');
+    $missEmail = '';
+    if ($emailMiss) {
+        $missEmail = isset($_SESSION['sticpa_email_miss']) ? (string) $_SESSION['sticpa_email_miss'] : '';
+        if (!is_email($missEmail)) {
+            $missEmail = '';
+        }
+        $magicMsg .= sticpa_email_miss_message_html($missEmail);
+    } elseif ($emailError !== '') {
+        $emailMsg = sticpa_email_error_message($emailError);
+        if ($emailMsg !== '') {
+            $magicMsg .= "<span class='error stic-msg-long' role='alert'>" . esc_html($emailMsg) . "</span>";
+        }
+    }
 
     // Selector de idioma (opcional, según plugin de traducción activo).
     $languageHtml = "";
@@ -696,8 +714,10 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
     /* ---------- VISTA 1: ENLACE MÁGICO (por defecto) ---------- */
     $html .= "
         <div class='stic-auth-view stic-auth-magic' id='stic-auth-panel-magic' role='tabpanel' aria-labelledby='stic-auth-tab-magic'>
-            " . $magicMsg . "
-            <p class='stic-auth-help'>" . __('Te mandamos un código al correo para entrar. Sin contraseñas ni líos.', 'sticpa') . "</p>
+            " . $magicMsg
+            // Tras un «ese correo no está» el aviso ya explica qué hacer; la
+            // frase de siempre solo repetiría una pantalla con dos ayudas.
+            . ($emailMiss ? "" : "<p class='stic-auth-help'>" . __('Te mandamos un código al correo para entrar. Sin contraseñas ni líos.', 'sticpa') . "</p>") . "
             <form action='" . site_url() . "/wp-admin/admin-post.php' method='post' class='stic-loading-form'
                   data-loading-text='" . esc_attr__('Preparando tu acceso…', 'sticpa') . "'
                   data-loading-sub='" . esc_attr__('En unos segundos lo tienes en el correo.', 'sticpa') . "'>
@@ -706,7 +726,9 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
                         <label for='stic-magic-email'>" . __('Tu correo', 'sticpa') . "</label>
                         <span class='stic-field'>
                             <span class='stic-field-icon'>" . sticpa_icon('mail') . "</span>
-                            <input type='email' class='input-text' name='forgot-password-email-address' id='stic-magic-email' autocomplete='email' inputmode='email' placeholder='" . esc_attr__('nombre@correo.com', 'sticpa') . "' required>
+                            <input type='email' class='input-text' name='forgot-password-email-address' id='stic-magic-email' autocomplete='email' inputmode='email' placeholder='" . esc_attr__('nombre@correo.com', 'sticpa') . "'"
+                                . ($missEmail !== '' ? " value='" . esc_attr($missEmail) . "'" : "")
+                                . ($emailMiss ? " aria-invalid='true' aria-describedby='stic-email-miss'" : "") . " required>
                         </span>
                     </li>
                     <li class='stic-send'>
@@ -719,9 +741,13 @@ function sugar_crm_portal_login_form($html = "", $mode = 'magic')
                     </li>
                 </ul>
             </form>"
-            // La ayuda, plegada y debajo del botón: qué correo poner y, si no
-            // lo sabes, el DNI. Se abre sola al volver de un error del DNI.
-            . sticpa_login_help_html($return_url, $dniMsg !== '') . "
+            // Debajo del botón: tras un «ese correo no está», la tarjeta del DNI
+            // abierta (es la salida); en el resto, la ayuda plegada con qué
+            // correo poner y el DNI, que se abre sola al volver de un error
+            // del DNI.
+            . ($emailMiss
+                ? sticpa_email_miss_dni_html($return_url)
+                : sticpa_login_help_html($return_url, $dniMsg !== '')) . "
         </div>";
 
     /* ---------- VISTA 2: USUARIO + CONTRASEÑA ---------- */
@@ -824,7 +850,7 @@ function sticpa_access_code_form($html = "")
                 <h3>" . esc_html__('Mira tu correo', 'sticpa') . "</h3>
                 <p class='stic-auth-sub'>" . ($masked !== ''
                     ? sprintf(esc_html__('Te hemos enviado un código a %s', 'sticpa'), esc_html($masked))
-                    : esc_html__('Si tu correo está registrado, te hemos enviado un código.', 'sticpa')) . "</p>
+                    : esc_html__('Escribe el código que te hemos enviado al correo.', 'sticpa')) . "</p>
             </div>
         </div>";
 

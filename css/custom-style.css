@@ -6557,10 +6557,11 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
    58. «¿NO TE LLEGA NADA?» — el rescate de la pantalla del código
    ------------------------------------------------------------
    Esta es la pantalla donde la gente se quedaba tirada. El acceso
-   nunca dice si un correo existe (y hace bien: decirlo regala una
-   forma de enumerar el CRM), así que quien escribe la dirección
-   equivocada ve exactamente lo mismo que quien la escribe bien
-   —«mira tu correo»— y espera un correo que no va a llegar.
+   no decía si un correo existía (desde el 31/10/2026 sí lo dice, y
+   su aviso es la tarjeta `.stic-auth-alt` de más abajo), así que
+   quien escribía la dirección equivocada veía lo mismo que quien la
+   escribía bien —«mira tu correo»— y esperaba un correo que no iba
+   a llegar.
 
    La solución no es un aviso más grande: son las cuatro cosas que
    puede hacer, en orden de probabilidad, y una salida de verdad
@@ -6617,6 +6618,77 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 .stic-dni-form input[type="text"] {
     text-transform: uppercase;
     letter-spacing: 0.06em;
+}
+
+/* ---- «Ese correo no está»: la tarjeta del DNI (31/10/2026) ----
+   Sale debajo del botón del correo cuando el correo que se tecleó no existe,
+   ya abierta: es la otra salida y tiene que estar a la vista, no plegada. Como
+   comparte pantalla con el botón de marca del correo, el suyo va en contorno
+   (`stic-btn-soft`): una pantalla, una acción principal (design.md §1). */
+.stic-auth-alt {
+    margin-top: var(--space-4);
+    padding: var(--space-4);
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    animation: stic-fade-up 0.35s var(--ease-out) backwards;
+}
+
+.stic-auth-alt-title {
+    margin: 0 0 var(--space-1);
+    font-size: var(--font-size-base);
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--gray-800);
+}
+
+.stic-auth-alt-sub {
+    margin: 0 0 var(--space-3);
+    font-size: var(--font-size-sm);
+    line-height: 1.5;
+    color: var(--gray-600);
+}
+
+.stic-auth-alt .stic-dni-form { margin: 0; }
+
+/* El correo del aviso, en su propia línea: partido en mitad de la dirección
+   (visto a 375px en el arnés) no se lee. */
+.stic-login-form .error.stic-msg-long strong {
+    display: block;
+    margin-top: var(--space-1);
+    font-size: 0.95em;
+    font-weight: 700;
+}
+
+/* El correo que falló, marcado en el propio campo. */
+.stic-auth-shell .stic-field .input-text[aria-invalid="true"] {
+    border-color: var(--danger-color) !important; /* gana al borde del campo */
+}
+
+/* El botón en contorno. Va con `!important` y el selector doblado por lo mismo
+   que el degradado al que sustituye (§9): el tema y las reglas de
+   `.stic-btn-magic` lo pisan si no. */
+.stic-btn-magic.stic-btn-soft,
+.stic-auth-shell .stic-btn-magic.stic-btn-soft {
+    background: transparent !important;         /* quita el degradado de .stic-btn-magic */
+    background-image: none !important;          /* y el que pone el tema */
+    color: var(--primary-color) !important;     /* sobre el blanco del degradado */
+    border: 2px solid var(--primary-color) !important; /* el contorno ES el botón */
+    box-shadow: none !important;                /* sin la sombra de reposo */
+}
+
+.stic-btn-magic.stic-btn-soft::after { content: none !important; display: none !important; }
+
+@media (hover: hover) {
+    .stic-btn-magic.stic-btn-soft:hover,
+    .stic-auth-shell .stic-btn-magic.stic-btn-soft:hover {
+        background: var(--gray-100) !important; /* gana al :hover del degradado */
+        box-shadow: none !important;            /* y a su sombra grande */
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .stic-auth-alt { animation: none; }
 }
 
 /* Un mensaje LARGO no se lee centrado y en negrita: eso es para «Usuario y/o
