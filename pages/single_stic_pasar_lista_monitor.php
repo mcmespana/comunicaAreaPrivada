@@ -171,8 +171,12 @@ if ($ficha === null) {
 
 $events = sticpa_pl_etapa_events($objSCP);
 // Quien solo acompaña no tiene alcance, así que no hay etapa de la que tirar:
-// se coge el primer evento que haya, que para las asistencias da igual porque
-// las sesiones son las mismas fechas.
+// se coge el primer evento que haya. Es el evento contra el que la lista
+// semanal de monitores guarda sus asistencias (mismo criterio en
+// single_stic_pasar_lista_monitores.php): si aquí se mirara otro, la ficha no
+// encontraría lo que la lista escribe. OJO: este evento es para los SÁBADOS del
+// monitor; las LISTAS de cada grupo se buscan en las sesiones de la etapa de
+// ese grupo (sticpa_pl_seguimiento_monitor, 31/10/2026).
 $etapaKey = ($scope !== null && $scope['etapa'] !== '') ? $scope['etapa'] : '';
 $event = ($etapaKey !== '' && isset($events[$etapaKey])) ? $events[$etapaKey] : null;
 if ($event === null) {
@@ -185,22 +189,33 @@ if ($event === null) {
 }
 $reunion = sticpa_pl_reuniones_event($objSCP);
 
-// TANDA 2: sesiones e inscripciones de los DOS eventos a la vez. Antes las
+$grupos = sticpa_pl_monitor_grupos($objSCP, $monitorId);
+// Las sesiones de la etapa de cada grupo que lleva: sus listas cuelgan de ahí.
+$eventosDeSusGrupos = array();
+foreach ($grupos as $g) {
+    if ($g['papel'] === 'monitor' && !empty($g['etapa']) && isset($events[$g['etapa']]['id'])) {
+        $eventosDeSusGrupos[$g['etapa']] = $events[$g['etapa']];
+    }
+}
+// TANDA 2: sesiones e inscripciones de los eventos a la vez. Antes las
 // reuniones no se miraban en esta pantalla; pedirlas en su propio viaje habría
 // duplicado la espera.
-sticpa_pl_prime($objSCP, function () use ($objSCP, $event, $reunion) {
+sticpa_pl_prime($objSCP, function () use ($objSCP, $event, $reunion, $eventosDeSusGrupos) {
     foreach (array($event, $reunion) as $ev) {
         if (is_array($ev) && !empty($ev['id'])) {
             sticpa_pl_event_sessions($objSCP, $ev['id']);
             sticpa_pl_event_registrations($objSCP, $ev['id']);
         }
     }
+    // De los eventos de sus grupos solo hacen falta las sesiones.
+    foreach ($eventosDeSusGrupos as $ev) {
+        sticpa_pl_event_sessions($objSCP, $ev['id']);
+    }
 });
 
 // Cero consultas: las tres salen del mapa de relaciones y del índice de listas.
 // (La tanda 3 —las asistencias de esta persona— la hace `..._seguimiento_...`.)
-$grupos = sticpa_pl_monitor_grupos($objSCP, $monitorId);
-$seg = sticpa_pl_seguimiento_monitor($objSCP, $monitorId, $event, $reunion, $grupos);
+$seg = sticpa_pl_seguimiento_monitor($objSCP, $monitorId, $event, $reunion, $grupos, $events);
 $historico = sticpa_pl_monitor_historico($objSCP, $monitorId);
 
 // ---------------------------------------------------------------------------
