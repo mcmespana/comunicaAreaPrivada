@@ -104,6 +104,10 @@ class FakeSCP
      *  de «Monitores Apoyo», m22 de «Najar» (no pasa lista) y m23 de Apoyo que
      *  además lleva el grupo real g3 (MIC). Con fecha de nacimiento, salvo m21. */
     public $conApoyo = false;
+    /** MIC y COM con SU PROPIO evento y sus propias sesiones (como en Castellón
+     *  y Burriana: mismo sábado, sesiones distintas). Por defecto un solo evento
+     *  para las dos etapas. La lista del MIC (g3) cuelga de la sesión `mi1`. */
+    public $eventosSeparados = false;
 
     /** Cuando es true, la delegación tiene además EVENTOS de salida (pasar
      *  lista en el autobús, inc/stic-pasar-lista-eventos.php): una convivencia
@@ -852,15 +856,20 @@ class FakeSCP
             return $out;
         }
         if ($module === 'stic_Events') {
-            return array_merge(array(
+            return array_merge(array_filter(array(
                 // Un solo evento para MIC y COM, y el nombre NO dice la etapa:
                 // así lo unico que puede resolverla es el campo de seleccion
                 // multiple, que es lo que se quiere comprobar.
-                $this->nvl(array(
-                    'id' => 'ev-todo',
-                    'name' => 'Sesiones semanales 2025-2026',
-                    'ajmcm_etapa_c' => '^MIC^,^COM^',
-                )),
+                $this->eventosSeparados
+                    ? $this->nvl(array('id' => 'ev-com', 'name' => 'COM | Sesiones semanales 2025-2026', 'ajmcm_etapa_c' => ''))
+                    : $this->nvl(array(
+                        'id' => 'ev-todo',
+                        'name' => 'Sesiones semanales 2025-2026',
+                        'ajmcm_etapa_c' => '^MIC^,^COM^',
+                    )),
+                $this->eventosSeparados
+                    ? $this->nvl(array('id' => 'ev-mic', 'name' => 'MIC | Sesiones semanales 2025-2026', 'ajmcm_etapa_c' => ''))
+                    : null,
                 // Sin campo relleno: cae en el nombre, que es lo que pasa con
                 // los eventos creados antes de que el campo existiera.
                 $this->nvl(array('id' => 'ev-lc', 'name' => 'LC | Sesiones semanales 2025-2026', 'ajmcm_etapa_c' => '')),
@@ -872,7 +881,7 @@ class FakeSCP
                 $this->nvl(array('id' => 'ev-reu', 'name' => $this->reunionesConCodigo
                     ? 'Monitores | Reuniones de programación CS 2025-2026'
                     : 'Monitores | Reuniones de programación 2025-2026', 'ajmcm_etapa_c' => '')),
-            ), $this->conEventos ? array(
+            )), $this->conEventos ? array(
                 $this->nvl(array('id' => 'ev-bus', 'name' => 'Convivencia MIC y COM', 'start_date' => '2025-11-15 09:00:00', 'end_date' => '2025-11-16 18:00:00', 'ajmcm_etapa_c' => '')),
                 $this->nvl(array('id' => 'ev-pasado', 'name' => 'Salida al parque', 'start_date' => '2025-10-04 10:00:00', 'end_date' => '2025-10-04 13:00:00', 'ajmcm_etapa_c' => '')),
                 $this->nvl(array('id' => 'ev-futuro', 'name' => 'Campamento de Navidad', 'start_date' => '2025-12-27 10:00:00', 'end_date' => '2025-12-30 18:00:00', 'ajmcm_etapa_c' => '')),
@@ -1102,6 +1111,11 @@ class FakeSCP
                         $this->nvl(array('id' => 'ru2', 'name' => 'Programación del 2.º trimestre', 'start_date' => '2025-11-08 10:00:00', 'end_date' => '2025-11-08 13:00:00')),
                         // Futura: no cuenta todavía.
                         $this->nvl(array('id' => 'ru3', 'name' => 'Programación del 3.er trimestre', 'start_date' => '2026-02-14 10:00:00', 'end_date' => '2026-02-14 13:00:00')),
+                    ));
+                }
+                if ($this->eventosSeparados && isset($p['module_id']) && $p['module_id'] === 'ev-mic') {
+                    return $this->apiShape(array(
+                        $this->nvl(array('id' => 'mi1', 'start_date' => '2025-11-08 16:30:00', 'end_date' => '2025-11-08 18:00:00')),
                     ));
                 }
                 return $this->apiShape(array(
@@ -2305,7 +2319,9 @@ final class PasarListaRenderTest extends TestCase
         $_POST = array(
             'pl_action' => 'save',
             'pl_nonce' => wp_create_nonce('pl_monitores'),
-            'pl_marks' => json_encode(array()),
+            // m9 no tiene grupo de Pasar Lista: sale con «-» y sin marca no se escribe
+            // (31/10/2026, también en reuniones). Se marca para que sean tres altas.
+            'pl_marks' => json_encode(array('m9' => 'yes')),
         );
         $html = $this->render('single_stic_pasar_lista_monitores');
 
@@ -2330,7 +2346,9 @@ final class PasarListaRenderTest extends TestCase
         $_POST = array(
             'pl_action' => 'save',
             'pl_nonce' => wp_create_nonce('pl_monitores'),
-            'pl_marks' => json_encode(array()),
+            // m9 no tiene grupo de Pasar Lista: sale con «-» y sin marca no se escribe
+            // (31/10/2026, también en reuniones). Se marca para que sean tres altas.
+            'pl_marks' => json_encode(array('m9' => 'yes')),
         );
         $html = $this->render('single_stic_pasar_lista_monitores');
 
@@ -4373,17 +4391,121 @@ final class PasarListaRenderTest extends TestCase
         $this->assertStringNotContainsString('Otros monitores', $html);
     }
 
-    /** En una reunión se espera a todos: nada cambia (siguen en verde). */
-    public function test_en_una_reunion_los_monitores_sin_grupo_siguen_en_verde()
+    /**
+     * En una reunión los monitores sin grupo de Pasar Lista también salen sin
+     * marcar («-»): quizá a esa reunión no les toca ir (31/10/2026). Los de un
+     * grupo siguen en verde.
+     */
+    public function test_en_una_reunion_los_monitores_sin_grupo_salen_sin_marcar()
     {
         $this->scp->coordEtapa = '';
         $this->scp->conApoyo = true;
         $_REQUEST = array('reunion' => '1', 'sesion' => 'ru2');
         $html = $this->render('single_stic_pasar_lista_monitores');
 
-        $this->assertMatchesRegularExpression('/data-state="yes"[^>]*data-contact="m20"/', $html);
-        $this->assertStringNotContainsString('data-optional', $html);
-        $this->assertStringNotContainsString('Otros monitores', $html);
+        foreach (array('m20', 'm21', 'm22', 'm9') as $id) {
+            $this->assertMatchesRegularExpression('/<button[^>]*data-contact="' . $id . '"[^>]*data-optional/', $html, $id);
+            $this->assertDoesNotMatchRegularExpression('/data-state="yes"[^>]*data-contact="' . $id . '"/', $html);
+        }
+        $this->assertMatchesRegularExpression('/data-state="yes"[^>]*data-contact="m1"/', $html);
+        $this->assertDoesNotMatchRegularExpression('/data-contact="m1"[^>]*data-optional/', $html);
+        $this->assertStringContainsString('Puede que no les toque venir', $html);
+    }
+
+    /** Y sin marca no se escribe nada ni cuentan en los números, también en una reunión. */
+    public function test_guardar_una_reunion_no_escribe_a_los_monitores_sin_grupo_sin_marca()
+    {
+        $this->scp->coordEtapa = '';
+        $this->scp->conApoyo = true;
+        $this->scp->monitorSinInscripcion = true;
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_REQUEST = array('reunion' => '1', 'sesion' => 'ru2');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_monitores'),
+            'pl_marks' => json_encode(array('m20' => 'yes')),
+        );
+        $this->render('single_stic_pasar_lista_monitores');
+
+        $altas = array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'stic_Attendances' && !isset($w['data']['id']);
+        });
+        // m1, m10, m23 (de grupo, en verde) + m20 (marcado). NO m21, m22, m9.
+        $this->assertCount(4, $altas);
+    }
+
+    /**
+     * EN UNA REUNIÓN SE VE A TODOS LOS MONITORES (31/10/2026): quien coordina
+     * una etapa ve también los de las demás, sin enlace a su ficha. En la lista
+     * semanal, no: ahí solo su alcance.
+     */
+    public function test_en_una_reunion_quien_coordina_una_etapa_ve_a_todos_los_monitores()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $this->scp->conApoyo = true;
+
+        $_REQUEST = array('reunion' => '1', 'sesion' => 'ru2');
+        $html = $this->render('single_stic_pasar_lista_monitores');
+        // m10 es del MIC y m9 y m22 no cuelgan de ningún grupo de Pasar Lista.
+        foreach (array('m1', 'm10', 'm9', 'm22', 'm23') as $id) {
+            $this->assertStringContainsString('data-contact="' . $id . '"', $html, $id . ' sale en la reunión');
+        }
+        // Los de su alcance llevan enlace a la ficha; los demás, no.
+        $this->assertStringContainsString('monitor=m1"', $html);
+        $this->assertStringNotContainsString('monitor=m10', $html);
+        $this->assertStringNotContainsString('monitor=m22', $html);
+        // Y la cabecera no dice «COM»: la lista es de toda la delegación.
+        $this->assertMatchesRegularExpression('/<div class="pl-subtitle">[^<]*· toda la delegación<\/div>/', $html);
+
+        // La lista semanal NO cambia.
+        $_REQUEST = array();
+        $semanal = $this->render('single_stic_pasar_lista_monitores');
+        $this->assertStringNotContainsString('data-contact="m10"', $semanal);
+        $this->assertStringNotContainsString('data-contact="m22"', $semanal);
+    }
+
+    /** Al guardar una reunión, también se escribe a los de otras etapas. */
+    public function test_guardar_una_reunion_escribe_a_los_monitores_de_todas_las_etapas()
+    {
+        $this->scp->coordEtapa = 'COM';
+        $this->scp->monitorSinInscripcion = true;
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $_REQUEST = array('reunion' => '1', 'sesion' => 'ru2');
+        $_POST = array(
+            'pl_action' => 'save',
+            'pl_nonce' => wp_create_nonce('pl_monitores'),
+            'pl_marks' => json_encode(array('m10' => 'no_unjustified')),
+        );
+        $this->render('single_stic_pasar_lista_monitores');
+
+        $lista = array_values(array_filter($this->scp->writes, function ($w) {
+            return $w['module'] === 'LIS_listas';
+        }));
+        // m1 (COM) vino y m10 (MIC), que no es de su alcance, faltó.
+        $this->assertSame(1, (int) $lista[0]['data']['n_asistieron']);
+        $this->assertSame(1, (int) $lista[0]['data']['n_faltaron']);
+    }
+
+    /**
+     * LA FICHA Y EL RESUMEN DICEN LO MISMO (31/10/2026). La lista de un grupo
+     * del MIC cuelga de la sesión del evento del MIC; la ficha la buscaba en el
+     * evento COM cuando quien mira no tiene etapa (coordina todo, o acompaña) y
+     * decía «0 de 1» de un grupo que el resumen daba por «todas pasadas».
+     */
+    public function test_la_ficha_busca_las_listas_de_un_grupo_en_las_sesiones_de_su_etapa()
+    {
+        $this->scp->eventosSeparados = true;
+        $this->scp->coordEtapa = '';
+        $this->scp->listas['lmic'] = array(
+            'estado' => 'pasada', 'ajmcm_tipo_c' => 'participantes',
+            '__sesion' => 'mi1', '__grupo' => 'g3',
+        );
+        $_REQUEST = array('monitor' => 'm10');
+        $html = $this->render('single_stic_pasar_lista_monitor');
+
+        $this->assertStringContainsString('Listas del M1', $html);
+        $this->assertMatchesRegularExpression('/Listas del M1.*?1 de 1/s', $html);
+        $this->assertStringNotContainsString('Sin lista', $html);
     }
 
     /** En una reunión, el título es la reunión. */
@@ -4394,7 +4516,8 @@ final class PasarListaRenderTest extends TestCase
         $html = $this->render('single_stic_pasar_lista_monitores');
 
         $this->assertStringContainsString('<span class="pl-title-code">Programación del 2.º trimestre</span>', $html);
-        $this->assertMatchesRegularExpression('/<div class="pl-subtitle">[^<]*· COM<\/div>/', $html);
+        // En una reunión la lista es de toda la delegación, no de su etapa.
+        $this->assertMatchesRegularExpression('/<div class="pl-subtitle">[^<]*· toda la delegación<\/div>/', $html);
     }
 
     /** La pista de los monitores dice dónde se justifica y se escribe el porqué. */
