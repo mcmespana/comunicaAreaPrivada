@@ -6801,8 +6801,10 @@ function sticpa_pl_monitor_historico($objSCP, $monitorId)
  * @param array|null $event    el evento de sesiones semanales de su etapa.
  * @param array|null $reunion  el evento de reuniones de programación.
  * @param array      $grupos   lo que devuelve `sticpa_pl_monitor_grupos()`.
+ * @param array      $eventos  los eventos de sesiones por etapa (`sticpa_pl_etapa_events()`).
+ *                             Cada grupo mira las listas en las sesiones de SU etapa (31/10/2026).
  */
-function sticpa_pl_seguimiento_monitor($objSCP, $monitorId, $event, $reunion, $grupos)
+function sticpa_pl_seguimiento_monitor($objSCP, $monitorId, $event, $reunion, $grupos, $eventos = array())
 {
     $monitorId = (string) $monitorId;
     $out = array(
@@ -6860,10 +6862,22 @@ function sticpa_pl_seguimiento_monitor($objSCP, $monitorId, $event, $reunion, $g
 
         // Las listas, una pista por grupo que lleva. Del índice que ya está
         // cargado: ni una consulta más.
+        //
+        // ⚠️ LAS SESIONES SON LAS DE LA ETAPA DEL GRUPO, no las del evento con
+        // el que se abre la ficha (31/10/2026). MIC y COM tienen cada uno su
+        // evento y sus sesiones, aunque caigan el mismo sábado: la lista del
+        // M4.1 cuelga de la sesión del MIC, y buscarla en la del COM (que es
+        // lo que salía con quien no tiene etapa) decía «sin lista» de un grupo
+        // que la tenía pasada, mientras el resumen decía «todas pasadas».
         $todas = sticpa_pl_all_listas($objSCP);
         foreach ($grupos as $g) {
             if ($g['papel'] !== 'monitor') {
                 continue;
+            }
+            $etapaG = isset($g['etapa']) ? (string) $g['etapa'] : '';
+            $sesionesG = $sesiones;
+            if ($etapaG !== '' && isset($eventos[$etapaG]['id'])) {
+                $sesionesG = sticpa_pl_event_sessions($objSCP, $eventos[$etapaG]['id']);
             }
             $suyas = array();
             foreach ($todas as $sid => $porGrupo) {
@@ -6873,7 +6887,7 @@ function sticpa_pl_seguimiento_monitor($objSCP, $monitorId, $event, $reunion, $g
             }
             $out['listas'][] = array(
                 'grupo' => $g,
-                'track' => sticpa_pl_listas_track($sesiones, $suyas, $monitorId),
+                'track' => sticpa_pl_listas_track($sesionesG, $suyas, $monitorId),
             );
         }
     }

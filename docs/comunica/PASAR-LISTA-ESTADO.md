@@ -1,6 +1,6 @@
 # Pasar Lista — parte de estado
 
-**Fecha de este parte: 26 de septiembre de 2026** (lo de monitores; el resto de §1
+**Fecha de este parte: 31 de octubre de 2026** (lo último, arriba; lo de monitores del 26/09; el resto de §1
 es del 28/08 y el 04/09). Es el documento que hay que leer
 para retomar el trabajo sin reconstruir el contexto. El mapa de todo lo demás
 está en [`PASAR-LISTA-README.md`](PASAR-LISTA-README.md); el diseño funcional,
@@ -19,12 +19,54 @@ Piloto: **MCM Castellón, curso 2025-2026**. Nada interdelegacional.
 Esto es lo único que hay que leer para saber por dónde va. Lo cerrado está más
 abajo, en §1-bis, y se conserva porque explica POR QUÉ el código es como es.
 
+### ✅ La ficha del monitor y el resumen ya dicen lo mismo; reuniones con todos (31/10/2026)
+
+**El bug.** En la ficha de Vicente Navarro (M4.1) salía «Listas del M4.1 · 0 de 1 ·
+sin lista» y en el resumen de grupos «M4.1 · al día · todas pasadas». Tenía razón
+el resumen. La ficha buscaba la lista del grupo en las sesiones del evento con el
+que se abre: el del alcance de quien mira o, si no tiene etapa (coordina toda la
+delegación o solo acompaña), el primero que haya, **COM**. Pero MIC y COM tienen
+**cada uno su evento y sus sesiones**, aunque caigan el mismo sábado: la lista del
+M4.1 cuelga de la sesión del MIC. Mirado en el CRM el 31/10 (Castellón, 24/10):
+sesión del MIC `0000005e…` con la lista pasada; sesión del COM `0000097e…`, sin ella.
+**Ahora** `sticpa_pl_seguimiento_monitor()` busca las listas de cada grupo en las
+sesiones de **la etapa de ese grupo** (parámetro `$eventos`); la ficha pide esas
+sesiones en la misma tanda.
+
+- **Sin tocar, a propósito:** la fila «Sábados» de la ficha y la lista semanal de
+  monitores siguen usando el evento del alcance (o el primero, COM) para las
+  asistencias de los monitores; cambiar solo uno de los dos haría que la ficha no
+  encontrara lo que escribe la lista. **Pregunta abierta:** con MIC y COM en eventos
+  separados, un monitor del MIC al que marca quien coordina toda la delegación se
+  inscribe y puntúa en el evento COM. Es coherente, pero quizá debería ir contra el MIC.
+- Vicente no está inscrito en ningún evento semanal (mirado en el CRM), así que su
+  «Sábados: no está inscrito» es cierto.
+
+**Reuniones de programación** (`single_stic_pasar_lista_monitores.php`, con `reunion=1`):
+
+1. **Quien coordina una etapa o un segmento ve y marca a TODOS los monitores de la
+   delegación.** Los sábados no cambian: cada coordinación pasa lista de su alcance.
+   Los de fuera de su alcance salen **sin enlace a la ficha ni aviso de seguimiento**
+   (`fuera_de_alcance`): lo que se abre al toque no se amplía, solo la lista. La
+   cabecera dice «toda la delegación».
+2. **Los monitores sin grupo de Pasar Lista (Apoyo, Najar, Ruah, sin grupo) salen con
+   «-» también en las reuniones**, con el mismo ciclo que los chavales
+   (- → vino → no vino → -), sin escribir nada sin marca y sin contar en los números.
+   Antes de hoy las reuniones eran la excepción («se espera a todos»).
+3. Volver a «-» una marca **ya guardada** no la borra del CRM (igual que en la lista
+   de los chavales): sin marca no se escribe nada.
+
+Tests nuevos en `tests/PasarListaRenderTest.php` (el doble tiene ahora
+`$eventosSeparados`: MIC y COM con eventos y sesiones propias, que es como son de
+verdad). **Anotado en MCM App** (`docs/planes/area-nativa/06-coordinacion.md`,
+«Cambios del plugin del 31/10/2026») para revisarlo cuando se use el área nativa.
+
 ### ✅ Lista de monitores: los que no van por grupos salen «sin marcar» (25/10/2026)
 
 «Sin etapa» no era una etapa: eran los monitores **sin grupo de Pasar Lista** —los
 de Apoyo, los de grupos que no pasan lista (Najar, Ruah…) y los nuevos sin
 grupo—, y salían en verde como si fueran a venir. En la **lista semanal**
-(no en las reuniones, donde se espera a todos):
+(~~no en las reuniones~~: desde el 31/10/2026 también en las reuniones, ver arriba):
 
 - Arrancan **«-» (sin marcar)** y el toque cicla `- → vino → no vino → -`
   (`data-optional` en la fila). Sin marca **no se escribe nada** y no cuentan en

@@ -51,18 +51,37 @@ $sessionId = isset($_REQUEST['sesion']) ? sticpa_pl_safe_id($_REQUEST['sesion'])
 
 $monitors = sticpa_pl_coord_monitors($objSCP, $scope);
 
-/* LOS QUE NO VAN POR GRUPOS (25/10/2026). Quien no cuelga de un grupo de Pasar
- * Lista —Apoyo, Najar, Ruah… o un monitor nuevo sin grupo— salía en «Sin etapa»
- * y en verde, como si fuera a venir. No: no se les pasa lista, y la noticia es
- * saber si han venido. Así que arrancan SIN MARCAR («-») y no cuentan ni en los
- * números ni en el guardado hasta que se toquen (`opcional`, ver
- * sticpa_pl_save_monitors()). Solo en la lista semanal: a una reunión de
- * programación se espera que vengan todos. */
-if (!$isReunion) {
+/* EN UNA REUNIÓN SE VE A TODOS LOS MONITORES (31/10/2026). En las sesiones de
+ * los sábados cada coordinación pasa lista de su alcance —y eso no cambia—, pero
+ * una reunión de programación es de todos: quien coordina una etapa o un
+ * segmento ve y marca a los monitores de toda la delegación. Los que quedan
+ * fuera de su alcance salen marcables pero SIN enlace a la ficha ni aviso de
+ * seguimiento: lo que se abre al toque no se amplía, solo la lista. */
+$scopeVista = $scope;
+if ($isReunion) {
+    $dentroDelAlcance = array();
+    foreach ($monitors as $m) {
+        $dentroDelAlcance[$m['id']] = true;
+    }
+    $scopeVista = array('etapa' => '', 'segmento' => '');
+    $monitors = sticpa_pl_coord_monitors($objSCP, $scopeVista);
     foreach ($monitors as $i => $m) {
-        if (sticpa_pl_monitor_sin_grupo_pl($m)) {
-            $monitors[$i]['opcional'] = true;
+        if (!isset($dentroDelAlcance[$m['id']])) {
+            $monitors[$i]['fuera_de_alcance'] = true;
         }
+    }
+}
+
+/* LOS QUE NO VAN POR GRUPOS (25/10/2026; también en reuniones desde el
+ * 31/10/2026). Quien no cuelga de un grupo de Pasar Lista —Apoyo, Najar, Ruah…
+ * o un monitor nuevo sin grupo— salía en «Sin etapa» y en verde, como si fuera
+ * a venir. No: no se les pasa lista, y la noticia es saber si han venido. Así
+ * que arrancan SIN MARCAR («-») y no cuentan ni en los números ni en el guardado
+ * hasta que se toquen (`opcional`, ver sticpa_pl_save_monitors()). En una
+ * reunión pasa lo mismo: quizá a esa reunión no les toca ir. */
+foreach ($monitors as $i => $m) {
+    if (sticpa_pl_monitor_sin_grupo_pl($m)) {
+        $monitors[$i]['opcional'] = true;
     }
 }
 
@@ -280,8 +299,8 @@ if ($seguimientoOn) {
         }
     }
     foreach ($monitors as $m) {
-        if (!empty($m['opcional'])) {
-            continue;   // sin grupo de Pasar Lista: ni porcentaje ni aviso rojo
+        if (!empty($m['opcional']) || !empty($m['fuera_de_alcance'])) {
+            continue;   // sin grupo de Pasar Lista, o de otro alcance: ni porcentaje ni aviso rojo
         }
         $marks = isset($porPersona[$m['id']]) ? $porPersona[$m['id']] : array();
         // El track entero, no solo el aviso: la fila enseña además el
@@ -357,7 +376,7 @@ $html .= '<div class="pl-head-titles">';
 // El ALCANCE siempre en la cabecera (design.md §6.4), también cuando es la
 // delegación entera: antes, quien coordinaba toda la delegación no veía nada y
 // no había forma de saber de quién era la lista.
-$scopeLabel = sticpa_pl_coord_scope_label($scope);
+$scopeLabel = sticpa_pl_coord_scope_label($scopeVista);
 if ($isReunion) {
     // En una reunión, lo que identifica la lista es su NOMBRE («Programación
     // del 2.º trimestre»): va de título, y la fecha y el alcance detrás. Aquí
@@ -552,7 +571,9 @@ foreach ($conFilas as $etapa) {
             // sale para poder pasarle lista, y se dice qué le falta.
             $sub = __('Sin grupo asignado', 'sticpa');
         }
-        $fichaUrl = '?internalpage=single_stic_pasar_lista_monitor&monitor=' . rawurlencode($m['id']);
+        $fichaUrl = !empty($m['fuera_de_alcance'])
+            ? ''
+            : '?internalpage=single_stic_pasar_lista_monitor&monitor=' . rawurlencode($m['id']);
         $aviso = isset($avisos[$m['id']]) ? $avisos[$m['id']] : '';
         $track = isset($tracks[$m['id']]) ? $tracks[$m['id']] : null;
         // El motivo que ya tuviera la asistencia, para que la hoja lo enseñe
@@ -573,12 +594,15 @@ $filaOpcional = function ($m) use ($attendances) {
     $motive = isset($attendances[$m['id']]['description']) ? (string) $attendances[$m['id']]['description'] : '';
     return sticpa_pl_row_html(
         $m, $state, 0,
-        '?internalpage=single_stic_pasar_lista_monitor&monitor=' . rawurlencode($m['id']),
+        !empty($m['fuera_de_alcance']) ? '' : '?internalpage=single_stic_pasar_lista_monitor&monitor=' . rawurlencode($m['id']),
         $sub, $motive, '', null, true, array(), true
     );
 };
 $pistaOpcional = '<p class="pl-hint pl-hint--rule"><span>'
-    . esc_html__('No se les pasa lista: salen con «-». Toca solo si han venido.', 'sticpa') . '</span></p>';
+    . esc_html($isReunion
+        ? __('Puede que no les toque venir: salen con «-». Toca solo si han venido.', 'sticpa')
+        : __('No se les pasa lista: salen con «-». Toca solo si han venido.', 'sticpa'))
+    . '</span></p>';
 
 if (!empty($deApoyo)) {
     $html .= '<div class="pl-etapa-title">'
