@@ -39,6 +39,13 @@ sesiones en la misma tanda.
   encontrara lo que escribe la lista. **Pregunta abierta:** con MIC y COM en eventos
   separados, un monitor del MIC al que marca quien coordina toda la delegación se
   inscribe y puntúa en el evento COM. Es coherente, pero quizá debería ir contra el MIC.
+- **⏰ Mirar dentro de poco** (anotado el 31/10/2026): es la 🔴 de la tabla de pendientes
+  («quien coordina toda la delegación pasa la lista sobre el evento de COM»). Síntoma a
+  buscar: un monitor del MIC cuyas asistencias de sábado no aparecen en su ficha, porque
+  unas semanas las marcó la coordinación del MIC (evento MIC) y otras la de toda la
+  delegación (evento COM). Arreglo propuesto: una lista por etapa (selector MIC/COM) y
+  los monitores del MIC siempre contra el evento MIC. Tiene que cambiar a la vez la lista
+  semanal y la fila «Sábados» de la ficha. Anotado también en MCM App (BACKLOG §4).
 - Vicente no está inscrito en ningún evento semanal (mirado en el CRM), así que su
   «Sábados: no está inscrito» es cierto.
 
@@ -281,7 +288,7 @@ ciegas. Por orden de lo que más se va a notar cuando empiece el curso:
 | | Qué | Por qué importa | Qué hacer |
 |---|---|---|---|
 | 🔴 | **Los eventos de prueba ya no salen.** Pasar Lista coge los eventos con el curso actual en el nombre, y desde el 1/09 es «2026-2027»: los dos `TEST \| Sesiones semanales 2025-2026 · CS` no aparecen. Los de este curso son `COM \| Curso 2026-2027 · CS` y `MIC \| Curso 2026-2027 · CS` (del 24/10). | Las pruebas de sábados con monitores ya no se hacen sobre los eventos de prueba. | Decidir sobre qué eventos se prueba; si hace falta, un filtro que fije el curso. |
-| 🔴 | **Con MIC y COM en eventos separados, quien coordina toda la delegación** pasa la lista de monitores del sábado sobre el de COM (el primero que encuentra), así que los monitores de MIC acabarían inscritos al evento de COM. | Es el caso de David. Con el modelo antiguo (un evento para las dos etapas) no pasaba. | Una lista por etapa (selector MIC/COM en la pantalla) cuando el alcance es la delegación entera. |
+| 🔴 | **⏰ MIRAR PRONTO (anotado el 31/10/2026; confirmar si hay monitores del MIC con asistencias «que no salen» en su ficha).** **Con MIC y COM en eventos separados, quien coordina toda la delegación** pasa la lista de monitores del sábado sobre el de COM (el primero que encuentra), así que los monitores de MIC acabarían inscritos al evento de COM. | Es el caso de David. Con el modelo antiguo (un evento para las dos etapas) no pasaba. | Una lista por etapa (selector MIC/COM en la pantalla) cuando el alcance es la delegación entera. |
 | 🟠 | **Las asistencias de una sesión se leen con `get_relationships`, que el CRM corta en 20 filas por página**, y las páginas siguientes salen en fila. Una sesión con todos los grupos de una etapa y sus monitores son fácilmente 80-100 asistencias: 4-5 viajes seguidos, en marcar y en monitores, en cada carga. | Hoy no se nota (14 asistencias en toda la delegación); desde el 24/10, sí. | Medir con `pl_diag`. Si se confirma, leer la sesión por `get_entry_list` (que respeta `max_results`) con el filtro de un día (`sticpa_pl_attendance_days_sql()`), o por subconsulta a la tabla puente. |
 | 🟠 | **Los avisos de la lista de monitores leen las asistencias de todo el curso de la delegación** (chavales incluidos) para quedarse con las de los monitores. | Crece cada sábado; se cachea 5 minutos y cada guardado de cualquiera la tira. | Leerlas por las inscripciones de los monitores, o que el Guardián deje el porcentaje calculado de noche. |
 | 🟡 | **Las listas de monitores son una por sesión, sin etapa**: si MIC y COM comparten reunión, cada coordinador guarda sus números y el último pisa al otro (las asistencias por persona están bien). | La pantalla de reuniones enseña esos números. | Calcular `n_asistieron`/`n_faltaron` con todos los monitores de la sesión (los de fuera del alcance con lo que ya tengan), sin llamadas extra. |
