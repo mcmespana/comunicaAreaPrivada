@@ -204,6 +204,7 @@ class RecordViewTest extends TestCase
     {
         $this->assertSame('danger', sticpa_record_status_tone('returned'));
         $this->assertSame('danger', sticpa_record_status_tone('cancelled'));
+        $this->assertSame('danger', sticpa_record_status_tone('dropped'));
         $this->assertSame('ok', sticpa_record_status_tone('settled'));
         $this->assertSame('ok', sticpa_record_status_tone('Confirmed'));
         $this->assertSame('warn', sticpa_record_status_tone('pending'));

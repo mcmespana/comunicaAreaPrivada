@@ -109,7 +109,8 @@ class RegistrationManageTest extends TestCase
             public $registrations = array();
             public $commitmentsOfReg = array();
             public $myRegs = array();
-            public $statusOptions = array('confirmed' => 'Confirmada', 'cancelled' => 'Cancelada');
+            // Las claves REALES del desplegable de SinergiaCRM (Studio, 01/11/2026): `cancelled` no está; la baja es `dropped`.
+            public $statusOptions = array('confirmed' => 'Confirmada', 'dropped' => 'Baja', 'not_participate' => 'No participa');
             public $methodOptions = array('direct_debit' => 'Domiciliación', 'card' => 'Tarjeta', 'bizum' => 'Bizum', 'stripe' => 'Stripe');
             public $answerFieldsExist = true;
             public $contacts = array();
@@ -1013,7 +1014,7 @@ class RegistrationManageTest extends TestCase
         $url = $this->post(array('stic-action' => 'cancel', 'id' => 'reg-1'));
 
         $reg = $this->crm->writesTo('stic_Registrations');
-        $this->assertSame(array('id' => 'reg-1', 'status' => 'cancelled'), $reg[0]['data'], 'se cancela, no se borra');
+        $this->assertSame(array('id' => 'reg-1', 'status' => 'dropped'), $reg[0]['data'], 'se da de baja (`dropped`), no se borra');
         $com = $this->crm->writesTo('stic_Payment_Commitments');
         $this->assertSame('com-1', $com[0]['data']['id']);
         $this->assertSame(date('Y-m-d'), $com[0]['data']['end_date']);
@@ -1081,7 +1082,8 @@ class RegistrationManageTest extends TestCase
     {
         $def = sticpa_registration_definition($this->crm);
         $nvl = $this->nvl($this->evento());
-        $this->assertFalse(sticpa_registration_manage_rights('cancelled', $nvl, $def)['editar']);
+        $this->assertFalse(sticpa_registration_manage_rights('dropped', $nvl, $def)['editar']);
+        $this->assertFalse(sticpa_registration_manage_rights('cancelled', $nvl, $def)['editar'], 'la clave antigua también');
         $pasado = $this->nvl($this->evento(array('start_date' => date('Y-m-d', strtotime('-10 days')), 'end_date' => date('Y-m-d', strtotime('-8 days')))));
         $this->assertFalse(sticpa_registration_manage_rights('confirmed', $pasado, $def)['editar']);
         $this->assertFalse(sticpa_registration_manage_rights('confirmed', null, $def)['editar'], 'sin saber el plazo, no');

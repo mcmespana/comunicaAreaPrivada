@@ -1506,13 +1506,17 @@ function sticpa_registration_claim_card_commitment($objSCP, $regId)
 
 /* ---- 3. Cancelar y modificar (EV-2) ------------------------------------ */
 
-/** La clave de «cancelada» en el desplegable de estado de la inscripción. */
+/**
+ * La clave de «cancelada» en el desplegable de estado de la inscripción: `dropped` («Baja»).
+ *
+ * Hasta el 01/11/2026 era `cancelled`, pero ESE NO ESTÁ en el desplegable de SinergiaCRM (se vio en Studio): la inscripción
+ * cancelada salía con el estado en blanco en el CRM. Las dos que tenían `cancelled` se pasaron a `dropped`. Qué inscripciones no
+ * cuentan lo decide `sticpa_registration_counts()` (inc/stic-calendar.php). Antes de escribirla se comprueba que existe en el
+ * desplegable del CRM.
+ */
 function sticpa_registration_cancel_status()
 {
-    // Es la que ya usa el área para saber qué inscripciones no cuentan
-    // (prefix_user_active_event_ids(), el calendario, Pasar Lista). Antes de
-    // escribirla se comprueba que existe en el desplegable del CRM.
-    return (string) apply_filters('sticpa_registration_cancel_status', 'cancelled');
+    return (string) apply_filters('sticpa_registration_cancel_status', 'dropped');
 }
 
 /**
