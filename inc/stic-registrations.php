@@ -1924,10 +1924,11 @@ function sticpa_event_answer_panel_html($eventId, $answer, $note, $abierto, $mot
 
     $html = "<div class='stic-sino' data-answer='" . esc_attr($answer) . "'>";
     $html .= "<p class='stic-sino-estado" . ($answer !== '' ? ' stic-sino-estado--' . esc_attr($answer) : '') . "'>" . esc_html($estado) . "</p>";
+    // Lo contestado se LEE (con sus comentarios): quien acaba de guardar ve que está guardado, no el formulario otra vez.
+    if ($answer !== '' && $note !== '') {
+        $html .= "<p class='stic-sino-nota-leida'>" . esc_html($note) . "</p>";
+    }
     if (!$abierto) {
-        if ($answer !== '' && $note !== '') {
-            $html .= "<p class='stic-sino-nota-leida'>" . esc_html($note) . "</p>";
-        }
         if ($motivo !== '') {
             $html .= "<p class='stic-sino-motivo'>" . esc_html($motivo) . "</p>";
         }
@@ -1935,6 +1936,12 @@ function sticpa_event_answer_panel_html($eventId, $answer, $note, $abierto, $mot
     }
 
     $base = strtok((string) ($_SERVER['REQUEST_URI'] ?? '/'), '?');
+    // Ya contestado: el formulario va plegado tras «Modificar mi respuesta» (sin JavaScript: <details>). Sin contestar, a la vista.
+    $plegado = $answer !== '';
+    if ($plegado) {
+        $html .= "<details class='stic-sino-modificar'><summary class='stic-rec-btn stic-rec-btn--ghost'>"
+            . sticpa_record_icon('edit') . "<span>" . esc_html__('Modificar mi respuesta', 'sticpa') . "</span></summary>";
+    }
     $html .= "<form class='stic-sino-form' method='post' action='" . esc_url(home_url() . '/wp-admin/admin-post.php') . "'>"
         . "<input type='hidden' name='action' value='single_stic_registrations'>"
         . "<input type='hidden' name='stic-action' value='answer'>"
@@ -1951,10 +1958,11 @@ function sticpa_event_answer_panel_html($eventId, $answer, $note, $abierto, $mot
         . "<button type='submit' name='sticpa_answer' value='no' class='stic-rec-btn stic-rec-btn--ghost stic-sino-no' aria-pressed='" . ($answer === 'no' ? 'true' : 'false') . "'>"
         . esc_html__('No podemos', 'sticpa') . "</button>"
         . "</div>";
-    if ($answer !== '') {
-        $html .= "<p class='stic-sino-cambiar'>" . esc_html__('Puedes cambiar tu respuesta mientras el plazo siga abierto.', 'sticpa') . "</p>";
+    $html .= "</form>";
+    if ($plegado) {
+        $html .= "</details>";
     }
-    return $html . "</form></div>";
+    return $html . "</div>";
 }
 
 /**
