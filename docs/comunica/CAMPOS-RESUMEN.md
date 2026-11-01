@@ -164,7 +164,7 @@ SQL: `stic_events` + `_cstm`. Quién puede apuntarse = `assigned_user_id` + `ajm
 | `ajmcm_ocultar_area_c` | bool | Ocultar en el área privada a quien no se ha apuntado |
 | `ajmcm_fwa_url_c` | url | Enlace del formulario web avanzado. Vacío = no usa FWA |
 | `ajmcm_pregunta_1_c`, `ajmcm_pregunta_2_c` | text | `¿Pregunta? \| opción 1; opción 2` (respuestas en la inscripción) |
-| `ajmcm_modo_respuesta_c` | enum ✅ | `inscripcion` (por defecto, «Inscripción normal») · `si_no` («Tipo SÍ / NO»: botones sí/no en vez de inscripción; pantalla pendiente, `EVENTOS.md` §10.6) |
+| `ajmcm_modo_respuesta_c` | enum ✅ | `inscripcion` (por defecto, «Inscripción normal») · `si_no` («Tipo SÍ / NO»: botones sí/no en vez de inscripción; `EVENTOS.md` §10.6; solo sin precio) |
 | `web_publicar_c` | bool | Publicar en la web `/actividades`. **Los `web_*` van SIN `ajmcm_`** |
 | `web_url_c`, `web_cartel_c` | url | Botón «Inscribirme» y cartel. Vacío llega como `http://` |
 | `web_cuerpo_html_c` | wysiwyg | Cuerpo de la web (HTML codificado `&lt;p&gt;`). Público aunque no esté publicado. `web_cuerpo_c`: retirado |
