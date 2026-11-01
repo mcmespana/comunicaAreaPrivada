@@ -7038,6 +7038,20 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
 }
 /* La respuesta que está puesta, marcada: un borde, no solo el color. */
 .stic-sino-botones .stic-rec-btn[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--primary-color); }
+/* «Modificar mi respuesta»: un <summary> con aspecto de botón secundario; el triángulo del navegador, fuera. */
+.stic-sino-modificar > summary {
+    list-style: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    width: auto;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+.stic-sino-modificar > summary::-webkit-details-marker { display: none; }
+.stic-sino-modificar[open] > summary { margin-bottom: 0.8rem; }
 .stic-sino-cambiar, .stic-sino-motivo, .stic-sino-nota-leida { margin: 0; font-size: 0.85rem; color: var(--gray-500); }
 .stic-sino-nota-leida { color: var(--gray-700); white-space: pre-line; }
 @media (max-width: 480px) {

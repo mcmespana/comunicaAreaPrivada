@@ -1273,40 +1273,9 @@ if (isset($_REQUEST['logout'])) // logout
     add_action('init', 'sugar_crm_portal_louout', 1);
     function sugar_crm_portal_louout()
     {
-        // TODO lo que identifica o describe a quien había entrado. Ojo al añadir
-        // una clave de sesión nueva: si no se limpia aquí, la siguiente persona
-        // que entre en el MISMO navegador la hereda — y en familias el móvil se
-        // comparte. Aquí están también las cachés en sesión (rol, participantes
-        // disponibles, aviso del certificado) precisamente por eso.
-        $sessionKeysToClear = array(
-            'scp_user_id',
-            'scp_tutor_user_id',
-            'scp_tutor_user_contact_name',
-            'scp_account_id',
-            'scp_user_account_name',
-            'scp_user_contact_name',
-            'scp_user_securitygroups',
-            'scp_user_assigned_user_id',
-            // La delegación de trabajo elegida en el selector (varias delegaciones).
-            'scp_pl_deleg_activa',
-            'scp_pl_deleg_activa_de',
-            'scp_user_adult',
-            'scp_tutor_is_user',
-            'scp_module',
-            // Cachés por usuario (ver inc/stic-comunica-roles.php y menu.php).
-            'scp_role',
-            'scp_role_resolved',
-            'scp_relationship_raw',
-            'scp_available_profiles',
-            'scp_is_familia',
-            'scp_ds_pending',
-            // Sesión del CRM y su marca de tiempo (van en pareja).
-            'api_session_id',
-            'api_session_time',
-        );
-        foreach ($sessionKeysToClear as $sessionKey) {
-            unset($_SESSION[$sessionKey]);
-        }
+        // TODO lo que identifica o describe a quien había entrado: la lista única de
+        // sticpa_identity_session_keys() (inc/stic-magic-login.php).
+        sticpa_clear_identity_session();
 
 
         $redirect_url = explode('?', $_SERVER['REQUEST_URI'], 2);

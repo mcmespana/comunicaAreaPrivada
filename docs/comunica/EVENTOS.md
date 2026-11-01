@@ -953,7 +953,9 @@ nadie: se contesta **sí o no**, y a la delegación le importa tanto saber quié
   evento (`sticpa_event_wanted_fields()`) solo si existe.
 - **La ficha** (`pages/single_stic_events.php`): en vez de «Inscribirme», la sección «Tu respuesta» (`sticpa_event_answer_panel_html()`): lo que se ha
   contestado («Has dicho que vienes» / «Lucía no puede venir»), la caja «Comentarios, necesidades, avisos…» (con lo ya escrito) y los botones «Sí, vamos» y
-  «No podemos» (la respuesta puesta, marcada). Si el plazo está cerrado o no es para esa persona, solo se enseña lo contestado y el motivo, sin formulario.
+  «No podemos». **Una vez contestado** se lee lo guardado («Martina viene.» y sus comentarios) y el formulario queda plegado tras el botón
+  **«Modificar mi respuesta»** (un `<details>`, sin JavaScript): al guardar no se vuelve a ver el formulario, que parecía obligar a contestar otra vez
+  (visto el 01/11/2026 en la primera prueba). Si el plazo está cerrado o no es para esa persona, solo se enseña lo contestado y el motivo, sin formulario.
 - **El guardado** (`stic-action=answer`, `sticpa_handle_event_answer()`; el guard de verdad): firma del formulario atada a la sesión, evento que existe y
   es de sí/no, **audiencia y plazo** (`sticpa_event_signup_block()`), y que el CRM tenga la clave del estado en su desplegable (si no, no se escribe una clave
   rota). Los comentarios, 500 caracteres como mucho, van a `special_needs_description` (y `special_needs` = 1 si hay).
