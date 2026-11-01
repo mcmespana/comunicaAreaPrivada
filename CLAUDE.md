@@ -9,6 +9,9 @@ rompe en la app.
 
 ## Los campos del CRM: `docs/comunica/CAMPOS.md` es la fuente de la verdad
 
+**Para una mirada rápida, [`docs/comunica/CAMPOS-RESUMEN.md`](docs/comunica/CAMPOS-RESUMEN.md)**: una página por
+módulo con los campos que se usan y las claves de sus desplegables. Es lo que sirve el MCP con `crm_fields_guide`.
+
 **Antes de dar por bueno el nombre de un campo del CRM, mira
 [`docs/comunica/CAMPOS.md`](docs/comunica/CAMPOS.md).** Es EL documento de los
 campos: nombres técnicos, etiquetas, tipos y los valores internos de cada
@@ -25,6 +28,10 @@ Reglas:
   `comunicaFormularios` la sincroniza sola una GitHub Action de aquel repo, que
   abre un PR cuando esto cambia. Escribe siempre aquí; no edites la copia.
   (Antes había que acordarse a mano y las dos llevaban meses divergiendo.)
+- **Si cambias un campo en `CAMPOS.md`, cambia también `CAMPOS-RESUMEN.md`** en el mismo
+  commit (si el campo sale allí). El resumen es la chuleta: lo detallado y el porqué se quedan
+  en `CAMPOS.md`. Si los dos no dicen lo mismo, manda `CAMPOS.md`. Viaja a comunicaTools y
+  comunicaFormularios con las mismas Actions, y el MCP lo lee de `main` (`CRM_FIELDS_GUIDE_URL`).
 - Cuando encuentres una contradicción entre `CAMPOS.md` y los datos reales del
   CRM, **dilo** en vez de elegir por tu cuenta.
 
@@ -38,6 +45,9 @@ documento manda.
 El MCP de SinergiaCRM devuelve respuestas enormes y **consume muchísimo
 contexto**. Reglas:
 
+- **Lo primero, `crm_fields_guide`** (con `modules`, solo los que necesites): te da los
+  nombres de campo y las claves de esta instancia sin explorar. `get_module_fields` solo
+  para lo que no esté ahí.
 - Usa siempre `fields` para acotar lo que pides. Sin `fields`, la API devuelve
   todos los campos del módulo.
 - Agrupa: una llamada por colección, nunca una por fila.
@@ -158,6 +168,7 @@ El mapa de los demás documentos está en
 | Tema | Documento |
 |---|---|
 | Campos del CRM (**la fuente de la verdad**) | `docs/comunica/CAMPOS.md` |
+| Campos del CRM — **resumen de una página** (lo sirve el MCP) | `docs/comunica/CAMPOS-RESUMEN.md` |
 | Eventos e inscripciones | `docs/comunica/EVENTOS.md` |
 | **Cuerpo de los eventos** (renderizador compartido con la web; original aquí, copia en formularios) | `inc/eventos-cuerpo.php` + `EVENTOS.md` §9 |
 | **Pasar Lista — índice de todo** | `docs/comunica/PASAR-LISTA-README.md` |
