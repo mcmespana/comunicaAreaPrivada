@@ -101,6 +101,7 @@ if (!function_exists('__'))          { function __($t, $d = null) { return $t; }
 // test podía detectar jamás un escape que faltara: el doble de test decía que
 // sí a todo. Se pinta contenido escrito en el CRM por gente de fuera, y el
 // XSS almacenado es justo lo que los planes 006 y 002 persiguen.
+if (!function_exists('esc_textarea')) { function esc_textarea($t) { return htmlspecialchars((string) $t, ENT_QUOTES, 'UTF-8'); } }
 if (!function_exists('esc_html'))    { function esc_html($t) { return htmlspecialchars((string) $t, ENT_QUOTES, 'UTF-8'); } }
 if (!function_exists('esc_attr'))    { function esc_attr($t) { return htmlspecialchars((string) $t, ENT_QUOTES, 'UTF-8'); } }
 if (!function_exists('esc_attr__'))  { function esc_attr__($t, $d = null) { return esc_attr(__($t, $d)); } }

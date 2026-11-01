@@ -539,6 +539,12 @@ function prefix_admin_single_stic_registrations()
     $moduleName = 'stic_Registrations';
     $objSCP = SugarRestApiCall::getObjSCP();
 
+    // «Sí, vamos» / «No podemos» de un evento de sí/no (EVENTOS.md §10.6): no es
+    // el alta de siempre y tiene su propio guard.
+    if ($action === 'answer') {
+        sticpa_handle_event_answer($objSCP);
+    }
+
     // Editar, cancelar o borrar una inscripción: tiene que ser TUYA (estar en
     // tu listado). Antes valía el `id` de cualquiera, sin sesión incluso.
     $regId = (string) ($_REQUEST['id'] ?? '');

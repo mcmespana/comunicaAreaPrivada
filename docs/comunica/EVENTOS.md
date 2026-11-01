@@ -928,7 +928,7 @@ de la persona (`sticpa_pl_delegation()`), igual que su compromiso.
   un campo de tipo HTML de Studio en la vista de edición de Eventos. Solo HTML
   básico con estilos en línea: el editor del CRM se lleva los `<style>`.
 
-### 10.6 Eventos «sí / no» (diseño del 01/11/2026 — pantalla SIN hacer)
+### 10.6 Eventos «sí / no» (01/11/2026 — ✅ hecho; falta probarlo con el CRM real)
 
 Caso real: el evento solo para 1.º y 2.º ESO de Castellón, al que se llega desde un correo con el botón «Entrar». No se «inscribe»
 nadie: se contesta **sí o no**, y a la delegación le importa tanto saber quién ha dicho que NO como quién ha dicho que sí
@@ -945,3 +945,26 @@ nadie: se contesta **sí o no**, y a la delegación le importa tanto saber quié
 | Familia con varios hijos | «¿A quién quieres apuntar?» primero (FAM-a1); cada hijo contesta por separado |
 | Comunica Tools | Lee el estado tal cual; `not_participate` se añade a los estados que puede escribir (`REG_WRITABLE_STATUS`) |
 | MCM App | Apuntado en `mcmapp: docs/planes/area-nativa/PENDIENTE-WEB-A-LA-APP.md` |
+
+**Cómo está hecho** (`inc/stic-registrations.php` §4, tests en `tests/EventAnswerTest.php`):
+
+- **Modo**: `sticpa_event_answer_mode($eventNvl)` → `si_no` solo si el campo vale `si_no` **y el evento no tiene precio** (un «sí» no tiene por dónde
+  pagar: con precio, vuelve la inscripción de siempre). Sin el campo en el CRM, vacío o un valor raro: lo de siempre. El campo se pide con los demás del
+  evento (`sticpa_event_wanted_fields()`) solo si existe.
+- **La ficha** (`pages/single_stic_events.php`): en vez de «Inscribirme», la sección «Tu respuesta» (`sticpa_event_answer_panel_html()`): lo que se ha
+  contestado («Has dicho que vienes» / «Lucía no puede venir»), la caja «Comentarios, necesidades, avisos…» (con lo ya escrito) y los botones «Sí, vamos» y
+  «No podemos» (la respuesta puesta, marcada). Si el plazo está cerrado o no es para esa persona, solo se enseña lo contestado y el motivo, sin formulario.
+- **El guardado** (`stic-action=answer`, `sticpa_handle_event_answer()`; el guard de verdad): firma del formulario atada a la sesión, evento que existe y
+  es de sí/no, **audiencia y plazo** (`sticpa_event_signup_block()`), y que el CRM tenga la clave del estado en su desplegable (si no, no se escribe una clave
+  rota). Los comentarios, 500 caracteres como mucho, van a `special_needs_description` (y `special_needs` = 1 si hay).
+- **Cambiar de idea = modificar la misma inscripción** (decidido el 01/11/2026): se busca la inscripción de la persona del perfil activo para ese evento
+  —la que cuenta, un «No participa» anterior o una baja— y se cambia su estado y sus comentarios. Solo si no hay ninguna se crea, **de la persona de la
+  sesión** (con un hijo, el hijo) y asignada a quien organiza el evento. Nunca se toca la de otra persona: la búsqueda es solo entre las propias.
+- **«Mi inscripción»** de un evento de sí/no: sin «Modificar» ni «Cancelar» (también los rechaza el handler); un solo botón, «Cambiar mi respuesta», a la ficha.
+- **El listado** de Eventos ofrece «Responder» en vez de «Inscribirme».
+
+**Límites conocidos:**
+
+- El listado **no recuerda** que dijiste «no»: ese evento sigue saliendo como «Responder» (saberlo costaría una consulta por evento). La ficha sí lo dice.
+- `ajmcm_modo_respuesta_c` + formulario web avanzado (`ajmcm_fwa_url_c`) en el mismo evento no tiene sentido; el modo sí/no no mira el FWA.
+- En la app MCM, hoy, un evento de sí/no se vería como una inscripción normal (ver `PENDIENTE-WEB-A-LA-APP.md`).

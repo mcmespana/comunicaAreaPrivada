@@ -7003,6 +7003,46 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     line-height: 1.2 !important;       /* ídem */
     cursor: pointer;
 }
+/* EVENTO DE SÍ / NO (EVENTOS.md §10.6): lo que se ha contestado, los comentarios y
+   dos botones grandes. «Sí» es el principal; «No» es secundario, no rojo: decir
+   que no se puede ir no es un error. Los <button> los pinta el tema de WP. */
+.stic-sino { display: grid; gap: 0.8rem; }
+.stic-sino-estado { margin: 0; font-size: 1rem; font-weight: 700; color: var(--gray-900); }
+.stic-sino-estado--yes { color: var(--success-dark); }
+.stic-sino-estado--no { color: var(--gray-700); }
+.stic-sino-form { display: grid; gap: 0.6rem; margin: 0; }
+.stic-sino-label { font-size: 0.88rem; font-weight: 700; color: var(--gray-700); }
+.stic-sino-form textarea {
+    width: 100%;
+    min-height: 84px;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    font: inherit;
+    font-size: 0.95rem;
+    box-sizing: border-box;
+}
+.stic-sino-botones { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.stic-sino-botones .stic-rec-btn {
+    width: 100%;
+    min-height: 52px !important;       /* el tema de WP pinta los <button> */
+    padding: 0.6rem 0.9rem !important; /* ídem */
+    border-radius: var(--radius-md) !important; /* ídem */
+    font: inherit;
+    font-size: 1rem !important;        /* ídem */
+    font-weight: 700 !important;       /* ídem */
+    letter-spacing: normal !important; /* ídem */
+    text-transform: none !important;   /* ídem */
+    line-height: 1.2 !important;       /* ídem */
+    cursor: pointer;
+}
+/* La respuesta que está puesta, marcada: un borde, no solo el color. */
+.stic-sino-botones .stic-rec-btn[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--primary-color); }
+.stic-sino-cambiar, .stic-sino-motivo, .stic-sino-nota-leida { margin: 0; font-size: 0.85rem; color: var(--gray-500); }
+.stic-sino-nota-leida { color: var(--gray-700); white-space: pre-line; }
+@media (max-width: 480px) {
+    .stic-sino-botones { grid-template-columns: 1fr; }
+}
 .stic-reg-gestion-nota {
     margin: 0.6rem 0 0;
     font-size: 0.82rem;

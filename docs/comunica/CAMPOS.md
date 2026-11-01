@@ -974,7 +974,7 @@ en el CRM se pueda filtrar y contar («¿cuántos van en autobús?»).
 `stic_Events.ajmcm_modo_respuesta_c`, desplegable con dos claves: `inscripcion` («Inscripción normal», **por defecto**) y
 `si_no` («Tipo SÍ / NO»). Con `si_no` el área NO pinta la inscripción de siempre sino dos botones («Sí, vamos» / «No podemos»)
 y una caja «Comentarios, necesidades, avisos…»; el «no» queda como inscripción en estado `not_participate`. **Diseño en
-`EVENTOS.md` §10.6; la pantalla todavía no está hecha** (hasta entonces el campo no cambia nada).
+`EVENTOS.md` §10.6; la pantalla está hecha (01/11/2026)**. Un evento con precio no entra en el modo sí/no (se inscribe como siempre).
 
 **Enlace del formulario web avanzado — ✅ CREADO** (propuesto el 27/09/2026, TODO
 EV-3; creado por el propietario el 30/09/2026; **visto por MCP el 02/10/2026** en
