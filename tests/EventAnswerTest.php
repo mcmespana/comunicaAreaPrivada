@@ -443,7 +443,28 @@ class EventAnswerTest extends TestCase
         $this->assertStringContainsString("aria-pressed='false'", $html);
         $this->assertStringContainsString('&lt;b&gt;Hola&lt;/b&gt; &amp; adiós', $html);
         $this->assertStringNotContainsString('<b>Hola</b>', $html);
-        $this->assertStringContainsString('Puedes cambiar tu respuesta mientras el plazo siga abierto.', $html);
+    }
+
+    public function test_ya_contestado_se_lee_lo_guardado_y_el_formulario_va_plegado_tras_un_boton_de_modificar()
+    {
+        $html = sticpa_event_answer_panel_html('ev-1', 'yes', 'Celiaquía', true);
+        $this->assertStringContainsString('Has dicho que vienes.', $html);
+        // Lo guardado se lee fuera del formulario, para que quien acaba de guardar vea que ya está.
+        $leido = substr($html, 0, strpos($html, '<details'));
+        $this->assertStringContainsString('Celiaquía', $leido);
+        $this->assertStringContainsString("<details class='stic-sino-modificar'>", $html);
+        $this->assertStringContainsString('Modificar mi respuesta', $html);
+        // Y los botones están DENTRO del desplegable, no a la vista.
+        $this->assertGreaterThan(strpos($html, '<details'), strpos($html, "name='sticpa_answer' value='yes'"));
+        $this->assertStringContainsString('</form></details>', $html);
+    }
+
+    public function test_sin_contestar_el_formulario_esta_a_la_vista_y_sin_boton_de_modificar()
+    {
+        $html = sticpa_event_answer_panel_html('ev-1', '', '', true);
+        $this->assertStringNotContainsString('<details', $html);
+        $this->assertStringNotContainsString('Modificar mi respuesta', $html);
+        $this->assertStringContainsString("name='sticpa_answer' value='yes'", $html);
     }
 
     public function test_con_un_hijo_se_dice_su_nombre_en_el_panel_y_en_el_aviso()
