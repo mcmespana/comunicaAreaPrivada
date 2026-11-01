@@ -973,6 +973,9 @@ function sticpa_mask_display_name($name)
  * larga para copiar y pegar —si el botón falla, para eso está el código—.
  * Por qué hacen falta las dos: `inc/stic-otp.php`.
  *
+ * ⚠️ La app manda ESTE MISMO correo desde el middleware (`comunicaMiddleware:src/app/mailer.ts`, port
+ * literal, 01/11/2026): si cambias algo aquí, cámbialo allí.
+ *
  * Colores de marca MCM: azul #1c6fb3, magenta #9d1e74. Estilos inline porque
  * los clientes de correo no respetan <style> ni CSS externo.
  */
