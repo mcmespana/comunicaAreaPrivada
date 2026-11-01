@@ -97,4 +97,17 @@ $block = sticpa_event_signup_block($objSCP, $eventId, $nvl);
 // inc/stic-event-web.php.
 $web = function_exists('sticpa_event_web_view') ? sticpa_event_web_view($objSCP, $eventId, $nvl) : null;
 
-$html .= sticpa_event_detail_html($event, $statusLabel, $canSignUp, $block['texto'], $web);
+// EVENTO DE SÍ / NO (EVENTOS.md §10.6): en vez de «Inscribirme», el panel con lo
+// que ya se ha contestado, los comentarios y los dos botones. Si el plazo está
+// cerrado o no es para esta persona, solo se enseña lo contestado y el motivo.
+$answerPanel = null;
+if (($event['modo'] ?? '') === 'si_no' && empty($event['is_past']) && function_exists('sticpa_event_answer_panel_html')) {
+    $respuesta = sticpa_event_answer_find($objSCP, $eventId);
+    $abierto = empty($block['bloqueado']);
+    $answerPanel = array(
+        'html' => sticpa_event_answer_panel_html($eventId, $respuesta['answer'] ?? '', $respuesta['note'] ?? '', $abierto, $abierto ? '' : (string) $block['texto']),
+        'note' => sticpa_event_answer_saved_note($_REQUEST['msg'] ?? ''),
+    );
+}
+
+$html .= sticpa_event_detail_html($event, $statusLabel, $canSignUp, $block['texto'], $web, $answerPanel);

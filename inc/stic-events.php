@@ -410,6 +410,10 @@ function sticpa_event_wanted_fields()
     $wanted = array_merge($wanted, sticpa_event_registration_fields());
     $wanted[] = sticpa_event_map_field();
     $wanted[] = sticpa_event_fwa_field();
+    // Cómo se contesta: inscripción de siempre o sí/no (EVENTOS.md §10.6). Solo si existe en el CRM.
+    if (function_exists('sticpa_event_answer_mode_field')) {
+        $wanted[] = sticpa_event_answer_mode_field();
+    }
     // Las preguntas simples (EV-6): textos cortos que el formulario de
     // inscripción convierte en opciones. Como todo lo de aquí, solo si existen.
     if (function_exists('sticpa_event_question_event_fields')) {
@@ -545,6 +549,8 @@ function sticpa_event_view_model($nvl)
         'optional' => $optional,
         // La ventana de inscripción, ya resuelta contra el día de hoy.
         'registro' => sticpa_event_registration_window($nvl),
+        // `si_no` = se contesta sí o no en vez de inscribirse (EVENTOS.md §10.6).
+        'modo' => function_exists('sticpa_event_answer_mode') ? sticpa_event_answer_mode($nvl) : 'inscripcion',
         // A dónde lleva el botón del mapa (o '' si no hay nada que enseñar).
         'mapa_url' => sticpa_event_map_url(
             $val(sticpa_event_map_field()),
@@ -917,7 +923,12 @@ function sticpa_events_cards($models, $statusMap = array())
         } elseif (!$event['is_past'] && !empty($event['registro']['abierta'])) {
             // Fuera del plazo no se ofrece «Inscribirme»: el botón que lleva a
             // un formulario que va a rechazarte es peor que no tener botón.
-            $actions[] = array('label' => __('Inscribirme', 'sticpa'), 'url' => $signUpUrl, 'primary' => true);
+            // Un evento de sí/no no se «inscribe»: se contesta en su ficha.
+            if (($event['modo'] ?? '') === 'si_no') {
+                $actions[] = array('label' => __('Responder', 'sticpa'), 'url' => $detailUrl, 'primary' => true);
+            } else {
+                $actions[] = array('label' => __('Inscribirme', 'sticpa'), 'url' => $signUpUrl, 'primary' => true);
+            }
         }
 
         $cards[] = array(
@@ -951,8 +962,12 @@ function sticpa_events_cards($models, $statusMap = array())
  * @param array|null $web   Lo de la web del evento (sticpa_event_web_view()):
  *                          cartel, lema, cuerpo, documentos. Ver
  *                          inc/stic-event-web.php.
+ * @param array|null $answerPanel Evento de SÍ/NO (EVENTOS.md §10.6): `html` (el
+ *                          panel, de sticpa_event_answer_panel_html()) y `note`
+ *                          (el aviso de tras guardar). Con él NO hay botón de
+ *                          inscripción: se contesta en el propio panel.
  */
-function sticpa_event_detail_html($event, $statusLabel = '', $canSignUp = true, $blockNote = '', $web = null)
+function sticpa_event_detail_html($event, $statusLabel = '', $canSignUp = true, $blockNote = '', $web = null, $answerPanel = null)
 {
     $dateLine = sticpa_record_date_line($event['start_ts'], $event['end_ts']);
     $signUpUrl = sticpa_event_signup_url($event);
@@ -1015,6 +1030,17 @@ function sticpa_event_detail_html($event, $statusLabel = '', $canSignUp = true, 
     $actions = array();
     $ctaNote = '';
     $blockNote = trim((string) $blockNote);
+    $notes = array();
+    $panelSection = null;
+    if (is_array($answerPanel) && !$event['is_past']) {
+        // Sí/no: el panel sustituye al botón «Inscribirme».
+        $canSignUp = true;
+        $blockNote = '';
+        $panelSection = array('title' => __('Tu respuesta', 'sticpa'), 'body' => (string) ($answerPanel['html'] ?? ''), 'raw' => true, 'class' => 'stic-sino-seccion');
+        if (!empty($answerPanel['note'])) {
+            $notes[] = $answerPanel['note'];
+        }
+    }
     // El ORDEN importa. «Ya estás inscrito» va antes que la audiencia porque
     // es un hecho sobre esta persona: a quien ya tiene su plaza no se le dice
     // «esta actividad no es para ti» aunque hoy no cumpla el filtro (le han
@@ -1035,6 +1061,8 @@ function sticpa_event_detail_html($event, $statusLabel = '', $canSignUp = true, 
         // por qué. El dato de la fecha ya está arriba, en los datos clave.
         $ctaNote = $blockNote;
         $actions[] = array('label' => __('Ver otras actividades', 'sticpa'), 'url' => '?internalpage=list_stic_events');
+    } elseif ($panelSection !== null) {
+        // Nada: el panel de respuesta ya está arriba.
     } else {
         $actions[] = array(
             'label'   => __('Inscribirme en esta actividad', 'sticpa'),
@@ -1060,7 +1088,12 @@ function sticpa_event_detail_html($event, $statusLabel = '', $canSignUp = true, 
         ? array(array('title' => __('Toda la información', 'sticpa'), 'body' => sticpa_event_web_section_html($web), 'raw' => true, 'class' => 'stic-evweb'))
         : array(array('title' => __('Sobre esta actividad', 'sticpa'), 'body' => $event['description']));
 
+    if ($panelSection !== null) {
+        array_unshift($sections, $panelSection);
+    }
+
     return sticpa_record_detail_html(array(
+        'notes'    => $notes,
         'back'     => array('url' => '?internalpage=list_stic_events', 'label' => __('Eventos', 'sticpa')),
         'title'    => $event['name'],
         'subtitle' => $conWeb ? (string) ($web['lema'] ?? '') : '',

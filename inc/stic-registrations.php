@@ -1506,13 +1506,17 @@ function sticpa_registration_claim_card_commitment($objSCP, $regId)
 
 /* ---- 3. Cancelar y modificar (EV-2) ------------------------------------ */
 
-/** La clave de «cancelada» en el desplegable de estado de la inscripción. */
+/**
+ * La clave de «cancelada» en el desplegable de estado de la inscripción: `dropped` («Baja»).
+ *
+ * Hasta el 01/11/2026 era `cancelled`, pero ESE NO ESTÁ en el desplegable de SinergiaCRM (se vio en Studio): la inscripción
+ * cancelada salía con el estado en blanco en el CRM. Las dos que tenían `cancelled` se pasaron a `dropped`. Qué inscripciones no
+ * cuentan lo decide `sticpa_registration_counts()` (inc/stic-calendar.php). Antes de escribirla se comprueba que existe en el
+ * desplegable del CRM.
+ */
 function sticpa_registration_cancel_status()
 {
-    // Es la que ya usa el área para saber qué inscripciones no cuentan
-    // (prefix_user_active_event_ids(), el calendario, Pasar Lista). Antes de
-    // escribirla se comprueba que existe en el desplegable del CRM.
-    return (string) apply_filters('sticpa_registration_cancel_status', 'cancelled');
+    return (string) apply_filters('sticpa_registration_cancel_status', 'dropped');
 }
 
 /**
@@ -1547,6 +1551,19 @@ function sticpa_registration_manage_rights($status, $eventNvl, $regDefinition)
     if (empty($plazo['abierta'])) {
         return $no(__('El plazo de inscripción ya ha terminado. Si necesitas cambiar algo o no puedes ir, habla con tu delegación.', 'sticpa'));
     }
+    // UN EVENTO DE SÍ / NO NO SE «CANCELA» NI SE «MODIFICA» COMO UNA INSCRIPCIÓN
+    // (§10.6): se cambia la respuesta, y los comentarios con ella, en la ficha de
+    // la actividad. Por eso ni el formulario de modificar ni cancelar valen
+    // aquí —también lo rechaza el handler, que usa esta misma función—.
+    if (($event['modo'] ?? '') === 'si_no' && !empty($event['id'])) {
+        return array(
+            'editar' => false,
+            'cancelar' => false,
+            'motivo' => '',
+            'hasta_ts' => $plazo['end_ts'] ?? null,
+            'respuesta_url' => '?internalpage=single_stic_events&action=detail&id=' . rawurlencode((string) $event['id']),
+        );
+    }
     $options = sticpa_crm_enum_options($regDefinition, 'status');
     // UN CURSO NO SE CANCELA DESDE AQUÍ. «MIC | Curso 2026-2027» es también
     // un evento con inscripción, y a menudo con el plazo abierto (o sin fechas,
@@ -1578,6 +1595,16 @@ function sticpa_registration_manage_rights($status, $eventNvl, $regDefinition)
  */
 function sticpa_registration_manage_html($regId, $rights)
 {
+    // Evento de sí/no: un solo botón, a la ficha donde se contesta.
+    if (!empty($rights['respuesta_url'])) {
+        $html = "<div class='stic-reg-gestion'><a class='stic-rec-btn stic-rec-btn--ghost' href='" . esc_url((string) $rights['respuesta_url']) . "'>"
+            . sticpa_record_icon('edit') . "<span>" . esc_html__('Cambiar mi respuesta', 'sticpa') . "</span></a></div>";
+        if (!empty($rights['hasta_ts']) && function_exists('sticpa_record_date_line')) {
+            /* translators: %s = fecha de fin del plazo */
+            $html .= "<p class='stic-reg-gestion-nota'>" . esc_html(sprintf(__('Hasta el %s.', 'sticpa'), sticpa_record_date_line($rights['hasta_ts'], null))) . "</p>";
+        }
+        return $html;
+    }
     if (empty($rights['editar']) && empty($rights['cancelar'])) {
         return '';
     }
@@ -1695,4 +1722,329 @@ document.addEventListener("DOMContentLoaded", function(event) {
     })(jQuery);
 });
 </script>';
+}
+
+
+/* ============================================================================
+   4. EVENTOS «SÍ / NO»  (01/11/2026, EVENTOS.md §10.6)
+   ----------------------------------------------------------------------------
+   Caso real: la convivencia solo para 1.º y 2.º ESO de Castellón, a la que se
+   llega desde un correo con el botón «Entrar». No se «inscribe» nadie: se
+   contesta SÍ o NO, y a la delegación le importa saber quién ha dicho que NO
+   (distinto de quien no ha contestado).
+
+     · `stic_Events.ajmcm_modo_respuesta_c = si_no` activa el modo.
+     · El «sí» es una inscripción `confirmed` y el «no», la MISMA inscripción
+       en `not_participate`. Quien cambia de idea modifica su inscripción, no
+       crea otra (una sola por persona y evento).
+     · Las necesidades especiales se llaman «Comentarios, necesidades,
+       avisos…» y se piden con el sí y con el no.
+     · Con PRECIO no hay modo sí/no: un «sí» no tiene por dónde pagar, así que
+       se vuelve a la inscripción de siempre (el pago no se toca desde aquí).
+   El guard de verdad (audiencia, plazo, firma) está en
+   sticpa_handle_event_answer(); la pantalla es cortesía.
+   ========================================================================== */
+
+/** El campo del evento que dice cómo se contesta. */
+function sticpa_event_answer_mode_field()
+{
+    return (string) apply_filters('sticpa_event_answer_mode_field', 'ajmcm_modo_respuesta_c');
+}
+
+/**
+ * `si_no` o `inscripcion` (lo de siempre). Vacío, un valor raro o un evento de
+ * pago son `inscripcion`: ante la duda, el camino que ya existe.
+ *
+ * @param object|null $eventNvl `name_value_list` del evento.
+ */
+function sticpa_event_answer_mode($eventNvl)
+{
+    if (!$eventNvl) {
+        return 'inscripcion';
+    }
+    $campo = sticpa_event_answer_mode_field();
+    $valor = strtolower(trim((string) ($eventNvl->$campo->value ?? '')));
+    if ($valor !== 'si_no') {
+        return 'inscripcion';
+    }
+    return sticpa_event_price($eventNvl) > 0 ? 'inscripcion' : 'si_no';
+}
+
+/** El estado de inscripción de cada respuesta: el sí, `confirmed`; el no, `not_participate` («No participa»). */
+function sticpa_event_answer_status($answer)
+{
+    return $answer === 'yes' ? 'confirmed' : ($answer === 'no' ? 'not_participate' : '');
+}
+
+/**
+ * Qué ha contestado quien tiene una inscripción en ese estado: `yes`, `no` o
+ * `` (no ha contestado: una baja es de la inscripción de siempre, no un «no»).
+ */
+function sticpa_event_answer_of_status($status)
+{
+    $status = strtolower(trim((string) $status));
+    if ($status === 'not_participate') {
+        return 'no';
+    }
+    if ($status === '' || !sticpa_registration_counts($status)) {
+        return '';
+    }
+    return 'yes';
+}
+
+/**
+ * La inscripción de ESTA persona (la del perfil activo) para un evento, con el
+ * estado que tenga: la que cuenta o, si no, la de «No participa» o «Baja».
+ * Null si no hay ninguna.
+ *
+ * Las que cuentan salen del mapa de siempre; las demás, de la lista propia de
+ * inscripciones (solo se mira el evento de las que NO cuentan: suelen ser
+ * pocas). Todo sale de las inscripciones de la persona en sesión: nunca se
+ * toca la de otra.
+ *
+ * @param bool $fresh true = preguntar al CRM (lo usa el guardado).
+ * @return array|null {id, status, answer, note}
+ */
+function sticpa_event_answer_find($objSCP, $eventId, $fresh = false)
+{
+    $eventId = trim((string) $eventId);
+    if ($eventId === '') {
+        return null;
+    }
+    $regId = (string) (prefix_user_active_registration_map($objSCP, $fresh)[$eventId] ?? '');
+
+    if ($regId === '') {
+        $module = getDestinationModule();
+        $mias = $objSCP->getRelatedElementsForLoggedUser(array(
+            'module_name' => $module,
+            'module_id' => $_SESSION['scp_user_id'],
+            'link_field_name' => ($module === 'Accounts') ? 'stic_registrations_accounts' : 'stic_registrations_contacts',
+            'related_fields' => array('id', 'status'),
+            'related_module_link_name_to_fields_array' => array(),
+            'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
+        ));
+        $candidatas = array();
+        foreach (is_array($mias) ? $mias : array() as $reg) {
+            $estado = (string) ($reg->name_value_list->status->value ?? '');
+            if (sticpa_registration_counts($estado)) {
+                continue;
+            }
+            $eventos = $objSCP->getRelatedElementsForLoggedUser(array(
+                'module_name' => 'stic_Registrations',
+                'module_id' => $reg->id,
+                'link_field_name' => 'stic_registrations_stic_events',
+                'related_fields' => array('id'),
+                'related_module_link_name_to_fields_array' => array(),
+                'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 1,
+            ));
+            foreach (is_array($eventos) ? $eventos : array() as $ev) {
+                if ((string) ($ev->id ?? '') === $eventId) {
+                    // El «No participa» manda sobre una baja vieja.
+                    $candidatas[strtolower(trim($estado)) === 'not_participate' ? 0 : 1][] = (string) $reg->id;
+                }
+            }
+        }
+        ksort($candidatas);
+        $regId = $candidatas ? (string) reset($candidatas)[0] : '';
+    }
+    if ($regId === '') {
+        return null;
+    }
+    $detalle = $objSCP->getRecordDetail($regId, 'stic_Registrations', array('id', 'status', 'special_needs_description'));
+    $nvl = $detalle->entry_list[0]->name_value_list ?? null;
+    if (!$nvl) {
+        return null;
+    }
+    $status = (string) ($nvl->status->value ?? '');
+    return array(
+        'id' => $regId,
+        'status' => $status,
+        'answer' => sticpa_event_answer_of_status($status),
+        'note' => trim((string) ($nvl->special_needs_description->value ?? '')),
+    );
+}
+
+/** El máximo de caracteres de los comentarios (cabe en `special_needs_description`). */
+function sticpa_event_answer_note_max()
+{
+    return (int) apply_filters('sticpa_event_answer_note_max', 500);
+}
+
+/** El aviso de la ficha del evento después de contestar, según el `msg` con el que vuelve el handler. */
+function sticpa_event_answer_saved_note($msg)
+{
+    $viendoA = function_exists('sticpa_viendo_a_nombre') ? sticpa_viendo_a_nombre() : '';
+    switch ((string) $msg) {
+        case 'sino_si':
+            return array('tone' => 'ok', 'icon' => 'check', 'text' => ($viendoA !== '')
+                /* translators: %s: nombre de pila del participante */
+                ? sprintf(__('Apuntado: %s viene. Gracias por contestar.', 'sticpa'), $viendoA)
+                : __('Apuntado: vienes. Gracias por contestar.', 'sticpa'));
+        case 'sino_no':
+            return array('tone' => 'info', 'icon' => 'info', 'text' => ($viendoA !== '')
+                /* translators: %s: nombre de pila del participante */
+                ? sprintf(__('Anotado: %s no puede venir. Gracias por avisar.', 'sticpa'), $viendoA)
+                : __('Anotado: no puedes venir. Gracias por avisar.', 'sticpa'));
+        case 'sino_cerrada':
+            return array('tone' => 'warn', 'text' => __('No se ha podido guardar: el plazo ya ha terminado o esta actividad no es para ti. Si lo necesitas, habla con tu delegación.', 'sticpa'));
+        case 'sino_error':
+            return array('tone' => 'warn', 'text' => __('No se ha podido guardar tu respuesta. Inténtalo de nuevo; si sigue fallando, avisa a tu delegación.', 'sticpa'));
+    }
+    return null;
+}
+
+/**
+ * El panel de respuesta de la ficha del evento: lo que se ha contestado (si se
+ * ha contestado), los comentarios y los dos botones. Sin `$abierto` (plazo
+ * cerrado o no es para ti) solo se enseña lo contestado.
+ *
+ * @param string $answer `yes`, `no` o ``.
+ * @param bool   $abierto Si se puede contestar o cambiar la respuesta.
+ * @param string $motivo  Por qué no se puede (si no está abierto).
+ */
+function sticpa_event_answer_panel_html($eventId, $answer, $note, $abierto, $motivo = '')
+{
+    $viendoA = function_exists('sticpa_viendo_a_nombre') ? sticpa_viendo_a_nombre() : '';
+    if ($answer === 'yes') {
+        $estado = ($viendoA !== '')
+            /* translators: %s: nombre de pila del participante */
+            ? sprintf(__('%s viene.', 'sticpa'), $viendoA)
+            : __('Has dicho que vienes.', 'sticpa');
+    } elseif ($answer === 'no') {
+        $estado = ($viendoA !== '')
+            /* translators: %s: nombre de pila del participante */
+            ? sprintf(__('%s no puede venir.', 'sticpa'), $viendoA)
+            : __('Has dicho que no puedes venir.', 'sticpa');
+    } else {
+        $estado = ($viendoA !== '')
+            /* translators: %s: nombre de pila del participante */
+            ? sprintf(__('¿Viene %s? Contéstanos, nos ayuda a organizarlo.', 'sticpa'), $viendoA)
+            : __('¿Vienes? Contéstanos, nos ayuda a organizarlo.', 'sticpa');
+    }
+
+    $html = "<div class='stic-sino' data-answer='" . esc_attr($answer) . "'>";
+    $html .= "<p class='stic-sino-estado" . ($answer !== '' ? ' stic-sino-estado--' . esc_attr($answer) : '') . "'>" . esc_html($estado) . "</p>";
+    if (!$abierto) {
+        if ($answer !== '' && $note !== '') {
+            $html .= "<p class='stic-sino-nota-leida'>" . esc_html($note) . "</p>";
+        }
+        if ($motivo !== '') {
+            $html .= "<p class='stic-sino-motivo'>" . esc_html($motivo) . "</p>";
+        }
+        return $html . "</div>";
+    }
+
+    $base = strtok((string) ($_SERVER['REQUEST_URI'] ?? '/'), '?');
+    $html .= "<form class='stic-sino-form' method='post' action='" . esc_url(home_url() . '/wp-admin/admin-post.php') . "'>"
+        . "<input type='hidden' name='action' value='single_stic_registrations'>"
+        . "<input type='hidden' name='stic-action' value='answer'>"
+        . "<input type='hidden' name='sticpa_event_id' value='" . esc_attr((string) $eventId) . "'>"
+        . "<input type='hidden' name='scp_current_url' value='" . esc_attr($base . '?internalpage=single_stic_events') . "'>"
+        . sticpa_form_fields_input('single_stic_registrations', array())
+        . "<label class='stic-sino-label' for='sticpa_answer_note'>" . esc_html__('Comentarios, necesidades, avisos…', 'sticpa') . "</label>"
+        . "<textarea id='sticpa_answer_note' name='sticpa_answer_note' rows='3' maxlength='" . (int) sticpa_event_answer_note_max() . "'"
+        . " placeholder='" . esc_attr__('Alergias, medicación, si llegáis tarde… lo que quieras que sepamos (opcional)', 'sticpa') . "'>"
+        . esc_textarea($note) . "</textarea>"
+        . "<div class='stic-sino-botones'>"
+        . "<button type='submit' name='sticpa_answer' value='yes' class='stic-rec-btn stic-rec-btn--primary stic-sino-si' aria-pressed='" . ($answer === 'yes' ? 'true' : 'false') . "'>"
+        . esc_html__('Sí, vamos', 'sticpa') . "</button>"
+        . "<button type='submit' name='sticpa_answer' value='no' class='stic-rec-btn stic-rec-btn--ghost stic-sino-no' aria-pressed='" . ($answer === 'no' ? 'true' : 'false') . "'>"
+        . esc_html__('No podemos', 'sticpa') . "</button>"
+        . "</div>";
+    if ($answer !== '') {
+        $html .= "<p class='stic-sino-cambiar'>" . esc_html__('Puedes cambiar tu respuesta mientras el plazo siga abierto.', 'sticpa') . "</p>";
+    }
+    return $html . "</form></div>";
+}
+
+/**
+ * EL GUARD Y EL GUARDADO de «Sí, vamos» / «No podemos». Siempre termina en una
+ * redirección a la ficha del evento (con `msg`).
+ *
+ * Que no se guarda si: no hay firma del formulario atada a la sesión (CSRF), el
+ * evento no existe o no es de sí/no, no es para esta persona (audiencia) o el
+ * plazo no está abierto, o el CRM no tiene el estado en su desplegable. Se
+ * modifica la inscripción que ya hay (sea la que cuenta, un «No participa»
+ * anterior o una baja); solo si no hay ninguna se crea, de la persona de la
+ * sesión y asignada a quien organiza el evento (como la inscripción de
+ * siempre). Nunca se toca la de otra persona: se busca solo entre las propias.
+ */
+function sticpa_handle_event_answer($objSCP)
+{
+    $eventId = trim((string) ($_REQUEST['sticpa_event_id'] ?? ''));
+    $eventosUrl = sticpa_return_path() . '?internalpage=list_stic_events';
+    if ($eventId === '' || !preg_match('/^[A-Za-z0-9_-]{1,64}$/', $eventId) || !sticpa_form_is_genuine('single_stic_registrations')) {
+        wp_safe_redirect($eventosUrl);
+        exit;
+    }
+    $fichaUrl = sticpa_return_path() . '?internalpage=single_stic_events&action=detail&id=' . rawurlencode($eventId);
+    $answer = (string) ($_REQUEST['sticpa_answer'] ?? '');
+    $status = sticpa_event_answer_status($answer);
+    if ($status === '') {
+        wp_safe_redirect($fichaUrl . '&msg=sino_error');
+        exit;
+    }
+    $note = trim((string) wp_unslash($_REQUEST['sticpa_answer_note'] ?? ''));
+    $note = function_exists('mb_substr') ? mb_substr($note, 0, sticpa_event_answer_note_max()) : substr($note, 0, sticpa_event_answer_note_max());
+    $note = sanitize_textarea_field($note);
+
+    $ev = $objSCP->getRecordDetail($eventId, 'stic_Events', sticpa_event_fields_to_request($objSCP));
+    $eventNvl = $ev->entry_list[0]->name_value_list ?? null;
+    if (!$eventNvl) {
+        wp_safe_redirect($eventosUrl);
+        exit;
+    }
+    // Un evento que no es de sí/no se contesta inscribiéndose, como siempre.
+    if (sticpa_event_answer_mode($eventNvl) !== 'si_no') {
+        wp_safe_redirect(sticpa_return_path() . '?internalpage=single_stic_registrations&action=create&from=stic_events&id=' . urlencode($eventId));
+        exit;
+    }
+    // Audiencia y plazo: el guard de verdad.
+    if (!empty(sticpa_event_signup_block($objSCP, $eventId, $eventNvl)['bloqueado'])) {
+        wp_safe_redirect($fichaUrl . '&msg=sino_cerrada');
+        exit;
+    }
+    // Solo se escribe una clave que existe en el desplegable del CRM.
+    $opciones = sticpa_crm_enum_options(sticpa_registration_definition($objSCP), 'status');
+    if (!isset($opciones[$status])) {
+        wp_safe_redirect($fichaUrl . '&msg=sino_error');
+        exit;
+    }
+
+    $datos = array(
+        'status' => $status,
+        'special_needs' => $note !== '' ? '1' : '0',
+        'special_needs_description' => $note,
+    );
+    $existente = sticpa_event_answer_find($objSCP, $eventId, true);
+    if ($existente) {
+        $datos['id'] = $existente['id'];
+    } else {
+        $personaField = getDestinationModule() === 'Accounts'
+            ? 'stic_registrations_accountsaccounts_ida'
+            : 'stic_registrations_contactscontacts_ida';
+        $datos[$personaField] = $_SESSION['scp_user_id'];
+        $datos['stic_registrations_stic_eventsstic_events_ida'] = $eventId;
+        $datos['participation_type'] = 'attendant';
+        $datos['attendees'] = 1;
+        $datos['registration_date'] = gmdate('Y-m-d H:i:s');
+        // De quien organiza el evento, como la inscripción de siempre (plan 041).
+        $delegacion = trim((string) ($eventNvl->assigned_user_id->value ?? ''));
+        if ($delegacion === '' && function_exists('sticpa_pl_home_delegation')) {
+            $delegacion = (string) sticpa_pl_home_delegation($objSCP);
+        }
+        if ($delegacion !== '') {
+            $datos['assigned_user_id'] = $delegacion;
+        }
+    }
+    if (!$objSCP->set_entry('stic_Registrations', $datos)) {
+        wp_safe_redirect($fichaUrl . '&msg=sino_error');
+        exit;
+    }
+    if (function_exists('sticpa_calendar_flush_cache')) {
+        sticpa_calendar_flush_cache();
+    }
+    sticpa_registration_memo_reset();
+    wp_safe_redirect($fichaUrl . '&msg=' . ($answer === 'yes' ? 'sino_si' : 'sino_no'));
+    exit;
 }

@@ -164,6 +164,7 @@ SQL: `stic_events` + `_cstm`. Quién puede apuntarse = `assigned_user_id` + `ajm
 | `ajmcm_ocultar_area_c` | bool | Ocultar en el área privada a quien no se ha apuntado |
 | `ajmcm_fwa_url_c` | url | Enlace del formulario web avanzado. Vacío = no usa FWA |
 | `ajmcm_pregunta_1_c`, `ajmcm_pregunta_2_c` | text | `¿Pregunta? \| opción 1; opción 2` (respuestas en la inscripción) |
+| `ajmcm_modo_respuesta_c` | enum ✅ | `inscripcion` (por defecto, «Inscripción normal») · `si_no` («Tipo SÍ / NO»: botones sí/no en vez de inscripción; `EVENTOS.md` §10.6; solo sin precio) |
 | `web_publicar_c` | bool | Publicar en la web `/actividades`. **Los `web_*` van SIN `ajmcm_`** |
 | `web_url_c`, `web_cartel_c` | url | Botón «Inscribirme» y cartel. Vacío llega como `http://` |
 | `web_cuerpo_html_c` | wysiwyg | Cuerpo de la web (HTML codificado `&lt;p&gt;`). Público aunque no esté publicado. `web_cuerpo_c`: retirado |
@@ -181,7 +182,7 @@ SQL: `stic_registrations` + `_cstm`. Lo de un evento es de quien lo organiza (`a
 |---|---|---|
 | `stic_registrations_contactscontacts_ida` | link | La persona inscrita. Escríbelo al crear; al LEER puede llegar vacío: usa el enlace `stic_registrations_contacts` |
 | `stic_registrations_stic_eventsstic_events_ida` | link | El evento (`ajmcm_eventid_c` existe pero va vacío) |
-| `status` | enum 👁 | `confirmed` · `cancelled` · `maybe` · `waiting_list` (vista también `uninvited`). Cancelar, nunca borrar |
+| `status` | enum ✅ | `uninvited` · `invited` · `confirmed` · `rejected` · `maybe` · `participates` · `not_participate` (No participa: el «no» de un evento sí/no) · `dropped` (Baja: lo que escribe «cancelar») · `waiting_list`. ⚠️ **`cancelled` NO existe** en inscripciones (sí en pagos y firmas). Cancelar = `dropped`, nunca borrar |
 | `participation_type` | enum 👁 | `attendant` (participante) · `organizer` (monitor/a) · `equipo` |
 | `registration_date`, `attendance_percentage`, `attended_hours` | varios | Los dos últimos los calcula el CRM |
 | `ajmcm_registration_amount_c` | dec | Importe |

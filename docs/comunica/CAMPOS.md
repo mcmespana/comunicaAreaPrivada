@@ -953,8 +953,9 @@ las devuelve la API: si las necesitas, míralas allí.
 
 **Preguntas simples — ✅ CREADOS** (propuestos el 25/09/2026, TODO EV-6; creados en Studio
 por el propietario del CRM, comunicado el 30/09/2026; **`stic_Events.ajmcm_pregunta_1_c` y
-`_2_c` vistos por MCP el 08/10/2026** (`text`); los dos `ajmcm_respuesta_*_c` de
-`stic_Registrations` siguen sin verificar por MCP). Para que un evento sí/no con una o dos
+`_2_c` vistos el 08/10/2026**; los dos `ajmcm_respuesta_*_c` de `stic_Registrations` se
+crearon el 01/11/2026 y están en la base (`stic_registrations_cstm`, comprobado ese día).
+La pregunta va en el EVENTO y la respuesta en la INSCRIPCIÓN). Para que un evento sí/no con una o dos
 preguntas no necesite un formulario web avanzado. El área los pide solo si existen en
 la definición del CRM. Si tienen otro nombre, apúntalo aquí y cámbialo en
 `sticpa_event_question_fields()`. Formato y comportamiento en `EVENTOS.md` §10.1.
@@ -968,6 +969,12 @@ la definición del CRM. Si tienen otro nombre, apúntalo aquí y cámbialo en
 
 Van por parejas y en campos separados (no todo junto en un texto largo) para que
 en el CRM se pueda filtrar y contar («¿cuántos van en autobús?»).
+
+**Modo de respuesta del evento — ✅ CREADO (01/11/2026, visto en la base el mismo día)**:
+`stic_Events.ajmcm_modo_respuesta_c`, desplegable con dos claves: `inscripcion` («Inscripción normal», **por defecto**) y
+`si_no` («Tipo SÍ / NO»). Con `si_no` el área NO pinta la inscripción de siempre sino dos botones («Sí, vamos» / «No podemos»)
+y una caja «Comentarios, necesidades, avisos…»; el «no» queda como inscripción en estado `not_participate`. **Diseño en
+`EVENTOS.md` §10.6; la pantalla está hecha (01/11/2026)**. Un evento con precio no entra en el modo sí/no (se inscribe como siempre).
 
 **Enlace del formulario web avanzado — ✅ CREADO** (propuesto el 27/09/2026, TODO
 EV-3; creado por el propietario el 30/09/2026; **visto por MCP el 02/10/2026** en
@@ -1106,11 +1113,18 @@ nadie cree uno igual: `inc_*` (34, programa Incorpora / SEPE), `sepe_*` (4) y
 
 **Inscripciones (`stic_Registrations`)** — los lee `inc/stic-registrations.php`
 
-> `status`: el área escribe `confirmed` (al inscribirse) y `cancelled` (al
-> cancelar desde la ficha, `EVENTOS.md` §10.3), y trata `cancelled` como «no
-> cuenta» en todas partes. **Sin confirmar en Studio**; por eso `cancelled`
-> solo se escribe si aparece en las opciones que devuelve la definición del
-> CRM. En datos se ha visto también `uninvited` (inscripciones de prueba).
+> `status` — **el desplegable REAL, visto en Studio el 01/11/2026**: `uninvited` (No invitado) ·
+> `invited` (Invitado) · `confirmed` (Confirmado) · `rejected` (Rechazado) · `maybe` (Quizás) ·
+> `participates` (Participa) · `not_participate` (No participa) · `dropped` (Baja) ·
+> `waiting_list` (Lista de espera) · vacío. **`cancelled` NO existe**: hasta el 01/11/2026 el área
+> (y Comunica Tools) lo escribían igual, porque la API no valida los desplegables, y la inscripción
+> salía con el estado en blanco en el CRM. Desde entonces: **cancelar escribe `dropped`** (las 2
+> inscripciones que tenían `cancelled` se pasaron a `dropped`) y quien dice «no» a un evento de sí/no
+> queda en **`not_participate`**. «No cuentan» (agenda, Pasar Lista, eventos de la persona):
+> `dropped`, `not_participate` y la clave antigua `cancelled`, en un solo sitio
+> (`sticpa_registration_counts()`, `inc/stic-calendar.php`). `cancelled` solo se sigue
+> reconociendo para datos viejos. Ojo: en `stic_Payments` y `stic_Signers` `cancelled` SÍ existe; esto es
+> solo de las inscripciones.
 
 | Campo | Tipo | Qué es |
 |---|---|---|

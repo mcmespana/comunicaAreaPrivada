@@ -626,7 +626,7 @@ function sticpa_record_status_tone($key)
         return '';
     }
     $familias = array(
-        'danger' => array('cancel', 'reject', 'denied', 'denegad', 'rechaz', 'anulad', 'devuelt', 'returned', 'failed', 'fallid', 'error', 'impagad', 'unpaid', 'baja'),
+        'danger' => array('cancel', 'reject', 'denied', 'denegad', 'rechaz', 'anulad', 'devuelt', 'returned', 'failed', 'fallid', 'error', 'impagad', 'unpaid', 'baja', 'dropped'),
         'ok'     => array('confirm', 'accept', 'aceptad', 'complet', 'finaliz', 'paid', 'pagad', 'cobrad', 'settled', 'active', 'activ', 'attended', 'asistio', 'validat', 'aprobad', 'approved', 'held', 'realizad'),
         'warn'   => array('pending', 'pendient', 'draft', 'borrador', 'waiting', 'espera', 'reserva', 'preinscr', 'process', 'tramit', 'partial', 'parcial', 'planned', 'planificad', 'previst'),
     );
