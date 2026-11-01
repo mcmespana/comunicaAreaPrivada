@@ -130,3 +130,13 @@ personas, la lista armada y sus grupos de actividad. Es lento
    propósito) o de un enlace borrado: en Castellón, 7 de sus 8 avisos tienen el enlace a la persona borrado (30/10/2026).
 3. Si sale limpio, `STICPA_MIDDLEWARE_MODO = 'todos'`. Si algo va mal el sábado: `'off'` en `wp-config.php` o `MW_OFF=1`
    en Vercel, y todo vuelve a la API sin desplegar.
+
+## La app y el middleware: lo que tiene que ir a la par con la web (1/11/2026)
+
+El middleware también sirve a la MCM App (área privada nativa). Web y app tienen que comportarse igual; lo pendiente de igualar o decidir **en las dos** está en
+`comunicaMiddleware:docs/MEJORAS-WEB-Y-APP.md` (avisos de pagos, anular el pago sin cobrar, qué se dice cuando el correo no existe, el pago con tarjeta…), y lo que hay que comprobar contra el CRM real,
+en `comunicaMiddleware:docs/PRIORITARIAS-COMPROBAR.md`.
+
+- **El correo de acceso es UNO**: el de `sticpa_magic_email_html()` (`inc/stic-action.php`). El middleware lo reproduce literal (`comunicaMiddleware:src/app/mailer.ts`, con un test que vigila las
+  piezas). **Si cambias esta plantilla, cámbiala allí también.** Solo difiere el destino del botón (el enlace de la app) y el remitente. «Nombre del portal» = `sticpa_scp_name`; en Vercel, `MW_PORTAL_NAME`.
+- Antes de encender el pago con tarjeta de la app, `TPV_TEST` (`EVENTOS.md` §10.2.1): comprobar que está a 0.
