@@ -125,7 +125,8 @@ decidir de quién son las asistencias. Pendiente de decisión.
 - **Nombres de curso cortos**, como se dicen en la casa: «4 EP», «1 ESO»,
   «1 Bach» (chips, subtítulos y debajo del nombre).
 - **Estados que no van** (`sticpa_pl_ev_estados_fuera()`, con filtro):
-  `cancelled` (lo escribe el área al cancelar), `rejected`, `uninvited`,
+  `dropped` (lo escribe el área al cancelar desde el 01/11/2026), `not_participate` («No participa»),
+  `cancelled` (la clave antigua, que ya no está en el CRM), `rejected`, `uninvited`,
   `not_invited`, `didnt_take_part`. Todo lo demás —`confirmed`, vacío u otro— se
   marca: ante la duda, que salga en la lista del autobús.
 - Una persona con dos inscripciones (una cancelada vieja y una confirmada

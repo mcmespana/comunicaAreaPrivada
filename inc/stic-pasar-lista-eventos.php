@@ -474,14 +474,16 @@ function sticpa_pl_ev_clave_nombre($last, $first, $full = '')
 
 /**
  * Estados de inscripción que NO van en la lista que se marca: se enseñan al
- * final, apagados. `cancelled` es el que escribe el área al cancelar
- * (CAMPOS.md, Inscripciones); los otros son los de serie de SinergiaCRM que
+ * final, apagados. `dropped` es el que escribe el área al cancelar (antes
+ * `cancelled`, que sigue valiendo para datos antiguos; CAMPOS.md, Inscripciones); los otros son los de serie de SinergiaCRM que
  * también quieren decir «no va». Lo demás —`confirmed`, vacío o cualquier
  * otro— se marca: ante la duda, que salga en la lista del autobús.
  */
 function sticpa_pl_ev_estados_fuera()
 {
     return (array) apply_filters('sticpa_pl_ev_estados_fuera', array(
+        'dropped' => __('Baja', 'sticpa'),
+        'not_participate' => __('No participa', 'sticpa'),
         'cancelled' => __('Cancelada', 'sticpa'),
         'rejected' => __('Rechazada', 'sticpa'),
         'uninvited' => __('Sin invitación', 'sticpa'),

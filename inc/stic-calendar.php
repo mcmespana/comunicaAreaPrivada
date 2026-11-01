@@ -33,6 +33,23 @@ if (!defined('ABSPATH')) {
 }
 
 /**
+ * ¿Cuenta esta inscripción? Fuente ÚNICA de «no cuenta» (agenda, listas de Pasar Lista, eventos de la persona).
+ *
+ * No cuentan: `dropped` («Baja», lo que escribe el área al cancelar desde el 01/11/2026), `not_participate` («No participa»: quien
+ * ha dicho que NO a un evento de sí/no) y `cancelled`, que ya no está en el desplegable del CRM pero queda en datos antiguos y en
+ * otras instancias. Los demás —`confirmed`, vacío, `rejected`…— cuentan como hasta ahora: ante la duda, que salga.
+ */
+function sticpa_registration_inactive_statuses()
+{
+    return (array) apply_filters('sticpa_registration_inactive_statuses', array('dropped', 'not_participate', 'cancelled'));
+}
+
+function sticpa_registration_counts($status)
+{
+    return !in_array(strtolower(trim((string) $status)), sticpa_registration_inactive_statuses(), true);
+}
+
+/**
  * Paleta ÚNICA de colores + etiquetas de cada estado del calendario.
  *
  * Los hex coinciden a propósito con los design tokens de :root (§1 de
@@ -365,7 +382,7 @@ function sticpa_gather_calendar_data($objSCP)
     foreach ((is_array($regs) ? $regs : array()) as $reg) {
         $regId = $reg->name_value_list->id->value ?? ($reg->id ?? null);
         $regStatus = $reg->name_value_list->status->value ?? '';
-        if ($regId && $regStatus !== 'cancelled') {
+        if ($regId && sticpa_registration_counts($regStatus)) {
             $activeRegIds[] = $regId;
             $papel = strtolower(trim((string) ($reg->name_value_list->participation_type->value ?? '')));
             if ($papel !== '' && in_array($papel, $monitorRoles, true)) {

@@ -1823,7 +1823,7 @@ function sticpa_pl_event_registrations($objSCP, $eventId)
                 $conContacto++;
             }
             $status = isset($v->status->value) ? (string) $v->status->value : '';
-            if ($status === 'cancelled' || $contactId === '') {
+            if (!sticpa_registration_counts($status) || $contactId === '') {
                 continue;
             }
             $map[$v->id->value] = $contactId;
@@ -1887,7 +1887,7 @@ function sticpa_pl_event_registrations_direct($objSCP, $eventId)
         if (!$v || empty($v->id->value)) {
             continue;
         }
-        if (isset($v->status->value) && (string) $v->status->value === 'cancelled') {
+        if (isset($v->status->value) && !sticpa_registration_counts((string) $v->status->value)) {
             continue;
         }
         $ev = sticpa_pl_nvl_first($v, array(

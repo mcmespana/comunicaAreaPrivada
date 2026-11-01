@@ -687,7 +687,7 @@ mismo formulario (`pages/single_stic_registrations.php`) y el mismo handler
 handler de verdad y un CRM de mentira que apunta cada escritura— en
 `tests/RegistrationManageTest.php`.
 
-### 10.1 Preguntas simples (EV-6) — ⏳ esperan a que se creen los campos
+### 10.1 Preguntas simples (EV-6) — ✅ campos creados (01/11/2026)
 
 Un evento sí/no con una o dos preguntas no necesita un formulario web avanzado.
 En el evento se escribe la pregunta en una caja de texto:
@@ -704,9 +704,10 @@ como número y el servidor lo cambia por el TEXTO de la opción, que es lo que s
 guarda en la inscripción (se lee en el CRM sin ir al evento). Una respuesta que
 no está entre las opciones no se guarda.
 
-Los campos son **propuestos, no creados**: `ajmcm_pregunta_1_c` /
-`ajmcm_pregunta_2_c` en `stic_Events` y `ajmcm_respuesta_1_c` /
-`ajmcm_respuesta_2_c` en `stic_Registrations` (ficha en `CAMPOS.md`). Hasta que
+Los campos **existen** (comprobado en la base el 01/11/2026): la pregunta va en el
+EVENTO (`ajmcm_pregunta_1_c` / `ajmcm_pregunta_2_c` en `stic_Events`) y la respuesta en la
+INSCRIPCIÓN (`ajmcm_respuesta_1_c` / `ajmcm_respuesta_2_c` en `stic_Registrations`; ficha en
+`CAMPOS.md`). Antes de que existieran, hasta que
 existan, el área no los pide ni enseña nada. Si se crean con otro nombre, se
 cambia en `sticpa_event_question_fields()`.
 
@@ -892,7 +893,7 @@ de §5.2) y la actividad no haya pasado:
   CRM: se podía mover una inscripción a otra actividad saltándose la audiencia
   y el plazo, que solo se miraban al crear. El handler se queda solo con esos
   campos aunque lleguen otros.
-- **Cancelar mi inscripción**: con confirmación, pone el estado a `cancelled`
+- **Cancelar mi inscripción**: con confirmación, pone el estado a `dropped` («Baja»; hasta el 01/11/2026 escribía `cancelled`, que no existe en el desplegable del CRM)
   (no se borra: la delegación ve quién se borró) y da de **baja** su compromiso
   de pago (fecha de fin hoy y una nota), para que una domiciliación de algo
   cancelado no siga viva. No se toca ningún pago: si ya se cobró, devolverlo lo
@@ -907,7 +908,7 @@ listas de Pasar Lista y con la cuota dada de baja—. Por encima de un mes
 contar la duración) se puede **modificar** pero no cancelar: la ficha dice
 «Para darte de baja del curso, habla con tu delegación».
 
-`cancelled` solo se escribe si existe en el desplegable de estado del CRM (se
+`dropped` solo se escribe si existe en el desplegable de estado del CRM (se
 mira su definición). Fuera de plazo, la ficha dice que hay que hablar con la
 delegación, y el handler lo rechaza aunque le llegue el POST
 (`sticpa_registration_manage_rights()`, fuente única para la ficha y el guard).
@@ -926,3 +927,21 @@ de la persona (`sticpa_pl_delegation()`), igual que su compromiso.
 - **Ayuda corta dentro del CRM**: `docs/comunica/AYUDA-FICHA-EVENTO.html`, para
   un campo de tipo HTML de Studio en la vista de edición de Eventos. Solo HTML
   básico con estilos en línea: el editor del CRM se lleva los `<style>`.
+
+### 10.6 Eventos «sí / no» (diseño del 01/11/2026 — pantalla SIN hacer)
+
+Caso real: el evento solo para 1.º y 2.º ESO de Castellón, al que se llega desde un correo con el botón «Entrar». No se «inscribe»
+nadie: se contesta **sí o no**, y a la delegación le importa tanto saber quién ha dicho que NO como quién ha dicho que sí
+(distinguirlo de quien no ha contestado).
+
+| Pieza | Valor |
+|---|---|
+| Qué evento es así | `stic_Events.ajmcm_modo_respuesta_c = si_no` (vacío o `inscripcion` = inscripción de siempre) |
+| El «sí» | Inscripción en `confirmed`, como hoy (con el pago si lo hubiera) |
+| El «no» | Inscripción en **`not_participate`** («No participa»): queda registrado quién dijo que no. Cuenta como «no cuenta» para agenda y Pasar Lista (`sticpa_registration_counts()`) |
+| Las necesidades especiales | Se llaman «Comentarios, necesidades, avisos…» en estos eventos y se piden con el sí **y** con el no |
+| Cambiar de idea | Mientras el plazo esté abierto, de `not_participate` a `confirmed` y al revés (la misma inscripción, no una nueva) |
+| Destino del correo | `…/app/acceso?token=XXX&internalpage=list_stic_events` (ver `ACCESO.md` §4.b) |
+| Familia con varios hijos | «¿A quién quieres apuntar?» primero (FAM-a1); cada hijo contesta por separado |
+| Comunica Tools | Lee el estado tal cual; `not_participate` se añade a los estados que puede escribir (`REG_WRITABLE_STATUS`) |
+| MCM App | Apuntado en `mcmapp: docs/planes/area-nativa/PENDIENTE-WEB-A-LA-APP.md` |

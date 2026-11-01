@@ -491,7 +491,7 @@ function prefix_user_active_registration_map($objSCP, $fresh = false)
     };
     $activeRegs = array();
     foreach ($myRegs as $reg) {
-        if (($reg->name_value_list->status->value ?? null) !== 'cancelled') {
+        if (sticpa_registration_counts($reg->name_value_list->status->value ?? '')) {
             $activeRegs[] = $reg;
         }
     }
