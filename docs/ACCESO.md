@@ -247,6 +247,42 @@ manda sobre `volver`, y los dos solo se siguen con una elección válida.
 
 ---
 
+## 4.c Un enlace con token cambia de sesión (01/11/2026)
+
+Hasta el 01/11/2026, con una sesión ya abierta el enlace del correo (`?token=` o `?acceso_magico=`) **se ignoraba**: seguías siendo quien
+eras. Se vio probando el evento de sí/no: el mismo enlace entraba como la madre en un navegador y, en otro (incógnito), como su hija. La causa no era
+el enlace sino la sesión vieja de cada navegador (la cookie dura un año y en familias el móvil se comparte): quien abría el correo de su familia en un
+móvil donde había entrado otra persona veía **lo de la otra**.
+
+Ahora (`sticpa_process_passwordless_login`, `inc/stic-magic-login.php`):
+
+| Situación | Qué pasa |
+|---|---|
+| Sin sesión | Entra, como siempre |
+| Con sesión y el enlace es de **otra** persona | Se entra como la del enlace, **sin heredar nada** de la anterior (`sticpa_clear_identity_session()`) |
+| Con sesión y el enlace es de **la misma** persona | No se toca la sesión: se conserva a quién estaba mirando (un hijo, ella misma). Solo se limpia la dirección. En el enlace mágico ni se pregunta al CRM |
+| Con sesión y un enlace que no vale (caducado, token que no existe) | La sesión se queda como estaba |
+
+**La misma persona** se comprueba contra quien entró (`scp_tutor_user_id` si es familiar viendo a un hijo, si no `scp_user_id`).
+
+### A quién se ve al entrar con el token de una familia
+
+Lo decide `sticpa_bootstrap_family()` (`inc/stic-family.php`), con sesión nueva:
+
+- **Un solo hijo** y la persona solo es familiar: se entra **como el hijo** (su área es la del hijo).
+- **Dos o más hijos**: «¿A quién quieres apuntar?» antes de ver nada (§4.b, FAM-a1).
+- Familiar que **además es miembro del MCM** (un monitor con hijos): entra como **ella misma**, y a sus hijos los ve con el selector de la barra.
+- Sin hijos localizados: su propia pantalla.
+
+### La lista de lo que identifica a alguien, y un fallo que tenía
+
+El cierre de sesión y este cambio de persona borran lo mismo: `sticpa_identity_session_keys()`. Faltaban `scp_tutor_es_miembro` («¿es miembro del
+MCM?», que se calcula **una vez** por sesión y no se vuelve a mirar) y `scp_pl_delegation`: quien entraba después **en el mismo navegador** heredaba la
+respuesta de quien había salido (una madre que solo es familiar podía quedarse con el menú de un monitor, o al revés). `tests/TokenSessionSwitchTest.php`
+falla si el código usa una clave `scp_*` de sesión que no está en la lista.
+
+**En la app MCM**: abre el área con el token en su webview; si ya hay sesión, el cambio de persona ocurre igual (es cosa del plugin).
+
 ## 5. Cosas que estaban y ya no
 
 - **`prefix_admin_single_stic_signup`** (borrado el 10/09/2026): un

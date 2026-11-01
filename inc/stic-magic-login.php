@@ -310,8 +310,78 @@ function sticpa_establish_session($entry, $module)
 }
 
 /**
+ * TODO lo que identifica o describe a quien ha entrado, en la sesión de PHP. Una
+ * sola lista para el cierre de sesión y para entrar como OTRA persona con un
+ * enlace: lo que no esté aquí lo hereda quien entre después en el MISMO
+ * navegador —y en familias el móvil se comparte—. Ojo al añadir una clave `scp_*`
+ * nueva: tiene que salir aquí.
+ *
+ * Hasta el 01/11/2026 faltaban `scp_tutor_es_miembro` («¿es miembro del MCM?»,
+ * que se calcula UNA vez por sesión y no se vuelve a mirar) y `scp_pl_delegation`:
+ * quien entraba después heredaba la respuesta de quien había salido.
+ */
+function sticpa_identity_session_keys()
+{
+    return array(
+        'scp_user_id',
+        'scp_tutor_user_id',
+        'scp_tutor_user_contact_name',
+        'scp_tutor_es_miembro',
+        'scp_account_id',
+        'scp_user_account_name',
+        'scp_user_contact_name',
+        'scp_user_securitygroups',
+        'scp_user_assigned_user_id',
+        // La delegación de trabajo elegida en el selector (varias delegaciones) y la de la ficha, en caché.
+        'scp_pl_deleg_activa',
+        'scp_pl_deleg_activa_de',
+        'scp_pl_delegation',
+        'scp_user_adult',
+        'scp_tutor_is_user',
+        'scp_module',
+        // Cachés por usuario (ver inc/stic-comunica-roles.php y menu.php).
+        'scp_role',
+        'scp_role_resolved',
+        'scp_relationship_raw',
+        'scp_available_profiles',
+        'scp_is_familia',
+        'scp_ds_pending',
+        // Sesión del CRM y su marca de tiempo (van en pareja).
+        'api_session_id',
+        'api_session_time',
+    );
+}
+
+/** Borra de la sesión todo lo que identifica a la persona que había entrado. */
+function sticpa_clear_identity_session()
+{
+    foreach (sticpa_identity_session_keys() as $key) {
+        unset($_SESSION[$key]);
+    }
+}
+
+/**
+ * ¿La sesión abierta es de esta persona? Quien entra es la FAMILIAR aunque esté
+ * viendo a un hijo (`scp_user_id` pasa a ser el del hijo, `scp_tutor_user_id`
+ * recuerda quién entró).
+ */
+function sticpa_session_is_person($contactId)
+{
+    $actual = (string) ($_SESSION['scp_tutor_user_id'] ?? ($_SESSION['scp_user_id'] ?? ''));
+    return $actual !== '' && $actual === (string) $contactId;
+}
+
+/**
  * Handler principal: intercepta ?token= y ?acceso_magico= en el front, valida,
  * crea la sesión y redirige a una URL limpia.
+ *
+ * UN ENLACE CON TOKEN MANDA SOBRE LA SESIÓN QUE HAYA (01/11/2026). Antes, con una
+ * sesión ya abierta el enlace se IGNORABA y seguías siendo quien eras: quien
+ * abría el correo de su familia en un navegador donde otra persona había entrado
+ * (o donde él mismo había elegido otro perfil) veía lo de la otra. Ahora, si el
+ * enlace es de OTRA persona, se entra como ella, sin heredar nada de la anterior;
+ * si es de la misma, no se toca la sesión (se conserva a quién estaba mirando).
+ * Un enlace que no vale deja la sesión como estaba.
  *
  * Prioridad 2 para ejecutarse DESPUÉS de sugar_crm_portal_start_session (que
  * arranca la sesión PHP en init con prioridad 1).
@@ -322,14 +392,12 @@ function sticpa_process_passwordless_login()
     if (is_admin()) {
         return;
     }
-    if (isset($_SESSION['scp_user_id'])) {
-        return; // ya hay sesión
-    }
     $hasToken = isset($_REQUEST['token']);
     $hasMagic = isset($_REQUEST['acceso_magico']);
     if (!$hasToken && !$hasMagic) {
         return;
     }
+    $conSesion = isset($_SESSION['scp_user_id']);
     if (!class_exists('SugarRestApiCall')) {
         return;
     }
@@ -359,6 +427,11 @@ function sticpa_process_passwordless_login()
         $valid = sticpa_validate_magic_link((string) $_REQUEST['acceso_magico']);
         if ($valid) {
             list($foundModule, $contactId) = $valid;
+            if ($conSesion && sticpa_session_is_person($contactId)) {
+                // Es la misma persona: nada que validar contra el CRM ni que cambiar.
+                wp_safe_redirect(remove_query_arg(array('token', 'acceso_magico', 'sticpa_go')));
+                exit;
+            }
             $result = SugarRestApiCall::getObjSCP()->getRecordDetail($contactId, $foundModule, sticpa_session_select_fields($foundModule));
             if (isset($result->entry_list[0]) && $result->entry_list[0] != null) {
                 $entry = $result->entry_list[0];
@@ -367,6 +440,15 @@ function sticpa_process_passwordless_login()
     }
 
     if ($entry) {
+        if ($conSesion && sticpa_session_is_person($entry->id)) {
+            // La misma persona que ya estaba dentro: se queda como está (a quién miraba, qué había elegido).
+            wp_safe_redirect(remove_query_arg(array('token', 'acceso_magico', 'sticpa_go')));
+            exit;
+        }
+        if ($conSesion) {
+            // OTRA persona: se entra como ella, sin heredar nada de la anterior.
+            sticpa_clear_identity_session();
+        }
         sticpa_establish_session($entry, $foundModule);
         // Redirigir a la misma URL pero sin el token (no queda en historial/marcadores).
         $clean = remove_query_arg(array('token', 'acceso_magico', 'sticpa_go'));
