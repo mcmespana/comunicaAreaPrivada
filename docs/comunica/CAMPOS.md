@@ -1,5 +1,9 @@
 # Campos del CRM (SinergiaCRM) — MCM
 
+> **¿Solo quieres saber qué campo pedir?** [`CAMPOS-RESUMEN.md`](CAMPOS-RESUMEN.md): la chuleta de una página (y lo
+> que sirve el MCP con `crm_fields_guide`). Este es el documento largo, con el porqué. Si cambias un campo aquí,
+> cámbialo también allí.
+
 > **Notación:** para cada campo se indica su nombre técnico (`código_interno`), la etiqueta que ve el usuario y el tipo. En los desplegables, cada valor se muestra como `valor_interno [Etiqueta mostrada]`.
 
 ---
