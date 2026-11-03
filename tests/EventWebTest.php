@@ -322,4 +322,32 @@ class EventWebTest extends TestCase
         ))), '', true, '', null);
         $this->assertStringNotContainsString('stic-rec-split', $sin);
     }
+
+    public function test_el_horario_no_deja_la_h_suelta_en_otra_linea()
+    {
+        $nb = "\u{00A0}";
+        $this->assertSame("De{$nb}16:00 a{$nb}18:00{$nb}h", sticpa_record_no_orphan('De 16:00 a 18:00 h'));
+        // Sin nada que pegar, el texto no cambia.
+        $this->assertSame('Residencia Bouco, Castellón', sticpa_record_no_orphan('Residencia Bouco, Castellón'));
+        $this->assertSame('', sticpa_record_no_orphan(''));
+
+        $html = sticpa_record_detail_html(array(
+            'title' => 'X',
+            'facts' => array(array('icon' => 'clock', 'label' => 'Horario', 'text' => 'De 16:00 a 18:00 h')),
+        ));
+        $this->assertStringContainsString("18:00{$nb}h</span>", $html);
+    }
+
+    public function test_el_cartel_lo_clasifica_stic_ui_y_el_css_tiene_los_dos_estados()
+    {
+        $js = file_get_contents(__DIR__ . '/../js/stic-ui.js');
+        $this->assertStringContainsString('stic-rec-split--banner', $js);
+        $this->assertStringContainsString('naturalWidth / img.naturalHeight', $js);
+        $css = file_get_contents(__DIR__ . '/../css/custom-style.css');
+        $this->assertStringContainsString('.stic-rec-split.stic-rec-split--banner { display: block; }', $css);
+        $this->assertStringContainsString('.stic-rec-split--banner > .stic-rec-cover img', $css);
+        // El cartel carga ya (no «lazy»): hay que medirlo para colocarlo.
+        $html = sticpa_record_detail_html(array('title' => 'X', 'cover' => array('src' => 'https://example.org/c.png')));
+        $this->assertStringNotContainsString("loading='lazy'", $html);
+    }
 }

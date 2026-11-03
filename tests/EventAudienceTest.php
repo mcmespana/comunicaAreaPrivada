@@ -1036,7 +1036,8 @@ class EventAudienceTest extends TestCase
         )));
         $html = sticpa_event_detail_html($event);
         $this->assertStringNotContainsString('stic-rec-fact--link', $html);
-        $this->assertStringContainsString('De 17 a 19 h', $html);
+        // Con espacios duros entre hora y hora (que «h» no caiga sola a otra línea).
+        $this->assertStringContainsString('De 17 a 19 h', str_replace("\u{00A0}", ' ', $html));
     }
 
     /** Y el lugar sale en la tarjeta del listado, que es donde más se busca. */
