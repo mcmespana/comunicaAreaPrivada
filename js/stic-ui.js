@@ -874,7 +874,35 @@
         }
     }
 
+    /* -------- El cartel de una ficha: ¿encabezado o póster? --------
+       Un cartel apaisado (el banner de «Sin Rodeos», 4:1) no se puede meter en
+       una columna estrecha a la izquierda: se queda en una tira diminuta. Va
+       ARRIBA, a todo lo ancho. Uno vertical (un póster de imprenta) sí va a la
+       izquierda con el texto al lado. Lo decide la proporción REAL de la
+       imagen, que solo se sabe al cargarla: el servidor no la conoce (el
+       cartel puede ser una URL de fuera o un documento del CRM tras sesión).
+       Sin JS, o hasta que la imagen carga, manda el reparto de póster de
+       siempre (CSS §59). Umbral 1,4: una foto 4:3 sigue siendo «póster». */
+    function classifyCovers() {
+        var imgs = document.querySelectorAll('.stic-rec-split > .stic-rec-cover img');
+        Array.prototype.forEach.call(imgs, function (img) {
+            function decide() {
+                var split = img.closest('.stic-rec-split');
+                if (!split || !img.naturalWidth || !img.naturalHeight) { return; }
+                var banner = img.naturalWidth / img.naturalHeight >= 1.4;
+                split.classList.toggle('stic-rec-split--banner', banner);
+                split.classList.toggle('stic-rec-split--poster', !banner);
+            }
+            if (img.complete) {
+                decide();
+            } else {
+                img.addEventListener('load', decide);
+            }
+        });
+    }
+
     ready(function () {
+        classifyCovers();
         // Por si el script de <head> se ejecutó antes de existir el DOM del área:
         // deja los contenedores y los botones con el estado correcto.
         repaintTheme();

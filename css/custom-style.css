@@ -6739,8 +6739,11 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     max-width: 100%;
     height: auto;
     max-height: min(420px, 55vh);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-md);
+    border-radius: var(--radius-xl);
+    /* La sombra levanta el cartel del fondo y el aro fino lo recorta limpio
+       cuando el cartel es claro sobre fondo claro (un póster blanco, sin él,
+       se «derrite» en la página). */
+    box-shadow: var(--shadow-lg), 0 0 0 1px color-mix(in srgb, var(--gray-900) 7%, transparent);
     background: var(--surface-2);
 }
 
@@ -6765,6 +6768,29 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     .stic-rec-split > .stic-rec-cover img {
         max-height: min(640px, 80vh);
     }
+    /* Los datos clave, en la columna estrecha del póster: a 190px entraban
+       tres y cada uno quedaba tan justo que «De 16:00 a 18:00 h» se partía.
+       A 220px entran dos y el tercero baja, con el texto entero. */
+    .stic-rec-split:not(.stic-rec-split--banner) .stic-rec-facts {
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
+    }
+}
+.stic-rec-fact-text { text-wrap: pretty; }
+
+/* EL ENCABEZADO: un cartel apaisado (proporción ≥ 1,4, lo decide stic-ui.js al
+   cargar la imagen) no va en una columna: va ARRIBA, a todo lo ancho de la
+   ficha, y el texto sigue debajo. Con tope de ancho para que un banner de 4:1
+   no se vaya a 450px de alto en una pantalla grande. */
+.stic-rec-split.stic-rec-split--banner { display: block; }
+.stic-rec-split--banner > .stic-rec-cover {
+    justify-content: flex-start;
+    max-width: 64rem;
+    margin-top: 1.25rem;
+}
+.stic-rec-split--banner > .stic-rec-cover img {
+    width: 100%;
+    max-height: min(360px, 45vh);
+    object-fit: cover;
 }
 
 .stic-evweb .stic-rec-desc-body { max-width: 68ch; }
