@@ -343,6 +343,23 @@ function sticpa_record_note_html($note)
         . "<span>" . esc_html($text) . "</span></p>";
 }
 
+/**
+ * Un texto libre del CRM (el horario «De 16:00 a 18:00 h») sin la palabra
+ * suelta al final: cuando la tarjeta es estrecha, la «h» caía sola a una
+ * segunda línea y el horario parecía cortado. Se pega la unidad a su número y
+ * cada hora a su «a»/«de» (espacio duro), para que el salto caiga entre las
+ * dos horas y no dentro de ellas. Solo toca horas: el resto del texto, igual.
+ */
+function sticpa_record_no_orphan($text)
+{
+    $text = (string) $text;
+    $nb = "\u{00A0}";
+    // La unidad pegada a su número («18:00 h») y el número a su «a»/«de».
+    $text = preg_replace('/(\d)\s+(?=(?:h|hs|hrs|horas)\b)/iu', '$1' . $nb, $text);
+    $text = preg_replace('/\b(a|y|de|e|al|hasta)\s+(?=\d)/iu', '$1' . $nb, $text);
+    return $text;
+}
+
 /** La rejilla de tarjetas (1 columna en móvil, 2 desde 768px). */
 function sticpa_record_list_html($cards)
 {
@@ -462,7 +479,7 @@ function sticpa_record_detail_html($spec)
             $conCartel = true;
             $html .= "<div class='stic-rec-split'>";
             $html .= "<figure class='stic-rec-cover'><img src='" . esc_url($src) . "' alt='"
-                . esc_attr($spec['cover']['alt'] ?? '') . "' loading='lazy'></figure>";
+                . esc_attr($spec['cover']['alt'] ?? '') . "' decoding='async'></figure>";
             $html .= "<div class='stic-rec-split-main'>";
         }
     }
@@ -533,7 +550,7 @@ function sticpa_record_detail_html($spec)
         $inner = "<span class='stic-rec-fact-ico'>" . sticpa_record_icon($fact['icon'] ?? 'info') . "</span>"
             . "<span class='stic-rec-fact-body'>"
             . "<span class='stic-rec-fact-label'>" . esc_html($fact['label'] ?? '') . "</span>"
-            . "<span class='stic-rec-fact-text'>" . esc_html($text) . "</span>"
+            . "<span class='stic-rec-fact-text'>" . esc_html(sticpa_record_no_orphan($text)) . "</span>"
             . "</span>";
 
         $link = isset($fact['link']) && is_array($fact['link']) ? $fact['link'] : null;
