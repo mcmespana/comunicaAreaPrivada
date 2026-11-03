@@ -6793,6 +6793,89 @@ html.stic-hero-dismissed .stic-welcome-hero { display: none !important; }
     object-fit: cover;
 }
 
+/* LA INFORMACIÓN, EN SU TARJETA. Sin caja, «Toda la información» era un texto
+   más entre los datos y la respuesta, y no se distinguía qué era qué. Ahora es
+   lo que se LEE: una tarjeta redondeada con su sombra, y el título como
+   etiqueta de color. */
+.stic-rec-detail .stic-evweb {
+    margin-top: 1.25rem;
+    padding: clamp(1.1rem, 2.4vw, 1.75rem);
+    background: var(--surface);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-sm);
+}
+.stic-container .stic-rec-detail .stic-evweb > h4 {
+    margin: 0 0 1rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--primary-color);
+}
+
+/* «TU RESPUESTA»: lo que se viene a hacer. Antes era un título y una frase
+   sueltos, sin nada que dijera «aquí se contesta»; ahora es una tarjeta
+   teñida de azul —la única de la ficha— con el estado en grande. */
+.stic-rec-detail .stic-sino-seccion {
+    margin-top: 1.25rem;
+    padding: 1.05rem 1.15rem 1.15rem;
+    background: var(--primary-50);
+    border: 1px solid color-mix(in srgb, var(--primary-color) 26%, transparent);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-xs);
+}
+.stic-container .stic-rec-detail .stic-sino-seccion > h4 {
+    margin: 0 0 0.45rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--primary-dark);
+}
+.stic-rec-detail .stic-sino-seccion .stic-sino-estado { font-size: 1.12rem; line-height: 1.35; }
+.stic-rec-detail .stic-sino-seccion .stic-rec-desc-body { max-width: none; }
+
+/* EL ANCHO. Con un encabezado arriba, la ficha tiene toda la anchura: los datos
+   clave van en una fila a lo ancho (iguales, sin dejar el resto vacío) y, desde
+   1024px, la información ocupa la columna grande y los datos, la respuesta y
+   el botón se apilan en una columna lateral. Con póster no cambia nada: la
+   columna ya es la estrecha. */
+@media (min-width: 768px) {
+    .stic-rec-split--banner .stic-rec-facts {
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+    }
+}
+@media (min-width: 1024px) {
+    /* El encabezado ocupa lo mismo que las dos columnas de debajo, a su
+       proporción (sin recortar el banner); solo se limita en pantallas enormes. */
+    .stic-rec-split--banner > .stic-rec-cover { max-width: 96rem; }
+    .stic-rec-split--banner > .stic-rec-cover img { max-height: none; }
+    .stic-rec-split--banner > .stic-rec-split-main {
+        display: grid;
+        grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr);
+        /* Seis filas «de lo justo» y una que absorbe el resto: la tarjeta de
+           la información cruza todas, y sin la fila elástica repartiría su
+           altura entre las de la columna lateral y las separaría. */
+        grid-template-rows: repeat(6, auto) 1fr;
+        column-gap: clamp(1.5rem, 3vw, 2.5rem);
+        align-items: start;
+    }
+    .stic-rec-split--banner > .stic-rec-split-main > * { grid-column: 2; }
+    .stic-rec-split--banner > .stic-rec-split-main > .stic-evweb {
+        grid-column: 1;
+        grid-row: 1 / -1;
+        margin-top: 1rem;   /* a la altura de los datos de al lado */
+    }
+    .stic-rec-split--banner > .stic-rec-split-main .stic-rec-facts {
+        grid-template-columns: 1fr;
+    }
+    .stic-rec-split--banner > .stic-rec-split-main .stic-evweb .stic-rec-desc-body { max-width: none; }
+}
+@media (max-width: 767px) {
+    .stic-rec-detail .stic-evweb { padding: 1rem 1rem 1.1rem; }
+}
+
 .stic-evweb .stic-rec-desc-body { max-width: 68ch; }
 
 .stic-container .stic-evweb-cuerpo h5,
