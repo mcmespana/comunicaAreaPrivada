@@ -350,4 +350,14 @@ class EventWebTest extends TestCase
         $html = sticpa_record_detail_html(array('title' => 'X', 'cover' => array('src' => 'https://example.org/c.png')));
         $this->assertStringNotContainsString("loading='lazy'", $html);
     }
+
+    public function test_la_informacion_y_la_respuesta_son_tarjetas_y_el_ancho_se_reparte_con_encabezado()
+    {
+        $css = file_get_contents(__DIR__ . '/../css/custom-style.css');
+        $this->assertStringContainsString('.stic-rec-detail .stic-evweb {', $css);
+        $this->assertStringContainsString('.stic-rec-detail .stic-sino-seccion {', $css);
+        // Con encabezado y pantalla ancha: la información en la columna grande y los datos, la respuesta y el botón al lado.
+        $this->assertStringContainsString('grid-template-rows: repeat(6, auto) 1fr;', $css);
+        $this->assertStringContainsString('grid-row: 1 / -1;', $css);
+    }
 }
