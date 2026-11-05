@@ -343,12 +343,78 @@ entonces, este es el sitio.*
   - No es un enlace a otra ficha, es texto. Si algún día hace falta saber *quién*
     es, se resuelve por el entorno personal, no por este campo.
 - `ajmcm_forma_pago_c` — Forma de pago (`enum`, 100)
-  - ⚠️ **Clave OBSERVADA, no el desplegable entero:** `cargo_cuenta`, que es la
-    que trajo la migración. El MCP de esta instancia no devuelve las opciones de
-    los `enum`, solo el tipo. Si necesitas otra (efectivo, transferencia…),
-    **míralas en Studio y apúntalas aquí — no te las inventes**, que la API las
-    acepta todas sin rechistar y un valor inventado no falla: se queda guardado
-    y roto.
+  - ⚠️ **Claves OBSERVADAS en datos, no el desplegable entero** (05/11/2026,
+    sobre 662 fichas): `cargo_cuenta` (560, todas con IBAN), `transferencia`
+    (98, sin IBAN) y `bizum` (4). Son las ÚNICAS que escribe el área. El MCP de
+    esta instancia no devuelve las opciones de los `enum`, solo el tipo. Si
+    necesitas otra (efectivo…), **míralas en Studio y apúntalas aquí — no te las
+    inventes**, que la API las acepta todas sin rechistar y un valor inventado
+    no falla: se queda guardado y roto.
+  - **No es el mismo vocabulario que `payment_method` del compromiso**
+    (`direct_debit`, `transfer_received`, `transfer_issued`, `bizum`, `card`…).
+    Equivalencia: `cargo_cuenta` ↔ `direct_debit`; `bizum` ↔ `bizum`;
+    `transferencia` ↔ `transfer_received`. El área solo usa la de domiciliación
+    (para saber qué es una domiciliación); nunca escribe `payment_method` desde
+    la ficha.
+
+#### Quién edita estos tres campos: la pantalla «Forma de pago» (05/11/2026)
+
+Hasta el 05/11/2026 «Mis datos (familiar)» pintaba un formulario de medio de
+pago que escribía en `ajmcm_pago_*_c`, campos que **no existen**: el CRM los
+descartaba sin avisar y la pantalla decía «guardado». Se quitó (`FAM-02`).
+
+Ahora hay una pantalla propia, `single_stic_forma_pago`, para **cualquier
+persona que entre** (menú «Tu perfil» → «Forma de pago»; una tarjeta en «Datos de
+Lucía»; un botón en Pagos). Detalle en [`FORMA-DE-PAGO.md`](FORMA-DE-PAGO.md). Lo que hay que saber del modelo:
+
+- **Es de QUIEN PAGA, no del menor.** Un menor no tiene forma de pago propia. La
+  persona sale de la sesión (`sticpa_registration_payer()`): el familiar si se
+  está viendo a un menor, uno mismo si no. Nadie ve ni cambia la cuenta de otro
+  familiar.
+- ⚠️ **Dato de la migración: el IBAN que hay en las fichas está sobre todo en
+  MENORES** (385 de 560 fichas con IBAN, 05/11/2026; 175 más sin fecha de
+  nacimiento, que son familiares). Pero **los compromisos domiciliados los pagan
+  adultos** (121 de 123 con algún pago sin remesar; los otros 2, un menor). Así
+  que la ficha del menor tiene una cuenta histórica que el área NO lee ni usa;
+  la forma de pago que cuenta es la del adulto que paga.
+- **Lo que se cobra es el PAGO, y cada pago lleva su propia copia de
+  `bank_account`**, heredada del compromiso al crearse. Por eso guardar la ficha
+  no basta: al escribir un IBAN, el área lo lleva a lo que aún no se ha cobrado.
+- **Solo se toca lo que no se ha pagado** (decidido el 05/11/2026). Un
+  compromiso se actualiza si es `direct_debit`, está vigente (sin `end_date`, o
+  con fin futuro, y sin `active = 0` explícito), tiene algún pago `not_remitted` y
+  **ningún otro pago suyo en curso** (remesado, `unpaid`, a recobrar, o un estado que no se conozca; `paid`
+  y `cancelled` son historia). Un compromiso con todos los pagos hechos no se
+  toca; uno con un recibo ya en remesa tampoco (ese salió al banco con la cuenta
+  vieja). En el compromiso se cambia `bank_account` y se añade una línea a
+  `description` con las cuentas **tapadas**; en el pago, solo `bank_account`.
+  `signature_date` y `mandate` no se tocan.
+- **Cambiar de medio no cambia cuentas.** Pasar de domiciliación a transferencia
+  o Bizum guarda la preferencia y deja una nota en `description` de cada
+  compromiso domiciliado afectado («La persona ha pedido pasar a …») para que
+  tesorería lo revise antes de la próxima remesa.
+- **No hay código por correo** para confirmar (decidido el 05/11/2026): la
+  sesión y la firma del formulario (CSRF) son la protección.
+- ⚠️ **No se verificó** que el CRM propague por su cuenta un cambio de
+  `bank_account` del compromiso a los pagos ya generados (el manual solo dice
+  que se adaptan «los futuros»; la auditoría no registra ningún cambio de esa
+  cuenta, así que no hay caso real). Por eso el área escribe también en los
+  pagos.
+
+#### Quién paga por un menor con dos familiares — PENDIENTE de un campo en Studio
+
+Hoy paga **el familiar que ha entrado** (lo mismo que hace la inscripción). Hay
+94 menores con dos familiares vigentes (padre/madre/tutor) y 2 con tres. El
+propietario quiere poder **elegir cuál de los dos paga** con un botón. Eso
+necesita guardar la elección, y **no existe ningún campo para ello**
+(`reference_contact` existe pero lo rellena el propio CRM al guardar una
+inscripción, así que no sirve; `authorized_signer` es de Firmas).
+
+Propuesta, **sin crear todavía**: una casilla en `stic_Personal_Environment` —la
+relación menor↔familiar—, p. ej. `ajmcm_paga_c` («Paga las actividades»), con
+como mucho una marcada por menor. Regla de seguridad propuesta: un familiar solo
+puede marcarse a SÍ MISMO («Pagaré yo»), nunca asignar el pago a otro. Cuando el
+campo exista, se apunta aquí y se conecta.
 
 ### Monitores
 

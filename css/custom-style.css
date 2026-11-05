@@ -3166,6 +3166,8 @@ span.stic-field {
     border-color: var(--gray-200) !important;
     color: var(--gray-600) !important;
 }
+/* «Forma de pago» (05/11/2026): el enlace «Cambiar» al final de una nota. */
+.stic-form li.stic-form-note a.stic-fp-link { text-decoration: underline; white-space: nowrap; margin-left: 0.25em; }
 /* Variante de ALERTA (ámbar): algo que conviene corregir, p. ej. el monitor
    sin su correo @movimientoconsolacion.com. */
 .stic-form li.stic-form-note.stic-note-warning {

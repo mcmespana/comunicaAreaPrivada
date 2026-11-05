@@ -185,6 +185,81 @@ function prefix_admin_single_stic_tutor_profile()
 }
 
 /**
+ * FORMA DE PAGO (05/11/2026): medio, IBAN y titular de quien paga.
+ *
+ * La persona sale de la SESIÓN (sticpa_registration_payer), nunca de la
+ * petición: nadie puede cambiar la cuenta de otro familiar. Lo que se escribe
+ * es solo lo que el formulario firmó (sticpa_request_to_module_data), que a su
+ * vez es la protección contra CSRF. Todo el criterio de qué se toca y qué no
+ * está en inc/stic-forma-pago.php.
+ */
+add_action('admin_post_single_stic_forma_pago', 'prefix_admin_single_stic_forma_pago');
+add_action('admin_post_nopriv_single_stic_forma_pago', 'prefix_admin_single_stic_forma_pago');
+function prefix_admin_single_stic_forma_pago()
+{
+    sticpa_require_session();
+    $objSCP = SugarRestApiCall::getObjSCP();
+    $volver = sticpa_return_url();
+
+    $input = sticpa_request_to_module_data('single_stic_forma_pago');
+    $payerId = (string) (sticpa_registration_payer()['pagador'] ?? '');
+    if ($input === null || $payerId === '') {
+        wp_safe_redirect($volver . '&msg=error');
+        exit;
+    }
+
+    $actual = sticpa_fp_read($objSCP, $payerId);
+    $methods = sticpa_fp_methods($objSCP);
+    if (!$actual['ok']) {
+        wp_safe_redirect($volver . '&msg=error');
+        exit;
+    }
+    $v = sticpa_fp_validate($input, $actual, $methods);
+    if (!$v['ok']) {
+        wp_safe_redirect($volver . '&msg=' . $v['error']);
+        exit;
+    }
+    $clean = $v['clean'];
+
+    if (!sticpa_fp_save($objSCP, $payerId, $clean)) {
+        wp_safe_redirect($volver . '&msg=error');
+        exit;
+    }
+
+    // Se vuelve a leer: el CRM acepta en silencio campos que no existen (así se
+    // perdieron los IBAN de «Mis datos (familiar)» durante meses) y esto es
+    // dinero. Si lo guardado no es lo enviado, no se dice que está bien.
+    if (class_exists('SugarRestApiCall') && method_exists('SugarRestApiCall', 'forgetMemo')) {
+        SugarRestApiCall::forgetMemo();
+    }
+    $despues = sticpa_fp_read($objSCP, $payerId);
+    $domiciliacion = sticpa_fp_direct_debit_key();
+    if (!$despues['ok'] || $despues['forma'] !== $clean['forma']
+        || ($clean['forma'] === $domiciliacion
+            && ($despues['iban'] !== $clean['iban'] || $despues['titular'] !== $clean['titular']))) {
+        wp_safe_redirect($volver . '&msg=error');
+        exit;
+    }
+
+    $extra = '';
+    if ($v['propagar']) {
+        // Escribió un IBAN: la cuenta nueva llega a lo que aún no se ha cobrado.
+        $r = sticpa_fp_propagate($objSCP, $payerId, $clean['iban']);
+        if ($r['sin_respuesta'] || $r['errores'] > 0) {
+            wp_safe_redirect($volver . '&msg=parcial');
+            exit;
+        }
+        $extra = '&fpc=' . (int) $r['compromisos'] . '&fpp=' . (int) $r['pagos'] . '&fpe=' . (int) $r['en_curso'];
+    } elseif ($clean['forma'] !== $domiciliacion) {
+        // Dejó la domiciliación: no se cambia nada solo, se avisa a tesorería.
+        $etiqueta = (string) ($methods[$clean['forma']] ?? $clean['forma']);
+        $extra = '&fpm=' . (int) sticpa_fp_flag_method_change($objSCP, $payerId, $etiqueta);
+    }
+    wp_safe_redirect($volver . '&msg=true' . $extra);
+    exit;
+}
+
+/**
  * Action to manage uploading and downloading documents related to the current user
  * 1- Create a Document record
  * 2- Relate the Document to the Contact record of the current user

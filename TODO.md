@@ -42,10 +42,13 @@ Nada de esto es código; sin ello, el código que lo espera no avanza.
       bloques, el organizador es el dueño, fuera «aportación» y «compromiso»). Te queda el
       **formulario avanzado del Foro**: que pregunte cómo se paga (transferencia o tarjeta) y
       cree el compromiso con ESE medio (no «Especie»), de ECE. Y en el correo, las dos opciones.
-- [!] `FAM-02` (P1 · S) **Medio de pago del familiar**: la pantalla usa `ajmcm_pago_*_c`, que
-      NO existen, y el IBAN que se mete se pierde. Los campos buenos (`ajmcm_iban_c`…) están
-      en el participante. Decidir: quitar la sección, escribir en cada participante o en el
-      familiar. ↳ `pages/single_stic_tutor_profile.php`, `plans/015`.
+- [x] `FAM-02` **Forma de pago de todas las personas** — hecho el 05/11/2026. La sección falsa de
+      «Mis datos (familiar)» se quitó y hay una pantalla propia, «Forma de pago»
+      ([`FORMA-DE-PAGO.md`](docs/comunica/FORMA-DE-PAGO.md)): menú «Tu perfil», tarjeta en «Datos de
+      Lucía» y botón en Pagos. Solo cambia la cuenta de lo que aún no se ha cobrado.
+      ⏳ **Te queda uno** (Studio): para elegir cuál de dos familiares paga hace falta una casilla en
+      el entorno personal (propuesta en `CAMPOS.md` → «Quién paga por un menor»). Hasta entonces paga
+      el que ha entrado.
 - [!] `PL-MON-2` (P1 · S) **Los eventos de prueba 2025-2026 ya no salen** en Pasar Lista (coge
       los del curso del nombre, «2026-2027»). Decidir si se prueba sobre los del curso nuevo o
       hace falta fijar el curso.

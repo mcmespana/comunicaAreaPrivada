@@ -183,6 +183,7 @@ $portalName = get_option('sticpa_scp_name');
         'single_stic_comunica_laico',
         'single_stic_profile',
         'single_stic_tutor_profile',
+        'single_stic_forma_pago',
         'single_stic_profile_selection',
         'single_stic_password_change',
         'single_stic_unsubscribe',

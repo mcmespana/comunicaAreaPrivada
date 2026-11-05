@@ -84,6 +84,10 @@ function getSticMenuElements()
     foreach ($deCuenta as $clave => $etiqueta) {
         $menuElements[$clave] = $etiqueta;
     }
+    // «Forma de pago»: para TODAS las personas (05/11/2026). Es la de quien
+    // paga: un familiar que mira a su hijo cambia la suya, que es la que se
+    // usa para las cosas del hijo.
+    $menuElements['single_stic_forma_pago'] = __('Forma de pago', 'sticpa');
     $menuElements['single_stic_password_change'] = __('Usuario y contraseña', 'sticpa');
 
     // Opcionales (descomentar si se usan):
@@ -142,7 +146,7 @@ function sticpa_nav_layout($keys)
     // «Mis datos de monitor» va en la CUENTA: son datos tuyos, no una
     // herramienta del equipo (ver sticpa_equipo_secciones_de_cuenta()).
     $cuenta = array('single_stic_comunica_perfil', 'single_stic_comunica_monitor', 'single_stic_tutor_profile',
-        'single_stic_profile', 'single_stic_password_change', 'single_stic_profile_selection', 'single_stic_unsubscribe');
+        'single_stic_profile', 'single_stic_forma_pago', 'single_stic_password_change', 'single_stic_profile_selection', 'single_stic_unsubscribe');
 
     $groups = array(
         'inicio' => array('label' => '', 'keys' => array()),

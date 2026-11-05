@@ -151,6 +151,13 @@ if ((isset($_SESSION['scp_tutor_is_user']) && $_SESSION['scp_tutor_is_user']) ||
 $definition = sticpa_cached_field_definition($objSCP, 'stic_Payments', array('status', 'payment_method', 'payment_type'));
 
 $html .= "<div class='stic-entry-header'><h3>" . esc_html($listTitle) . "</h3></div>";
+// Cómo se paga se cambia desde aquí mismo (05/11/2026): es de quien paga, así
+// que con un menor lleva a la forma de pago de su familiar.
+$html .= "<div class='stic-rec-cta-row'>" . sticpa_record_action_html(array(
+    'label' => __('Cambiar forma de pago', 'sticpa'),
+    'url' => '?internalpage=single_stic_forma_pago',
+    'icon' => 'card',
+)) . "</div>";
 if (($_REQUEST['msg'] ?? '') === 'pagado') {
     $html .= sticpa_record_note_html(array('tone' => 'ok', 'icon' => 'check', 'text' => __('Pago hecho. Si aún lo ves pendiente, el banco está terminando de confirmarlo.', 'sticpa')));
 }

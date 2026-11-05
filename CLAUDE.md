@@ -170,6 +170,7 @@ El mapa de los demás documentos está en
 | Campos del CRM (**la fuente de la verdad**) | `docs/comunica/CAMPOS.md` |
 | Campos del CRM — **resumen de una página** (lo sirve el MCP) | `docs/comunica/CAMPOS-RESUMEN.md` |
 | Eventos e inscripciones | `docs/comunica/EVENTOS.md` |
+| **Forma de pago** (IBAN y medio de cada persona; solo toca lo no cobrado) | `docs/comunica/FORMA-DE-PAGO.md` |
 | **Cuerpo de los eventos** (renderizador compartido con la web; original aquí, copia en formularios) | `inc/eventos-cuerpo.php` + `EVENTOS.md` §9 |
 | **Pasar Lista — índice de todo** | `docs/comunica/PASAR-LISTA-README.md` |
 | **Pasar Lista por el middleware** (lecturas por SQL vía comunicaMiddleware, con la API detrás; cómo se enciende) | `docs/comunica/MIDDLEWARE.md` |

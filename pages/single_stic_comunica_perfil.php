@@ -92,6 +92,14 @@ if (in_array('identidad', $sections, true)) {
         ? sprintf(__('Estos son los datos que tenemos de <strong>%s</strong>.', 'sticpa'), esc_html($activeFirstName))
         : sprintf(__('Hola <strong>%s</strong> 👋, estos son los datos que tenemos.', 'sticpa'), esc_html($activeFirstName));
     $fieldList[] = array('name' => 'saludo_nota', 'type' => 'note', 'classes' => 'stic-note-soft', 'html' => $saludo);
+    // Un menor no tiene forma de pago propia: paga su familiar. Aquí se dice
+    // cuál es y se lleva a cambiarla (05/11/2026).
+    if ($audience === 'participante' && function_exists('sticpa_fp_card_html')) {
+        $fpCard = sticpa_fp_card_html($objSCP);
+        if ($fpCard !== '') {
+            $fieldList[] = array('name' => 'forma_pago_nota', 'type' => 'note', 'classes' => 'stic-note-soft stic-fp-note', 'html' => $fpCard);
+        }
+    }
     $fieldList[] = array('name' => 'first_name', 'required' => false, 'attributes' => array('disabled' => 'disabled', 'autocomplete' => 'given-name'));
     $fieldList[] = array('name' => 'last_name', 'required' => false, 'attributes' => array('disabled' => 'disabled', 'autocomplete' => 'family-name'));
     $fieldList[] = array('name' => 'stic_identification_type_c', 'required' => false, 'attributes' => array('disabled' => 'disabled'));

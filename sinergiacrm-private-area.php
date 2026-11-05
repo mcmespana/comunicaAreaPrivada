@@ -81,6 +81,8 @@ include plugin_dir_path(__FILE__) . 'inc/stic-event-web.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-event-audience.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-registrations.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-payments.php';
+// La forma de pago de la persona (IBAN y medio) y cómo llega a lo que aún no se ha cobrado.
+include plugin_dir_path(__FILE__) . 'inc/stic-forma-pago.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-documents.php';
 include plugin_dir_path(__FILE__) . 'inc/stic-sessions.php';
 // Pasar Lista: la lógica pura (curso, sesión que toca, porcentajes) va primero
@@ -141,6 +143,7 @@ function dcms_insertar_js()
     $isSingleForm = (strpos($page, 'single_') === 0) && !$isCalendar && !$isPasarLista;
     $ibanPages = array(
         'single_stic_payment_form',
+        'single_stic_forma_pago',
         'single_stic_tutor_profile',
         'single_stic_profile',
         'single_stic_payments',
@@ -484,8 +487,12 @@ function sticpa_section_meta($key)
             'icon' => "<circle cx='12' cy='8' r='4'/><path d='M4 21v-1a8 8 0 0 1 16 0v1'/>",
         ),
         'single_stic_tutor_profile' => array(
-            'desc' => __('Tus datos como familiar: contacto, dirección y medio de pago.', 'sticpa'),
+            'desc' => __('Tus datos como familiar: contacto y dirección.', 'sticpa'),
             'icon' => "<circle cx='12' cy='8' r='4'/><path d='M4 21v-1a8 8 0 0 1 16 0v1'/>",
+        ),
+        'single_stic_forma_pago' => array(
+            'desc' => __('Cómo pagas: domiciliación, transferencia o Bizum, y tu IBAN.', 'sticpa'),
+            'icon' => "<rect x='2' y='5' width='20' height='14' rx='2'/><path d='M2 10h20M6 15h4'/>",
         ),
         'single_stic_profile_selection' => array(
             'desc' => __('Elige a qué participante quieres ver.', 'sticpa'),
