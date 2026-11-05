@@ -76,7 +76,7 @@ SQL: `contacts` + `contacts_cstm`. Rol de la persona en `stic_relationship_type_
 | `ajmcm_descripcion_intoler_c`, `_tratam_c`, `_enfermed_c`, `_otros_c` | text | Intolerancias, tratamientos, enfermedades, otras. 🔒 salud |
 | `ajmcm_iban_c` | text(34) | IBAN, sin espacios. 🔒 enmascarar |
 | `ajmcm_iban_titular_c` | text | Titular de la cuenta (texto, no enlace) |
-| `ajmcm_forma_pago_c` | enum 👁 | `cargo_cuenta` (única vista) |
+| `ajmcm_forma_pago_c` | enum 👁 | `cargo_cuenta` (domiciliación) · `transferencia` · `bizum` (las tres vistas en datos; no es el vocabulario de `payment_method`). Es de QUIEN PAGA: lo edita «Forma de pago» (`FORMA-DE-PAGO.md`) y solo lleva la cuenta a pagos `not_remitted` |
 | `ajmcm_asamblea_movimiento_es_c`, `ajmcm_asamblea_responsabilid_c` | text | Preguntas de asamblea |
 | `ajmcm_mcm_desde_c`, `ajmcm_monitor_desde_c` | date | Año en el MCM / como monitor. Se guarda `AAAA-01-01` |
 | `ajmcm_ano_incorporacion_lc_c` | int | Año de incorporación a LC |

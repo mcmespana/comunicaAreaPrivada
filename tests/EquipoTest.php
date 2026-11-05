@@ -293,6 +293,7 @@ class EquipoTest extends TestCase
             'list_stic_documents',
             'single_stic_comunica_perfil',
             'single_stic_comunica_monitor',
+            'single_stic_forma_pago',
             'single_stic_password_change',
         ), $claves);
     }
@@ -355,6 +356,7 @@ class EquipoTest extends TestCase
             'list_stic_payments',
             'list_stic_documents',
             'single_stic_comunica_perfil',
+            'single_stic_forma_pago',
             'single_stic_password_change',
         ), $claves);
 

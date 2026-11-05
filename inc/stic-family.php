@@ -491,6 +491,8 @@ function sticpa_visible_sections($secciones)
         'single_stic_tutor_profile',
         'single_stic_profile',
         'single_stic_comunica_perfil',
+        // Su forma de pago es SUYA: con ella se cobran las cosas de sus hijos.
+        'single_stic_forma_pago',
         'single_stic_password_change',
         'single_stic_profile_selection',
         // El dinero que sale de SU cuenta.

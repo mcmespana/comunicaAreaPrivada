@@ -36,7 +36,7 @@ antes de empezar, respeta sus "STOP conditions" y actualiza su fila de estado al
 | 012 | Sustituir `getAllEmail()` por una consulta puntual | P1 | S | — | **YA NO APLICA** — el alta y `getAllEmail()` se borraron el 10/09/2026 → `archive/` |
 | 013 | Establecer una base de verificación (PHPUnit + mocks) | P1 | M | — | **DONE** → `archive/` (baseline; ver seguimiento) |
 | 014 | Retirar assets muertos y arreglar docs desfasadas | P2 | S | — | **DONE** → `archive/` |
-| 015 | Conectar o bloquear el formulario de pago del familiar | P1 | M | 013 | **BLOQUEADO — decisión del propietario** (24/09): los campos reales existen en el participante y la pantalla edita al familiar. Ver `FAM-02` en `TODO.md` |
+| 015 | Conectar o bloquear el formulario de pago del familiar | P1 | M | 013 | **HECHO (05/11/2026)** por otra vía: pantalla propia «Forma de pago» para todas las personas (`docs/comunica/FORMA-DE-PAGO.md`); la sección falsa se quitó. Cierra `FAM-02` |
 | 016 | Tema claro/oscuro AUTOMÁTICO (dispositivo + app MCM) | P2 | L | 018 | **DONE** → [`archive/016-dark-theme.md`](archive/016-dark-theme.md) |
 | 017 | Foto de perfil por endpoint con miniatura (fuera base64) | P1 | M | — | **DONE** → `archive/` |
 | 018 | Consolidar CSS: un solo :root, menos duplicados/!important | P2 | L | — | **PARCIAL** (F1 hecha; F2/3 medidas = no-batch, ver ficha) |

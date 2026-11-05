@@ -3,16 +3,14 @@
  * DATOS DEL FAMILIAR (la persona que accede y gestiona a los participantes).
  * ----------------------------------------------------------------------------
  * Aquí el familiar edita SUS PROPIOS datos (no los del participante activo):
- * básicos, contacto, dirección y medio de pago. Siempre trabaja sobre
+ * básicos, contacto y dirección. Siempre trabaja sobre
  * $_SESSION['scp_tutor_user_id'] (o scp_user_id si aún no hay sesión de tutor).
  *
- * MEDIO DE PAGO — FRONT ADELANTADO (importante para futuros agentes):
- * En SinergiaCRM/Comunica aún NO está definido dónde viven estos datos. Los
- * campos usan nombres provisionales (ajmcm_pago_*_c). El guardado es inocuo:
- * la API set_entry ignora los campos que no existen en el CRM. Cuando se creen
- * los campos reales en Studio (o se decida usar stic_Payment_Commitments),
- * basta con renombrar aquí los 'name' — el resto (validación IBAN incluida)
- * ya funciona. Ver docs/design-system.md §Perfiles de familia.
+ * MEDIO DE PAGO: ya NO se edita aquí (05/11/2026). Esta pantalla tenía unos campos
+ * provisionales (ajmcm_pago_*_c) que el CRM no tiene, así que el IBAN que se
+ * metía se perdía en silencio. Ahora es una pantalla propia, «Forma de pago»
+ * (pages/single_stic_forma_pago.php, lógica en inc/stic-forma-pago.php), con
+ * los campos buenos de la ficha, y desde aquí solo se enlaza.
  *
  * Guardado: prefix_admin_single_stic_tutor_profile (inc/stic-action.php),
  * que hace set_entry con id = scp_tutor_user_id (nunca el participante).
@@ -71,54 +69,12 @@ $fieldList[] = array(
     'attributes' => array('inputmode' => 'numeric', 'maxlength' => '5', 'autocomplete' => 'postal-code'),
 );
 
-// ===== Medio de pago (front adelantado — ver nota de cabecera) =====
-$fieldList[] = array('name' => 'pago', 'type' => 'header', 'label' => __('Medio de pago', 'sticpa'));
+// ===== Forma de pago: es otra pantalla =====
+$fieldList[] = array('name' => 'pago', 'type' => 'header', 'label' => __('Forma de pago', 'sticpa'));
 $fieldList[] = array(
     'name' => 'pago_nota', 'type' => 'note',
-    'html' => __('Con la <strong>domiciliación bancaria</strong> las cuotas y actividades se cargan en tu cuenta sin que tengas que hacer nada. ⚙️ <em>Esta sección se está conectando con el sistema de gestión: es posible que los cambios aún no queden guardados.</em>', 'sticpa'),
-);
-$fieldList[] = array(
-    'name' => 'ajmcm_pago_metodo_c', 'type' => 'select', 'required' => false,
-    'label' => __('Método de pago preferido', 'sticpa'),
-    'selectValues' => array(
-        '' => ' ',
-        'direct_debit' => __('Domiciliación bancaria (recomendado)', 'sticpa'),
-        'transfer' => __('Transferencia', 'sticpa'),
-        'cash' => __('Efectivo / otro', 'sticpa'),
-    ),
-    'actions' => array('onchange' => 'sticTutorPaymentMethod'),
-);
-$fieldList[] = array(
-    'name' => 'ajmcm_pago_iban_c', 'required' => false,
-    'label' => __('IBAN', 'sticpa'),
-    'help' => __('Cuenta en la que se domiciliarán los pagos. Solo se usará para los cargos que autorices.', 'sticpa'),
-    'placeholder' => 'ES00 0000 0000 0000 0000 0000',
-    'hint' => __('Solo necesario si eliges domiciliación bancaria.', 'sticpa'),
-    'attributes' => array('autocomplete' => 'off', 'data-visible-when' => 'ajmcm_pago_metodo_c:direct_debit'),
-    'actions' => array('onchange' => 'sticTutorVerifyIban'),
-);
-$fieldList[] = array(
-    'name' => 'ajmcm_pago_titular_c', 'required' => false,
-    'label' => __('Titular de la cuenta', 'sticpa'),
-    'attributes' => array('autocomplete' => 'name', 'data-visible-when' => 'ajmcm_pago_metodo_c:direct_debit'),
+    'html' => __('Cómo pagas y tu IBAN se cambian en su propia pantalla.', 'sticpa')
+        . " <a class='stic-fp-link' href='" . esc_url('?internalpage=single_stic_forma_pago') . "'>" . esc_html__('Cambiar forma de pago', 'sticpa') . '</a>',
 );
 
 $html .= makeForm($fieldList, $formSettings, $data);
-
-// Validación de IBAN (usa js/iban.js, ya cargado por el plugin) solo cuando el
-// método es domiciliación. La visibilidad la gestiona data-visible-when.
-$html .= "
-<script>
-function sticTutorPaymentMethod() { /* la visibilidad la resuelve data-visible-when */ }
-function sticTutorVerifyIban(obj) {
-    var metodo = document.getElementById('ajmcm_pago_metodo_c');
-    if (!metodo || metodo.value !== 'direct_debit' || !obj.value) { obj.removeAttribute('invalid'); return; }
-    obj.value = obj.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-    if (typeof IBAN !== 'undefined' && !IBAN.isValid(obj.value)) {
-        alert((typeof stic_script_vars !== 'undefined' && stic_script_vars.wrongIban) ? stic_script_vars.wrongIban : 'El IBAN no parece válido.');
-        obj.setAttribute('invalid', '');
-    } else {
-        obj.removeAttribute('invalid');
-    }
-}
-</script>";
