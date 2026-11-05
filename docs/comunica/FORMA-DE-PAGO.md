@@ -46,7 +46,25 @@ Solo lo que **no se ha pagado**. Un compromiso se actualiza únicamente si cumpl
 | Domiciliado, vivo, con algo sin remesar | `bank_account` del compromiso + una línea en `description` (cuentas **tapadas**) + `bank_account` de cada pago `not_remitted` |
 
 Es **todo o nada por compromiso**: si el compromiso no se actualiza, sus pagos tampoco. Si algo falla, la
-pantalla lo dice («guardado, pero…») en lugar de mentir. Se actualizan los compromisos de **todas** las
+pantalla lo dice («guardado, pero…») en lugar de mentir.
+
+Más reglas, salidas de la revisión independiente del 05/11/2026:
+
+- **Un recorrido a medias no vale.** `getRelatedElementsForLoggedUser` con `limit = 0` pagina y **nunca devuelve
+  null**: si una página falla devuelve lo que llevaba y lo apunta en `SugarRestApiCall::lastWalkComplete()`. Se mira
+  siempre (`sticpa_fp_walk_ok()`): con los compromisos a medias no se toca nada y la pantalla avisa; con los pagos de un
+  compromiso a medias (podría faltar uno ya remesado) ese compromiso no se toca y también se avisa.
+- **Solo se escribe lo que cambia.** Si el compromiso o un pago ya tienen esa cuenta, no se reescribe ni se deja una
+  nota «de ES93 a ES93».
+- **`active = 0` explícito** es un compromiso apagado a mano: no se toca.
+- **IBAN de un país SEPA** para domiciliar (un IBAN de Brasil pasa el módulo 97, pero el banco rechaza el recibo).
+- **Titular limpio**: sin etiquetas, sin entidades, sin espacios (ni duros) de más; se comprueba también tras guardar.
+- **Hoy es hoy en Madrid** (`wp_date`), no en UTC: entre las 00:00 y las 02:00 un compromiso que acaba hoy se veía vivo.
+- Si no se puede **leer** la ficha, no se pinta un formulario vacío que diga «todavía no has indicado cómo pagas».
+
+> ⚠️ **Consecuencia de la regla del propietario, para que lo sepa tesorería:** un recibo **devuelto** (`unpaid`) —el caso
+> típico de un IBAN mal puesto— NO se corrige solo, porque «en curso» incluye lo devuelto. Hoy hay 2 en el CRM. Los
+> arregla tesorería a mano. Se actualizan los compromisos de **todas** las
 delegaciones de esa persona: la cuenta es suya.
 
 ## Por qué no basta con guardar la ficha

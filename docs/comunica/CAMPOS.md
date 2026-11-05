@@ -382,8 +382,8 @@ Lucía»; un botón en Pagos). Detalle en [`FORMA-DE-PAGO.md`](FORMA-DE-PAGO.md)
   no basta: al escribir un IBAN, el área lo lleva a lo que aún no se ha cobrado.
 - **Solo se toca lo que no se ha pagado** (decidido el 05/11/2026). Un
   compromiso se actualiza si es `direct_debit`, está vigente (sin `end_date`, o
-  con fin futuro), tiene algún pago `not_remitted` y **ningún otro pago suyo en
-  curso** (remesado, `unpaid`, a recobrar, o un estado que no se conozca; `paid`
+  con fin futuro, y sin `active = 0` explícito), tiene algún pago `not_remitted` y
+  **ningún otro pago suyo en curso** (remesado, `unpaid`, a recobrar, o un estado que no se conozca; `paid`
   y `cancelled` son historia). Un compromiso con todos los pagos hechos no se
   toca; uno con un recibo ya en remesa tampoco (ese salió al banco con la cuenta
   vieja). En el compromiso se cambia `bank_account` y se añade una línea a

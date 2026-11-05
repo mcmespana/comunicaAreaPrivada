@@ -87,6 +87,9 @@ class FormaPagoTest extends TestCase
 
     protected function tearDown(): void
     {
+        $r = new ReflectionProperty('SugarRestApiCall', 'walkIncomplete');
+        $r->setAccessible(true);
+        $r->setValue(null, false);
         SugarRestApiCall::$objSCP = null;
         $_REQUEST = array();
         $_SESSION = array();
@@ -114,6 +117,15 @@ class FormaPagoTest extends TestCase
             public $commitments = array();   // persona => [fila, …]
             public $payments = array();      // compromiso => [fila, …]
             public $commitmentsDown = false; // el CRM no contesta a los compromisos
+            // Como el cliente REAL: con `limit = 0` pagina y NUNCA devuelve null; si
+            // una página falla, devuelve lo que llevaba y lo apunta en lastWalkComplete().
+            public $walkFails = array();     // 'commitments' => true, 'payments:<id>' => true
+            private function walk($incompleto)
+            {
+                $r = new ReflectionProperty('SugarRestApiCall', 'walkIncomplete');
+                $r->setAccessible(true);
+                $r->setValue(null, (bool) $incompleto);
+            }
             public $failCommitmentWrite = array();
             public $ignoreWrites = array();  // campos de Contacts que se descartan sin avisar
             public $formaOptions = array('cargo_cuenta' => 'Cargo en cuenta', 'transferencia' => 'Transferencia', 'bizum' => 'Bizum');
@@ -150,9 +162,14 @@ class FormaPagoTest extends TestCase
             public function getRelatedElementsForLoggedUser($p)
             {
                 $link = $p['link_field_name'] ?? '';
+                $this->walk(false);
                 if ($link === 'stic_payment_commitments_contacts') {
                     if ($this->commitmentsDown) {
                         return null;
+                    }
+                    if (!empty($this->walkFails['commitments'])) {
+                        $this->walk(true);
+                        return array();
                     }
                     $out = array();
                     foreach ($this->commitments[$p['module_id']] ?? array() as $c) {
@@ -161,8 +178,14 @@ class FormaPagoTest extends TestCase
                     return $out;
                 }
                 if ($link === 'stic_payments_stic_payment_commitments') {
+                    $filas = $this->payments[$p['module_id']] ?? array();
+                    if (!empty($this->walkFails['payments:' . $p['module_id']])) {
+                        // La segunda página falla: el último pago (p. ej. uno ya remesado) no se ve.
+                        $this->walk(true);
+                        $filas = array_slice($filas, 0, max(0, count($filas) - 1));
+                    }
                     $out = array();
-                    foreach ($this->payments[$p['module_id']] ?? array() as $row) {
+                    foreach ($filas as $row) {
                         $out[] = (object) array('id' => $row['id'], 'name_value_list' => $this->nvl($row));
                     }
                     return $out;
@@ -191,14 +214,14 @@ class FormaPagoTest extends TestCase
         };
     }
 
-    private function com($id, $method = 'direct_debit', $account = self::IBAN_B, $end = '', $desc = '')
+    private function com($id, $method = 'direct_debit', $account = self::IBAN_B, $end = '', $desc = '', $active = '1')
     {
-        return array('id' => $id, 'name' => 'Compromiso ' . $id, 'description' => $desc, 'payment_method' => $method, 'bank_account' => $account, 'end_date' => $end);
+        return array('id' => $id, 'name' => 'Compromiso ' . $id, 'description' => $desc, 'payment_method' => $method, 'bank_account' => $account, 'end_date' => $end, 'active' => $active);
     }
 
-    private function pay($id, $status, $method = 'direct_debit')
+    private function pay($id, $status, $method = 'direct_debit', $account = self::IBAN_B)
     {
-        return array('id' => $id, 'status' => $status, 'payment_method' => $method, 'name' => 'Pago ' . $id);
+        return array('id' => $id, 'status' => $status, 'payment_method' => $method, 'bank_account' => $account, 'name' => 'Pago ' . $id);
     }
 
     // ------------------------------------------------------------------
@@ -249,6 +272,14 @@ class FormaPagoTest extends TestCase
         $this->assertSame('terminado', sticpa_fp_classify(array('method' => 'direct_debit', 'end_date' => '2026-10-01'), $pays, '2026-11-05')['estado']);
         $this->assertSame('tocable', sticpa_fp_classify(array('method' => 'direct_debit', 'end_date' => '2026-12-31'), $pays, '2026-11-05')['estado']);
         $this->assertSame('tocable', sticpa_fp_classify(array('method' => 'direct_debit', 'end_date' => '0000-00-00'), $pays, '2026-11-05')['estado']);
+    }
+
+    public function test_active_a_cero_explicito_cuenta_como_terminado()
+    {
+        $pays = array(array('id' => 'p1', 'status' => 'not_remitted', 'method' => 'direct_debit'));
+        $this->assertSame('terminado', sticpa_fp_classify(array('method' => 'direct_debit', 'end_date' => '', 'active' => '0'), $pays, '2026-11-05')['estado']);
+        $this->assertSame('tocable', sticpa_fp_classify(array('method' => 'direct_debit', 'end_date' => '', 'active' => '1'), $pays, '2026-11-05')['estado']);
+        $this->assertSame('tocable', sticpa_fp_classify(array('method' => 'direct_debit', 'end_date' => ''), $pays, '2026-11-05')['estado'], 'sin el dato, no se inventa');
     }
 
     public function test_un_no_remesado_que_no_es_domiciliacion_no_se_toca()
@@ -643,7 +674,7 @@ class FormaPagoTest extends TestCase
         $html = $this->pintar();
 
         $this->assertStringContainsString('3 pagos pendientes de cobro', $html);
-        $this->assertStringContainsString('ya está en remesa', $html);
+        $this->assertStringContainsString('ya está en curso (en remesa o devuelto)', $html);
     }
 
     public function test_la_tarjeta_de_los_datos_del_menor_lleva_a_la_pantalla()
@@ -657,6 +688,114 @@ class FormaPagoTest extends TestCase
         $this->assertStringContainsString('internalpage=single_stic_forma_pago', $card);
         $this->assertStringContainsString('ES93 •••• 8644', $card);
         $this->assertStringNotContainsString(self::IBAN_A, $card);
+    }
+
+    // ------------------------------------------------------------------
+    //  Lo que encontró la revisión independiente (05/11/2026)
+    // ------------------------------------------------------------------
+
+    public function test_un_recorrido_de_compromisos_a_medias_no_se_da_por_bueno()
+    {
+        // El cliente real NO devuelve null: devuelve una lista (a veces vacía) y marca el recorrido incompleto.
+        $this->fichaMarta(self::IBAN_B, 'cargo_cuenta', 'Marta Pérez');
+        $this->escenario();
+        $this->crm->walkFails['commitments'] = true;
+        $url = $this->post(array('ajmcm_forma_pago_c' => 'cargo_cuenta', 'ajmcm_iban_c' => self::IBAN_A, 'ajmcm_iban_titular_c' => 'Marta Pérez'));
+
+        $this->assertStringContainsString('msg=parcial', $url, 'ni «Listo» ni 0 pagos actualizados: la persona tiene que saber que falta algo');
+        $this->assertSame(array(), $this->crm->writesTo('stic_Payment_Commitments'));
+        $this->assertSame(array(), $this->crm->writesTo('stic_Payments'));
+        $this->assertSame(self::IBAN_A, $this->crm->contacts['marta']['ajmcm_iban_c'], 'la ficha sí se guardó');
+    }
+
+    public function test_si_los_pagos_de_un_compromiso_se_leen_a_medias_no_se_toca_ese_compromiso()
+    {
+        // Falta el último pago de A (podría ser uno ya remesado): con una lista parcial no se sabe.
+        $this->escenario();
+        $this->crm->walkFails['payments:A'] = true;
+        $r = sticpa_fp_propagate($this->crm, 'marta', self::IBAN_A);
+
+        $ids = array_column(array_column($this->crm->writesTo('stic_Payment_Commitments'), 'data'), 'id');
+        $this->assertSame(array('F'), $ids, 'A no se toca; F sí');
+        $this->assertSame(1, $r['errores'], 'A cuenta como pendiente de revisar');
+        $this->assertSame(2, $r['pagos']);
+    }
+
+    public function test_un_compromiso_apagado_a_mano_no_se_toca()
+    {
+        $this->crm->commitments['marta'] = array($this->com('A', 'direct_debit', self::IBAN_B, '', '', '0'));
+        $this->crm->payments = array('A' => array($this->pay('A1', 'not_remitted')));
+        $r = sticpa_fp_propagate($this->crm, 'marta', self::IBAN_A);
+
+        $this->assertSame(0, $r['compromisos']);
+        $this->assertSame(array(), $this->crm->writes);
+    }
+
+    public function test_guardar_dos_veces_la_misma_cuenta_no_reescribe_nada()
+    {
+        $this->crm->commitments['marta'] = array($this->com('A', 'direct_debit', self::IBAN_A));
+        $this->crm->payments = array('A' => array($this->pay('A1', 'not_remitted', 'direct_debit', self::IBAN_A)));
+        $r = sticpa_fp_propagate($this->crm, 'marta', self::IBAN_A);
+
+        $this->assertSame(array(), $this->crm->writes, 'ni compromiso, ni pago, ni una nota «de ES93 a ES93»');
+        $this->assertSame(0, $r['compromisos'] + $r['pagos'] + $r['errores']);
+    }
+
+    public function test_si_el_compromiso_ya_tiene_la_cuenta_pero_un_pago_no_solo_se_escribe_ese_pago()
+    {
+        $this->crm->commitments['marta'] = array($this->com('A', 'direct_debit', self::IBAN_A));
+        $this->crm->payments = array('A' => array(
+            $this->pay('A1', 'not_remitted', 'direct_debit', self::IBAN_A),
+            $this->pay('A2', 'not_remitted', 'direct_debit', self::IBAN_B),
+        ));
+        $r = sticpa_fp_propagate($this->crm, 'marta', self::IBAN_A);
+
+        $this->assertSame(array(), $this->crm->writesTo('stic_Payment_Commitments'));
+        $this->assertSame(array('A2'), array_column(array_column($this->crm->writesTo('stic_Payments'), 'data'), 'id'));
+        $this->assertSame(1, $r['pagos']);
+    }
+
+    public function test_el_titular_se_limpia_y_un_espacio_duro_no_cuenta_como_titular()
+    {
+        $m = sticpa_fp_methods($this->crm);
+        $v = sticpa_fp_validate(array('ajmcm_forma_pago_c' => 'cargo_cuenta', 'ajmcm_iban_c' => self::IBAN_A, 'ajmcm_iban_titular_c' => '&nbsp;'), $this->actual(), $m);
+        $this->assertSame('titular', $v['error']);
+
+        $v = sticpa_fp_validate(array('ajmcm_forma_pago_c' => 'cargo_cuenta', 'ajmcm_iban_c' => self::IBAN_A, 'ajmcm_iban_titular_c' => "Marta\u{00A0} <3  Pérez"), $this->actual(), $m);
+        $this->assertSame('Marta 3 Pérez', $v['clean']['titular'], 'no se trunca en el «<»');
+    }
+
+    public function test_un_iban_que_no_es_sepa_no_vale_para_domiciliar()
+    {
+        $m = sticpa_fp_methods($this->crm);
+        // Pasa el módulo 97, pero el banco rechaza el recibo: Brasil no está en SEPA.
+        $v = sticpa_fp_validate(array('ajmcm_forma_pago_c' => 'cargo_cuenta', 'ajmcm_iban_c' => 'BR1800360305000010009795493C1', 'ajmcm_iban_titular_c' => 'Marta'), $this->actual(), $m);
+        $this->assertSame('iban', $v['error']);
+        foreach (array('DE89370400440532013000', 'GB82WEST12345698765432') as $sepa) {
+            $v = sticpa_fp_validate(array('ajmcm_forma_pago_c' => 'cargo_cuenta', 'ajmcm_iban_c' => $sepa, 'ajmcm_iban_titular_c' => 'Marta'), $this->actual(), $m);
+            $this->assertTrue($v['ok'], $sepa);
+        }
+    }
+
+    public function test_si_el_crm_descarta_el_titular_no_se_dice_que_esta_bien()
+    {
+        $this->fichaMarta('', '', '');
+        $this->crm->ignoreWrites = array('ajmcm_iban_titular_c');
+        $url = $this->post(array('ajmcm_forma_pago_c' => 'cargo_cuenta', 'ajmcm_iban_c' => self::IBAN_A, 'ajmcm_iban_titular_c' => 'Marta Pérez'));
+
+        $this->assertStringContainsString('msg=error', $url);
+        $this->assertSame(array(), $this->crm->writesTo('stic_Payment_Commitments'));
+    }
+
+    public function test_si_no_se_puede_leer_la_ficha_no_se_pinta_un_formulario_a_ciegas()
+    {
+        // `marta` no existe en el CRM de mentira: la lectura falla.
+        $html = $this->pintar();
+
+        $this->assertStringNotContainsString('stic_form_fields', $html, 'sin formulario');
+        $this->assertStringNotContainsString('Todavía no has indicado', $html, 'no se dice algo que no sabemos');
+        $this->assertStringContainsString('No hemos podido leer tu forma de pago', $html);
+        $this->assertSame('', sticpa_fp_card_html($this->crm), 'la tarjeta tampoco inventa «todavía no has indicado la tuya»');
     }
 
     public function test_el_resumen_nunca_enseña_el_iban_entero()

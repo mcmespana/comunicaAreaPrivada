@@ -22,6 +22,13 @@ $payerId = (string) $payer['pagador'];
 $menorNombre = function_exists('sticpa_viendo_a_nombre') ? sticpa_viendo_a_nombre() : '';
 
 $ficha = sticpa_fp_read($objSCP, $payerId);
+if (!$ficha['ok']) {
+    // Sin poder leer lo guardado, un formulario vacío diría «todavía no has
+    // indicado cómo pagas» y se guardaría a ciegas.
+    $html .= "<div class='stic-entry-header'><h3>" . esc_html__('Forma de pago', 'sticpa') . "</h3></div>";
+    $html .= sticpa_record_note_html(array('tone' => 'warn', 'text' => __('No hemos podido leer tu forma de pago ahora mismo. Vuelve a intentarlo en un momento.', 'sticpa')));
+    return;
+}
 $methods = sticpa_fp_methods($objSCP);
 $domiciliacion = sticpa_fp_direct_debit_key();
 
@@ -55,7 +62,7 @@ if ($fpp > 0) {
         $fpp, 'sticpa'), $fpp);
 }
 if ($fpe > 0) {
-    $guardado .= ' ' . __('Hay un recibo que ya está en remesa o se ha devuelto: ese no se cambia, y tesorería lo revisará con vosotros.', 'sticpa');
+    $guardado .= ' ' . __('Hay un recibo que ya está en curso (en remesa o devuelto): ese no se cambia, y tesorería lo revisará con vosotros.', 'sticpa');
 }
 if ($fpm > 0) {
     $guardado .= ' ' . __('Hemos avisado a tesorería de que ya no quieres domiciliar.', 'sticpa');

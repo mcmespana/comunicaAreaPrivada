@@ -487,7 +487,7 @@ function sticpa_section_meta($key)
             'icon' => "<circle cx='12' cy='8' r='4'/><path d='M4 21v-1a8 8 0 0 1 16 0v1'/>",
         ),
         'single_stic_tutor_profile' => array(
-            'desc' => __('Tus datos como familiar: contacto, dirección y medio de pago.', 'sticpa'),
+            'desc' => __('Tus datos como familiar: contacto y dirección.', 'sticpa'),
             'icon' => "<circle cx='12' cy='8' r='4'/><path d='M4 21v-1a8 8 0 0 1 16 0v1'/>",
         ),
         'single_stic_forma_pago' => array(

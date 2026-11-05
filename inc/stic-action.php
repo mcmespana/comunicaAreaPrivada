@@ -235,7 +235,8 @@ function prefix_admin_single_stic_forma_pago()
     $despues = sticpa_fp_read($objSCP, $payerId);
     $domiciliacion = sticpa_fp_direct_debit_key();
     if (!$despues['ok'] || $despues['forma'] !== $clean['forma']
-        || ($clean['forma'] === $domiciliacion && $despues['iban'] !== $clean['iban'])) {
+        || ($clean['forma'] === $domiciliacion
+            && ($despues['iban'] !== $clean['iban'] || $despues['titular'] !== $clean['titular']))) {
         wp_safe_redirect($volver . '&msg=error');
         exit;
     }

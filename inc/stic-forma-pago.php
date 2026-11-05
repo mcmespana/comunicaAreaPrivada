@@ -50,6 +50,30 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+/**
+ * Hoy, con la zona horaria de WordPress (Madrid). `date()` da UTC y entre las
+ * 00:00 y las 02:00 un compromiso que acaba hoy se vería como vigente.
+ */
+function sticpa_fp_today($format = 'Y-m-d')
+{
+    return function_exists('wp_date') ? wp_date($format) : date($format);
+}
+
+/**
+ * ¿El último recorrido de listas del CRM llegó hasta el final?
+ *
+ * ⚠️ `getRelatedElementsForLoggedUser` con `limit = 0` PAGINA y NUNCA devuelve
+ * null: si una página falla devuelve lo que llevaba (a veces nada) y lo apunta
+ * aquí. Fiarse solo del retorno daba por buena una lista vacía por un fallo de
+ * red, y la pantalla decía «guardado» sin haber cambiado ninguna cuenta.
+ */
+function sticpa_fp_walk_ok()
+{
+    return !class_exists('SugarRestApiCall')
+        || !method_exists('SugarRestApiCall', 'lastWalkComplete')
+        || SugarRestApiCall::lastWalkComplete();
+}
+
 /** Los tres campos de la ficha (CAMPOS.md → «Pago y domiciliación»). */
 function sticpa_fp_fields()
 {
@@ -76,6 +100,43 @@ function sticpa_fp_known_methods()
         'transferencia' => __('Transferencia', 'sticpa'),
         'bizum' => __('Bizum', 'sticpa'),
     );
+}
+
+/**
+ * Países cuyo IBAN admite una remesa de domiciliación SEPA. Un IBAN de otro
+ * sitio (p. ej. Brasil) pasa el módulo 97 pero el banco rechaza el recibo.
+ */
+function sticpa_fp_sepa_countries()
+{
+    return array(
+        'AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV',
+        'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE',
+        'IS', 'LI', 'NO', 'CH', 'GB', 'GI', 'GG', 'JE', 'IM', 'MC', 'SM', 'VA', 'AD',
+    );
+}
+
+/** ¿Un IBAN válido y de un país SEPA? */
+function sticpa_fp_iban_is_sepa($iban)
+{
+    $iban = sticpa_iban_normalize($iban);
+    return sticpa_iban_is_valid($iban) && in_array(substr($iban, 0, 2), sticpa_fp_sepa_countries(), true);
+}
+
+/**
+ * El nombre del titular, limpio: sin etiquetas ni entidades, sin espacios de
+ * más (tampoco los duros, que `&nbsp;` colaba como un titular «lleno») y con
+ * un máximo de 255. `strip_tags` se descartó: «Marta <3 Pérez» lo dejaba en
+ * «Marta».
+ */
+function sticpa_fp_clean_holder($raw)
+{
+    $t = html_entity_decode((string) $raw, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    // Primero las etiquetas de verdad («<b>x</b>» → «x»); lo que quede suelto
+    // (un «<3») pierde solo el signo, no el resto del nombre.
+    $t = (string) preg_replace('/<\/?[a-z][^>]*>/i', '', $t);
+    $t = str_replace(array('<', '>'), '', $t);
+    $t = trim((string) preg_replace('/[\s\x{00A0}]+/u', ' ', $t));
+    return function_exists('mb_substr') ? mb_substr($t, 0, 255, 'UTF-8') : substr($t, 0, 255);
 }
 
 /** Lo que se ofrece en el desplegable: clave => etiqueta. */
@@ -182,7 +243,12 @@ function sticpa_fp_card_html($objSCP)
     if ($payerId === '') {
         return '';
     }
-    $resumen = sticpa_fp_summary(sticpa_fp_read($objSCP, $payerId), sticpa_fp_methods($objSCP));
+    $ficha = sticpa_fp_read($objSCP, $payerId);
+    if (!$ficha['ok']) {
+        // Sin poder leerla no se dice «todavía no has indicado la tuya»: sería mentir.
+        return '';
+    }
+    $resumen = sticpa_fp_summary($ficha, sticpa_fp_methods($objSCP));
     $url = '?internalpage=single_stic_forma_pago';
     $texto = $resumen !== ''
         ? sprintf(__('<strong>Forma de pago:</strong> la tuya, %s.', 'sticpa'), esc_html($resumen))
@@ -222,17 +288,16 @@ function sticpa_fp_validate($input, $actual, $methods)
     if ($forma === sticpa_fp_direct_debit_key()) {
         $escrito = sticpa_iban_normalize($input['ajmcm_iban_c'] ?? '');
         $iban = $escrito !== '' ? $escrito : $clean['iban'];
-        if ($iban === '' || !sticpa_iban_is_valid($iban)) {
+        if ($iban === '' || !sticpa_fp_iban_is_sepa($iban)) {
             return $fallo('iban');
         }
-        $titular = trim((string) preg_replace('/\s+/u', ' ', strip_tags((string) ($input['ajmcm_iban_titular_c'] ?? ''))));
+        $titular = sticpa_fp_clean_holder($input['ajmcm_iban_titular_c'] ?? '');
         if ($titular === '') {
-            $titular = $clean['titular'];
+            $titular = sticpa_fp_clean_holder($clean['titular']);
         }
         if ($titular === '') {
             return $fallo('titular');
         }
-        $titular = function_exists('mb_substr') ? mb_substr($titular, 0, 255, 'UTF-8') : substr($titular, 0, 255);
         $clean['iban'] = $iban;
         $clean['titular'] = $titular;
         $propagar = $escrito !== '';
@@ -265,7 +330,7 @@ function sticpa_fp_no_date($d)
  * ¿Se le puede cambiar la cuenta a este compromiso? Ver el punto 3 de la
  * cabecera. Función PURA: recibe las filas ya leídas.
  *
- * @param array  $c      'method', 'end_date' del compromiso.
+ * @param array  $c      'method', 'end_date' y, si se conoce, 'active' del compromiso.
  * @param array  $pays   Lista de array('id', 'status', 'method').
  * @param string $today  'Y-m-d'.
  * @param array  $historia Estados que son historia (no cuentan como «en curso»).
@@ -283,6 +348,12 @@ function sticpa_fp_classify($c, $pays, $today, $historia = array('paid', 'cancel
     }
     $fin = trim((string) ($c['end_date'] ?? ''));
     if (!sticpa_fp_no_date($fin) && substr($fin, 0, 10) <= $today) {
+        return $resultado('terminado');
+    }
+    // El CRM y el área (`sticpa_pay_close_commitment`) cierran un compromiso con
+    // fecha de fin y `active = 0`; uno con `active = 0` explícito y sin fecha
+    // está apagado a mano. Ante la duda, no se toca.
+    if (trim((string) ($c['active'] ?? '')) === '0') {
         return $resultado('terminado');
     }
     $pendientes = array();
@@ -321,18 +392,39 @@ function sticpa_fp_payer_commitments($objSCP, $contactId)
         'module_name' => 'Contacts',
         'module_id' => (string) $contactId,
         'link_field_name' => 'stic_payment_commitments_contacts',
-        'related_fields' => array('id', 'name', 'description', 'payment_method', 'bank_account', 'end_date'),
+        'related_fields' => array('id', 'name', 'description', 'payment_method', 'bank_account', 'end_date', 'active'),
         'related_module_link_name_to_fields_array' => array(),
         'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
     ));
-    return is_array($rows) ? $rows : null;
+    // Ni un retorno que no es lista ni un recorrido a medias valen: con la
+    // mitad de los compromisos se «guardaría» sin cambiar los que faltan.
+    return (is_array($rows) && sticpa_fp_walk_ok()) ? $rows : null;
+}
+
+/**
+ * Los pagos de un compromiso, con su cuenta. null si el recorrido va a medias:
+ * con una lista parcial no se sabe si hay un recibo ya remesado que no se ve.
+ */
+function sticpa_fp_commitment_payments($objSCP, $commitmentId)
+{
+    $rows = $objSCP->getRelatedElementsForLoggedUser(array(
+        'module_name' => 'stic_Payment_Commitments',
+        'module_id' => (string) $commitmentId,
+        'link_field_name' => 'stic_payments_stic_payment_commitments',
+        'related_fields' => array('id', 'status', 'payment_method', 'bank_account'),
+        'related_module_link_name_to_fields_array' => array(),
+        'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
+    ));
+    return (is_array($rows) && sticpa_fp_walk_ok()) ? $rows : null;
 }
 
 /**
  * Los compromisos de quien paga, ya clasificados.
  *
- * @return array|null Lista de array(id, description, bank_account, class) o
- *                    null si el CRM no contesta (entonces no se toca nada).
+ * @return array|null Lista de array(id, description, bank_account, pay_accounts,
+ *                    class) o null si el CRM no contesta del todo (entonces no
+ *                    se toca nada). `class.estado` puede ser 'ilegible': no se
+ *                    pudieron leer todos sus pagos y no se toca.
  */
 function sticpa_fp_scan($objSCP, $contactId)
 {
@@ -347,31 +439,46 @@ function sticpa_fp_scan($objSCP, $contactId)
             $historia[] = $anulado;
         }
     }
-    $hoy = date('Y-m-d');
+    $hoy = sticpa_fp_today('Y-m-d');
     $out = array();
     foreach ($rows as $row) {
         $cid = sticpa_fp_val($row, 'id');
         if ($cid === '') {
             continue;
         }
-        $com = array('method' => sticpa_fp_val($row, 'payment_method'), 'end_date' => sticpa_fp_val($row, 'end_date'));
+        $com = array(
+            'method' => sticpa_fp_val($row, 'payment_method'),
+            'end_date' => sticpa_fp_val($row, 'end_date'),
+            'active' => sticpa_fp_val($row, 'active'),
+        );
         $pays = array();
+        $cuentas = array();
+        $clase = sticpa_fp_classify($com, array(), $hoy, $historia);
         // Solo se piden los pagos si puede ser tocable: un compromiso que no es
         // una domiciliación vigente no necesita ni mirarse.
-        if (sticpa_fp_classify($com, array(), $hoy, $historia)['estado'] === 'sin_pendientes') {
-            foreach (sticpa_commitment_payments($objSCP, $cid) as $p) {
-                $pays[] = array(
-                    'id' => sticpa_fp_val($p, 'id'),
-                    'status' => sticpa_fp_val($p, 'status'),
-                    'method' => sticpa_fp_val($p, 'payment_method'),
-                );
+        if ($clase['estado'] === 'sin_pendientes') {
+            $filas = sticpa_fp_commitment_payments($objSCP, $cid);
+            if ($filas === null) {
+                $clase = array('estado' => 'ilegible', 'pendientes' => array());
+            } else {
+                foreach ($filas as $p) {
+                    $pid = sticpa_fp_val($p, 'id');
+                    $pays[] = array(
+                        'id' => $pid,
+                        'status' => sticpa_fp_val($p, 'status'),
+                        'method' => sticpa_fp_val($p, 'payment_method'),
+                    );
+                    $cuentas[$pid] = sticpa_iban_normalize(sticpa_fp_val($p, 'bank_account'));
+                }
+                $clase = sticpa_fp_classify($com, $pays, $hoy, $historia);
             }
         }
         $out[] = array(
             'id' => $cid,
             'description' => sticpa_fp_val($row, 'description'),
             'bank_account' => sticpa_iban_normalize(sticpa_fp_val($row, 'bank_account')),
-            'class' => sticpa_fp_classify($com, $pays, $hoy, $historia),
+            'pay_accounts' => $cuentas,
+            'class' => $clase,
         );
     }
     return $out;
@@ -390,9 +497,13 @@ function sticpa_fp_append_note($description, $nota)
 /**
  * Lleva la cuenta nueva a lo que AÚN NO SE HA COBRADO.
  *
- * @return array compromisos, pagos (los actualizados), en_curso (compromisos
- *               que se dejaron como estaban por tener un pago en curso),
- *               errores, sin_respuesta.
+ * Solo se escribe lo que cambia: si el compromiso o un pago ya tienen esa
+ * cuenta, no se reescribe ni se deja una nota que no dice nada.
+ *
+ * @return array compromisos y pagos (los que se han escrito), en_curso
+ *               (compromisos que se dejaron como estaban por tener un recibo
+ *               en curso), errores (incluye los que no se pudieron leer
+ *               enteros), sin_respuesta.
  */
 function sticpa_fp_propagate($objSCP, $contactId, $iban)
 {
@@ -408,24 +519,35 @@ function sticpa_fp_propagate($objSCP, $contactId, $iban)
             $res['en_curso']++;
             continue;
         }
-        if ($estado !== 'tocable') {
-            continue;
-        }
-        // Sin enseñar ninguna cuenta entera: ni la vieja ni la nueva.
-        $nota = sprintf('[Área privada %s] Cuenta de cobro cambiada por la propia persona (de %s a %s).',
-            date('d/m/Y'), sticpa_fp_mask($c['bank_account']) ?: 'sin cuenta', sticpa_fp_mask($iban));
-        $ok = $objSCP->set_entry('stic_Payment_Commitments', array(
-            'id' => $c['id'],
-            'bank_account' => $iban,
-            'description' => sticpa_fp_append_note($c['description'], $nota),
-        ));
-        if (!$ok) {
-            // Si el compromiso no se actualiza, sus pagos tampoco: o todo o nada.
+        if ($estado === 'ilegible') {
+            // No se pudo comprobar que no haya un recibo ya remesado: no se
+            // toca, y se dice (la pantalla avisa de que falta algo).
             $res['errores']++;
             continue;
         }
-        $res['compromisos']++;
+        if ($estado !== 'tocable') {
+            continue;
+        }
+        if ($c['bank_account'] !== $iban) {
+            // Sin enseñar ninguna cuenta entera: ni la vieja ni la nueva.
+            $nota = sprintf('[Área privada %s] Cuenta de cobro cambiada por la propia persona (de %s a %s).',
+                sticpa_fp_today('d/m/Y'), sticpa_fp_mask($c['bank_account']) ?: 'sin cuenta', sticpa_fp_mask($iban));
+            $ok = $objSCP->set_entry('stic_Payment_Commitments', array(
+                'id' => $c['id'],
+                'bank_account' => $iban,
+                'description' => sticpa_fp_append_note($c['description'], $nota),
+            ));
+            if (!$ok) {
+                // Si el compromiso no se actualiza, sus pagos tampoco: o todo o nada.
+                $res['errores']++;
+                continue;
+            }
+            $res['compromisos']++;
+        }
         foreach ($c['class']['pendientes'] as $pid) {
+            if (($c['pay_accounts'][$pid] ?? '') === $iban) {
+                continue;
+            }
             if ($objSCP->set_entry('stic_Payments', array('id' => $pid, 'bank_account' => $iban))) {
                 $res['pagos']++;
             } else {
@@ -453,7 +575,7 @@ function sticpa_fp_flag_method_change($objSCP, $contactId, $etiquetaMedio)
     foreach ($scan as $c) {
         // Aquí también cuentan los que tienen un pago en curso: lo que importa
         // es que tesorería sepa que esta persona ya no quiere domiciliar.
-        if (!in_array($c['class']['estado'], array('tocable', 'en_curso'), true)) {
+        if (!in_array($c['class']['estado'], array('tocable', 'en_curso', 'ilegible'), true)) {
             continue;
         }
         // Una sola vez por medio, aunque guarde otro día: la fecha de la primera
@@ -462,7 +584,7 @@ function sticpa_fp_flag_method_change($objSCP, $contactId, $etiquetaMedio)
             continue;
         }
         $nota = sprintf('[Área privada %s] La persona ha pedido pasar a «%s». Revisar este compromiso antes de la próxima remesa.',
-            date('d/m/Y'), $etiquetaMedio);
+            sticpa_fp_today('d/m/Y'), $etiquetaMedio);
         $desc = sticpa_fp_append_note($c['description'], $nota);
         if ($objSCP->set_entry('stic_Payment_Commitments', array('id' => $c['id'], 'description' => $desc))) {
             $marcados++;
