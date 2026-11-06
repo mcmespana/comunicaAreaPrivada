@@ -86,6 +86,14 @@ por los dos lados (y lo que cuelga de sus tres primeras inscripciones y compromi
 lo de Pasar Lista. Pruebas: `tests/MiddlewareFamiliasTest.php` y, en el
 middleware, `test/mariadb-famweb.test.ts`.
 
+**Los eventos (06/11/2026).** También salen del middleware la lista de eventos de la ventana (Eventos y el calendario:
+`getRecordsModule('stic_Events', sticpa_events_window_filter(), …)`, recurso `eventosVentana`) y la ficha de un evento
+(`getRecordDetail($id, 'stic_Events', …)`, recurso `evento`). Enganche en el cliente de la API, como lo de arriba:
+`sticpa_mw_events_window()` y `sticpa_mw_record_detail()`. Son eventos de todas las delegaciones, igual que por la API: la
+audiencia la sigue poniendo el plugin. Va por la API otro filtro (los «ocultos»), el cuerpo de la web pedido en la lista,
+un campo que no está en `sticpa_mw_event_fields()` o un evento que el middleware no encuentra. El modo comparar
+(`?mw_comparar=familias`) incluye la ventana y la ficha de sus dos primeros eventos.
+
 **Cómo encaja sin tocar las pantallas.** El middleware devuelve las filas de la MISMA consulta que hace cada cargador,
 con los nombres de campo de la API; `sticpa_mw_rows()` les da la forma de `getRecordsModule()` y el cargador sigue con su
 código de siempre (ordenar, marcas, vigencia, caché). Las filas que vienen de la base llevan `->mw = true`: sus enlaces
