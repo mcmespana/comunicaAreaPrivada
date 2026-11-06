@@ -94,6 +94,14 @@ audiencia la sigue poniendo el plugin. Va por la API otro filtro (los «ocultos�
 un campo que no está en `sticpa_mw_event_fields()` o un evento que el middleware no encuentra. El modo comparar
 (`?mw_comparar=familias`) incluye la ventana y la ficha de sus dos primeros eventos.
 
+**Las fichas (06/11/2026).** `getRecordDetail()` de una inscripción, un pago o un compromiso con campos concretos
+(los de las pantallas de familias y del pago con tarjeta) va al middleware: recursos `inscripcion` (por `/plugin/v1/sensible`,
+porque lleva las necesidades especiales), `pago` y `compromiso`. Solo si es de la persona de la sesión (las mismas reglas que
+`vinculo`); si no, o si se piden todos los campos (`null`), por la API. Los campos, en `sticpa_mw_fichas()`. De paso, la
+ficha del pago ya no pide `stic_payments_stic_payment_commitments_name` ni `stic_payments_stic_registrations_name`, que nadie
+leía. Una familia sin delegación en su ficha ya puede leer lo suyo por el middleware (antes, 403 y a la API). El modo
+comparar incluye su primera inscripción, su primer pago y su primer compromiso.
+
 **Cómo encaja sin tocar las pantallas.** El middleware devuelve las filas de la MISMA consulta que hace cada cargador,
 con los nombres de campo de la API; `sticpa_mw_rows()` les da la forma de `getRecordsModule()` y el cargador sigue con su
 código de siempre (ordenar, marcas, vigencia, caché). Las filas que vienen de la base llevan `->mw = true`: sus enlaces
