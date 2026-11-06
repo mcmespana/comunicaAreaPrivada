@@ -138,6 +138,20 @@ class MiddlewareTest extends TestCase
                     $out[] = $rec;
                 }
                 return $out;
+            case 'inscripcion':
+            case 'pago':
+            case 'compromiso':
+                $mod = array('inscripcion' => 'stic_Registrations', 'pago' => 'stic_Payments', 'compromiso' => 'stic_Payment_Commitments');
+                $filas = self::planas((array) ($this->scp->detalleDeRegistro($p['id'], $mod[$recurso], $p['campos'])->entry_list ?? array()));
+                $out = array();
+                foreach ($filas as $fila) {
+                    $rec = array('id' => isset($fila['id']) ? $fila['id'] : $p['id']);
+                    foreach ($p['campos'] as $c) {
+                        $rec[$c] = isset($fila[$c]) ? $fila[$c] : '';
+                    }
+                    $out[] = $rec;
+                }
+                return $out;
             case 'eventosVentana':
             case 'evento':
                 // Los eventos de la web (src/reads/eventos-web.ts): los campos pedidos, más el id.

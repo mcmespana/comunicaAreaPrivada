@@ -1290,7 +1290,8 @@ class SugarRestApiCall
     // get record details from any module
     public function getRecordDetail($id, $moduleName, $fieldsToReturn = null)
     {
-        // La ficha de un evento, igual.
+        // Las fichas de familias (un evento, una inscripción, un pago, un
+        // compromiso), igual.
         if (function_exists('sticpa_mw_record_detail')) {
             $mw = sticpa_mw_record_detail($this, $id, $moduleName, $fieldsToReturn);
             if (is_object($mw)) {
