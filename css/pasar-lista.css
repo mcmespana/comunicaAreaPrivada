@@ -471,6 +471,15 @@ html.pl-holding body * {
     white-space: nowrap;
 }
 .pl-marca--salud { background: var(--warning-soft); color: var(--warning-dark); }
+/* «Otras patologías» (TEA, TDAH…, 07/11/2026): marca MENOR y aparte de la de
+   salud. Más pequeña y en azul de información, no de aviso, pero a la vista:
+   antes, quien solo tenía eso no llevaba ninguna. Se toca igual que la otra. */
+.pl-marca--patologias {
+    background: var(--info-light);
+    color: var(--info-dark);
+    font-size: 0.62rem;
+    padding: 0.05rem 0.4rem;
+}
 /* En Grupos y fichas la de salud SÍ se toca (16/10/2026): abre un globo con el
    detalle. Se dice con un borde y un «+» (sin icono que explicar), y el área
    táctil crece por fuera hasta los 44 px de design.md §2 sin mover la línea. */
@@ -483,6 +492,8 @@ html.pl-holding body * {
 .pl-marca--tap::before { content: "+"; margin-right: 0.2rem; font-weight: 800; }
 .pl-marca--tap::after { content: ""; position: absolute; inset: -13px -6px; }
 .pl-marca--tap[aria-expanded="true"] { background: var(--warning-100); }
+.pl-marca--patologias.pl-marca--tap { border-color: var(--info-color); }
+.pl-marca--patologias.pl-marca--tap[aria-expanded="true"] { background: var(--info-light); }
 .pl-marca--tap:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
 
 /* El globo. Una tarjeta pequeña bajo la pastilla, con cada dato y su
