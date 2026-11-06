@@ -126,6 +126,18 @@ class MiddlewareTest extends TestCase
             ));
         };
         switch ($recurso) {
+            case 'vinculo':
+                // Lo de familias (src/reads/vinculos.ts): los campos pedidos, más el id; '' lo que no haya.
+                list($m, $l) = explode(':', $p['enlace'], 2);
+                $out = array();
+                foreach (self::planas($rel($m, $p['id'], $l, $p['campos'])) as $fila) {
+                    $rec = array('id' => isset($fila['id']) ? $fila['id'] : '');
+                    foreach ($p['campos'] as $c) {
+                        $rec[$c] = isset($fila[$c]) ? $fila[$c] : '';
+                    }
+                    $out[] = $rec;
+                }
+                return $out;
             case 'groups':
                 return self::planas($this->scp->datosDeModulo('ajmcm_GRUPOS', "ajmcm_grupos.assigned_user_id = '$d'", array(
                     'id', 'name', 'code', 'level', 'cursos_c', 'ajmcm_n_participantes_c', 'ajmcm_n_monitores_c',
@@ -669,6 +681,31 @@ class MiddlewareTest extends TestCase
         $this->assertStringContainsString('<code>seguimientos</code>', $html);
         $this->assertStringNotContainsString('diferencias', strip_tags($html), $html);
         $this->assertStringNotContainsString('Se fue antes', $html);
+    }
+
+    /** Lo de familias (06/11/2026): sus inscripciones y lo que cuelga, con `?mw_comparar=familias` y nada de Pasar Lista. */
+    public function testElModoCompararIncluyeLoDeFamilias()
+    {
+        $this->encender();
+        $this->scp->evPersona = true;
+        $_SESSION['scp_user_id'] = 'c1';
+        $_GET = array('mw_comparar' => 'familias');
+        $html = sticpa_mw_comparar_html($this->scp);
+        foreach (array('vinculo inscripciones', 'vinculo pagos', 'vinculo compromisos que paga', 'vinculo evento de la inscripción evr-bus') as $caso) {
+            $this->assertStringContainsString('<code>' . $caso . '</code>', $html);
+        }
+        $this->assertStringNotContainsString('<code>groups</code>', $html);
+        $this->assertStringNotContainsString('diferencias', strip_tags($html), $html);
+        $this->assertStringNotContainsString('no ha contestado', $html);
+    }
+
+    /** Después de escribir, lo traído del middleware en la tanda no se sirve (Pagos al volver del TPV). */
+    public function testOlvidarLaMemoriaDeLaApiOlvidaTambienLaDelMiddleware()
+    {
+        $st = &sticpa_mw_state();
+        $st['memo'] = array('clave' => array('ok' => true, 'rows' => array()));
+        SugarRestApiCall::forgetMemo();
+        $this->assertSame(array(), sticpa_mw_state()['memo']);
     }
 
     /** Y con un evento de pasar lista y sus grupos de actividad. */
