@@ -80,7 +80,10 @@ compromiso que paga o del que es destinataria); lo demás es 403 y el plugin lo 
 
 Va sin delegación de trabajo (es de la persona): sirve a familias que no son de ningún equipo. Una diferencia buscada: el
 id del compromiso de un pago (`stic_paymebfe2itments_ida`), que por la API llega vacío, aquí llega puesto; el plugin ya
-lo rellenaba él preguntando por la relación, así que da lo mismo. Pruebas: `tests/MiddlewareFamiliasTest.php` y, en el
+lo rellenaba él preguntando por la relación, así que da lo mismo (el modo comparar no lo mira). Para comprobarlo con datos
+reales: **`?mw_comparar=familias`** en cualquier pantalla, entrando como una familia, compara cada uno de estos enlaces
+por los dos lados (y lo que cuelga de sus tres primeras inscripciones y compromisos); `?mw_comparar=1` lo incluye junto a
+lo de Pasar Lista. Pruebas: `tests/MiddlewareFamiliasTest.php` y, en el
 middleware, `test/mariadb-famweb.test.ts`.
 
 **Cómo encaja sin tocar las pantallas.** El middleware devuelve las filas de la MISMA consulta que hace cada cargador,

@@ -497,6 +497,11 @@ class SugarRestApiCall
     public static function forgetMemo()
     {
         self::$memo = array();
+        // Y lo traído del middleware en la misma tanda: después de escribir es
+        // igual de viejo (Pagos, al volver del TPV, releía los pagos de antes).
+        if (function_exists('sticpa_mw_forget')) {
+            sticpa_mw_forget();
+        }
     }
 
     /** ¿El último getRecordsModule()/get_relationships por páginas llegó entero? */
