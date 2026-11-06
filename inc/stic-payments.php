@@ -341,8 +341,8 @@ function sticpa_payment_detail_fields()
         'c19_rejected_reason',
         'gateway_rejection_reason',
         'in_kind_description',
-        'stic_payments_stic_payment_commitments_name',
-        'stic_payments_stic_registrations_name',
+        // Fuera (06/11/2026) `stic_payments_stic_payment_commitments_name` y
+        // `stic_payments_stic_registrations_name`: se pedían y nadie los leía.
     ));
 }
 

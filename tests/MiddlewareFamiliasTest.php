@@ -60,8 +60,9 @@ class MiddlewareFamiliasTest extends TestCase
 
     public function servir($url, $raw)
     {
-        $this->assertSame('https://mw.test/plugin/v1/lote', $url);
+        $this->assertContains($url, array('https://mw.test/plugin/v1/lote', 'https://mw.test/plugin/v1/sensible'));
         $body = json_decode($raw, true);
+        $body['_ruta'] = substr($url, strlen('https://mw.test'));
         $this->peticiones[] = $body;
         if ($this->caido) {
             return array('status' => 0, 'body' => '', 'error' => 'Operation timed out');
@@ -73,6 +74,10 @@ class MiddlewareFamiliasTest extends TestCase
                     array('id' => 'ev-1', 'name' => 'Convivencia', 'start_date' => '2026-12-05'),
                     array('id' => 'ev-2', 'name' => 'Foro', 'start_date' => '2026-12-12'),
                 ));
+                continue;
+            }
+            if (in_array($p['recurso'], array('inscripcion', 'pago', 'compromiso'), true)) {
+                $out[$p['clave']] = array('ok' => true, 'ms' => 1, 'rows' => array(array('id' => $p['params']['id'], 'name' => 'Ficha ' . $p['recurso'])));
                 continue;
             }
             if ($p['recurso'] === 'evento') {
@@ -226,6 +231,24 @@ class MiddlewareFamiliasTest extends TestCase
         $this->assertNull(sticpa_mw_record_detail($crm, 'ev-1', 'stic_Events', null));
     }
 
+    public function testLasFichasDeFamiliasSalenDelMiddlewareYLaInscripcionPorSuRuta()
+    {
+        $crm = new CrmDeFamilias();
+        foreach (array('stic_Registrations' => 'inscripcion', 'stic_Payments' => 'pago', 'stic_Payment_Commitments' => 'compromiso') as $module => $recurso) {
+            $this->peticiones = array();
+            $res = $crm->getRecordDetail('x-1', $module, array('id', 'name'));
+            $this->assertSame('Ficha ' . $recurso, $res->entry_list[0]->name_value_list->name->value, $module);
+            $this->assertSame($module, $res->entry_list[0]->module_name);
+            $this->assertSame($recurso, $this->peticiones[0]['peticiones'][0]['recurso']);
+            // La inscripción lleva las necesidades especiales: por la ruta de lo sensible.
+            $this->assertSame($recurso === 'inscripcion' ? '/plugin/v1/sensible' : '/plugin/v1/lote', $this->peticiones[0]['_ruta'], $module);
+        }
+        $this->assertSame(0, $crm->llamadas);
+        // Un campo que no sabe dar, o todos los campos (null): por la API.
+        $this->assertNull(sticpa_mw_record_detail($crm, 'x-1', 'stic_Payments', array('id', 'stic_payments_stic_registrations_name')));
+        $this->assertNull(sticpa_mw_record_detail($crm, 'x-1', 'stic_Registrations', null));
+    }
+
     public function testLosCamposQueSabeDarSonLosDelMiddleware()
     {
         require_once __DIR__ . '/../inc/stic-registrations.php';
@@ -255,5 +278,12 @@ class MiddlewareFamiliasTest extends TestCase
         require_once __DIR__ . '/../inc/stic-event-web.php';
         $this->assertSame(array(), array_diff(array_merge(sticpa_event_base_fields(), sticpa_event_wanted_fields()), sticpa_mw_event_fields(false)));
         $this->assertSame(array(), array_diff(sticpa_event_web_fields(), sticpa_mw_event_fields(true)));
+        // Y los de las fichas que piden las pantallas.
+        require_once __DIR__ . '/../inc/stic-pay-card.php';
+        $f = sticpa_mw_fichas();
+        $this->assertSame(array(), array_diff(array_merge(sticpa_registration_detail_fields(), sticpa_event_question_answer_fields()), $f['stic_Registrations']['campos']));
+        $this->assertSame(array(), array_diff(sticpa_payment_detail_fields(), $f['stic_Payments']['campos']));
+        $this->assertSame(array(), array_diff(sticpa_pay_fields(), $f['stic_Payments']['campos']));
+        $this->assertSame(array(), array_diff(sticpa_commitment_detail_fields(), $f['stic_Payment_Commitments']['campos']));
     }
 }

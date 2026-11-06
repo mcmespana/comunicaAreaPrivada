@@ -46,7 +46,7 @@ function sticpa_mw_recursos()
         'ficha', 'familyRels', 'familyContacts', 'avisos', 'registrationAttendances', 'personEvents',
         'monitorFicha', 'seguimientos',
         'evInscripciones', 'evPersonas', 'evRelaciones', 'gacGrupos', 'gacMiembros',
-        'vinculo', 'eventosVentana', 'evento',
+        'vinculo', 'eventosVentana', 'evento', 'inscripcion', 'pago', 'compromiso',
     );
 }
 
@@ -57,7 +57,7 @@ function sticpa_mw_recursos()
  */
 function sticpa_mw_personales()
 {
-    return array('vinculo', 'eventosVentana', 'evento');
+    return array('vinculo', 'eventosVentana', 'evento', 'inscripcion', 'pago', 'compromiso');
 }
 
 /**
@@ -191,21 +191,57 @@ function sticpa_mw_events_window($objSCP, $module, $query, $fields, $relationshi
 }
 
 /**
- * `getRecordDetail($id, 'stic_Events', …)` por el middleware, con la forma de
+ * LAS FICHAS (06/11/2026): qué módulos de `getRecordDetail()` sabe contestar el
+ * middleware, con qué recurso y qué campos (copia de las listas de
+ * comunicaMiddleware:src/reads/eventos-web.ts y fichas-web.ts). Una inscripción,
+ * un pago o un compromiso, solo si es de la persona de la sesión: si no, el
+ * middleware dice 403 y se lee por la API.
+ */
+function sticpa_mw_fichas()
+{
+    return array(
+        'stic_Events' => array('recurso' => 'evento', 'campos' => sticpa_mw_event_fields(true)),
+        'stic_Registrations' => array('recurso' => 'inscripcion', 'campos' => array(
+            'id', 'name', 'status', 'registration_date', 'participation_type', 'date_entered', 'attendees', 'attendance_percentage', 'attended_hours',
+            'special_needs', 'special_needs_description', 'stic_registrations_stic_events_name', 'stic_registrations_stic_eventsstic_events_ida',
+            'ajmcm_clase_c', 'ajmcm_curso_escolar_c', 'ajmcm_registration_amount_c', 'ajmcm_convivencia_c', 'ajmcm_convivencia_fecha_c',
+            'ajmcm_convivencia_precio_c', 'ajmcm_tutor1_firstname_c', 'ajmcm_tutor1_lastname_c', 'ajmcm_tutor1_relationship_c', 'ajmcm_tutor1_phone_c',
+            'ajmcm_tutor1_email_c', 'ajmcm_tutor2_firstname_c', 'ajmcm_tutor2_lastname_c', 'ajmcm_tutor2_relationship_c', 'ajmcm_tutor2_phone_c',
+            'ajmcm_tutor2_email_c', 'ajmcm_respuesta_1_c', 'ajmcm_respuesta_2_c',
+        )),
+        'stic_Payments' => array('recurso' => 'pago', 'campos' => array(
+            'id', 'name', 'amount', 'payment_date', 'status', 'payment_type', 'payment_method', 'banking_concept', 'bank_account', 'transaction_code',
+            'rejection_date', 'sepa_rejected_reason', 'c19_rejected_reason', 'gateway_rejection_reason', 'in_kind_description', 'assigned_user_id',
+            'date_entered', 'stic_paymebfe2itments_ida',
+        )),
+        'stic_Payment_Commitments' => array('recurso' => 'compromiso', 'campos' => array(
+            'id', 'name', 'description', 'amount', 'periodicity', 'payment_method', 'payment_type', 'channel', 'banking_concept', 'first_payment_date',
+            'end_date', 'active', 'bank_account', 'signature_date', 'annualized_fee', 'paid_annualized_fee', 'pending_annualized_fee', 'card_expiry_date',
+            'in_kind_donation', 'destination', 'assigned_user_id', 'date_entered',
+            'stic_payment_commitments_contacts_name', 'stic_payment_commitments_contactscontacts_ida',
+        )),
+    );
+}
+
+/**
+ * `getRecordDetail($id, módulo, campos)` por el middleware, con la forma de
  * `get_entry` (`->entry_list[0]->name_value_list`), o null para que siga por la
- * API. Un evento que no está (o borrado) también va por la API, que dirá lo suyo.
+ * API. Sin campos (todos), otro módulo, o algo que el middleware no da (no es
+ * suyo, no existe): por la API, que dirá lo suyo.
  */
 function sticpa_mw_record_detail($objSCP, $id, $module, $fields)
 {
     $id = (string) $id;
-    if ((string) $module !== 'stic_Events' || !preg_match('/^[A-Za-z0-9-]{1,36}$/', $id) || !sticpa_mw_configured()) {
+    $fichas = sticpa_mw_fichas();
+    if (!isset($fichas[(string) $module]) || !preg_match('/^[A-Za-z0-9-]{1,36}$/', $id) || !sticpa_mw_configured()) {
         return null;
     }
-    $campos = sticpa_mw_campos_validos($fields, sticpa_mw_event_fields(true));
+    $ficha = $fichas[(string) $module];
+    $campos = sticpa_mw_campos_validos($fields, $ficha['campos']);
     if ($campos === null) {
         return null;
     }
-    $rows = sticpa_mw_rows($objSCP, 'evento', array('id' => $id, 'campos' => $campos));
+    $rows = sticpa_mw_rows($objSCP, $ficha['recurso'], array('id' => $id, 'campos' => $campos));
     // En la recolecta de una tanda sale vacío a propósito: se devuelve algo con
     // la forma de siempre para que no se pida también a la API.
     if (is_array($rows) && empty($rows) && function_exists('sticpa_pl_collecting') && sticpa_pl_collecting()) {
@@ -215,7 +251,7 @@ function sticpa_mw_record_detail($objSCP, $id, $module, $fields)
         return null;
     }
     $row = $rows[0];
-    $row->module_name = 'stic_Events';
+    $row->module_name = (string) $module;
     return (object) array('entry_list' => array($row), 'relationship_list' => array());
 }
 
@@ -226,7 +262,7 @@ function sticpa_mw_record_detail($objSCP, $id, $module, $fields)
  */
 function sticpa_mw_sensibles()
 {
-    return array('ficha', 'monitorFicha');
+    return array('ficha', 'monitorFicha', 'inscripcion');
 }
 
 /** La ruta del middleware por la que va un recurso. */
@@ -845,6 +881,39 @@ function sticpa_mw_comparar_familias($objSCP)
                 }
                 return $plano(isset($res->entry_list) ? $res->entry_list : array(), $ficha);
             };
+        }
+    }
+    // Las fichas: la de su primera inscripción, su primer pago y su primer compromiso, con los campos de cada pantalla.
+    $detalle = function ($module, $id, $fields) use ($objSCP) {
+        return function () use ($objSCP, $module, $id, $fields) {
+            $res = sticpa_mw_record_detail($objSCP, $id, $module, $fields);
+            if (!is_object($res)) {
+                $res = $objSCP->getRecordDetail($id, $module, $fields);
+            }
+            $nvl = isset($res->entry_list[0]->name_value_list) ? $res->entry_list[0]->name_value_list : new stdClass();
+            $fila = array();
+            foreach ($fields as $f) {
+                $fila[$f] = isset($nvl->$f->value) && is_scalar($nvl->$f->value) ? (string) $nvl->$f->value : '';
+            }
+            return $fila;
+        };
+    };
+    $primera = function ($ids) {
+        return isset($ids[0]) ? $ids[0] : '';
+    };
+    $fichas = array(
+        'inscripcion' => array('stic_Registrations', $primera($ids('Contacts:stic_registrations_contacts')),
+            function_exists('sticpa_registration_detail_fields') ? sticpa_registration_detail_fields() : array('id', 'name', 'status')),
+        'pago' => array('stic_Payments', $primera($ids('Contacts:stic_payments_contacts')),
+            function_exists('sticpa_payment_detail_fields') ? sticpa_payment_detail_fields() : array('id', 'name', 'amount')),
+        'compromiso' => array('stic_Payment_Commitments', $primera($pcs),
+            function_exists('sticpa_commitment_detail_fields') ? sticpa_commitment_detail_fields() : array('id', 'name', 'amount')),
+    );
+    foreach ($fichas as $recurso => $f) {
+        if ($f[1] !== '') {
+            // Menos el id del compromiso de un pago, que por la API llega vacío a propósito.
+            $campos = array_values(array_diff($f[2], array('stic_paymebfe2itments_ida')));
+            $casos[$recurso . ' ' . $f[1]] = $detalle($f[0], $f[1], $campos);
         }
     }
     foreach ($ids('Contacts:stic_registrations_contacts') as $reg) {
