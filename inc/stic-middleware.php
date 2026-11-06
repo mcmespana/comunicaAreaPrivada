@@ -659,10 +659,96 @@ function sticpa_mw_diff($a, $b, $path, &$out, $max = 40)
 }
 
 /** Lee lo mismo por los dos lados, sin caché, y enseña lo que no coincide. */
+/**
+ * LO DE FAMILIAS en el modo comparar: cada enlace de `sticpa_mw_vinculos()` de
+ * la persona de la sesión, con todos los campos que sabe dar el middleware, y lo
+ * que cuelga de sus tres primeras inscripciones y compromisos. Menos el id del
+ * compromiso de un pago, que por la API llega vacío a propósito (ver arriba).
+ *
+ * @return array nombre => función que lee (y deja la lectura en filas planas).
+ */
+function sticpa_mw_comparar_familias($objSCP)
+{
+    $persona = sticpa_mw_persona();
+    $vinculos = sticpa_mw_vinculos();
+    $params = function ($enlace, $id) use ($vinculos) {
+        list($module, $link) = explode(':', $enlace, 2);
+        return array(
+            'module_name' => $module, 'module_id' => $id, 'link_field_name' => $link,
+            'related_fields' => array_values(array_diff($vinculos[$enlace], array('stic_paymebfe2itments_ida'))),
+            'related_module_link_name_to_fields_array' => array(),
+            'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
+        );
+    };
+    // Por el middleware si se puede (sticpa_mw_related); si no, por la API. En
+    // el lado «api» del comparador el middleware no se intenta.
+    $leer = function ($p) use ($objSCP) {
+        $rows = sticpa_mw_related($objSCP, $p);
+        if (!is_array($rows)) {
+            $rows = $objSCP->getRelatedElementsForLoggedUser($p);
+        }
+        $out = array();
+        foreach ((array) $rows as $r) {
+            $nvl = isset($r->name_value_list) ? $r->name_value_list : new stdClass();
+            $fila = array('id' => (string) (isset($r->id) && $r->id !== '' ? $r->id : (isset($nvl->id->value) ? $nvl->id->value : '')));
+            foreach ($p['related_fields'] as $f) {
+                $fila[$f] = isset($nvl->$f->value) && is_scalar($nvl->$f->value) ? (string) $nvl->$f->value : '';
+            }
+            $out[] = $fila;
+        }
+        return $out;
+    };
+    $casos = array();
+    $nombres = array(
+        'Contacts:stic_registrations_contacts' => 'inscripciones',
+        'Contacts:stic_payment_commitments_contacts' => 'compromisos que paga',
+        'Contacts:stic_payment_commitments_contacts_1' => 'compromisos de los que es destinataria',
+        'Contacts:stic_payments_contacts' => 'pagos',
+    );
+    foreach ($nombres as $enlace => $nombre) {
+        $p = $params($enlace, $persona);
+        $casos['vinculo ' . $nombre] = function () use ($leer, $p) { return $leer($p); };
+    }
+    // Lo que cuelga: ids sacados por la API (lo que ya hay hoy).
+    $ids = function ($enlace) use ($leer, $params, $persona) {
+        $filas = sticpa_mw_sin_cache(function () use ($leer, $params, $enlace, $persona) {
+            return $leer($params($enlace, $persona));
+        }, 'api');
+        return array_slice(array_values(array_filter(array_unique(array_column((array) $filas, 'id')))), 0, 3);
+    };
+    $pcs = array_slice(array_unique(array_merge(
+        $ids('Contacts:stic_payment_commitments_contacts'),
+        $ids('Contacts:stic_payment_commitments_contacts_1')
+    )), 0, 3);
+    foreach ($pcs as $pc) {
+        foreach (array(
+            'stic_Payment_Commitments:stic_payments_stic_payment_commitments' => 'pagos del compromiso ',
+            'stic_Payment_Commitments:stic_payment_commitments_stic_registrations' => 'inscripción del compromiso ',
+        ) as $enlace => $nombre) {
+            $p = $params($enlace, $pc);
+            $casos['vinculo ' . $nombre . $pc] = function () use ($leer, $p) { return $leer($p); };
+        }
+    }
+    foreach ($ids('Contacts:stic_registrations_contacts') as $reg) {
+        foreach (array(
+            'stic_Registrations:stic_registrations_stic_events' => 'evento de la inscripción ',
+            'stic_Registrations:stic_payment_commitments_stic_registrations' => 'compromisos de la inscripción ',
+        ) as $enlace => $nombre) {
+            $p = $params($enlace, $reg);
+            $casos['vinculo ' . $nombre . $reg] = function () use ($leer, $p) { return $leer($p); };
+        }
+    }
+    return $casos;
+}
+
 function sticpa_mw_comparar_html($objSCP)
 {
     $userId = sticpa_mw_persona();
-    $casos = array(
+    // `?mw_comparar=familias`: solo lo de familias (sin las lecturas de Pasar
+    // Lista, que a una familia no le tocan y salen como «no ha contestado»).
+    $soloFamilias = isset($_GET['mw_comparar']) && (string) $_GET['mw_comparar'] === 'familias';
+    $familias = sticpa_mw_comparar_familias($objSCP);
+    $casos = $soloFamilias ? array() : array(
         'groups' => function () use ($objSCP) { return sticpa_pl_groups($objSCP); },
         'relations' => function () use ($objSCP) { return sticpa_pl_all_relationships_raw($objSCP); },
         // Solo los campos: la API trae además sus bloques de enlaces, que el plugin no lee.
@@ -688,89 +774,92 @@ function sticpa_mw_comparar_html($objSCP)
         'events' => function () use ($objSCP) { return sticpa_pl_events_raw($objSCP); },
         'listas' => function () use ($objSCP) { return sticpa_pl_listas_index($objSCP); },
     );
-    // Lo de los eventos de las etapas: sesiones, inscripciones y asistencias de las últimas.
-    $events = sticpa_mw_sin_cache(function () use ($objSCP) { return sticpa_pl_etapa_events($objSCP); }, 'api');
-    foreach (array_unique(array_column((array) $events, 'id')) as $evId) {
-        $sesiones = sticpa_mw_sin_cache(function () use ($objSCP, $evId) { return sticpa_pl_event_sessions($objSCP, $evId); }, 'api');
-        $regMap = sticpa_mw_sin_cache(function () use ($objSCP, $evId) { return sticpa_pl_event_registrations($objSCP, $evId); }, 'api');
-        $ultimas = array_slice(sticpa_pl_elapsed_sessions($sesiones), -3);
-        $casos['eventSessions ' . $evId] = function () use ($objSCP, $evId) { return sticpa_pl_event_sessions($objSCP, $evId); };
-        $casos['eventRegistrations ' . $evId] = function () use ($objSCP, $evId) { return sticpa_pl_event_registrations($objSCP, $evId); };
-        if (!empty($ultimas)) {
-            $ultima = end($ultimas);
-            $casos['sessionAttendances ' . $ultima['id']] = function () use ($objSCP, $ultima, $regMap) {
-                return sticpa_pl_session_attendances($objSCP, $ultima['id'], $regMap);
-            };
-            $casos['attendancesForSessions ' . $evId] = function () use ($objSCP, $ultimas, $regMap) {
-                return sticpa_pl_attendances_for_sessions($objSCP, $ultimas, $regMap);
-            };
-        }
-    }
-
-    // La ficha de una persona (paso 1c), si la pantalla es la de una: `?participante=`. Estas cachés se leen sin mirar
-    // el TTL, así que se borran antes de cada lado.
-    $persona = isset($_GET['participante']) ? sticpa_pl_safe_id($_GET['participante']) : '';
-    if ($persona !== '' && sticpa_pl_persona_de_mi_delegacion($objSCP, $persona)) {
-        $limpia = function ($que) use ($objSCP, $persona) {
-            if (function_exists('delete_transient')) {
-                delete_transient(sticpa_pl_cache_key($que, $objSCP, $persona));
-            }
-        };
-        $casos['ficha'] = function () use ($objSCP, $persona, $limpia) {
-            $limpia('ficha');
-            return sticpa_pl_ficha($objSCP, $persona);
-        };
-        $casos['familyRels'] = function () use ($objSCP, $persona, $limpia) {
-            $limpia('familia2');
-            return sticpa_pl_family($objSCP, $persona);
-        };
-        $casos['avisos'] = function () use ($objSCP, $persona) { return sticpa_pl_avisos($objSCP, $persona); };
-        $casos['personEvents'] = function () use ($objSCP, $persona, $limpia) {
-            $limpia('evpers');
-            return sticpa_pl_ev_de_persona($objSCP, $persona);
-        };
+    if (!$soloFamilias) {
+        // Lo de los eventos de las etapas: sesiones, inscripciones y asistencias de las últimas.
+        $events = sticpa_mw_sin_cache(function () use ($objSCP) { return sticpa_pl_etapa_events($objSCP); }, 'api');
         foreach (array_unique(array_column((array) $events, 'id')) as $evId) {
+            $sesiones = sticpa_mw_sin_cache(function () use ($objSCP, $evId) { return sticpa_pl_event_sessions($objSCP, $evId); }, 'api');
             $regMap = sticpa_mw_sin_cache(function () use ($objSCP, $evId) { return sticpa_pl_event_registrations($objSCP, $evId); }, 'api');
-            $regId = array_search($persona, (array) $regMap, true);
-            if ($regId !== false) {
-                $casos['registrationAttendances ' . $regId] = function () use ($objSCP, $regId) {
-                    return sticpa_pl_contact_attendance($objSCP, $regId);
+            $ultimas = array_slice(sticpa_pl_elapsed_sessions($sesiones), -3);
+            $casos['eventSessions ' . $evId] = function () use ($objSCP, $evId) { return sticpa_pl_event_sessions($objSCP, $evId); };
+            $casos['eventRegistrations ' . $evId] = function () use ($objSCP, $evId) { return sticpa_pl_event_registrations($objSCP, $evId); };
+            if (!empty($ultimas)) {
+                $ultima = end($ultimas);
+                $casos['sessionAttendances ' . $ultima['id']] = function () use ($objSCP, $ultima, $regMap) {
+                    return sticpa_pl_session_attendances($objSCP, $ultima['id'], $regMap);
+                };
+                $casos['attendancesForSessions ' . $evId] = function () use ($objSCP, $ultimas, $regMap) {
+                    return sticpa_pl_attendances_for_sessions($objSCP, $ultimas, $regMap);
                 };
             }
         }
-    }
 
-    // La ficha de un monitor (paso 1d), en su pantalla: `?monitor=`. Los seguimientos, con los papeles de quien mira.
-    $monitor = isset($_GET['monitor']) ? sticpa_pl_safe_id($_GET['monitor']) : '';
-    if ($monitor !== '') {
-        $casos['monitorFicha'] = function () use ($objSCP, $monitor) { return sticpa_pl_monitor_ficha($objSCP, $monitor); };
-        $segRoles = sticpa_pl_seg_roles(sticpa_pl_coord_scope($objSCP) !== null, sticpa_pl_is_acompanante($objSCP));
-        if (!empty($segRoles)) {
-            $casos['seguimientos'] = function () use ($objSCP, $monitor, $segRoles) {
-                return sticpa_pl_seguimientos($objSCP, $monitor, $segRoles);
+        // La ficha de una persona (paso 1c), si la pantalla es la de una: `?participante=`. Estas cachés se leen sin mirar
+        // el TTL, así que se borran antes de cada lado.
+        $persona = isset($_GET['participante']) ? sticpa_pl_safe_id($_GET['participante']) : '';
+        if ($persona !== '' && sticpa_pl_persona_de_mi_delegacion($objSCP, $persona)) {
+            $limpia = function ($que) use ($objSCP, $persona) {
+                if (function_exists('delete_transient')) {
+                    delete_transient(sticpa_pl_cache_key($que, $objSCP, $persona));
+                }
             };
+            $casos['ficha'] = function () use ($objSCP, $persona, $limpia) {
+                $limpia('ficha');
+                return sticpa_pl_ficha($objSCP, $persona);
+            };
+            $casos['familyRels'] = function () use ($objSCP, $persona, $limpia) {
+                $limpia('familia2');
+                return sticpa_pl_family($objSCP, $persona);
+            };
+            $casos['avisos'] = function () use ($objSCP, $persona) { return sticpa_pl_avisos($objSCP, $persona); };
+            $casos['personEvents'] = function () use ($objSCP, $persona, $limpia) {
+                $limpia('evpers');
+                return sticpa_pl_ev_de_persona($objSCP, $persona);
+            };
+            foreach (array_unique(array_column((array) $events, 'id')) as $evId) {
+                $regMap = sticpa_mw_sin_cache(function () use ($objSCP, $evId) { return sticpa_pl_event_registrations($objSCP, $evId); }, 'api');
+                $regId = array_search($persona, (array) $regMap, true);
+                if ($regId !== false) {
+                    $casos['registrationAttendances ' . $regId] = function () use ($objSCP, $regId) {
+                        return sticpa_pl_contact_attendance($objSCP, $regId);
+                    };
+                }
+            }
+        }
+
+        // La ficha de un monitor (paso 1d), en su pantalla: `?monitor=`. Los seguimientos, con los papeles de quien mira.
+        $monitor = isset($_GET['monitor']) ? sticpa_pl_safe_id($_GET['monitor']) : '';
+        if ($monitor !== '') {
+            $casos['monitorFicha'] = function () use ($objSCP, $monitor) { return sticpa_pl_monitor_ficha($objSCP, $monitor); };
+            $segRoles = sticpa_pl_seg_roles(sticpa_pl_coord_scope($objSCP) !== null, sticpa_pl_is_acompanante($objSCP));
+            if (!empty($segRoles)) {
+                $casos['seguimientos'] = function () use ($objSCP, $monitor, $segRoles) {
+                    return sticpa_pl_seguimientos($objSCP, $monitor, $segRoles);
+                };
+            }
+        }
+
+        // Un evento de pasar lista (paso 1e), en su pantalla: `?evento=`. Solo si es de los que se ofrecen (de la delegación).
+        $evento = isset($_GET['evento']) ? sticpa_pl_safe_id($_GET['evento']) : '';
+        if ($evento !== '' && function_exists('sticpa_pl_ev_evento') && sticpa_pl_ev_evento($objSCP, $evento) !== null) {
+            $casos['evInscripciones'] = function () use ($objSCP, $evento) { return sticpa_pl_ev_inscripciones($objSCP, $evento); };
+            $inscritos = function () use ($objSCP, $evento) {
+                return array_values(array_filter(array_column(sticpa_pl_ev_inscripciones($objSCP, $evento), 'contact_id')));
+            };
+            $casos['evPersonas'] = function () use ($objSCP, $evento, $inscritos) {
+                return sticpa_pl_ev_personas($objSCP, $inscritos(), $evento);
+            };
+            // La lista armada: curso y «es del equipo» salen de las relaciones de cada inscrito (evRelaciones).
+            $casos['evRelaciones'] = function () use ($objSCP, $evento, $inscritos) {
+                $ins = sticpa_pl_ev_inscripciones($objSCP, $evento);
+                $lista = sticpa_pl_ev_lista_completa($objSCP, $ins, sticpa_pl_ev_personas($objSCP, $inscritos(), $evento), $evento);
+                return array('activos' => $lista['activos'], 'cursos' => $lista['cursos']);
+            };
+            $casos['gacGrupos'] = function () use ($objSCP, $evento) { return sticpa_gac_grupos($objSCP, $evento); };
+            $casos['gacMiembros'] = function () use ($objSCP, $evento) { return sticpa_gac_miembros($objSCP, $evento); };
         }
     }
-
-    // Un evento de pasar lista (paso 1e), en su pantalla: `?evento=`. Solo si es de los que se ofrecen (de la delegación).
-    $evento = isset($_GET['evento']) ? sticpa_pl_safe_id($_GET['evento']) : '';
-    if ($evento !== '' && function_exists('sticpa_pl_ev_evento') && sticpa_pl_ev_evento($objSCP, $evento) !== null) {
-        $casos['evInscripciones'] = function () use ($objSCP, $evento) { return sticpa_pl_ev_inscripciones($objSCP, $evento); };
-        $inscritos = function () use ($objSCP, $evento) {
-            return array_values(array_filter(array_column(sticpa_pl_ev_inscripciones($objSCP, $evento), 'contact_id')));
-        };
-        $casos['evPersonas'] = function () use ($objSCP, $evento, $inscritos) {
-            return sticpa_pl_ev_personas($objSCP, $inscritos(), $evento);
-        };
-        // La lista armada: curso y «es del equipo» salen de las relaciones de cada inscrito (evRelaciones).
-        $casos['evRelaciones'] = function () use ($objSCP, $evento, $inscritos) {
-            $ins = sticpa_pl_ev_inscripciones($objSCP, $evento);
-            $lista = sticpa_pl_ev_lista_completa($objSCP, $ins, sticpa_pl_ev_personas($objSCP, $inscritos(), $evento), $evento);
-            return array('activos' => $lista['activos'], 'cursos' => $lista['cursos']);
-        };
-        $casos['gacGrupos'] = function () use ($objSCP, $evento) { return sticpa_gac_grupos($objSCP, $evento); };
-        $casos['gacMiembros'] = function () use ($objSCP, $evento) { return sticpa_gac_miembros($objSCP, $evento); };
-    }
+    $casos = array_merge($familias, $casos);
 
     $html = '<details class="pl-hint" open><summary>' . esc_html__('Comparar API y middleware (SQL)', 'sticpa') . '</summary>';
     $html .= '<p>' . esc_html__('La misma lectura por los dos lados, sin caché. Solo ids y la forma de los valores (9 = dígito, a = letra).', 'sticpa') . '</p><ul>';
