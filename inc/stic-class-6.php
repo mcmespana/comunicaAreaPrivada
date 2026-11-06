@@ -1290,6 +1290,13 @@ class SugarRestApiCall
     // get record details from any module
     public function getRecordDetail($id, $moduleName, $fieldsToReturn = null)
     {
+        // La ficha de un evento, igual.
+        if (function_exists('sticpa_mw_record_detail')) {
+            $mw = sticpa_mw_record_detail($this, $id, $moduleName, $fieldsToReturn);
+            if (is_object($mw)) {
+                return $mw;
+            }
+        }
         $getEntry = array(
             'session' => $this->session_id,
             'module_name' => $moduleName,
@@ -1333,6 +1340,14 @@ class SugarRestApiCall
      */
     public function getRecordsModule($moduleName, $query = '', $fieldsToReturn = array('id', 'name'), $relationshipFields = null)
     {
+        // Los eventos de la ventana (Eventos, el calendario) salen del middleware
+        // cuando está encendido; si no contesta, siguen por la API.
+        if (function_exists('sticpa_mw_events_window')) {
+            $mw = sticpa_mw_events_window($this, $moduleName, $query, $fieldsToReturn, $relationshipFields);
+            if (is_array($mw)) {
+                return $mw;
+            }
+        }
         $pagina = self::intSetting('sticpa_crm_page_size', 200);
         $techo = self::intSetting('sticpa_crm_max_rows', 5000);
         if ($pagina < 1) {

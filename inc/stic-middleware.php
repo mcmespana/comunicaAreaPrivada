@@ -46,7 +46,7 @@ function sticpa_mw_recursos()
         'ficha', 'familyRels', 'familyContacts', 'avisos', 'registrationAttendances', 'personEvents',
         'monitorFicha', 'seguimientos',
         'evInscripciones', 'evPersonas', 'evRelaciones', 'gacGrupos', 'gacMiembros',
-        'vinculo',
+        'vinculo', 'eventosVentana', 'evento',
     );
 }
 
@@ -57,7 +57,7 @@ function sticpa_mw_recursos()
  */
 function sticpa_mw_personales()
 {
-    return array('vinculo');
+    return array('vinculo', 'eventosVentana', 'evento');
 }
 
 /**
@@ -131,6 +131,92 @@ function sticpa_mw_related($objSCP, $params)
     }
     $limit = (int) ($params['limit'] ?? 0);
     return $limit > 0 ? array_slice($rows, 0, $limit) : $rows;
+}
+
+/**
+ * LOS EVENTOS (06/11/2026): los campos de `stic_Events` que sabe dar el
+ * middleware (copia de `EVENT_WEB_FIELDS` en
+ * comunicaMiddleware:src/reads/eventos-web.ts). El cuerpo de la web, solo en
+ * la ficha. Si se pide uno que no esté aquí, se lee por la API.
+ */
+function sticpa_mw_event_fields($conCuerpo = true)
+{
+    $campos = array(
+        'id', 'name', 'status', 'type', 'start_date', 'end_date', 'description', 'assigned_user_id', 'timetable', 'max_attendees', 'price',
+        'ajmcm_start_inscripcion_c', 'ajmcm_end_inscripcion_c', 'ajmcm_etapa_c', 'ajmcm_filtro_edades_c', 'ajmcm_ambito_c', 'ajmcm_lugar_c',
+        'ajmcm_direccion_c', 'ajmcm_mapa_c', 'ajmcm_dirigido_a_c', 'web_publicar_c', 'web_url_c', 'web_cartel_c', 'web_lema_c', 'web_slug_c',
+        'ajmcm_fwa_url_c', 'ajmcm_pregunta_1_c', 'ajmcm_pregunta_2_c', 'ajmcm_ocultar_area_c', 'ajmcm_modo_respuesta_c',
+    );
+    if ($conCuerpo) {
+        $campos[] = 'web_cuerpo_html_c';
+    }
+    return $campos;
+}
+
+/** Los campos pedidos, si todos se saben dar; si no, null. */
+function sticpa_mw_campos_validos($fields, $permitidos)
+{
+    if (!is_array($fields)) {
+        return null;
+    }
+    $campos = array_values(array_unique(array_map('strval', $fields)));
+    if (empty($campos) || count($campos) > 60 || array_diff($campos, $permitidos)) {
+        return null;
+    }
+    return $campos;
+}
+
+/**
+ * `getRecordsModule('stic_Events', sticpa_events_window_filter(), …)` por el
+ * middleware: los eventos de la ventana con la forma de la API, o null para
+ * que siga por la API. Solo con el filtro de la ventana tal cual, sin enlaces.
+ */
+function sticpa_mw_events_window($objSCP, $module, $query, $fields, $relationshipFields = null)
+{
+    if ((string) $module !== 'stic_Events' || !empty($relationshipFields) || !sticpa_mw_configured()
+        || !function_exists('sticpa_events_window_filter') || (string) $query !== sticpa_events_window_filter()) {
+        return null;
+    }
+    $campos = sticpa_mw_campos_validos($fields, sticpa_mw_event_fields(false));
+    if ($campos === null) {
+        return null;
+    }
+    // Los mismos meses que el filtro (sticpa_events_window_filter()).
+    $atras = (int) apply_filters('sticpa_events_window_months_back', 14);
+    $adelante = (int) apply_filters('sticpa_events_window_months_ahead', 12);
+    if ($atras < 0 || $atras > 60 || $adelante < 0 || $adelante > 60) {
+        return null;
+    }
+    return sticpa_mw_rows($objSCP, 'eventosVentana', array('atras' => $atras, 'adelante' => $adelante, 'campos' => $campos));
+}
+
+/**
+ * `getRecordDetail($id, 'stic_Events', …)` por el middleware, con la forma de
+ * `get_entry` (`->entry_list[0]->name_value_list`), o null para que siga por la
+ * API. Un evento que no está (o borrado) también va por la API, que dirá lo suyo.
+ */
+function sticpa_mw_record_detail($objSCP, $id, $module, $fields)
+{
+    $id = (string) $id;
+    if ((string) $module !== 'stic_Events' || !preg_match('/^[A-Za-z0-9-]{1,36}$/', $id) || !sticpa_mw_configured()) {
+        return null;
+    }
+    $campos = sticpa_mw_campos_validos($fields, sticpa_mw_event_fields(true));
+    if ($campos === null) {
+        return null;
+    }
+    $rows = sticpa_mw_rows($objSCP, 'evento', array('id' => $id, 'campos' => $campos));
+    // En la recolecta de una tanda sale vacío a propósito: se devuelve algo con
+    // la forma de siempre para que no se pida también a la API.
+    if (is_array($rows) && empty($rows) && function_exists('sticpa_pl_collecting') && sticpa_pl_collecting()) {
+        return (object) array('entry_list' => array(), 'relationship_list' => array());
+    }
+    if (!is_array($rows) || count($rows) !== 1) {
+        return null;
+    }
+    $row = $rows[0];
+    $row->module_name = 'stic_Events';
+    return (object) array('entry_list' => array($row), 'relationship_list' => array());
 }
 
 /**
@@ -658,7 +744,6 @@ function sticpa_mw_diff($a, $b, $path, &$out, $max = 40)
     }
 }
 
-/** Lee lo mismo por los dos lados, sin caché, y enseña lo que no coincide. */
 /**
  * LO DE FAMILIAS en el modo comparar: cada enlace de `sticpa_mw_vinculos()` de
  * la persona de la sesión, con todos los campos que sabe dar el middleware, y lo
@@ -729,6 +814,39 @@ function sticpa_mw_comparar_familias($objSCP)
             $casos['vinculo ' . $nombre . $pc] = function () use ($leer, $p) { return $leer($p); };
         }
     }
+    // Los eventos (Eventos, el calendario y la ficha): con los campos que piden las pantallas.
+    if (function_exists('sticpa_events_window_filter')) {
+        $plano = function ($rows, $fields) {
+            $out = array();
+            foreach ((array) $rows as $r) {
+                $nvl = isset($r->name_value_list) ? $r->name_value_list : new stdClass();
+                $fila = array('id' => (string) (isset($r->id) && $r->id !== '' ? $r->id : (isset($nvl->id->value) ? $nvl->id->value : '')));
+                foreach ((array) $fields as $f) {
+                    $fila[$f] = isset($nvl->$f->value) && is_scalar($nvl->$f->value) ? (string) $nvl->$f->value : '';
+                }
+                $out[] = $fila;
+            }
+            return $out;
+        };
+        $lista = function_exists('sticpa_event_fields_to_request') ? sticpa_event_fields_to_request($objSCP) : array('id', 'name', 'start_date', 'end_date');
+        $ficha = function_exists('sticpa_event_fields_to_request') ? sticpa_event_fields_to_request($objSCP, true) : $lista;
+        $filtro = sticpa_events_window_filter();
+        $ventana = function () use ($objSCP, $filtro, $lista, $plano) {
+            $rows = sticpa_mw_events_window($objSCP, 'stic_Events', $filtro, $lista);
+            return $plano(is_array($rows) ? $rows : $objSCP->getRecordsModule('stic_Events', $filtro, $lista), $lista);
+        };
+        $casos['eventosVentana'] = $ventana;
+        $evIds = array_slice(array_column((array) sticpa_mw_sin_cache($ventana, 'api'), 'id'), 0, 2);
+        foreach ($evIds as $evId) {
+            $casos['evento ' . $evId] = function () use ($objSCP, $evId, $ficha, $plano) {
+                $res = sticpa_mw_record_detail($objSCP, $evId, 'stic_Events', $ficha);
+                if (!is_object($res)) {
+                    $res = $objSCP->getRecordDetail($evId, 'stic_Events', $ficha);
+                }
+                return $plano(isset($res->entry_list) ? $res->entry_list : array(), $ficha);
+            };
+        }
+    }
     foreach ($ids('Contacts:stic_registrations_contacts') as $reg) {
         foreach (array(
             'stic_Registrations:stic_registrations_stic_events' => 'evento de la inscripción ',
@@ -741,6 +859,7 @@ function sticpa_mw_comparar_familias($objSCP)
     return $casos;
 }
 
+/** Lee lo mismo por los dos lados, sin caché, y enseña lo que no coincide. */
 function sticpa_mw_comparar_html($objSCP)
 {
     $userId = sticpa_mw_persona();

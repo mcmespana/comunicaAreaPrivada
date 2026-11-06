@@ -68,6 +68,18 @@ class MiddlewareFamiliasTest extends TestCase
         }
         $out = array();
         foreach ($body['peticiones'] as $p) {
+            if ($p['recurso'] === 'eventosVentana') {
+                $out[$p['clave']] = array('ok' => true, 'ms' => 1, 'rows' => array(
+                    array('id' => 'ev-1', 'name' => 'Convivencia', 'start_date' => '2026-12-05'),
+                    array('id' => 'ev-2', 'name' => 'Foro', 'start_date' => '2026-12-12'),
+                ));
+                continue;
+            }
+            if ($p['recurso'] === 'evento') {
+                $rows = $p['params']['id'] === 'ev-nada' ? array() : array(array('id' => $p['params']['id'], 'name' => 'Convivencia', 'web_cuerpo_html_c' => '<p>Hola</p>'));
+                $out[$p['clave']] = array('ok' => true, 'ms' => 1, 'rows' => $rows);
+                continue;
+            }
             $rows = array(
                 array('id' => 'reg-1', 'name' => 'Inscripción 1', 'status' => 'confirmed', 'stic_registrations_stic_events_name' => 'Convivencia'),
                 array('id' => 'reg-2', 'name' => 'Inscripción 2', 'status' => 'cancelled', 'stic_registrations_stic_events_name' => 'Campamento'),
@@ -177,6 +189,43 @@ class MiddlewareFamiliasTest extends TestCase
         $this->assertSame(array(), $this->peticiones);
     }
 
+    public function testLosEventosDeLaVentanaSalenDelMiddleware()
+    {
+        require_once __DIR__ . '/../inc/stic-events.php';
+        $crm = new CrmDeFamilias();
+        $rows = $crm->getRecordsModule('stic_Events', sticpa_events_window_filter(), array('id', 'name', 'start_date', 'ajmcm_ambito_c'));
+        $this->assertSame(0, $crm->llamadas, 'ni una llamada al CRM');
+        $this->assertSame(array('ev-1', 'ev-2'), array_map(function ($r) { return $r->id; }, $rows));
+        $this->assertSame('Foro', $rows[1]->name_value_list->name->value);
+        $pet = $this->peticiones[0]['peticiones'][0];
+        $this->assertSame('eventosVentana', $pet['recurso']);
+        $this->assertSame(array('atras' => 14, 'adelante' => 12, 'campos' => array('id', 'name', 'start_date', 'ajmcm_ambito_c')), $pet['params']);
+        $this->assertArrayNotHasKey('delegacion', $this->peticiones[0]);
+    }
+
+    public function testOtraConsultaDeEventosOElCuerpoEnLaListaSiguenPorLaApi()
+    {
+        require_once __DIR__ . '/../inc/stic-events.php';
+        $this->assertNull(sticpa_mw_events_window(new CrmDeFamilias(), 'stic_Events', '(stic_events_cstm.ajmcm_ocultar_area_c = 1)', array('id')));
+        $this->assertNull(sticpa_mw_events_window(new CrmDeFamilias(), 'stic_Events', sticpa_events_window_filter(), array('id', 'web_cuerpo_html_c')));
+        $this->assertNull(sticpa_mw_events_window(new CrmDeFamilias(), 'stic_Sessions', sticpa_events_window_filter(), array('id')));
+        $this->assertNull(sticpa_mw_events_window(new CrmDeFamilias(), 'stic_Events', sticpa_events_window_filter(), array('id'), array(array('name' => 'x'))));
+        $this->assertSame(array(), $this->peticiones);
+    }
+
+    public function testLaFichaDeUnEventoSaleDelMiddlewareConLaFormaDeGetEntry()
+    {
+        $crm = new CrmDeFamilias();
+        $res = $crm->getRecordDetail('ev-1', 'stic_Events', array('id', 'name', 'web_cuerpo_html_c'));
+        $this->assertSame(0, $crm->llamadas);
+        $this->assertSame('ev-1', $res->entry_list[0]->id);
+        $this->assertSame('<p>Hola</p>', $res->entry_list[0]->name_value_list->web_cuerpo_html_c->value);
+        // Uno que no está, otro módulo o sin campos: por la API.
+        $this->assertNull(sticpa_mw_record_detail($crm, 'ev-nada', 'stic_Events', array('id')));
+        $this->assertNull(sticpa_mw_record_detail($crm, 'c1', 'Contacts', array('id')));
+        $this->assertNull(sticpa_mw_record_detail($crm, 'ev-1', 'stic_Events', null));
+    }
+
     public function testLosCamposQueSabeDarSonLosDelMiddleware()
     {
         require_once __DIR__ . '/../inc/stic-registrations.php';
@@ -199,5 +248,12 @@ class MiddlewareFamiliasTest extends TestCase
         $this->assertSame(array(), array_diff(sticpa_payment_list_fields(), $v['Contacts:stic_payments_contacts']));
         $this->assertSame(array(), array_diff(sticpa_payments_commitment_fields(), $v['Contacts:stic_payment_commitments_contacts']));
         $this->assertSame(array(), array_diff(sticpa_commitment_list_fields(), $v['Contacts:stic_payment_commitments_contacts']));
+        // Y los de los eventos (sin la definición del CRM: todos los que se querrían pedir).
+        require_once __DIR__ . '/../inc/stic-events.php';
+        require_once __DIR__ . '/../inc/stic-event-audience.php';
+        require_once __DIR__ . '/../inc/eventos-cuerpo.php';
+        require_once __DIR__ . '/../inc/stic-event-web.php';
+        $this->assertSame(array(), array_diff(array_merge(sticpa_event_base_fields(), sticpa_event_wanted_fields()), sticpa_mw_event_fields(false)));
+        $this->assertSame(array(), array_diff(sticpa_event_web_fields(), sticpa_mw_event_fields(true)));
     }
 }
