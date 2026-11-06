@@ -46,7 +46,91 @@ function sticpa_mw_recursos()
         'ficha', 'familyRels', 'familyContacts', 'avisos', 'registrationAttendances', 'personEvents',
         'monitorFicha', 'seguimientos',
         'evInscripciones', 'evPersonas', 'evRelaciones', 'gacGrupos', 'gacMiembros',
+        'vinculo',
     );
+}
+
+/**
+ * Los que son de la PERSONA, no de la delegación: van sin delegación de trabajo
+ * (el middleware toma la de la ficha), así sirven también a quien no es de
+ * ningún equipo (familias).
+ */
+function sticpa_mw_personales()
+{
+    return array('vinculo');
+}
+
+/**
+ * LO DE FAMILIAS (06/11/2026): los enlaces de `getRelatedElementsForLoggedUser()`
+ * que el middleware sabe contestar por SQL, con los campos que sabe dar (copia
+ * de `LINKS` en comunicaMiddleware:src/reads/vinculos.ts). Inscripciones,
+ * compromisos y pagos de quien ha entrado, y lo que cuelga de algo suyo. Si se
+ * pide un campo que no está aquí, esa consulta sigue por la API.
+ *
+ * @return array 'Módulo:enlace' => campos.
+ */
+function sticpa_mw_vinculos()
+{
+    $reg = array('id', 'name', 'status', 'registration_date', 'participation_type', 'date_entered',
+        'stic_registrations_stic_events_name', 'stic_registrations_stic_eventsstic_events_ida', 'ajmcm_clase_c', 'ajmcm_curso_escolar_c');
+    $pc = array('id', 'name', 'description', 'amount', 'periodicity', 'payment_method', 'payment_type', 'channel', 'banking_concept',
+        'first_payment_date', 'end_date', 'active', 'bank_account', 'date_entered');
+    $pay = array('id', 'name', 'amount', 'payment_date', 'status', 'payment_type', 'payment_method', 'banking_concept', 'bank_account',
+        'date_entered', 'stic_paymebfe2itments_ida');
+    return array(
+        'Contacts:stic_registrations_contacts' => $reg,
+        'Contacts:stic_payment_commitments_contacts' => $pc,
+        'Contacts:stic_payment_commitments_contacts_1' => $pc,
+        'Contacts:stic_payments_contacts' => $pay,
+        'stic_Payment_Commitments:stic_payments_stic_payment_commitments' => $pay,
+        'stic_Payment_Commitments:stic_payment_commitments_stic_registrations' => array('id', 'name', 'status', 'stic_registrations_stic_events_name'),
+        'stic_Registrations:stic_registrations_stic_events' => array('id', 'name', 'start_date', 'end_date'),
+        'stic_Registrations:stic_payment_commitments_stic_registrations' => $pc,
+    );
+}
+
+/**
+ * `getRelatedElementsForLoggedUser()` por el middleware, si se puede: las filas
+ * con la forma de la API, o null para que siga por la API.
+ *
+ * Solo la consulta sencilla (sin filtro, sin orden, sin enlaces anidados, desde
+ * el principio), de un enlace de la lista y con campos que se saben dar. Lo que
+ * cuelga de una persona, solo si es la de la sesión: viendo a un hijo, la
+ * sesión ES el hijo; lo del tutor sigue por la API.
+ */
+function sticpa_mw_related($objSCP, $params)
+{
+    if (!is_array($params) || !sticpa_mw_configured()) {
+        return null;
+    }
+    $module = (string) ($params['module_name'] ?? '');
+    $link = (string) ($params['link_field_name'] ?? '');
+    $id = (string) ($params['module_id'] ?? '');
+    $enlace = $module . ':' . $link;
+    $vinculos = sticpa_mw_vinculos();
+    if (!isset($vinculos[$enlace]) || !preg_match('/^[A-Za-z0-9-]{1,36}$/', $id)) {
+        return null;
+    }
+    if ($module === 'Contacts' && $id !== sticpa_mw_persona()) {
+        return null;
+    }
+    if (trim((string) ($params['related_module_query'] ?? '')) !== ''
+        || !empty($params['related_module_link_name_to_fields_array'])
+        || (int) ($params['deleted'] ?? 0) !== 0
+        || trim((string) ($params['order_by'] ?? '')) !== ''
+        || (int) ($params['offset'] ?? 0) > 0) {
+        return null;
+    }
+    $campos = array_values(array_unique(array_map('strval', (array) ($params['related_fields'] ?? array()))));
+    if (empty($campos) || count($campos) > 40 || array_diff($campos, $vinculos[$enlace])) {
+        return null;
+    }
+    $rows = sticpa_mw_rows($objSCP, 'vinculo', array('enlace' => $enlace, 'id' => $id, 'campos' => $campos));
+    if (!is_array($rows)) {
+        return null;
+    }
+    $limit = (int) ($params['limit'] ?? 0);
+    return $limit > 0 ? array_slice($rows, 0, $limit) : $rows;
 }
 
 /**
@@ -220,7 +304,9 @@ function sticpa_mw_fetch($objSCP, $recurso, $params)
     if (!sticpa_mw_on($recurso)) {
         return null;
     }
-    $deleg = function_exists('sticpa_pl_delegation') ? (string) sticpa_pl_delegation($objSCP) : '';
+    $deleg = (!in_array((string) $recurso, sticpa_mw_personales(), true) && function_exists('sticpa_pl_delegation'))
+        ? (string) sticpa_pl_delegation($objSCP)
+        : '';
     $key = md5($deleg . '|' . $recurso . '|' . json_encode($params));
     $ruta = sticpa_mw_ruta($recurso);
 

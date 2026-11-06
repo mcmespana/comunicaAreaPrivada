@@ -1131,6 +1131,14 @@ class SugarRestApiCall
 
     public function getRelatedElementsForLoggedUser($params)
     {
+        // Lo de familias (inscripciones, compromisos, pagos) sale del middleware
+        // por SQL cuando está encendido; si no contesta, sigue por la API.
+        if (function_exists('sticpa_mw_related')) {
+            $mw = sticpa_mw_related($this, $params);
+            if (is_array($mw)) {
+                return $mw;
+            }
+        }
         $get_relationship_params = array(
             'session' => $this->session_id,
             'module_name' => $params['module_name'],
