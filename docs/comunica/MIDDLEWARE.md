@@ -54,8 +54,34 @@ nombre, su delegación y sus relaciones (solo participante, monitor y acompañam
 curso. Antes era una consulta a la API por inscrito; ahora es una sola lectura. La pantalla del evento son 2 peticiones al
 middleware y ninguna al CRM, también la pestaña de grupos de actividad.
 
-Con esto está toda la parte de monitores de la fase 1. Siguen por la API las escrituras (todas) y lo de familias
-(inscribirse, pagos), que no es de esta fase.
+Con esto está toda la parte de monitores de la fase 1. Siguen por la API las escrituras (todas).
+
+## Lo de familias (06/11/2026)
+
+Para que la web lea igual que la app, las lecturas de familias también van por el middleware. No se ha tocado ninguna
+pantalla: el enganche está en el cliente de la API, en `getRelatedElementsForLoggedUser()` (`inc/stic-class-6.php`), que
+antes de llamar al CRM pregunta a `sticpa_mw_related()`. Si el enlace es uno de estos, va al recurso `vinculo` del lote:
+
+| Enlace (`módulo:link_field_name`) | Lo usa |
+|---|---|
+| `Contacts:stic_registrations_contacts` | Mis inscripciones, el calendario, la portada, Eventos («te has apuntado») |
+| `Contacts:stic_payment_commitments_contacts` y `…_contacts_1` | Pagos, Forma de pago |
+| `Contacts:stic_payments_contacts` | Pagos |
+| `stic_Payment_Commitments:stic_payments_stic_payment_commitments` | Pagos (los de cada compromiso vivo), Forma de pago |
+| `stic_Payment_Commitments:stic_payment_commitments_stic_registrations` | Pagos con tarjeta (de qué evento es) |
+| `stic_Registrations:stic_registrations_stic_events` | El calendario, la portada |
+| `stic_Registrations:stic_payment_commitments_stic_registrations` | La ficha de una inscripción |
+
+Sigue por la API, sin decir nada, todo lo que no cuadre: otro enlace, un filtro u orden, otra página, un campo que el
+middleware no sabe dar (la lista está en `sticpa_mw_vinculos()`, copia de `LINKS` en `comunicaMiddleware:src/reads/vinculos.ts`),
+y lo de una persona que no es la de la sesión (viendo a un hijo, la sesión es el hijo; lo del tutor va por la API). El
+middleware solo da lo de la persona de la sesión y lo que cuelga de algo suyo (una inscripción suya o que paga ella, un
+compromiso que paga o del que es destinataria); lo demás es 403 y el plugin lo lee por la API.
+
+Va sin delegación de trabajo (es de la persona): sirve a familias que no son de ningún equipo. Una diferencia buscada: el
+id del compromiso de un pago (`stic_paymebfe2itments_ida`), que por la API llega vacío, aquí llega puesto; el plugin ya
+lo rellenaba él preguntando por la relación, así que da lo mismo. Pruebas: `tests/MiddlewareFamiliasTest.php` y, en el
+middleware, `test/mariadb-famweb.test.ts`.
 
 **Cómo encaja sin tocar las pantallas.** El middleware devuelve las filas de la MISMA consulta que hace cada cargador,
 con los nombres de campo de la API; `sticpa_mw_rows()` les da la forma de `getRecordsModule()` y el cargador sigue con su
@@ -110,7 +136,7 @@ de monitores): ahí borraría lo marcado sin guardar, y su estado ya se relee a 
 
 ## Para administradores
 
-- **La etiqueta** de la esquina de abajo a la izquierda: «SQL · 2 pet. · 340 ms» (discreta) si todo ha salido del
+- **La etiqueta** (también en las pantallas de familias) de la esquina de abajo a la izquierda: «SQL · 2 pet. · 340 ms» (discreta) si todo ha salido del
   middleware; «API · relations» (clara, en ámbar) si algo ha vuelto a la API, con qué; «caché» si no se ha leído nada.
 - **`?mw=0`** en cualquier pantalla: la misma pantalla por la API, para comparar a ojo.
 - **`?mw_comparar=1`**: al pie, cada lectura de la fase 1 hecha por los dos lados sin caché, con sus tiempos y las
