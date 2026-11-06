@@ -138,6 +138,21 @@ class MiddlewareTest extends TestCase
                     $out[] = $rec;
                 }
                 return $out;
+            case 'eventosVentana':
+            case 'evento':
+                // Los eventos de la web (src/reads/eventos-web.ts): los campos pedidos, más el id.
+                $filas = $recurso === 'evento'
+                    ? self::planas((array) ($this->scp->detalleDeRegistro($p['id'], 'stic_Events', $p['campos'])->entry_list ?? array()))
+                    : self::planas($this->scp->datosDeModulo('stic_Events', '', $p['campos']));
+                $out = array();
+                foreach ($filas as $fila) {
+                    $rec = array('id' => isset($fila['id']) ? $fila['id'] : '');
+                    foreach ($p['campos'] as $c) {
+                        $rec[$c] = isset($fila[$c]) ? $fila[$c] : '';
+                    }
+                    $out[] = $rec;
+                }
+                return $out;
             case 'groups':
                 return self::planas($this->scp->datosDeModulo('ajmcm_GRUPOS', "ajmcm_grupos.assigned_user_id = '$d'", array(
                     'id', 'name', 'code', 'level', 'cursos_c', 'ajmcm_n_participantes_c', 'ajmcm_n_monitores_c',
@@ -686,12 +701,13 @@ class MiddlewareTest extends TestCase
     /** Lo de familias (06/11/2026): sus inscripciones y lo que cuelga, con `?mw_comparar=familias` y nada de Pasar Lista. */
     public function testElModoCompararIncluyeLoDeFamilias()
     {
+        require_once __DIR__ . '/../inc/stic-events.php';
         $this->encender();
         $this->scp->evPersona = true;
         $_SESSION['scp_user_id'] = 'c1';
         $_GET = array('mw_comparar' => 'familias');
         $html = sticpa_mw_comparar_html($this->scp);
-        foreach (array('vinculo inscripciones', 'vinculo pagos', 'vinculo compromisos que paga', 'vinculo evento de la inscripción evr-bus') as $caso) {
+        foreach (array('vinculo inscripciones', 'vinculo pagos', 'vinculo compromisos que paga', 'vinculo evento de la inscripción evr-bus', 'eventosVentana') as $caso) {
             $this->assertStringContainsString('<code>' . $caso . '</code>', $html);
         }
         $this->assertStringNotContainsString('<code>groups</code>', $html);
