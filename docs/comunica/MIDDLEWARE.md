@@ -125,6 +125,20 @@ texto no sale de la base. La ficha sí la lleva (es donde se enseña), y por eso
 lote de siempre y cualquier otra cosa por esa ruta. En la ficha, esa petición sale aparte dentro de la misma tanda: son
 5 peticiones al middleware y ninguna al CRM (antes, 13 viajes al CRM).
 
+## Pendiente para más adelante (7/11/2026)
+
+Anotado a petición del propietario; el detalle de cada uno está en `comunicaMiddleware:docs/SIGUIENTE.md`
+§«Familias de la web por el middleware».
+
+1. **Pasar lista desde la web por la cola del middleware** (`comunicaMiddleware:docs/COLA.md`): guardar en un par de segundos,
+   como la app, en vez de decenas de llamadas a la API. Cambia lo que enseña la pantalla tras guardar: enseñarlo antes.
+2. **Mis datos por el middleware**: hoy pide TODOS los campos del contacto (`getRecordDetail($id, 'Contacts')` sin lista) y
+   por eso sigue por la API. Fijar los campos que usan las pantallas de perfil y llevarlo por `/plugin/v1/sensible`.
+3. **La familia del tutor** (`inc/stic-family.php`): se lee del tutor, no de la persona de la sesión, y sigue por la API.
+
+Y fuera del código: el usuario de lectura de la base tiene un tope de 5 conexiones a la vez para todo (middleware, Comunica
+Tools, MCP). Pedir más al hosting o un usuario propio para el middleware.
+
 ## Cómo se enciende
 
 En `wp-config.php`:
