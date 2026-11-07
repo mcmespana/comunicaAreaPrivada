@@ -207,10 +207,23 @@ function sticpa_payments_complete($objSCP, $commitmentRows, $payments, $fields, 
             'deleted' => 0, 'order_by' => '', 'offset' => '', 'limit' => 0,
         );
     };
-    if (count($vivos) > 1 && function_exists('sticpa_pl_prime')) {
-        sticpa_pl_prime($objSCP, function () use ($objSCP, $vivos, $params) {
+    // Los compromisos vivos sin concepto, a los que se les buscará el evento
+    // (abajo). Van en la MISMA tanda que sus pagos (07/11/2026): antes salía una
+    // petición más, en fila, por cada uno.
+    $sinConcepto = array();
+    foreach ($vivos as $cid) {
+        if (function_exists('sticpa_concept_is_blank') && sticpa_concept_is_blank($map[$cid]['banking_concept'] ?? '')
+            && !(function_exists('get_transient') && get_transient('sticpa_pc_sin_evento_' . md5($cid)))) {
+            $sinConcepto[] = $cid;
+        }
+    }
+    if (count($vivos) + count($sinConcepto) > 1 && function_exists('sticpa_pl_prime')) {
+        sticpa_pl_prime($objSCP, function () use ($objSCP, $vivos, $params, $sinConcepto) {
             foreach ($vivos as $cid) {
                 $objSCP->getRelatedElementsForLoggedUser($params($cid));
+            }
+            foreach ($sinConcepto as $cid) {
+                sticpa_commitment_event_concept($objSCP, $cid);
             }
         });
     }

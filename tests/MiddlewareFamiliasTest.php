@@ -249,6 +249,30 @@ class MiddlewareFamiliasTest extends TestCase
         $this->assertNull(sticpa_mw_record_detail($crm, 'x-1', 'stic_Registrations', null));
     }
 
+    /** Pagos: los pagos de un compromiso vivo y el evento que le da nombre, en UNA petición (antes, una por cada cosa). */
+    public function testPagosPideLosPagosYElConceptoEnUnaSolaTanda()
+    {
+        require_once __DIR__ . '/../inc/stic-pasar-lista-crm.php';
+        require_once __DIR__ . '/../inc/stic-registrations.php';
+        require_once __DIR__ . '/../inc/stic-payments.php';
+        require_once __DIR__ . '/../inc/stic-pay-card.php';
+        $_SESSION['scp_user_id'] = 'mom';
+        $pc = (object) array('id' => 'pc-1', 'name_value_list' => (object) array(
+            'id' => (object) array('value' => 'pc-1'), 'name' => (object) array('value' => 'Compromiso'),
+            'end_date' => (object) array('value' => ''), 'banking_concept' => (object) array('value' => ''),
+            'description' => (object) array('value' => ''), 'payment_method' => (object) array('value' => 'transfer'),
+        ));
+        sticpa_payments_complete(new CrmDeFamilias(), array($pc), array(), array('id', 'name', 'amount', 'status'), 'mom', 'stic_payments_contacts');
+        $recursos = array();
+        foreach ($this->peticiones as $body) {
+            $recursos[] = array_map(function ($p) { return $p['params']['enlace']; }, $body['peticiones']);
+        }
+        $this->assertSame(array(array(
+            'stic_Payment_Commitments:stic_payments_stic_payment_commitments',
+            'stic_Payment_Commitments:stic_payment_commitments_stic_registrations',
+        )), $recursos);
+    }
+
     public function testLosCamposQueSabeDarSonLosDelMiddleware()
     {
         require_once __DIR__ . '/../inc/stic-registrations.php';
@@ -264,6 +288,8 @@ class MiddlewareFamiliasTest extends TestCase
             'stic_Payment_Commitments:stic_payment_commitments_stic_registrations',
             'stic_Registrations:stic_registrations_stic_events',
             'stic_Registrations:stic_payment_commitments_stic_registrations',
+            'stic_Registrations:stic_attendances_stic_registrations',
+            'stic_Events:stic_sessions_stic_events',
         ), array_keys(sticpa_mw_vinculos()));
         // Lo que piden las pantallas de familias cabe en lo que sabe dar.
         $v = sticpa_mw_vinculos();
@@ -278,6 +304,10 @@ class MiddlewareFamiliasTest extends TestCase
         require_once __DIR__ . '/../inc/stic-event-web.php';
         $this->assertSame(array(), array_diff(array_merge(sticpa_event_base_fields(), sticpa_event_wanted_fields()), sticpa_mw_event_fields(false)));
         $this->assertSame(array(), array_diff(sticpa_event_web_fields(), sticpa_mw_event_fields(true)));
+        // Las sesiones y asistencias (el calendario, «Sesiones» y «Asistencias»).
+        require_once __DIR__ . '/../inc/stic-sessions.php';
+        $this->assertSame(array(), array_diff(sticpa_session_list_fields(), $v['stic_Events:stic_sessions_stic_events']));
+        $this->assertSame(array(), array_diff(sticpa_attendance_list_fields(), $v['stic_Registrations:stic_attendances_stic_registrations']));
         // Y los de las fichas que piden las pantallas.
         require_once __DIR__ . '/../inc/stic-pay-card.php';
         $f = sticpa_mw_fichas();

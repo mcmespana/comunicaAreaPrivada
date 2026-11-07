@@ -102,6 +102,13 @@ ficha del pago ya no pide `stic_payments_stic_payment_commitments_name` ni `stic
 leía. Una familia sin delegación en su ficha ya puede leer lo suyo por el middleware (antes, 403 y a la API). El modo
 comparar incluye su primera inscripción, su primer pago y su primer compromiso.
 
+**El calendario y menos peticiones (07/11/2026).** `vinculo` contesta también las asistencias de una inscripción
+(`stic_Registrations:stic_attendances_stic_registrations`) y las sesiones de un evento
+(`stic_Events:stic_sessions_stic_events`, solo de uno en el que tiene una inscripción suya o que paga). Y en Pagos, el evento
+que da nombre a un compromiso sin concepto se pide en la misma tanda que sus pagos (antes, una petición más por cada uno,
+en fila). Menos peticiones = menos veces que se abre una conexión a la base, que tiene un tope de 5 a la vez para todo lo
+que usa su usuario de lectura.
+
 **Cómo encaja sin tocar las pantallas.** El middleware devuelve las filas de la MISMA consulta que hace cada cargador,
 con los nombres de campo de la API; `sticpa_mw_rows()` les da la forma de `getRecordsModule()` y el cargador sigue con su
 código de siempre (ordenar, marcas, vigencia, caché). Las filas que vienen de la base llevan `->mw = true`: sus enlaces

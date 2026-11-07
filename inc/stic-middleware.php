@@ -86,6 +86,12 @@ function sticpa_mw_vinculos()
         'stic_Payment_Commitments:stic_payment_commitments_stic_registrations' => array('id', 'name', 'status', 'stic_registrations_stic_events_name'),
         'stic_Registrations:stic_registrations_stic_events' => array('id', 'name', 'start_date', 'end_date'),
         'stic_Registrations:stic_payment_commitments_stic_registrations' => $pc,
+        // El calendario, «Sesiones» y «Asistencias» (06/11/2026). Las sesiones, solo de un evento en el que tiene una
+        // inscripción suya o que paga.
+        'stic_Registrations:stic_attendances_stic_registrations' => array('id', 'name', 'status', 'start_date', 'duration', 'date_entered',
+            'stic_attendances_stic_sessionsstic_sessions_ida', 'stic_attendances_stic_sessions_name', 'stic_attendances_stic_registrations_name'),
+        'stic_Events:stic_sessions_stic_events' => array('id', 'name', 'start_date', 'end_date', 'date_entered',
+            'stic_sessions_stic_events_name', 'stic_sessions_stic_eventsstic_events_ida'),
     );
 }
 
