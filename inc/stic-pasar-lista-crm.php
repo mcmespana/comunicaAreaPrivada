@@ -927,7 +927,10 @@ function sticpa_pl_all_relationships_raw($objSCP)
     // llevan SOLO la primera página de relaciones (ver pedirOtraPagina() en
     // stic-class-6.php). Con la clave vieja se seguirían viendo 4 chavales y 2
     // monitores hasta que caducaran.
-    $cacheKey = sticpa_pl_cache_key('relshist3', $objSCP);
+    // Y 'relshist4' (07/11/2026): cada persona lleva ahora también la marca
+    // menor 'patologias' (TEA, TDAH…); una caché de antes la daría por vacía
+    // hasta caducar.
+    $cacheKey = sticpa_pl_cache_key('relshist4', $objSCP);
     $ttl = sticpa_pl_ttl_structure();
     if ($ttl > 0) {
         $cached = get_transient($cacheKey);
@@ -1206,19 +1209,21 @@ function sticpa_pl_person_from_rel_row($v)
  *
  * Plan 043, fila 9 (F3, «lo importante del grupo, de un vistazo»). Nombres y
  * tipos de CAMPOS.md: los tres primeros son desplegables 1 (Sí) / 0 (No); los
- * tres de salud, texto libre. El doble guion bajo de las alergias es de verdad.
+ * cinco de salud, texto libre (los tres primeros encienden «salud» y los dos
+ * últimos «patologias»). El doble guion bajo de las alergias es de verdad.
  */
 function sticpa_pl_marcas_campos()
 {
     return array(
         'ajmcm_soloacasa_c', 'ajmcm_cesionimagenes_interne_c', 'ajmcm_datossalud_c',
         'ajmcm_descripcion_allergies__c', 'ajmcm_descripcion_intoler_c', 'ajmcm_descripcion_tratam_c',
+        'ajmcm_descripcion_enfermed_c', 'ajmcm_descripcion_otros_c',
     );
 }
 
 /**
  * Las marcas de una persona: lo que un monitor tiene que saber de un vistazo,
- * sin abrir doce fichas un sábado. Como mucho tres, y en este orden:
+ * sin abrir doce fichas un sábado. Como mucho cuatro, y en este orden:
  *
  *   - 'no_solo'   — `ajmcm_soloacasa_c` es «0»: no se va solo/a a casa.
  *   - 'sin_fotos' — `ajmcm_cesionimagenes_interne_c` es «0»: no sale en fotos.
@@ -1227,6 +1232,10 @@ function sticpa_pl_marcas_campos()
  *                   móvil para usarla sin conexión, y el detalle está en la
  *                   ficha. Y si `ajmcm_datossalud_c` es «0» (no autoriza el uso
  *                   de sus datos de salud), no se marca.
+ *   - 'patologias' — tiene algo escrito en enfermedades u otras patologías
+ *                   (TEA, TDAH…). Marca MENOR y aparte de 'salud': pueden ir
+ *                   las dos. Mismas reglas: no dice cuál y con «0» en
+ *                   `ajmcm_datossalud_c` no se marca.
  *
  * UN VACÍO NO ES UN «NO». Una ficha migrada llega con estos campos sin
  * contestar (CAMPOS.md, «Llegó VACÍO»), y marcar a media delegación como «sin
@@ -1255,6 +1264,11 @@ function sticpa_pl_marcas_de($nvl)
             || $val('ajmcm_descripcion_intoler_c') !== ''
             || $val('ajmcm_descripcion_tratam_c') !== '')) {
         $marcas[] = 'salud';
+    }
+    if ($val('ajmcm_datossalud_c') !== '0'
+        && ($val('ajmcm_descripcion_enfermed_c') !== ''
+            || $val('ajmcm_descripcion_otros_c') !== '')) {
+        $marcas[] = 'patologias';
     }
     return $marcas;
 }

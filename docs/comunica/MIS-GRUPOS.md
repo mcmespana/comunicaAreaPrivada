@@ -328,13 +328,14 @@ de vuelta.
 A las 18:00 la pregunta es «¿quién se puede ir solo?», y antes de subir fotos,
 «¿quién no puede salir?». Eso estaba ficha a ficha, y nadie abre doce fichas un
 sábado. Ahora, en la lista de un grupo (`?grupo=<id>`) **y en la de marcar**,
-cada chaval lleva bajo el nombre como mucho tres pastillas de texto pequeñas:
+cada chaval lleva bajo el nombre como mucho cuatro pastillas de texto pequeñas:
 
 | Pastilla | Cuándo sale |
 |---|---|
 | **No se va solo/a** | `ajmcm_soloacasa_c` es «0» |
 | **Sin fotos** | `ajmcm_cesionimagenes_interne_c` es «0» |
 | **Alergia o tratamiento** | Hay texto en `ajmcm_descripcion_allergies__c`, `_intoler_c` o `_tratam_c`, **salvo** que `ajmcm_datossalud_c` sea «0» |
+| **Otras patologías** (menor, azul y más pequeña; 07/11/2026) | Hay texto en `ajmcm_descripcion_enfermed_c` u `ajmcm_descripcion_otros_c` (TEA, TDAH…), **salvo** que `ajmcm_datossalud_c` sea «0». Va aparte de la de alergia o tratamiento y pueden salir las dos. No dice cuál; se toca y abre el mismo globo |
 
 Las decide `sticpa_pl_marcas_de()` y las pinta `sticpa_pl_marcas_html()`
 (`css/pasar-lista.css`, `.pl-marca`). Reglas que no se discuten:

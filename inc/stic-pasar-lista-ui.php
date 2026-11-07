@@ -205,13 +205,14 @@ function sticpa_pl_recuento_texto($nParticipantes, $nMonitores = 0)
  *
  * A las 18:00 la pregunta es «¿quién se puede ir solo?», y antes de subir
  * fotos, «¿quién no puede salir?». Eso estaba ficha a ficha. Aquí va una
- * pastilla de texto pequeña por cosa, debajo del nombre y como mucho tres
+ * pastilla de texto pequeña por cosa, debajo del nombre y como mucho cuatro
  * —`sticpa_pl_marcas_de()` decide cuáles—, sin color de alarma salvo la de
  * salud, y sin iconos: una fila de símbolos es lo que design.md §8 no quiere,
  * y un icono que solo se explica en un `title` no se explica en el móvil. El
  * `title` de cada pastilla solo amplía lo que ya se lee.
  *
- * La de salud NO dice cuál ni qué: el detalle está en la ficha. Ni en el texto
+ * Las de salud NO dicen cuál ni qué (la menor, «Otras patologías», tampoco):
+ * el detalle está en la ficha. Ni en el texto
  * ni en un atributo, porque estas pantallas se guardan en el móvil.
  *
  * @param string[] $marcas claves de `sticpa_pl_marcas_de()`.
@@ -222,6 +223,7 @@ function sticpa_pl_marcas_html($marcas, $personaId = '')
         'no_solo' => array(__('No se va solo/a', 'sticpa'), __('No tiene autorización para irse solo/a a casa', 'sticpa')),
         'sin_fotos' => array(__('Sin fotos', 'sticpa'), __('No autoriza la cesión de imágenes', 'sticpa')),
         'salud' => array(__('Alergia o tratamiento', 'sticpa'), __('Tiene alergias, intolerancias o tratamientos: el detalle está en su ficha', 'sticpa')),
+        'patologias' => array(__('Otras patologías', 'sticpa'), __('Tiene enfermedades u otras patologías: el detalle está en su ficha', 'sticpa')),
     );
     $out = '';
     $personaId = function_exists('sticpa_pl_safe_id') ? sticpa_pl_safe_id($personaId) : '';
@@ -237,11 +239,11 @@ function sticpa_pl_marcas_html($marcas, $personaId = '')
          * preguntar. Solo donde la fila es un enlace (Grupos y fichas): en la
          * lista de marcar la fila es un botón, y un botón dentro de otro no se
          * puede tocar. */
-        if ($m === 'salud' && $personaId !== '' && function_exists('admin_url')) {
+        if (($m === 'salud' || $m === 'patologias') && $personaId !== '' && function_exists('admin_url')) {
             $url = admin_url('admin-post.php?action=stic_pl_salud&persona=' . rawurlencode($personaId));
-            $out .= '<span class="pl-marca pl-marca--salud pl-marca--tap" role="button" tabindex="0"'
+            $out .= '<span class="pl-marca pl-marca--' . esc_attr($m) . ' pl-marca--tap" role="button" tabindex="0"'
                 . ' aria-haspopup="dialog" data-pl-salud="' . esc_url($url) . '"'
-                . ' aria-label="' . esc_attr__('Alergia o tratamiento: ver el detalle', 'sticpa') . '">'
+                . ' aria-label="' . esc_attr($textos[$m][0] . ': ' . __('ver el detalle', 'sticpa')) . '">'
                 . esc_html($textos[$m][0]) . '</span>';
             continue;
         }
