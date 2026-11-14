@@ -1,5 +1,11 @@
 # Contrato App MCM ↔ Área privada (WebView)
 
+> ⛔ **DEPRECADO desde el 14/11/2026.** La MCM App tiene el área privada en
+> **nativo** (contra comunicaMiddleware) y ya no carga este plugin en una WebView.
+> El plugin es **solo para la web**. Este contrato se queda como referencia de la
+> vuelta atrás (`global.comunicaNativa = "off"` en Firebase devuelve la WebView a
+> todo el mundo): no se añade nada nuevo pensando en él. Ver `CLAUDE.md`.
+
 > **Lee esto antes de tocar cualquier cosa de presentación del área privada.**
 >
 > En móvil, el área privada **casi nunca se ve en un navegador**: se ve dentro de
