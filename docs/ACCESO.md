@@ -5,6 +5,11 @@ hay registro, no hay «recuperar contraseña» y casi nadie tiene contraseña. E
 documento cuenta las puertas que hay, por qué son esas y qué pasa cuando alguien
 se queda fuera.
 
+> **Solo la web** desde el 14/11/2026: la MCM App entra por su cuenta (área nativa, con
+> la cuenta de Google o Apple de la app, el código o el DNI, contra comunicaMiddleware:
+> `comunicaMiddleware:docs/ACCESO-APP.md`). Lo que aquí se dice de «la app» describe la
+> WebView antigua, que queda deprecada.
+
 Código: [`inc/stic-otp.php`](../inc/stic-otp.php) (las piezas),
 [`inc/stic-magic-login.php`](../inc/stic-magic-login.php) (el enlace firmado) y
 los handlers `sticpa_handle_send_access*` de
