@@ -205,6 +205,7 @@ class CalendarParallelTest extends TestCase
     public function test_el_titulo_de_la_sesion_pierde_la_fecha_y_la_hora_que_pone_el_crm()
     {
         $this->assertSame('COM | Curso 2026-2027 · BU', sticpa_calendar_session_title('COM | Curso 2026-2027 · BU | 30/10/2026 17:30h'));
+        $this->assertSame('COM | Convivencia Inicial 2026 · Buñol · CS', sticpa_calendar_session_title('COM | Convivencia Inicial 2026 · Buñol · CS · lista del 16/10'));
         $this->assertSame('Sábado 1', sticpa_calendar_session_title('Sábado 1'));
         $this->assertSame('30/10/2026 17:30h', sticpa_calendar_session_title('30/10/2026 17:30h'));
     }
