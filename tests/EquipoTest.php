@@ -305,11 +305,11 @@ class EquipoTest extends TestCase
 
         list($items, ) = getSticMenuElements();
 
-        // «Monitor/a» era el nombre de un papel, no de una pantalla.
-        $this->assertSame('Mis datos de monitor', $items['single_stic_comunica_monitor']);
+        // «Monitor/a» (otra vez, 20/11/2026: antes «Mis datos de monitor»): quien lleva solo grupos
+        // que no pasan lista conserva esta pantalla y ya no ve «Monitores» ni herramientas.
+        $this->assertSame('Monitor/a', $items['single_stic_comunica_monitor']);
         $this->assertSame('Grupos y fichas', $items['single_stic_mis_grupos']);
         $this->assertSame('Usuario y contraseña', $items['single_stic_password_change']);
-        $this->assertNotContains('Monitor/a', $items);
     }
 
     public function test_en_el_movil_los_datos_de_monitor_van_con_la_cuenta(): void

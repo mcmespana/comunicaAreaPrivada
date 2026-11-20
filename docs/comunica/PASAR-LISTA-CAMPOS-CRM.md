@@ -173,7 +173,7 @@ duplicados. Todo lo de abajo lo necesita «Pasar Lista» y **ya está en el CRM*
 | `ajmcm_datossalud_c` | Con «0», la lista NO pinta la marca de salud |
 | `stic_age_c` | Ficha: la edad, ya calculada desde `birthdate` |
 | `birthdate` | Ficha |
-| `ajmcm_descripcion_allergies__c` y hermanos (intolerancias, tratamientos, enfermedades, otros) | Ficha: bloque de salud. Alergias, intolerancias y tratamientos dan además la marca «Alergia o tratamiento» de la lista, sin el texto |
+| `ajmcm_descripcion_allergies__c` y hermanos (intolerancias, tratamientos, enfermedades, otros) | Ficha: bloque de salud. Alergias, intolerancias y tratamientos dan además la marca «Alergia o tratamiento» de la lista, y enfermedades y otros la marca menor «Otras patologías», sin el texto |
 | `ajmcm_menorwhatsapp_c` | Si se puede o no meter al menor en WhatsApp — **condiciona el botón de WhatsApp de la ficha** |
 | `ajmcm_centro_educativo_c` | Ficha (secundario) |
 | `stic_relationship_type_c` | Detección de rol (monitor / laico), ya se usa hoy |

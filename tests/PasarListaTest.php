@@ -911,14 +911,40 @@ final class PasarListaTest extends TestCase
             // Con «No», no.
             $this->assertSame(array(), sticpa_pl_marcas_de(self::nvlMarcas(array($campo => 'Algo', 'ajmcm_datossalud_c' => '0'))), $campo);
         }
-        // Enfermedades y «otros» no cuentan: la marca es de alergia o tratamiento.
-        $this->assertSame(array(), sticpa_pl_marcas_de(self::nvlMarcas(array(
+        // Enfermedades y «otros» no encienden esta: tienen la suya, la menor.
+        $this->assertNotContains('salud', sticpa_pl_marcas_de(self::nvlMarcas(array(
             'ajmcm_descripcion_enfermed_c' => 'Asma', 'ajmcm_descripcion_otros_c' => 'Algo',
         ))));
         // Un texto en blanco no es un texto.
         $this->assertSame(array(), sticpa_pl_marcas_de(self::nvlMarcas(array('ajmcm_descripcion_allergies__c' => "  \n"))));
         // Y el campo con UN guion bajo no existe: no puede marcar.
         $this->assertSame(array(), sticpa_pl_marcas_de(self::nvlMarcas(array('ajmcm_descripcion_allergies_c' => 'Polen'))));
+    }
+
+    /** «Otras patologías» (TEA, TDAH…): marca menor y aparte, con las mismas reglas. */
+    public function test_la_marca_de_otras_patologias()
+    {
+        foreach (array('ajmcm_descripcion_enfermed_c', 'ajmcm_descripcion_otros_c') as $campo) {
+            $this->assertSame(array('patologias'), sticpa_pl_marcas_de(self::nvlMarcas(array($campo => 'TEA y TDAH'))), $campo);
+            $this->assertSame(array('patologias'), sticpa_pl_marcas_de(self::nvlMarcas(array($campo => 'TEA', 'ajmcm_datossalud_c' => ''))), $campo);
+            // Con «No» al uso de los datos de salud, no.
+            $this->assertSame(array(), sticpa_pl_marcas_de(self::nvlMarcas(array($campo => 'TEA', 'ajmcm_datossalud_c' => '0'))), $campo);
+        }
+        $this->assertSame(array(), sticpa_pl_marcas_de(self::nvlMarcas(array('ajmcm_descripcion_otros_c' => " \n"))));
+        // Alergia y patología a la vez: las dos, la principal primero.
+        $this->assertSame(array('salud', 'patologias'), sticpa_pl_marcas_de(self::nvlMarcas(array(
+            'ajmcm_descripcion_intoler_c' => 'Lactosa', 'ajmcm_descripcion_otros_c' => 'TDAH',
+        ))));
+
+        $html = sticpa_pl_marcas_html(array('patologias'));
+        $this->assertStringContainsString('>Otras patologías<', $html);
+        $this->assertStringContainsString('pl-marca--patologias', $html);
+        $this->assertStringNotContainsString('TDAH', $html);
+        // Tocable como la de salud, con su propia etiqueta.
+        $tap = sticpa_pl_marcas_html(array('salud', 'patologias'), 'abc123');
+        $this->assertStringContainsString('pl-marca--patologias pl-marca--tap', $tap);
+        $this->assertStringContainsString('aria-label="Otras patologías: ver el detalle"', $tap);
+        $this->assertStringContainsString('aria-label="Alergia o tratamiento: ver el detalle"', $tap);
     }
 
     /** Las tres a la vez, en orden fijo, y el HTML sin el texto de salud. */
@@ -946,6 +972,7 @@ final class PasarListaTest extends TestCase
         $this->assertSame(array(
             'ajmcm_soloacasa_c', 'ajmcm_cesionimagenes_interne_c', 'ajmcm_datossalud_c',
             'ajmcm_descripcion_allergies__c', 'ajmcm_descripcion_intoler_c', 'ajmcm_descripcion_tratam_c',
+            'ajmcm_descripcion_enfermed_c', 'ajmcm_descripcion_otros_c',
         ), sticpa_pl_marcas_campos());
     }
 

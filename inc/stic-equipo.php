@@ -51,6 +51,7 @@ if (!defined('ABSPATH')) {
  */
 function sticpa_equipo_papeles($raw = null)
 {
+    $esDeLaSesion = ($raw === null);
     if ($raw === null) {
         // Fuerza la resolución perezosa del rol si la sesión venía sin ella:
         // es la MISMA llamada que ya hace el menú, así que no añade nada.
@@ -104,7 +105,54 @@ function sticpa_equipo_papeles($raw = null)
         }
     }
 
+    // MONITOR SOLO DE GRUPOS QUE NO PASAN LISTA (20/11/2026): no es monitor. Lo
+    // decide la casilla «entra en Pasar Lista» del grupo; ver
+    // `sticpa_equipo_monitor_fuera()`. Solo con los papeles de la SESIÓN: con un
+    // `$raw` explícito esta función sigue siendo pura sobre ese texto.
+    if ($esDeLaSesion && in_array('monitor', $out, true) && sticpa_equipo_monitor_fuera()) {
+        $out = array_values(array_diff($out, array('monitor')));
+    }
+
     return (array) apply_filters('sticpa_equipo_papeles', $out, $raw);
+}
+
+/**
+ * ¿La persona de la sesión es monitor SOLO de grupos que no pasan lista?
+ *
+ * Hay monitores que llevan un grupo de adultos o de Apoyo (para el seguro) o que
+ * están en formación: tienen la relación de monitor, pero no son monitores de
+ * verdad y no tienen por qué ver fichas de chavales, grupos ni asistencias. La
+ * casilla del grupo (`ajmcm_pasar_lista_c`) ya dice cuáles son del sistema.
+ * La regla vive en `sticpa_pl_monitor_fuera_de_pasar_lista()` y es el espejo de
+ * la del middleware, que es la que ve la app.
+ *
+ * EL COSTE. Este módulo se escribió como «coste cero» porque lo pinta el menú en
+ * todas las páginas. Esto lo rompe con medida: solo cuando la marca de la ficha
+ * dice «monitor» (a las familias no les cuesta nada) y UNA vez cada diez minutos
+ * por sesión y delegación, guardado en ella. Lo que lee —sus relaciones y los
+ * grupos— está cacheado y caliente para quien abre Pasar Lista. Si algo falla,
+ * «no»: lo que había.
+ */
+function sticpa_equipo_monitor_fuera()
+{
+    if (!function_exists('sticpa_pl_monitor_fuera_de_pasar_lista') || !class_exists('SugarRestApiCall')
+        || empty($_SESSION['scp_user_id'])) {
+        return false;
+    }
+    $objSCP = SugarRestApiCall::getObjSCP();
+    $user = (string) $_SESSION['scp_user_id'];
+    $deleg = (string) sticpa_pl_delegation($objSCP);
+    $memo = isset($_SESSION['scp_equipo_fuera']) && is_array($_SESSION['scp_equipo_fuera']) ? $_SESSION['scp_equipo_fuera'] : array();
+    if (isset($memo['u'], $memo['d'], $memo['t'], $memo['v'])
+        && $memo['u'] === $user && $memo['d'] === $deleg && (sticpa_pl_now() - (int) $memo['t']) < 600) {
+        return (bool) $memo['v'];
+    }
+    $fuera = (bool) sticpa_pl_monitor_fuera_de_pasar_lista($objSCP);
+    // Durante la recolecta de una tanda los cargadores salen vacíos: no se recuerda.
+    if (!sticpa_pl_collecting()) {
+        $_SESSION['scp_equipo_fuera'] = array('u' => $user, 'd' => $deleg, 't' => sticpa_pl_now(), 'v' => $fuera);
+    }
+    return $fuera;
 }
 
 /**
@@ -169,16 +217,35 @@ function sticpa_equipo_secciones()
  * certificados. Va en «Tu perfil», al lado de «Mis datos», que es donde se
  * busca lo que se rellena una vez al año.
  *
- * Se llama «Mis datos de monitor» y no «Monitor/a»: una sección con el nombre
- * de un papel no dice qué hay dentro, y al lado de «Monitores» (que era otra
- * cosa) parecían la misma.
+ * Se llama «Monitor/a» (20/11/2026; antes «Mis datos de monitor»). Es de quien tiene
+ * la relación de monitor AUNQUE no sea del equipo: quien lleva solo grupos que no
+ * pasan lista (Comser, Apoyo, formación) ya no ve herramientas de monitor, pero
+ * sigue teniendo esto y el aviso del certificado. Por eso NO pasa por
+ * `sticpa_equipo_papeles()`, que le quita el papel: lee las marcas de la ficha tal cual.
  */
 function sticpa_equipo_secciones_de_cuenta()
 {
-    if (!sticpa_equipo_es_del_equipo() || !in_array('monitor', sticpa_equipo_papeles(), true)) {
+    if (!sticpa_equipo_tiene_datos_de_monitor()) {
         return array();
     }
-    return array('single_stic_comunica_monitor' => __('Mis datos de monitor', 'sticpa'));
+    return array('single_stic_comunica_monitor' => __('Monitor/a', 'sticpa'));
+}
+
+/**
+ * ¿Es la persona de la sesión monitor/a según su ficha (sin el filtro de los
+ * grupos que no pasan lista)? Abre lo que es SUYO, no lo del equipo.
+ */
+function sticpa_equipo_tiene_datos_de_monitor()
+{
+    $audiencia = function_exists('sticpa_profile_audience') ? sticpa_profile_audience() : 'miembro';
+    if ($audiencia === 'participante') {
+        return false;
+    }
+    if (function_exists('sticpa_get_comunica_role')) {
+        sticpa_get_comunica_role();   // resuelve la sesión si venía sin rol
+    }
+    $raw = isset($_SESSION['scp_relationship_raw']) ? (string) $_SESSION['scp_relationship_raw'] : '';
+    return in_array('monitor', sticpa_equipo_papeles($raw), true);
 }
 
 /**

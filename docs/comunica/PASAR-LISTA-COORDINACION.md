@@ -101,6 +101,40 @@ que es justo lo que necesita alguien que mira el conjunto.
 Los monitores de un segmento salen de los **grupos** de ese segmento: no hace
 falta marcar la etapa en cada monitor.
 
+### Monitor solo de grupos que no pasan lista: no es monitor (20/11/2026)
+
+Hay gente con la relación de **monitor** que no es monitor del día a día: lleva un
+grupo de adultos (Comser), está de monitor/a de **Apoyo** solo para el seguro, o
+está en formación. Con el papel veía la app y el área de otra manera: fichas de
+chavales, listas y asistencias de todos los grupos. Se resuelve con la casilla que
+ya existe en el grupo, **sin campo nuevo**:
+
+> Quien tiene relaciones de monitor vigentes en la delegación de trabajo y **todas**
+> cuelgan de un grupo de esa delegación **sin** la casilla «entra en Pasar Lista»
+> (`ajmcm_pasar_lista_c`), **no es monitor** allí, ni con la marca de la ficha.
+
+- Pierde lo de equipo (pantallas de Pasar Lista, grupos, fichas, salud) y los avisos de
+  «pasa lista». **Conserva «Monitor/a»** (sus datos) **y el aviso del certificado de delitos
+  sexuales**, que son suyos mientras tenga la relación (`monitorData` en `/v1/me`; en la web,
+  `sticpa_equipo_secciones_de_cuenta()` lee la marca de la ficha). **Coordinación y acompañamiento
+  no se tocan**: quien coordina y solo lleva Apoyo, coordina, y ve lo de equipo como coordinación
+  (solo le falta la tarjeta de «tu grupo»). Quien lleva un grupo de cada clase, es monitor.
+- Ante la duda, **no se quita nada**: sin ningún grupo marcado en la delegación (el filtro no
+  actúa, como en `sticpa_pl_groups`); relación sin enlace a ningún grupo (se arregla vinculando);
+  grupo de otra delegación; o solo la marca de la ficha, sin ninguna relación de monitor.
+  **El comodín «POR DEFINIR» SÍ es de fuera**: no pasa lista (no tiene delegación; se reconoce por
+  el nombre del grupo de la relación). Quien solo está ahí sigue saliendo en «Tu equipo» de
+  coordinación para vincularlo.
+- **Dos implementaciones que deben decir lo mismo**: aquí `sticpa_pl_monitor_fuera_de_pasar_lista()`
+  (la web, con la marca de la ficha en `sticpa_equipo_papeles()`) y `monitorOutsideRollCall`
+  en `comunicaMiddleware:src/authz/principal.ts` (la app, por `/v1/me` → `roles`). Tests:
+  `MonitorFueraDePasarListaTest` y `test/principal.test.ts` + `test/mariadb-rollcall.test.ts`, en el mismo orden.
+- Coste en la web: el menú era «coste cero»; ahora, solo con la marca de monitor, hay una
+  consulta de grupos (cacheada, la que ya calienta el Guardián) cada 10 min por sesión
+  (`scp_equipo_fuera`). Por eso el tope de la home en `CosteLlamadasAreaTest` sube de 3 a 4 esperas en frío.
+- Coordinación sigue viendo a estos monitores en «Tu equipo» (Apoyo y «de otros grupos»): el papel
+  se quita de quien lo tiene, no de la lista que ve quien coordina.
+
 ### Varias delegaciones (23/10/2026)
 
 **El caso.** David Soler y Jesús Segarra son de Castellón (su ficha, `Contacts.assigned_user_id`)
@@ -404,7 +438,7 @@ Lo que hay ahora — **un verbo por sección**:
 | **Pasar lista** | Marcar quién ha venido. Para coordinación incluye, en su bloque del final, la **Lista de monitores** y las **Reuniones de programación**: pasar lista es pasar lista, sea de quien sea. | Equipo |
 | **Grupos y fichas** *(antes «Mis grupos»)* | Leer las fichas de los chavales, sin marcar nada. Dentro de un grupo se ve quién lo lleva. | Equipo |
 | **Coordinación** *(nueva, `single_stic_coordinacion`)* | Todo lo de coordinar en una pantalla: la reunión sin pasar (ámbar), **Lista de monitores**, **Reuniones de programación**, **Resumen de grupos** y **Tu equipo** — el directorio de monitores por etapa, con buscador, «Sin grupo» y «Vincular»; cada fila abre la ficha y sus seguimientos. | Coordinación y acompañamiento (este sin la lista ni las reuniones) |
-| **Mis datos de monitor** *(antes «Monitor/a»)* | Tu formación y certificados. Va en **Tu perfil**, junto a «Mis datos»: es dato tuyo, no herramienta del equipo. | Monitores |
+| **Monitor/a** *(antes «Mis datos de monitor», que antes fue «Monitor/a»; vuelve el 20/11/2026)* | Tu formación y certificados. Va en **Tu perfil**, junto a «Mis datos»: es dato tuyo, no herramienta del equipo. | Monitores |
 
 **Los bloques del menú** (igual en la barra, el móvil y la portada, y sin
 mezclarse): **Actividades** (Eventos, Inscripciones, Calendario, Pagos,

@@ -121,7 +121,7 @@ SQL: `ajmcm_grupos` + `ajmcm_grupos_cstm`. Los grupos del curso. ≠ grupos de a
 | `level` | enum 👁 | Etapa del grupo: `mic` · `com` · `lc` · `apoyo` (minúsculas) |
 | `cursos_c` | text | Curso(s) del grupo, texto libre |
 | `assigned_user_id` | id | Delegación |
-| `ajmcm_pasar_lista_c` | bool | Sale en Pasar Lista. Por defecto `1` en grupos nuevos |
+| `ajmcm_pasar_lista_c` | bool | Sale en Pasar Lista. Por defecto `1` en grupos nuevos. **Quien solo lleva grupos sin marcar no es monitor** (adultos, Apoyo, formación; 20/11/2026) |
 | `ajmcm_segmento_com_c` | enum 👁 | Agrupación para coordinar/programar juntos: `com_1` · `com_2` · `com_3`. ≠ etapa y ≠ nivel personal |
 | `ajmcm_n_participantes_c`, `ajmcm_n_monitores_c`, `ajmcm_monitores_c`, `ajmcm_recuento_al_c` | varios | Recuentos nocturnos (los escribe el Guardián) |
 

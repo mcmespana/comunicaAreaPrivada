@@ -16,7 +16,7 @@
  */
 
 $formSettings['moduleName'] = 'Contacts';
-$formSettings['title'] = __('Mis datos de monitor', 'sticpa');
+$formSettings['title'] = __('Monitor/a', 'sticpa');
 $formSettings['msg'][] = array('value' => 'true', 'type' => 'success', 'msg' => __('Los datos se han guardado correctamente.', 'sticpa'));
 $formSettings['msg'][] = array('value' => 'error', 'type' => 'error', 'msg' => __('Error al guardar los datos.', 'sticpa'));
 $formSettings['submitButton']['save'] = __('Guardar', 'sticpa');

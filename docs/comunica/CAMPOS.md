@@ -803,6 +803,10 @@ Tres consecuencias que hay que tener presentes:
     funciona hoy—, pero **un grupo creado a partir de ahora entrará solo en
     Pasar Lista**. Probablemente es lo que se quiere; queda escrito para que
     nadie lo descubra por sorpresa. (Comprobado el 28/08/2026.)
+  - **Además decide quién es monitor** (20/11/2026): quien solo lleva grupos SIN esta casilla
+    (adultos, Apoyo, formación) **no es monitor** en la delegación, aunque tenga la relación. Ver
+    `PASAR-LISTA-COORDINACION.md` §2. Con ningún grupo marcado en la delegación no se quita nada.
+    Por eso marcarla o no **ya no es solo «qué sale en el árbol»**: revisa el grupo antes de tocarla.
 
 - `ajmcm_segmento_com_c` — Segmento COM — desplegable (`enum`, custom, len 100)
   - **Qué es, y no es lo que parece por el nombre.** Es una **agrupación

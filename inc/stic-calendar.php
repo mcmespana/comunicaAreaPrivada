@@ -739,11 +739,14 @@ function sticpa_calendar_local_datetime($value)
  * El nombre de una sesión sin el « | 30/10/2026 17:30h» que le pone el CRM al
  * final: en el calendario el día y la hora ya los dice el propio bloque, y
  * repetirlos alargaba cada título a tres líneas («COM | Curso 2026-2027 · BU»
- * dice lo mismo). Un nombre sin ese sufijo se queda como está.
+ * dice lo mismo). Un nombre sin ese sufijo se queda como está. La app lo hace
+ * igual en el middleware (`sessionTitle`).
  */
 function sticpa_calendar_session_title($title)
 {
     $short = preg_replace('~\s*\|\s*\d{1,2}/\d{1,2}/\d{4}(?:\s+\d{1,2}:\d{2}\s*h?)?\s*$~u', '', (string) $title);
+    // Y la « · lista del 16/10» de la sesión que abre Pasar Lista en un evento (17/11/2026, igual que el middleware).
+    $short = $short === null ? null : preg_replace('~\s*·\s*lista del \d{1,2}/\d{1,2}(?:/\d{2,4})?\s*$~iu', '', $short);
     return ($short === null || trim($short) === '') ? (string) $title : trim($short);
 }
 

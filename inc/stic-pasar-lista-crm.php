@@ -804,6 +804,17 @@ function sticpa_pl_groups($objSCP)
     // las pantallas a la vez.
     uasort($groups, 'sticpa_pl_cmp_group');
 
+    // TODOS los grupos de la delegación, ANTES del filtro de abajo, para
+    // `sticpa_pl_monitor_fuera_de_pasar_lista()`: quien lleva SOLO grupos que no
+    // pasan lista no es monitor, y para saberlo hay que ver también los que el
+    // filtro tira (con su nombre, por el comodín «POR DEFINIR»). Sale de la
+    // misma respuesta: ni una llamada más.
+    $todos = array();
+    foreach ($groups as $gid => $g) {
+        $todos[$gid] = array('nombre' => trim($g['code'] . ' ' . $g['name']), 'activo' => !empty($g['activo']));
+    }
+    sticpa_pl_cache_put(sticpa_pl_cache_key('groupsall', $objSCP), $todos, $ttl);
+
     // EL FILTRO DE «ESTE GRUPO ENTRA EN PASAR LISTA».
     //
     // En el CRM hay ~150 grupos y la mayoría son históricos: salían todos en el
@@ -850,6 +861,120 @@ function sticpa_pl_grupos_ocultos($objSCP)
         return isset($g['ocultos']) ? (int) $g['ocultos'] : 0;
     }
     return 0;
+}
+
+/**
+ * Todos los grupos de la delegación de trabajo, con su casilla, SIN el filtro de
+ * `sticpa_pl_groups()`: id => array('nombre', 'activo'). Vacío si no se sabe
+ * (caché de antes de existir esto, o el CRM no contestó): quien lo use no debe
+ * esconder nada por un vacío.
+ */
+function sticpa_pl_groups_todos($objSCP)
+{
+    $key = sticpa_pl_cache_key('groupsall', $objSCP);
+    $cached = get_transient($key);
+    if (!is_array($cached)) {
+        // Rellena la clave si la estructura estaba fría; si estaba caliente de
+        // antes de que esto existiera, se queda vacío hasta que caduque.
+        sticpa_pl_groups($objSCP);
+        $cached = get_transient($key);
+    }
+    return is_array($cached) ? $cached : array();
+}
+
+/**
+ * ¿Es esta persona monitor SOLO de grupos que no pasan lista? (20/11/2026)
+ *
+ * Hay monitores que llevan un grupo de adultos o de Apoyo (dados de alta como
+ * monitores para el seguro) o que están en formación: tienen la relación, pero no
+ * son monitores del día a día y no tienen por qué ver fichas de chavales, grupos
+ * ni asistencias. La casilla «entra en Pasar Lista» del grupo ya dice qué grupos
+ * son de ese sistema; se reutiliza, sin campo nuevo. Es el ESPEJO de
+ * `monitorOutsideRollCall` del middleware (comunicaMiddleware:src/authz/principal.ts),
+ * que decide lo mismo para la app: si se toca una, la otra.
+ *
+ * Solo es «sí» cuando TODAS sus relaciones de monitor vigentes en la delegación
+ * de trabajo cuelgan de un grupo de esa delegación sin marcar, y en ella hay
+ * algún grupo marcado. Ante cualquier duda, «no» (que es lo que había):
+ *  · sin grupo (relación sin enlace): es lo que coordinación arregla vinculando, no
+ *    una prueba de nada. El comodín «POR DEFINIR» SÍ es de fuera: no pasa lista;
+ *  · ningún grupo marcado en la delegación: el filtro no actúa (la misma regla de
+ *    seguridad de `sticpa_pl_groups`);
+ *  · un grupo que no es de la delegación de trabajo: un dato raro.
+ * Sin ninguna relación de monitor (solo la marca de la ficha), tampoco: no hay
+ * nada que juzgar.
+ *
+ * Coste: sus relaciones y la estructura de grupos, las dos cacheadas y ya
+ * calientes para quien abre Pasar Lista. Quien llama desde el menú lo guarda en
+ * sesión (`sticpa_equipo_monitor_fuera()`).
+ */
+function sticpa_pl_monitor_fuera_de_pasar_lista($objSCP)
+{
+    $userId = isset($_SESSION['scp_user_id']) ? sticpa_pl_safe_id((string) $_SESSION['scp_user_id']) : '';
+    if ($userId === '' || sticpa_pl_delegation_forced() !== '') {
+        return false;
+    }
+    $deleg = (string) sticpa_pl_delegation($objSCP);
+    $home = (string) sticpa_pl_home_delegation($objSCP);
+    if ($deleg === '') {
+        return false;
+    }
+    $todos = sticpa_pl_groups_todos($objSCP);
+    $hayMarcados = false;
+    foreach ($todos as $g) {
+        if (!empty($g['activo'])) {
+            $hayMarcados = true;
+            break;
+        }
+    }
+    if (!$hayMarcados) {
+        return false;
+    }
+
+    $now = sticpa_pl_now();
+    $monitor = false;
+    foreach ((array) sticpa_pl_mis_rels($objSCP, $userId) as $rel) {
+        $v = isset($rel->name_value_list) ? $rel->name_value_list : null;
+        if (!$v) {
+            continue;
+        }
+        $type = isset($v->relationship_type->value) ? (string) $v->relationship_type->value : '';
+        if (sticpa_pl_rel_role($type) !== 'monitor') {
+            continue;
+        }
+        $end = isset($v->end_date->value) ? trim((string) $v->end_date->value) : '';
+        if ($end !== '') {
+            $endTs = strtotime($end . ' 23:59:59');
+            if ($endTs && $endTs < $now) {
+                continue;
+            }
+        }
+        // Una relación sin delegación cuenta en la de la ficha (las antiguas).
+        $d = isset($v->assigned_user_id->value) ? trim((string) $v->assigned_user_id->value) : '';
+        if (($d !== '' ? $d : $home) !== $deleg) {
+            continue;
+        }
+        $monitor = true;
+        $gid = sticpa_pl_nvl_first($v, array('ajmcm_grupos_stic_contacts_relationshipsajmcm_grupos_ida'));
+        if ($gid === '') {
+            $gid = sticpa_pl_link_id($rel);
+        }
+        if ($gid === '') {
+            return false;   // sin grupo: no se juzga
+        }
+        // El comodín «POR DEFINIR» no pasa lista (y no es de ninguna delegación: no sale en `$todos`).
+        $nombre = sticpa_pl_nvl_first($v, array('ajmcm_grupos_stic_contacts_relationships_name'));
+        if ($nombre !== '' && stripos($nombre, 'por definir') !== false) {
+            continue;
+        }
+        if (!isset($todos[$gid])) {
+            return false;   // de otra delegación: un dato raro, no se juzga
+        }
+        if (!empty($todos[$gid]['activo'])) {
+            return false;   // lleva un grupo que pasa lista: es monitor
+        }
+    }
+    return $monitor;
 }
 
 /**
@@ -927,7 +1052,10 @@ function sticpa_pl_all_relationships_raw($objSCP)
     // llevan SOLO la primera página de relaciones (ver pedirOtraPagina() en
     // stic-class-6.php). Con la clave vieja se seguirían viendo 4 chavales y 2
     // monitores hasta que caducaran.
-    $cacheKey = sticpa_pl_cache_key('relshist3', $objSCP);
+    // Y 'relshist4' (07/11/2026): cada persona lleva ahora también la marca
+    // menor 'patologias' (TEA, TDAH…); una caché de antes la daría por vacía
+    // hasta caducar.
+    $cacheKey = sticpa_pl_cache_key('relshist4', $objSCP);
     $ttl = sticpa_pl_ttl_structure();
     if ($ttl > 0) {
         $cached = get_transient($cacheKey);
@@ -1206,19 +1334,21 @@ function sticpa_pl_person_from_rel_row($v)
  *
  * Plan 043, fila 9 (F3, «lo importante del grupo, de un vistazo»). Nombres y
  * tipos de CAMPOS.md: los tres primeros son desplegables 1 (Sí) / 0 (No); los
- * tres de salud, texto libre. El doble guion bajo de las alergias es de verdad.
+ * cinco de salud, texto libre (los tres primeros encienden «salud» y los dos
+ * últimos «patologias»). El doble guion bajo de las alergias es de verdad.
  */
 function sticpa_pl_marcas_campos()
 {
     return array(
         'ajmcm_soloacasa_c', 'ajmcm_cesionimagenes_interne_c', 'ajmcm_datossalud_c',
         'ajmcm_descripcion_allergies__c', 'ajmcm_descripcion_intoler_c', 'ajmcm_descripcion_tratam_c',
+        'ajmcm_descripcion_enfermed_c', 'ajmcm_descripcion_otros_c',
     );
 }
 
 /**
  * Las marcas de una persona: lo que un monitor tiene que saber de un vistazo,
- * sin abrir doce fichas un sábado. Como mucho tres, y en este orden:
+ * sin abrir doce fichas un sábado. Como mucho cuatro, y en este orden:
  *
  *   - 'no_solo'   — `ajmcm_soloacasa_c` es «0»: no se va solo/a a casa.
  *   - 'sin_fotos' — `ajmcm_cesionimagenes_interne_c` es «0»: no sale en fotos.
@@ -1227,6 +1357,10 @@ function sticpa_pl_marcas_campos()
  *                   móvil para usarla sin conexión, y el detalle está en la
  *                   ficha. Y si `ajmcm_datossalud_c` es «0» (no autoriza el uso
  *                   de sus datos de salud), no se marca.
+ *   - 'patologias' — tiene algo escrito en enfermedades u otras patologías
+ *                   (TEA, TDAH…). Marca MENOR y aparte de 'salud': pueden ir
+ *                   las dos. Mismas reglas: no dice cuál y con «0» en
+ *                   `ajmcm_datossalud_c` no se marca.
  *
  * UN VACÍO NO ES UN «NO». Una ficha migrada llega con estos campos sin
  * contestar (CAMPOS.md, «Llegó VACÍO»), y marcar a media delegación como «sin
@@ -1255,6 +1389,11 @@ function sticpa_pl_marcas_de($nvl)
             || $val('ajmcm_descripcion_intoler_c') !== ''
             || $val('ajmcm_descripcion_tratam_c') !== '')) {
         $marcas[] = 'salud';
+    }
+    if ($val('ajmcm_datossalud_c') !== '0'
+        && ($val('ajmcm_descripcion_enfermed_c') !== ''
+            || $val('ajmcm_descripcion_otros_c') !== '')) {
+        $marcas[] = 'patologias';
     }
     return $marcas;
 }
@@ -5381,7 +5520,8 @@ function sticpa_pl_mis_rels($objSCP, $userId)
     // Y 'misrels4' (23/10/2026): lleva la delegación de cada relación
     // (`assigned_user_id` y su nombre), con la que se sabe en qué delegaciones
     // trabaja alguien y qué coordinación vale en cada una.
-    $cacheKey = sticpa_pl_cache_key('misrels4', $objSCP, $userId);
+    // Y 'misrels5' (20/11/2026): lleva el nombre del grupo de cada relación (el comodín «POR DEFINIR»).
+    $cacheKey = sticpa_pl_cache_key('misrels5', $objSCP, $userId);
     $ttl = sticpa_pl_ttl_structure();
     if ($ttl > 0) {
         $cached = get_transient($cacheKey);
@@ -5417,6 +5557,9 @@ function sticpa_pl_mis_rels_params($userId)
         'related_fields' => array(
             'id', 'relationship_type', 'start_date', 'end_date', 'ajmcm_etapa_relacion_c',
             'ajmcm_grupos_stic_contacts_relationshipsajmcm_grupos_ida',
+            // El nombre de ese grupo: para reconocer el comodín «POR DEFINIR» (que no pasa
+            // lista y no es de ninguna delegación) en `sticpa_pl_monitor_fuera_de_pasar_lista()`.
+            'ajmcm_grupos_stic_contacts_relationships_name',
             // `active` y `ajmcm_curso_escolar_c` los usa la AUDIENCIA de los
             // eventos (inc/stic-event-audience.php): con ellos aquí, saber a
             // qué eventos puede apuntarse alguien no cuesta ni una llamada
