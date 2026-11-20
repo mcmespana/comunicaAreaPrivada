@@ -343,6 +343,8 @@ function sticpa_identity_session_keys()
         'scp_role',
         'scp_role_resolved',
         'scp_relationship_raw',
+        // Si es monitor SOLO de grupos que no pasan lista (inc/stic-equipo.php): depende de quién es.
+        'scp_equipo_fuera',
         'scp_available_profiles',
         'scp_is_familia',
         'scp_ds_pending',

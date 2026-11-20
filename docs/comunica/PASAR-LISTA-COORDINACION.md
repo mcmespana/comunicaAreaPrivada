@@ -101,6 +101,35 @@ que es justo lo que necesita alguien que mira el conjunto.
 Los monitores de un segmento salen de los **grupos** de ese segmento: no hace
 falta marcar la etapa en cada monitor.
 
+### Monitor solo de grupos que no pasan lista: no es monitor (20/11/2026)
+
+Hay gente con la relación de **monitor** que no es monitor del día a día: lleva un
+grupo de adultos (Comser), está de monitor/a de **Apoyo** solo para el seguro, o
+está en formación. Con el papel veía la app y el área de otra manera: fichas de
+chavales, listas y asistencias de todos los grupos. Se resuelve con la casilla que
+ya existe en el grupo, **sin campo nuevo**:
+
+> Quien tiene relaciones de monitor vigentes en la delegación de trabajo y **todas**
+> cuelgan de un grupo de esa delegación **sin** la casilla «entra en Pasar Lista»
+> (`ajmcm_pasar_lista_c`), **no es monitor** allí, ni con la marca de la ficha.
+
+- Pierde lo de equipo (pantallas de Pasar Lista, grupos, fichas, salud), los avisos de
+  «pasa lista» y «Mis datos de monitor». **Coordinación y acompañamiento no se tocan**:
+  quien coordina y solo lleva Apoyo, coordina. Quien lleva un grupo de cada clase, es monitor.
+- Ante la duda, **no se quita nada**: sin ningún grupo marcado en la delegación (casi todas
+  hoy: el filtro no actúa, como en `sticpa_pl_groups`); relación sin grupo o con el comodín
+  «POR DEFINIR» (eso se arregla vinculando, no se juzga); grupo de otra delegación; o solo
+  la marca de la ficha, sin ninguna relación de monitor.
+- **Dos implementaciones que deben decir lo mismo**: aquí `sticpa_pl_monitor_fuera_de_pasar_lista()`
+  (la web, con la marca de la ficha en `sticpa_equipo_papeles()`) y `monitorOutsideRollCall`
+  en `comunicaMiddleware:src/authz/principal.ts` (la app, por `/v1/me` → `roles`). Tests:
+  `MonitorFueraDePasarListaTest` y `test/principal.test.ts` + `test/mariadb-rollcall.test.ts`, en el mismo orden.
+- Coste en la web: el menú era «coste cero»; ahora, solo con la marca de monitor, hay una
+  consulta de grupos (cacheada, la que ya calienta el Guardián) cada 10 min por sesión
+  (`scp_equipo_fuera`). Por eso el tope de la home en `CosteLlamadasAreaTest` sube de 3 a 4 esperas en frío.
+- Coordinación sigue viendo a estos monitores en «Tu equipo» (Apoyo y «de otros grupos»): el papel
+  se quita de quien lo tiene, no de la lista que ve quien coordina.
+
 ### Varias delegaciones (23/10/2026)
 
 **El caso.** David Soler y Jesús Segarra son de Castellón (su ficha, `Contacts.assigned_user_id`)

@@ -152,6 +152,11 @@ contexto**. Reglas:
   respondía igual para todos y la gente se quedaba esperando un correo que no llegaba). Va con un freno por IP
   a los correos que no existen y con la salida del DNI en la misma pantalla. No lo «arregles» devolviéndolo al
   silencio sin preguntar: ver `docs/ACCESO.md` §2 y `tests/AccesoCorreoTest.php`.
+- **Monitor solo de grupos que no pasan lista = no es monitor** (decidido por el propietario el 20/11/2026):
+  la relación de monitor no basta; el grupo tiene que tener la casilla `ajmcm_pasar_lista_c`. Sin campo nuevo, con la
+  casilla que ya existía. **Hay dos implementaciones que deben decir lo mismo** —`sticpa_pl_monitor_fuera_de_pasar_lista()`
+  aquí y `monitorOutsideRollCall` en el middleware—; si cambias una, cambia la otra. Ante la duda no se quita nada (ver
+  `docs/comunica/PASAR-LISTA-COORDINACION.md` §2).
 - **Pasar Lista lee por el middleware** (`inc/stic-middleware.php`, 29/10/2026) cuando está encendido: un cargador
   que entre en él pide su recurso con `sticpa_pl_mw()` y, si devuelve null, sigue por la API. El middleware da las
   filas de la MISMA consulta con los nombres de la API; no copies allí lo que el cargador hace después. Ver

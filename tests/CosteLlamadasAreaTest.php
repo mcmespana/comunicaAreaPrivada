@@ -169,7 +169,14 @@ class CosteLlamadasAreaTest extends TestCase
             // agenda. La home es la pantalla a la que se vuelve TODO EL RATO
             // —es el destino de cada «volver»—, así que es donde más duele
             // cada llamada.
-            'single_stic_home' => 4,
+            // 5, y eran 4 hasta el 20/11/2026. La quinta es `getRecordsModule:ajmcm_GRUPOS`:
+            // el menú ya no da por monitor a quien lleva SOLO grupos que no pasan lista
+            // (Comser, Apoyo…), y para saberlo hay que ver la casilla de los grupos
+            // (`sticpa_equipo_monitor_fuera()`). Solo la paga quien lleva la marca de
+            // monitor, una vez cada 10 minutos por sesión, y es la estructura de grupos
+            // que el calentado nocturno ya deja hecha (y que Pasar Lista necesita igual):
+            // en régimen normal, cero llamadas de más.
+            'single_stic_home' => 5,
             // 3, y eran 4 hasta el 18/09/2026: pedía la definición de campos
             // dos veces con dos listas distintas. Ver sticpa_event_field_definition().
             'list_stic_events' => 3,
@@ -233,7 +240,9 @@ class CosteLlamadasAreaTest extends TestCase
             // la misma tanda (VEL-3). Las otras dos: la ficha del contacto y
             // la definición de eventos (6 h, de todo el sitio: casi siempre
             // caliente). Con inscripciones se suman sus tandas (CalendarParallelTest).
-            'single_stic_home' => 3,
+            // 4, y eran 3 hasta el 20/11/2026: la espera de más es la estructura de grupos
+            // del monitor (ver el tope de llamadas de arriba). Solo en frío.
+            'single_stic_home' => 4,
             // 2, y eran 3: los eventos de la ventana y tus inscripciones van
             // en la misma tanda (VEL-5). Con este doble no tienes inscripciones;
             // con ellas se suma la tanda del evento de cada una (ViajesFamiliasTest).

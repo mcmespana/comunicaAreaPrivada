@@ -804,6 +804,17 @@ function sticpa_pl_groups($objSCP)
     // las pantallas a la vez.
     uasort($groups, 'sticpa_pl_cmp_group');
 
+    // TODOS los grupos de la delegación, ANTES del filtro de abajo, para
+    // `sticpa_pl_monitor_fuera_de_pasar_lista()`: quien lleva SOLO grupos que no
+    // pasan lista no es monitor, y para saberlo hay que ver también los que el
+    // filtro tira (con su nombre, por el comodín «POR DEFINIR»). Sale de la
+    // misma respuesta: ni una llamada más.
+    $todos = array();
+    foreach ($groups as $gid => $g) {
+        $todos[$gid] = array('nombre' => trim($g['code'] . ' ' . $g['name']), 'activo' => !empty($g['activo']));
+    }
+    sticpa_pl_cache_put(sticpa_pl_cache_key('groupsall', $objSCP), $todos, $ttl);
+
     // EL FILTRO DE «ESTE GRUPO ENTRA EN PASAR LISTA».
     //
     // En el CRM hay ~150 grupos y la mayoría son históricos: salían todos en el
@@ -850,6 +861,112 @@ function sticpa_pl_grupos_ocultos($objSCP)
         return isset($g['ocultos']) ? (int) $g['ocultos'] : 0;
     }
     return 0;
+}
+
+/**
+ * Todos los grupos de la delegación de trabajo, con su casilla, SIN el filtro de
+ * `sticpa_pl_groups()`: id => array('nombre', 'activo'). Vacío si no se sabe
+ * (caché de antes de existir esto, o el CRM no contestó): quien lo use no debe
+ * esconder nada por un vacío.
+ */
+function sticpa_pl_groups_todos($objSCP)
+{
+    $key = sticpa_pl_cache_key('groupsall', $objSCP);
+    $cached = get_transient($key);
+    if (!is_array($cached)) {
+        // Rellena la clave si la estructura estaba fría; si estaba caliente de
+        // antes de que esto existiera, se queda vacío hasta que caduque.
+        sticpa_pl_groups($objSCP);
+        $cached = get_transient($key);
+    }
+    return is_array($cached) ? $cached : array();
+}
+
+/**
+ * ¿Es esta persona monitor SOLO de grupos que no pasan lista? (20/11/2026)
+ *
+ * Hay monitores que llevan un grupo de adultos o de Apoyo (dados de alta como
+ * monitores para el seguro) o que están en formación: tienen la relación, pero no
+ * son monitores del día a día y no tienen por qué ver fichas de chavales, grupos
+ * ni asistencias. La casilla «entra en Pasar Lista» del grupo ya dice qué grupos
+ * son de ese sistema; se reutiliza, sin campo nuevo. Es el ESPEJO de
+ * `monitorOutsideRollCall` del middleware (comunicaMiddleware:src/authz/principal.ts),
+ * que decide lo mismo para la app: si se toca una, la otra.
+ *
+ * Solo es «sí» cuando TODAS sus relaciones de monitor vigentes en la delegación
+ * de trabajo cuelgan de un grupo de esa delegación sin marcar, y en ella hay
+ * algún grupo marcado. Ante cualquier duda, «no» (que es lo que había):
+ *  · sin grupo de verdad (vacío o el comodín «POR DEFINIR»): es lo que coordinación
+ *    arregla vinculando, no una prueba de nada;
+ *  · ningún grupo marcado en la delegación: el filtro no actúa (la misma regla de
+ *    seguridad de `sticpa_pl_groups`);
+ *  · un grupo que no es de la delegación de trabajo: un dato raro.
+ * Sin ninguna relación de monitor (solo la marca de la ficha), tampoco: no hay
+ * nada que juzgar.
+ *
+ * Coste: sus relaciones y la estructura de grupos, las dos cacheadas y ya
+ * calientes para quien abre Pasar Lista. Quien llama desde el menú lo guarda en
+ * sesión (`sticpa_equipo_monitor_fuera()`).
+ */
+function sticpa_pl_monitor_fuera_de_pasar_lista($objSCP)
+{
+    $userId = isset($_SESSION['scp_user_id']) ? sticpa_pl_safe_id((string) $_SESSION['scp_user_id']) : '';
+    if ($userId === '' || sticpa_pl_delegation_forced() !== '') {
+        return false;
+    }
+    $deleg = (string) sticpa_pl_delegation($objSCP);
+    $home = (string) sticpa_pl_home_delegation($objSCP);
+    if ($deleg === '') {
+        return false;
+    }
+    $todos = sticpa_pl_groups_todos($objSCP);
+    $hayMarcados = false;
+    foreach ($todos as $g) {
+        if (!empty($g['activo'])) {
+            $hayMarcados = true;
+            break;
+        }
+    }
+    if (!$hayMarcados) {
+        return false;
+    }
+
+    $now = sticpa_pl_now();
+    $monitor = false;
+    foreach ((array) sticpa_pl_mis_rels($objSCP, $userId) as $rel) {
+        $v = isset($rel->name_value_list) ? $rel->name_value_list : null;
+        if (!$v) {
+            continue;
+        }
+        $type = isset($v->relationship_type->value) ? (string) $v->relationship_type->value : '';
+        if (sticpa_pl_rel_role($type) !== 'monitor') {
+            continue;
+        }
+        $end = isset($v->end_date->value) ? trim((string) $v->end_date->value) : '';
+        if ($end !== '') {
+            $endTs = strtotime($end . ' 23:59:59');
+            if ($endTs && $endTs < $now) {
+                continue;
+            }
+        }
+        // Una relación sin delegación cuenta en la de la ficha (las antiguas).
+        $d = isset($v->assigned_user_id->value) ? trim((string) $v->assigned_user_id->value) : '';
+        if (($d !== '' ? $d : $home) !== $deleg) {
+            continue;
+        }
+        $monitor = true;
+        $gid = sticpa_pl_nvl_first($v, array('ajmcm_grupos_stic_contacts_relationshipsajmcm_grupos_ida'));
+        if ($gid === '') {
+            $gid = sticpa_pl_link_id($rel);
+        }
+        if ($gid === '' || !isset($todos[$gid]) || stripos($todos[$gid]['nombre'], 'por definir') !== false) {
+            return false;   // sin grupo de verdad, de otra delegación o el comodín: no se juzga
+        }
+        if (!empty($todos[$gid]['activo'])) {
+            return false;   // lleva un grupo que pasa lista: es monitor
+        }
+    }
+    return $monitor;
 }
 
 /**
