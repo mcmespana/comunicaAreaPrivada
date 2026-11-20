@@ -896,8 +896,8 @@ function sticpa_pl_groups_todos($objSCP)
  * Solo es «sí» cuando TODAS sus relaciones de monitor vigentes en la delegación
  * de trabajo cuelgan de un grupo de esa delegación sin marcar, y en ella hay
  * algún grupo marcado. Ante cualquier duda, «no» (que es lo que había):
- *  · sin grupo de verdad (vacío o el comodín «POR DEFINIR»): es lo que coordinación
- *    arregla vinculando, no una prueba de nada;
+ *  · sin grupo (relación sin enlace): es lo que coordinación arregla vinculando, no
+ *    una prueba de nada. El comodín «POR DEFINIR» SÍ es de fuera: no pasa lista;
  *  · ningún grupo marcado en la delegación: el filtro no actúa (la misma regla de
  *    seguridad de `sticpa_pl_groups`);
  *  · un grupo que no es de la delegación de trabajo: un dato raro.
@@ -959,8 +959,16 @@ function sticpa_pl_monitor_fuera_de_pasar_lista($objSCP)
         if ($gid === '') {
             $gid = sticpa_pl_link_id($rel);
         }
-        if ($gid === '' || !isset($todos[$gid]) || stripos($todos[$gid]['nombre'], 'por definir') !== false) {
-            return false;   // sin grupo de verdad, de otra delegación o el comodín: no se juzga
+        if ($gid === '') {
+            return false;   // sin grupo: no se juzga
+        }
+        // El comodín «POR DEFINIR» no pasa lista (y no es de ninguna delegación: no sale en `$todos`).
+        $nombre = sticpa_pl_nvl_first($v, array('ajmcm_grupos_stic_contacts_relationships_name'));
+        if ($nombre !== '' && stripos($nombre, 'por definir') !== false) {
+            continue;
+        }
+        if (!isset($todos[$gid])) {
+            return false;   // de otra delegación: un dato raro, no se juzga
         }
         if (!empty($todos[$gid]['activo'])) {
             return false;   // lleva un grupo que pasa lista: es monitor
@@ -5512,7 +5520,8 @@ function sticpa_pl_mis_rels($objSCP, $userId)
     // Y 'misrels4' (23/10/2026): lleva la delegación de cada relación
     // (`assigned_user_id` y su nombre), con la que se sabe en qué delegaciones
     // trabaja alguien y qué coordinación vale en cada una.
-    $cacheKey = sticpa_pl_cache_key('misrels4', $objSCP, $userId);
+    // Y 'misrels5' (20/11/2026): lleva el nombre del grupo de cada relación (el comodín «POR DEFINIR»).
+    $cacheKey = sticpa_pl_cache_key('misrels5', $objSCP, $userId);
     $ttl = sticpa_pl_ttl_structure();
     if ($ttl > 0) {
         $cached = get_transient($cacheKey);
@@ -5548,6 +5557,9 @@ function sticpa_pl_mis_rels_params($userId)
         'related_fields' => array(
             'id', 'relationship_type', 'start_date', 'end_date', 'ajmcm_etapa_relacion_c',
             'ajmcm_grupos_stic_contacts_relationshipsajmcm_grupos_ida',
+            // El nombre de ese grupo: para reconocer el comodín «POR DEFINIR» (que no pasa
+            // lista y no es de ninguna delegación) en `sticpa_pl_monitor_fuera_de_pasar_lista()`.
+            'ajmcm_grupos_stic_contacts_relationships_name',
             // `active` y `ajmcm_curso_escolar_c` los usa la AUDIENCIA de los
             // eventos (inc/stic-event-audience.php): con ellos aquí, saber a
             // qué eventos puede apuntarse alguien no cuesta ni una llamada

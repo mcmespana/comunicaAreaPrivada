@@ -52,13 +52,17 @@ function getSticMenuElements()
     $deCuenta = array();
     if ($esDelEquipo) {
         $delEquipo = sticpa_equipo_secciones();
+    }
+    if (function_exists('sticpa_equipo_secciones_de_cuenta')) {
+        // «Monitor/a» (sus datos) no depende de ser del equipo: quien lleva solo
+        // grupos que no pasan lista la conserva (20/11/2026).
         $deCuenta = sticpa_equipo_secciones_de_cuenta();
     } elseif ($role === 'monitor' && $audience !== 'participante') {
         // Salvavidas por si el módulo del equipo no estuviera cargado: lo
         // mínimo de un monitor.
         $delEquipo['single_stic_pasar_lista'] = __('Pasar lista', 'sticpa');
         $delEquipo['single_stic_mis_grupos'] = __('Grupos y fichas', 'sticpa');
-        $deCuenta['single_stic_comunica_monitor'] = __('Mis datos de monitor', 'sticpa');
+        $deCuenta['single_stic_comunica_monitor'] = __('Monitor/a', 'sticpa');
     }
 
     // --- 2. Equipo de monitores, todo junto y, si lo hay, lo primero (CAR-1) ---
@@ -143,7 +147,7 @@ function sticpa_nav_layout($keys)
 {
     $equipo = function_exists('sticpa_equipo_secciones') ? array_keys(sticpa_equipo_secciones()) : array();
     $equipo = array_merge($equipo, array('single_stic_pasar_lista', 'single_stic_mis_grupos', 'single_stic_coordinacion'));
-    // «Mis datos de monitor» va en la CUENTA: son datos tuyos, no una
+    // «Monitor/a» (tus datos de monitor) va en la CUENTA: son datos tuyos, no una
     // herramienta del equipo (ver sticpa_equipo_secciones_de_cuenta()).
     $cuenta = array('single_stic_comunica_perfil', 'single_stic_comunica_monitor', 'single_stic_tutor_profile',
         'single_stic_profile', 'single_stic_forma_pago', 'single_stic_password_change', 'single_stic_profile_selection', 'single_stic_unsubscribe');

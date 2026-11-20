@@ -124,12 +124,44 @@ class MonitorFueraDePasarListaTest extends TestCase
         $this->assertSame(array('monitor'), sticpa_equipo_papeles());
     }
 
-    public function testSinGrupoDeVerdadNoSeJuzga()
+    public function testSinGrupoNoSeJuzga()
     {
+        // Relación sin enlace a ningún grupo: es lo que coordinación tiene que vincular.
         $this->assertFalse($this->fuera($this->scp(array($this->rel('r1', 'monitor', '')))));
-        $this->setUp();
-        // El comodín «POR DEFINIR» es no tener grupo: es lo que coordinación tiene que vincular.
-        $this->assertFalse($this->fuera($this->scp(array($this->rel('r1', 'monitor', 'g-pordef')))));
+    }
+
+    public function testElComodinPorDefinirNoPasaLista()
+    {
+        // El comodín real no tiene delegación: no sale en la lista de grupos; se reconoce por su nombre.
+        $nombre = array('ajmcm_grupos_stic_contacts_relationships_name' => '⚠️ Grupo monitoreado  - POR DEFINIR!');
+        $comodin = $this->rel('r1', 'monitor', 'g-comodin-sin-delegacion', $nombre);
+        $this->assertTrue($this->fuera($this->scp(array($comodin))));
+        // Con un grupo de verdad que pasa lista, es monitor; y sin ningún grupo marcado no se esconde nada.
+        $GLOBALS['__stic_transients'] = array();
+        $this->assertFalse($this->fuera($this->scp(array($comodin, $this->rel('r2', 'monitor', 'g-c1')))));
+        $GLOBALS['__stic_transients'] = array();
+        $this->assertFalse($this->fuera($this->scp(array($comodin), array())));
+    }
+
+    public function testSinElPapelConservaMonitorAYNoVeLasHerramientas()
+    {
+        require_once __DIR__ . '/../menu.php';
+        $this->scp(array($this->rel('r1', 'monitor', 'g-comser')));
+        $this->assertSame(array(), sticpa_equipo_papeles());
+        $this->assertSame(array('single_stic_comunica_monitor' => 'Monitor/a'), sticpa_equipo_secciones_de_cuenta());
+        $items = getSticMenuElements()[0];
+        $this->assertArrayHasKey('single_stic_comunica_monitor', $items);
+        $this->assertSame('Monitor/a', $items['single_stic_comunica_monitor']);
+        $this->assertArrayNotHasKey('single_stic_pasar_lista', $items);
+        $this->assertArrayNotHasKey('single_stic_mis_grupos', $items);
+        $this->assertArrayNotHasKey('single_stic_coordinacion', $items);
+    }
+
+    public function testQuienNuncaFueMonitorNoTieneMonitorA()
+    {
+        $_SESSION['scp_relationship_raw'] = '^grupo^';
+        $this->scp(array());
+        $this->assertSame(array(), sticpa_equipo_secciones_de_cuenta());
     }
 
     public function testUnGrupoQueNoEsDeLaDelegacionDeTrabajoNoSeJuzga()

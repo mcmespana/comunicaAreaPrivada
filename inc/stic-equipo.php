@@ -217,16 +217,35 @@ function sticpa_equipo_secciones()
  * certificados. Va en «Tu perfil», al lado de «Mis datos», que es donde se
  * busca lo que se rellena una vez al año.
  *
- * Se llama «Mis datos de monitor» y no «Monitor/a»: una sección con el nombre
- * de un papel no dice qué hay dentro, y al lado de «Monitores» (que era otra
- * cosa) parecían la misma.
+ * Se llama «Monitor/a» (20/11/2026; antes «Mis datos de monitor»). Es de quien tiene
+ * la relación de monitor AUNQUE no sea del equipo: quien lleva solo grupos que no
+ * pasan lista (Comser, Apoyo, formación) ya no ve herramientas de monitor, pero
+ * sigue teniendo esto y el aviso del certificado. Por eso NO pasa por
+ * `sticpa_equipo_papeles()`, que le quita el papel: lee las marcas de la ficha tal cual.
  */
 function sticpa_equipo_secciones_de_cuenta()
 {
-    if (!sticpa_equipo_es_del_equipo() || !in_array('monitor', sticpa_equipo_papeles(), true)) {
+    if (!sticpa_equipo_tiene_datos_de_monitor()) {
         return array();
     }
-    return array('single_stic_comunica_monitor' => __('Mis datos de monitor', 'sticpa'));
+    return array('single_stic_comunica_monitor' => __('Monitor/a', 'sticpa'));
+}
+
+/**
+ * ¿Es la persona de la sesión monitor/a según su ficha (sin el filtro de los
+ * grupos que no pasan lista)? Abre lo que es SUYO, no lo del equipo.
+ */
+function sticpa_equipo_tiene_datos_de_monitor()
+{
+    $audiencia = function_exists('sticpa_profile_audience') ? sticpa_profile_audience() : 'miembro';
+    if ($audiencia === 'participante') {
+        return false;
+    }
+    if (function_exists('sticpa_get_comunica_role')) {
+        sticpa_get_comunica_role();   // resuelve la sesión si venía sin rol
+    }
+    $raw = isset($_SESSION['scp_relationship_raw']) ? (string) $_SESSION['scp_relationship_raw'] : '';
+    return in_array('monitor', sticpa_equipo_papeles($raw), true);
 }
 
 /**

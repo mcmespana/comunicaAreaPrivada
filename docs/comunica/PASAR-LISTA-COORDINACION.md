@@ -113,13 +113,18 @@ ya existe en el grupo, **sin campo nuevo**:
 > cuelgan de un grupo de esa delegación **sin** la casilla «entra en Pasar Lista»
 > (`ajmcm_pasar_lista_c`), **no es monitor** allí, ni con la marca de la ficha.
 
-- Pierde lo de equipo (pantallas de Pasar Lista, grupos, fichas, salud), los avisos de
-  «pasa lista» y «Mis datos de monitor». **Coordinación y acompañamiento no se tocan**:
-  quien coordina y solo lleva Apoyo, coordina. Quien lleva un grupo de cada clase, es monitor.
-- Ante la duda, **no se quita nada**: sin ningún grupo marcado en la delegación (casi todas
-  hoy: el filtro no actúa, como en `sticpa_pl_groups`); relación sin grupo o con el comodín
-  «POR DEFINIR» (eso se arregla vinculando, no se juzga); grupo de otra delegación; o solo
-  la marca de la ficha, sin ninguna relación de monitor.
+- Pierde lo de equipo (pantallas de Pasar Lista, grupos, fichas, salud) y los avisos de
+  «pasa lista». **Conserva «Monitor/a»** (sus datos) **y el aviso del certificado de delitos
+  sexuales**, que son suyos mientras tenga la relación (`monitorData` en `/v1/me`; en la web,
+  `sticpa_equipo_secciones_de_cuenta()` lee la marca de la ficha). **Coordinación y acompañamiento
+  no se tocan**: quien coordina y solo lleva Apoyo, coordina, y ve lo de equipo como coordinación
+  (solo le falta la tarjeta de «tu grupo»). Quien lleva un grupo de cada clase, es monitor.
+- Ante la duda, **no se quita nada**: sin ningún grupo marcado en la delegación (el filtro no
+  actúa, como en `sticpa_pl_groups`); relación sin enlace a ningún grupo (se arregla vinculando);
+  grupo de otra delegación; o solo la marca de la ficha, sin ninguna relación de monitor.
+  **El comodín «POR DEFINIR» SÍ es de fuera**: no pasa lista (no tiene delegación; se reconoce por
+  el nombre del grupo de la relación). Quien solo está ahí sigue saliendo en «Tu equipo» de
+  coordinación para vincularlo.
 - **Dos implementaciones que deben decir lo mismo**: aquí `sticpa_pl_monitor_fuera_de_pasar_lista()`
   (la web, con la marca de la ficha en `sticpa_equipo_papeles()`) y `monitorOutsideRollCall`
   en `comunicaMiddleware:src/authz/principal.ts` (la app, por `/v1/me` → `roles`). Tests:
@@ -433,7 +438,7 @@ Lo que hay ahora — **un verbo por sección**:
 | **Pasar lista** | Marcar quién ha venido. Para coordinación incluye, en su bloque del final, la **Lista de monitores** y las **Reuniones de programación**: pasar lista es pasar lista, sea de quien sea. | Equipo |
 | **Grupos y fichas** *(antes «Mis grupos»)* | Leer las fichas de los chavales, sin marcar nada. Dentro de un grupo se ve quién lo lleva. | Equipo |
 | **Coordinación** *(nueva, `single_stic_coordinacion`)* | Todo lo de coordinar en una pantalla: la reunión sin pasar (ámbar), **Lista de monitores**, **Reuniones de programación**, **Resumen de grupos** y **Tu equipo** — el directorio de monitores por etapa, con buscador, «Sin grupo» y «Vincular»; cada fila abre la ficha y sus seguimientos. | Coordinación y acompañamiento (este sin la lista ni las reuniones) |
-| **Mis datos de monitor** *(antes «Monitor/a»)* | Tu formación y certificados. Va en **Tu perfil**, junto a «Mis datos»: es dato tuyo, no herramienta del equipo. | Monitores |
+| **Monitor/a** *(antes «Mis datos de monitor», que antes fue «Monitor/a»; vuelve el 20/11/2026)* | Tu formación y certificados. Va en **Tu perfil**, junto a «Mis datos»: es dato tuyo, no herramienta del equipo. | Monitores |
 
 **Los bloques del menú** (igual en la barra, el móvil y la portada, y sin
 mezclarse): **Actividades** (Eventos, Inscripciones, Calendario, Pagos,

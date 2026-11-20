@@ -155,7 +155,8 @@ contexto**. Reglas:
 - **Monitor solo de grupos que no pasan lista = no es monitor** (decidido por el propietario el 20/11/2026):
   la relación de monitor no basta; el grupo tiene que tener la casilla `ajmcm_pasar_lista_c`. Sin campo nuevo, con la
   casilla que ya existía. **Hay dos implementaciones que deben decir lo mismo** —`sticpa_pl_monitor_fuera_de_pasar_lista()`
-  aquí y `monitorOutsideRollCall` en el middleware—; si cambias una, cambia la otra. Ante la duda no se quita nada (ver
+  aquí y `monitorOutsideRollCall` en el middleware—; si cambias una, cambia la otra. Ante la duda no se quita nada, salvo el comodín «POR DEFINIR», que
+  cuenta como de fuera. Quien pierde el papel conserva «Monitor/a» y el aviso del certificado (ver
   `docs/comunica/PASAR-LISTA-COORDINACION.md` §2).
 - **Pasar Lista lee por el middleware** (`inc/stic-middleware.php`, 29/10/2026) cuando está encendido: un cargador
   que entre en él pide su recurso con `sticpa_pl_mw()` y, si devuelve null, sigue por la API. El middleware da las
