@@ -138,8 +138,11 @@ class ViajesFamiliasFake
             }
             $out = array();
             for ($i = 1; $i <= 6; $i++) {
+                // Relativas a HOY: el listado esconde lo que ya pasó con el reloj real, y con fechas fijas
+                // (2026-11-1X) este test se rompió solo el 16/11/2026, cuando «Evento 6» dejó de ser futuro.
+                $dia = date('Y-m-d', strtotime('+' . (10 + $i) . ' days'));
                 $out[] = $self->fila(array('id' => 'e' . $i, 'name' => 'Evento ' . $i, 'type' => 'convivencia', 'status' => 'open',
-                    'start_date' => '2026-11-1' . $i . ' 10:00:00', 'end_date' => '2026-11-1' . $i . ' 18:00:00',
+                    'start_date' => $dia . ' 10:00:00', 'end_date' => $dia . ' 18:00:00',
                     'assigned_user_id' => 'deleg-castellon'));
             }
             return $out;
